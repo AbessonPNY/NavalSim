@@ -19,6 +19,15 @@ Naval.SKY_GLSL = `
     return c;
   }`;
 
+/* The eye and the sun, declared once however many patches ask for them.
+
+   Several patches are chained onto the same material and each has to stand on
+   its own, not knowing which others ran. Declaring `uniform vec3 uCam, uSun`
+   in two of them is a redefinition and the whole fragment shader fails to
+   compile, so the guard settles it whichever order they land in. */
+Naval.SUN_UNIFORMS_GLSL =
+  '#ifndef NAVAL_SUN_UNIFORMS\n#define NAVAL_SUN_UNIFORMS\nuniform vec3 uCam, uSun;\n#endif\n';
+
 /* The haze, also as one shared GLSL function.
    Everything the eye can see through air must use THIS, not a second fog model:
    the sea and the ship have to dim at the same rate or the vessel stays sharp
@@ -48,7 +57,13 @@ Naval.applyHaze = function(mat, u){
   if(!mat || mat.userData.hazed) return;
   mat.userData.hazed = true;
   mat.fog = false;
-  mat.onBeforeCompile = (shader)=>{
+  /* Chain, never replace: the sailcloth already carries its own patch, and
+     assigning over it would drop that one silently. Haze must also run LAST of
+     the chain — it is the air in front of everything else, so whatever the
+     other patches added has to be dimmed by it too. */
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (shader, renderer)=>{
+    if(prev) prev(shader, renderer);
     shader.uniforms.uCam = u.uCam;
     shader.uniforms.uSun = u.uSun;
     shader.uniforms.uZenith = u.uZenith;
@@ -61,7 +76,8 @@ Naval.applyHaze = function(mat, u){
       '#include <project_vertex>\n  vHazeW = (modelMatrix * vec4(transformed,1.0)).xyz;'
     );
 
-    const head = 'varying vec3 vHazeW;\nuniform vec3 uCam,uSun,uZenith,uHorizon;\n'
+    const head = 'varying vec3 vHazeW;\n' + Naval.SUN_UNIFORMS_GLSL
+               + 'uniform vec3 uZenith,uHorizon;\n'
                + Naval.SKY_GLSL + '\n' + Naval.HAZE_GLSL + '\n';
     const tail = '\n{ vec3 vd = normalize(vHazeW - uCam);\n'
                + '  gl_FragColor.rgb = mix(gl_FragColor.rgb,'
@@ -73,11 +89,81 @@ Naval.applyHaze = function(mat, u){
   mat.needsUpdate = true;
 };
 
+/* Sailcloth is thin, and thin cloth is lit THROUGH.
+
+   With the sun behind a sail, most of what you see never touched the front
+   face at all: it came through the weave, and the sail reads brighter than
+   anything lit from ahead, with the spars showing as dark bars against it. A
+   plain lit material cannot do that — its back face simply goes black — which
+   is why the canvas used to carry a flat emissive term just to stay readable.
+   That covered the symptom: it glowed the same at noon, at dusk and with the
+   sun dead ahead.
+
+   The lobe here is the one the sea already uses for light coming through a
+   crest: strongest when eye, cloth and sun line up, and only where the sun is
+   on the face we are NOT looking at. The normal is taken raw from the geometry
+   rather than the front-facing one, so a sail seen from either side gives the
+   same answer. */
+Naval.applySailLight = function(mat, u){
+  if(!mat || mat.userData.sailLit) return;
+  mat.userData.sailLit = true;
+
+  /* Three caches compiled programs by customProgramCacheKey, which by default
+     is the SOURCE TEXT of onBeforeCompile. Every material here is patched by
+     the same haze closure, so they all hand back the same text — the captured
+     variable that makes this one different does not appear in it. Without a key
+     of its own the canvas is served the hull's program, and none of the code
+     below ever runs: the patch is correct, composes correctly, and is silently
+     never compiled. */
+  const prevKey = mat.customProgramCacheKey.bind(mat);
+  mat.customProgramCacheKey = () => prevKey() + '|sail-translucent';
+
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (shader, renderer)=>{
+    if(prev) prev(shader, renderer);
+    shader.uniforms.uCam = u.uCam;
+    shader.uniforms.uSun = u.uSun;
+    shader.uniforms.uSunCol = u.uSunCol;
+
+    shader.vertexShader = 'varying vec3 vClothW; varying vec3 vClothN;\n'
+      + shader.vertexShader.replace('#include <project_vertex>',
+          '#include <project_vertex>\n'
+        + '  vClothW = (modelMatrix * vec4(transformed,1.0)).xyz;\n'
+        + '  vClothN = normalize(mat3(modelMatrix) * objectNormal);');
+
+    shader.fragmentShader =
+      'varying vec3 vClothW; varying vec3 vClothN;\n' + Naval.SUN_UNIFORMS_GLSL
+      + 'uniform vec3 uSunCol;\n'
+      + shader.fragmentShader.replace(/}\s*$/,
+          '\n{ vec3 E = normalize(uCam - vClothW);\n'
+        + '  vec3 N = normalize(vClothN);\n'
+        + '  // the sun has to be on the far face, whichever face we are on\n'
+        + '  float thru = max(-sign(dot(N, E)) * dot(N, uSun), 0.0);\n'
+        + '  // and we have to be looking into it\n'
+        + '  float lobe = pow(max(dot(-E, uSun), 0.0), 3.0);\n'
+        + '  gl_FragColor.rgb += uSunCol * diffuseColor.rgb * thru * lobe * 1.4;\n'
+        + '}\n}');
+  };
+  mat.needsUpdate = true;
+};
+
 Naval.Stage = class Stage {
   constructor(canvas){
     this.renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
     this.renderer.setClearColor(0x0a1a2b, 1);
+
+    /* Shadows, and deliberately NOT screen-space ambient occlusion.
+
+       SSAO wants a depth pass, which three renders with an override material.
+       The sea is displaced in her own vertex shader, so an override would draw
+       her flat: the occlusion would be wrong exactly where hull meets water,
+       which is where the eye goes first. A cast shadow needs no such pass and
+       buys more anyway — canvas darkening the deck, the hull shading its own
+       lee side. Only the vessel takes part; the sea neither casts nor receives,
+       for the same reason. */
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     this.scene = new THREE.Scene();
     // No THREE fog: sea, hull and rig all share Naval.HAZE_GLSL instead, so they
@@ -89,7 +175,17 @@ Naval.Stage = class Stage {
 
     this.sunDir = new THREE.Vector3();
     this.sun = new THREE.DirectionalLight(0xfff2dc, 2.1);
+    this.sun.castShadow = true;
+    this.sun.shadow.mapSize.set(2048, 2048);
+    /* Canvas has no thickness, so a depth bias alone either lets the light leak
+       through a sail or floats its shadow off the deck. normalBias pushes the
+       lookup along the surface normal instead, which a zero-thickness sheet
+       survives. */
+    this.sun.shadow.bias = -0.0004;
+    this.sun.shadow.normalBias = 0.6;
     this.scene.add(this.sun);
+    this.scene.add(this.sun.target);          // aimed at the vessel each frame
+    this.shadowSpan = 40;
     this.hemi = new THREE.HemisphereLight(0xbcd8ec, 0x1a3346, 0.9);
     this.scene.add(this.hemi);
     this.setSun(38, 225);            // elevation and bearing, in degrees
@@ -217,6 +313,26 @@ Naval.Stage = class Stage {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w/h;
     this.camera.updateProjectionMatrix();
+  }
+
+  /* Size the shadow box to the vessel. It must clear her trucks as well as her
+     length — a frigate's mainmast stands higher above the water than she is
+     broad — so the span is taken off her length and squared up. */
+  frameVessel(L){
+    this.shadowSpan = L*0.95;
+    const c = this.sun.shadow.camera;
+    c.left = -this.shadowSpan; c.right = this.shadowSpan;
+    c.top  =  this.shadowSpan; c.bottom = -this.shadowSpan;
+    c.near = 1; c.far = L*8;
+    c.updateProjectionMatrix();
+  }
+
+  /* Walk the sun along with her. A directional light's shadow only covers the
+     box around its own position, and she sails out of a box left at the origin
+     within a minute — her shadows would simply stop. */
+  aimSun(shipPos){
+    this.sun.target.position.copy(shipPos);
+    this.sun.position.copy(this.sunDir).multiplyScalar(this.shadowSpan*3).add(shipPos);
   }
 
   render(){ this.renderer.render(this.scene, this.camera); }

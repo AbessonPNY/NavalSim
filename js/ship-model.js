@@ -28,11 +28,15 @@ Naval.ShipModel = class ShipModel {
       timber: new THREE.MeshStandardMaterial({color:hex(A.timber), roughness:0.75}),
       spar:   new THREE.MeshStandardMaterial({color:hex(A.spar), roughness:0.62}),
       house:  new THREE.MeshStandardMaterial({color:hex(A.house), roughness:0.7}),
-      // Sailcloth is thin and translucent: backlit canvas glows rather than
-      // going black, so it carries a little emissive of its own.
+      /* Sailcloth is thin and translucent. The directional part of that is
+         Naval.applySailLight, applied in applyAtmosphere; what stays here is a
+         faint emissive for the light the sky sends through the weave from every
+         quarter at once, which no single lobe accounts for. It used to carry
+         this term alone, at four times the strength, standing in for the whole
+         effect — the sail then glowed identically whatever the sun did. */
       canvas: new THREE.MeshStandardMaterial({
         color:hex(A.canvas), roughness:0.95, side:THREE.DoubleSide,
-        emissive:0x8d866f, emissiveIntensity:0.5})
+        emissive:0x8d866f, emissiveIntensity:0.12})
     };
 
     this.procedural = new THREE.Group();     // everything we build ourselves
@@ -96,21 +100,82 @@ Naval.ShipModel = class ShipModel {
     }
   }
 
-  _sailMesh(points){
-    const g=new THREE.BufferGeometry();
-    const v=[]; for(const p of points) v.push(p.x,p.y,p.z);
-    g.setAttribute('position', new THREE.Float32BufferAttribute(v,3));
-    g.setIndex(points.length===4?[0,1,2, 0,2,3]:[0,1,2]);
+  /* One sail, as a surface rather than a sheet.
+
+     A flat quad reads as sheet metal however it is lit, because its normal is
+     constant: one flat shade over the whole cloth, and nowhere for the light to
+     turn. So a sail is built as a grid across its four corners and pushed out
+     along its own normal by sin(πu)·sin(πv) — nil along every edge, canvas
+     being bent to its spars and hauled down at its clews, and fullest in the
+     middle where nothing holds it.
+
+     Corners come in cyclic order, as the flat quads took them, so a
+     three-cornered sail just repeats its last corner and the grid closes along
+     that edge. No depth is baked in here: setSailShape sets it every frame. */
+  _sailSurface(corners, dir, nu, nv){
+    nu = nu || 8; nv = nv || 6;
+    const c00=corners[0], c10=corners[1], c11=corners[2], c01=corners[3] || corners[2];
+    const pos=[], w=[], us=[], idx=[];
+    const a=new THREE.Vector3(), b=new THREE.Vector3(), p=new THREE.Vector3();
+    for(let j=0;j<=nv;j++){
+      const v = j/nv;
+      a.lerpVectors(c00, c01, v);                 // down one leech
+      b.lerpVectors(c10, c11, v);                 // down the other
+      for(let i=0;i<=nu;i++){
+        const u = i/nu;
+        p.lerpVectors(a, b, u);
+        pos.push(p.x, p.y, p.z);
+        w.push(Math.sin(Math.PI*u)*Math.sin(Math.PI*v));
+        us.push(u);
+      }
+    }
+    for(let j=0;j<nv;j++) for(let i=0;i<nu;i++){
+      const k = j*(nu+1)+i;
+      idx.push(k, k+nu+1, k+nu+2,  k, k+nu+2, k+1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+    g.setIndex(idx);
     g.computeVertexNormals();
     const mesh = new THREE.Mesh(g, this.mats.canvas);
+    mesh.userData.sail = { base:Float32Array.from(pos), w:Float32Array.from(w),
+                           u:Float32Array.from(us), dir:dir.clone().normalize() };
     this.canvases.push(mesh);
     return mesh;
+  }
+
+  /* Fill the canvas, or empty it.
+
+     The depth is the pressure the cloth is under, which the solver already
+     works out in order to push her along — so she fills as she is trimmed and
+     goes slack the moment the sheets are started, with no second rule to keep
+     in step with the first. A luffing sail holds almost none of it and shivers
+     instead, the shake running from luff to leech as it does on the water. */
+  setSailShape(load, luffing, t){
+    const full = this.spec.rig.belly || 0.8;
+    const press = Math.min(1, Math.max(0, load/35));   // Pa — a fresh breeze fills her
+    const depth = luffing ? full*0.12 : full*press;
+    for(const m of this.canvases){
+      const s = m.userData.sail;
+      if(!s) continue;
+      const attr = m.geometry.attributes.position, arr = attr.array;
+      const base = s.base, w = s.w, u = s.u, d = s.dir;
+      for(let k=0, n=w.length; k<n; k++){
+        const i3 = k*3;
+        const f = w[k]*(depth + (luffing ? full*0.22*Math.sin(u[k]*7 - t*9) : 0));
+        arr[i3  ] = base[i3  ] + d.x*f;
+        arr[i3+1] = base[i3+1] + d.y*f;
+        arr[i3+2] = base[i3+2] + d.z*f;
+      }
+      attr.needsUpdate = true;
+      m.geometry.computeVertexNormals();        // the shading is the whole point
+    }
   }
 
   /* Gaff sail on a swinging boom. The group pivots on the mast, so sheeting in
      or out turns the boom and its canvas together. */
   _gaffRig(m, sc){
-    const spec = this.spec, belly = spec.rig.belly;
+    const spec = this.spec;
     const V = (x,y,z)=>new THREE.Vector3(x,y,z);
     const tackY = spec.deckMid + m.tackAbove;
     const rig = new THREE.Group();
@@ -120,12 +185,13 @@ Naval.ShipModel = class ShipModel {
     boom.rotation.x = Math.PI/2;
     boom.position.set(0, tackY, -m.boom*0.45);
     rig.add(boom);
-    rig.add(this._sailMesh([
+    // Cut flat, on the centreline; the belly comes from setSailShape, to leeward.
+    rig.add(this._sailSurface([
       V(0, tackY+0.05, -0.2*sc),
-      V(belly, tackY, -m.boom*0.93),
-      V(belly*0.8, spec.deckMid+m.height-1.0*sc, -m.boom*0.70),
+      V(0, tackY, -m.boom*0.93),
+      V(0, spec.deckMid+m.height-1.0*sc, -m.boom*0.70),
       V(0, spec.deckMid+m.height-0.6*sc, -0.2*sc)
-    ]));
+    ], new THREE.Vector3(1,0,0)));
     this.procedural.add(rig);
     return rig;
   }
@@ -134,7 +200,7 @@ Naval.ShipModel = class ShipModel {
      The whole group braces round as one, which is how a square-rigger is
      trimmed — you brace the yards, you do not ease a boom. */
   _squareRig(m, sc){
-    const spec = this.spec, belly = spec.rig.belly;
+    const spec = this.spec;
     const rig = new THREE.Group();
     rig.position.set(0, 0, m.z);
     const halfSpan = spec.B * m.yardSpan * 0.5;
@@ -152,20 +218,14 @@ Naval.ShipModel = class ShipModel {
       yard.position.set(0, y, 0);
       rig.add(yard);
 
-      // the sail hangs below its yard, bellying to leeward
-      const g = new THREE.BufferGeometry();
-      const v = [
-        -span, y,        0,
-         span, y,        0,
-         span*0.86, y-drop, belly,
-        -span*0.86, y-drop, belly
-      ];
-      g.setAttribute('position', new THREE.Float32BufferAttribute(v,3));
-      g.setIndex([0,1,2, 0,2,3]);
-      g.computeVertexNormals();
-      const sail = new THREE.Mesh(g, this.mats.canvas);
-      this.canvases.push(sail);
-      rig.add(sail);
+      // the sail hangs below its yard; setSailShape bellies it forward
+      const V = (x,yy,z)=>new THREE.Vector3(x,yy,z);
+      rig.add(this._sailSurface([
+        V(-span,      y,      0),
+        V( span,      y,      0),
+        V( span*0.86, y-drop, 0),
+        V(-span*0.86, y-drop, 0)
+      ], new THREE.Vector3(0,0,1)));
     }
     this.procedural.add(rig);
     return rig;
@@ -173,17 +233,17 @@ Naval.ShipModel = class ShipModel {
 
   // Jib, set flying — pivots on the forestay at the stem.
   _jibRig(){
-    const spec = this.spec, L = this.lines, j = spec.rig.jib, belly = spec.rig.belly;
+    const spec = this.spec, L = this.lines, j = spec.rig.jib;
     const V = (x,y,z)=>new THREE.Vector3(x,y,z);
     const rig = new THREE.Group();
     rig.position.set(0, 0, spec.L/2);
     const fore = spec.masts[0];
     const back = fore.z - spec.L/2;              // foremost mast, in this frame
-    rig.add(this._sailMesh([
+    rig.add(this._sailSurface([
       V(0, L.deckY(1)+j.tackAbove, spec.jibFootZ),
-      V(belly*0.7, spec.deckMid+j.clewAbove, back+0.6),
+      V(0, spec.deckMid+j.clewAbove, back+0.6),
       V(0, spec.deckMid+fore.height-j.headDrop, back+0.15)
-    ]));
+    ], new THREE.Vector3(1,0,0)));
     this.procedural.add(rig);
     return rig;
   }
@@ -324,7 +384,7 @@ Naval.ShipModel = class ShipModel {
      bracing swings spar and cloth as one piece. Turning the canvas alone would
      slide it off its own yard. */
   _rigModel(){
-    const spec = this.spec, belly = spec.rig.belly || 0.8;
+    const spec = this.spec;
     if(!(spec.sailArea > 0)) return;         // she is not meant to carry canvas
 
     const parts = this._modelParts();
@@ -378,19 +438,13 @@ Naval.ShipModel = class ShipModel {
                               yy - deckAt(y.mid.z) - 0.02*spec.L);
         if(drop < 0.2*half) continue;   // too near the deck to be a yard at all
 
-        const g = new THREE.BufferGeometry();
-        g.setAttribute('position', new THREE.Float32BufferAttribute([
-          -half,      yy,      dz,
-           half,      yy,      dz,
-           half*0.86, yy-drop, dz+belly,
-          -half*0.86, yy-drop, dz+belly
-        ], 3));
-        g.setIndex([0,1,2, 0,2,3]);
-        g.computeVertexNormals();
-
-        const sail = new THREE.Mesh(g, this.mats.canvas);
-        this.canvases.push(sail);
-        pivot.add(sail);
+        const V = (x,ay,z)=>new THREE.Vector3(x,ay,z);
+        pivot.add(this._sailSurface([
+          V(-half,      yy,      dz),
+          V( half,      yy,      dz),
+          V( half*0.86, yy-drop, dz),
+          V(-half*0.86, yy-drop, dz)
+        ], new THREE.Vector3(0,0,1)));
       }
       this.rigs.push(pivot);
     }
@@ -424,6 +478,8 @@ Naval.ShipModel = class ShipModel {
      glTF model is adopted too, so an imported hull fades with the rest instead
      of hanging sharp in the haze. */
   applyAtmosphere(oceanUniforms){
+    // Before the haze, which chains onto it and must dim it in its turn.
+    Naval.applySailLight(this.mats.canvas, oceanUniforms);
     const patch = obj => {
       if(!obj.material) return;
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
@@ -433,12 +489,109 @@ Naval.ShipModel = class ShipModel {
     if(this.wake) patch(this.wake);
   }
 
+  /* Her half breadths along the waterline, stern to stem, as fractions of the
+     greatest one — what the sea needs to foam along the real plating instead of
+     around an ellipse.
+
+     A model is measured off its own hull mesh, since that is the shape the eye
+     actually sees; a procedural vessel is read from hull-lines.js, the one plan
+     of forms. Reading a model from hull-lines would foam around a ship that is
+     not the one drawn.
+
+     The band runs from just under the waterline to the top of her wale, not
+     from the waterline alone. What has to be traced is the line the EYE sees
+     her make in the water, and a flared hull stands over her own waterline: on
+     the Roter Löwe the difference is 6.35 m against 7.7, so an outline taken at
+     the waterline exactly is drawn underneath her own topsides and vanishes.
+     Her full beam higher up would be no better — that stands clear of the sea
+     altogether. */
+  hullProfile(n, waterlineY){
+    n = n || 64;
+    const halfLen = this.spec.L*0.5;
+    const out = new Float32Array(n);
+
+    if(this.modelRoot){
+      const parts = this._modelParts();
+      let hull = parts[0], best = -1;
+      for(const p of parts){
+        const v = p.size.x*p.size.y*p.size.z;
+        if(v > best){ best = v; hull = p; }
+      }
+      const lo = waterlineY - 0.02*this.spec.L, hi = waterlineY + 0.06*this.spec.L;
+      const pos = hull.geom.attributes.position;
+      for(let i=0;i<pos.count;i++){
+        const y = pos.getY(i);
+        if(y < lo || y > hi) continue;
+        const b = Math.min(n-1, Math.max(0,
+                    Math.floor((pos.getZ(i) + halfLen)/(2*halfLen)*n)));
+        const x = Math.abs(pos.getX(i));
+        if(x > out[b]) out[b] = x;
+      }
+      for(const p of parts) p.geom.dispose();
+
+      // Stations the band missed are bridged between the nearest measured
+      // neighbours, read off a copy so a filled station never seeds the next.
+      const raw = Float32Array.from(out);
+      for(let i=0;i<n;i++){
+        if(raw[i] > 0) continue;
+        let j = i-1; while(j >= 0 && raw[j] === 0) j--;
+        let k = i+1; while(k < n  && raw[k] === 0) k++;
+        if(j < 0 && k >= n) continue;
+        if(j < 0)       out[i] = raw[k]*(i+1)/(k+1);          // taper in from her end
+        else if(k >= n) out[i] = raw[j]*(n-i)/(n-j);
+        else            out[i] = raw[j] + (raw[k]-raw[j])*(i-j)/(k-j);
+      }
+    }else{
+      for(let i=0;i<n;i++) out[i] = this.lines.halfB((i + 0.5)/n);
+    }
+
+    /* Fair the line. A .glb hull carries only a few hundred vertices, so spread
+       over sixty-four stations most receive one or two and the greatest-x rule
+       returns them in facets — which is exactly the sawtooth collar. Three
+       passes of a 1-2-1 kernel take that out and leave the run of the plating
+       alone. The end stations are pinned so she keeps her points. */
+    for(let pass=0; pass<3; pass++){
+      const prev = Float32Array.from(out);
+      for(let i=1;i<n-1;i++) out[i] = (prev[i-1] + 2*prev[i] + prev[i+1])*0.25;
+    }
+
+    let max = 0;
+    for(let i=0;i<n;i++) if(out[i] > max) max = out[i];
+    if(max <= 1e-4){                       // nothing measurable — fall back square
+      out.fill(1);
+      return { fractions:out, maxHalfB:this.spec.B*0.5, halfLen,
+               ends:{ aft:-halfLen, fwd:halfLen } };
+    }
+    for(let i=0;i<n;i++) out[i] /= max;
+
+    // Where her waterline body actually begins and ends, so the sea does not
+    // trace an outline out to her length overall where she has already finished.
+    let aft = 0, fwd = n-1;
+    while(aft < n-1 && out[aft] < 0.12) aft++;
+    while(fwd > 0   && out[fwd] < 0.12) fwd--;
+    const stationZ = i => -halfLen + ((i + 0.5)/n)*2*halfLen;
+    const ends = (fwd > aft) ? { aft:stationZ(aft), fwd:stationZ(fwd) }
+                             : { aft:-halfLen, fwd:halfLen };
+    return { fractions:out, maxHalfB:max, halfLen, ends };
+  }
+
+  /* Let her cast and take her own shadows. This is where the relief in the
+     image comes from: canvas darkening the deck beneath it, the hull shading
+     its own lee side, one mast striping the sail behind it. */
+  enableShadows(){
+    this.group.traverse(o => {
+      if(!o.isMesh) return;
+      o.castShadow = true;
+      o.receiveShadow = true;
+    });
+  }
+
   syncTo(body){
     this.group.position.copy(body.pos);
     this.group.quaternion.copy(body.quat);
   }
 
-  setTrim(sheet, tack, sailsSet, luffing, t){
+  setTrim(sheet, tack, sailsSet, luffing, t, load){
     if(!this.rigs.length) return;          // no canvas to trim
     const shake = luffing ? Math.sin(t*11)*0.10 : 0;
     const angle = tack * sheet + shake;
@@ -450,6 +603,8 @@ Naval.ShipModel = class ShipModel {
     for(const rig of this.rigs){
       rig.rotation.y = (rig===this.jibRig ? angle*0.75 : angle);
     }
+    // furled canvas is hidden, so there is nothing to reshape
+    if(sailsSet) this.setSailShape(load || 0, luffing, t);
   }
 
   updateWake(body, ocean, t){

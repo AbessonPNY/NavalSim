@@ -61,6 +61,8 @@ Naval.FoamField = class FoamField {
       uShipPos: oceanUniforms.uShipPos,
       uShipFwd: oceanUniforms.uShipFwd,
       uShipHalf: oceanUniforms.uShipHalf,
+      uHullProf: oceanUniforms.uHullProf,
+      uHullEnds: oceanUniforms.uHullEnds,
       uShipSpeed: oceanUniforms.uShipSpeed,
     };
 
@@ -78,6 +80,7 @@ Naval.FoamField = class FoamField {
         uniform vec3 uShipPos;
         uniform vec4 uWaveA[NW]; uniform vec2 uWaveB[NW];
         varying vec2 vUv;
+        ${Naval.HULL_GLSL}
 
         void main(){
           vec2 wpos = uOrigin + vUv*uSize;      // world XZ of this texel
@@ -110,19 +113,27 @@ Naval.FoamField = class FoamField {
           vec2 rel = wpos - uShipPos.xz;
           vec2 f2 = normalize(uShipFwd);
           vec2 r2 = vec2(f2.y, -f2.x);
-          vec2 loc = vec2(dot(rel,r2)/max(uShipHalf.y,0.01),
-                          dot(rel,f2)/max(uShipHalf.x,0.01));
-          float ed = length(loc);
+          float tAlong;
+          float gapM = hullGap(rel, f2, r2, tAlong);   // metres to her real waterline
           float way = clamp(uShipSpeed/3.0, 0.0, 1.0);
           /* A ring ON her waterline, not a disc filling her whole footprint —
              and it needs way to appear. A vessel lying stopped disturbs almost
              nothing; filling the hull outline regardless left her sitting in a
              permanent white pool. */
-          // gap to the waterline in metres, so the ring keeps one thickness all
-          // the way round instead of ballooning at bow and stern
-          float gapM = length(rel) * (1.0 - 1.0/max(ed, 1e-3));
-          float band = 1.0 - smoothstep(0.0, 1.1 + 3.2*way, abs(gapM));
-          float hull = band * (0.06 + 1.0*way);
+          /* Wider inboard than out, so the ring dies away gently under her
+             plating instead of ending on a line. */
+          float width = mix(2.2, 1.1 + 3.2*way, step(0.0, gapM));
+          float band = 1.0 - smoothstep(0.0, width, abs(gapM));
+
+          /* The bow wings again, laid into the field this time rather than
+             drawn on the sea: that is what leaves the V astern of her once she
+             has passed, instead of a wave welded to the stem. */
+          float fast   = clamp(uShipSpeed/6.0, 0.0, 1.0);
+          float sAft   = max(uHullEnds.y - tAlong*uShipHalf.x, 0.0);
+          float spread = 1.7*sqrt(sAft)*fast;
+          float wing   = exp(-pow((gapM - spread)/(1.0 + 1.2*fast), 2.0)) * fast;
+
+          float hull = max(band * (0.06 + 1.0*way), wing*0.85);
 
           // deposit, never accumulate past saturation
           gl_FragColor = vec4(clamp(max(prev, max(breaking, hull)), 0.0, 1.0), 0.0, 0.0, 1.0);

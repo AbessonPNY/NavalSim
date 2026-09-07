@@ -134,6 +134,25 @@ la console (`physics.step(dt, ocean, ctrl, t)` en boucle, `t` avancé soi-même)
 ce qui donne en prime des mesures reproductibles à pas fixe. Une capture d'écran
 force quelques images au passage, ce qui suffit à rafraîchir la télémétrie.
 
+Corollaire pour le **rendu** : la boucle gelée ne met plus à jour les uniformes
+qu'elle alimente. Déplacer `stage.camera` à la main puis appeler `stage.render()`
+laisse `ocean.uniforms.uCam` sur la position de la dernière vraie image, et tout
+ce qui dépend du regard — brume, scintillement, translucidité de la toile — est
+calculé depuis un œil qui n'est plus là. J'ai cru une heure durant que le shader
+de voile était mort alors que seul le banc de mesure l'était. Recopier `uCam`
+soi-même après avoir bougé la caméra.
+
+Autre piège de mesure : `read_console_messages` conserve le tampon **d'un
+chargement à l'autre**. Une erreur de shader déjà corrigée continue de s'afficher
+après rechargement, aux mêmes numéros de ligne, et fait croire à une panne qui
+n'existe plus. Ne pas conclure sur la console seule — vérifier que le correctif
+est bien servi (le serveur de dev laisse le navigateur mettre les `.js` en
+cache ; `fetch(url, {cache:'reload'})` avant de recharger règle la question).
+À l'inverse, pour retrouver l'erreur *courante* sous une pile de vieilles, la
+filtrer par motif sur un identifiant du code fraîchement écrit : c'est ce qui a
+fait sortir le `half` réservé après plusieurs minutes passées à suspecter le
+mauvais fichier.
+
 **Shaders.** Un `ShaderMaterial` avec `fog: true` doit fusionner
 `THREE.UniformsLib.fog`, sinon le rendu lève une erreur sur `fogColor.value`. Et
 un `#define N` écrase l'identifiant `N` jusque dans le fragment shader.
@@ -191,6 +210,112 @@ La largeur, elle, n'est pas ajustée : elle suit les proportions propres du
 modèle. La Roter Löwe fait 15,6 m au maître-bau pour 14,5 m annoncés, donc le
 collier passe un demi-mètre en dedans du bordé. Corriger cela demanderait une
 mise à l'échelle non uniforme, qui déformerait la carène.
+
+**Les voiles sont des surfaces, pas des feuilles.** Un quadrilatère plat a une
+normale constante : une seule teinte sur toute la toile, et nulle part où la
+lumière tourne — ça lit comme du carton, quel que soit l'éclairage.
+`_sailSurface()` construit une grille sur les quatre coins et la pousse le long
+de sa normale selon `sin(πu)·sin(πv)` — nul sur tous les bords, la toile étant
+enverguée et bordée à ses points, maximal au milieu. Le creux n'est pas figé
+dans la géométrie : `setSailShape()` le règle à chaque image sur `sailLoad`, la
+pression que le solveur calcule **déjà** pour propulser le navire. La voile se
+gonfle donc en se bordant et se vide dès qu'on choque, sans seconde règle à
+tenir en accord avec la première. Le champ `belly` d'une fiche est le creux en
+mètres à pleine charge (3,3 m sur la Roter Löwe, soit 16 % de la largeur des
+basses voiles).
+
+**Ombres portées, et surtout pas de SSAO.** Le SSAO réclame une passe de
+profondeur, que three rend avec un matériau de substitution. Or la mer est
+déplacée dans son propre vertex shader : la substitution la dessinerait plate,
+et l'occlusion serait fausse exactement au contact coque/eau, là où l'œil va
+d'abord. Une ombre portée n'exige aucune passe de ce genre et donne davantage :
+la toile qui assombrit le pont, la coque qui ombre son propre côté sous le vent,
+un mât qui raye la voile derrière lui. Seul le navire y participe — la mer ne
+projette ni ne reçoit, pour la même raison. La boîte d'ombre suit le navire
+(`aimSun`) : laissée à l'origine, il en sort en une minute et ses ombres
+s'arrêtent net. Et `shadow.normalBias` compte plus que `bias` ici, la toile
+étant d'épaisseur nulle.
+
+**L'écume suit l'empreinte réelle, plus une ellipse.** `Naval.HULL_GLSL` est
+partagé par la mer et la passe d'écume, pour qu'elles ne dessinent jamais deux
+navires différents. Il rend une distance **signée, en mètres**, à la vraie
+flottaison : demi-largeurs relevées station par station sur le navire lui-même
+(son propre maillage si c'est un modèle, `hull-lines.js` s'il est procédural),
+portées dans une texture d'une seule ligne, puis distance par la formule de la
+boîte. L'ellipse `spec.L × spec.B` passait jusqu'à 2 m en dedans du bordé sur la
+moitié de la longueur, et 3,8 m au tableau arrière, où elle s'est effilée en
+pointe alors que la coque fait encore près de quatre mètres.
+
+Trois détails qui ont chacun coûté un aller-retour :
+
+- **La bande de mesure va de sous la flottaison au haut de la préceinte**, pas à
+  la flottaison seule. Il faut tracer la ligne que l'**œil** lui voit faire dans
+  l'eau : une coque évasée surplombe sa propre flottaison — 6,35 m contre 7,7
+  sur la Roter Löwe — et un contour pris à la flottaison exacte se dessine sous
+  ses propres œuvres mortes, où il devient invisible.
+- **Le profil doit être fairé.** Une coque .glb ne porte que quelques centaines
+  de sommets : répartis sur soixante-quatre stations, la plupart n'en reçoivent
+  qu'un ou deux et le maximum par station ressort en facettes — un collier en
+  dents de scie. Trois passes d'un noyau 1-2-1 suffisent.
+- **La carène se borne sur son corps de flottaison** (`uHullEnds`), pas sur la
+  demi-longueur hors-tout : l'étrave s'élance au-dessus, la voûte surplombe. Pris
+  à `spec.L/2`, il restait un filet d'écume filant devant l'étrave, là où le
+  profil s'était déjà annulé.
+
+**Le collier s'éteint vers l'intérieur, la gerbe vers l'arrière.** Deux règles
+distinctes, et il ne faut pas les confondre. Le collier se fond *sous* le bordé
+(`smoothstep(-1.3, -0.1, gapM)` plutôt qu'un `step`) : l'écume s'accumule contre
+la coque et s'épuise dessous, alors qu'un bord interne net se lit comme un
+autocollant posé sur l'eau. La gerbe d'étrave, elle, n'est pas une bande sur la
+moitié avant mais une moustache au brion et deux ailes balayant vers l'arrière,
+dont la crête s'écarte comme la **racine carrée** de la distance en arrière de
+l'étrave — c'est ce qui lui donne son aile parabolique au lieu d'un bord droit.
+Elle exige de l'erre, et sa rampe `fast` sature à deux fois la vitesse de `way` :
+la gerbe continue donc de grossir quand le collier a fini de croître, ce qui fait
+la différence entre un navire poussé et un navire simplement à flot. Les ailes
+sont déposées **aussi** dans le champ d'écume, sinon le V resterait soudé à
+l'étrave au lieu de rester dans l'eau derrière elle.
+
+**`half` est un mot réservé en GLSL.** L'utiliser comme nom de variable ne fait
+pas échouer un seul terme : **tout** le fragment shader refuse de compiler, la
+mer disparaît et on voit le dôme de ciel à sa place. `node --check` ne peut rien
+y voir, le shader n'étant qu'une chaîne de caractères pour lui.
+
+**La toile est éclairée à travers.** Le soleil derrière une voile, l'essentiel
+de ce qu'on voit n'a jamais touché la face avant : c'est passé par le tissage, et
+la voile est plus claire que tout ce qui est éclairé de face, vergues en barres
+sombres dessus. Un matériau ordinaire ne sait pas faire ça — sa face arrière
+devient noire. `Naval.applySailLight` ajoute le lobe transmis, le même que la
+mer utilise pour la lumière traversant une crête (`uSSS`) : maximal quand œil,
+toile et soleil sont alignés, et seulement là où le soleil est sur la face qu'on
+**ne** regarde pas. La normale est prise brute sur la géométrie, pas la normale
+retournée vers l'observateur, pour que les deux faces répondent pareil. Mesuré à
+contre-jour contre plein feu : 237 contre 168 de luminance, et 93 à 60° du plan,
+la transmission retombant bien avec l'angle.
+
+**Les patches de matériau se chaînent, ils ne s'écrasent pas.** `applyHaze` et
+`applySailLight` s'appliquent au même matériau. Chacun conserve le
+`onBeforeCompile` précédent et l'appelle en premier ; la brume doit passer en
+**dernier**, étant l'air devant tout le reste. Deux conséquences pénibles :
+
+- Chacun doit pouvoir déclarer `uCam` et `uSun` sans savoir si l'autre l'a fait.
+  Deux déclarations sont une redéfinition et **tout** le fragment shader échoue.
+  D'où `Naval.SUN_UNIFORMS_GLSL`, sous garde de préprocesseur.
+- Three met les programmes en cache sous `customProgramCacheKey()`, qui vaut par
+  défaut le **texte source** de `onBeforeCompile`. Le texte de la fermeture de
+  brume est identique pour tous les matériaux — la variable capturée qui les
+  distingue n'y apparaît pas. Sans clé propre, la voile reçoit le programme de
+  la coque et son code n'est jamais compilé : le patch est correct, se compose
+  correctement, et ne s'exécute jamais, sans le moindre message. `applySailLight`
+  ajoute donc `|sail-translucent` à la clé.
+
+**Textures PBR.** Elles fonctionnent, et la Roter Löwe s'en sert déjà : son
+matériau `hull` porte un `baseColorTexture` et ses maillages un `TEXCOORD_0`.
+La condition est que l'image vive **dans** le `.glb` : le build en emporte les
+octets en base64 et `GLTFLoader.parse()` lit tout depuis la mémoire. Une texture
+en fichier image séparé ne marchera jamais — la politique de sécurité bloque le
+`fetch` d'un fichier local, et le build n'embarque que les `.glb`. `normalMap`,
+`roughnessMap` et `metalnessMap` passent par le même chemin.
 
 **Réglage des voiles.** Le modèle ne donne aucun retour lisible : à 45° de vent
 apparent, des écoutes à 40° ne laissent que 5° d'incidence, donc `CL` s'effondre

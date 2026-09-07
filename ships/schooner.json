@@ -45,7 +45,7 @@
     "ceHeight": 7.6,
     "ceZ": -0.8,
     "maxSheet": 1.48,
-    "belly": 0.55,
+    "belly": 1.65,
     "masts": [
       { "zFrac": 0.15,  "height": 13.5, "boom": 6.0, "tackAbove": 1.5 },
       { "zFrac": -0.16, "height": 15.5, "boom": 7.5, "tackAbove": 1.6 }

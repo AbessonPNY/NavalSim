@@ -14,6 +14,65 @@
      · far away, wave detail must be flattened or it aliases into shimmer. */
 window.Naval = window.Naval || {};
 
+/* Where the hull actually meets the water, shared by the sea and the foam pass
+   so the two can never draw a different ship.
+
+   This used to be an ELLIPSE of spec.L × spec.B, and no hull is an ellipse. On
+   the Roter Löwe the collar ran a metre and a half inside her planking over
+   half her length, and nearly four metres adrift at her transom — where the
+   ellipse has tapered to a point and she is still 3.8 m across. The
+   half-breadths now come from the vessel herself: off her own mesh if she is a
+   model, off hull-lines.js if she is procedural, sampled into a one-row texture.
+
+   What comes back is a signed distance in METRES to that outline, by the usual
+   box formula. Metres, not normalised units — a band of constant normalised
+   width is thin abeam and metres thick off the stem, which is exactly what used
+   to bloat the collar at her ends. Negative inside, positive outside, so one
+   number serves both the collar and the gates that used to test `ed`. */
+Naval.HULL_GLSL = `
+  uniform sampler2D uHullProf;   // half breadth per station, as a fraction of uShipHalf.y
+  uniform vec2 uHullEnds;        // where her waterline body starts and ends, in metres
+  // uShipHalf = (half length overall, greatest half breadth), both in metres
+  float hullGap(vec2 rel, vec2 f2, vec2 r2, out float tAlong){
+    float along   = dot(rel, f2);
+    float athwart = dot(rel, r2);
+    float halfL   = max(uShipHalf.x, 0.01);
+    tAlong = along / halfL;                        // -1 astern .. +1 at the stem
+    float halfB = texture2D(uHullProf, vec2(clamp(tAlong*0.5 + 0.5, 0.0, 1.0), 0.5)).r
+                  * uShipHalf.y;
+    /* Bound the body on its OWN ends, not on her length overall. Her waterline
+       is shorter than she is — the stem rakes out above it, the counter
+       overhangs it — so measuring the ends at half her length left a hairline
+       of foam running on past the stem where the profile had already tapered to
+       nothing. Taken about the middle of the body, so a fine bow and a full run
+       are handled without assuming she is symmetrical. */
+    float mid  = (uHullEnds.x + uHullEnds.y)*0.5;
+    float halfBody = max((uHullEnds.y - uHullEnds.x)*0.5, 0.01);  // NOT 'half': reserved in GLSL
+    vec2 d = vec2(abs(athwart) - halfB, abs(along - mid) - halfBody);
+    return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
+  }`;
+
+/* Half breadths, from stern to stem, as a one-row texture. Values are given as
+   fractions of the greatest half breadth. RGBA rather than a single-channel
+   format because RedFormat needs WebGL2 and this has to work wherever the rest
+   of the page does; sixty-four texels cost 256 bytes. Linear filtering does the
+   interpolation between stations for free. */
+Naval.makeHullProfileTexture = function(fractions){
+  const n = fractions.length;
+  const data = new Uint8Array(n*4);
+  for(let i=0;i<n;i++){
+    const v = Math.max(0, Math.min(255, Math.round(fractions[i]*255)));
+    data[i*4] = data[i*4+1] = data[i*4+2] = v;
+    data[i*4+3] = 255;
+  }
+  const tex = new THREE.DataTexture(data, n, 1, THREE.RGBAFormat);
+  tex.minFilter = tex.magFilter = THREE.LinearFilter;
+  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.generateMipmaps = false;
+  tex.needsUpdate = true;
+  return tex;
+};
+
 Naval.Ocean = class Ocean {
   constructor(scene, sunDir, stage){
     const C = Naval.Config;
@@ -38,6 +97,7 @@ Naval.Ocean = class Ocean {
         uWaveA:{value:Array.from({length:C.NWAVES},()=>new THREE.Vector4())}, // dx,dz,amp,k
         uWaveB:{value:Array.from({length:C.NWAVES},()=>new THREE.Vector2())}, // omega,Q
         uSun:{value:sunDir.clone()},
+        uSunCol:{value:new THREE.Color(0xfff2dc)},  // the sail's transmitted light follows it
         uCam:{value:new THREE.Vector3()},
         uHalf:{value:half},
         uSeg:{value:C.OCEAN_SEG},
@@ -56,6 +116,10 @@ Naval.Ocean = class Ocean {
         uShipPos:{value:new THREE.Vector3(0,0,0)},
         uShipFwd:{value:new THREE.Vector2(0,1)},
         uShipHalf:{value:new THREE.Vector2(12,3)},
+        // one row of half breadths; a flat 1.0 until a vessel supplies her own,
+        // which reads as a plain rectangle rather than as nothing at all
+        uHullProf:{value:Naval.makeHullProfileTexture(new Float32Array([1]))},
+        uHullEnds:{value:new THREE.Vector2(-12, 12)},
         uShipSpeed:{value:0},
         // planar reflection of the world above the water
         uReflTex:{value:null},
@@ -170,6 +234,7 @@ Naval.Ocean = class Ocean {
         varying vec4 vRefl; varying float vSpacing;
         ${Naval.SKY_GLSL}
         ${Naval.HAZE_GLSL}
+        ${Naval.HULL_GLSL}
 
         // cheap value noise, for foam that breaks up instead of banding
         float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
@@ -290,29 +355,44 @@ Naval.Ocean = class Ocean {
           float fn = fbm(vW.xz*0.55 + uTime*0.05);
           float crestFoam = clamp(vFoam * (0.35 + 1.1*fn), 0.0, 1.0);
 
-          /* Foam where the hull cuts the water. Work in ship-local coordinates
-             and measure an elliptical distance to her waterline: a bright collar
-             right at the plating, then a broader band that only appears once she
-             has way on, and a tail dragged astern. */
+          /* Foam where the hull cuts the water: a bright collar right at the
+             plating, then a broader band that only shows once she has way on.
+             hullGap gives the distance to her REAL waterline, in metres —
+             negative inside her, positive outside. */
           vec2 rel = vW.xz - uShipPos.xz;
           vec2 f2 = normalize(uShipFwd);
           vec2 r2 = vec2(f2.y, -f2.x);
-          vec2 loc = vec2(dot(rel, r2)/uShipHalf.y, dot(rel, f2)/uShipHalf.x);
-          float ed = length(loc);                        // 1.0 = on the waterline
+          float tAlong;
+          float gapM = hullGap(rel, f2, r2, tAlong);
           float way = clamp(uShipSpeed/3.0, 0.0, 1.0);
 
           /* Only the crisp collar and bow wave stay instantaneous — they belong
              to the hull and must move with her. The lingering trail astern now
              comes from the foam field, which leaves it in the water. */
-          /* Measure the gap to the waterline in METRES, not in the normalised
-             elliptical units: a fixed band of that distance is thin abeam but
-             metres thick ahead of the stem, because the ellipse is far longer
-             than it is wide. That is what bloated the collar at the ends. */
-          float gapM = length(rel) * (1.0 - 1.0/max(ed, 1e-3));
-          float collar = (1.0 - smoothstep(0.0, 0.85, gapM)) * step(0.98, ed);
-          float bow    = (1.0 - smoothstep(0.0, 1.6 + 3.0*way, gapM)) * step(1.0, ed)
-                         * smoothstep(-0.2, 0.7, loc.y) * way;
-          float hullFoam = clamp(collar*0.70 + bow*0.55, 0.0, 1.0)
+          /* The collar thins away INWARD under her plating instead of stopping
+             at a line. Foam banks against a hull and runs out beneath it; a
+             hard inner edge reads as a decal laid on the water. */
+          float collar = (1.0 - smoothstep(0.0, 0.85, gapM))
+                         * smoothstep(-1.3, -0.1, gapM);
+
+          /* The bow wave: not a band across her forward half, but a moustache
+             at the stem and two wings sweeping aft. The crest stands off as the
+             SQUARE ROOT of the distance abaft the stem, which is what gives a
+             bow wave its parabolic wing rather than a straight edge, and it
+             needs way — a vessel lying stopped throws none at all.
+
+             The "fast" ramp saturates at twice the speed "way" does, so the
+             gerbe keeps building after the collar has stopped growing: that is
+             what makes her look driven rather than merely afloat. */
+          float fast   = clamp(uShipSpeed/6.0, 0.0, 1.0);
+          float along  = tAlong * uShipHalf.x;
+          float sAft   = max(uHullEnds.y - along, 0.0);      // metres abaft the stem
+          float spread = 1.7*sqrt(sAft)*fast;
+          float wing   = exp(-pow((gapM - spread)/(0.75 + 0.9*fast), 2.0));
+          float fade   = exp(-sAft/(5.0 + 30.0*fast));       // dies away astern
+          float bow    = wing * fade * way * step(-0.1, gapM);
+
+          float hullFoam = clamp(collar*0.70 + bow*(0.55 + 0.75*fast), 0.0, 1.0)
                            * (0.45 + 0.80*fn);
 
           /* Foam that was laid down earlier and is still dispersing. Sampled in
@@ -602,6 +682,16 @@ Naval.Ocean = class Ocean {
     this.uniforms.uFoamOrigin.value.copy(this.foam.origin);
   }
 
+  /* Hand the sea this vessel's outline. Until one is given she foams around a
+     plain rectangle, which is wrong but never absent. */
+  setHullProfile(prof){
+    const u = this.uniforms;
+    if(u.uHullProf.value) u.uHullProf.value.dispose();
+    u.uHullProf.value = Naval.makeHullProfileTexture(prof.fractions);
+    u.uHullEnds.value.set(prof.ends.aft, prof.ends.fwd);
+    this._hullProf = prof;
+  }
+
   // Tell the sea where the hull is, so it can foam along her waterline.
   trackShip(body, spec){
     const u = this.uniforms;
@@ -609,7 +699,9 @@ Naval.Ocean = class Ocean {
     this._sf = this._sf || new THREE.Vector3();
     this._sf.set(0,0,1).applyQuaternion(body.quat);
     u.uShipFwd.value.set(this._sf.x, this._sf.z).normalize();
-    u.uShipHalf.value.set(spec.L*0.5, spec.B*0.5);
+    // her greatest half breadth AS MEASURED, which the profile is scaled by;
+    // spec.B is only the stated figure and a model rarely matches it exactly
+    u.uShipHalf.value.set(spec.L*0.5, this._hullProf ? this._hullProf.maxHalfB : spec.B*0.5);
     u.uShipSpeed.value = Math.hypot(body.vel.x, body.vel.z);
   }
 

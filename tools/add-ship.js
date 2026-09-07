@@ -144,7 +144,7 @@ const spec = {
   rudder: { power: 91.5, maxAngle: 0.61, postZFrac: -0.46, postY: +(-0.6*k).toFixed(2) },
   rig: {
     type: 'none', sailArea: 0, ceHeight: +(H*0.8).toFixed(1), ceZ: 0,
-    maxSheet: 1.48, belly: +(0.55*k).toFixed(2),
+    maxSheet: 1.48, belly: +(1.65*k).toFixed(2),
     masts: [], jib: null, bowsprit: null
   },
   deckhouse: { beamFrac: 0.42, height: +(0.78*k).toFixed(2), lengthFrac: 0.17, zFrac: -0.11 },

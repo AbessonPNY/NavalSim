@@ -56,6 +56,7 @@ Naval.ShipPhysics = class ShipPhysics {
     this.appWindAngle = 0; this.appWindSpeed = 0;
     this.tack = 1; this.sailDrive = 0; this.luffing = false;
     this.optSheet = null;                  // null while there is no wind to trim to
+    this.sailLoad = 0;                     // Pa on the cloth — what fills or empties it
 
     // scratch vectors — allocated once, never reused across a live value
     this._fwd=new THREE.Vector3(); this._right=new THREE.Vector3(); this._up=new THREE.Vector3();
@@ -234,6 +235,7 @@ Naval.ShipPhysics = class ShipPhysics {
   _sails(ctrl, ocean, cog, force, torque, fwd, right){
     const C = this.C, S = this.spec, b = this.body, F = Naval.SAIL_FOIL;
     this.sailDrive = 0; this.luffing = false; this.optSheet = null;
+    this.sailLoad = 0;
 
     this._app.copy(ocean.windVec).sub(b.vel); this._app.y = 0;
     const vApp = this.appWindSpeed = this._app.length();
@@ -269,6 +271,8 @@ Naval.ShipPhysics = class ShipPhysics {
     this._arm.copy(this._ce).applyQuaternion(b.quat).add(b.pos).sub(cog);
     torque.add(this._mom.crossVectors(this._arm, this._sailF));
     this.sailDrive = this._sailF.dot(fwd);
+    // pressure on the canvas, which is what makes it belly out
+    this.sailLoad = this._sailF.length() / S.sailArea;
   }
 
   /* Let her find her own flotation in FLAT water, so the recorded equilibrium

@@ -162,6 +162,8 @@ async function main(){
     ocean.uniforms.uSun.value.copy(st.sunDir);
     ocean.uniforms.uZenith.value.copy(st.zenith);
     ocean.uniforms.uHorizon.value.copy(st.horizon);
+    // the light coming through the canvas reddens and dims with the sun itself
+    ocean.uniforms.uSunCol.value.copy(st.sun.color).multiplyScalar(st.sun.intensity*0.5);
   };
   stage.onFlash = f => { ocean.uniforms.uFlash.value = f; };
   stage.onSunChange(stage);
@@ -197,6 +199,8 @@ async function main(){
     ship = new Naval.ShipModel(stage.scene, spec, lines);
     await ship.loadModel();                 // falls back to the procedural hull
     ship.applyAtmosphere(ocean.uniforms);   // she must fade at the sea's rate
+    ship.enableShadows();
+    stage.frameVessel(spec.L);              // shadow box sized to this vessel
     physics = new Naval.ShipPhysics(spec, lines);
     controls.setSpec(spec);
 
@@ -218,6 +222,10 @@ async function main(){
     // Let her find her flotation in flat water before a frame is drawn, then
     // restore the sea state the console is asking for.
     hud.eqY = physics.settle(ocean, controls.state);
+    /* Now that her flotation is known, measure the outline she actually cuts at
+       that waterline and hand it to the sea. Before the settle it would be read
+       at the wrong height, and the foam would trace her topsides. */
+    ocean.setHullProfile(ship.hullProfile(64, -hud.eqY));
     hud.refreshSea();
     /* Hand her over ready to sail. The sheets are trimmed on the first frame
        rather than here, because the trim depends on the apparent wind, and the
@@ -257,9 +265,10 @@ async function main(){
 
     ship.syncTo(physics.body);
     ship.setTrim(controls.state.sheet, physics.tack,
-                 controls.state.sailsSet, physics.luffing, t);
+                 controls.state.sailsSet, physics.luffing, t, physics.sailLoad);
     ship.updateWake(physics.body, ocean, t);
 
+    stage.aimSun(physics.body.pos);       // the shadow box travels with her
     cam.update(dt, physics.body, ocean, t);
     ocean.trackShip(physics.body, spec);
 
