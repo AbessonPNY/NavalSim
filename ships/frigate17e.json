@@ -22,7 +22,7 @@
     "sectionTuck": 0.46,
     "sectionPower": 0.60
   },
-  "displacementTonnes": 1620,
+  "displacementTonnes": 2000,
 	"cog": { "yFracKeel": -0.43, "zFracLength": -0.055 },
 
 	  "hydro": {
