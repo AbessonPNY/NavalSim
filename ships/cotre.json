@@ -1,0 +1,83 @@
+{
+  "id": "cotre",
+  "name": "Cotre Vigie",
+  "note": "Fiche générée depuis ships/models/cotre.glb. Les cotes viennent du maillage ; le tonnage vise ~36% d'immersion coque, à ajuster selon la charge voulue.",
+  "hull": {
+    "length": 24,
+    "beam": 6.8,
+    "freeboardMid": 1.2,
+    "sheerBow": 1.05,
+    "sheerStern": 0.55,
+    "keelDepth": 1.6,
+    "keelExtra": 0.55,
+    "dragAft": 0.55,
+    "forefootLift": 0.78,
+    "counterLift": 0.42,
+    "waterlinePower": 0.82,
+    "waterlineFull": 0.55,
+    "transomWidth": 0.42,
+    "sectionTuck": 0.38,
+    "sectionPower": 0.72
+  },
+  "displacementTonnes": 100,
+  "cog": {
+    "yFracKeel": -0.451,
+    "zFracLength": -0.0708
+  },
+  "hydro": {
+    "resistance": 61,
+    "lateralGrip": 654,
+    "lateralQuad": 131,
+    "heaveDamp": 1100
+  },
+  "engine": {
+    "topSpeed": 4.3,
+    "sternPower": -0.6
+  },
+  "rudder": {
+    "power": 91.5,
+    "maxAngle": 0.61,
+    "postZFrac": -0.46,
+    "postY": -0.6
+  },
+  "rig": {
+    "type": "none",
+    "sailArea": 0,
+    "ceHeight": 2.2,
+    "ceZ": 0,
+    "maxSheet": 1.48,
+    "belly": 0.55,
+    "masts": [],
+    "jib": null,
+    "bowsprit": null
+  },
+  "deckhouse": {
+    "beamFrac": 0.42,
+    "height": 0.78,
+    "lengthFrac": 0.17,
+    "zFrac": -0.11
+  },
+  "appearance": {
+    "hull": "0x1d2b38",
+    "timber": "0x8a6a45",
+    "spar": "0xb08c5c",
+    "house": "0xd9d2c2",
+    "canvas": "0xf2ebdc"
+  },
+  "camera": {
+    "chaseDist": 38,
+    "chaseHigh": 14,
+    "orbitDist": 46,
+    "helmZFrac": -0.44
+  },
+  "model": {
+    "glb": "ships/models/cotre.glb",
+    "lengthAxis": "z",
+    "offset": [
+      0,
+      0,
+      0
+    ],
+    "rotationY": 0
+  }
+}

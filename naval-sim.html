@@ -1,0 +1,238 @@
+<title>Passerelle</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="css/styles.css">
+
+<div id="app">
+  <canvas id="gl"></canvas>
+
+  <div id="boot">
+    <div class="brand">Passerelle</div>
+    <div class="bar"><i></i></div>
+    <div class="sub">initialisation de la carène &amp; de la houle…</div>
+  </div>
+
+  <!-- Instruments -->
+  <div id="instruments" class="panel">
+    <div class="title"><b id="shipName">Goélette Archimède</b><span class="dot" id="statusDot"></span></div>
+    <select id="shipSel" aria-label="Choisir le navire"></select>
+    <div class="hair"></div>
+    <div class="readouts">
+      <div class="ro"><span class="k">Déplacement</span><span class="v"><span id="roTonnage">0</span><small>t</small></span></div>
+      <div class="ro"><span class="k">Long. × largeur</span><span class="v" style="font-size:15px"><span id="roDims">—</span></span></div>
+    </div>
+    <div class="hair"></div>
+    <div class="readouts">
+      <div class="ro"><span class="k">Cap</span><span class="v acc"><span id="roHeading">000</span><small>°</small></span></div>
+      <div class="ro"><span class="k">Vitesse</span><span class="v"><span id="roSpeed">0.0</span><small>nds</small></span></div>
+      <div class="ro"><span class="k">Tirant d'eau</span><span class="v"><span id="roDraft">0.00</span><small>m</small></span></div>
+      <div class="ro"><span class="k">Pilonnement</span><span class="v"><span id="roHeave">0.00</span><small>m</small></span></div>
+    </div>
+    <div class="hair"></div>
+    <div class="readouts">
+      <div class="ro"><span class="k">Immersion coque</span><span class="v"><span id="roSubmerged">0</span><small>%</small></span></div>
+      <div class="ro"><span class="k">GM (métacentre)</span><span class="v"><span id="roGM">0.0</span><small>m</small></span></div>
+    </div>
+    <div class="hair"></div>
+    <div class="readouts">
+      <div class="ro"><span class="k">Vent réel</span><span class="v"><span id="roWind">0</span><small>nds</small></span></div>
+      <div class="ro"><span class="k">Vent apparent</span><span class="v"><span id="roAppWind">0</span><small>°</small></span></div>
+    </div>
+    <div class="allure"><span class="k">Allure</span><b id="roPoint">—</b></div>
+  </div>
+
+  <!-- Attitude / artificial horizon -->
+  <div id="attitude" class="panel">
+    <div class="lbl">Assiette · roulis / tangage</div>
+    <div class="horizonWrap">
+      <svg id="horizon" viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid slice">
+        <g id="hzGroup">
+          <rect class="horizon-sky" x="-200" y="-200" width="400" height="200"></rect>
+          <rect class="horizon-sea" x="-200" y="0" width="400" height="200"></rect>
+          <line class="hz-line" x1="-200" y1="0" x2="200" y2="0"></line>
+          <line class="hz-tick" x1="-30" y1="-20" x2="30" y2="-20"></line>
+          <line class="hz-tick" x1="-20" y1="-40" x2="20" y2="-40"></line>
+          <line class="hz-tick" x1="-30" y1="20" x2="30" y2="20"></line>
+          <line class="hz-tick" x1="-20" y1="40" x2="20" y2="40"></line>
+        </g>
+      </svg>
+      <svg class="fixed-mark" viewBox="-100 -100 200 200">
+        <path d="M-42 0 L-14 0 M14 0 L42 0 M0 -3 L0 3" stroke="#ffdf6b" stroke-width="2.4" fill="none"></path>
+        <circle cx="0" cy="0" r="2.3" fill="#ffdf6b"></circle>
+      </svg>
+    </div>
+    <div class="rollReadout">
+      <span class="k">Roulis <b id="roRoll">0.0°</b></span>
+      <span class="k">Tangage <b id="roPitch">0.0°</b></span>
+    </div>
+  </div>
+
+  <!-- Sea state -->
+  <div id="sea" class="panel">
+    <div class="lbl">État de la mer</div>
+    <div class="hair"></div>
+    <div class="beaufort"><span class="bn" id="beauNum">4</span><span class="bd" id="beauDesc">Belle brise · 1.6 m</span></div>
+    <div class="row"><span class="name">Force de la houle</span><span class="num" id="seaVal">4.0</span></div>
+    <input id="seaState" type="range" min="0" max="9" step="0.1" value="4">
+    <div class="row"><span class="name">Direction du vent</span><span class="num" id="windVal">045°</span></div>
+    <input id="windDir" type="range" min="0" max="359" step="1" value="45">
+    <div class="presets">
+      <button data-s="0.8">Calme</button>
+      <button data-s="4" class="on">Modérée</button>
+      <button data-s="8">Tempête</button>
+    </div>
+  </div>
+
+  <!-- Helm -->
+  <div id="helm" class="panel">
+    <div class="helm-col">
+      <div class="helm-head"><span class="k">Machine</span><span class="v" id="thrText">STOP</span></div>
+      <div class="barmeter center"><i id="thrBar"></i></div>
+      <div class="telegraph" id="thrTele">— chadburn au repos —</div>
+      <div class="keys"><kbd>W</kbd><kbd>S</kbd> machine</div>
+    </div>
+    <div class="helm-col">
+      <div class="helm-head"><span class="k">Barre</span><span class="v" id="rudText">0°</span></div>
+      <div class="barmeter center"><i id="rudBar"></i></div>
+      <div class="telegraph" id="rudTele">— gouvernail droit —</div>
+      <div class="keys"><kbd>A</kbd><kbd>D</kbd> barre · <kbd>Espace</kbd> stop</div>
+    </div>
+    <div class="helm-col">
+      <div class="helm-head"><span class="k">Écoutes</span><span class="v" id="shtText">40°</span></div>
+      <div class="barmeter"><i id="shtBar"></i></div>
+      <div class="telegraph" id="shtTele">— voiles établies —</div>
+      <div class="keys"><kbd>Q</kbd><kbd>E</kbd> écoutes · <kbd>V</kbd> ferler</div>
+    </div>
+  </div>
+
+  <div id="hint">
+    <span id="camNote" hidden>Glisser — orienter · Molette — zoom · X — replanter ici</span>
+    <button id="camBtn">Caméra : Poursuite</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<!-- GLTFLoader is an ES module that imports "three" by bare specifier, so it
+     needs a map to resolve it. Only fetched if a ship spec names a .glb. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script src="js/config.js"></script>
+<script src="js/ship-spec.js"></script>
+<script src="js/hull-lines.js"></script>
+<script src="js/stage.js"></script>
+<script src="js/ocean.js"></script>
+<script src="js/ship-model.js"></script>
+<script src="js/ship-physics.js"></script>
+<script src="js/controls.js"></script>
+<script src="js/camera-rig.js"></script>
+<script src="js/hud.js"></script>
+<script>
+/* Wiring only. Every rule of the simulation lives in the modules above, and
+   every dimension of every vessel lives in ships/*.json. */
+async function main(){
+  const boot = document.getElementById('boot');
+  const fail = msg => { document.querySelector('#boot .sub').textContent = msg; };
+
+  if(!window.THREE){ fail('Échec du chargement de Three.js'); return; }
+
+  const canvas   = document.getElementById('gl');
+  const stage    = new Naval.Stage(canvas);
+  const ocean    = new Naval.Ocean(stage.scene, stage.sunDir);
+  const controls = new Naval.Controls();
+
+  // Read every vessel's papers before we sail any of them.
+  let specs;
+  try{
+    const urls = await Naval.ShipSpec.discover();
+    const loaded = await Promise.all(urls.map(async u => {
+      try{ return await Naval.ShipSpec.load(u); }
+      catch(err){ console.warn('fiche ignorée : ' + u + ' — ' + err.message); return null; }
+    }));
+    specs = loaded.filter(Boolean);          // one bad file must not sink the rest
+    if(!specs.length) throw new Error('aucune fiche navire exploitable');
+  }catch(err){
+    fail('Impossible de lire les fiches navires : ' + err.message);
+    return;
+  }
+
+  const sel = document.getElementById('shipSel');
+  specs.forEach((s,i)=>{
+    const o = document.createElement('option');
+    o.value = i; o.textContent = s.name + ' · ' + Math.round(s.tonnes) + ' t';
+    sel.appendChild(o);
+  });
+
+  let spec, lines, ship, physics, cam, hud, t = 0;
+
+  async function commission(index){
+    spec = specs[index];
+    lines = new Naval.HullLines(spec);
+    if(ship) ship.dispose();
+    ship = new Naval.ShipModel(stage.scene, spec, lines);
+    await ship.loadModel();                 // falls back to the procedural hull
+    physics = new Naval.ShipPhysics(spec, lines);
+    controls.setSpec(spec);
+
+    if(!cam){
+      cam = new Naval.CameraRig(stage.camera, canvas,
+              document.getElementById('camBtn'),
+              document.getElementById('camNote'), spec);
+      hud = new Naval.HUD(ocean, physics, controls, cam, spec);
+      controls.onCycleCam = ()=> cam.cycle();
+      controls.onReplant  = ()=> { if(cam.mode===3) cam.plant(); };
+    }else{
+      cam.setSpec(spec);
+    }
+    hud.setSpec(spec, physics);
+
+    // Let her find her flotation in flat water before a frame is drawn, then
+    // restore the sea state the console is asking for.
+    hud.eqY = physics.settle(ocean, controls.state);
+    hud.refreshSea();
+    t = 0;
+  }
+
+  await commission(0);
+
+  sel.addEventListener('change', async ()=>{
+    sel.disabled = true;
+    await commission(parseInt(sel.value, 10));
+    sel.disabled = false;
+  });
+
+  let last = performance.now();
+  function frame(now){
+    const dt = Math.min(0.05, (now-last)/1000); last = now;
+    t += dt;
+
+    controls.update(dt);
+    const SUB = 4;                       // fixed substeps keep the solver stable
+    for(let i=0;i<SUB;i++) physics.step(dt/SUB, ocean, controls.state, t);
+
+    ship.syncTo(physics.body);
+    ship.setTrim(controls.state.sheet, physics.tack,
+                 controls.state.sailsSet, physics.luffing, t);
+    ship.updateWake(physics.body, ocean, t);
+
+    cam.update(dt, physics.body, ocean, t);
+    ocean.update(t, stage.camera.position);
+    hud.update(dt);
+    stage.render();
+    requestAnimationFrame(frame);
+  }
+
+  boot.style.transition = 'opacity .5s';
+  boot.style.opacity = '0';
+  setTimeout(()=> boot.remove(), 600);
+  requestAnimationFrame(frame);
+}
+main();
+</script>

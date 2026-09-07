@@ -1,0 +1,16 @@
+# Produit par `node build.js` — reconstructible, ne pas versionner.
+dist/
+
+# Systèmes
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Éditeurs
+.vscode/
+.idea/
+*.swp
+
+# Node, si des dépendances arrivent un jour
+node_modules/
+npm-debug.log*

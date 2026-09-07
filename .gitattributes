@@ -1,0 +1,14 @@
+# Normalise les fins de ligne dans le dépôt (LF), quelle que soit la machine.
+# Sans cela, passer de Windows à macOS/Linux produit des diffs entiers de CRLF.
+* text=auto eol=lf
+
+# Les modèles 3D sont binaires : toute conversion de fin de ligne les corrompt.
+# text=auto les détecterait probablement, mais on ne parie pas là-dessus.
+*.glb  binary
+*.gltf text eol=lf
+*.png  binary
+*.jpg  binary
+*.webp binary
+*.mp4  binary
+*.woff  binary
+*.woff2 binary

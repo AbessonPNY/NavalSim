@@ -1,0 +1,135 @@
+  :root{
+    --sea-deep:#0a1a2b;
+    --panel:rgba(9,22,35,0.78);
+    --panel-solid:#0c1b2a;
+    --edge:rgba(70,224,208,0.22);
+    --edge-soft:rgba(140,168,182,0.18);
+    --accent:#46e0d0;
+    --accent2:#4aa8ff;
+    --warn:#f2b23a;
+    --crit:#ff5c5c;
+    --good:#57d98a;
+    --ink:#dcecf5;
+    --muted:#7d95a6;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+    --disp:"Rajdhani",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:var(--sea-deep);color:var(--ink);
+    font-family:var(--disp);overflow:hidden;
+    -webkit-user-select:none;user-select:none;
+  }
+  #app{position:fixed;inset:0}
+  canvas#gl{display:block;width:100%;height:100%}
+
+  /* ---- Boot ---- */
+  #boot{position:fixed;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:14px;background:var(--sea-deep);z-index:50}
+  #boot .brand{font-weight:700;letter-spacing:.32em;font-size:15px;color:var(--accent);text-transform:uppercase}
+  #boot .sub{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.08em}
+  #boot .bar{width:190px;height:2px;background:rgba(140,168,182,.16);overflow:hidden;border-radius:2px}
+  #boot .bar i{display:block;height:100%;width:36%;background:var(--accent);animation:load 1.05s ease-in-out infinite}
+  @keyframes load{0%{transform:translateX(-120%)}100%{transform:translateX(360%)}}
+
+  /* ---- HUD generic panel ---- */
+  .panel{
+    position:absolute;background:var(--panel);
+    border:1px solid var(--edge-soft);border-radius:10px;
+    backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+    box-shadow:0 8px 30px rgba(0,0,0,.42);
+    padding:12px 14px;
+  }
+  .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+  .hair{height:1px;background:linear-gradient(90deg,var(--edge),transparent);margin:9px 0}
+
+  /* Instruments (top-left) */
+  #instruments{top:16px;left:16px;width:250px}
+  #instruments .title{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
+  #instruments .title b{font-weight:700;letter-spacing:.22em;font-size:13px;text-transform:uppercase;color:var(--ink)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 8px var(--good)}
+  .readouts{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;margin-top:4px}
+  .ro{display:flex;flex-direction:column;gap:2px}
+  .ro .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+  .ro .v{font-family:var(--mono);font-weight:600;font-size:22px;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+  .ro .v small{font-size:11px;color:var(--muted);font-weight:500;margin-left:3px}
+  .ro .v.acc{color:var(--accent)}
+
+  /* Attitude gauge */
+  #attitude{top:16px;left:282px;width:172px;padding:12px}
+  #attitude .lbl{margin-bottom:8px}
+  .horizonWrap{position:relative;width:148px;height:148px;border-radius:50%;overflow:hidden;
+    border:1px solid var(--edge);background:#06121d;margin:0 auto}
+  #horizon{position:absolute;left:-40%;top:-40%;width:180%;height:180%}
+  .horizon-sky{fill:#123047}.horizon-sea{fill:#0a1b28}
+  .hz-line{stroke:var(--accent);stroke-width:1.4;opacity:.85}
+  .hz-tick{stroke:rgba(220,236,245,.5);stroke-width:1}
+  .fixed-mark{position:absolute;inset:0;pointer-events:none}
+  .rollReadout{display:flex;justify-content:space-between;margin-top:8px;font-family:var(--mono);font-size:11px}
+  .rollReadout span b{color:var(--ink);font-weight:600}
+  .rollReadout .k{color:var(--muted)}
+
+  /* Sea state (top-right) */
+  #sea{top:16px;right:16px;width:236px}
+  #sea .row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:9px 0}
+  #sea .row .name{font-family:var(--mono);font-size:11px;color:var(--ink);letter-spacing:.04em}
+  #sea .row .num{font-family:var(--mono);font-size:11px;color:var(--accent);font-variant-numeric:tabular-nums}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:3px;border-radius:3px;
+    background:rgba(140,168,182,.22);outline:none;margin:7px 0 2px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:var(--accent);cursor:pointer;box-shadow:0 0 0 3px rgba(70,224,208,.16)}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border:none;border-radius:50%;background:var(--accent);cursor:pointer}
+  .presets{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+  .presets button{font-family:var(--disp);font-weight:600;letter-spacing:.06em;font-size:11px;
+    color:var(--ink);background:rgba(140,168,182,.08);border:1px solid var(--edge-soft);
+    border-radius:7px;padding:7px 4px;cursor:pointer;transition:.15s}
+  .presets button:hover{border-color:var(--accent);color:var(--accent)}
+  .presets button.on{background:rgba(70,224,208,.14);border-color:var(--accent);color:var(--accent)}
+  .beaufort{display:flex;align-items:baseline;gap:8px;margin-top:4px}
+  .beaufort .bn{font-family:var(--mono);font-weight:600;font-size:26px;color:var(--accent);line-height:1;font-variant-numeric:tabular-nums}
+  .beaufort .bd{font-family:var(--mono);font-size:10.5px;color:var(--muted);letter-spacing:.02em}
+
+  /* Helm (bottom-center) */
+  #shipSel{width:100%;margin-top:8px;font-family:var(--mono);font-size:11px;
+    color:var(--accent);background:rgba(70,224,208,.08);
+    border:1px solid var(--edge);border-radius:7px;padding:6px 8px;cursor:pointer;
+    outline:none;-webkit-appearance:none;appearance:none}
+  #shipSel:focus-visible{box-shadow:0 0 0 2px rgba(70,224,208,.35)}
+  #shipSel option{background:var(--panel-solid);color:var(--ink)}
+  .allure{display:flex;align-items:baseline;justify-content:space-between;margin-top:9px}
+  .allure .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+  .allure b{font-family:var(--disp);font-weight:600;font-size:15px;color:var(--accent);letter-spacing:.03em}
+  #helm{bottom:18px;left:50%;transform:translateX(-50%);width:min(720px,90vw);
+    display:flex;gap:18px;align-items:stretch;padding:12px 16px}
+  .helm-col{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0}
+  .barmeter{position:relative;height:9px;border-radius:6px;background:rgba(140,168,182,.16);overflow:hidden}
+  .barmeter i{position:absolute;top:0;bottom:0;left:50%;width:0;background:var(--accent);transition:width .08s linear,left .08s linear}
+  .barmeter.center::before{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:rgba(220,236,245,.35)}
+  .helm-head{display:flex;justify-content:space-between;align-items:baseline}
+  .helm-head .k{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+  .helm-head .v{font-family:var(--mono);font-size:13px;color:var(--ink);font-variant-numeric:tabular-nums}
+  .telegraph{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;margin-top:2px;letter-spacing:.05em}
+  .keys{display:flex;gap:5px;justify-content:center;margin-top:2px;flex-wrap:wrap}
+  .keys kbd{font-family:var(--mono);font-size:10px;color:var(--ink);background:rgba(140,168,182,.1);
+    border:1px solid var(--edge-soft);border-bottom-width:2px;border-radius:5px;padding:2px 6px;letter-spacing:.02em}
+
+  /* hint / help toggle */
+  /* tucked under the sea-state panel — clear of the helm along the bottom */
+  #hint{position:absolute;top:300px;right:16px;z-index:5;
+    display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+  #camNote{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--muted);
+    text-transform:uppercase;white-space:nowrap;
+    background:var(--panel);border:1px solid var(--edge-soft);border-radius:6px;padding:4px 8px}
+  #hint button{font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--panel);
+    border:1px solid var(--edge-soft);border-radius:8px;padding:8px 11px;cursor:pointer;backdrop-filter:blur(9px)}
+  #hint button:hover{color:var(--accent);border-color:var(--edge)}
+
+  .flash{animation:flash .5s ease}
+  @keyframes flash{0%,100%{color:var(--ink)}50%{color:var(--warn)}}
+  @media (max-width:720px){
+    #attitude{display:none}
+    #instruments{width:210px}
+    #sea{width:200px}
+  }
+  @media (prefers-reduced-motion:reduce){#boot .bar i{animation:none;width:100%}}

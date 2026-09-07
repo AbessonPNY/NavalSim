@@ -1,0 +1,70 @@
+{
+  "id": "schooner",
+  "name": "Goélette Archimède",
+  "note": "Goélette franche à deux mâts, gréement aurique. Le navire de référence.",
+
+  "hull": {
+    "length": 24,
+    "beam": 5.8,
+    "freeboardMid": 1.45,
+    "sheerBow": 1.05,
+    "sheerStern": 0.55,
+    "keelDepth": 2.55,
+    "keelExtra": 0.55,
+
+    "dragAft": 0.55,
+    "forefootLift": 0.78,
+    "counterLift": 0.42,
+
+    "waterlinePower": 0.82,
+    "waterlineFull": 0.55,
+    "transomWidth": 0.42,
+
+    "sectionTuck": 0.38,
+    "sectionPower": 0.72
+  },
+
+  "displacementTonnes": 115.5,
+
+  "cog": { "yFracKeel": -0.451, "zFracLength": -0.0708 },
+
+  "hydro": {
+    "resistance": 61,
+    "lateralGrip": 654,
+    "lateralQuad": 131,
+    "heaveDamp": 1100
+  },
+
+  "engine": { "topSpeed": 4.3, "sternPower": -0.6 },
+
+  "rudder": { "power": 91.5, "maxAngle": 0.61, "postZFrac": -0.46, "postY": -0.6 },
+
+  "rig": {
+    "type": "gaff",
+    "sailArea": 300,
+    "ceHeight": 7.6,
+    "ceZ": -0.8,
+    "maxSheet": 1.48,
+    "belly": 0.55,
+    "masts": [
+      { "zFrac": 0.15,  "height": 13.5, "boom": 6.0, "tackAbove": 1.5 },
+      { "zFrac": -0.16, "height": 15.5, "boom": 7.5, "tackAbove": 1.6 }
+    ],
+    "jib": { "footFrac": 0.217, "tackAbove": 0.9, "clewAbove": 1.7, "headDrop": 2.2 },
+    "bowsprit": { "length": 6.2, "steeve": 0.20 }
+  },
+
+  "deckhouse": { "beamFrac": 0.42, "height": 0.78, "lengthFrac": 0.17, "zFrac": -0.11 },
+
+  "appearance": {
+    "hull": "0x1d2b38",
+    "timber": "0x8a6a45",
+    "spar": "0xb08c5c",
+    "house": "0xd9d2c2",
+    "canvas": "0xf2ebdc"
+  },
+
+  "camera": { "chaseDist": 38, "chaseHigh": 14, "orbitDist": 46, "helmZFrac": -0.44 },
+
+  "model": null
+}
