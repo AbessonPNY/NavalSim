@@ -129,6 +129,22 @@ un `#define N` écrase l'identifiant `N` jusque dans le fragment shader.
 maillage. Une voile opaque éclairée à contre-jour devient noire : le tissu porte
 une composante `emissive` pour rester lisible.
 
+**Console de mer.** Quatre réglages : force de la houle (Beaufort), direction du
+vent, hauteur du soleil (négative = nuit) et **creux**, qui multiplie la hauteur
+significative au-delà de la table Beaufort. Ce dernier existe parce qu'un spectre
+étalé sur dix-huit composantes et un éventail de directions paraît plus plat que
+six harmoniques alignées, à hauteur égale : les crêtes ne se superposent plus.
+Au-delà de ~1,6 un navire peut réellement chavirer, ce qui est voulu.
+
+**Débogage.** `Naval.app` expose les instances vivantes (`stage`, `ocean`,
+`foam`, `physics`, `ship`, `cam`, `hud`) depuis la console. `Naval.app.stage.strike()`
+déclenche un éclair à la demande. Plusieurs bugs de ce projet ont été longs à
+cerner faute de pouvoir inspecter quoi que ce soit à l'exécution.
+
+**Brume.** Volontairement **découplée** de l'état de la mer. Physiquement un coup
+de vent charge l'air, mais cela fermait l'horizon précisément quand les grosses
+lames devenaient intéressantes à regarder.
+
 **Spectre.** Les vagues viennent d'un spectre JONSWAP : il fixe la *forme*
 (quelles fréquences portent l'énergie, comment elles s'étalent), et la table
 Beaufort fixe l'*échelle*, de sorte que la hauteur significative annoncée par la

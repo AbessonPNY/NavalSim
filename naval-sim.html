@@ -79,7 +79,9 @@
     <div class="row"><span class="name">Direction du vent</span><span class="num" id="windVal">045°</span></div>
     <input id="windDir" type="range" min="0" max="359" step="1" value="45">
     <div class="row"><span class="name">Hauteur du soleil</span><span class="num" id="sunVal">38°</span></div>
-    <input id="sunElev" type="range" min="2" max="80" step="1" value="38">
+    <input id="sunElev" type="range" min="-10" max="80" step="1" value="38">
+    <div class="row"><span class="name">Creux de la houle</span><span class="num" id="swellVal">1.35&#215;</span></div>
+    <input id="swell" type="range" min="0.4" max="2.6" step="0.05" value="1.35">
     <div class="presets">
       <button data-s="0.8">Calme</button>
       <button data-s="4" class="on">Modérée</button>
@@ -161,6 +163,7 @@ async function main(){
     ocean.uniforms.uZenith.value.copy(st.zenith);
     ocean.uniforms.uHorizon.value.copy(st.horizon);
   };
+  stage.onFlash = f => { ocean.uniforms.uFlash.value = f; };
   stage.onSunChange(stage);
 
   // Read every vessel's papers before we sail any of them.
@@ -224,6 +227,12 @@ async function main(){
     sel.disabled = false;
   });
 
+  /* The live instances, reachable from the console. Several bugs in this project
+     were slow to pin down purely because nothing was inspectable at runtime. */
+  Naval.app = { stage, ocean, foam, controls,
+                get physics(){ return physics; }, get ship(){ return ship; },
+                get cam(){ return cam; }, get hud(){ return hud; } };
+
   let last = performance.now();
   function frame(now){
     const dt = Math.min(0.05, (now-last)/1000); last = now;
@@ -244,6 +253,7 @@ async function main(){
     ocean.update(t, stage.camera.position);
     hud.update(dt);
     // both offscreen passes must run before the sea that samples them
+    stage.updateWeather(dt, parseFloat(document.getElementById('seaState').value));
     foam.update(stage.renderer, dt, t, physics.body.pos);
     ocean.syncFoam();
     ocean.renderReflection(stage.renderer, stage.scene, stage.camera);

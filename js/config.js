@@ -17,7 +17,7 @@ Naval.Config = {
   // GPU carries the full spectrum; the solver and the foam pass take only the
   // longest components, which hold nearly all of a JONSWAP spectrum's energy.
   NWAVES: 18,
-  NWAVES_CPU: 7,
+  NWAVES_CPU: 10,
   NWAVES_FOAM: 7,
   OCEAN_SIZE: 7000,
   OCEAN_SEG: 384,

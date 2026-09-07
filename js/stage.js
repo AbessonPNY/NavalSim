@@ -112,11 +112,27 @@ Naval.Stage = class Stage {
 
     // low sun reddens and dims; the sky's haze warms with it
     const t = Math.max(0, Math.min(1, elevDeg/30));
-    this.sun.color.setRGB(1.0, 0.72 + 0.23*t, 0.45 + 0.42*t);
-    this.sun.intensity = 1.1 + 1.0*t;
-    this.horizon.setRGB(0.62 + 0.20*t, 0.70 + 0.19*t, 0.76 + 0.17*t);
-    this.zenith.setRGB(0.08 + 0.04*t, 0.24 + 0.12*t, 0.42 + 0.10*t);
-    this.hemi.intensity = 0.45 + 0.45*t;
+    /* Below the horizon it is night. Not black — a real sea at night keeps a
+       cold sheen off the sky, and you must still be able to make out your own
+       vessel. The sun stands in for the moon: dim, blue, and never quite gone. */
+    const night = Math.max(0, Math.min(1, -elevDeg/10));
+    this.night = night;
+
+    this.sun.color.setRGB(
+      1.0 - 0.55*night,
+      (0.72 + 0.23*t) - 0.30*night,
+      (0.45 + 0.42*t) + 0.28*night);
+    this.sun.intensity = (1.1 + 1.0*t)*(1 - night) + 0.28*night;
+    this.horizon.setRGB(
+      (0.62 + 0.20*t)*(1-night) + 0.055*night,
+      (0.70 + 0.19*t)*(1-night) + 0.075*night,
+      (0.76 + 0.17*t)*(1-night) + 0.115*night);
+    this.zenith.setRGB(
+      (0.08 + 0.04*t)*(1-night) + 0.012*night,
+      (0.24 + 0.12*t)*(1-night) + 0.020*night,
+      (0.42 + 0.10*t)*(1-night) + 0.045*night);
+    this._hemiBase = (0.45 + 0.45*t)*(1-night) + 0.10*night;
+    this.hemi.intensity = this._hemiBase + (this.flash||0)*2.6;
 
     if(this.skyMat){
       this.skyMat.uniforms.uSun.value.copy(this.sunDir);
@@ -126,6 +142,41 @@ Naval.Stage = class Stage {
     if(this.onSunChange) this.onSunChange(this);
   }
 
+  /* Lightning.
+     A stroke is not one flash: the leader lights the cloud, then the return
+     stroke follows a few hundredths of a second later, often twice. Rendering a
+     single square pulse looks like a light switch, so the envelope below fires
+     two or three spikes with a fast decay. The flash reaches the sky dome, the
+     sea and the rigging together, or the vessel would stay dark under a lit sky. */
+  strike(){
+    this._flashQueue = [
+      {at:0.00, a:1.00}, {at:0.06, a:0.55},
+      {at:0.14, a:0.85}, {at:0.26, a:0.30}
+    ];
+    this._flashT = 0;
+  }
+
+  updateWeather(dt, seaState){
+    // storms only: below a strong breeze there is nothing to discharge
+    const p = Math.max(0, (seaState - 5.2)/3.8);
+    if(p > 0 && Math.random() < p*p*dt*0.20) this.strike();   // ~1 per 5 s at full gale
+
+    let f = 0;
+    if(this._flashQueue){
+      this._flashT += dt;
+      for(const s of this._flashQueue){
+        const dtt = this._flashT - s.at;
+        if(dtt >= 0) f = Math.max(f, s.a*Math.exp(-dtt*16.0));
+      }
+      if(this._flashT > 1.2) this._flashQueue = null;
+    }
+    this.flash = f;
+    if(this.skyMat) this.skyMat.uniforms.uFlash.value = f;
+    if(this.onFlash) this.onFlash(f);
+    // the deck and canvas must catch it too
+    this.hemi.intensity = this._hemiBase + f*2.6;
+  }
+
   _addSky(){
     const g = new THREE.SphereGeometry(10000, 48, 24);
     const m = new THREE.ShaderMaterial({
@@ -133,7 +184,8 @@ Naval.Stage = class Stage {
       uniforms:{
         uSun:{value:this.sunDir.clone()},
         uZenith:{value:this.zenith.clone()},
-        uHorizon:{value:this.horizon.clone()}
+        uHorizon:{value:this.horizon.clone()},
+        uFlash:{value:0}
       },
       vertexShader:`
         varying vec3 vDir;
@@ -145,11 +197,14 @@ Naval.Stage = class Stage {
         precision highp float;
         varying vec3 vDir;
         uniform vec3 uSun, uZenith, uHorizon;
+        uniform float uFlash;
         ${Naval.SKY_GLSL}
         void main(){
           vec3 c = navalSky(vDir, uSun, uZenith, uHorizon);
           // the disc itself, which only the dome draws
           c += vec3(1.0,0.95,0.85) * pow(max(dot(normalize(vDir),uSun),0.0), 2200.0) * 6.0;
+          // the discharge lights the whole vault, brightest low down
+          c += vec3(0.62,0.70,0.92) * uFlash * (1.6 - 0.9*clamp(vDir.y,0.0,1.0));
           gl_FragColor = vec4(c, 1.0);
         }`
     });

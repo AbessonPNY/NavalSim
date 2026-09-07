@@ -19,6 +19,7 @@ Naval.Ocean = class Ocean {
     const C = Naval.Config;
     this.C = C;
     this.waves = [];
+    this.swell = 1.35;               // creux multiplier, driven by the console
     this.windSpeed = 0;                    // m/s, true wind
     this.windVec = new THREE.Vector3();    // true wind velocity (blows toward)
 
@@ -63,6 +64,7 @@ Naval.Ocean = class Ocean {
         uFoamOrigin:{value:new THREE.Vector2()},
         uFoamSize:{value:1.0},
         uFoamOn:{value:0.0},
+        uFlash:{value:0.0},
       }
     );
 
@@ -150,7 +152,7 @@ Naval.Ocean = class Ocean {
         uniform vec2 uWind, uShipFwd, uShipHalf;
         uniform vec3 uShipPos;
         uniform sampler2D uReflTex; uniform float uReflOn;
-        uniform sampler2D uFoamTex; uniform float uFoamOn, uFoamSize;
+        uniform sampler2D uFoamTex; uniform float uFoamOn, uFoamSize, uFlash;
         uniform vec2 uFoamOrigin;
         varying vec3 vN; varying vec3 vW; varying float vFoam; varying float vRel;
         varying vec4 vRefl; varying float vSpacing;
@@ -328,6 +330,10 @@ Naval.Ocean = class Ocean {
           vec3 hazeCol = navalSky(viewDir, uSun, uZenith, uHorizon);
           col = mix(col, hazeCol, hazeAlong(uCam, vW));
 
+          // a discharge overhead lights the water as well as the sky
+
+          col += vec3(0.42,0.50,0.68) * uFlash * (0.55 + 0.9*foam);
+
           gl_FragColor = vec4(col,1.0);
         }`
     });
@@ -467,7 +473,7 @@ Naval.Ocean = class Ocean {
       /* Directional spreading: short waves fan out far more than the long
          swell, which is why a real sea looks confused up close and orderly at
          the horizon. Deterministic offsets, so the CPU and GPU never disagree. */
-      const spread = (0.16 + 0.55*Math.min(1, w/wp - 0.4)) * (0.45 + 0.06*s);
+      const spread = (0.16 + 0.55*Math.min(1, w/wp - 0.4)) * (0.34 + 0.045*s);
       const u = ((i*7)%N)/(N-1)*2 - 1;    // spread the components, no randomness
       raw.push({ amp, w, dir: wr + spread*u });
     }
@@ -476,7 +482,13 @@ Naval.Ocean = class Ocean {
     const b = C.BEAUFORT;
     const lo = Math.max(0, Math.min(9, Math.floor(s)));
     const hi = Math.max(0, Math.min(9, Math.ceil(s)));
-    const hsTarget = parseFloat(b[lo][2]) + (parseFloat(b[hi][2]) - parseFloat(b[lo][2]))*(s - lo);
+    /* The swell control multiplies the significant height above what the
+       Beaufort table states. It exists because a spectrum spread over eighteen
+       components and a fan of directions reads lower than six aligned
+       harmonics did, even at the same Hs — the crests no longer line up. Past
+       about 1.6 a vessel can genuinely be rolled over, which is the point. */
+    const hsTarget = (parseFloat(b[lo][2])
+                   + (parseFloat(b[hi][2]) - parseFloat(b[lo][2]))*(s - lo)) * this.swell;
     const hsRaw = 4*Math.sqrt(Math.max(m0, 1e-9));
     const scale = hsRaw > 1e-6 ? hsTarget/hsRaw : 0;
 
@@ -576,10 +588,11 @@ Naval.Ocean = class Ocean {
     const w = this.windVec, s = Math.hypot(w.x, w.z);
     if(s > 1e-4) this.uniforms.uWind.value.set(w.x/s, w.z/s);
     this.uniforms.uRipple.value = Math.min(1.6, 0.35 + this.windSpeed*0.075);
-    /* A blow tears spray off the crests and thickens the air, so the horizon
-       closes in as the sea gets up: a calm day sees perhaps 4 km, a gale less
-       than one. The scale height rises too — the murk stands taller. */
-    this.uniforms.uHaze.value  = 0.00055 + this.windSpeed*0.00023;
-    this.uniforms.uHazeH.value = 90 + this.windSpeed*7.0;
+    /* Haze is deliberately NOT tied to the sea state. Physically a blow does
+       thicken the air, but it shut the horizon down exactly when the big seas
+       became worth looking at. A steady, clear atmosphere serves the view
+       better; adjust these two numbers to taste. */
+    this.uniforms.uHaze.value  = 0.00085;
+    this.uniforms.uHazeH.value = 150.0;
   }
 };

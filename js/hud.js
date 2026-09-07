@@ -29,6 +29,7 @@ Naval.HUD = class HUD {
       shipName:el('shipName'), shipSel:el('shipSel'),
       tonnage:el('roTonnage'), dims:el('roDims'),
       sunElev:el('sunElev'), sunVal:el('sunVal'),
+      swell:el('swell'), swellVal:el('swellVal'),
     };
 
     this._e = new THREE.Euler();
@@ -38,6 +39,13 @@ Naval.HUD = class HUD {
     this.el.windDir .addEventListener('input', ()=> this.refreshSea());
     if(this.el.sunElev){
       this.el.sunElev.addEventListener('input', ()=> this.refreshSun());
+    }
+    if(this.el.swell){
+      this.el.swell.addEventListener('input', ()=>{
+        this.ocean.swell = parseFloat(this.el.swell.value);
+        this.el.swellVal.textContent = this.ocean.swell.toFixed(2)+'×';
+        this.refreshSea();                 // rebuild the spectrum at the new scale
+      });
     }
     document.querySelectorAll('.presets button').forEach(btn=>{
       btn.addEventListener('click', ()=>{
@@ -67,7 +75,7 @@ Naval.HUD = class HUD {
     if(!this.stage || !this.el.sunElev) return;
     const e = parseFloat(this.el.sunElev.value);
     this.stage.setSun(e, this.stage.sunBearing);
-    this.el.sunVal.textContent = Math.round(e)+'°';
+    this.el.sunVal.textContent = e < 0 ? 'nuit '+Math.round(e)+'°' : Math.round(e)+'°';
   }
 
   refreshSea(){
