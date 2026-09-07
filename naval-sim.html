@@ -105,9 +105,9 @@
     </div>
     <div class="helm-col">
       <div class="helm-head"><span class="k">Écoutes</span><span class="v" id="shtText">40°</span></div>
-      <div class="barmeter"><i id="shtBar"></i></div>
+      <div class="barmeter"><i id="shtBar"></i><i id="shtOpt" class="mark" hidden></i></div>
       <div class="telegraph" id="shtTele">— voiles établies —</div>
-      <div class="keys"><kbd>Q</kbd><kbd>E</kbd> écoutes · <kbd>V</kbd> ferler</div>
+      <div class="keys"><kbd>Q</kbd><kbd>E</kbd> écoutes · <kbd>T</kbd> au mieux · <kbd>V</kbd> ferler</div>
     </div>
   </div>
 
@@ -188,7 +188,7 @@ async function main(){
     sel.appendChild(o);
   });
 
-  let spec, lines, ship, physics, cam, hud, t = 0;
+  let spec, lines, ship, physics, cam, hud, t = 0, trimPending = false;
 
   async function commission(index){
     spec = specs[index];
@@ -207,6 +207,9 @@ async function main(){
       hud = new Naval.HUD(ocean, physics, controls, cam, spec, stage);
       controls.onCycleCam = ()=> cam.cycle();
       controls.onReplant  = ()=> { if(cam.mode===3) cam.plant(); };
+      controls.onTrim     = ()=> {
+        if(physics.optSheet !== null) controls.state.sheet = physics.optSheet;
+      };
     }else{
       cam.setSpec(spec);
     }
@@ -216,6 +219,11 @@ async function main(){
     // restore the sea state the console is asking for.
     hud.eqY = physics.settle(ocean, controls.state);
     hud.refreshSea();
+    /* Hand her over ready to sail. The sheets are trimmed on the first frame
+       rather than here, because the trim depends on the apparent wind, and the
+       apparent wind is only known once the solver has run under the sea state
+       refreshSea() has just restored — settle() ran her in a flat calm. */
+    trimPending = true;
     t = 0;
   }
 
@@ -241,6 +249,11 @@ async function main(){
     controls.update(dt);
     const SUB = 4;                       // fixed substeps keep the solver stable
     for(let i=0;i<SUB;i++) physics.step(dt/SUB, ocean, controls.state, t);
+
+    if(trimPending && physics.optSheet !== null){
+      controls.state.sheet = physics.optSheet;
+      trimPending = false;
+    }
 
     ship.syncTo(physics.body);
     ship.setTrim(controls.state.sheet, physics.tack,

@@ -11,6 +11,7 @@ Naval.Controls = class Controls {
     this.maxSheet = 1.48;        // replaced per vessel by setSpec()
     this.onCycleCam = null;      // wired up by main()
     this.onReplant = null;
+    this.onTrim = null;          // "border au mieux" — asks the solver for its mark
 
     addEventListener('keydown', e=>{
       const k = e.key.toLowerCase();
@@ -19,6 +20,7 @@ Naval.Controls = class Controls {
       if(k==='c' && this.onCycleCam) this.onCycleCam();
       if(k==='v') this.state.sailsSet = !this.state.sailsSet;   // set or furl
       if(k==='x' && this.onReplant) this.onReplant();
+      if(k==='t' && this.onTrim) this.onTrim();
     });
     addEventListener('keyup', e=>{ this.keys[e.key.toLowerCase()] = false; });
   }

@@ -12,6 +12,15 @@
    carries a 115-tonne schooner and a 1600-tonne frigate without alteration. */
 window.Naval = window.Naval || {};
 
+/* The one aerofoil every sail is cut from.
+
+   These numbers are consumed TWICE — once to build the coefficients that make
+   the force, once in the closed-form best trim derived from those very
+   coefficients (see optimalAoA). Written out inline in both places they would
+   eventually drift apart, and the console would then mark a trim the sails do
+   not actually want. One definition, two readers. */
+Naval.SAIL_FOIL = { KL:1.5, CD0:0.08, KD:1.2 };
+
 Naval.ShipPhysics = class ShipPhysics {
   constructor(spec, lines){
     const C = Naval.Config;
@@ -46,6 +55,7 @@ Naval.ShipPhysics = class ShipPhysics {
     this.submergedFrac = 0; this.draft = 0;
     this.appWindAngle = 0; this.appWindSpeed = 0;
     this.tack = 1; this.sailDrive = 0; this.luffing = false;
+    this.optSheet = null;                  // null while there is no wind to trim to
 
     // scratch vectors — allocated once, never reused across a live value
     this._fwd=new THREE.Vector3(); this._right=new THREE.Vector3(); this._up=new THREE.Vector3();
@@ -199,13 +209,31 @@ Naval.ShipPhysics = class ShipPhysics {
     }
   }
 
+  /* The angle of attack that drives her hardest for a given apparent wind angle.
+
+     Drive ∝ CL·sin β − CD·cos β : lift pulls across the wind, so it helps most
+     when the wind is abeam, while drag pushes downwind and only helps once she
+     is past a beam reach. Substituting the foil above and setting the
+     derivative to zero collapses to
+
+         tan 2α = 2·KL·sin β / (KD·cos β)
+
+     — closed form, no search and no lookup table. CD0 falls out, being no
+     function of α. It lands where a seaman would put it: hard in on the wind
+     (β = 45° → sheets at 11°), and square across the ship before it
+     (β = 180° → 90°), passing through 45° on a beam reach. */
+  static optimalAoA(beta){
+    const F = Naval.SAIL_FOIL;
+    return 0.5*Math.atan2(2*F.KL*Math.sin(beta), F.KD*Math.cos(beta));
+  }
+
   /* Apparent wind = true wind seen from a moving deck. The sails are treated as
      aerofoils: lift across the apparent wind, drag along it, both growing with
      the square of the apparent speed. The force acts at the centre of effort,
      high above the waterline — which is exactly why she heels. */
   _sails(ctrl, ocean, cog, force, torque, fwd, right){
-    const C = this.C, S = this.spec, b = this.body;
-    this.sailDrive = 0; this.luffing = false;
+    const C = this.C, S = this.spec, b = this.body, F = Naval.SAIL_FOIL;
+    this.sailDrive = 0; this.luffing = false; this.optSheet = null;
 
     this._app.copy(ocean.windVec).sub(b.vel); this._app.y = 0;
     const vApp = this.appWindSpeed = this._app.length();
@@ -217,12 +245,19 @@ Naval.ShipPhysics = class ShipPhysics {
     this.appWindAngle = beta;
     this.tack = fromRight >= 0 ? 1 : -1;                     // +1 = wind on the starboard bow
 
+    /* Where the sheets ought to be on this heading, for the mark on the console.
+       Clamped to what her rig can actually do: a square-rigger cannot brace as
+       far round as a boomed gaff sail swings, so before the wind the mark sits
+       at her stop rather than at an angle she can never reach. */
+    this.optSheet = Math.max(0, Math.min(S.maxSheet,
+                      beta - Naval.ShipPhysics.optimalAoA(beta)));
+
     const aoa = beta - ctrl.sheet;
     if(!ctrl.sailsSet) return;
     if(aoa <= 0.02){ this.luffing = true; return; }          // over-eased, or in irons
 
-    const CL = 1.5*Math.sin(2*aoa);
-    const CD = 0.08 + 1.2*Math.sin(aoa)*Math.sin(aoa);
+    const CL = F.KL*Math.sin(2*aoa);
+    const CD = F.CD0 + F.KD*Math.sin(aoa)*Math.sin(aoa);
     const q  = 0.5*C.RHO_AIR*vApp*vApp*S.sailArea;
 
     this._sailF.copy(this._app).multiplyScalar(CD*q/vApp);   // drag along the wind

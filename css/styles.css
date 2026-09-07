@@ -106,6 +106,10 @@
   .barmeter{position:relative;height:9px;border-radius:6px;background:rgba(140,168,182,.16);overflow:hidden}
   .barmeter i{position:absolute;top:0;bottom:0;left:50%;width:0;background:var(--accent);transition:width .08s linear,left .08s linear}
   .barmeter.center::before{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:rgba(220,236,245,.35)}
+  /* the trim to steer for: where the sheets would drive her hardest */
+  .barmeter .mark{width:2px;left:0;top:-2px;bottom:-2px;background:var(--good);
+    transform:translateX(-50%);transition:left .12s linear}
+  .barmeter .mark[hidden]{display:none}
   .helm-head{display:flex;justify-content:space-between;align-items:baseline}
   .helm-head .k{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
   .helm-head .v{font-family:var(--mono);font-size:13px;color:var(--ink);font-variant-numeric:tabular-nums}

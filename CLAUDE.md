@@ -68,6 +68,13 @@ d'un lobe micro-facettes.
 normale effondre le terme à ~2 % sous tous les angles depuis lesquels on regarde
 réellement la mer, et supprime le chemin de scintillement.
 
+**Un seul profil de voile.** `Naval.SAIL_FOIL` (dans `ship-physics.js`) porte les
+trois coefficients de l'aérofoil. Ils sont lus deux fois : pour fabriquer la
+force, et pour en déduire le bordage optimal en forme fermée (`optimalAoA`).
+Réécrits en dur aux deux endroits, ils finiraient par diverger et le repère de
+la console désignerait un réglage que les voiles ne veulent pas — même famille
+de faute que le plan de formes unique.
+
 **Les coefficients hydro sont par unité de surface**, pas des forces absolues.
 C'est ce qui permet aux mêmes valeurs de servir une goélette de 24 m et une
 frégate de 60 m sans réglage par navire.
@@ -115,11 +122,17 @@ puis réécrire un fichier accentué produit du mojibake et un BOM. Utiliser
 **Git et les .glb.** Ils sont binaires ; une conversion de fins de ligne les
 corromprait silencieusement. `.gitattributes` les marque `binary`.
 
-**Mesures dans le navigateur.** Quand le volet de prévisualisation est masqué, le
-navigateur bride `requestAnimationFrame` à ~1 image/s : la simulation tourne au
-ralenti et les relevés semblent figés ou absurdes (vitesse qui ne monte pas,
-immersion incohérente). Ce n'est pas un bug de physique. Vérifier
-`document.hidden` avant de conclure.
+**Mesures dans le navigateur.** Quand le volet de prévisualisation n'est pas
+composité, `requestAnimationFrame` est bridé — jusqu'à **zéro** image, pas
+seulement une par seconde : la simulation est alors complètement arrêtée et les
+relevés paraissent figés ou absurdes (vitesse qui ne monte pas, immersion
+incohérente). Ce n'est pas un bug de physique. `document.hidden` reste à `false`
+dans ce cas et ne suffit donc pas à le détecter ; le test fiable est de comparer
+`Naval.app.ocean.uniforms.uTime.value` avant et après une attente. Pour mesurer
+sérieusement, ne pas dépendre de la boucle : piloter le solveur à la main depuis
+la console (`physics.step(dt, ocean, ctrl, t)` en boucle, `t` avancé soi-même),
+ce qui donne en prime des mesures reproductibles à pas fixe. Une capture d'écran
+force quelques images au passage, ce qui suffit à rafraîchir la télémétrie.
 
 **Shaders.** Un `ShaderMaterial` avec `fog: true` doit fusionner
 `THREE.UniformsLib.fog`, sinon le rendu lève une erreur sur `fogColor.value`. Et
@@ -142,6 +155,16 @@ significative au-delà de la table Beaufort. Ce dernier existe parce qu'un spect
 étalé sur dix-huit composantes et un éventail de directions paraît plus plat que
 six harmoniques alignées, à hauteur égale : les crêtes ne se superposent plus.
 Au-delà de ~1,6 un navire peut réellement chavirer, ce qui est voulu.
+
+**Réglage des voiles.** Le modèle ne donne aucun retour lisible : à 45° de vent
+apparent, des écoutes à 40° ne laissent que 5° d'incidence, donc `CL` s'effondre
+et la poussée tombe au cinquième — sans que rien ne l'annonce, la console
+affichant « voiles établies » et un nombre de kN plausible. D'où le repère vert
+sur la barre d'écoutes, à `optimalAoA`, et la touche `T` qui y borde
+directement. L'écoute initiale n'est plus une constante : elle est prise sur le
+repère à la **première image** après l'armement, car `settle()` fait flotter le
+navire dans un calme plat et le vent apparent n'existe qu'une fois `refreshSea()`
+passé.
 
 **Débogage.** `Naval.app` expose les instances vivantes (`stage`, `ocean`,
 `foam`, `physics`, `ship`, `cam`, `hud`) depuis la console. `Naval.app.stage.strike()`

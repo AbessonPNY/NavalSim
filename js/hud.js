@@ -21,6 +21,7 @@ Naval.HUD = class HUD {
       thrText:el('thrText'), thrBar:el('thrBar'), thrTele:el('thrTele'),
       rudText:el('rudText'), rudBar:el('rudBar'), rudTele:el('rudTele'),
       shtText:el('shtText'), shtBar:el('shtBar'), shtTele:el('shtTele'),
+      shtOpt:el('shtOpt'),
       wind:el('roWind'), appWind:el('roAppWind'), point:el('roPoint'),
       dot:el('statusDot'),
       seaState:el('seaState'), windDir:el('windDir'),
@@ -159,14 +160,29 @@ Naval.HUD = class HUD {
     e.appWind.textContent = Math.round(appDeg) + (p.tack>0 ? ' tb' : ' bd');
     e.point.textContent = this.pointOfSail(appDeg, p.luffing);
 
+    /* The sheet bar carries a mark at the trim that would drive her hardest on
+       her present heading. Without it a beginner reads "voiles établies", sees
+       a plausible number of kilonewtons, and never learns that several times
+       that force was one keypress away (measured at 7.4 kN against 41.8 kN on
+       the frigate close-hauled) — the model gives no other feedback. */
+    const opt = p.optSheet;
+    const known = opt !== null && ctrl.sailsSet;
+    e.shtOpt.hidden = !known;
+    if(known) e.shtOpt.style.left = (opt/S.maxSheet)*100+'%';
+
     e.shtText.textContent = ctrl.sailsSet ? Math.round(ctrl.sheet*180/Math.PI)+'°' : 'FERLÉ';
     e.shtBar.style.left = '0%';
     e.shtBar.style.width = (ctrl.sailsSet ? (ctrl.sheet/S.maxSheet)*100 : 0)+'%';
     e.shtBar.style.background = p.luffing ? 'var(--warn)' : 'var(--accent)';
+
+    // positive = eased further than she wants, so the order is to sheet in
+    const dTrim = known ? ctrl.sheet - opt : 0;
     e.shtTele.textContent = !ctrl.sailsSet ? '— voiles ferlées —'
         : p.luffing ? 'ça faseye — border !'
-        : (p.sailDrive>0 ? 'bien portantes · '+Math.round(p.sailDrive/1000)+' kN'
-                         : '— voiles établies —');
+        : !known ? '— pas de vent —'
+        : Math.abs(dTrim) < 0.05 ? 'au mieux · '+Math.round(p.sailDrive/1000)+' kN'
+        : dTrim > 0 ? 'trop choquées — border'
+                    : 'trop bordées — choquer';
 
     this.cam.refreshLabel(b);
 
