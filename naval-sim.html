@@ -240,6 +240,8 @@ async function main(){
 
     ocean.update(t, stage.camera.position);
     hud.update(dt);
+    // the mirrored pass must run before the sea that samples it
+    ocean.renderReflection(stage.renderer, stage.scene, stage.camera);
     stage.render();
     requestAnimationFrame(frame);
   }

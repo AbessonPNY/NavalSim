@@ -53,8 +53,14 @@ Naval.Ocean = class Ocean {
         uShipFwd:{value:new THREE.Vector2(0,1)},
         uShipHalf:{value:new THREE.Vector2(12,3)},
         uShipSpeed:{value:0},
+        // planar reflection of the world above the water
+        uReflTex:{value:null},
+        uReflMat:{value:new THREE.Matrix4()},
+        uReflOn:{value:0.0},
       }
     );
+
+    this._initReflection();
 
     const mat = new THREE.ShaderMaterial({
       uniforms:this.uniforms,
@@ -63,7 +69,9 @@ Naval.Ocean = class Ocean {
       defines:{NW:C.NWAVES},
       vertexShader:`
         uniform float uTime, uHalf; uniform vec4 uWaveA[NW]; uniform vec2 uWaveB[NW];
+        uniform mat4 uReflMat;
         varying vec3 vN; varying vec3 vW; varying float vFoam; varying float vRel;
+        varying vec4 vRefl;
         void main(){
           /* Spend vertices where they are seen. The grid is uniform in the
              buffer, so remap it toward the centre: quads are about a metre
@@ -101,6 +109,11 @@ Naval.Ocean = class Ocean {
           vW = p;
           vFoam = smoothstep(0.55, 0.95, steep);
           vRel = height;                     // signed height, for the crest glow
+          /* Where this patch of water lands in the reflection image. Taken from
+             the undisplaced plane, not from p: sampling with the displaced
+             position drags the reflection sideways with every crest and the
+             mirrored hull wobbles like jelly. */
+          vRefl = uReflMat * vec4(w0.x, 0.0, w0.z, 1.0);
           vec4 mvPosition = viewMatrix*vec4(p,1.0);   // p is already world space
           gl_Position = projectionMatrix*mvPosition;
         }`,
@@ -110,7 +123,9 @@ Naval.Ocean = class Ocean {
         uniform float uTime, uAmpMax, uRipple, uShipSpeed;
         uniform vec2 uWind, uShipFwd, uShipHalf;
         uniform vec3 uShipPos;
+        uniform sampler2D uReflTex; uniform float uReflOn;
         varying vec3 vN; varying vec3 vW; varying float vFoam; varying float vRel;
+        varying vec4 vRefl;
         ${Naval.SKY_GLSL}
         ${Naval.HAZE_GLSL}
 
@@ -162,6 +177,21 @@ Naval.Ocean = class Ocean {
           vec3 R = reflect(-V, N);
           R.y = abs(R.y) + 0.003;            // never sample below the horizon
           vec3 sky = navalSky(R, uSun, uZenith, uHorizon);
+
+          /* The mirrored world, over the analytic sky. The lookup is nudged by
+             the surface slope so the reflection ripples with the waves instead
+             of sitting flat; the nudge shrinks with distance, or far water
+             smears. Outside the mirror's frame there is nothing to sample, so
+             fade back to the sky rather than clamp and streak the edges. */
+          if(uReflOn > 0.5){
+            vec2 ruv = vRefl.xy / max(vRefl.w, 1e-4);
+            vec2 wobble = vec2(N.x, N.z) * 0.055 * (1.0 - far);
+            vec2 suv = ruv + wobble;
+            vec2 g = smoothstep(0.0, 0.06, suv) * (1.0 - smoothstep(0.94, 1.0, suv));
+            float inside = g.x * g.y * (1.0 - far);
+            vec3 mirrored = texture2D(uReflTex, clamp(suv, 0.001, 0.999)).rgb;
+            sky = mix(sky, mirrored, inside);
+          }
 
           // Schlick, with water's real normal-incidence reflectance (~2%).
           // Nearly all of the reflection therefore lives at grazing angles.
@@ -249,6 +279,84 @@ Naval.Ocean = class Ocean {
     this.mesh = new THREE.Mesh(geo, mat);
     this.mesh.frustumCulled = false;   // it is always under the camera
     scene.add(this.mesh);
+  }
+
+  /* Planar reflection.
+     The analytic sky alone cannot show the hull in the water, and a vessel with
+     no reflection reads as pasted onto the image. So each frame the world above
+     the waterline is rendered once more from a camera mirrored through that
+     plane, and the sea samples it.
+
+     Three points of care:
+     · the virtual camera is rebuilt with lookAt from a REFLECTED up vector, not
+       by multiplying in a mirror matrix — that would flip handedness and turn
+       every hull inside out;
+     · a clipping plane keeps the submerged part of the hull out of the
+       reflection, where it has no business being;
+     · the sea itself is hidden for the pass, or it would reflect itself. */
+  _initReflection(){
+    const size = 1024;
+    this.reflTarget = new THREE.WebGLRenderTarget(size, size, {
+      minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+      type: THREE.UnsignedByteType, depthBuffer: true, stencilBuffer: false
+    });
+    this.uniforms.uReflTex.value = this.reflTarget.texture;
+    this.reflCam = new THREE.PerspectiveCamera();
+    this._textureMatrix = new THREE.Matrix4();
+    this._clip = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+    this._rotM = new THREE.Matrix4();
+    this._look = new THREE.Vector3();
+    this._view = new THREE.Vector3();
+    this._up   = new THREE.Vector3();
+    this._normal = new THREE.Vector3(0,1,0);
+    this._camWorld = new THREE.Vector3();
+  }
+
+  renderReflection(renderer, scene, camera){
+    const rc = this.reflCam;
+    camera.getWorldPosition(this._camWorld);
+    this._rotM.extractRotation(camera.matrixWorld);
+
+    // mirror the eye through the water plane (y = 0)
+    rc.position.set(this._camWorld.x, -this._camWorld.y, this._camWorld.z);
+
+    // and mirror what it looks at
+    this._look.set(0,0,-1).applyMatrix4(this._rotM).add(this._camWorld);
+    this._view.set(this._look.x, -this._look.y, this._look.z);
+
+    // reflect the up vector too, so lookAt rebuilds a proper right-handed
+    // basis and the image comes out mirrored without inverted winding
+    this._up.set(0,1,0).applyMatrix4(this._rotM).reflect(this._normal);
+    rc.up.copy(this._up);
+    rc.lookAt(this._view);
+    rc.near = camera.near; rc.far = camera.far;
+    rc.projectionMatrix.copy(camera.projectionMatrix);
+    rc.updateMatrixWorld();
+
+    // world position → reflection texture coordinates, exactly
+    this._textureMatrix.set(0.5,0,0,0.5, 0,0.5,0,0.5, 0,0,0.5,0.5, 0,0,0,1);
+    this._textureMatrix.multiply(rc.projectionMatrix);
+    this._textureMatrix.multiply(rc.matrixWorldInverse);
+    this.uniforms.uReflMat.value.copy(this._textureMatrix);
+
+    const seaWasVisible = this.mesh.visible;
+    const prevPlanes = renderer.clippingPlanes;
+    const prevTarget = renderer.getRenderTarget();
+    const prevCam = this.uniforms.uCam.value.clone();
+
+    this.mesh.visible = false;                    // the sea must not mirror itself
+    renderer.clippingPlanes = [this._clip];       // keep only what is above water
+    this.uniforms.uCam.value.copy(rc.position);   // haze seen from the mirrored eye
+
+    renderer.setRenderTarget(this.reflTarget);
+    renderer.clear();
+    renderer.render(scene, rc);
+
+    renderer.setRenderTarget(prevTarget);
+    renderer.clippingPlanes = prevPlanes;
+    this.mesh.visible = seaWasVisible;
+    this.uniforms.uCam.value.copy(prevCam);
+    this.uniforms.uReflOn.value = 1.0;
   }
 
   /* seaState is the Beaufort number; windDeg is the bearing the wind blows
