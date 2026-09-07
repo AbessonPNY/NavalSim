@@ -156,6 +156,35 @@ significative au-delà de la table Beaufort. Ce dernier existe parce qu'un spect
 six harmoniques alignées, à hauteur égale : les crêtes ne se superposent plus.
 Au-delà de ~1,6 un navire peut réellement chavirer, ce qui est voulu.
 
+**Gréer un modèle importé.** Un `.glb` arrive avec une coque et des espars nus,
+mais quasiment jamais de voiles — la Roter Löwe n'en a aucune, et ses nœuds
+portent les noms Blender par défaut (`Cylinder.004`…), donc rien à quoi les
+reconnaître *par le nom*. Ce qu'elle a, ce sont des **vergues**, et une vergue se
+reconnaît à sa forme seule : un espar bien plus large en travers qu'épais, posé
+en croix sur l'axe. `_rigModel()` les lit sur la géométrie, les regroupe par mât
+(l'écart entre mâts est d'un ordre de grandeur supérieur à la dispersion sur un
+même mât) et y suspend la toile. Aucune donnée par navire : déposer un carré
+dans `ships/models` suffit à le gréer.
+
+Deux points à ne pas défaire. Les vergues sont **reparentées dans le pivot** qui
+porte la voile (`Object3D.attach`, qui conserve la transformée monde) : faire
+tourner la toile seule la ferait glisser hors de sa propre vergue. Et la chute
+des voiles est bornée par le **pont réel du modèle**, échantillonné par
+`_deckProfile()` — un seul chiffre pour tout le navire ne suffit pas, la Roter
+Löwe portant son château arrière neuf mètres au-dessus de son maître-bau : les
+basses voiles traversaient la coque.
+
+**Ferler prend la toile, pas les espars.** `setTrim` masque `this.canvases`, plus
+jamais le groupe entier. Un navire à sec de toile garde ses vergues en croix et
+sa bôme en place — et pour un modèle importé, masquer le groupe lui arracherait
+son gréement, puisque ses propres vergues y vivent désormais.
+
+**Échelle d'un modèle — non corrigé.** `loadModel()` ramène à `spec.L` la boîte
+englobante de *tout* l'objet, beaupré et vergues compris. Sur la Roter Löwe la
+coque visible ne fait donc que 47,5 m là où le solveur calcule sur 60 : le
+collier d'écume, qui suit l'ellipse `spec.L × spec.B`, déborde de 6,3 m à chaque
+extrémité. Il faudrait prendre l'échelle sur le maillage de coque seul.
+
 **Réglage des voiles.** Le modèle ne donne aucun retour lisible : à 45° de vent
 apparent, des écoutes à 40° ne laissent que 5° d'incidence, donc `CL` s'effondre
 et la poussée tombe au cinquième — sans que rien ne l'annonce, la console

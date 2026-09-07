@@ -37,7 +37,8 @@ Naval.ShipModel = class ShipModel {
 
     this.procedural = new THREE.Group();     // everything we build ourselves
     this.group.add(this.procedural);
-    this.rigs = [];
+    this.rigs = [];                          // what braces or swings when trimmed
+    this.canvases = [];                      // the cloth alone — furling hides only this
 
     this._buildHull();
     this._buildRig();
@@ -101,7 +102,9 @@ Naval.ShipModel = class ShipModel {
     g.setAttribute('position', new THREE.Float32BufferAttribute(v,3));
     g.setIndex(points.length===4?[0,1,2, 0,2,3]:[0,1,2]);
     g.computeVertexNormals();
-    return new THREE.Mesh(g, this.mats.canvas);
+    const mesh = new THREE.Mesh(g, this.mats.canvas);
+    this.canvases.push(mesh);
+    return mesh;
   }
 
   /* Gaff sail on a swinging boom. The group pivots on the mast, so sheeting in
@@ -160,7 +163,9 @@ Naval.ShipModel = class ShipModel {
       g.setAttribute('position', new THREE.Float32BufferAttribute(v,3));
       g.setIndex([0,1,2, 0,2,3]);
       g.computeVertexNormals();
-      rig.add(new THREE.Mesh(g, this.mats.canvas));
+      const sail = new THREE.Mesh(g, this.mats.canvas);
+      this.canvases.push(sail);
+      rig.add(sail);
     }
     this.procedural.add(rig);
     return rig;
@@ -217,12 +222,155 @@ Naval.ShipModel = class ShipModel {
       this.group.remove(this.procedural);
       this.group.add(obj);
       this.modelRoot = obj;
-      this.rigs = [];                    // the model carries its own canvas
+      this.rigs = []; this.canvases = [];   // the procedural rig went with the hull
+      this._rigModel();
       return true;
     }catch(err){
       console.warn('[' + this.spec.id + '] could not load ' + (m.glb || 'embedded model') +
                    ' — keeping the procedural hull. ' + (err && err.message || err));
       return false;
+    }
+  }
+
+  /* Every mesh of the loaded model, measured in the hull's own frame. Runs once
+     per commissioning over a handful of meshes, so the geometry clone it costs
+     is cheaper than carrying a parallel description of the model around. */
+  _modelParts(){
+    this.group.updateWorldMatrix(true, true);
+    const toLocal = new THREE.Matrix4().copy(this.group.matrixWorld).invert();
+    const rel = new THREE.Matrix4(), parts = [];
+    this.modelRoot.traverse(o => {
+      if(!o.isMesh || !o.geometry) return;
+      o.updateWorldMatrix(true, false);
+      const g = o.geometry.clone();
+      g.applyMatrix4(rel.multiplyMatrices(toLocal, o.matrixWorld));
+      g.computeBoundingBox();
+      const box = g.boundingBox.clone();
+      parts.push({ mesh:o, geom:g, box,        // geom is the caller's to dispose
+                   size:box.getSize(new THREE.Vector3()),
+                   mid: box.getCenter(new THREE.Vector3()) });
+    });
+    return parts;
+  }
+
+  /* The height of her deck along her length, read off the model's own hull.
+
+     No sail may hang through the ship, and the only thing that knows where the
+     deck is, is the model. One number for the whole vessel would not do: a
+     full-bodied sixteenth-century hull carries her poop the better part of ten
+     metres above her waist, so a single figure would either fly the courses or
+     bury them. */
+  _deckProfile(parts){
+    let hull = parts[0], best = -1;
+    for(const p of parts){
+      const v = p.size.x*p.size.y*p.size.z;    // the hull is far the bulkiest mesh
+      if(v > best){ best = v; hull = p; }
+    }
+    const N = 24, z0 = hull.box.min.z;
+    const step = (hull.box.max.z - z0)/N || 1;
+    const top = new Array(N).fill(-Infinity);
+    const pos = hull.geom.attributes.position;
+    const bin = z => Math.min(N-1, Math.max(0, Math.floor((z-z0)/step)));
+    for(let i=0;i<pos.count;i++){
+      const b = bin(pos.getZ(i)), y = pos.getY(i);
+      if(y > top[b]) top[b] = y;
+    }
+    // Off the ends of the hull — under the bowsprit — take the nearest station
+    // that has any ship under it at all.
+    return z => {
+      const b = bin(z);
+      for(let d=0; d<N; d++){
+        if(top[b-d] > -Infinity) return top[b-d];
+        if(top[b+d] > -Infinity) return top[b+d];
+      }
+      return 0;
+    };
+  }
+
+  /* Hang canvas on an imported model's own spars.
+
+     A .glb arrives with a hull and bare spars but, as a rule, no sails — the
+     Roter Löwe has none, and her nodes carry Blender's default names, so there
+     is nothing to look them up BY. What she does have is yards, and a yard is
+     unmistakable by shape alone: a spar many times wider athwartships than it
+     is thick, lying square across the centreline. Reading them off the geometry
+     means any square-rigged model dropped into ships/models comes out rigged,
+     with not one line of per-vessel data to write — the folder stays the
+     authority, as it does for the specs themselves.
+
+     The yards are then re-parented INTO the pivots that carry the sails, so
+     bracing swings spar and cloth as one piece. Turning the canvas alone would
+     slide it off its own yard. */
+  _rigModel(){
+    const spec = this.spec, belly = spec.rig.belly || 0.8;
+    if(!(spec.sailArea > 0)) return;         // she is not meant to carry canvas
+
+    const parts = this._modelParts();
+    const yards = parts.filter(p => {
+      const across = p.size.x, thick = Math.max(p.size.y, p.size.z);
+      return across > 4*thick                    // long and thin, and thin the long way
+          && across > 0.25*spec.B                // a spar, not a bit of deck gear
+          && Math.abs(p.mid.x) < 0.15*across;    // squarely across the centreline
+    });
+    const deckAt = this._deckProfile(parts);
+    for(const p of parts) p.geom.dispose();      // measurements taken; buffers freed
+
+    if(!yards.length){
+      console.warn('[' + spec.id + '] no yards found in the model — she sails under ' +
+                   'bare poles. A gaff or lateen model needs its own rigging path.');
+      return;
+    }
+
+    /* Sort them onto masts. Yards cluster tightly in z about their own mast,
+       and the spacing between masts is an order of magnitude wider than the
+       spread within one, so a single gap test separates them. */
+    yards.sort((a,b) => a.mid.z - b.mid.z);
+    const masts = [], together = 0.06*spec.L;
+    for(const y of yards){
+      const last = masts[masts.length-1];
+      if(last && Math.abs(y.mid.z - last[0].mid.z) < together) last.push(y);
+      else masts.push([y]);
+    }
+
+    for(const mast of masts){
+      mast.sort((a,b) => b.mid.y - a.mid.y);            // highest yard first
+      const z0 = mast.reduce((s,y) => s + y.mid.z, 0) / mast.length;
+      const pivot = new THREE.Group();
+      pivot.position.set(0, 0, z0);
+      this.group.add(pivot);
+
+      for(let i=0;i<mast.length;i++){
+        const y = mast[i], half = y.size.x*0.5*0.97;
+        pivot.attach(y.mesh);      // braces with the mast, canvas or no canvas
+
+        /* A sail hangs to just short of the yard beneath it. The lowest one has
+           nothing below to measure against and borrows the gap above; none may
+           be deeper than about half its width; and none may reach past the deck
+           under it — a course is sheeted home to the rail, not through it. */
+        const above = mast[i-1], below = mast[i+1];
+        const gap = below ? (y.mid.y - below.mid.y)
+                  : above ? (above.mid.y - y.mid.y)
+                  : half*2;
+        const dz = y.mid.z - z0, yy = y.mid.y;
+        const drop = Math.min(0.82*gap, 1.1*half,
+                              yy - deckAt(y.mid.z) - 0.02*spec.L);
+        if(drop < 0.2*half) continue;   // too near the deck to be a yard at all
+
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute([
+          -half,      yy,      dz,
+           half,      yy,      dz,
+           half*0.86, yy-drop, dz+belly,
+          -half*0.86, yy-drop, dz+belly
+        ], 3));
+        g.setIndex([0,1,2, 0,2,3]);
+        g.computeVertexNormals();
+
+        const sail = new THREE.Mesh(g, this.mats.canvas);
+        this.canvases.push(sail);
+        pivot.add(sail);
+      }
+      this.rigs.push(pivot);
     }
   }
 
@@ -269,11 +417,15 @@ Naval.ShipModel = class ShipModel {
   }
 
   setTrim(sheet, tack, sailsSet, luffing, t){
-    if(!this.rigs.length) return;          // a glTF model trims itself
+    if(!this.rigs.length) return;          // no canvas to trim
     const shake = luffing ? Math.sin(t*11)*0.10 : 0;
     const angle = tack * sheet + shake;
+    /* Furling takes in the cloth, not the spars — a vessel under bare poles
+       still has her yards crossed and her boom shipped. It matters twice over
+       for an imported model, whose own yards now hang in these pivots: hiding
+       the group would strip her rig off the masts. */
+    for(const c of this.canvases) c.visible = sailsSet;
     for(const rig of this.rigs){
-      rig.visible = sailsSet;
       rig.rotation.y = (rig===this.jibRig ? angle*0.75 : angle);
     }
   }
