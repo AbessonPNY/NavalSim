@@ -20,6 +20,7 @@ Naval.Ocean = class Ocean {
     this.C = C;
     this.waves = [];
     this.swell = 1.35;               // creux multiplier, driven by the console
+    this.sharp = 1.0;                // crest peaking exponent
     this.windSpeed = 0;                    // m/s, true wind
     this.windVec = new THREE.Vector3();    // true wind velocity (blows toward)
 
@@ -40,6 +41,7 @@ Naval.Ocean = class Ocean {
         uCam:{value:new THREE.Vector3()},
         uHalf:{value:half},
         uSeg:{value:C.OCEAN_SEG},
+        uSharp:{value:1.0},
         uAmpMax:{value:1.0},
         uDeep:{value:new THREE.Color(0x0e3347)},
         uShallow:{value:new THREE.Color(0x2f8fa8)},
@@ -76,7 +78,7 @@ Naval.Ocean = class Ocean {
       fog:false,
       defines:{NW:C.NWAVES},
       vertexShader:`
-        uniform float uTime, uHalf, uSeg; uniform vec4 uWaveA[NW]; uniform vec2 uWaveB[NW];
+        uniform float uTime, uHalf, uSeg, uSharp; uniform vec4 uWaveA[NW]; uniform vec2 uWaveB[NW];
         uniform mat4 uReflMat;
         varying vec3 vN; varying vec3 vW; varying float vFoam; varying float vRel;
         varying vec4 vRefl; varying float vSpacing;
@@ -124,11 +126,21 @@ Naval.Ocean = class Ocean {
 
             float f = k*dot(d, w0.xz) - omega*uTime;
             float c = cos(f), s = sin(f);
+
+            /* Peak the profile: sign(s)·|s|^p. Odd, so the mean stays zero and
+               the waterline does not creep. The slope gains a factor p·|s|^(p-1)
+               — the crests are not only taller but steeper-sided, which is what
+               reads as a rough sea rather than a swell of round humps. */
+            float as = abs(s);
+            float sp = pow(max(as, 1e-4), uSharp - 1.0);
+            float hs = sign(s) * as * sp;          // the sharpened wave
+            float dsl = uSharp * sp;               // d/df of it, over cos(f)
+
             p.x += Q*amp*d.x*c;
             p.z += Q*amp*d.y*c;
-            p.y += amp*s;
-            height += amp*s;
-            float WA = k*amp;
+            p.y += amp*hs;
+            height += amp*hs;
+            float WA = k*amp*dsl;
             n.x -= d.x*WA*c; n.z -= d.y*WA*c; n.y -= Q*WA*s;
             steep += Q*WA*max(s,0.0);
           }
@@ -492,10 +504,25 @@ Naval.Ocean = class Ocean {
     const hsRaw = 4*Math.sqrt(Math.max(m0, 1e-9));
     const scale = hsRaw > 1e-6 ? hsTarget/hsRaw : 0;
 
-    const chop = 0.35 + s*0.075;          // steepness budget
+    /* Steepness budget. It must rise with the swell control as well as with the
+       sea state: a bigger wave at the same steepness is just a bigger round
+       hump, which is exactly how deep troughs used to look. */
+    const chop = (0.35 + s*0.075) * (0.75 + 0.42*this.swell);
+
+    /* Crest sharpening. Gerstner alone cannot carry this: its cusping comes from
+       the horizontal term Q, and with eighteen components the budget divides so
+       far that every one of them is left almost sinusoidal. So the profile is
+       peaked directly — sign(s)·|s|^p. Odd symmetry means the mean stays exactly
+       zero, which matters: any DC offset here would silently shift the mean
+       water level and the whole fleet's flotation with it. */
+    this.sharp = 1 + Math.min(0.95, (0.06 + 0.055*s) * (0.55 + 0.62*this.swell));
+    this.uniforms.uSharp.value = this.sharp;
+
     let ampSum = 0;
     for(const r of raw){
-      const amp = r.amp*scale;
+      // sharpening lowers the RMS of the profile; give it back so the stated
+      // significant height still holds
+      const amp = r.amp*scale*(1 + 0.42*(this.sharp - 1));
       const k = r.w*r.w/G;                // deep-water dispersion, k = ω²/g
       // steepness normalised so the crest never loops (Σ Q·k·A < 1)
       const Q = Math.min(0.85, chop / (k*amp*N + 1e-4));
@@ -540,8 +567,11 @@ Naval.Ocean = class Ocean {
       const w = src[i];
       const f = w.k*(w.dx*x + w.dz*z) - w.omega*t;
       const c = Math.cos(f), sn = Math.sin(f);
-      y += w.amp * sn;
-      const WA = w.k * w.amp;
+      // the very same sharpened profile the vertex shader draws
+      const as = Math.abs(sn);
+      const sp = Math.pow(Math.max(as, 1e-4), this.sharp - 1);
+      y += w.amp * Math.sign(sn) * as * sp;
+      const WA = w.k * w.amp * this.sharp * sp;
       nx -= w.dx * WA * c;
       nz -= w.dz * WA * c;
       ny -= w.Q  * WA * sn;
@@ -587,7 +617,7 @@ Naval.Ocean = class Ocean {
   syncWind(){
     const w = this.windVec, s = Math.hypot(w.x, w.z);
     if(s > 1e-4) this.uniforms.uWind.value.set(w.x/s, w.z/s);
-    this.uniforms.uRipple.value = Math.min(1.6, 0.35 + this.windSpeed*0.075);
+    this.uniforms.uRipple.value = Math.min(2.6, 0.40 + this.windSpeed*0.105);
     /* Haze is deliberately NOT tied to the sea state. Physically a blow does
        thicken the air, but it shut the horizon down exactly when the big seas
        became worth looking at. A steady, clear atmosphere serves the view
