@@ -40,6 +40,25 @@ fs.writeFileSync(path.join(ROOT, 'ships', 'index.json'),
                  JSON.stringify(shipList, null, 2) + '\n', 'utf8');
 console.log('wrote ships/index.json  (' + shipList.length + ' vessels, for static hosting)');
 
+/* And check the last-resort list in config.js still matches the folder.
+ * It is reached only when even index.json is absent, which is precisely the
+ * case nobody tests — so it drifts unnoticed. It had lost the cutter and the
+ * Roter Löwe for exactly that reason. A warning, not an error: the fallback
+ * being stale never breaks a build, only a deployment nobody looks at. */
+{
+  const cfg = fs.readFileSync(path.join(ROOT, 'js', 'config.js'), 'utf8');
+  const m = cfg.match(/SHIPS:\s*\[([^\]]*)\]/);
+  const listed = m ? (m[1].match(/'([^']+)'/g) || []).map(s => s.slice(1, -1)).sort() : [];
+  const missing = shipList.filter(s => !listed.includes(s));
+  const extra   = listed.filter(s => !shipList.includes(s));
+  if (missing.length || extra.length) {
+    console.warn('  WARNING: Naval.Config.SHIPS has drifted from the ships folder.' +
+      (missing.length ? '\n    absent de la liste : ' + missing.join(', ') : '') +
+      (extra.length   ? '\n    listé mais introuvable : ' + extra.join(', ') : '') +
+      '\n    Sans index.json, un hébergeur statique ne demandera jamais ces navires.');
+  }
+}
+
 const shipData = {};
 for (const rel of shipList) {
   const spec = JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8'));
