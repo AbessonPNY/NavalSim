@@ -57,6 +57,11 @@ Naval.Ocean = class Ocean {
         uReflTex:{value:null},
         uReflMat:{value:new THREE.Matrix4()},
         uReflOn:{value:0.0},
+        // the persistent foam field
+        uFoamTex:{value:null},
+        uFoamOrigin:{value:new THREE.Vector2()},
+        uFoamSize:{value:1.0},
+        uFoamOn:{value:0.0},
       }
     );
 
@@ -124,6 +129,8 @@ Naval.Ocean = class Ocean {
         uniform vec2 uWind, uShipFwd, uShipHalf;
         uniform vec3 uShipPos;
         uniform sampler2D uReflTex; uniform float uReflOn;
+        uniform sampler2D uFoamTex; uniform float uFoamOn, uFoamSize;
+        uniform vec2 uFoamOrigin;
         varying vec3 vN; varying vec3 vW; varying float vFoam; varying float vRel;
         varying vec4 vRefl;
         ${Naval.SKY_GLSL}
@@ -251,16 +258,31 @@ Naval.Ocean = class Ocean {
           float ed = length(loc);                        // 1.0 = on the waterline
           float way = clamp(uShipSpeed/3.0, 0.0, 1.0);
 
+          /* Only the crisp collar and bow wave stay instantaneous — they belong
+             to the hull and must move with her. The lingering trail astern now
+             comes from the foam field, which leaves it in the water. */
           float collar = (1.0 - smoothstep(1.0, 1.45, ed)) * step(0.98, ed);
           float bow    = (1.0 - smoothstep(1.0, 2.1 + way, ed)) * step(1.0, ed)
                          * smoothstep(-0.2, 0.7, loc.y) * way;
-          float tail   = (1.0 - smoothstep(0.0, 3.5 + 4.0*way, -loc.y))
-                         * (1.0 - smoothstep(0.7, 2.0, abs(loc.x)))
-                         * step(loc.y, -0.6) * way * 0.7;
-          float hullFoam = clamp(collar*0.70 + bow*0.55 + tail*0.8, 0.0, 1.0)
+          float hullFoam = clamp(collar*0.70 + bow*0.55, 0.0, 1.0)
                            * (0.45 + 0.80*fn);
 
-          float foam = clamp(crestFoam + hullFoam, 0.0, 1.0) * (1.0 - far*0.85);
+          /* Foam that was laid down earlier and is still dispersing. Sampled in
+             world space, so it stays where it was made while the ship sails on. */
+          float persist = 0.0;
+          if(uFoamOn > 0.5){
+            vec2 fuv = (vW.xz - uFoamOrigin) / uFoamSize;
+            if(fuv.x > 0.0 && fuv.x < 1.0 && fuv.y > 0.0 && fuv.y < 1.0){
+              float edge = min(min(fuv.x, 1.0-fuv.x), min(fuv.y, 1.0-fuv.y));
+              persist = texture2D(uFoamTex, fuv).r
+                      * smoothstep(0.0, 0.03, edge);   // no hard border
+            }
+          }
+          // the old foam is torn and streaky, not a flat wash
+          persist *= (0.35 + 0.95*fn);
+
+          float foam = clamp(max(crestFoam, persist) + hullFoam, 0.0, 1.0)
+                     * (1.0 - far*0.85);
           col = mix(col, vec3(0.92,0.96,0.98), foam*0.85);
 
           /* Fade into the sky that lies exactly behind this patch of water,
@@ -426,6 +448,20 @@ Naval.Ocean = class Ocean {
     this.mesh.position.z = cameraPos.z;
     this.uniforms.uTime.value = t;
     this.uniforms.uCam.value.copy(cameraPos);
+  }
+
+  /* Hand the sea the foam field. Its window slides with the vessel, so the
+     origin and extent have to travel with it — the lookup is in world space. */
+  attachFoam(foam){
+    this.foam = foam;
+    this.uniforms.uFoamSize.value = foam.size;
+    this.uniforms.uFoamOn.value = 1.0;
+  }
+
+  syncFoam(){
+    if(!this.foam) return;
+    this.uniforms.uFoamTex.value = this.foam.texture;
+    this.uniforms.uFoamOrigin.value.copy(this.foam.origin);
   }
 
   // Tell the sea where the hull is, so it can foam along her waterline.

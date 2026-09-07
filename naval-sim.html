@@ -131,6 +131,7 @@
 <script src="js/hull-lines.js"></script>
 <script src="js/stage.js"></script>
 <script src="js/ocean.js"></script>
+<script src="js/foam.js"></script>
 <script src="js/ship-model.js"></script>
 <script src="js/ship-physics.js"></script>
 <script src="js/controls.js"></script>
@@ -148,6 +149,8 @@ async function main(){
   const canvas   = document.getElementById('gl');
   const stage    = new Naval.Stage(canvas);
   const ocean    = new Naval.Ocean(stage.scene, stage.sunDir, stage);
+  const foam     = new Naval.FoamField(stage.renderer, ocean.uniforms);
+  ocean.attachFoam(foam);
   const controls = new Naval.Controls();
 
   /* The sea mirrors the sky, so when the sun moves the water's copy of it has
@@ -240,7 +243,9 @@ async function main(){
 
     ocean.update(t, stage.camera.position);
     hud.update(dt);
-    // the mirrored pass must run before the sea that samples it
+    // both offscreen passes must run before the sea that samples them
+    foam.update(stage.renderer, dt, t, physics.body.pos);
+    ocean.syncFoam();
     ocean.renderReflection(stage.renderer, stage.scene, stage.camera);
     stage.render();
     requestAnimationFrame(frame);
