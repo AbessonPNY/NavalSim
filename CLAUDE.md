@@ -129,6 +129,16 @@ un `#define N` écrase l'identifiant `N` jusque dans le fragment shader.
 maillage. Une voile opaque éclairée à contre-jour devient noire : le tissu porte
 une composante `emissive` pour rester lisible.
 
+**Moiré.** Le maillage de mer concentre ses sommets près de la caméra : la
+maille passe d'environ 1 m à plusieurs mètres en quelques dizaines de mètres.
+Dès qu'elle dépasse le quart d'une longueur d'onde, le maillage ne peut plus
+porter cette vague et le battement entre les deux fréquences produit du moiré.
+La parade est de **borner la bande passante contre la taille locale de la
+maille**, jamais contre la distance : `vSpacing` sort de la dérivée du remap et
+sert de critère unique aux vagues, aux rides et à la rugosité spéculaire. Deux
+seuils de distance séparés finiraient toujours par se contredire et faire une
+bande visible.
+
 **Mer.** Le détail fin ne vient pas du maillage mais d'une perturbation de
 normales (`rippleNormal`) — six vagues de Gerstner seules donnent du plastique
 moulé. Ce détail doit être fondu avec la distance, sinon il bouillonne à

@@ -38,6 +38,7 @@ Naval.Ocean = class Ocean {
         uSun:{value:sunDir.clone()},
         uCam:{value:new THREE.Vector3()},
         uHalf:{value:half},
+        uSeg:{value:C.OCEAN_SEG},
         uAmpMax:{value:1.0},
         uDeep:{value:new THREE.Color(0x0e3347)},
         uShallow:{value:new THREE.Color(0x2f8fa8)},
@@ -73,10 +74,10 @@ Naval.Ocean = class Ocean {
       fog:false,
       defines:{NW:C.NWAVES},
       vertexShader:`
-        uniform float uTime, uHalf; uniform vec4 uWaveA[NW]; uniform vec2 uWaveB[NW];
+        uniform float uTime, uHalf, uSeg; uniform vec4 uWaveA[NW]; uniform vec2 uWaveB[NW];
         uniform mat4 uReflMat;
         varying vec3 vN; varying vec3 vW; varying float vFoam; varying float vRel;
-        varying vec4 vRefl;
+        varying vec4 vRefl; varying float vSpacing;
         void main(){
           /* Spend vertices where they are seen. The grid is uniform in the
              buffer, so remap it toward the centre: quads are about a metre
@@ -87,6 +88,14 @@ Naval.Ocean = class Ocean {
           vec2 q = lp.xz / uHalf;
           vec2 aq = abs(q);
           lp.xz = sign(q) * (aq * (0.06 + 0.94*aq*aq)) * uHalf;
+
+          /* How many metres this quad spans, straight from the derivative of
+             the remap above. Everything that follows is band-limited against
+             THIS, not against distance: one criterion, so no seam can appear
+             where two different distance thresholds would have disagreed. */
+          vec2 dsp = (vec2(0.06) + 2.82*aq*aq) * (uHalf * 2.0 / uSeg);
+          float spacing = max(dsp.x, dsp.y);
+          vSpacing = spacing;
 
           /* The plane is re-centred on the camera every frame, so the wave
              phase MUST come from world space — otherwise the swell would be
@@ -99,6 +108,18 @@ Naval.Ocean = class Ocean {
           for(int i=0;i<NW;i++){
             vec2 d = uWaveA[i].xy; float amp=uWaveA[i].z; float k=uWaveA[i].w;
             float omega=uWaveB[i].x; float Q=uWaveB[i].y;
+
+            /* Drop any wave this quad is too coarse to carry. A wavelength
+               needs several vertices across it; below that the mesh samples it
+               aliased and the beat between the two frequencies is precisely the
+               moire you see. Fading the amplitude out removes the beat instead
+               of letting it fight the grid.
+               Near the hull spacing is about a metre, so nothing is removed
+               there and the visible surface still matches the height field the
+               buoyancy solver samples. */
+            float lambda = 6.28318530718 / k;
+            amp *= smoothstep(2.5, 6.0, lambda / spacing);
+
             float f = k*dot(d, w0.xz) - omega*uTime;
             float c = cos(f), s = sin(f);
             p.x += Q*amp*d.x*c;
@@ -132,7 +153,7 @@ Naval.Ocean = class Ocean {
         uniform sampler2D uFoamTex; uniform float uFoamOn, uFoamSize;
         uniform vec2 uFoamOrigin;
         varying vec3 vN; varying vec3 vW; varying float vFoam; varying float vRel;
-        varying vec4 vRefl;
+        varying vec4 vRefl; varying float vSpacing;
         ${Naval.SKY_GLSL}
         ${Naval.HAZE_GLSL}
 
@@ -174,9 +195,12 @@ Naval.Ocean = class Ocean {
           float far = smoothstep(90.0, 1400.0, dist);
           vec3 N = normalize(mix(normalize(vN), vec3(0.0,1.0,0.0), far*0.92));
 
-          /* Graft the fine ripples onto the wave normal, fading them out with
-             distance — below a pixel they would only alias into shimmer. */
-          float rFade = 1.0 - smoothstep(25.0, 260.0, dist);
+          /* Graft the fine ripples onto the wave normal. They are band-limited
+             against the SAME quad size as the waves: ripples are metre-scale, so
+             they must go once a quad spans several metres, or they alias just
+             as the waves did. */
+          float rFade = (1.0 - smoothstep(0.8, 4.0, vSpacing))
+                      * (1.0 - smoothstep(25.0, 260.0, dist));
           vec3 rn = rippleNormal(vW.xz, rFade);
           N = normalize(vec3(N.x + rn.x, N.y, N.z + rn.z));
 
@@ -226,7 +250,12 @@ Naval.Ocean = class Ocean {
              chop and with distance, which is exactly what smears the sun into
              the long shimmering road you see on any real sea. */
           vec3 H = normalize(uSun + V);
-          float rough = clamp(0.055 + 0.30*vFoam + 0.30*far, 0.03, 0.6);
+          /* Widen the lobe as the mesh coarsens. A tight highlight riding a
+             normal the geometry can no longer resolve is the other half of the
+             moire: it sparkles on and off between neighbouring quads. Roughness
+             stands in for the wave detail that was removed. */
+          float coarse = smoothstep(0.8, 6.0, vSpacing);
+          float rough = clamp(0.055 + 0.30*vFoam + 0.24*far + 0.26*coarse, 0.03, 0.6);
           float a = rough*rough;
           float nh = max(dot(N,H), 0.0);
           float dd = nh*nh*(a*a - 1.0) + 1.0;

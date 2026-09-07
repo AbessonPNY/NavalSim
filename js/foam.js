@@ -114,9 +114,12 @@ Naval.FoamField = class FoamField {
                           dot(rel,f2)/max(uShipHalf.x,0.01));
           float ed = length(loc);
           float way = clamp(uShipSpeed/3.0, 0.0, 1.0);
-          // a band along her waterline, opened up by the bow when she has way
-          float hull = (1.0 - smoothstep(0.80, 1.55 + 0.5*way, ed))
-                     * (0.30 + 0.85*way);
+          /* A ring ON her waterline, not a disc filling her whole footprint —
+             and it needs way to appear. A vessel lying stopped disturbs almost
+             nothing; filling the hull outline regardless left her sitting in a
+             permanent white pool. */
+          float band = 1.0 - smoothstep(0.0, 0.30 + 0.45*way, abs(ed - 1.0));
+          float hull = band * (0.06 + 1.0*way);
 
           // deposit, never accumulate past saturation
           gl_FragColor = vec4(clamp(max(prev, max(breaking, hull)), 0.0, 1.0), 0.0, 0.0, 1.0);
