@@ -9,6 +9,7 @@ Naval.Controls = class Controls {
     // sheet = how far the booms are eased from the centreline
     this.state = { throttle:0, rudder:0, sheet:0.7, sailsSet:true };
     this.maxSheet = 1.48;        // replaced per vessel by setSpec()
+    this.sternMax = -0.6;        // likewise — how far astern her telegraph rings
     this.onCycleCam = null;      // wired up by main()
     this.onReplant = null;
     this.onTrim = null;          // "border au mieux" — asks the solver for its mark
@@ -30,7 +31,7 @@ Naval.Controls = class Controls {
     const tStep = 0.9*dt, rStep = 1.8*dt, sStep = 0.7*dt;
 
     if(k['w']||k['arrowup'])   s.throttle = Math.min(1, s.throttle + tStep);
-    if(k['s']||k['arrowdown']) s.throttle = Math.max(-0.6, s.throttle - tStep);
+    if(k['s']||k['arrowdown']) s.throttle = Math.max(this.sternMax, s.throttle - tStep);
 
     if(k['a']||k['arrowleft'])       s.rudder = Math.max(-1, s.rudder - rStep);
     else if(k['d']||k['arrowright']) s.rudder = Math.min(1, s.rudder + rStep);
@@ -45,5 +46,11 @@ Naval.Controls = class Controls {
   setSpec(spec){
     this.maxSheet = spec.maxSheet;
     this.state.sheet = Math.min(this.state.sheet, spec.maxSheet);
+    /* The telegraph cannot be rung further astern than she can actually push.
+       Every spec has stated this all along and nothing read it: the limit was a
+       flat -0.6 for every vessel, so a 210-tonne barge and a 2000-tonne frigate
+       backed with exactly the same vigour. */
+    this.sternMax = spec.sternPower;
+    this.state.throttle = Math.max(this.sternMax, this.state.throttle);
   }
 };

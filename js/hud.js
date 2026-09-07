@@ -142,9 +142,15 @@ Naval.HUD = class HUD {
     e.thrBar.style.left = ctrl.throttle>=0 ? '50%' : (50+ctrl.throttle*50)+'%';
     e.thrBar.style.width = Math.abs(ctrl.throttle)*50+'%';
     e.thrBar.style.background = ctrl.throttle<0 ? 'var(--warn)' : 'var(--accent)';
+    /* Astern orders read against what she HAS astern, not against full ahead:
+       a vessel that can only raise half power backing still has a "toute" of
+       her own, and the bar beside it already shows how much less that is. */
+    const astern = Math.abs(S.sternPower) || 0.6;
     e.thrTele.textContent = tp===0 ? '— chadburn au repos —'
         : tp>0 ? (tp>66?'EN AVANT TOUTE':tp>33?'en avant demie':'en avant lente')
-               : (tp<-33?'EN ARRIÈRE':'en arrière lente');
+        : ctrl.throttle < -0.66*astern ? 'EN ARRIÈRE TOUTE'
+        : ctrl.throttle < -0.33*astern ? 'en arrière demie'
+                                       : 'en arrière lente';
 
     // --- helm ---
     const rd = Math.round(ctrl.rudder*35);

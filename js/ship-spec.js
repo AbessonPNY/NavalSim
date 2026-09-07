@@ -52,7 +52,13 @@ Naval.ShipSpec = class ShipSpec {
     // engine sized to its stated top speed against that resistance
     this.topSpeed = json.engine.topSpeed;
     this.maxThrust = this.drag * this.topSpeed * this.topSpeed;
-    this.sternPower = json.engine.sternPower;
+    /* How much of her ahead thrust she can raise going astern, as a negative
+       fraction of it. A screw turned backwards works against its own wash and a
+       ship's sweeps are no match for her sails, so no vessel backs as hard as
+       she drives: half to two thirds is the usual figure. Clamped, because a
+       positive value here would let the astern telegraph drive her forward. */
+    const sp = json.engine.sternPower;
+    this.sternPower = Math.max(-1, Math.min(0, sp != null ? sp : -0.6));
 
     // rudder
     this.rudderK = json.rudder.power * lateralArea;

@@ -38,6 +38,19 @@ Les coefficients hydro sont **par unité de surface**, jamais des forces absolue
 C'est ce qui permet aux mêmes valeurs de servir une goélette de 24 m et une
 frégate de 60 m.
 
+## Machine
+
+`engine.topSpeed` (m/s) dimensionne la poussée : elle est celle qui équilibre
+exactement la résistance à cette vitesse, donc une coque plus traînante reçoit
+d'office une machine plus forte.
+
+`engine.sternPower` est la fraction de cette poussée disponible **en marche
+arrière**, en négatif. Aucun navire ne recule aussi fort qu'il n'avance — une
+hélice inversée travaille contre son propre sillage — et la valeur borne
+directement la course du chadburn vers l'arrière : à `-0.5`, le télégraphe ne
+descend pas sous −50 %. Compter −0,5 pour un grand bâtiment, −0,7 pour un
+chaland qui manœuvre au port.
+
 ## Le tonnage est l'entrée
 
 `displacementTonnes` fixe la masse. La fraction de volume immergé en découle.
