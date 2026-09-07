@@ -30,6 +30,7 @@ logique est dans `js/`, en classes attachées à un espace de noms global `Naval
 | `hull-lines.js` | le plan de formes, en fonctions pures |
 | `stage.js` | renderer, scène, lumière, ciel |
 | `ocean.js` | houle de Gerstner : shader GPU **et** échantillonnage CPU |
+| `foam.js` · `ssao.js` | champ d'écume persistant · occlusion ambiante du navire |
 | `ship-model.js` | coque, gréement, voiles, sillage, chargement .glb |
 | `ship-physics.js` | sondes, corps rigide 6 ddl, gouvernail, voiles |
 | `controls.js` · `camera-rig.js` · `hud.js` | barre, caméras, instruments |
@@ -280,6 +281,76 @@ l'étrave au lieu de rester dans l'eau derrière elle.
 pas échouer un seul terme : **tout** le fragment shader refuse de compiler, la
 mer disparaît et on voit le dôme de ciel à sa place. `node --check` ne peut rien
 y voir, le shader n'étant qu'une chaîne de caractères pour lui.
+
+**Le ciel éclaire, il ne fait pas que décorer.** Le navire était éclairé par un
+`HemisphereLight` à deux couleurs qui tenait lieu d'un ciel que la scène
+dessinait déjà correctement quelques mètres plus loin. `_buildEnvSky()` rend ce
+ciel dans une cubemap, la préfiltre et la pose en `scene.environment`. Il appelle
+le même `navalSky` et **partage les objets uniformes du dôme** — pas des copies —
+donc il n'y a toujours qu'un seul ciel et rien ne peut diverger de ce qu'on voit
+au-dessus. Le disque solaire en est volontairement exclu : la `DirectionalLight`
+le représente déjà, l'y cuire l'éclairerait deux fois.
+
+Trois choses en découlent. L'ambiante devient **directionnelle** — mesurée à
++6 % du côté du soleil, là où un `HemisphereLight`, qui n'utilise que la
+composante verticale de la normale, donne rigoureusement zéro. Le **spéculaire
+image** apparaît, ce qu'une lumière hémisphérique ne sait pas produire du tout,
+et c'est le gain le plus visible. Et l'ambiante suit désormais seule l'élévation,
+la nuit et l'éclair, au lieu d'une approximation réglée à la main. En
+contrepartie `_hemiBase` a été divisé par trois : à son ancienne force
+l'hémisphère comptait cette lumière une seconde fois et aplatissait justement
+l'ombrage directionnel que l'environnement apporte.
+
+Le préfiltrage coûte quelques millisecondes, et le curseur du soleil tire un
+événement par pixel de glissement : `refreshEnvironment()` est donc **bridée**,
+et un rafraîchissement sauté est rattrapé dans `render()`.
+
+**Le pavillon montre le vent, les voiles montrent le réglage.** Un pavillon blanc
+uni est envergué à la tête du grand mât, trouvé par la même lecture de forme que
+les vergues : sur un modèle, la pièce la plus haute, bien plus haute qu'épaisse
+et sur l'axe ; sur un navire procédural, simplement son plus grand mât. Un
+bâtiment sans mât dans son modèle n'en porte pas, ce qui est le comportement
+voulu — il n'a pas de drisse.
+
+Il porte sur le vent **apparent**, comme tout ce qui flotte depuis un pont en
+mouvement, et son lacet se déduit directement de ce que le solveur connaît déjà :
+`atan2(−tack·sin β, −cos β)`, soit le bout au vent tourné de 180°. C'est
+l'unique instrument qui dise où est le vent plutôt que où l'on a brassé, et il
+bascule donc avant les voiles quand elle lofe. Sous 8 m/s l'ondulation s'éteint
+et le pavillon **retombe le long du mât** en perdant sa longueur : à 2,7 m/s,
+0,38 m d'ondulation pour 1,58 m d'affaissement ; à 17,9 m/s, 1,13 m d'ondulation
+et plus d'affaissement du tout.
+
+**L'occlusion ambiante ne porte que sur le navire** (`ssao.js`). Le SSAO réclame
+une passe de profondeur, que three rend avec un matériau de substitution : la mer
+étant déplacée dans son propre vertex shader, elle y serait dessinée plate et
+l'occlusion serait fausse au contact coque/eau. Restreindre la passe au navire
+lève l'objection — il est de la géométrie ordinaire — et coûte bien moins cher.
+Il est isolé par une **couche de rendu** (`Naval.SHIP_LAYER`), jamais en masquant
+le reste : masquer puis restaurer un graphe deux fois par image est plus lent et
+se laisse facilement abandonner dans un mauvais état.
+
+Le résultat est relu dans les matériaux du navire au chunk **`<aomap_fragment>`**,
+et c'est le point important : three n'y multiplie que la lumière **indirecte**.
+L'occlusion appartient à l'ambiante, pas au soleil — une planche au fond d'une
+écoutille qu'un rayon atteint encore reste pleinement éclairée, elle ne perd que
+le ciel. Multiplier la couleur finale y peindrait du gris jusque dans le soleil,
+et ça se lit comme de la saleté.
+
+Demi-résolution partout, l'occlusion étant basse fréquence et le flou qui suit
+jetant de toute façon le détail supplémentaire. Mesuré sur la Roter Löwe :
+occlusion moyenne 0,90 et minimum 0,53 au fond des creux, sur 5,3 % de l'image —
+soit exactement sa surface à l'écran. Surcoût de soumission relevé à 0,10 ms par
+image.
+
+**Attention en mesurant : `setSun()` a des effets de bord.** Il recalcule
+`sun.intensity`, `hemi.intensity` **et** rappelle `refreshEnvironment()`, qui
+libère la texture d'environnement précédente. Un banc de mesure qui éteint une
+lumière puis appelle `setSun` la rallume ; un banc qui garde une poignée sur
+`scene.environment` à travers un rafraîchissement pointe sur une texture morte.
+Les deux m'ont fait conclure trois fois de suite que l'éclairage par le ciel ne
+fonctionnait pas alors que seul le banc était faux. Appliquer la configuration
+**après** `setSun`, et relire `scene.environment` après chaque rafraîchissement.
 
 **La toile est éclairée à travers.** Le soleil derrière une voile, l'essentiel
 de ce qu'on voit n'a jamais touché la face avant : c'est passé par le tissage, et

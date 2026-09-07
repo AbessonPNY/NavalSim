@@ -147,6 +147,35 @@ Naval.applySailLight = function(mat, u){
   mat.needsUpdate = true;
 };
 
+/* Read the vessel's occlusion back into her own materials.
+
+   Inserted at three's <aomap_fragment>, which is where it multiplies INDIRECT
+   light and nothing else. That is the whole point: occlusion belongs to ambient
+   light, not to the sun. A plank at the bottom of a hatchway that the sun still
+   reaches is lit as brightly as one on the open deck — what it loses is the sky,
+   and only the sky. Multiplying the final colour instead would paint grey into
+   sunlight and look like dirt. */
+Naval.applyShipAO = function(mat, u){
+  if(!mat || mat.userData.shipAO) return;
+  mat.userData.shipAO = true;
+  // its own cache key, or three serves it a program compiled without this
+  const prevKey = mat.customProgramCacheKey.bind(mat);
+  mat.customProgramCacheKey = () => prevKey() + '|ship-ao';
+
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (shader, renderer)=>{
+    if(prev) prev(shader, renderer);
+    shader.uniforms.uAO = u.uAO;
+    shader.uniforms.uAORes = u.uAORes;
+    shader.fragmentShader = 'uniform sampler2D uAO;\nuniform vec2 uAORes;\n'
+      + shader.fragmentShader.replace('#include <aomap_fragment>',
+          '{ float ao = texture2D(uAO, gl_FragCoord.xy/uAORes).r;\n'
+        + '  reflectedLight.indirectDiffuse *= ao;\n'
+        + '  reflectedLight.indirectSpecular *= ao; }');
+  };
+  mat.needsUpdate = true;
+};
+
 Naval.Stage = class Stage {
   constructor(canvas){
     this.renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
@@ -191,6 +220,13 @@ Naval.Stage = class Stage {
     this.setSun(38, 225);            // elevation and bearing, in degrees
 
     this._addSky();
+    this._buildEnvSky();
+    this.refreshEnvironment(true);
+
+    this.shipAO = new Naval.ShipAO(this.renderer, this.scene, this.camera);
+    // shared with the ship's materials, which read the buffer in screen space
+    this.aoUniforms = { uAO:{value:this.shipAO.texture},
+                        uAORes:{value:new THREE.Vector2(1,1)} };
     addEventListener('resize', ()=> this.resize());
     this.resize();
   }
@@ -227,7 +263,11 @@ Naval.Stage = class Stage {
       (0.08 + 0.04*t)*(1-night) + 0.012*night,
       (0.24 + 0.12*t)*(1-night) + 0.020*night,
       (0.42 + 0.10*t)*(1-night) + 0.045*night);
-    this._hemiBase = (0.45 + 0.45*t)*(1-night) + 0.10*night;
+    /* Cut right back now that scene.environment carries the sky's ambient: at
+       its old strength the hemisphere counted that light a second time and
+       flattened out exactly the directional shading the environment is there to
+       provide. What is left is mostly the carrier for the lightning flash. */
+    this._hemiBase = (0.14 + 0.14*t)*(1-night) + 0.04*night;
     this.hemi.intensity = this._hemiBase + (this.flash||0)*2.6;
 
     if(this.skyMat){
@@ -235,6 +275,8 @@ Naval.Stage = class Stage {
       this.skyMat.uniforms.uZenith.value.copy(this.zenith);
       this.skyMat.uniforms.uHorizon.value.copy(this.horizon);
     }
+    // the environment IS that sky, so it has to follow the sun with it
+    this.refreshEnvironment();
     if(this.onSunChange) this.onSunChange(this);
   }
 
@@ -308,6 +350,64 @@ Naval.Stage = class Stage {
     this.scene.add(new THREE.Mesh(g,m));
   }
 
+  /* The sky as LIGHT, not merely as a picture.
+
+     She was lit by a two-colour HemisphereLight standing in for a sky the scene
+     was already drawing properly a few metres away. Now the ambient comes from
+     that sky: rendered to a cubemap, prefiltered, handed to the scene as its
+     environment. Her upper works take the zenith's blue, her lee side the warm
+     horizon, and a surface turned away from the light goes dark on its own —
+     which is the one thing a hemisphere light can never do, having no notion of
+     where the sun is.
+
+     It calls the same navalSky and SHARES the dome's uniform OBJECTS rather
+     than copies, so there is still exactly one sky and nothing here can drift
+     from what is overhead. The sun's disc is deliberately left out: the
+     DirectionalLight already stands for it, and baking it in would light her
+     twice over. */
+  _buildEnvSky(){
+    const u = this.skyMat.uniforms;
+    const mat = new THREE.ShaderMaterial({
+      side:THREE.BackSide, depthWrite:false,
+      uniforms:{ uSun:u.uSun, uZenith:u.uZenith, uHorizon:u.uHorizon, uFlash:u.uFlash },
+      vertexShader:`
+        varying vec3 vDir;
+        void main(){
+          vDir = normalize(position);
+          gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);
+        }`,
+      fragmentShader:`
+        precision highp float;
+        varying vec3 vDir;
+        uniform vec3 uSun, uZenith, uHorizon;
+        uniform float uFlash;
+        ${Naval.SKY_GLSL}
+        void main(){
+          vec3 c = navalSky(vDir, uSun, uZenith, uHorizon);
+          c += vec3(0.62,0.70,0.92) * uFlash * (1.6 - 0.9*clamp(vDir.y,0.0,1.0));
+          gl_FragColor = vec4(c, 1.0);
+        }`
+    });
+    this._envScene = new THREE.Scene();
+    this._envScene.add(new THREE.Mesh(new THREE.SphereGeometry(10, 32, 16), mat));
+    this._pmrem = new THREE.PMREMGenerator(this.renderer);
+  }
+
+  /* Rebuild it. Throttled, because the sun slider fires on every pixel of a
+     drag and a prefiltered cubemap costs a few milliseconds: the ambient does
+     not have to be frame-exact while the slider is still moving. A skipped
+     rebuild is remembered and made good in render(). */
+  refreshEnvironment(force){
+    if(!this._pmrem) return;
+    const now = performance.now();
+    if(!force && now - (this._envAt || 0) < 120){ this._envDue = true; return; }
+    this._envAt = now; this._envDue = false;
+    const rt = this._pmrem.fromScene(this._envScene);
+    if(this._envRT) this._envRT.dispose();
+    this._envRT = rt;
+    this.scene.environment = rt.texture;
+  }
+
   resize(){
     const w = innerWidth, h = innerHeight;
     this.renderer.setSize(w, h, false);
@@ -335,5 +435,12 @@ Naval.Stage = class Stage {
     this.sun.position.copy(this.sunDir).multiplyScalar(this.shadowSpan*3).add(shipPos);
   }
 
-  render(){ this.renderer.render(this.scene, this.camera); }
+  render(){
+    // make good a rebuild the throttle skipped, once the slider has settled
+    if(this._envDue && performance.now() - this._envAt >= 120) this.refreshEnvironment(true);
+    // her occlusion, before she is drawn with it
+    this.shipAO.render();
+    this.renderer.getDrawingBufferSize(this.aoUniforms.uAORes.value);
+    this.renderer.render(this.scene, this.camera);
+  }
 };

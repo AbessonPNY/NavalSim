@@ -36,7 +36,12 @@ Naval.ShipModel = class ShipModel {
          effect — the sail then glowed identically whatever the sun did. */
       canvas: new THREE.MeshStandardMaterial({
         color:hex(A.canvas), roughness:0.95, side:THREE.DoubleSide,
-        emissive:0x8d866f, emissiveIntensity:0.12})
+        emissive:0x8d866f, emissiveIntensity:0.12}),
+      // bunting is lighter and thinner than sailcloth, and a plain white
+      // ensign has to stay white against a bright sky rather than go grey
+      flag: new THREE.MeshStandardMaterial({
+        color:0xf6f4ef, roughness:0.88, side:THREE.DoubleSide,
+        emissive:0x7c7a72, emissiveIntensity:0.14})
     };
 
     this.procedural = new THREE.Group();     // everything we build ourselves
@@ -46,6 +51,7 @@ Naval.ShipModel = class ShipModel {
 
     this._buildHull();
     this._buildRig();
+    this._buildFlag();
     this._buildWake(scene);
     this._fwd = new THREE.Vector3();
   }
@@ -282,6 +288,7 @@ Naval.ShipModel = class ShipModel {
       this.modelRoot = obj;
       this.rigs = []; this.canvases = [];   // the procedural rig went with the hull
       this._rigModel();
+      this._buildFlag();
       return true;
     }catch(err){
       console.warn('[' + this.spec.id + '] could not load ' + (m.glb || 'embedded model') +
@@ -477,13 +484,17 @@ Naval.ShipModel = class ShipModel {
   /* Make every part of her breathe the same air as the sea. Called after any
      glTF model is adopted too, so an imported hull fades with the rest instead
      of hanging sharp in the haze. */
-  applyAtmosphere(oceanUniforms){
+  applyAtmosphere(oceanUniforms, aoUniforms){
     // Before the haze, which chains onto it and must dim it in its turn.
     Naval.applySailLight(this.mats.canvas, oceanUniforms);
+    Naval.applySailLight(this.mats.flag, oceanUniforms);
     const patch = obj => {
       if(!obj.material) return;
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-      for(const m of mats) Naval.applyHaze(m, oceanUniforms);
+      for(const m of mats){
+        if(aoUniforms) Naval.applyShipAO(m, aoUniforms);
+        Naval.applyHaze(m, oceanUniforms);
+      }
     };
     this.group.traverse(patch);
     if(this.wake) patch(this.wake);
@@ -575,14 +586,97 @@ Naval.ShipModel = class ShipModel {
     return { fractions:out, maxHalfB:max, halfLen, ends };
   }
 
-  /* Let her cast and take her own shadows. This is where the relief in the
-     image comes from: canvas darkening the deck beneath it, the hull shading
-     its own lee side, one mast striping the sail behind it. */
-  enableShadows(){
+  /* A plain white ensign at the main truck.
+
+     It is the one thing aboard that shows the wind itself. The sails only show
+     where you have BRACED them; the flag shows where the wind actually is, and
+     on the APPARENT wind at that, like everything that flies from a moving deck
+     — which is why it swings before the sails do when she rounds up.
+
+     The masthead is found as the yards were, by shape: on a model, the tallest
+     piece far higher than it is thick standing on the centreline; on a
+     procedural vessel, simply her tallest mast. */
+  _buildFlag(){
+    if(this.flag){ this.group.remove(this.flag.pivot); this.flag = null; }
+    const spec = this.spec;
+    let topY, z;
+
+    if(this.modelRoot){
+      const parts = this._modelParts();
+      let best = null;
+      for(const p of parts){
+        const thick = Math.max(p.size.x, p.size.z);
+        if(p.size.y < 3*thick || p.size.y < 0.15*spec.L) continue;   // not a mast
+        if(Math.abs(p.mid.x) > 0.08*spec.B) continue;                // off the centreline
+        if(!best || p.box.max.y > best.box.max.y) best = p;
+      }
+      for(const p of parts) p.geom.dispose();
+      if(!best) return;
+      topY = best.box.max.y; z = best.mid.z;
+    }else{
+      let m = null;
+      for(const k of spec.masts) if(!m || k.height > m.height) m = k;
+      if(!m) return;                       // a vessel under power alone flies none
+      topY = spec.deckMid + m.height; z = m.z;
+    }
+
+    const hoist = 0.045*spec.L, fly = hoist*1.6;
+    const nu = 14, nv = 6;                 // fine along the fly, where it ripples
+    const pos = [], us = [], vs = [], idx = [];
+    for(let j=0;j<=nv;j++) for(let i=0;i<=nu;i++){
+      const u = i/nu, v = j/nv;
+      pos.push(0, -v*hoist, u*fly);        // hoist at u=0, streaming down +z
+      us.push(u); vs.push(v);
+    }
+    for(let j=0;j<nv;j++) for(let i=0;i<nu;i++){
+      const k = j*(nu+1)+i;
+      idx.push(k, k+nu+1, k+nu+2,  k, k+nu+2, k+1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+
+    const pivot = new THREE.Group();
+    pivot.position.set(0, topY - hoist*0.18, z);
+    pivot.add(new THREE.Mesh(g, this.mats.flag));
+    this.group.add(pivot);
+    this.flag = { pivot, mesh:pivot.children[0], hoist, fly,
+                  base:Float32Array.from(pos), u:Float32Array.from(us), v:Float32Array.from(vs) };
+  }
+
+  /* Stream it. The fly points dead downwind, so the pivot's yaw comes straight
+     from the apparent wind the solver already knows: its bearing off the bow and
+     which tack she is on. Falling light, the ensign stops rippling and hangs —
+     it loses its length as it droops, which is what tells you at a glance that
+     the breeze has gone, before any instrument does. */
+  setFlag(beta, tack, vApp, t){
+    const f = this.flag;
+    if(!f) return;
+    f.pivot.rotation.y = Math.atan2(-tack*Math.sin(beta), -Math.cos(beta));
+
+    const drive = Math.min(1, vApp/8);
+    const attr = f.mesh.geometry.attributes.position, arr = attr.array;
+    for(let k=0;k<f.u.length;k++){
+      const i3 = k*3, u = f.u[k];
+      // the ripple starts at nothing on the halyard and builds toward the fly
+      arr[i3]   = Math.sin(u*7.0 - t*6.5 + f.v[k]*1.2) * f.hoist*0.42 * drive * Math.pow(u, 1.3);
+      arr[i3+1] = f.base[i3+1] - (1-drive)*u*u*f.fly*0.55;
+      arr[i3+2] = f.base[i3+2] * (0.80 + 0.20*drive);
+    }
+    attr.needsUpdate = true;
+    f.mesh.geometry.computeVertexNormals();
+  }
+
+  /* Put her into the lighting: her own shadows, and the layer that the
+     occlusion pass renders on its own. She stays on the default layer too, so
+     enabling this one changes nothing about how she is normally drawn. */
+  enableLighting(){
     this.group.traverse(o => {
       if(!o.isMesh) return;
       o.castShadow = true;
       o.receiveShadow = true;
+      o.layers.enable(Naval.SHIP_LAYER);
     });
   }
 

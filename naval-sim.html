@@ -134,6 +134,7 @@
 <script src="js/stage.js"></script>
 <script src="js/ocean.js"></script>
 <script src="js/foam.js"></script>
+<script src="js/ssao.js"></script>
 <script src="js/ship-model.js"></script>
 <script src="js/ship-physics.js"></script>
 <script src="js/controls.js"></script>
@@ -198,8 +199,8 @@ async function main(){
     if(ship) ship.dispose();
     ship = new Naval.ShipModel(stage.scene, spec, lines);
     await ship.loadModel();                 // falls back to the procedural hull
-    ship.applyAtmosphere(ocean.uniforms);   // she must fade at the sea's rate
-    ship.enableShadows();
+    ship.applyAtmosphere(ocean.uniforms, stage.aoUniforms);   // she must fade at the sea's rate
+    ship.enableLighting();
     stage.frameVessel(spec.L);              // shadow box sized to this vessel
     physics = new Naval.ShipPhysics(spec, lines);
     controls.setSpec(spec);
@@ -266,6 +267,7 @@ async function main(){
     ship.syncTo(physics.body);
     ship.setTrim(controls.state.sheet, physics.tack,
                  controls.state.sailsSet, physics.luffing, t, physics.sailLoad);
+    ship.setFlag(physics.appWindAngle, physics.tack, physics.appWindSpeed, t);
     ship.updateWake(physics.body, ocean, t);
 
     stage.aimSun(physics.body.pos);       // the shadow box travels with her
