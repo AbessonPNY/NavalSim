@@ -30,6 +30,16 @@ const shipList = fs.readdirSync(path.join(ROOT, 'ships'))
   .sort()
   .map(f => 'ships/' + f);
 
+/* Write a real ships/index.json.
+ * The dev server answers that path from a live directory listing, so it never
+ * needed a file — but a plain static host (OVH, Apache, nginx, GitHub Pages)
+ * has no such endpoint. Without the file the page falls back to the short list
+ * hardcoded in config.js, and any vessel added since simply never gets asked
+ * for. That is why freshly added ships and their models vanished once deployed. */
+fs.writeFileSync(path.join(ROOT, 'ships', 'index.json'),
+                 JSON.stringify(shipList, null, 2) + '\n', 'utf8');
+console.log('wrote ships/index.json  (' + shipList.length + ' vessels, for static hosting)');
+
 const shipData = {};
 for (const rel of shipList) {
   const spec = JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8'));

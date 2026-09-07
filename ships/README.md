@@ -63,6 +63,34 @@ chargement — c'est une erreur de fiche, pas de physique.
 Le solveur ne modélise **qu'une seule aile équivalente** (`sailArea`, `ceHeight`),
 pas chaque voile séparément — le gréement est une représentation visuelle.
 
+## Mettre en ligne (OVH, Apache, nginx, GitHub Pages…)
+
+**Lancez `node build.js` avant de téléverser.** Il écrit `ships/index.json`, la
+liste des navires que la page demande au démarrage.
+
+Le serveur de développement répond à ce chemin par un listage du dossier en
+direct, sans fichier. Un hébergeur statique n'a pas cet endpoint : sans le
+fichier, la page retombe sur la courte liste codée dans `js/config.js`, et **tout
+navire ajouté depuis n'est jamais demandé** — ses `.glb` semblent alors « ne pas
+se charger » alors qu'ils n'ont jamais été réclamés.
+
+Deux façons de déployer :
+
+| | Quoi téléverser | Remarques |
+|---|---|---|
+| **Fichier unique** *(le plus simple)* | `dist/naval-sim.html` seul | Tout est embarqué, y compris les `.glb` en base64. Aucune configuration serveur, aucun index. |
+| **Arborescence** | `naval-sim.html`, `css/`, `js/`, `ships/` (index.json compris) | Permet de modifier une fiche sans rebuild. Exige l'index à jour. |
+
+En cas de doute, vérifiez dans l'onglet Réseau du navigateur que
+`ships/index.json` renvoie bien 200 et non 404.
+
+Deux pièges d'hébergement à connaître :
+
+- **La casse compte sous Linux**, pas sous Windows. `Fregate.glb` référencé
+  `fregate.glb` fonctionne chez vous et échoue en ligne.
+- **FTP en mode ASCII corrompt les `.glb`**, qui sont binaires. Transférez en
+  mode binaire.
+
 ## Caméras
 
 Le bloc `camera` d'une fiche règle les points de vue propres au navire.

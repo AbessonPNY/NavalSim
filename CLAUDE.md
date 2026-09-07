@@ -129,6 +129,13 @@ un `#define N` écrase l'identifiant `N` jusque dans le fragment shader.
 maillage. Une voile opaque éclairée à contre-jour devient noire : le tissu porte
 une composante `emissive` pour rester lisible.
 
+**Mise en ligne.** `node build.js` écrit `ships/index.json`. Le serveur de dev
+répond à ce chemin par un listage en direct, sans fichier ; un hébergeur statique
+non. Sans cet index, la page retombe sur la liste courte de `config.js` et tout
+navire ajouté depuis n'est jamais demandé — ses .glb paraissent alors ne pas se
+charger alors qu'ils n'ont jamais été réclamés. Le plus sûr reste de déployer
+`dist/naval-sim.html` seul, qui embarque tout.
+
 **Console de mer.** Quatre réglages : force de la houle (Beaufort), direction du
 vent, hauteur du soleil (négative = nuit) et **creux**, qui multiplie la hauteur
 significative au-delà de la table Beaufort. Ce dernier existe parce qu'un spectre
