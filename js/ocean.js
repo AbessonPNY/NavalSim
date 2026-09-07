@@ -46,6 +46,8 @@ Naval.Ocean = class Ocean {
         uHorizon:{value:(stage ? stage.horizon : new THREE.Color(0xd2e3ec)).clone()},
         uWind:{value:new THREE.Vector2(0,1)},   // ripples travel with the wind
         uRipple:{value:1.0},                    // ripple strength, grows with sea state
+        uHaze:{value:0.0016},                   // extinction per metre at sea level
+        uHazeH:{value:110.0},                   // scale height of the haze layer (m)
         // the hull, so the sea can foam where she cuts it
         uShipPos:{value:new THREE.Vector3(0,0,0)},
         uShipFwd:{value:new THREE.Vector2(0,1)},
@@ -56,12 +58,12 @@ Naval.Ocean = class Ocean {
 
     const mat = new THREE.ShaderMaterial({
       uniforms:this.uniforms,
-      fog:true,
+      // the sea carries its own layered haze; Three's flat fog would double it
+      fog:false,
       defines:{NW:C.NWAVES},
       vertexShader:`
         uniform float uTime, uHalf; uniform vec4 uWaveA[NW]; uniform vec2 uWaveB[NW];
         varying vec3 vN; varying vec3 vW; varying float vFoam; varying float vRel;
-        #include <fog_pars_vertex>
         void main(){
           /* Spend vertices where they are seen. The grid is uniform in the
              buffer, so remap it toward the centre: quads are about a metre
@@ -101,16 +103,14 @@ Naval.Ocean = class Ocean {
           vRel = height;                     // signed height, for the crest glow
           vec4 mvPosition = viewMatrix*vec4(p,1.0);   // p is already world space
           gl_Position = projectionMatrix*mvPosition;
-          #include <fog_vertex>
         }`,
       fragmentShader:`
         precision highp float;
         uniform vec3 uSun,uCam,uDeep,uShallow,uSSS,uZenith,uHorizon;
-        uniform float uTime, uAmpMax, uRipple, uShipSpeed;
+        uniform float uTime, uAmpMax, uRipple, uShipSpeed, uHaze, uHazeH;
         uniform vec2 uWind, uShipFwd, uShipHalf;
         uniform vec3 uShipPos;
         varying vec3 vN; varying vec3 vW; varying float vFoam; varying float vRel;
-        #include <fog_pars_fragment>
         ${Naval.SKY_GLSL}
 
         // cheap value noise, for foam that breaks up instead of banding
@@ -123,6 +123,27 @@ Naval.Ocean = class Ocean {
         }
         float fbm(vec2 p){
           return noise(p)*0.55 + noise(p*2.03 + 11.0)*0.28 + noise(p*4.11 - 7.0)*0.17;
+        }
+
+        /* Haze as a layer, not a uniform soup.
+           Real sea haze sits low: dense at the surface, thinning upward, which
+           is why the horizon dissolves while the sky overhead stays clear. This
+           integrates an exponential density profile along the view ray in
+           closed form, so the amount is right whether you stand on deck or look
+           down from the masthead. */
+        float hazeAlong(vec3 from, vec3 to){
+          vec3 d = to - from;
+          float dist = length(d);
+          if(dist < 0.001) return 0.0;
+          float y0 = max(from.y, 0.0), y1 = max(to.y, 0.0);
+          float dy = y1 - y0;
+          float depth;
+          if(abs(dy) < 0.01){
+            depth = exp(-y0/uHazeH) * dist;
+          }else{
+            depth = dist * (uHazeH/dy) * (exp(-y0/uHazeH) - exp(-y1/uHazeH));
+          }
+          return 1.0 - exp(-uHaze * abs(depth));
         }
 
         /* Ripples. The mesh only carries six long waves; everything finer than a
@@ -232,8 +253,16 @@ Naval.Ocean = class Ocean {
           float foam = clamp(crestFoam + hullFoam, 0.0, 1.0) * (1.0 - far*0.85);
           col = mix(col, vec3(0.92,0.96,0.98), foam*0.85);
 
+          /* Fade into the sky that lies exactly behind this patch of water,
+             not into one flat fog colour. That is what makes the horizon
+             dissolve instead of ending on a line: at the limit the sea and the
+             sky in that direction are the same colour, so there is no edge left
+             to see. */
+          vec3 viewDir = normalize(vW - uCam);
+          vec3 hazeCol = navalSky(viewDir, uSun, uZenith, uHorizon);
+          col = mix(col, hazeCol, hazeAlong(uCam, vW));
+
           gl_FragColor = vec4(col,1.0);
-          #include <fog_fragment>
         }`
     });
 
@@ -327,5 +356,10 @@ Naval.Ocean = class Ocean {
     const w = this.windVec, s = Math.hypot(w.x, w.z);
     if(s > 1e-4) this.uniforms.uWind.value.set(w.x/s, w.z/s);
     this.uniforms.uRipple.value = Math.min(1.6, 0.35 + this.windSpeed*0.075);
+    /* A blow tears spray off the crests and thickens the air, so the horizon
+       closes in as the sea gets up: a calm day sees perhaps 4 km, a gale less
+       than one. The scale height rises too — the murk stands taller. */
+    this.uniforms.uHaze.value  = 0.00055 + this.windSpeed*0.00023;
+    this.uniforms.uHazeH.value = 90 + this.windSpeed*7.0;
   }
 };
