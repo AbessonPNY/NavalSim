@@ -61,7 +61,7 @@
     "canvas": "0xe8e0cf"
   },
 
-  "camera": { "chaseDist": 46, "chaseHigh": 17, "orbitDist": 56, "helmZFrac": -0.40 },
+  "camera": { "chaseDist": 46, "chaseHigh": 17, "orbitDist": 56, "helmZFrac": -0.40, "helmHeight": 3.75 },
 
   "model": {
     "glb": "ships/models/barge.glb",

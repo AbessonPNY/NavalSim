@@ -64,7 +64,7 @@
     "canvas": "0xf2ebdc"
   },
 
-  "camera": { "chaseDist": 38, "chaseHigh": 14, "orbitDist": 46, "helmZFrac": -0.44 },
+  "camera": { "chaseDist": 38, "chaseHigh": 14, "orbitDist": 46, "helmZFrac": -0.44, "helmHeight": 3.55 },
 
   "model": null
 }

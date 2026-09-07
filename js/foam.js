@@ -66,7 +66,7 @@ Naval.FoamField = class FoamField {
 
     this.mat = new THREE.ShaderMaterial({
       uniforms:this.uniforms,
-      defines:{NW:C.NWAVES},
+      defines:{NW:C.NWAVES_FOAM},
       vertexShader:`
         varying vec2 vUv;
         void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
@@ -118,7 +118,10 @@ Naval.FoamField = class FoamField {
              and it needs way to appear. A vessel lying stopped disturbs almost
              nothing; filling the hull outline regardless left her sitting in a
              permanent white pool. */
-          float band = 1.0 - smoothstep(0.0, 0.30 + 0.45*way, abs(ed - 1.0));
+          // gap to the waterline in metres, so the ring keeps one thickness all
+          // the way round instead of ballooning at bow and stern
+          float gapM = length(rel) * (1.0 - 1.0/max(ed, 1e-3));
+          float band = 1.0 - smoothstep(0.0, 1.1 + 3.2*way, abs(gapM));
           float hull = band * (0.06 + 1.0*way);
 
           // deposit, never accumulate past saturation

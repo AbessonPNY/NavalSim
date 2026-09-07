@@ -68,7 +68,7 @@
     "chaseDist": 38,
     "chaseHigh": 14,
     "orbitDist": 46,
-    "helmZFrac": -0.44
+    "helmZFrac": -0.44, "helmHeight": 3.3
   },
   "model": {
     "glb": "ships/models/cotre.glb",

@@ -63,6 +63,26 @@ chargement — c'est une erreur de fiche, pas de physique.
 Le solveur ne modélise **qu'une seule aile équivalente** (`sailArea`, `ceHeight`),
 pas chaque voile séparément — le gréement est une représentation visuelle.
 
+## Caméras
+
+Le bloc `camera` d'une fiche règle les points de vue propres au navire.
+
+| champ | unité | effet |
+|---|---|---|
+| `helmHeight` | **mètres au-dessus de la flottaison** | hauteur de l'œil en vue passerelle |
+| `helmZFrac` | fraction de la longueur | position du poste de barre ; négatif = vers l'arrière |
+| `chaseDist` / `chaseHigh` | mètres | recul et hauteur de la caméra de poursuite |
+| `orbitDist` | mètres | distance initiale en vue orbite |
+
+`helmHeight` est une hauteur absolue au-dessus de l'eau, pas un décalage
+au-dessus du pont : c'est ainsi qu'on énonce naturellement une hauteur d'œil, et
+ça reste juste quel que soit le franc-bord. Comptez le pont, plus la taille d'un
+homme : environ 3,5 m sur la goélette, 8,9 m sur la frégate. Montez-la à 12 m et
+vous vous retrouvez en tête de mât.
+
+Si le champ est absent, la valeur historique `freeboardMid + 2,1 × (L/24)` est
+appliquée — les anciennes fiches continuent donc de fonctionner.
+
 ## Modèles .glb
 
 ```json

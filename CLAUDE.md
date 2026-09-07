@@ -129,6 +129,29 @@ un `#define N` écrase l'identifiant `N` jusque dans le fragment shader.
 maillage. Une voile opaque éclairée à contre-jour devient noire : le tissu porte
 une composante `emissive` pour rester lisible.
 
+**Spectre.** Les vagues viennent d'un spectre JONSWAP : il fixe la *forme*
+(quelles fréquences portent l'énergie, comment elles s'étalent), et la table
+Beaufort fixe l'*échelle*, de sorte que la hauteur significative annoncée par la
+console est celle qu'on obtient réellement. Le pic est corrigé pour une mer
+limitée par le fetch : la relation « mer complètement développée » donnait des
+houles de 800 m en tempête, plus longues que toute mer réelle.
+
+**Sélection CPU.** Le solveur n'intègre pas les 18 composantes mais les plus
+**énergétiques**, pas les plus longues. Prendre les plus longues était une
+erreur : en tempête elles atteignent des centaines de mètres, et une houle
+beaucoup plus longue que le navire le soulève en bloc sans le travailler. C'est
+la bande autour du pic qui compte.
+
+**Distances autour de la coque.** `ed` est une distance normalisée
+*elliptique* : une bande d'épaisseur constante en `ed` est fine par le travers
+mais épaisse de plusieurs mètres devant l'étrave, car l'ellipse est bien plus
+longue que large. Toute épaisseur d'écume doit être exprimée en **mètres**
+(`length(rel) * (1 - 1/ed)`), sinon le collier gonfle aux extrémités.
+
+**Accents graves dans les shaders.** Les shaders sont écrits dans des *template
+literals* : un accent grave dans un commentaire GLSL ferme la chaîne et casse
+tout le module, sans message clair. `node --check js/*.js` le détecte.
+
 **Moiré.** Le maillage de mer concentre ses sommets près de la caméra : la
 maille passe d'environ 1 m à plusieurs mètres en quelques dizaines de mètres.
 Dès qu'elle dépasse le quart d'une longueur d'onde, le maillage ne peut plus

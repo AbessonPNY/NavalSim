@@ -129,7 +129,13 @@ Naval.CameraRig = class CameraRig {
                   Math.cos(this.orbitYaw)*this.orbitDist*cp).add(body.pos);
     }else if(this.mode===2){               // at the wheel
       // right aft, and clear of the main boom sweeping overhead
-      const eye = new THREE.Vector3(0, spec.deckMid+2.1*k, spec.L*this.cam.helmZFrac)
+      /* Eye height comes from the spec, in metres above the design waterline —
+         the way you would actually state it. Specs written before the field
+         existed fall back to the old hardcoded rule, so none of them break. */
+      const eyeY = (this.cam.helmHeight != null)
+                 ? this.cam.helmHeight
+                 : spec.deckMid + 2.1*k;
+      const eye = new THREE.Vector3(0, eyeY, spec.L*this.cam.helmZFrac)
                     .applyQuaternion(body.quat).add(body.pos);
       desired.copy(eye);
       const cp = Math.cos(this.bridgePitch);

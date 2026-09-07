@@ -290,8 +290,13 @@ Naval.Ocean = class Ocean {
           /* Only the crisp collar and bow wave stay instantaneous — they belong
              to the hull and must move with her. The lingering trail astern now
              comes from the foam field, which leaves it in the water. */
-          float collar = (1.0 - smoothstep(1.0, 1.45, ed)) * step(0.98, ed);
-          float bow    = (1.0 - smoothstep(1.0, 2.1 + way, ed)) * step(1.0, ed)
+          /* Measure the gap to the waterline in METRES, not in the normalised
+             elliptical units: a fixed band of that distance is thin abeam but
+             metres thick ahead of the stem, because the ellipse is far longer
+             than it is wide. That is what bloated the collar at the ends. */
+          float gapM = length(rel) * (1.0 - 1.0/max(ed, 1e-3));
+          float collar = (1.0 - smoothstep(0.0, 0.85, gapM)) * step(0.98, ed);
+          float bow    = (1.0 - smoothstep(0.0, 1.6 + 3.0*way, gapM)) * step(1.0, ed)
                          * smoothstep(-0.2, 0.7, loc.y) * way;
           float hullFoam = clamp(collar*0.70 + bow*0.55, 0.0, 1.0)
                            * (0.45 + 0.80*fn);
@@ -422,23 +427,79 @@ Naval.Ocean = class Ocean {
     this.windSpeed = 0.836*Math.pow(s,1.5) + 0.8;
     this.windVec.set(-Math.sin(wr)*this.windSpeed, 0, -Math.cos(wr)*this.windSpeed);
 
-    const baseLen = 26 + s*20;          // metres
-    const baseAmp = 0.02 + s*0.20;      // amplitude ≈ half the wave height
-    const chop = 0.35 + s*0.075;        // steepness budget
+    /* --- the wave spectrum ---
+       The old harmonic series (wavelengths in 0.62^i) was arbitrary: it made a
+       tidy but artificial sea, every component a fixed ratio of the last.
+       A real wind sea follows a measured spectrum. JONSWAP is the standard one:
+       a Pierson-Moskowitz shape sharpened by a peak factor γ, since a fetch-
+       limited sea concentrates more of its energy near the peak than a fully
+       developed ocean does.
+
+       JONSWAP fixes the SHAPE — which frequencies carry the energy and how they
+       spread. The Beaufort table fixes the SCALE, so the significant height the
+       console announces is the height you actually get. */
+    const U = Math.max(0.6, this.windSpeed);
+    /* Peak frequency. Pierson-Moskowitz assumes a fully developed ocean, which
+       puts the peak far too low — it produced 800 m swells in a gale, longer
+       than any real sea and far too long to disturb a ship at all. Coastal seas
+       are fetch-limited, so the peak sits higher: this correction lands the peak
+       period near 5 s in a fresh breeze and 11 s in a gale, as observed. */
+    const wp = (0.855*G/U) * (1.05 + 0.015*U);
+    const gamma = 3.3, alpha = 0.0081;
+
+    const N = C.NWAVES;
+    const wLo = wp*0.62, wHi = wp*3.4;    // where the energy actually lives
+    const raw = [];
+    let m0 = 0;
+    for(let i=0;i<N;i++){
+      // geometric spacing: the low frequencies deserve the resolution
+      const f0 = Math.pow(wHi/wLo, i/N), f1 = Math.pow(wHi/wLo, (i+1)/N);
+      const w0 = wLo*f0, w1 = wLo*f1;
+      const w = 0.5*(w0+w1), dw = w1-w0;
+
+      const sig = w <= wp ? 0.07 : 0.09;
+      const r = Math.exp(-Math.pow(w-wp, 2) / (2*sig*sig*wp*wp));
+      const S = (alpha*G*G/Math.pow(w,5)) * Math.exp(-1.25*Math.pow(wp/w,4)) * Math.pow(gamma, r);
+
+      const amp = Math.sqrt(Math.max(0, 2*S*dw));
+      m0 += 0.5*amp*amp;
+
+      /* Directional spreading: short waves fan out far more than the long
+         swell, which is why a real sea looks confused up close and orderly at
+         the horizon. Deterministic offsets, so the CPU and GPU never disagree. */
+      const spread = (0.16 + 0.55*Math.min(1, w/wp - 0.4)) * (0.45 + 0.06*s);
+      const u = ((i*7)%N)/(N-1)*2 - 1;    // spread the components, no randomness
+      raw.push({ amp, w, dir: wr + spread*u });
+    }
+
+    // anchor the scale: match the significant height this sea state announces
+    const b = C.BEAUFORT;
+    const lo = Math.max(0, Math.min(9, Math.floor(s)));
+    const hi = Math.max(0, Math.min(9, Math.ceil(s)));
+    const hsTarget = parseFloat(b[lo][2]) + (parseFloat(b[hi][2]) - parseFloat(b[lo][2]))*(s - lo);
+    const hsRaw = 4*Math.sqrt(Math.max(m0, 1e-9));
+    const scale = hsRaw > 1e-6 ? hsTarget/hsRaw : 0;
+
+    const chop = 0.35 + s*0.075;          // steepness budget
     let ampSum = 0;
-    for(let i=0;i<C.NWAVES;i++){
-      const f = Math.pow(0.62, i);                       // shorter each harmonic
-      const L = baseLen * f * (0.85 + (i%2?0.2:0));
-      const amp = baseAmp * Math.pow(0.72, i);
-      const dir = wr + (i - (C.NWAVES-1)/2) * (0.34 + s*0.03);
-      const k = 2*Math.PI / Math.max(2, L);
-      const omega = Math.sqrt(G * k);                    // deep-water dispersion
+    for(const r of raw){
+      const amp = r.amp*scale;
+      const k = r.w*r.w/G;                // deep-water dispersion, k = ω²/g
       // steepness normalised so the crest never loops (Σ Q·k·A < 1)
-      const Q = Math.min(0.85, chop / (k*amp*C.NWAVES + 1e-4));
+      const Q = Math.min(0.85, chop / (k*amp*N + 1e-4));
       // seas run with the wind, i.e. away from the bearing it blows from
-      this.waves.push({ dx:-Math.sin(dir), dz:-Math.cos(dir), amp, k, omega, Q });
+      this.waves.push({ dx:-Math.sin(r.dir), dz:-Math.cos(r.dir),
+                        amp, k, omega:r.w, Q, L:2*Math.PI/k });
       ampSum += amp;
     }
+    /* Order by ENERGY, not by length, and let the solver and the foam pass take
+       the head of that list. Taking the longest instead was wrong: in a gale the
+       longest components run to hundreds of metres, and a swell far longer than
+       the ship merely lifts her bodily — it is the band around the spectral peak
+       that actually works her. Sorting by amplitude puts that band first. */
+    this.waves.sort((a,b2) => b2.amp - a.amp);
+    this.cpuWaves = this.waves.slice(0, C.NWAVES_CPU);
+
     // reference height for the crest glow, so it scales with the sea state
     this.uniforms.uAmpMax.value = Math.max(0.05, ampSum*0.8);
     this.syncUniforms();
@@ -454,11 +515,17 @@ Naval.Ocean = class Ocean {
     }
   }
 
-  // Surface height at world (x,z). Optionally fills outNormal.
+  /* Surface height at world (x,z). Optionally fills outNormal.
+     Only the long components are integrated here. A JONSWAP spectrum is sharply
+     peaked, so these carry nearly all the energy; and a two-metre ripple does
+     not heave a hundred-tonne hull — it breaks against her and averages out
+     along her length. The swell the vessel visibly sits on is the swell the
+     solver feels, which is the part of the invariant that matters. */
   sample(x, z, t, outNormal){
     let y = 0, nx = 0, nz = 0, ny = 0;
-    for(let i=0;i<this.waves.length;i++){
-      const w = this.waves[i];
+    const src = this.cpuWaves || this.waves;
+    for(let i=0;i<src.length;i++){
+      const w = src[i];
       const f = w.k*(w.dx*x + w.dz*z) - w.omega*t;
       const c = Math.cos(f), sn = Math.sin(f);
       y += w.amp * sn;
