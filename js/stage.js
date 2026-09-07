@@ -19,6 +19,60 @@ Naval.SKY_GLSL = `
     return c;
   }`;
 
+/* The haze, also as one shared GLSL function.
+   Everything the eye can see through air must use THIS, not a second fog model:
+   the sea and the ship have to dim at the same rate or the vessel stays sharp
+   against a washed-out sea and the illusion collapses. */
+Naval.HAZE_GLSL = `
+  uniform float uHaze, uHazeH;
+  float hazeAlong(vec3 from, vec3 to){
+    vec3 d = to - from;
+    float dist = length(d);
+    if(dist < 0.001) return 0.0;
+    float y0 = max(from.y, 0.0), y1 = max(to.y, 0.0);
+    float dy = y1 - y0;
+    float depth;
+    if(abs(dy) < 0.01){
+      depth = exp(-y0/uHazeH) * dist;
+    }else{
+      depth = dist * (uHazeH/dy) * (exp(-y0/uHazeH) - exp(-y1/uHazeH));
+    }
+    return 1.0 - exp(-uHaze * abs(depth));
+  }`;
+
+/* Patch any standard material so it breathes the same air as the sea.
+   Three's own FogExp2 falls off with the SQUARE of distance while ours is
+   Beer-Lambert in the traversed depth, so the two can never agree at more than
+   one range — which is exactly why the ship used to stay crisp far away. */
+Naval.applyHaze = function(mat, u){
+  if(!mat || mat.userData.hazed) return;
+  mat.userData.hazed = true;
+  mat.fog = false;
+  mat.onBeforeCompile = (shader)=>{
+    shader.uniforms.uCam = u.uCam;
+    shader.uniforms.uSun = u.uSun;
+    shader.uniforms.uZenith = u.uZenith;
+    shader.uniforms.uHorizon = u.uHorizon;
+    shader.uniforms.uHaze = u.uHaze;
+    shader.uniforms.uHazeH = u.uHazeH;
+
+    shader.vertexShader = 'varying vec3 vHazeW;\n' + shader.vertexShader.replace(
+      '#include <project_vertex>',
+      '#include <project_vertex>\n  vHazeW = (modelMatrix * vec4(transformed,1.0)).xyz;'
+    );
+
+    const head = 'varying vec3 vHazeW;\nuniform vec3 uCam,uSun,uZenith,uHorizon;\n'
+               + Naval.SKY_GLSL + '\n' + Naval.HAZE_GLSL + '\n';
+    const tail = '\n{ vec3 vd = normalize(vHazeW - uCam);\n'
+               + '  gl_FragColor.rgb = mix(gl_FragColor.rgb,'
+               + ' navalSky(vd, uSun, uZenith, uHorizon), hazeAlong(uCam, vHazeW)); }';
+    shader.fragmentShader = head + shader.fragmentShader.replace(
+      /}\s*$/, tail + '\n}'
+    );
+  };
+  mat.needsUpdate = true;
+};
+
 Naval.Stage = class Stage {
   constructor(canvas){
     this.renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
@@ -26,10 +80,8 @@ Naval.Stage = class Stage {
     this.renderer.setClearColor(0x0a1a2b, 1);
 
     this.scene = new THREE.Scene();
-    /* Thin haze rather than a wall of fog. The old density hid everything past
-       ~550 m, which left no horizon at all — and a sea with no horizon never
-       looks like a sea. */
-    this.scene.fog = new THREE.FogExp2(0xb6cfdd, 0.00065);
+    // No THREE fog: sea, hull and rig all share Naval.HAZE_GLSL instead, so they
+    // dim at one rate. Two fog models can never agree at more than one range.
     this.camera = new THREE.PerspectiveCamera(55, 1, 0.7, 14000);
 
     this.zenith  = new THREE.Color(0x1e5c86);
@@ -71,7 +123,6 @@ Naval.Stage = class Stage {
       this.skyMat.uniforms.uZenith.value.copy(this.zenith);
       this.skyMat.uniforms.uHorizon.value.copy(this.horizon);
     }
-    if(this.scene.fog) this.scene.fog.color.copy(this.horizon).multiplyScalar(0.96);
     if(this.onSunChange) this.onSunChange(this);
   }
 

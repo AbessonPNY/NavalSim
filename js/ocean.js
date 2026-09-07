@@ -107,11 +107,12 @@ Naval.Ocean = class Ocean {
       fragmentShader:`
         precision highp float;
         uniform vec3 uSun,uCam,uDeep,uShallow,uSSS,uZenith,uHorizon;
-        uniform float uTime, uAmpMax, uRipple, uShipSpeed, uHaze, uHazeH;
+        uniform float uTime, uAmpMax, uRipple, uShipSpeed;
         uniform vec2 uWind, uShipFwd, uShipHalf;
         uniform vec3 uShipPos;
         varying vec3 vN; varying vec3 vW; varying float vFoam; varying float vRel;
         ${Naval.SKY_GLSL}
+        ${Naval.HAZE_GLSL}
 
         // cheap value noise, for foam that breaks up instead of banding
         float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
@@ -123,27 +124,6 @@ Naval.Ocean = class Ocean {
         }
         float fbm(vec2 p){
           return noise(p)*0.55 + noise(p*2.03 + 11.0)*0.28 + noise(p*4.11 - 7.0)*0.17;
-        }
-
-        /* Haze as a layer, not a uniform soup.
-           Real sea haze sits low: dense at the surface, thinning upward, which
-           is why the horizon dissolves while the sky overhead stays clear. This
-           integrates an exponential density profile along the view ray in
-           closed form, so the amount is right whether you stand on deck or look
-           down from the masthead. */
-        float hazeAlong(vec3 from, vec3 to){
-          vec3 d = to - from;
-          float dist = length(d);
-          if(dist < 0.001) return 0.0;
-          float y0 = max(from.y, 0.0), y1 = max(to.y, 0.0);
-          float dy = y1 - y0;
-          float depth;
-          if(abs(dy) < 0.01){
-            depth = exp(-y0/uHazeH) * dist;
-          }else{
-            depth = dist * (uHazeH/dy) * (exp(-y0/uHazeH) - exp(-y1/uHazeH));
-          }
-          return 1.0 - exp(-uHaze * abs(depth));
         }
 
         /* Ripples. The mesh only carries six long waves; everything finer than a

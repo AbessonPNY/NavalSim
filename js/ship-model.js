@@ -250,6 +250,19 @@ Naval.ShipModel = class ShipModel {
     scene.add(this.wake);
   }
 
+  /* Make every part of her breathe the same air as the sea. Called after any
+     glTF model is adopted too, so an imported hull fades with the rest instead
+     of hanging sharp in the haze. */
+  applyAtmosphere(oceanUniforms){
+    const patch = obj => {
+      if(!obj.material) return;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for(const m of mats) Naval.applyHaze(m, oceanUniforms);
+    };
+    this.group.traverse(patch);
+    if(this.wake) patch(this.wake);
+  }
+
   syncTo(body){
     this.group.position.copy(body.pos);
     this.group.quaternion.copy(body.quat);

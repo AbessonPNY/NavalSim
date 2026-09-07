@@ -190,6 +190,7 @@ async function main(){
     if(ship) ship.dispose();
     ship = new Naval.ShipModel(stage.scene, spec, lines);
     await ship.loadModel();                 // falls back to the procedural hull
+    ship.applyAtmosphere(ocean.uniforms);   // she must fade at the sea's rate
     physics = new Naval.ShipPhysics(spec, lines);
     controls.setSpec(spec);
 
