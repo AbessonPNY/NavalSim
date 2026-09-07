@@ -3,11 +3,13 @@
 window.Naval = window.Naval || {};
 
 Naval.HUD = class HUD {
-  constructor(ocean, physics, controls, cameraRig, spec){
+  constructor(ocean, physics, controls, cameraRig, spec, stage){
     this.C = Naval.Config;
     this.ocean = ocean; this.physics = physics;
     this.ctrl = controls.state; this.cam = cameraRig;
     this.spec = spec;
+
+    this.stage = stage;
     this.eqY = 0;
     this.accum = 0;
 
@@ -26,6 +28,7 @@ Naval.HUD = class HUD {
       beauNum:el('beauNum'), beauDesc:el('beauDesc'),
       shipName:el('shipName'), shipSel:el('shipSel'),
       tonnage:el('roTonnage'), dims:el('roDims'),
+      sunElev:el('sunElev'), sunVal:el('sunVal'),
     };
 
     this._e = new THREE.Euler();
@@ -33,6 +36,9 @@ Naval.HUD = class HUD {
 
     this.el.seaState.addEventListener('input', ()=> this.refreshSea());
     this.el.windDir .addEventListener('input', ()=> this.refreshSea());
+    if(this.el.sunElev){
+      this.el.sunElev.addEventListener('input', ()=> this.refreshSun());
+    }
     document.querySelectorAll('.presets button').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         this.el.seaState.value = btn.dataset.s;
@@ -52,6 +58,16 @@ Naval.HUD = class HUD {
     if(this.el.dims){
       this.el.dims.textContent = spec.L.toFixed(0)+' × '+spec.B.toFixed(1)+' m';
     }
+  }
+
+  /* Drop the sun toward the horizon and its reflection stretches into the long
+     glitter road; raise it and that road collapses to a patch beside the hull.
+     It is the same microfacet term either way — only the geometry changes. */
+  refreshSun(){
+    if(!this.stage || !this.el.sunElev) return;
+    const e = parseFloat(this.el.sunElev.value);
+    this.stage.setSun(e, this.stage.sunBearing);
+    this.el.sunVal.textContent = Math.round(e)+'°';
   }
 
   refreshSea(){

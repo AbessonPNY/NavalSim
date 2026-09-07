@@ -78,6 +78,8 @@
     <input id="seaState" type="range" min="0" max="9" step="0.1" value="4">
     <div class="row"><span class="name">Direction du vent</span><span class="num" id="windVal">045°</span></div>
     <input id="windDir" type="range" min="0" max="359" step="1" value="45">
+    <div class="row"><span class="name">Hauteur du soleil</span><span class="num" id="sunVal">38°</span></div>
+    <input id="sunElev" type="range" min="2" max="80" step="1" value="38">
     <div class="presets">
       <button data-s="0.8">Calme</button>
       <button data-s="4" class="on">Modérée</button>
@@ -145,8 +147,18 @@ async function main(){
 
   const canvas   = document.getElementById('gl');
   const stage    = new Naval.Stage(canvas);
-  const ocean    = new Naval.Ocean(stage.scene, stage.sunDir);
+  const ocean    = new Naval.Ocean(stage.scene, stage.sunDir, stage);
   const controls = new Naval.Controls();
+
+  /* The sea mirrors the sky, so when the sun moves the water's copy of it has
+     to move too — otherwise the reflection and the dome disagree and the
+     horizon shows a seam. */
+  stage.onSunChange = st => {
+    ocean.uniforms.uSun.value.copy(st.sunDir);
+    ocean.uniforms.uZenith.value.copy(st.zenith);
+    ocean.uniforms.uHorizon.value.copy(st.horizon);
+  };
+  stage.onSunChange(stage);
 
   // Read every vessel's papers before we sail any of them.
   let specs;
@@ -185,7 +197,7 @@ async function main(){
       cam = new Naval.CameraRig(stage.camera, canvas,
               document.getElementById('camBtn'),
               document.getElementById('camNote'), spec);
-      hud = new Naval.HUD(ocean, physics, controls, cam, spec);
+      hud = new Naval.HUD(ocean, physics, controls, cam, spec, stage);
       controls.onCycleCam = ()=> cam.cycle();
       controls.onReplant  = ()=> { if(cam.mode===3) cam.plant(); };
     }else{
@@ -223,6 +235,8 @@ async function main(){
     ship.updateWake(physics.body, ocean, t);
 
     cam.update(dt, physics.body, ocean, t);
+    ocean.trackShip(physics.body, spec);
+
     ocean.update(t, stage.camera.position);
     hud.update(dt);
     stage.render();

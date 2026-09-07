@@ -15,8 +15,8 @@ Naval.Config = {
 
   // ---- ocean mesh ----
   NWAVES: 6,
-  OCEAN_SIZE: 2600,
-  OCEAN_SEG: 320,
+  OCEAN_SIZE: 7000,
+  OCEAN_SEG: 384,
 
   CAM_NAMES: ['Poursuite','Orbite','Passerelle','Fixe'],
 

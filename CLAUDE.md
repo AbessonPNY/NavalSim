@@ -58,6 +58,16 @@ de gravité monde a son propre vecteur (`_cog`) : il avait été aliasé sur `_t
 écrasé dès la première sonde, ce qui faussait tous les bras de levier et
 provoquait roulis parasite puis explosion numérique.
 
+**Le ciel n'existe qu'une fois.** `Naval.SKY_GLSL` (dans `stage.js`) est la seule
+définition du ciel ; le dôme et le reflet de la mer l'appellent tous les deux. Si
+l'eau miroitait un autre ciel que celui du dessus, l'horizon montrerait une
+couture. Le dôme ajoute seulement le disque solaire ; la mer tire son reflet
+d'un lobe micro-facettes.
+
+**Le Fresnel spéculaire se prend sur `V·H`**, pas sur `N·V`. Le prendre sur la
+normale effondre le terme à ~2 % sous tous les angles depuis lesquels on regarde
+réellement la mer, et supprime le chemin de scintillement.
+
 **Les coefficients hydro sont par unité de surface**, pas des forces absolues.
 C'est ce qui permet aux mêmes valeurs de servir une goélette de 24 m et une
 frégate de 60 m sans réglage par navire.
@@ -118,6 +128,16 @@ un `#define N` écrase l'identifiant `N` jusque dans le fragment shader.
 **Rendu.** Une mise à l'échelle négative (`scale.x = -1`) fait disparaître un
 maillage. Une voile opaque éclairée à contre-jour devient noire : le tissu porte
 une composante `emissive` pour rester lisible.
+
+**Mer.** Le détail fin ne vient pas du maillage mais d'une perturbation de
+normales (`rippleNormal`) — six vagues de Gerstner seules donnent du plastique
+moulé. Ce détail doit être fondu avec la distance, sinon il bouillonne à
+l'horizon. Le soleil haut rend le scintillement invisible : son reflet tombe à
+quelques mètres du bord. La commande « hauteur du soleil » existe pour ça.
+
+**Ce qu'on ne fera pas.** Le turquoise à caustiques des images de lagon vient
+d'un fond de sable vu à travers deux mètres d'eau, pas d'un meilleur shader. En
+pleine mer, rien ne remonte. Ce serait un décor distinct, pas du réalisme.
 
 ## Conventions
 
