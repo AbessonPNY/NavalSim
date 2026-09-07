@@ -179,11 +179,18 @@ jamais le groupe entier. Un navire à sec de toile garde ses vergues en croix et
 sa bôme en place — et pour un modèle importé, masquer le groupe lui arracherait
 son gréement, puisque ses propres vergues y vivent désormais.
 
-**Échelle d'un modèle — non corrigé.** `loadModel()` ramène à `spec.L` la boîte
-englobante de *tout* l'objet, beaupré et vergues compris. Sur la Roter Löwe la
-coque visible ne fait donc que 47,5 m là où le solveur calcule sur 60 : le
-collier d'écume, qui suit l'ellipse `spec.L × spec.B`, déborde de 6,3 m à chaque
-extrémité. Il faudrait prendre l'échelle sur le maillage de coque seul.
+**L'échelle d'un modèle se prend sur la coque seule.** `_hullScale()` cherche le
+maillage le plus volumineux — les espars sont longs mais n'enferment presque
+rien — et ramène *sa* longueur à `spec.L`. Mesurer l'objet entier comptait le
+beaupré et les vergues comme du navire : la coque de la Roter Löwe sortait à
+47,5 m là où le solveur en flottait 60, et tout ce qui découle des dimensions
+annoncées débordait d'autant. Le collier d'écume, qui suit l'ellipse
+`spec.L × spec.B`, dépassait ainsi de 6,3 m à l'étrave et à l'étambot.
+
+La largeur, elle, n'est pas ajustée : elle suit les proportions propres du
+modèle. La Roter Löwe fait 15,6 m au maître-bau pour 14,5 m annoncés, donc le
+collier passe un demi-mètre en dedans du bordé. Corriger cela demanderait une
+mise à l'échelle non uniforme, qui déformerait la carène.
 
 **Réglage des voiles.** Le modèle ne donne aucun retour lisible : à 45° de vent
 apparent, des écoutes à 40° ne laissent que 5° d'incidence, donc `CL` s'effondre

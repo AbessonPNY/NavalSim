@@ -209,11 +209,9 @@ Naval.ShipModel = class ShipModel {
       }
       const obj = gltf.scene;
 
-      // Scale the model so its length matches the hull the solver is using.
-      const box = new THREE.Box3().setFromObject(obj);
-      const size = new THREE.Vector3(); box.getSize(size);
-      const along = m.lengthAxis === 'x' ? size.x : size.z;
-      const k = (m.scale != null) ? m.scale : (along > 1e-6 ? this.spec.L/along : 1);
+      // Scale her HULL to the length the solver is using — never the whole
+      // object. See _hullScale.
+      const k = (m.scale != null) ? m.scale : this._hullScale(obj, m.lengthAxis);
       obj.scale.setScalar(k);
       if(m.rotationY) obj.rotation.y = m.rotationY;
       const off = m.offset || [0,0,0];
@@ -230,6 +228,30 @@ Naval.ShipModel = class ShipModel {
                    ' — keeping the procedural hull. ' + (err && err.message || err));
       return false;
     }
+  }
+
+  /* The scale that brings the model's HULL to her stated length.
+
+     Measuring the whole object instead counted her bowsprit and her yards as
+     though they were ship: the Roter Löwe came out with 47.5 m of hull where
+     the solver was floating 60, and everything derived from her stated
+     dimensions then stood proud of the timber — the foam collar most visibly,
+     overhanging her stem and stern by better than six metres.
+
+     The hull is picked out as the bulkiest mesh, the same way _deckProfile
+     finds it: spars are long but they enclose almost nothing. Called before
+     any transform is put on the model, so a mesh's own world box is already in
+     the model's frame. */
+  _hullScale(obj, lengthAxis){
+    const size = new THREE.Vector3();
+    let best = -1, along = 0;
+    obj.traverse(o => {
+      if(!o.isMesh || !o.geometry) return;
+      new THREE.Box3().setFromObject(o).getSize(size);
+      const vol = size.x*size.y*size.z;
+      if(vol > best){ best = vol; along = (lengthAxis === 'x' ? size.x : size.z); }
+    });
+    return along > 1e-6 ? this.spec.L/along : 1;
   }
 
   /* Every mesh of the loaded model, measured in the hull's own frame. Runs once
