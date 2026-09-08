@@ -35,6 +35,42 @@ logique est dans `js/`, en classes attachées à un espace de noms global `Naval
 | `ship-physics.js` | sondes, corps rigide 6 ddl, gouvernail, voiles |
 | `controls.js` · `camera-rig.js` · `hud.js` | barre, caméras, instruments |
 
+## Cahier des charges
+
+**Plusieurs bâtiments peuvent être à flot en même temps**, à l'écran ou sur une
+carte. Pas de réseau pour l'instant : ils tournent tous dans la même page, dans
+la même boucle. Cela ne change rien à ce qui est déjà écrit, mais cela **borne ce
+qu'on a le droit d'écrire ensuite** — toute nouveauté qui décrit l'état d'un
+navire doit vivre sur *son* instance, jamais dans un global ni dans un uniforme
+de la mer.
+
+Ce qui supporte déjà N navires, sans rien changer :
+
+- `ShipSpec`, `HullLines`, `ShipPhysics`, `ShipModel` sont des classes d'instance,
+  sans état statique — il suffit d'en construire plusieurs ;
+- l'**occlusion ambiante**, qui isole les navires par une couche de rendu
+  (`Naval.SHIP_LAYER`) et non par un objet : dix navires passent dans la même
+  passe, pour le même prix ;
+- les **ombres portées** et les patches de matériau (`applyHaze`,
+  `applySailLight`, `applyShipAO`), tous par maillage ou par matériau.
+
+Ce qui suppose encore un navire unique, et qu'il faudra lever :
+
+- **la mer et l'écume ne connaissent qu'une coque.** `uShipPos`, `uShipFwd`,
+  `uShipHalf`, `uShipSpeed`, `uHullProf` et `uHullEnds` décrivent *un* bâtiment,
+  et `ocean.js` comme `foam.js` les lisent tels quels. Le champ d'écume est déjà
+  en espace monde, donc y **déposer** plusieurs navires est naturel ; c'est le
+  collier instantané de `ocean.js` qui demandera un tableau ou une passe par
+  navire ;
+- **la fenêtre d'écume et la boîte d'ombre suivent un seul navire**
+  (`foam.update(..., body.pos)`, `stage.aimSun(body.pos)`) : deux bâtiments
+  éloignés ne peuvent pas être servis par la même fenêtre de 620 m ;
+- **`main()` ne câble qu'un exemplaire** de chaque objet.
+
+En revanche la barre, les instruments et les caméras n'ont *pas* à devenir
+multiples : ce sont ceux du navire qu'on commande. Il leur faudra désigner
+lequel, pas se dupliquer.
+
 ## Invariants à ne pas casser
 
 **Un seul plan de formes.** `hull-lines.js` sert à la fois au maillage visible et
@@ -304,6 +340,49 @@ l'ombrage directionnel que l'environnement apporte.
 Le préfiltrage coûte quelques millisecondes, et le curseur du soleil tire un
 événement par pixel de glissement : `refreshEnvironment()` est donc **bridée**,
 et un rafraîchissement sauté est rattrapé dans `render()`.
+
+**Le naufrage n'est pas scripté, c'est du poids mal placé.** Méthode du *poids
+ajouté* : l'eau embarquée est une masse, à l'endroit où elle repose. Rien ne
+décide qu'elle coule — elle sombre quand ce poids dépasse ce que sa carène peut
+déplacer. La grille de sondes fait déjà tout le reste : assiette, gîte et
+enfoncement en découlent sans une ligne de plus.
+
+Les compartiments (`Naval.Config.NCOMP`, cinq) sont découpés **sur les sondes
+elles-mêmes**, donc leur capacité est du vrai volume de coque, mesuré sur le
+même plan de formes que tout le reste. Ils sont numérotés **depuis l'étambot** :
+le compartiment 0 est à l'arrière, le 4 à l'étrave.
+
+Trois choses portent tout le comportement, et il ne faut pas les défaire :
+
+- **L'entrée d'eau suit Torricelli**, `v = √(2gh)`. Un trou profond emplit bien
+  plus vite qu'un trou près de la flottaison, et surtout la charge `h` **grandit
+  à mesure qu'elle s'enfonce** : c'est l'emballement qui noie réellement un
+  navire, et il est gratuit.
+- **L'envahissement par le pont** prend le relais dès qu'un livet passe sous
+  l'eau. C'est presque toujours lui qui achève, pas la voie d'eau initiale.
+  Mesuré sur la Roter Löwe, une seule brèche de 0,30 m², pompes arrêtées : 5
+  minutes pour 566 t et 3° d'assiette, puis les deux dernières minutes la font
+  passer de −9° à −58° et elle sombre à 12,1 min, par l'arrière.
+- **L'eau se met au fond, et court à la bande basse.** Son centre monte avec le
+  remplissage, donc un fond d'eau est du lest et la raidit, tandis qu'une masse
+  haute la chavire. Et un compartiment **à moitié plein** a une carène liquide
+  (`4f(1−f)`, nulle à vide comme à plein) qui glisse sous le vent et combat le
+  redressement — c'est pourquoi remplir complètement un compartiment est un vrai
+  remède.
+
+**Les pompes se dosent à la mesure, pas au calcul**, l'entrée d'eau dépendant de
+la profondeur à laquelle elle finit par s'asseoir sur son trou. Réglées à
+`6·10⁻⁵ × volume de coque` pour que **une** voie d'eau soit rattrapable et deux
+non : sur la frégate, 0,343 t/s de pompes contre 0 t embarquée à une brèche,
+0,334 t/s de gain à deux, 0,705 à trois. C'est délibérément généreux au regard de
+l'histoire — une pompe à chaîne faisait de l'ordre d'une tonne par minute, et les
+navires coulaient précisément parce qu'on ne suivait pas ; à cinq fois ça, le
+contrôle des avaries devient une décision plutôt qu'une formalité.
+
+Ce que je n'ai **pas** observé : un chavirement par carène liquide. À force 7
+avec deux voies d'eau, 261 t en 14 minutes et un roulis maximal de 6,7° — à 13 %
+de son déplacement et 2,5 m de GM, une frégate ne se couche pas. L'effet est
+écrit, la démonstration reste à faire sur un navire plus tendre ou plus envahi.
 
 **Le pavillon montre le vent, les voiles montrent le réglage.** Un pavillon blanc
 uni est envergué à la tête du grand mât, trouvé par la même lecture de forme que

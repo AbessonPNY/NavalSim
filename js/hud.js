@@ -22,6 +22,8 @@ Naval.HUD = class HUD {
       rudText:el('rudText'), rudBar:el('rudBar'), rudTele:el('rudTele'),
       shtText:el('shtText'), shtBar:el('shtBar'), shtTele:el('shtTele'),
       shtOpt:el('shtOpt'),
+      flood:el('roFlood'), pumps:el('roPumps'),
+      damageRow:el('damageRow'), damage:el('roDamage'),
       wind:el('roWind'), appWind:el('roAppWind'), point:el('roPoint'),
       dot:el('statusDot'),
       seaState:el('seaState'), windDir:el('windDir'),
@@ -189,6 +191,31 @@ Naval.HUD = class HUD {
         : Math.abs(dTrim) < 0.05 ? 'au mieux · '+Math.round(p.sailDrive/1000)+' kN'
         : dTrim > 0 ? 'trop choquées — border'
                     : 'trop bordées — choquer';
+
+    /* --- damage control ---
+       Water aboard as a fraction of her own displacement is the figure that
+       means something: 200 t is nothing to a frigate and the end of a schooner.
+       Whether the pumps are gaining or losing is the other half — it is the only
+       thing that tells you if the situation is under control, and no instrument
+       said it until now. */
+    const flood = p.floodTonnes;
+    e.flood.textContent = flood < 10 ? flood.toFixed(1) : Math.round(flood);
+    e.flood.style.color = flood > S.tonnes*0.10 ? 'var(--crit)'
+                        : flood > 0.5 ? 'var(--warn)' : '';
+    e.pumps.textContent = p.pumpOn ? 'EN ROUTE' : 'stoppées';
+    e.pumps.style.color = p.pumpOn ? 'var(--good)' : 'var(--muted)';
+
+    const gaining = p.floodRate;             // m³/s, + = she is losing the fight
+    const show = p.foundered || p.breaches.length > 0 || flood > 0.05;
+    e.damageRow.hidden = !show;
+    if(show){
+      e.damage.textContent = p.foundered ? 'SOMBRÉ'
+        : p.breaches.length === 0 ? (flood > 0.05 ? 'voies d\'eau bouchées — assèchement' : '—')
+        : gaining > 0.002 ? p.breaches.length + ' voie' + (p.breaches.length>1?'s':'') +
+            ' d\'eau — elle embarque ' + (gaining*C.RHO/1000).toFixed(1) + ' t/s'
+        : 'voies d\'eau maîtrisées par les pompes';
+      e.damage.style.color = p.foundered || gaining > 0.002 ? 'var(--crit)' : 'var(--warn)';
+    }
 
     this.cam.refreshLabel(b);
 

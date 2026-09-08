@@ -13,6 +13,9 @@ Naval.Controls = class Controls {
     this.onCycleCam = null;      // wired up by main()
     this.onReplant = null;
     this.onTrim = null;          // "border au mieux" — asks the solver for its mark
+    this.onBreach = null;        // open a hole — a test command until there is damage
+    this.onPumps = null;
+    this.onSalvage = null;
 
     addEventListener('keydown', e=>{
       const k = e.key.toLowerCase();
@@ -22,6 +25,9 @@ Naval.Controls = class Controls {
       if(k==='v') this.state.sailsSet = !this.state.sailsSet;   // set or furl
       if(k==='x' && this.onReplant) this.onReplant();
       if(k==='t' && this.onTrim) this.onTrim();
+      if(k==='b' && this.onBreach) this.onBreach();
+      if(k==='p' && this.onPumps) this.onPumps();
+      if(k==='r' && this.onSalvage) this.onSalvage();
     });
     addEventListener('keyup', e=>{ this.keys[e.key.toLowerCase()] = false; });
   }

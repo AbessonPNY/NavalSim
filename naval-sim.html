@@ -37,6 +37,12 @@
     </div>
     <div class="hair"></div>
     <div class="readouts">
+      <div class="ro"><span class="k">Eau embarquée</span><span class="v"><span id="roFlood">0</span><small>t</small></span></div>
+      <div class="ro"><span class="k">Pompes</span><span class="v" style="font-size:15px"><span id="roPumps">—</span></span></div>
+    </div>
+    <div class="allure damage" id="damageRow" hidden><span class="k">Avarie</span><b id="roDamage">—</b></div>
+    <div class="hair"></div>
+    <div class="readouts">
       <div class="ro"><span class="k">Vent réel</span><span class="v"><span id="roWind">0</span><small>nds</small></span></div>
       <div class="ro"><span class="k">Vent apparent</span><span class="v"><span id="roAppWind">0</span><small>°</small></span></div>
     </div>
@@ -108,6 +114,7 @@
       <div class="barmeter"><i id="shtBar"></i><i id="shtOpt" class="mark" hidden></i></div>
       <div class="telegraph" id="shtTele">— voiles établies —</div>
       <div class="keys"><kbd>Q</kbd><kbd>E</kbd> écoutes · <kbd>T</kbd> au mieux · <kbd>V</kbd> ferler</div>
+      <div class="keys"><kbd>B</kbd> voie d'eau · <kbd>P</kbd> pompes · <kbd>R</kbd> réparer</div>
     </div>
   </div>
 
@@ -215,6 +222,17 @@ async function main(){
       controls.onTrim     = ()=> {
         if(physics.optSheet !== null) controls.state.sheet = physics.optSheet;
       };
+      /* Damage, by hand, until there is anything that can actually hole her.
+         Each press opens another hole, working forward from the stern — the
+         compartments are numbered from the sternpost — so the trim she takes up
+         tells you plainly where she is making water. One hole is just within
+         the pumps; the second is what drowns her. */
+      controls.onBreach   = ()=> {
+        const n = physics.comps.length;
+        physics.breach(physics.breaches.length % n, 0.06, 0.30);
+      };
+      controls.onPumps    = ()=> { physics.pumpOn = !physics.pumpOn; };
+      controls.onSalvage  = ()=> physics.salvage();
     }else{
       cam.setSpec(spec);
     }

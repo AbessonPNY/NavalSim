@@ -13,6 +13,9 @@ Naval.Config = {
   // ---- buoyancy probe grid (cells across the hull envelope) ----
   PN_Z: 11, PN_X: 7, PN_Y: 7,
 
+  // ---- watertight compartments, along her length ----
+  NCOMP: 5,
+
   // ---- ocean mesh ----
   // GPU carries the full spectrum; the solver and the foam pass take only the
   // longest components, which hold nearly all of a JONSWAP spectrum's energy.

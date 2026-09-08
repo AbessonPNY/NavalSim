@@ -32,6 +32,28 @@ Naval.ShipPhysics = class ShipPhysics {
     this.hullVolume = 0;
     this._buildProbes();
     spec.checkFlotation(this.hullVolume, C.RHO);
+    this._buildCompartments();
+
+    /* Flooding, by the added-weight method: water aboard is weight at the place
+       it actually lies. Nothing about sinking is scripted — she founders when
+       that weight beats what her hull can displace, and she capsizes first if it
+       lies badly, which is what usually really happens. */
+    this.breaches = [];
+    this.floodVol = 0;                     // m³ aboard, all compartments
+    this.floodTonnes = 0;
+    this.floodRate = 0;                    // m³/s net, + = gaining on the pumps
+    this.foundered = false;
+    this.pumpOn = true;
+    /* Pumps are sized so that ONE modest hole is just beatable and two are not
+       — that is the whole tension, and it has to be measured rather than
+       guessed, the inflow depending on how deep she settles onto the hole.
+       Scaled off her volume, so a schooner's pumps are not a frigate's.
+
+       Frankly generous against history: a chain pump did something like a ton a
+       minute, and real ships foundered because pumping could not keep up. This
+       is roughly five of them, which is what makes damage control a decision
+       rather than a formality. */
+    this.pumpRate = this.hullVolume * 6.0e-5;   // m³/s
 
     this.body = {
       pos: new THREE.Vector3(0,0,0),
@@ -67,6 +89,146 @@ Naval.ShipPhysics = class ShipPhysics {
     this._app=new THREE.Vector3(); this._lift=new THREE.Vector3(); this._sailF=new THREE.Vector3();
     this._arm=new THREE.Vector3(); this._fVec=new THREE.Vector3(); this._mom=new THREE.Vector3();
     this._ce=new THREE.Vector3(0, spec.ceHeight, spec.ceZ);
+    this._dryCom = this.body.com.clone();
+    this._down=new THREE.Vector3(); this._wc=new THREE.Vector3();
+    this._com=new THREE.Vector3();
+  }
+
+  /* Divide her into compartments along her length, out of the probes that
+     already describe her volume — so a compartment's capacity is real hull
+     volume, measured on the same plan of forms as everything else. */
+  _buildCompartments(){
+    const n = this.C.NCOMP, L = this.spec.L;
+    this.comps = [];
+    for(let i=0;i<n;i++) this.comps.push({
+      vol:0, cap:0, mid:new THREE.Vector3(),
+      halfB:0, deckY:-Infinity, keelY:Infinity
+    });
+    for(const pr of this.probes){
+      const i = Math.min(n-1, Math.max(0,
+                  Math.floor(((pr.local.z + L/2)/L)*n)));
+      const c = this.comps[i];
+      c.cap += pr.vol;
+      c.mid.addScaledVector(pr.local, pr.vol);
+      c.halfB = Math.max(c.halfB, Math.abs(pr.local.x));
+      c.deckY = Math.max(c.deckY, pr.local.y);
+      c.keelY = Math.min(c.keelY, pr.local.y);
+    }
+    for(const c of this.comps) if(c.cap > 0) c.mid.multiplyScalar(1/c.cap);
+  }
+
+  /* Open a hole. Area in m², at a height given as a fraction of the
+     compartment's depth — 0 at the keel, 1 at the deck. Below the waterline is
+     what matters: a hole above it admits nothing until she settles onto it. */
+  breach(index, area, heightFrac){
+    const c = this.comps[index];
+    if(!c || c.cap <= 0) return null;
+    const h = heightFrac == null ? 0.25 : heightFrac;
+    const br = { comp:index, area:area || 0.35,
+                 y: c.keelY + (c.deckY - c.keelY)*h, z:c.mid.z };
+    this.breaches.push(br);
+    return br;
+  }
+
+  /* Water in, water out, and where it lies.
+
+     Inflow is Torricelli through the hole: v = √(2gh), so a hole deep under
+     water fills far faster than one near the surface — and as she settles the
+     head grows, which is exactly the runaway that drowns a ship. Once a
+     compartment's deck edge goes under she downfloods as well, through hatches
+     and gunports rather than through the hole, and that is what usually
+     finishes it rather than the breach itself. */
+  _flooding(dt, ocean, t){
+    const C = this.C, b = this.body;
+    this.floodRate = 0;
+    if(!this.breaches.length && this.floodVol <= 1e-6) return;
+    const before = this.floodVol;
+
+    for(const br of this.breaches){
+      const c = this.comps[br.comp];
+      if(c.vol >= c.cap) continue;
+      this._pw.set(0, br.y, br.z).applyQuaternion(b.quat).add(b.pos);
+      const head = ocean.sample(this._pw.x, this._pw.z, t) - this._pw.y;
+      if(head <= 0) continue;
+      c.vol = Math.min(c.cap, c.vol + 0.62*br.area*Math.sqrt(2*C.G*head)*dt);
+    }
+
+    for(const c of this.comps){
+      if(c.vol >= c.cap) continue;
+      // deck edge under: she is taking it green, through every opening at once
+      this._pw.set(0, c.deckY, c.mid.z).applyQuaternion(b.quat).add(b.pos);
+      const over = ocean.sample(this._pw.x, this._pw.z, t) - this._pw.y;
+      if(over > 0) c.vol = Math.min(c.cap, c.vol + 0.25*c.halfB*Math.sqrt(2*C.G*over)*dt);
+    }
+
+    if(this.pumpOn){
+      // the pumps draw on the fullest compartment first, as a crew would
+      let left = this.pumpRate*dt;
+      while(left > 1e-9){
+        let worst = null;
+        for(const c of this.comps) if(c.vol > 1e-9 && (!worst || c.vol > worst.vol)) worst = c;
+        if(!worst) break;
+        const take = Math.min(left, worst.vol);
+        worst.vol -= take; left -= take;
+      }
+    }
+
+    this._updateMass();
+    // net m³/s: positive means the sea is winning, and that is the one number
+    // that says whether the situation is under control
+    this.floodRate = dt > 0 ? (this.floodVol - before)/dt : 0;
+  }
+
+  /* Mass, centre of gravity and inertia, with the water she has aboard.
+
+     Two things fall out of this that are worth not undoing. Water lies at the
+     BOTTOM of a compartment, so its centre rises as the compartment fills —
+     which means a little water in the bilges is ballast and stiffens her, while
+     a lot of it high up is what capsizes her. And a PARTLY full compartment has
+     a free surface: the water runs to the low side and stays there, so it fights
+     every attempt to right herself. A full compartment cannot do that, which is
+     why counter-flooding to fill a space completely is a real remedy. */
+  _updateMass(){
+    const C = this.C, S = this.spec, b = this.body;
+    let vol = 0;
+    for(const c of this.comps) vol += c.vol;
+    this.floodVol = vol;
+    this.floodTonnes = vol*C.RHO/1000;
+
+    const wm = vol*C.RHO;
+    b.mass = S.massKg + wm;
+
+    if(wm < 1e-6){ b.com.copy(this._dryCom); }
+    else{
+      // which way is down, in her own frame — this carries heel AND trim
+      this._down.set(0,-1,0).applyQuaternion(this._qc.copy(b.quat).invert());
+      const lat = this._down.x, lon = this._down.z;
+
+      this._com.copy(this._dryCom).multiplyScalar(S.massKg);
+      for(const c of this.comps){
+        if(c.vol <= 1e-9) continue;
+        const f = c.vol/c.cap;
+        const free = 4*f*(1-f);                    // nil when empty or brimful
+        this._wc.set(
+          c.mid.x + lat*free*c.halfB*0.75,
+          c.keelY + 0.5*f*(c.deckY - c.keelY),     // it lies in the bottom
+          c.mid.z + lon*free*(c.deckY - c.keelY)*0.5
+        );
+        this._com.addScaledVector(this._wc, c.vol*C.RHO);
+      }
+      b.com.copy(this._com).multiplyScalar(1/b.mass);
+    }
+
+    const m = b.mass, L = S.L, B = S.B, D = S.D;
+    b.Ib.set(m/12*(D*D + L*L), m/12*(B*B + L*L), m/12*(B*B + D*D));
+  }
+
+  /* Pump her dry and plug every hole — what "réparer" means from the console. */
+  salvage(){
+    this.breaches.length = 0;
+    for(const c of this.comps) c.vol = 0;
+    this.foundered = false;
+    this._updateMass();
   }
 
   /* Fill the hull envelope with a UNIFORM 3-D grid and keep the cells that land
@@ -112,6 +274,10 @@ Naval.ShipPhysics = class ShipPhysics {
     right.set(1,0,0).applyQuaternion(b.quat);
     up.set(0,1,0).applyQuaternion(b.quat);
 
+    // Water in and out FIRST: it sets the mass and the centre of gravity that
+    // everything below — gravity, moments, inertia — is then taken against.
+    this._flooding(dt, ocean, t);
+
     force.set(0,0,0); torque.set(0,0,0);
     force.y -= b.mass * C.G;                    // gravity at the CoG makes no moment
 
@@ -143,6 +309,11 @@ Naval.ShipPhysics = class ShipPhysics {
     }
     this.submergedFrac = submergedVol / this.hullVolume;
     this.draft = Math.max(0, ocean.sample(cog.x, cog.z, t) - lowestY);
+
+    /* Foundered when she stays under, not the instant a sea buries her: a
+       boarding wave puts the deck under for a second on any hard day. */
+    this._underFor = this.submergedFrac > 0.95 ? (this._underFor||0) + dt : 0;
+    if(this._underFor > 3) this.foundered = true;
 
     const inWater = submergedVol > 0 ? 1 : 0;
     const vFwd = b.vel.dot(fwd);
