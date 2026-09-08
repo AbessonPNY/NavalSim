@@ -128,22 +128,71 @@ Naval.ShipModel = class ShipModel {
     }
   }
 
+  /* The depth of the cloth along one axis of the sail.
+
+     `d` is where she is deepest and `pin0`/`pin1` say whether each end is
+     LACED to something. That distinction is the whole point: a laced edge is
+     drawn flat against its spar, but a free edge is held only at its two
+     corners and keeps most of its fullness right out to the boltrope, so it
+     leaves at a fraction `r` of the maximum rather than at nothing. */
+  _bellyProfile(x, d, pin0, pin1, r, crown){
+    /* sin(π·x^k) is a half-sine whose crest has been slid to d: the exponent is
+       chosen so that x = d maps to the half-way point of the sine. */
+    const k = Math.log(0.5)/Math.log(d);
+    let f = Math.sin(Math.PI*Math.pow(x, k));
+    if(!pin1 && x > d) f = 1 - (1-r)*Math.pow((x-d)/(1-d), 2);
+    if(!pin0 && x < d) f = 1 - (1-r)*Math.pow((d-x)/d, 2);
+    /* And then flattened at the top. A half-sine is a BUMP: rounded at the
+       crown and easing away in every direction. Full canvas is a CUSHION —
+       broad and near-flat across the middle, and turning down hard only in the
+       last of its width, where the boltrope holds it. Raising the profile to a
+       power below one does exactly that: it lifts everything off the edges
+       without moving the crest. */
+    return crown === 1 ? f : Math.pow(f, crown);
+  }
+
   /* One sail, as a surface rather than a sheet.
 
      A flat quad reads as sheet metal however it is lit, because its normal is
      constant: one flat shade over the whole cloth, and nowhere for the light to
      turn. So a sail is built as a grid across its four corners and pushed out
-     along its own normal by sin(πu)·sin(πv) — nil along every edge, canvas
-     being bent to its spars and hauled down at its clews, and fullest in the
-     middle where nothing holds it.
+     along its own normal, deepest where nothing holds it.
+
+     The first cut used sin(πu)·sin(πv), which is a bubble: deepest dead centre
+     and nil along all four edges. Two things are wrong with that, and they are
+     wrong on every sail in the rig. A filled sail is deepest WELL FORWARD of
+     the middle of her chord — about four tenths back — because that is where
+     the air turns, not halfway. And only the edges actually bent to a spar or
+     a stay are flat: a square sail's foot is held by nothing but her two
+     clews, so she bellies right out to the boltrope. That curving foot is the
+     most recognisable thing about a square-rigger under canvas, and pinning it
+     to zero flattened precisely the part the eye reads.
+
+     So `cut` says, per axis, where she is deepest and which of her edges are
+     laced. Its defaults are the old bubble, so a sail that says nothing is
+     shaped exactly as before.
 
      Corners come in cyclic order, as the flat quads took them, so a
      three-cornered sail just repeats its last corner and the grid closes along
      that edge. No depth is baked in here: setSailShape sets it every frame. */
-  _sailSurface(corners, dir, nu, nv){
-    nu = nu || 8; nv = nv || 6;
+  _sailSurface(corners, dir, cut){
+    const c = cut || {};
+    const uPeak = c.uPeak !== undefined ? c.uPeak : 0.5;
+    const vPeak = c.vPeak !== undefined ? c.vPeak : 0.5;
+    const uPin0 = c.uPin0 !== false, uPin1 = c.uPin1 !== false;
+    const vPin0 = c.vPin0 !== false, vPin1 = c.vPin1 !== false;
+    const free  = c.free !== undefined ? c.free : 0.78;
+    /* Below one, the belly reads as a cushion; at one, as the old bump. */
+    const crown = c.crown !== undefined ? c.crown : 1;
+    /* Eight by eight rather than eight by six: the interesting shape is now the
+       one down the sail, and six rows read the deep low belly as facets. */
+    const nu = 8, nv = 8;
+    /* How free the cloth is along one axis: nil against a laced edge, one at a
+       free one. It is what decides where she is allowed to hang. */
+    const freeU = x => (uPin0 ? 0 : (1-x)*(1-x)) + (uPin1 ? 0 : x*x);
+    const freeV = x => (vPin0 ? 0 : (1-x)*(1-x)) + (vPin1 ? 0 : x*x);
     const c00=corners[0], c10=corners[1], c11=corners[2], c01=corners[3] || corners[2];
-    const pos=[], w=[], us=[], idx=[];
+    const pos=[], w=[], sag=[], us=[], idx=[];
     const a=new THREE.Vector3(), b=new THREE.Vector3(), p=new THREE.Vector3();
     for(let j=0;j<=nv;j++){
       const v = j/nv;
@@ -153,7 +202,16 @@ Naval.ShipModel = class ShipModel {
         const u = i/nu;
         p.lerpVectors(a, b, u);
         pos.push(p.x, p.y, p.z);
-        w.push(Math.sin(Math.PI*u)*Math.sin(Math.PI*v));
+        w.push(this._bellyProfile(u, uPeak, uPin0, uPin1, free, crown)
+             * this._bellyProfile(v, vPeak, vPin0, vPin1, free, crown));
+        /* Canvas hangs. A free foot is longer than the straight line between
+           her clews, so she smiles between them — nil at the corners, which are
+           hauled taut, and nil against any edge that is laced to a spar. That
+           curve is the line the eye reads on a square-rigger before any other,
+           and a foot ruled straight is the giveaway of a sail drawn rather than
+           bent. Only the free axis sags: a leech is tensioned, not hung. */
+        sag.push(Math.max(freeU(u)*Math.sin(Math.PI*v),
+                          freeV(v)*Math.sin(Math.PI*u)));
         us.push(u);
       }
     }
@@ -167,7 +225,8 @@ Naval.ShipModel = class ShipModel {
     g.computeVertexNormals();
     const mesh = new THREE.Mesh(g, this.mats.canvas);
     mesh.userData.sail = { base:Float32Array.from(pos), w:Float32Array.from(w),
-                           u:Float32Array.from(us), dir:dir.clone().normalize() };
+                           sag:Float32Array.from(sag), u:Float32Array.from(us),
+                           dir:dir.clone().normalize() };
     this.canvases.push(mesh);
     return mesh;
   }
@@ -187,12 +246,16 @@ Naval.ShipModel = class ShipModel {
       const s = m.userData.sail;
       if(!s) continue;
       const attr = m.geometry.attributes.position, arr = attr.array;
-      const base = s.base, w = s.w, u = s.u, d = s.dir;
+      const base = s.base, w = s.w, sg = s.sag, u = s.u, d = s.dir;
+      /* She hangs whatever the wind does — rather more when she is full, since
+         the belly takes up cloth athwartships and pays it out downwards, but
+         never nothing: slack canvas hangs the hardest of all. */
+      const hang = full*(0.09 + 0.11*press);
       for(let k=0, n=w.length; k<n; k++){
         const i3 = k*3;
         const f = w[k]*(depth + (luffing ? full*0.22*Math.sin(u[k]*7 - t*9) : 0));
         arr[i3  ] = base[i3  ] + d.x*f;
-        arr[i3+1] = base[i3+1] + d.y*f;
+        arr[i3+1] = base[i3+1] + d.y*f - (sg ? sg[k]*hang : 0);
         arr[i3+2] = base[i3+2] + d.z*f;
       }
       attr.needsUpdate = true;
@@ -219,7 +282,8 @@ Naval.ShipModel = class ShipModel {
       V(0, tackY, -m.boom*0.93),
       V(0, spec.deckMid+m.height-1.0*sc, -m.boom*0.70),
       V(0, spec.deckMid+m.height-0.6*sc, -0.2*sc)
-    ], new THREE.Vector3(1,0,0)));
+      // laced on three sides; deepest four tenths abaft the luff
+    ], new THREE.Vector3(1,0,0), { uPeak:0.42, crown:0.80 }));
     this.procedural.add(rig);
     return rig;
   }
@@ -248,12 +312,14 @@ Naval.ShipModel = class ShipModel {
 
       // the sail hangs below its yard; setSailShape bellies it forward
       const V = (x,yy,z)=>new THREE.Vector3(x,yy,z);
+      /* Head laced to her yard, foot held by nothing but the clews: she is
+         deepest two thirds of the way down and still full at the boltrope. */
       rig.add(this._sailSurface([
         V(-span,      y,      0),
         V( span,      y,      0),
         V( span*0.86, y-drop, 0),
         V(-span*0.86, y-drop, 0)
-      ], new THREE.Vector3(0,0,1)));
+      ], new THREE.Vector3(0,0,1), { vPeak:0.68, vPin1:false, crown:0.55 }));
     }
     this.procedural.add(rig);
     return rig;
@@ -271,7 +337,8 @@ Naval.ShipModel = class ShipModel {
       V(0, L.deckY(1)+j.tackAbove, spec.jibFootZ),
       V(0, spec.deckMid+j.clewAbove, back+0.6),
       V(0, spec.deckMid+fore.height-j.headDrop, back+0.15)
-    ], new THREE.Vector3(1,0,0)));
+      // hanked to her stay up the luff, but her foot flies free
+    ], new THREE.Vector3(1,0,0), { uPeak:0.40, vPeak:0.34, vPin0:false, crown:0.80 }));
     this.procedural.add(rig);
     return rig;
   }
@@ -474,7 +541,7 @@ Naval.ShipModel = class ShipModel {
           V( half,      yy,      dz),
           V( half*0.86, yy-drop, dz),
           V(-half*0.86, yy-drop, dz)
-        ], new THREE.Vector3(0,0,1)));
+        ], new THREE.Vector3(0,0,1), { vPeak:0.68, vPin1:false, crown:0.55 }));
       }
       this.rigs.push(pivot);
     }

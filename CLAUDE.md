@@ -376,15 +376,55 @@ mise à l'échelle non uniforme, qui déformerait la carène.
 **Les voiles sont des surfaces, pas des feuilles.** Un quadrilatère plat a une
 normale constante : une seule teinte sur toute la toile, et nulle part où la
 lumière tourne — ça lit comme du carton, quel que soit l'éclairage.
-`_sailSurface()` construit une grille sur les quatre coins et la pousse le long
-de sa normale selon `sin(πu)·sin(πv)` — nul sur tous les bords, la toile étant
-enverguée et bordée à ses points, maximal au milieu. Le creux n'est pas figé
-dans la géométrie : `setSailShape()` le règle à chaque image sur `sailLoad`, la
-pression que le solveur calcule **déjà** pour propulser le navire. La voile se
-gonfle donc en se bordant et se vide dès qu'on choque, sans seconde règle à
-tenir en accord avec la première. Le champ `belly` d'une fiche est le creux en
-mètres à pleine charge (3,3 m sur la Roter Löwe, soit 16 % de la largeur des
-basses voiles).
+`_sailSurface()` construit donc une grille sur les quatre coins et la pousse le
+long de sa normale. Le creux n'est pas figé dans la géométrie :
+`setSailShape()` le règle à chaque image sur `sailLoad`, la pression que le
+solveur calcule **déjà** pour propulser le navire. La voile se gonfle donc en se
+bordant et se vide dès qu'on choque, sans seconde règle à tenir en accord avec
+la première. Le champ `belly` d'une fiche est le creux en mètres à pleine charge
+(3,3 m sur la Roter Löwe, soit 16 % de la largeur des basses voiles).
+
+**Mais le creux n'est pas une bulle.** La première écriture le posait en
+`sin(πu)·sin(πv)` : creux au centre, nul sur les quatre bords. Deux fautes, et
+elles valaient pour toutes les voiles du gréement.
+
+Une voile pleine est creuse **bien en avant du milieu de sa corde**, aux quatre
+dixièmes environ, parce que c'est là que l'air tourne — pas à la moitié. Et les
+seuls bords plats sont ceux **réellement lacés** à un espar ou à un étai : le
+point d'une voile carrée n'est tenu que par ses deux points d'écoute, donc elle
+porte son creux jusqu'à la ralingue, et elle est le plus creuse aux deux tiers
+de sa chute, pas à mi-hauteur. Épingler ce point à zéro aplatissait exactement
+ce que l'œil lit d'un carré. Chaque voile déclare donc sa **coupe** (`cut`) — où
+elle est creuse, lesquels de ses bords sont lacés — et les valeurs par défaut
+redonnent l'ancienne bulle, si bien qu'une voile qui ne dit rien ne change pas.
+Mesuré sur la frégate : 3,27 m de creux pour 3,3 annoncés, au point v = 0,75, et
+encore 79 % du maximum à la ralingue.
+
+**Le creux plein est un COUSSIN, pas une bosse.** Même corrigé de sa position,
+un demi-sinus reste bombé à la couronne et s'affaisse doucement en tous sens.
+De la toile pleine ne fait pas ça : elle est large et presque plate au milieu,
+et ne tourne franchement que dans le dernier huitième de sa largeur, là où la
+ralingue la retient. Le remède tient en un exposant **inférieur à un** appliqué
+au profil : il soulève tout ce qui n'est pas sur les bords sans déplacer la
+crête. À 0,55, un huitième en dedans de la ralingue passe de 0,38 à **0,59** du
+creux maximal, et le quart de 0,71 à 0,83 ; le point de ralingue monte de 0,78 à
+0,87. Le creux maximal, lui, ne bouge pas — 3,30 m mesurés pour 3,3 annoncés.
+
+Les carrés sont à 0,55, la toile aurique et le foc à 0,80 : une voile à corne
+travaille en aile et garde un profil d'aérofoil, ce n'est pas un oreiller.
+
+**Et le point s'affaisse.** La toile entre deux points d'écoute est plus longue
+que la droite qui les joint : elle sourit entre eux, nulle aux coins qui sont
+raidis. C'est la ligne qu'on lit sur un carré avant toute autre, et un point
+réglé à la règle trahit une voile dessinée plutôt qu'enverguée. L'affaissement
+ne porte que sur les bords **libres** — une chute est raidie par son écoute,
+elle ne pend pas — donc la brigantine de la goélette, lacée sur trois bords,
+n'en a aucun, tandis que le foc et les carrés en ont un. Il ne disparaît pas
+quand la voile se vide : de la toile molle pend plus fort que de la toile
+pleine, pas moins.
+
+La grille est passée de 8×6 à 8×8 : la forme intéressante est désormais celle
+qui court le long de la voile, et six rangs rendaient le creux bas en facettes.
 
 **Ombres portées, et surtout pas de SSAO.** Le SSAO réclame une passe de
 profondeur, que three rend avec un matériau de substitution. Or la mer est
