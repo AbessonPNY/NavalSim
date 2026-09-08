@@ -456,6 +456,51 @@ Le préfiltrage coûte quelques millisecondes, et le curseur du soleil tire un
 événement par pixel de glissement : `refreshEnvironment()` est donc **bridée**,
 et un rafraîchissement sauté est rattrapé dans `render()`.
 
+**L'explosion tient dans l'ORDRE des choses, pas dans la boule de feu**
+(`explosion.js`, touche `K`). Un éclair parti en un dixième de seconde, une
+boule de feu qui grandit vite et meurt en une seconde, de la fumée qui monte et
+s'étale pendant vingt, des débris sur de vraies paraboles. Tout ensemble, c'est
+un feu d'artifice ; échelonné, les parties lentes survivant aux rapides, c'est
+un navire qui saute. Ce sont les **débris** qui donnent l'échelle : l'œil lit la
+hauteur qu'ils atteignent et le temps qu'ils mettent à retomber, et aucune boule
+de feu ne remplace ça.
+
+**Trois charges, pas une.** Elles partent à quelques mètres et quelques
+dixièmes de seconde d'écart — au milieu d'abord, puis sur l'avant, puis bien sur
+l'arrière — ce qui se lit comme un navire qui se disloque là où une seule grosse
+boule se lit comme une bombe posée à côté de lui. Chacune porte **son propre
+éclair**, si bien que la lumière bégaie aussi, et c'est l'essentiel de l'effet.
+Les points sont placés dans **son** repère puis portés dans le monde, donc ils
+suivent sa gîte et son assiette pendant qu'elle roule. Les écarts sont **bornés
+en mètres autant que mis à l'échelle**, sans quoi une goélette exploserait hors
+de sa propre coque.
+
+**Les débris de bois sont de VRAIS maillages, pas des sprites.** Un point
+lumineux se lit comme une étincelle quelle que soit sa couleur ; ce qui le fait
+lire comme un navire qui se disloque, c'est que les morceaux sont **opaques**,
+éclairés par le même soleil que la coque, et qu'ils **culbutent** bout sur bout.
+Une seule géométrie de planche et un seul matériau pour tous — il n'y a aucune
+raison de construire deux douzaines de boîtes par explosion pour les jeter trois
+secondes plus tard — et ce matériau reçoit la brume comme le reste, donc les
+éclats respirent le même air que le bordé dont ils viennent.
+
+Une conséquence gratuite : le bois étant opaque et la mer aussi, une planche qui
+retombe **disparaît d'elle-même derrière l'eau**. La gerbe ne coûte rien parce
+qu'il n'y a pas de gerbe à écrire.
+
+Tout le reste est en billboards. Du feu volumétrique serait des jours de travail pour un
+événement de trois secondes, et une douzaine de sprites bien cadencés se lisent
+mieux qu'un mauvais volume. L'éclair réutilise la **foudre** déjà câblée, qui
+éclaire pont, toile et ciel ensemble — exactement ce que fait une soute qui
+saute. Les textures sont dessinées sur un canvas, une page publiée ne pouvant
+pas aller chercher d'image.
+
+**Et le naufrage qui suit n'est pas un cas particulier** : `blowUp()` ouvre
+simplement les cinq compartiments d'un coup, souffle les pompes et l'admet déjà
+à un cinquième — une explosion ne la fait pas commencer à embarquer depuis zéro.
+Elle coule en quelques dizaines de secondes parce que l'arithmétique le dit, pas
+parce qu'on l'a décidé. Mesuré sur la frégate : 1 206 t à 0,8 s, 1 987 t à 9 s.
+
 **Le naufrage n'est pas scripté, c'est du poids mal placé.** Méthode du *poids
 ajouté* : l'eau embarquée est une masse, à l'endroit où elle repose. Rien ne
 décide qu'elle coule — elle sombre quand ce poids dépasse ce que sa carène peut

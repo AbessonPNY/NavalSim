@@ -126,7 +126,7 @@
       <div class="barmeter"><i id="shtBar"></i><i id="shtOpt" class="mark" hidden></i></div>
       <div class="telegraph" id="shtTele">— voiles établies —</div>
       <div class="keys"><kbd>Q</kbd><kbd>E</kbd> écoutes · <kbd>T</kbd> au mieux · <kbd>V</kbd> ferler</div>
-      <div class="keys"><kbd>B</kbd> voie d'eau · <kbd>P</kbd> pompes · <kbd>R</kbd> réparer</div>
+      <div class="keys"><kbd>B</kbd> voie d&apos;eau · <kbd>P</kbd> pompes · <kbd>R</kbd> réparer · <kbd>K</kbd> sauter</div>
     </div>
   </div>
 
@@ -187,6 +187,7 @@
 <script src="js/world.js"></script>
 <script src="js/land.js"></script>
 <script src="js/chart.js"></script>
+<script src="js/explosion.js"></script>
 <script src="js/ship-model.js"></script>
 <script src="js/ship-physics.js"></script>
 <script src="js/controls.js"></script>
@@ -217,6 +218,10 @@ async function main(){
      off came through at 11 % and read as a smudge. Opened to about 8 km, which
      is a clear day rather than a hazy one, and still leaves the sea its depth. */
   ocean.uniforms.uHaze.value = 0.0005;
+
+  const blast = new Naval.Explosion(stage.scene, stage);
+  // her splinters must breathe the same air as her hull
+  Naval.applyHaze(blast.woodMat, ocean.uniforms);
 
   const chart = new Naval.Chart(document.getElementById("chart"), world,
     { fix:document.getElementById("chartFix"), scale:document.getElementById("chartScale") });
@@ -304,6 +309,30 @@ async function main(){
       controls.onPumps    = ()=> { physics.pumpOn = !physics.pumpOn; };
       /* Plug, pump dry — and refloat her if she is already on the bottom, since
          the same key has to be the way back from a loss. */
+      /* The magazine. She goes up where her centre of effort is — high enough
+         that the fireball clears her deck rather than sprouting from the keel. */
+      controls.onBlowUp   = ()=> {
+        /* Three charges, not one. They go off a few metres and a few tenths of
+           a second apart — amidships first, then forward, then well aft — which
+           reads as a ship coming apart where a single ball reads as a bomb let
+           off beside her. Placed in HER frame and carried into the world, so
+           they follow her heel and her trim as she rolls.
+
+           Offsets are capped in metres as well as scaled, or a schooner would
+           blow up outside her own hull. */
+        const h = spec.ceHeight, along = Math.min(9, spec.L*0.15);
+        const shots = [
+          [0.00, [ 0.0, h*0.30,  0.0  ], 1.00],
+          [0.32, [ 1.9, h*0.55,  along], 0.78],
+          [0.66, [-1.6, h*0.42, -along*0.8], 0.90],
+        ];
+        for(const [delay, p, s] of shots){
+          blast.fireIn(delay, new THREE.Vector3(p[0], p[1], p[2])
+                       .applyQuaternion(physics.body.quat).add(physics.body.pos),
+                       spec.L*s);
+        }
+        physics.blowUp();
+      };
       controls.onSalvage  = ()=> {
         physics.salvage();
         if(!lost) return;
@@ -476,7 +505,7 @@ async function main(){
   Naval.app = { stage, ocean, foam, controls,
                 get physics(){ return physics; }, get ship(){ return ship; },
                 get cam(){ return cam; }, get hud(){ return hud; },
-                world, land, chart,
+                world, land, chart, blast,
                 get fleet(){ return fleet; } };
 
   let last = performance.now();
@@ -596,6 +625,7 @@ async function main(){
       }
     }
 
+    blast.update(dt);
     hud.update(dt);
     fleetTick += dt;
     if(fleetTick > 0.4){ fleetTick = 0; refreshFleetSpeeds(); }

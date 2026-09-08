@@ -279,6 +279,22 @@ Naval.ShipPhysics = class ShipPhysics {
     return br;
   }
 
+  /* The magazine goes up: her bottom is opened from end to end at once.
+
+     Not a special sinking path — the same flooding as any other, with every
+     compartment holed low and wide and the pumps blown to pieces with the rest.
+     She goes down in under a minute because the arithmetic says so, not because
+     anything here decides she should. */
+  blowUp(){
+    this.breaches.length = 0;
+    for(let i=0;i<this.comps.length;i++) this.breach(i, 2.4, 0.05);
+    this.pumpOn = false;
+    /* And she is already open to the sea: an explosion does not politely start
+       her filling from empty. A fifth of her volume goes in with the blast. */
+    for(const c of this.comps) c.vol = Math.max(c.vol, c.cap*0.20);
+    this._updateMass();
+  }
+
   /* Pump her dry and plug every hole — what "réparer" means from the console. */
   salvage(){
     this.breaches.length = 0;

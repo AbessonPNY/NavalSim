@@ -16,6 +16,7 @@ Naval.Controls = class Controls {
     this.onBreach = null;        // open a hole — a test command until there is damage
     this.onPumps = null;
     this.onSalvage = null;
+    this.onBlowUp = null;         // the powder magazine, for the fun of it
 
     addEventListener('keydown', e=>{
       const k = e.key.toLowerCase();
@@ -28,6 +29,7 @@ Naval.Controls = class Controls {
       if(k==='b' && this.onBreach) this.onBreach();
       if(k==='p' && this.onPumps) this.onPumps();
       if(k==='r' && this.onSalvage) this.onSalvage();
+      if(k==='k' && this.onBlowUp) this.onBlowUp();
     });
     addEventListener('keyup', e=>{ this.keys[e.key.toLowerCase()] = false; });
   }
