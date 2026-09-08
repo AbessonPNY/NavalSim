@@ -42,6 +42,7 @@ Naval.ShipPhysics = class ShipPhysics {
     this.floodVol = 0;                     // m³ aboard, all compartments
     this.floodTonnes = 0;
     this.floodRate = 0;                    // m³/s net, + = gaining on the pumps
+    this.freeSurfaceRise = 0;              // metres of virtual rise of G
     this.foundered = false;
     this.pumpOn = true;
     /* Pumps are sized so that ONE modest hole is just beatable and two are not
@@ -54,6 +55,11 @@ Naval.ShipPhysics = class ShipPhysics {
        is roughly five of them, which is what makes damage control a decision
        rather than a formality. */
     this.pumpRate = this.hullVolume * 6.0e-5;   // m³/s
+    /* Strength of the free surface effect, 1 being the textbook correction.
+       Named rather than buried, because it is the one term that decides
+       whether she capsizes or merely founders — and setting it to 0 is the
+       only way to prove which of the two killed her in a given run. */
+    this.freeSurface = 1.0;
 
     this.body = {
       pos: new THREE.Vector3(0,0,0),
@@ -208,15 +214,44 @@ Naval.ShipPhysics = class ShipPhysics {
       for(const c of this.comps){
         if(c.vol <= 1e-9) continue;
         const f = c.vol/c.cap;
-        const free = 4*f*(1-f);                    // nil when empty or brimful
+        const free = 4*f*(1-f)*this.freeSurface;   // nil when empty or brimful
         this._wc.set(
-          c.mid.x + lat*free*c.halfB*0.75,
+          c.mid.x + lat*free*c.halfB,
           c.keelY + 0.5*f*(c.deckY - c.keelY),     // it lies in the bottom
-          c.mid.z + lon*free*(c.deckY - c.keelY)*0.5
+          c.mid.z + lon*free*(c.deckY - c.keelY)*0.67
         );
         this._com.addScaledVector(this._wc, c.vol*C.RHO);
       }
       b.com.copy(this._com).multiplyScalar(1/b.mass);
+
+      /* FREE SURFACE, properly this time.
+
+         Loose water in a partly filled compartment does not merely lean to
+         leeward — it destroys stability outright, and the textbook correction
+         is a VIRTUAL RISE of the centre of gravity by Σ(ρ·i)/Δ, where i is the
+         second moment of the free surface area, l·b³/12. It does not depend on
+         the angle of heel at all, which is exactly what makes it lethal: she is
+         already unstable before she has leaned an inch. And it goes as the CUBE
+         of the breadth, so one wide compartment is worse than three narrow ones
+         holding the same water — the reason real ships are subdivided
+         lengthwise.
+
+         Written at first as a shift of the water's centroid toward the low
+         side. That is real, but second order: measured on the schooner it moved
+         the centre of gravity two centimetres and made five tonne-metres,
+         against a righting moment two orders larger, while the water lying in
+         her bilges lowered G by 23 cm and stiffened her. She flooded, grew
+         STEADIER, and foundered bolt upright. The centroid shift is kept, but
+         it is this term that decides whether she goes over. */
+      let fsm = 0;
+      const cl = S.L/this.comps.length;
+      for(const c of this.comps){
+        if(c.vol <= 1e-9 || c.vol >= c.cap*0.995) continue;   // brimful: no surface
+        const bw = 2*c.halfB;
+        fsm += C.RHO * cl*bw*bw*bw/12;
+      }
+      this.freeSurfaceRise = this.freeSurface * fsm / b.mass;
+      b.com.y += this.freeSurfaceRise;
     }
 
     const m = b.mass, L = S.L, B = S.B, D = S.D;

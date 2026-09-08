@@ -380,10 +380,35 @@ l'histoire — une pompe à chaîne faisait de l'ordre d'une tonne par minute, e
 navires coulaient précisément parce qu'on ne suivait pas ; à cinq fois ça, le
 contrôle des avaries devient une décision plutôt qu'une formalité.
 
-Ce que je n'ai **pas** observé : un chavirement par carène liquide. À force 7
-avec deux voies d'eau, 261 t en 14 minutes et un roulis maximal de 6,7° — à 13 %
-de son déplacement et 2,5 m de GM, une frégate ne se couche pas. L'effet est
-écrit, la démonstration reste à faire sur un navire plus tendre ou plus envahi.
+**La carène liquide est une remontée du centre de gravité, pas un déplacement de
+centroïde.** Je l'avais d'abord écrite comme de l'eau qui court à la bande basse,
+proportionnellement à la gîte. C'était **faux, pas seulement faible** : mesuré sur
+la goélette, ça déplaçait le centre de gravité de 2 cm et produisait 5 t·m, deux
+ordres de grandeur sous le moment redresseur. Pire, l'eau de fond abaissait G de
+23 cm — elle s'envahissait, devenait plus **raide**, et sombrait bolt upright.
+
+Le vrai effet est la correction classique : une **remontée virtuelle de G** de
+`Σ(ρ·i)/Δ`, où `i = l·b³/12` est le moment quadratique de la surface libre. Elle
+ne dépend **pas de l'angle de gîte**, ce qui est précisément ce qui la rend
+mortelle — le navire est déjà instable avant d'avoir donné de la bande. Et elle
+va comme le **cube de la largeur**, d'où le cloisonnement longitudinal des vrais
+navires : un compartiment large est pire que trois étroits contenant la même eau.
+
+Mesuré sur la goélette (GM à sec 1,04 m), `freeSurface` à 1 contre 0 :
+
+| situation | sans | avec |
+|---|---|---|
+| à la cape, voiles ferlées, force 6,5 | 11,9° | 14,7° |
+| pressée sous voiles, force 7,5 | 14,9° | **40,7°** |
+
+La remontée de G atteint 0,92 m contre 1,04 m de GM. Sous voiles elle **triple
+la gîte**, se couche à 40°, met son livet sous l'eau et sombre en 1,7 minute.
+
+Ce qu'on n'observe toujours pas, et qu'il ne faut pas confondre avec un défaut :
+elle ne se **retourne** pas au-delà de 90°. Passé 40° son pont est sous l'eau et
+l'envahissement par le pont l'achève en quelques secondes — elle se noie avant
+d'avoir le temps de chavirer, ce qui est le sort réel de la plupart des navires
+envahis.
 
 **On voit à travers l'eau, et l'extinction est par canal** (`underwater.js`). La
 mer était opaque : un navire qui sombrait ne s'enfonçait pas, il était *coupé* à
