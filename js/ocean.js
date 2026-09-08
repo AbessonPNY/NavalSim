@@ -130,7 +130,8 @@ Naval.Ocean = class Ocean {
         uShipTex:{value:null}, uShipDepth:{value:null},
         uShipRes:{value:new THREE.Vector2(1,1)}, uShipOn:{value:0.0},
         uAbsorb:{value:new THREE.Vector3(0.34, 0.13, 0.085)},
-        uRefract:{value:26.0},                  // screen-space bend, per metre of depth
+        uRefract:{value:1.0},                   // 1 = Snell for sea water; a dial, not a fudge
+        uProj:{value:new THREE.Matrix4()},
         uNear:{value:0.7}, uFar:{value:14000},
         // planar reflection of the world above the water
         uReflTex:{value:null},
@@ -243,6 +244,7 @@ Naval.Ocean = class Ocean {
         uniform sampler2D uReflTex; uniform float uReflOn;
         uniform sampler2D uShipTex, uShipDepth;
         uniform vec2 uShipRes; uniform float uShipOn, uNear, uFar, uRefract;
+        uniform mat4 uProj;
         uniform vec3 uAbsorb;
         uniform sampler2D uFoamTex; uniform float uFoamOn, uFoamSize, uFlash;
         uniform vec2 uFoamOrigin;
@@ -461,14 +463,31 @@ Naval.Ocean = class Ocean {
             float sz0 = (2.0*uNear*uFar)/(uFar + uNear - d0*(uFar - uNear));
             float thick0 = max(sz0 - vViewZ, 0.0);
 
-            /* REFRACTION. The surface is a moving lens: what lies under it is
-               displaced along the local slope. Snell's law says the ray bends by
-               roughly (1 - 1/n) of the surface tilt, so the shift on screen grows
-               with how deep she is (a longer bent ray wanders further) and shrinks
-               with distance, as perspective demands. That is what makes her ripple
-               and break up under a passing crest instead of sitting there like a
-               decal seen through flat glass. */
-            vec2 shift = N.xz * uRefract * thick0 / max(vViewZ, 1.0);
+            /* REFRACTION — the surface ripple, carried onto what lies under it.
+
+               Snell bends the ray by about (1 - 1/n) of the surface tilt, a
+               quarter of it for sea water, and the displacement at the hull is
+               that angle times the depth. Rather than guess how that lands on
+               screen, the offset is built in WORLD metres and reprojected: the
+               shift is the difference between where she is and where the bent
+               ray says she is. Aspect, field of view and camera attitude then
+               take care of themselves.
+
+               This was first written as a screen-space fudge with a coefficient
+               of 26, which was about a hundred times too large: the offset ran
+               past half the screen, nearly every sample missed her, and the
+               fallback below rebuilt her out of unrelated pixels. It read as
+               noise destroying the very thing one was trying to watch, rather
+               than as water.
+
+               The depth term SATURATES at five metres. Strictly, a longer ray
+               keeps wandering further — but past a few metres the displacement
+               is wide enough to smear her outline away, and she is meant to
+               stay legible while she fades. */
+            float bend = min(thick0, 5.0) * 0.25 * uRefract;
+            vec4 c0 = uProj * viewMatrix * vec4(vW, 1.0);
+            vec4 c1 = uProj * viewMatrix * vec4(vW + vec3(N.x, 0.0, N.z)*bend, 1.0);
+            vec2 shift = (c1.xy/c1.w - c0.xy/c0.w) * 0.5;
             vec2 suv = clamp(base + shift, vec2(0.0), vec2(1.0));
 
             float d = texture2D(uShipDepth, suv).x*2.0 - 1.0;
@@ -729,6 +748,10 @@ Naval.Ocean = class Ocean {
     this.mesh.position.z = cameraPos.z;
     this.uniforms.uTime.value = t;
     this.uniforms.uCam.value.copy(cameraPos);
+    /* Refraction reprojects a world offset, so it needs the CURRENT projection
+       — the bridge and fixed cameras zoom the lens rather than move, so this
+       changes under us and a matrix copied once would be wrong after a scroll. */
+    if(this._cam) this.uniforms.uProj.value.copy(this._cam.projectionMatrix);
   }
 
   /* Hand the sea the foam field. Its window slides with the vessel, so the
@@ -763,7 +786,7 @@ Naval.Ocean = class Ocean {
     u.uShipTex.value = buf.texture;
     u.uShipDepth.value = buf.depth;
     u.uShipOn.value = 1.0;
-    if(camera){ u.uNear.value = camera.near; u.uFar.value = camera.far; }
+    if(camera){ u.uNear.value = camera.near; u.uFar.value = camera.far; this._cam = camera; }
     this._shipBuf = buf;
   }
 

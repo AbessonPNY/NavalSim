@@ -403,21 +403,39 @@ la raison pour laquelle ça se lit comme de l'eau et non comme du brouillard —
 coefficient gris unique la ferait virer au gris, ce que fait la brume, pas la
 mer.
 
-**La réfraction fait plus pour le réalisme que la transparence seule.** Sans elle
-la coque immergée se lit comme un autocollant vu à travers une vitre plate : elle
-est là, mais elle ne bouge pas avec la mer. La surface est une lentille mouvante,
-donc l'échantillon est décalé le long de la pente locale (`uRefract`, 26). Le
-décalage **croît avec la profondeur** — un rayon plus long dévie davantage — et
-**décroît avec la distance**, comme l'exige la perspective ; c'est ce couplage
-qui fait onduler la coque sous une crête qui passe.
+**La réfraction doit reporter l'ondulation, pas effacer l'épave.** Sans elle la
+coque immergée se lit comme un autocollant vu à travers une vitre plate. Mais
+c'est un effet qu'on rate par excès bien plus facilement que par défaut, et la
+première version l'a raté.
+
+**L'échelle se dérive, elle ne se devine pas.** Snell dévie le rayon d'environ
+`(1 − 1/n)` de la pente, soit un quart pour l'eau de mer, et le déplacement à la
+coque vaut cet angle multiplié par la profondeur. Plutôt que de deviner comment
+cela tombe à l'écran, le décalage est construit en **mètres monde puis
+reprojeté** : rapport d'image, champ et orientation de la caméra se règlent alors
+tout seuls. `uProj` est recopié à chaque image, la passerelle et la caméra fixe
+zoomant l'objectif plutôt que de bouger.
+
+La première écriture était un bricolage en espace écran avec un coefficient de
+**26 — cent fois trop grand**. Le décalage dépassait la moitié de l'écran, presque
+tous les échantillons manquaient la coque, et le repli ci-dessous la
+reconstruisait à partir de pixels sans rapport. Ça ne se lisait pas comme de
+l'eau mais comme du bruit détruisant précisément ce qu'on cherchait à regarder.
+Corrigé, `uRefract` vaut **1 = la physique**, et donne 3,3 px de déplacement à
+60 m par mer 3 : une ondulation, pas une bavure. Écart moyen tombé de 46 à 27
+sur 255.
 
 Deux points de méthode. Il faut un **premier échantillon droit** rien que pour
 connaître l'épaisseur avant de savoir de combien dévier — d'où deux lectures de
 profondeur. Et si le rayon dévié tombe sur quelque chose situé **devant** l'eau,
 il a atteint les œuvres mortes : on retombe alors sur l'échantillon droit, sinon
-le pavois se retrouve étalé sur la mer. Mesuré à immersion 70 % : 46 de 255
-d'écart moyen sur les pixels concernés, 220 au maximum, et l'effet croît
-monotonement avec le paramètre sans jamais éclater.
+le pavois se retrouve étalé sur la mer.
+
+Enfin le terme de profondeur **sature à cinq mètres**. Un rayon plus long
+continue en toute rigueur de s'écarter davantage, mais au-delà de quelques mètres
+le déplacement suffit à effacer sa silhouette — et elle doit rester lisible
+pendant qu'elle s'efface. C'est un écart délibéré à la physique, au profit de ce
+qu'on est venu voir.
 
 **Le collier d'écume doit s'éteindre avec elle.** `uShipAfloat` tombe de 1 à 0
 entre 78 % et 95 % d'immersion et multiplie le collier, la gerbe et le dépôt dans
