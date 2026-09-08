@@ -288,6 +288,7 @@ async function main(){
     ship.enableLighting();
     stage.frameVessel(spec.L);              // shadow box sized to this vessel
     physics = new Naval.ShipPhysics(spec, lines);
+    physics.world = world;                // sans lui, sa quille ne touche jamais rien
     controls.setSpec(spec);
 
     if(!cam){
@@ -409,6 +410,7 @@ async function main(){
     sh.enableLighting();
 
     const ph = new Naval.ShipPhysics(sp, ln);
+    ph.world = world;
     const ct = { throttle:0, rudder:0, sheet:sp.maxSheet*0.5, sailsSet:true };
     const eq = ph.settle(ocean, ct);
 

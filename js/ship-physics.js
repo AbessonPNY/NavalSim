@@ -43,6 +43,8 @@ Naval.ShipPhysics = class ShipPhysics {
     this.floodTonnes = 0;
     this.floodRate = 0;                    // m³/s net, + = gaining on the pumps
     this.freeSurfaceRise = 0;              // metres of virtual rise of G
+    this.aground = 0;                      // metres her keel is INTO the ground
+    this.world = null;                     // set by the page; without it she never touches
     this.foundered = false;
     this.pumpOn = true;
     /* Pumps are sized so that ONE modest hole is just beatable and two are not
@@ -279,6 +281,66 @@ Naval.ShipPhysics = class ShipPhysics {
     return br;
   }
 
+  /* She takes the ground.
+
+     The seabed is sampled at THREE points along her keel — stem, midships and
+     sternpost — never at every probe. `heightAt` scans the island grid, and
+     calling it three hundred times a substep would cost more than the whole
+     solver put together. Three points are enough for everything that matters:
+     she strands by the bow on a shelving beach, pivots on a shoal that catches
+     her amidships, or sits down on an even keel.
+
+     The bottom answers as a stiff spring with heavy damping, applied AT the
+     point of contact — so she lifts, heels and slews exactly as the geometry
+     dictates. Nothing here decides she is aground; the forces do, the same way
+     nothing decides she floats. */
+  _ground(dt, force, torque, cog, ocean){
+    this.aground = 0;
+    if(!this.world || !ocean) return;
+    const C = this.C, S = this.spec, b = this.body, O = ocean.origin;
+    const keel = -(S.hull.keelDepth + S.hull.keelExtra);
+    // supports her whole weight at a third of a metre of penetration
+    const kSpring = b.mass*C.G/(0.33*3);
+
+    this._hardAgo = Math.max(0, (this._hardAgo || 0) - dt);
+    const spd = Math.hypot(b.vel.x, b.vel.z);
+
+    const stations = [0.42, 0.0, -0.45];
+    for(let s=0;s<stations.length;s++){
+      const f = stations[s];
+      this._pw.set(0, keel, f*S.L).applyQuaternion(b.quat).add(b.pos);
+      const bed = this.world.heightAt(O.x + this._pw.x, O.z + this._pw.z);
+      const pen = bed - this._pw.y;
+      if(pen <= 0) continue;
+      this.aground = Math.max(this.aground, pen);
+
+      this._r.copy(this._pw).sub(cog);
+      // velocity of this very point, so the damping fights the real motion
+      this._tmp.copy(b.angVel).cross(this._r).add(b.vel);
+
+      const up = kSpring*Math.min(pen, 2.5) - this._tmp.y*b.mass*1.2;
+      const fy = Math.max(0, up);
+      force.y += fy;
+      torque.x += -this._r.z * fy;
+      torque.z +=  this._r.x * fy;
+
+      // and she drags: sand and rock hold a hull far harder than water does
+      this._fVec.set(-this._tmp.x, 0, -this._tmp.z).multiplyScalar(b.mass*0.9);
+      force.add(this._fVec);
+      torque.add(this._mom.crossVectors(this._r, this._fVec));
+
+      /* Driven on at speed she opens. A hull does not bounce off rock, and the
+         hole is where she struck — so running aground finally becomes a real
+         cause of the flooding that was already written. */
+      if(spd > 2.2 && this._hardAgo <= 0){
+        const comp = Math.min(this.comps.length-1, Math.max(0,
+                       Math.floor(((f*S.L + S.L/2)/S.L)*this.comps.length)));
+        this.breach(comp, Math.min(0.45, 0.06*(spd - 2.0)), 0.06);
+        this._hardAgo = 5;              // she cannot be holed twice in a breath
+      }
+    }
+  }
+
   /* The magazine goes up: her bottom is opened from end to end at once.
 
      Not a special sinking path — the same flooding as any other, with every
@@ -424,6 +486,7 @@ Naval.ShipPhysics = class ShipPhysics {
     torque.add(this._mom.crossVectors(this._arm, this._fVec));
 
     this._sails(ctrl, ocean, cog, force, torque, fwd, right);
+    this._ground(dt, force, torque, cog, ocean);
 
     // --- integrate linear ---
     b.vel.addScaledVector(force, dt/b.mass);

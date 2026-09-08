@@ -260,15 +260,19 @@ Naval.HUD = class HUD {
     e.pumps.style.color = p.pumpOn ? 'var(--good)' : 'var(--muted)';
 
     const gaining = p.floodRate;             // m³/s, + = she is losing the fight
-    const show = p.foundered || p.breaches.length > 0 || flood > 0.05;
+    const show = p.foundered || p.breaches.length > 0 || flood > 0.05 || p.aground > 0;
     e.damageRow.hidden = !show;
     if(show){
+      /* Aground comes FIRST, before any tally of water. It is the thing she is
+         doing right now and the thing the helm must answer — a leak can wait a
+         minute, a hull on the rock cannot. */
       e.damage.textContent = p.foundered ? 'SOMBRÉ'
+        : p.aground > 0 ? 'ÉCHOUÉE · ' + p.aground.toFixed(1) + ' m dans le fond'
         : p.breaches.length === 0 ? (flood > 0.05 ? 'voies d\'eau bouchées — assèchement' : '—')
         : gaining > 0.002 ? p.breaches.length + ' voie' + (p.breaches.length>1?'s':'') +
             ' d\'eau — elle embarque ' + (gaining*C.RHO/1000).toFixed(1) + ' t/s'
         : 'voies d\'eau maîtrisées par les pompes';
-      e.damage.style.color = p.foundered || gaining > 0.002 ? 'var(--crit)' : 'var(--warn)';
+      e.damage.style.color = (p.foundered || p.aground > 0 || gaining > 0.002) ? 'var(--crit)' : 'var(--warn)';
     }
 
     this.cam.refreshLabel(b);

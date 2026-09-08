@@ -501,6 +501,26 @@ simplement les cinq compartiments d'un coup, souffle les pompes et l'admet déj�
 Elle coule en quelques dizaines de secondes parce que l'arithmétique le dit, pas
 parce qu'on l'a décidé. Mesuré sur la frégate : 1 206 t à 0,8 s, 1 987 t à 9 s.
 
+**L'échouage se sonde en TROIS points, jamais sur les sondes de carène.**
+`heightAt` balaie la grille des îles ; l'appeler trois cents fois par sous-pas
+coûterait plus cher que tout le solveur réuni. L'étrave, le milieu et l'étambot
+suffisent à tout ce qui compte : elle s'ensable par l'avant sur une plage en
+pente douce, pivote sur un haut-fond qui la prend par le travers, ou s'assoit
+sur une quille droite.
+
+Le fond répond comme un **ressort raide amorti, appliqué AU point de contact** —
+elle se soulève, gîte et embarde exactement comme la géométrie l'impose. Rien ne
+décide qu'elle est échouée ; les forces le font, comme rien ne décide qu'elle
+flotte. Et talonner en vitesse l'**ouvre au point de choc**, ce qui referme
+enfin la boucle : l'échouage devient une vraie cause de l'envahissement déjà
+écrit, au lieu du raccord manquant qu'il était.
+
+Mesuré sur le chaland lancé à 8,7 nds sur une plage : premier contact à 38,6 s à
+4,6 nds, une voie d'eau ouverte au même instant, arrêt complet en quinze
+secondes, puis 12 t embarquées en deux minutes. La pénétration **oscille entre 0
+et 0,25 m** au rythme de la houle — elle tape sur le banc, ce que je n'avais pas
+prévu et qui tombe juste.
+
 **Le naufrage n'est pas scripté, c'est du poids mal placé.** Méthode du *poids
 ajouté* : l'eau embarquée est une masse, à l'endroit où elle repose. Rien ne
 décide qu'elle coule — elle sombre quand ce poids dépasse ce que sa carène peut
