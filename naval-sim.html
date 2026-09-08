@@ -142,6 +142,7 @@
 <script src="js/ocean.js"></script>
 <script src="js/foam.js"></script>
 <script src="js/ssao.js"></script>
+<script src="js/underwater.js"></script>
 <script src="js/ship-model.js"></script>
 <script src="js/ship-physics.js"></script>
 <script src="js/controls.js"></script>
@@ -159,6 +160,7 @@ async function main(){
   const canvas   = document.getElementById('gl');
   const stage    = new Naval.Stage(canvas);
   const ocean    = new Naval.Ocean(stage.scene, stage.sunDir, stage);
+  ocean.useShipBuffer(stage.shipBuf, stage.camera);   // so she shows through the water
   const foam     = new Naval.FoamField(stage.renderer, ocean.uniforms);
   ocean.attachFoam(foam);
   const controls = new Naval.Controls();
@@ -227,10 +229,7 @@ async function main(){
          compartments are numbered from the sternpost — so the trim she takes up
          tells you plainly where she is making water. One hole is just within
          the pumps; the second is what drowns her. */
-      controls.onBreach   = ()=> {
-        const n = physics.comps.length;
-        physics.breach(physics.breaches.length % n, 0.06, 0.30);
-      };
+      controls.onBreach   = ()=> physics.worsenBreach();
       controls.onPumps    = ()=> { physics.pumpOn = !physics.pumpOn; };
       controls.onSalvage  = ()=> physics.salvage();
     }else{
@@ -290,7 +289,8 @@ async function main(){
 
     stage.aimSun(physics.body.pos);       // the shadow box travels with her
     cam.update(dt, physics.body, ocean, t);
-    ocean.trackShip(physics.body, spec);
+    ocean.trackShip(physics.body, spec, physics.afloat);
+    stage.renderer.getDrawingBufferSize(ocean.uniforms.uShipRes.value);
 
     ocean.update(t, stage.camera.position);
     hud.update(dt);

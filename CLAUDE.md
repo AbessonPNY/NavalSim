@@ -31,6 +31,7 @@ logique est dans `js/`, en classes attachées à un espace de noms global `Naval
 | `stage.js` | renderer, scène, lumière, ciel |
 | `ocean.js` | houle de Gerstner : shader GPU **et** échantillonnage CPU |
 | `foam.js` · `ssao.js` | champ d'écume persistant · occlusion ambiante du navire |
+| `underwater.js` | la coque vue à travers l'eau, extinction par canal |
 | `ship-model.js` | coque, gréement, voiles, sillage, chargement .glb |
 | `ship-physics.js` | sondes, corps rigide 6 ddl, gouvernail, voiles |
 | `controls.js` · `camera-rig.js` · `hud.js` | barre, caméras, instruments |
@@ -383,6 +384,53 @@ Ce que je n'ai **pas** observé : un chavirement par carène liquide. À force 7
 avec deux voies d'eau, 261 t en 14 minutes et un roulis maximal de 6,7° — à 13 %
 de son déplacement et 2,5 m de GM, une frégate ne se couche pas. L'effet est
 écrit, la démonstration reste à faire sur un navire plus tendre ou plus envahi.
+
+**On voit à travers l'eau, et l'extinction est par canal** (`underwater.js`). La
+mer était opaque : un navire qui sombrait ne s'enfonçait pas, il était *coupé* à
+la flottaison. La mer ne peut pas savoir seule à quelle distance derrière elle se
+trouve la coque, donc le navire est redessiné une fois, seul, dans ses propres
+matériaux, vers une cible couleur + texture de profondeur ; la mer lit les deux
+et en déduit l'épaisseur d'eau traversée.
+
+Il est déjà isolé sur sa couche de rendu pour l'occlusion, donc cela coûte **un
+seul dessin de plus d'un seul modèle** — et surtout la mer reste un objet opaque
+testé en profondeur, au lieu de devenir transparente avec tous les problèmes de
+tri que cela entraînerait.
+
+L'extinction est **par canal** (`uAbsorb`, 0,34 / 0,13 / 0,085 par mètre) : le
+rouge disparaît en trois mètres, le bleu porte trois fois plus loin. C'est toute
+la raison pour laquelle ça se lit comme de l'eau et non comme du brouillard — un
+coefficient gris unique la ferait virer au gris, ce que fait la brume, pas la
+mer.
+
+**La réfraction fait plus pour le réalisme que la transparence seule.** Sans elle
+la coque immergée se lit comme un autocollant vu à travers une vitre plate : elle
+est là, mais elle ne bouge pas avec la mer. La surface est une lentille mouvante,
+donc l'échantillon est décalé le long de la pente locale (`uRefract`, 26). Le
+décalage **croît avec la profondeur** — un rayon plus long dévie davantage — et
+**décroît avec la distance**, comme l'exige la perspective ; c'est ce couplage
+qui fait onduler la coque sous une crête qui passe.
+
+Deux points de méthode. Il faut un **premier échantillon droit** rien que pour
+connaître l'épaisseur avant de savoir de combien dévier — d'où deux lectures de
+profondeur. Et si le rayon dévié tombe sur quelque chose situé **devant** l'eau,
+il a atteint les œuvres mortes : on retombe alors sur l'échantillon droit, sinon
+le pavois se retrouve étalé sur la mer. Mesuré à immersion 70 % : 46 de 255
+d'écart moyen sur les pixels concernés, 220 au maximum, et l'effet croît
+monotonement avec le paramètre sans jamais éclater.
+
+**Le collier d'écume doit s'éteindre avec elle.** `uShipAfloat` tombe de 1 à 0
+entre 78 % et 95 % d'immersion et multiplie le collier, la gerbe et le dépôt dans
+le champ d'écume. Sans lui, un anneau d'écume reste à la surface au-dessus d'une
+épave, avec rien dessous — et le champ étant persistant, il y traînerait encore
+une trentaine de secondes.
+
+**Une voie d'eau s'aggrave, elle ne se multiplie pas.** `worsenBreach()` double
+l'aire du même trou à chaque appel et le laisse gagner les compartiments voisins
+une fois passée une largeur de bordé, plutôt que d'ouvrir des trous indépendants :
+une coque ne perce pas en cinq endroits à la fois, une couture cède et travaille.
+Six pressions mènent la frégate au fond en 5,2 minutes, contre plus d'une
+demi-heure avec des brèches séparées de taille fixe.
 
 **Le pavillon montre le vent, les voiles montrent le réglage.** Un pavillon blanc
 uni est envergué à la tête du grand mât, trouvé par la même lecture de forme que

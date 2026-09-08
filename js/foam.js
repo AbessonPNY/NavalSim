@@ -64,6 +64,7 @@ Naval.FoamField = class FoamField {
       uHullProf: oceanUniforms.uHullProf,
       uHullEnds: oceanUniforms.uHullEnds,
       uShipSpeed: oceanUniforms.uShipSpeed,
+      uShipAfloat: oceanUniforms.uShipAfloat,
     };
 
     this.mat = new THREE.ShaderMaterial({
@@ -76,7 +77,7 @@ Naval.FoamField = class FoamField {
         precision highp float;
         uniform sampler2D uPrev;
         uniform vec2 uOffsetUV, uOrigin, uShipFwd, uShipHalf;
-        uniform float uDecay, uSize, uTexel, uTime, uSeed, uShipSpeed;
+        uniform float uDecay, uSize, uTexel, uTime, uSeed, uShipSpeed, uShipAfloat;
         uniform vec3 uShipPos;
         uniform vec4 uWaveA[NW]; uniform vec2 uWaveB[NW];
         varying vec2 vUv;
@@ -133,7 +134,7 @@ Naval.FoamField = class FoamField {
           float spread = 1.7*sqrt(sAft)*fast;
           float wing   = exp(-pow((gapM - spread)/(1.0 + 1.2*fast), 2.0)) * fast;
 
-          float hull = max(band * (0.06 + 1.0*way), wing*0.85);
+          float hull = max(band * (0.06 + 1.0*way), wing*0.85) * uShipAfloat;
 
           // deposit, never accumulate past saturation
           gl_FragColor = vec4(clamp(max(prev, max(breaking, hull)), 0.0, 1.0), 0.0, 0.0, 1.0);

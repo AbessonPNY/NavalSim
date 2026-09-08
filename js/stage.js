@@ -224,6 +224,8 @@ Naval.Stage = class Stage {
     this.refreshEnvironment(true);
 
     this.shipAO = new Naval.ShipAO(this.renderer, this.scene, this.camera);
+    // her colour and depth on their own, so the sea can be looked through
+    this.shipBuf = new Naval.ShipBuffer(this.renderer, this.scene, this.camera);
     // shared with the ship's materials, which read the buffer in screen space
     this.aoUniforms = { uAO:{value:this.shipAO.texture},
                         uAORes:{value:new THREE.Vector2(1,1)} };
@@ -441,6 +443,8 @@ Naval.Stage = class Stage {
     // her occlusion, before she is drawn with it
     this.shipAO.render();
     this.renderer.getDrawingBufferSize(this.aoUniforms.uAORes.value);
+    // and her, alone, for the sea to see her through
+    this.shipBuf.render();
     this.renderer.render(this.scene, this.camera);
   }
 };

@@ -223,6 +223,27 @@ Naval.ShipPhysics = class ShipPhysics {
     b.Ib.set(m/12*(D*D + L*L), m/12*(B*B + L*L), m/12*(B*B + D*D));
   }
 
+  /* One hole, and it works itself worse.
+
+     A hull does not spring five tidy leaks at once: a seam starts, and the sea
+     opens it. Each call widens the same wound, and once it is past about a
+     plank's width it reaches into the compartment next door — which is what
+     eventually carries her past what any one compartment could hold. */
+  worsenBreach(){
+    if(!this.breaches.length) return this.breach(1, 0.05, 0.30);
+    const br = this.breaches[0];
+    br.area *= 2.0;
+    // wide enough to have gone through a bulkhead: let it into the next space
+    const spread = Math.floor(Math.log2(br.area/0.05));
+    for(let k=1; k<=spread && k<this.comps.length; k++){
+      const i = br.comp + (k%2 ? k : -k);
+      if(i < 0 || i >= this.comps.length) continue;
+      if(this.breaches.some(o => o.comp === i)) continue;
+      this.breach(i, br.area*0.4, 0.30);
+    }
+    return br;
+  }
+
   /* Pump her dry and plug every hole — what "réparer" means from the console. */
   salvage(){
     this.breaches.length = 0;
@@ -309,6 +330,13 @@ Naval.ShipPhysics = class ShipPhysics {
     }
     this.submergedFrac = submergedVol / this.hullVolume;
     this.draft = Math.max(0, ocean.sample(cog.x, cog.z, t) - lowestY);
+
+    /* How much of her is still working the surface. The collar, the bow wave
+       and the wake all belong to a hull CUTTING the water; once she is under
+       they have to go, or a ring of foam is left riding over the wreck with
+       nothing beneath it. */
+    const u = Math.min(1, Math.max(0, (this.submergedFrac - 0.78)/(0.95 - 0.78)));
+    this.afloat = 1 - u*u*(3 - 2*u);
 
     /* Foundered when she stays under, not the instant a sea buries her: a
        boarding wave puts the deck under for a second on any hard day. */

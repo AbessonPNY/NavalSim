@@ -121,6 +121,17 @@ Naval.Ocean = class Ocean {
         uHullProf:{value:Naval.makeHullProfileTexture(new Float32Array([1]))},
         uHullEnds:{value:new THREE.Vector2(-12, 12)},
         uShipSpeed:{value:0},
+        // 1 while she rides the surface, 0 once she has gone under: an epave
+        // makes no collar, and a foam ring left over a wreck reads as a bug
+        uShipAfloat:{value:1},
+        /* Seeing her through the water. Absorption per metre, per channel: red
+           dies in about 3 m, blue carries past 10 — that is what turns her
+           green then blue then dark, instead of merely grey. */
+        uShipTex:{value:null}, uShipDepth:{value:null},
+        uShipRes:{value:new THREE.Vector2(1,1)}, uShipOn:{value:0.0},
+        uAbsorb:{value:new THREE.Vector3(0.34, 0.13, 0.085)},
+        uRefract:{value:26.0},                  // screen-space bend, per metre of depth
+        uNear:{value:0.7}, uFar:{value:14000},
         // planar reflection of the world above the water
         uReflTex:{value:null},
         uReflMat:{value:new THREE.Matrix4()},
@@ -145,7 +156,7 @@ Naval.Ocean = class Ocean {
         uniform float uTime, uHalf, uSeg, uSharp; uniform vec4 uWaveA[NW]; uniform vec2 uWaveB[NW];
         uniform mat4 uReflMat;
         varying vec3 vN; varying vec3 vW; varying float vFoam; varying float vRel;
-        varying vec4 vRefl; varying float vSpacing;
+        varying vec4 vRefl; varying float vSpacing; varying float vViewZ;
         void main(){
           /* Spend vertices where they are seen. The grid is uniform in the
              buffer, so remap it toward the centre: quads are about a metre
@@ -218,20 +229,25 @@ Naval.Ocean = class Ocean {
              position drags the reflection sideways with every crest and the
              mirrored hull wobbles like jelly. */
           vRefl = uReflMat * vec4(w0.x, 0.0, w0.z, 1.0);
-          vec4 mvPosition = viewMatrix*vec4(p,1.0);   // p is already world space
+          vec4 mvPosition = viewMatrix*vec4(p,1.0);
+          // perpendicular distance, in the same measure as the ship's depth buffer
+          vViewZ = -mvPosition.z;
           gl_Position = projectionMatrix*mvPosition;
         }`,
       fragmentShader:`
         precision highp float;
         uniform vec3 uSun,uCam,uDeep,uShallow,uSSS,uZenith,uHorizon;
-        uniform float uTime, uAmpMax, uRipple, uShipSpeed;
+        uniform float uTime, uAmpMax, uRipple, uShipSpeed, uShipAfloat;
         uniform vec2 uWind, uShipFwd, uShipHalf;
         uniform vec3 uShipPos;
         uniform sampler2D uReflTex; uniform float uReflOn;
+        uniform sampler2D uShipTex, uShipDepth;
+        uniform vec2 uShipRes; uniform float uShipOn, uNear, uFar, uRefract;
+        uniform vec3 uAbsorb;
         uniform sampler2D uFoamTex; uniform float uFoamOn, uFoamSize, uFlash;
         uniform vec2 uFoamOrigin;
         varying vec3 vN; varying vec3 vW; varying float vFoam; varying float vRel;
-        varying vec4 vRefl; varying float vSpacing;
+        varying vec4 vRefl; varying float vSpacing; varying float vViewZ;
         ${Naval.SKY_GLSL}
         ${Naval.HAZE_GLSL}
         ${Naval.HULL_GLSL}
@@ -392,7 +408,7 @@ Naval.Ocean = class Ocean {
           float fade   = exp(-sAft/(5.0 + 30.0*fast));       // dies away astern
           float bow    = wing * fade * way * step(-0.1, gapM);
 
-          float hullFoam = clamp(collar*0.70 + bow*(0.55 + 0.75*fast), 0.0, 1.0)
+          float hullFoam = clamp(collar*0.70 + bow*(0.55 + 0.75*fast), 0.0, 1.0) * uShipAfloat
                            * (0.45 + 0.80*fn);
 
           /* Foam that was laid down earlier and is still dispersing. Sampled in
@@ -425,6 +441,53 @@ Naval.Ocean = class Ocean {
           // a discharge overhead lights the water as well as the sky
 
           col += vec3(0.42,0.50,0.68) * uFlash * (0.55 + 0.9*foam);
+
+          /* What is under the surface, seen THROUGH it.
+
+             The hull was drawn once on her own into uShipTex with her depth
+             alongside; the difference between that depth and this fragment's is
+             the thickness of water in the way. Extinction is per channel — red
+             gone in about three metres, blue carrying three times further —
+             which is what makes her go green, then blue, then nothing, instead
+             of merely fading to grey the way haze would.
+
+             Only where she is BEHIND the surface: a hull in front of the water
+             was already drawn by the ordinary render and must not be doubled. */
+          if(uShipOn > 0.5){
+            vec2 base = gl_FragCoord.xy / uShipRes;
+
+            /* A first, straight look, only to learn how deep she lies. */
+            float d0 = texture2D(uShipDepth, base).x*2.0 - 1.0;
+            float sz0 = (2.0*uNear*uFar)/(uFar + uNear - d0*(uFar - uNear));
+            float thick0 = max(sz0 - vViewZ, 0.0);
+
+            /* REFRACTION. The surface is a moving lens: what lies under it is
+               displaced along the local slope. Snell's law says the ray bends by
+               roughly (1 - 1/n) of the surface tilt, so the shift on screen grows
+               with how deep she is (a longer bent ray wanders further) and shrinks
+               with distance, as perspective demands. That is what makes her ripple
+               and break up under a passing crest instead of sitting there like a
+               decal seen through flat glass. */
+            vec2 shift = N.xz * uRefract * thick0 / max(vViewZ, 1.0);
+            vec2 suv = clamp(base + shift, vec2(0.0), vec2(1.0));
+
+            float d = texture2D(uShipDepth, suv).x*2.0 - 1.0;
+            float sz = (2.0*uNear*uFar)/(uFar + uNear - d*(uFar - uNear));
+            float thick = sz - vViewZ;
+
+            /* If the bent ray landed on something IN FRONT of the water, it has
+               reached her topsides, and dragging those down into the water would
+               smear her rail across the sea. Fall back to the straight look. */
+            if(thick <= 0.0){
+              suv = base; thick = thick0;
+            }
+
+            vec4 sc = texture2D(uShipTex, suv);
+            if(sc.a > 0.01 && thick > 0.0){
+              vec3 T = exp(-uAbsorb*thick) * sc.a;
+              col = mix(col, sc.rgb, clamp(T, 0.0, 1.0));
+            }
+          }
 
           gl_FragColor = vec4(col,1.0);
         }`
@@ -693,7 +756,18 @@ Naval.Ocean = class Ocean {
   }
 
   // Tell the sea where the hull is, so it can foam along her waterline.
-  trackShip(body, spec){
+  /* Let the sea look through itself at her. Called once; the buffer keeps the
+     same texture objects across resizes, so the uniforms stay valid. */
+  useShipBuffer(buf, camera){
+    const u = this.uniforms;
+    u.uShipTex.value = buf.texture;
+    u.uShipDepth.value = buf.depth;
+    u.uShipOn.value = 1.0;
+    if(camera){ u.uNear.value = camera.near; u.uFar.value = camera.far; }
+    this._shipBuf = buf;
+  }
+
+  trackShip(body, spec, afloat){
     const u = this.uniforms;
     u.uShipPos.value.copy(body.pos);
     this._sf = this._sf || new THREE.Vector3();
@@ -703,6 +777,7 @@ Naval.Ocean = class Ocean {
     // spec.B is only the stated figure and a model rarely matches it exactly
     u.uShipHalf.value.set(spec.L*0.5, this._hullProf ? this._hullProf.maxHalfB : spec.B*0.5);
     u.uShipSpeed.value = Math.hypot(body.vel.x, body.vel.z);
+    u.uShipAfloat.value = afloat == null ? 1 : afloat;
   }
 
   // Ripples travel with the wind, and grow with it.
