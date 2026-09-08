@@ -58,6 +58,7 @@ Naval.FoamField = class FoamField {
       // shared with the sea, so waves and hull can never disagree
       uWaveA: oceanUniforms.uWaveA,
       uWaveB: oceanUniforms.uWaveB,
+      uWavePhase: oceanUniforms.uWavePhase,
       uShipCount: oceanUniforms.uShipCount,
       uShipPos: oceanUniforms.uShipPos,
       uShipFwd: oceanUniforms.uShipFwd,
@@ -79,7 +80,7 @@ Naval.FoamField = class FoamField {
         uniform sampler2D uPrev;
         uniform vec2 uOffsetUV, uOrigin;
         uniform float uDecay, uSize, uTexel, uTime, uSeed;
-        uniform vec4 uWaveA[NW]; uniform vec2 uWaveB[NW];
+        uniform vec4 uWaveA[NW]; uniform vec2 uWaveB[NW]; uniform float uWavePhase[NW];
         varying vec2 vUv;
         ${Naval.HULL_GLSL}
 
@@ -105,7 +106,7 @@ Naval.FoamField = class FoamField {
           for(int i=0;i<NW;i++){
             vec2 d = uWaveA[i].xy; float amp=uWaveA[i].z; float k=uWaveA[i].w;
             float omega=uWaveB[i].x; float Q=uWaveB[i].y;
-            float f = k*dot(d, wpos) - omega*uTime;
+            float f = k*dot(d, wpos) - omega*uTime + uWavePhase[i];
             steep += Q*k*amp*max(sin(f), 0.0);
           }
           float breaking = smoothstep(0.66, 1.05, steep) * 0.9;
@@ -152,6 +153,14 @@ Naval.FoamField = class FoamField {
   }
 
   get texture(){ return this.targets[this.cur].texture; }
+
+  /* The world slid under us. The field is anchored in world space, so its
+     anchors move with it — and both of them must, or the next frame's resample
+     offset would read the shift as a colossal slide and smear the field away. */
+  rebase(dx, dz){
+    this.origin.x -= dx;       this.origin.y -= dz;
+    this._prevOrigin.x -= dx;  this._prevOrigin.y -= dz;
+  }
 
   update(renderer, dt, t, centre){
     /* Snap the anchor to whole texels. Without this the resample is off-grid

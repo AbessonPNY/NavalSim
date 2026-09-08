@@ -113,6 +113,15 @@ Naval.CameraRig = class CameraRig {
     this.pos.copy(this.anchor);            // snap, so the attitude is steady at once
   }
 
+  /* Every position this rig holds is in the world that just moved. The planted
+     camera especially: it is the one thing deliberately NOT following the ship,
+     so it is the one that would be left a thousand metres adrift. */
+  rebase(dx, dz){
+    for(const v of [this.anchor, this.pos, this.tgt, this.fixedTgt]){
+      v.x -= dx; v.z -= dz;
+    }
+  }
+
   update(dt, body, ocean, t){
     const spec = this.spec, k = this.scale;
     this.body = body; this.ocean = ocean; this.time = t;   // for plant()/replant

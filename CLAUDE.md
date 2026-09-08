@@ -108,6 +108,34 @@ lequel, pas se dupliquer.
 à la grille de sondes. Si les deux divergent, ce qu'on voit ne correspond plus à
 ce qui flotte — c'est l'invariant le plus important du projet.
 
+**L'origine flotte, et la phase de la houle est ce qui le permet.** Tout est
+calculé près de zéro ; `ocean.origin` retient où ce zéro se trouve réellement.
+Au-delà de `REBASE_RADIUS` (1500 m) le monde entier glisse sous la flotte.
+
+Sans cela la mer meurt bien avant ce qu'on imagine : la phase de Gerstner vaut
+`k·x`, et avec `k` jusqu'à 3 rad/m une position de quelques kilomètres consomme
+déjà la quasi-totalité des sept chiffres d'un flottant 32 bits. Les vagues ne
+tremblent pas, elles **disparaissent** — vérifié à 400 km : avec l'origine
+flottante la houle est normale, sans elle la mer est une nappe parfaitement
+lisse.
+
+Décaler l'origine ferait glisser toute la mer de côté, **sauf** si on rend la
+phase que ce décalage représente, `k·(d·origine)`. Or cette phase croît sans
+borne et ramènerait le problème — sauf qu'une phase ne compte que **modulo 2π**.
+Réduite dans les doubles de JavaScript (`syncPhase`), elle reste un petit nombre
+que le shader tient exactement. Mesuré : **saut nul** à chaque recentrage,
+jusqu'à une origine de 2 300 km.
+
+Trois calculateurs de houle doivent lire cette phase — le vertex shader de la
+mer, l'échantillonneur CPU et la passe d'écume — et en oublier un les
+désynchroniserait silencieusement.
+
+**Tout ce qui tient une position doit se décaler dans la MÊME image** : les
+coques, le champ d'écume (ses *deux* ancres, sinon l'image suivante lit le
+décalage comme un glissement colossal et étale le champ), et les caméras — la
+caméra fixe surtout, seule chose délibérément immobile, donc seule à se
+retrouver à mille mètres de là.
+
 **Le shader et le CPU doivent partager les mêmes vagues.** `ocean.js` calcule la
 phase en **espace monde** (`modelMatrix * position`) car le plan est recentré sur
 la caméra à chaque image. En espace local, la houle resterait collée à la caméra

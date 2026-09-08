@@ -16,6 +16,11 @@ Naval.Config = {
   // ---- how many hulls the sea and the foam can carry at once ----
   MAX_SHIPS: 4,
 
+  /* How far she may stray from local zero before the world is slid back under
+     her. Small enough that the Gerstner phase keeps its precision, large enough
+     that rebasing is rare — 1500 m is about five minutes at hull speed. */
+  REBASE_RADIUS: 1500,
+
   // ---- watertight compartments, along her length ----
   NCOMP: 5,
 

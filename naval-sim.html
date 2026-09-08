@@ -135,6 +135,8 @@
     <span>Elle repose par le fond. <kbd>R</kbd> pour la renflouer.</span>
   </div>
 
+  <div id="fps"><b id="fpsVal">—</b><span id="fpsMs">—</span></div>
+
   <div id="hint">
     <span id="camNote" hidden>Glisser — orienter · Molette — zoom · X — replanter ici</span>
     <button id="camBtn">Caméra : Poursuite</button>
@@ -221,7 +223,10 @@ async function main(){
   const lostMsg = document.getElementById("lost");
   const lostBox = new THREE.Box3();
   const fleet = [];
-  let fleetTick = 0;
+  let fleetTick = 0, fpsFrames = 0, fpsAccum = 0;
+  const fpsEls = { box:document.getElementById("fps"),
+                   val:document.getElementById("fpsVal"),
+                   ms: document.getElementById("fpsMs") };
 
   async function commission(index){
     spec = specs[index];
@@ -462,6 +467,27 @@ async function main(){
     ship.setFlag(physics.appWindAngle, physics.tack, physics.appWindSpeed, t);
     ship.updateWake(physics.body, ocean, t);
 
+    /* --- the floating origin ---
+       Once she is far enough out, slide the whole world back under her. She
+       goes on sailing in coordinates of a few hundred metres however far she
+       has actually gone, which is what keeps the sea from disintegrating: the
+       Gerstner phase is k·x, and a 32-bit float runs out of digits within a few
+       kilometres. Ocean.syncPhase puts back the phase the shift represents, so
+       nothing moves on screen — see there for why that stays exact.
+
+       Everything holding a position must shift in the SAME frame, or it will
+       disagree with the sea by exactly the delta. */
+    const far = Math.hypot(physics.body.pos.x, physics.body.pos.z);
+    if(far > Naval.Config.REBASE_RADIUS){
+      const dx = physics.body.pos.x, dz = physics.body.pos.z;
+      for(const e of fleet){ e.body.pos.x -= dx; e.body.pos.z -= dz; }
+      ocean.rebase(dx, dz);
+      foam.rebase(dx, dz);
+      cam.rebase(dx, dz);
+      for(const e of fleet) if(e.ship) e.ship.syncTo(e.body);
+      ship.syncTo(physics.body);
+    }
+
     stage.aimSun(physics.body.pos);       // the shadow box travels with her
     cam.update(dt, physics.body, ocean, t);
     fleet[0].afloat = physics.afloat;
@@ -493,6 +519,18 @@ async function main(){
     hud.update(dt);
     fleetTick += dt;
     if(fleetTick > 0.4){ fleetTick = 0; refreshFleetSpeeds(); }
+
+    /* Frame rate, averaged over half a second. The MILLISECONDS are the useful
+       half: frames per second compress everything above 60 into nothing, while
+       16.7 → 20 ms says plainly what a change just cost. */
+    fpsFrames++; fpsAccum += dt;
+    if(fpsAccum >= 0.5){
+      const fps = fpsFrames/fpsAccum, ms = 1000*fpsAccum/fpsFrames;
+      fpsEls.val.textContent = Math.round(fps);
+      fpsEls.ms.textContent = ms.toFixed(1) + ' ms';
+      fpsEls.box.className = fps < 24 ? 'crit' : fps < 45 ? 'low' : '';
+      fpsFrames = 0; fpsAccum = 0;
+    }
     // both offscreen passes must run before the sea that samples them
     stage.updateWeather(dt, parseFloat(document.getElementById('seaState').value));
     foam.update(stage.renderer, dt, t, physics.body.pos);

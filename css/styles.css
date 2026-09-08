@@ -123,6 +123,16 @@
      the row stayed on screen after she was repaired, still reading SOMBRÉ. */
   .allure.damage[hidden]{display:none}
   .allure.damage b{font-size:13px;text-align:right;max-width:74%}
+  /* Frame rate, bottom-left and deliberately quiet: it is a diagnostic, not an
+     instrument, and must not compete with the bridge for attention. */
+  #fps{position:absolute;left:16px;bottom:18px;display:flex;align-items:baseline;gap:6px;
+    font-family:var(--mono);font-size:11px;color:var(--muted);
+    padding:5px 9px;border-radius:7px;pointer-events:none;
+    background:rgba(9,22,35,.55);border:1px solid var(--edge-soft)}
+  #fps b{font-weight:600;font-size:13px;color:var(--ink);font-variant-numeric:tabular-nums}
+  #fps.low b{color:var(--warn)}
+  #fps.crit b{color:var(--crit)}
+
   /* Under the sea console: the vessels afloat, and the way to add one. */
   #fleetPanel{top:332px;right:16px;width:236px}
   #fleetList{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}

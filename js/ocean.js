@@ -115,6 +115,8 @@ Naval.Ocean = class Ocean {
     this.windSpeed = 0;                    // m/s, true wind
     this.windVec = new THREE.Vector3();    // true wind velocity (blows toward)
     this.profiles = new Naval.HullProfiles(C.MAX_SHIPS, 64);
+    // where local (0,0,0) actually lies in the world — see syncPhase()
+    this.origin = new THREE.Vector3();
 
     const half = C.OCEAN_SIZE * 0.5;
     const geo = new THREE.PlaneGeometry(C.OCEAN_SIZE, C.OCEAN_SIZE, C.OCEAN_SEG, C.OCEAN_SEG);
@@ -129,6 +131,8 @@ Naval.Ocean = class Ocean {
         uTime:{value:0},
         uWaveA:{value:Array.from({length:C.NWAVES},()=>new THREE.Vector4())}, // dx,dz,amp,k
         uWaveB:{value:Array.from({length:C.NWAVES},()=>new THREE.Vector2())}, // omega,Q
+        // phase the floating origin owes each wave, reduced mod 2π
+        uWavePhase:{value:new Array(C.NWAVES).fill(0)},
         uSun:{value:sunDir.clone()},
         uSunCol:{value:new THREE.Color(0xfff2dc)},  // the sail's transmitted light follows it
         uCam:{value:new THREE.Vector3()},
@@ -189,6 +193,7 @@ Naval.Ocean = class Ocean {
       defines:{NW:C.NWAVES, NSHIP:C.MAX_SHIPS},
       vertexShader:`
         uniform float uTime, uHalf, uSeg, uSharp; uniform vec4 uWaveA[NW]; uniform vec2 uWaveB[NW];
+        uniform float uWavePhase[NW];
         uniform mat4 uReflMat;
         varying vec3 vN; varying vec3 vW; varying float vFoam; varying float vRel;
         varying vec4 vRefl; varying float vSpacing; varying float vViewZ;
@@ -234,7 +239,7 @@ Naval.Ocean = class Ocean {
             float lambda = 6.28318530718 / k;
             amp *= smoothstep(2.5, 6.0, lambda / spacing);
 
-            float f = k*dot(d, w0.xz) - omega*uTime;
+            float f = k*dot(d, w0.xz) - omega*uTime + uWavePhase[i];
             float c = cos(f), s = sin(f);
 
             /* Peak the profile: sign(s)·|s|^p. Odd, so the mean stays zero and
@@ -757,6 +762,45 @@ Naval.Ocean = class Ocean {
       this.uniforms.uWaveA.value[i].set(w.dx, w.dz, w.amp, w.k);
       this.uniforms.uWaveB.value[i].set(w.omega, w.Q);
     }
+    this.syncPhase();
+  }
+
+  /* THE FLOATING ORIGIN, and the one thing that makes it possible.
+
+     Everything is computed near zero and `origin` records where that zero
+     actually lies in the world, so a vessel a thousand kilometres out is still
+     drawn at coordinates of a few hundred metres. Without it the sea dies well
+     before that: the Gerstner phase is k·x, and with k up to 3 rad/m a position
+     of a few kilometres already costs most of a 32-bit float's seven digits.
+     The waves do not merely jitter, they lose all meaning.
+
+     Shifting the origin would slide the whole sea sideways — unless the phase
+     that shift represents is added back. That offset is k·(d·origin), which
+     grows without bound and would bring the precision problem straight back,
+     EXCEPT that a phase only matters modulo 2π. Reduced here, in JavaScript's
+     doubles, it stays a small number the shader can hold exactly. That is the
+     whole trick: the sea is perfectly continuous across a rebase, and stays so
+     however far she sails. */
+  syncPhase(){
+    const C = this.C, TAU = Math.PI*2, o = this.origin;
+    for(let i=0;i<C.NWAVES;i++){
+      const w = this.waves[i];
+      let p = 0;
+      if(w){
+        p = (w.k*(w.dx*o.x + w.dz*o.z)) % TAU;
+        w.phase = p;                       // the CPU sampler reads it off the wave
+      }
+      this.uniforms.uWavePhase.value[i] = p;
+    }
+  }
+
+  /* Move the world under the fleet. Everything else that holds a position —
+     the hulls, the foam field, the cameras — must be shifted by the same delta
+     in the same frame, or they will disagree with the sea by exactly it. */
+  rebase(dx, dz){
+    this.origin.x += dx;
+    this.origin.z += dz;
+    this.syncPhase();
   }
 
   /* Surface height at world (x,z). Optionally fills outNormal.
@@ -770,7 +814,7 @@ Naval.Ocean = class Ocean {
     const src = this.cpuWaves || this.waves;
     for(let i=0;i<src.length;i++){
       const w = src[i];
-      const f = w.k*(w.dx*x + w.dz*z) - w.omega*t;
+      const f = w.k*(w.dx*x + w.dz*z) - w.omega*t + (w.phase || 0);
       const c = Math.cos(f), sn = Math.sin(f);
       // the very same sharpened profile the vertex shader draws
       const as = Math.abs(sn);
