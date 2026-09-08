@@ -392,9 +392,33 @@ Une voile pleine est creuse **bien en avant du milieu de sa corde**, aux quatre
 dixièmes environ, parce que c'est là que l'air tourne — pas à la moitié. Et les
 seuls bords plats sont ceux **réellement lacés** à un espar ou à un étai : le
 point d'une voile carrée n'est tenu que par ses deux points d'écoute, donc elle
-porte son creux jusqu'à la ralingue, et elle est le plus creuse aux deux tiers
-de sa chute, pas à mi-hauteur. Épingler ce point à zéro aplatissait exactement
-ce que l'œil lit d'un carré. Chaque voile déclare donc sa **coupe** (`cut`) — où
+porte du creux jusqu'à la ralingue au lieu de s'y annuler. Épingler ce point à
+zéro aplatissait exactement ce que l'œil lit d'un carré.
+
+**Et le creux est HAUT.** Ce n'est pas là qu'un bord libre le mettrait, et ce
+sont les écoutes qui en décident : les points d'un carré sont halés en bas et
+**en dehors**, sur les bras de la vergue du dessous, si bien que le bas est
+étiré le long d'un espar auquel il n'est pas lacé, tandis que la toile juste
+sous sa propre vergue n'a rien qui la tire nulle part et sace. Vu de profil,
+c'est tout son dessin — pleine en haut, plate en bas. Relevé rang par rang sur
+la basse voile de la Roter Löwe, de la têtière au point : 0 · 2,68 · 3,26 ·
+**3,27** · 3,10 · 2,77 · 2,28 · 1,63 · 0,82 m. J'avais d'abord mis le creux aux
+deux tiers de la chute, soit exactement l'inverse.
+
+**Et la chute suit ce dessin, elle n'en est pas exclue.** Épinglée à zéro, elle
+restait une droite plate : de profil, le milieu de la voile décrivait bien sa
+courbe et son bord ne décrivait rien. Or une chute de carré n'est tenue qu'à la
+patte et au point d'écoute — elle chasse sous le vent avec le reste, en gardant
+un peu plus de la moitié du creux du milieu. Relevé : 1,84 m à la ralingue
+contre 3,27 m au milieu, à la même hauteur, et la même forme du haut en bas.
+
+**Creuser n'est pas pendre**, et confondre les deux coûte cher. La première
+écriture n'avait qu'un jeu d'indicateurs de bords libres, servant aux deux : en
+libérant la chute pour qu'elle se creuse, elle se mettait aussi à **pendre**
+sur sa propre longueur, ce qu'aucune chute ne fait — l'écoute la raidit. Un
+point, lui, n'est tenu qu'à ses deux coins et pend pour de bon. Les deux
+notions ont donc leurs propres indicateurs (`hangU0`…), retombant sur ceux du
+creux quand on ne dit rien. Chaque voile déclare donc sa **coupe** (`cut`) — où
 elle est creuse, lesquels de ses bords sont lacés — et les valeurs par défaut
 redonnent l'ancienne bulle, si bien qu'une voile qui ne dit rien ne change pas.
 Mesuré sur la frégate : 3,27 m de creux pour 3,3 annoncés, au point v = 0,75, et
@@ -413,15 +437,52 @@ creux maximal, et le quart de 0,71 à 0,83 ; le point de ralingue monte de 0,78 
 Les carrés sont à 0,55, la toile aurique et le foc à 0,80 : une voile à corne
 travaille en aile et garde un profil d'aérofoil, ce n'est pas un oreiller.
 
+L'exposant ne porte que sur la **corde**, jamais sur la hauteur. C'est une
+forme de *section*, et appliqué aussi le long de la voile il aplatissait la
+différence entre une têtière pleine et un point étiré — c'est-à-dire justement
+le profil qu'on cherche à lire de profil.
+
 **Et le point s'affaisse.** La toile entre deux points d'écoute est plus longue
 que la droite qui les joint : elle sourit entre eux, nulle aux coins qui sont
 raidis. C'est la ligne qu'on lit sur un carré avant toute autre, et un point
 réglé à la règle trahit une voile dessinée plutôt qu'enverguée. L'affaissement
 ne porte que sur les bords **libres** — une chute est raidie par son écoute,
 elle ne pend pas — donc la brigantine de la goélette, lacée sur trois bords,
-n'en a aucun, tandis que le foc et les carrés en ont un. Il ne disparaît pas
-quand la voile se vide : de la toile molle pend plus fort que de la toile
-pleine, pas moins.
+n'en a aucun, tandis que le foc et les carrés en ont un. Il grandit un peu avec
+le remplissage — le creux prend du tissu en travers et le rend vers le bas —
+mais il reste **bien inférieur à la coupe** : sur un carré il ne fait qu'adoucir
+le rond de fond, il ne le retourne jamais en sourire. 0,33 m pleine charge
+contre 0,61 m de rond, sur la Roter Löwe.
+
+**Et surtout, les bords sont TAILLÉS CREUX.** C'est ce qui a manqué le plus
+longtemps, et ce n'est pas un effet du vent : une voile carrée est envergée sur
+une vergue droite, donc sa têtière est une droite, mais tous ses autres bords
+sont coupés **en dedans** de la droite. Tant qu'ils restaient réglés à la
+règle, on pouvait la creuser et l'ombrer autant qu'on voulait — elle se lisait
+comme un rectangle avec un dégradé dessus. La silhouette est ce que l'œil lit
+en premier.
+
+**Creux, pas rond**, et c'est toute la différence. Les chutes rentrent à
+mi-hauteur pour que la toile passe au clair des haubans et que la ralingue
+travaille en ligne droite ; le point est taillé **vers le haut** au milieu —
+le rond de fond d'une basse voile, qui existe pour dégager les étais et le mât
+au-dessous. Les points les plus larges d'une voile carrée sont donc ses coins,
+et sa taille est son endroit le plus étroit. Coupée dans l'autre sens, elle
+gonfle entre ses espars comme une taie d'oreiller sur un fil — c'est
+exactement ce que donnait la première version, et le tracé de l'utilisateur
+l'a dit du premier coup.
+
+Étant affaire de **coupe** et non de pression, tout cela est cuit dans la
+géométrie de base : molle, elle garde sa forme. Nul aux pattes, où la vergue la
+tient, nul aux points d'écoute halés dans leurs coins. Mesuré sur la Roter Löwe
+(vergue de 20,3 m) : chute creusée de **1,0 m** à mi-hauteur, point relevé de
+**0,61 m** au milieu par rapport à la ligne de ses écoutes.
+
+Attention, le creux de chute se **compose avec l'effilement du point** (0,86 de
+la vergue) : la demi-largeur ne descend pas de la patte au point, elle tombe de
+10,17 à 8,27 m puis **remonte** à 8,75. Une valeur de coupe qui paraît
+raisonnable dans l'absolu peut être annulée ou doublée par une autre règle de
+forme, et seul le relevé du bord réel le dit.
 
 La grille est passée de 8×6 à 8×8 : la forme intéressante est désormais celle
 qui court le long de la voile, et six rangs rendaient le creux bas en facettes.

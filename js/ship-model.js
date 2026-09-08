@@ -182,16 +182,67 @@ Naval.ShipModel = class ShipModel {
     const uPin0 = c.uPin0 !== false, uPin1 = c.uPin1 !== false;
     const vPin0 = c.vPin0 !== false, vPin1 = c.vPin1 !== false;
     const free  = c.free !== undefined ? c.free : 0.78;
-    /* Below one, the belly reads as a cushion; at one, as the old bump. */
+    /* A free edge does not carry the same share of the belly on both axes: a
+       leech swings off to leeward in a long curve, a foot is pulled taut
+       between two clews. So the chord gets its own figure. */
+    const chordFree = c.freeU !== undefined ? c.freeU : free;
+    /* And an edge free to BELLY is not necessarily free to HANG. A leech is
+       set up taut between earing and clew by the sheet: she swings off to
+       leeward bodily, but she does not sag along her own length. A foot is
+       held at its two corners and by nothing else, and does. Hanging
+       therefore has its own flags, falling back on the belly's. */
+    const hPinU0 = c.hangU0 !== undefined ? c.hangU0 : uPin0;
+    const hPinU1 = c.hangU1 !== undefined ? c.hangU1 : uPin1;
+    const hPinV0 = c.hangV0 !== undefined ? c.hangV0 : vPin0;
+    const hPinV1 = c.hangV1 !== undefined ? c.hangV1 : vPin1;
+    /* Below one, the belly reads as a cushion; at one, as the old bump. It is
+       a property of her SECTION, so it belongs to the chord and to nothing
+       else: applied down the sail as well, it flattened out the very
+       difference between a full head and a drawn foot that makes her profile
+       readable end-on. */
     const crown = c.crown !== undefined ? c.crown : 1;
+    /* The GORE: how far her leeches are cut INSIDE the straight line joining
+       earing to clew, and how far her foot is cut up above the line joining
+       her two clews — both as fractions of her head and of her drop. Nil
+       leaves the old ruled edges. */
+    const bow = c.bow !== undefined ? c.bow : 0;
+    const roachFoot = c.roachFoot !== undefined ? c.roachFoot : 0;
     /* Eight by eight rather than eight by six: the interesting shape is now the
        one down the sail, and six rows read the deep low belly as facets. */
     const nu = 8, nv = 8;
     /* How free the cloth is along one axis: nil against a laced edge, one at a
        free one. It is what decides where she is allowed to hang. */
-    const freeU = x => (uPin0 ? 0 : (1-x)*(1-x)) + (uPin1 ? 0 : x*x);
-    const freeV = x => (vPin0 ? 0 : (1-x)*(1-x)) + (vPin1 ? 0 : x*x);
+    const hangU = x => (hPinU0 ? 0 : (1-x)*(1-x)) + (hPinU1 ? 0 : x*x);
+    const hangV = x => (hPinV0 ? 0 : (1-x)*(1-x)) + (hPinV1 ? 0 : x*x);
     const c00=corners[0], c10=corners[1], c11=corners[2], c01=corners[3] || corners[2];
+
+    /* Her edges are CUT, and that is a fact about the cloth, not about the
+       wind. A square sail is bent to a straight yard, so her head is a ruled
+       line — but every other edge is cut HOLLOW, and sets as a fair curve
+       falling inward. That outline is what the eye reads first, and while the
+       edges stayed ruled she could be bellied and shaded all we liked and
+       still read as a rectangle with a gradient laid on it.
+
+       Hollow, not round, and that is the whole of the difference. The leeches
+       are gored in at mid-height so the cloth stands clear of the shrouds and
+       the boltrope takes the strain in a straight run; the foot is cut UP in
+       the middle — the roach of a course, which exists to clear the stays and
+       the mast below. So the widest points of a square sail are her corners,
+       and her waist is the narrowest part of her. Cut the other way she swells
+       between her spars like a pillowcase on a line.
+
+       Being a matter of the cut, all of it is baked into the base geometry
+       rather than driven by the fill: canvas hanging slack keeps her shape,
+       she does not lose it when the sheets are started. Nil at the earings and
+       nil at the clews, which are hauled taut into their corners. */
+    const across = new THREE.Vector3().subVectors(c10, c00);
+    const head = across.length();
+    if(head > 1e-6) across.divideScalar(head);
+    const up = new THREE.Vector3().subVectors(c00, c01);
+    const drop = up.length();
+    if(drop > 1e-6) up.divideScalar(drop);
+    const kRoach = Math.log(0.5)/Math.log(0.58);   // deepest at v = 0.58
+
     const pos=[], w=[], sag=[], us=[], idx=[];
     const a=new THREE.Vector3(), b=new THREE.Vector3(), p=new THREE.Vector3();
     for(let j=0;j<=nv;j++){
@@ -201,17 +252,21 @@ Naval.ShipModel = class ShipModel {
       for(let i=0;i<=nu;i++){
         const u = i/nu;
         p.lerpVectors(a, b, u);
+        if(bow) p.addScaledVector(across,
+          -bow*head*(2*u - 1)*Math.sin(Math.PI*Math.pow(v, kRoach)));
+        if(roachFoot) p.addScaledVector(up,
+          roachFoot*drop*Math.sin(Math.PI*u)*v*v);
         pos.push(p.x, p.y, p.z);
-        w.push(this._bellyProfile(u, uPeak, uPin0, uPin1, free, crown)
-             * this._bellyProfile(v, vPeak, vPin0, vPin1, free, crown));
+        w.push(this._bellyProfile(u, uPeak, uPin0, uPin1, chordFree, crown)
+             * this._bellyProfile(v, vPeak, vPin0, vPin1, free, 1));
         /* Canvas hangs. A free foot is longer than the straight line between
            her clews, so she smiles between them — nil at the corners, which are
            hauled taut, and nil against any edge that is laced to a spar. That
            curve is the line the eye reads on a square-rigger before any other,
            and a foot ruled straight is the giveaway of a sail drawn rather than
            bent. Only the free axis sags: a leech is tensioned, not hung. */
-        sag.push(Math.max(freeU(u)*Math.sin(Math.PI*v),
-                          freeV(v)*Math.sin(Math.PI*u)));
+        sag.push(Math.max(hangU(u)*Math.sin(Math.PI*v),
+                          hangV(v)*Math.sin(Math.PI*u)));
         us.push(u);
       }
     }
@@ -247,10 +302,11 @@ Naval.ShipModel = class ShipModel {
       if(!s) continue;
       const attr = m.geometry.attributes.position, arr = attr.array;
       const base = s.base, w = s.w, sg = s.sag, u = s.u, d = s.dir;
-      /* She hangs whatever the wind does — rather more when she is full, since
-         the belly takes up cloth athwartships and pays it out downwards, but
-         never nothing: slack canvas hangs the hardest of all. */
-      const hang = full*(0.09 + 0.11*press);
+      /* And then she hangs a little, on top of whatever she was cut. The cut
+         is the larger of the two by some way — the foot of a course stands
+         well above the line of her clews whatever the wind does — so this only
+         eases the roach, it never turns it back into a smile. */
+      const hang = full*(0.10 + 0.06*press);
       for(let k=0, n=w.length; k<n; k++){
         const i3 = k*3;
         const f = w[k]*(depth + (luffing ? full*0.22*Math.sin(u[k]*7 - t*9) : 0));
@@ -312,14 +368,22 @@ Naval.ShipModel = class ShipModel {
 
       // the sail hangs below its yard; setSailShape bellies it forward
       const V = (x,yy,z)=>new THREE.Vector3(x,yy,z);
-      /* Head laced to her yard, foot held by nothing but the clews: she is
-         deepest two thirds of the way down and still full at the boltrope. */
+      /* She is deepest HIGH, just under her own yard, and drawn near flat at
+         the foot. That is not where a free edge would put it, and it is the
+         sheets that decide: the clews of a square sail are hauled down and
+         OUT to the yardarms of the yard beneath her, so the foot is stretched
+         along a spar it is not bent to, while the cloth immediately under her
+         own yard has nothing pulling it anywhere and bags. Seen end-on, that
+         is the whole profile of her — full at the top, flat at the bottom. */
       rig.add(this._sailSurface([
         V(-span,      y,      0),
         V( span,      y,      0),
         V( span*0.86, y-drop, 0),
         V(-span*0.86, y-drop, 0)
-      ], new THREE.Vector3(0,0,1), { vPeak:0.68, vPin1:false, crown:0.55 }));
+      ], new THREE.Vector3(0,0,1),
+         { vPeak:0.30, vPin1:false, free:0.25, crown:0.55,
+           uPin0:false, uPin1:false, freeU:0.35, hangU0:true, hangU1:true,
+           bow:0.05, roachFoot:0.11 }));
     }
     this.procedural.add(rig);
     return rig;
@@ -541,7 +605,10 @@ Naval.ShipModel = class ShipModel {
           V( half,      yy,      dz),
           V( half*0.86, yy-drop, dz),
           V(-half*0.86, yy-drop, dz)
-        ], new THREE.Vector3(0,0,1), { vPeak:0.68, vPin1:false, crown:0.55 }));
+        ], new THREE.Vector3(0,0,1),
+           { vPeak:0.30, vPin1:false, free:0.25, crown:0.55,
+             uPin0:false, uPin1:false, freeU:0.35, hangU0:true, hangU1:true,
+             bow:0.05, roachFoot:0.11 }));
       }
       this.rigs.push(pivot);
     }
