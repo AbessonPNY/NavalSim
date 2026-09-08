@@ -171,6 +171,8 @@ Naval.Ocean = class Ocean {
         uRefract:{value:1.0},                   // 1 = Snell for sea water; a dial, not a fudge
         uProj:{value:new THREE.Matrix4()},
         uNear:{value:0.7}, uFar:{value:14000},
+        // 0 above the surface, 1 beneath it, smoothed across the crossing
+        uSubmerged:{value:0.0},
         // planar reflection of the world above the water
         uReflTex:{value:null},
         uReflMat:{value:new THREE.Matrix4()},
@@ -188,6 +190,8 @@ Naval.Ocean = class Ocean {
 
     const mat = new THREE.ShaderMaterial({
       uniforms:this.uniforms,
+      // the surface has an UNDERSIDE now: from below she is a ceiling, not a hole
+      side:THREE.DoubleSide,
       // the sea carries its own layered haze; Three's flat fog would double it
       fog:false,
       defines:{NW:C.NWAVES, NSHIP:C.MAX_SHIPS},
@@ -284,6 +288,7 @@ Naval.Ocean = class Ocean {
         uniform vec2 uShipRes; uniform float uShipOn, uNear, uFar, uRefract;
         uniform mat4 uProj;
         uniform vec3 uAbsorb;
+        uniform float uSubmerged;
         uniform sampler2D uFoamTex; uniform float uFoamOn, uFoamSize, uFlash;
         uniform vec2 uFoamOrigin;
         varying vec3 vN; varying vec3 vW; varying float vFoam; varying float vRel;
@@ -501,6 +506,36 @@ Naval.Ocean = class Ocean {
 
              Only where she is BEHIND the surface: a hull in front of the water
              was already drawn by the ordinary render and must not be doubled. */
+          /* SEEN FROM BENEATH: Snell's window.
+
+             Looking up from under water, the whole hemisphere above is squeezed
+             into a cone about 97° across — everything, horizon to horizon, in
+             that one bright disc. Outside it nothing gets in at all: the angle
+             is past total internal reflection and the surface turns into a
+             mirror. That circle, and the hard silvered edge around it, is what
+             makes a shot read as UNDER the water rather than merely blue.
+
+             The refract() built-in does the work and returns the zero vector on
+             total internal reflection, which is exactly the test for being outside
+             the window. The normal is negated because from below the surface
+             faces the other way. This must run BEFORE the ship is blended in:
+             written after it, it overwrote her, and no vessel could be seen
+             from under water at all. */
+          float below = (uSubmerged > 0.5 && !gl_FrontFacing) ? 1.0 : 0.0;
+          if(below > 0.5){
+            vec3 Vv = normalize(vW - uCam);
+            vec3 refr = refract(Vv, -N, 1.333);
+            if(dot(refr, refr) < 0.0001){
+              col = mix(uShallow*0.42, uDeep*1.15, 0.6);      // the mirror
+            }else{
+              col = navalSky(refr, uSun, uZenith, uHorizon);
+              // the disc, which only the dome draws and the dome is not here
+              col += vec3(1.0,0.95,0.85)*pow(max(dot(refr,uSun),0.0), 1400.0)*4.0;
+            }
+            // the rim of the window, where the light piles up before it is shut out
+            col += vec3(0.80,0.92,1.00)*pow(1.0 - abs(dot(Vv, N)), 6.0)*0.22;
+          }
+
           if(uShipOn > 0.5){
             vec2 base = gl_FragCoord.xy / uShipRes;
 
@@ -549,7 +584,13 @@ Naval.Ocean = class Ocean {
 
             vec4 sc = texture2D(uShipTex, suv);
             if(sc.a > 0.01 && thick > 0.0){
-              vec3 T = exp(-uAbsorb*thick) * sc.a;
+              /* What lies between surface and hull is WATER when looking down
+                 at her and AIR when looking up at her from beneath — a boat
+                 seen through Snell's window is not behind metres of sea, she is
+                 simply above it. Attenuating her as though she were drowned her
+                 in blue at ten metres of freeboard. */
+              vec3 ab = mix(uAbsorb, uAbsorb*0.02, below);
+              vec3 T = exp(-ab*thick) * sc.a;
               col = mix(col, sc.rgb, clamp(T, 0.0, 1.0));
             }
           }

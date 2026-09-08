@@ -561,6 +561,19 @@ async function main(){
     ocean.trackShips(fleet);
     stage.renderer.getDrawingBufferSize(ocean.uniforms.uShipRes.value);
 
+    /* Is the eye under water? Taken against the wave AT the camera, not against
+       sea level — a crest rolling past puts a lookout on a low deck under and
+       out again, and that is exactly the moment worth seeing. Half a metre of
+       smoothing keeps the crossing from strobing as the surface hunts around
+       the lens. */
+    const camSea = ocean.sample(stage.camera.position.x, stage.camera.position.z, t);
+    const under = Math.max(0, Math.min(1, (camSea - stage.camera.position.y)/0.5 + 0.5));
+    ocean.uniforms.uSubmerged.value = under;
+    if(stage.skyMat){
+      stage.skyMat.uniforms.uSubmerged.value = under;
+      stage.skyMat.uniforms.uDeep.value.copy(ocean.uniforms.uDeep.value);
+    }
+
     ocean.update(t, stage.camera.position);
     /* Ten metres down she is gone: hidden, the camera left holding the patch of
        sea that swallowed her.

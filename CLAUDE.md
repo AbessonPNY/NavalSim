@@ -563,6 +563,49 @@ annoncer « SOMBRÉ » sur un navire intact. Il faut une règle
 `.allure.damage[hidden]{display:none}` explicite. Le piège vaut pour toute ligne
 qu'on masque par attribut.
 
+**Sous l'eau, trois choses changent, et en oublier une trahit tout.**
+
+D'abord **la mer avait un seul côté**. Le plan était en `FrontSide` : vu d'en
+dessous il n'existait pas, et on voyait le ciel au travers. Il est en
+`DoubleSide`, et `gl_FrontFacing` décide de ce qu'on dessine — un nageur et une
+vigie sont servis par le même matériau. Vue de dessous, la surface n'est pas une
+mer mais un **plafond** : rien du travail de reflet ne s'y applique, le Fresnel
+joue à l'envers, et ce qu'on voit est un couvercle argenté avec le soleil qui
+brûle au travers en une tache.
+
+Ensuite **le dôme de ciel devient l'eau profonde**. Le laisser dessiner le ciel
+mettrait un horizon à l'intérieur de la mer.
+
+Enfin **l'extinction remplace la brume**, par canal, avec l'absorption que la
+mer emploie déjà pour montrer une coque coulée à travers la surface — mais **à
+quatre dixièmes**. Ce n'est pas un truquage : `uAbsorb` a été mesuré pour un
+regard qui traverse la surface *deux fois*, en descendant vers la coque et en
+remontant vers l'œil. À l'horizontale il ne la traverse qu'une, donc la même eau
+porte deux fois plus loin. À pleine force, une coque à vingt mètres n'existait
+tout simplement pas.
+
+**La fenêtre de Snell fait tout le travail.** Vu d'en dessous, l'hémisphère
+entier du ciel se comprime dans un cône de **97°** — tout, d'un horizon à
+l'autre, dans ce seul disque clair. Au-delà, l'angle dépasse la réflexion totale
+et la surface devient un miroir. C'est ce cercle et son bord argenté qui font
+lire une image comme étant *sous* l'eau plutôt que simplement bleue. La fonction
+`refract` fait le calcul et rend le vecteur nul en réflexion totale, ce qui est
+exactement le test d'être hors de la fenêtre.
+
+**Deux ordres à ne pas intervertir.** La branche « vue de dessous » doit passer
+**avant** le mélange du navire : écrite après, elle l'écrasait, et aucun
+bâtiment n'était visible depuis l'eau — c'était précisément le symptôme. Et ce
+qui sépare la surface de la coque est de l'**eau** quand on la regarde d'en haut
+mais de l'**air** quand on la regarde d'en bas : un bateau vu par la fenêtre
+n'est pas derrière des mètres de mer, il est simplement au-dessus. L'atténuer
+comme s'il était noyé le teintait en bleu dès dix mètres de franc-bord, d'où
+l'absorption ramenée à 2 % dans ce cas.
+
+Le seuil se prend contre **la vague à la caméra**, pas contre le niveau moyen :
+une crête qui passe met une vigie de pont bas sous l'eau puis l'en sort, et
+c'est justement le moment qui vaut d'être vu. Un demi-mètre de lissage évite que
+le passage clignote quand la surface chasse autour de l'objectif.
+
 **La réfraction doit reporter l'ondulation, pas effacer l'épave.** Sans elle la
 coque immergée se lit comme un autocollant vu à travers une vitre plate. Mais
 c'est un effet qu'on rate par excès bien plus facilement que par défaut, et la

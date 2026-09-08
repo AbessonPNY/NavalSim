@@ -108,6 +108,9 @@ Naval.applyHaze = function(mat, u){
     shader.uniforms.uHorizon = u.uHorizon;
     shader.uniforms.uHaze = u.uHaze;
     shader.uniforms.uHazeH = u.uHazeH;
+    shader.uniforms.uSubmerged = u.uSubmerged;
+    shader.uniforms.uAbsorb = u.uAbsorb;
+    shader.uniforms.uDeep = u.uDeep;
 
     shader.vertexShader = 'varying vec3 vHazeW;\n' + shader.vertexShader.replace(
       '#include <project_vertex>',
@@ -115,11 +118,26 @@ Naval.applyHaze = function(mat, u){
     );
 
     const head = 'varying vec3 vHazeW;\n' + Naval.SUN_UNIFORMS_GLSL
-               + 'uniform vec3 uZenith,uHorizon;\n'
+               + 'uniform vec3 uZenith,uHorizon,uAbsorb,uDeep;\nuniform float uSubmerged;\n'
                + Naval.SKY_GLSL + '\n' + Naval.HAZE_GLSL + '\n';
-    const tail = '\n{ vec3 vd = normalize(vHazeW - uCam);\n'
-               + '  gl_FragColor.rgb = mix(gl_FragColor.rgb,'
-               + ' navalSky(vd, uSun, uZenith, uHorizon), hazeAlong(uCam, vHazeW)); }';
+    /* Above water she fades into the SKY; below it she is drowned in the deep,
+       per channel — the same extinction the sea already uses to show a sunken
+       hull through the surface, turned on the whole world. It is what makes
+       going under read as water rather than as a blue filter: red is gone
+       within a few metres and the ship goes green, then blue, then nothing. */
+    /* At four tenths of the surface figure. Not a fudge: uAbsorb was measured
+       for light looking DOWN through the surface onto a sunken hull, where it
+       makes the journey twice — down to her and back up to the eye. Looking
+       across, it makes it once, so the same water carries about twice as far.
+       At full strength a hull twenty metres off was simply not there. */
+    const tail = '\n{ vec3 vd = vHazeW - uCam;\n'
+               + '  if(uSubmerged > 0.5){\n'
+               + '    vec3 T = exp(-uAbsorb*0.4*length(vd));\n'
+               + '    gl_FragColor.rgb = gl_FragColor.rgb*T + uDeep*(1.0 - T);\n'
+               + '  }else{\n'
+               + '    gl_FragColor.rgb = mix(gl_FragColor.rgb,'
+               + ' navalSky(normalize(vd), uSun, uZenith, uHorizon), hazeAlong(uCam, vHazeW));\n'
+               + '  } }';
     shader.fragmentShader = head + shader.fragmentShader.replace(
       /}\s*$/, tail + '\n}'
     );
@@ -363,7 +381,9 @@ Naval.Stage = class Stage {
         uSun:{value:this.sunDir.clone()},
         uZenith:{value:this.zenith.clone()},
         uHorizon:{value:this.horizon.clone()},
-        uFlash:{value:0}
+        uFlash:{value:0},
+        /* Under water there is no sky to draw: the vault becomes the deep. */
+        uSubmerged:{value:0}, uDeep:{value:new THREE.Color(0x0e3347)}
       },
       vertexShader:`
         varying vec3 vDir;
@@ -375,7 +395,8 @@ Naval.Stage = class Stage {
         precision highp float;
         varying vec3 vDir;
         uniform vec3 uSun, uZenith, uHorizon;
-        uniform float uFlash;
+        uniform float uFlash, uSubmerged;
+        uniform vec3 uDeep;
         ${Naval.SKY_GLSL}
         void main(){
           vec3 c = navalSky(vDir, uSun, uZenith, uHorizon);
@@ -383,6 +404,10 @@ Naval.Stage = class Stage {
           c += vec3(1.0,0.95,0.85) * pow(max(dot(normalize(vDir),uSun),0.0), 2200.0) * 6.0;
           // the discharge lights the whole vault, brightest low down
           c += vec3(0.62,0.70,0.92) * uFlash * (1.6 - 0.9*clamp(vDir.y,0.0,1.0));
+          /* Submerged, the dome is not sky but the water beyond seeing: dark,
+             and darker still looking down into it. Leaving the sky drawn would
+             put a horizon inside the sea. */
+          if(uSubmerged > 0.5) c = uDeep * (0.55 + 0.45*clamp(vDir.y*0.5+0.5, 0.0, 1.0));
           gl_FragColor = vec4(c, 1.0);
         }`
     });
