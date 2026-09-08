@@ -29,6 +29,7 @@ Naval.HUD = class HUD {
       seaState:el('seaState'), windDir:el('windDir'),
       seaVal:el('seaVal'), windVal:el('windVal'),
       beauNum:el('beauNum'), beauDesc:el('beauDesc'),
+      roseCard:el('roseCard'), roseDeg:el('roseDeg'), roseRhumb:el('roseRhumb'),
       shipName:el('shipName'), shipSel:el('shipSel'),
       tonnage:el('roTonnage'), dims:el('roDims'),
       sunElev:el('sunElev'), sunVal:el('sunVal'),
@@ -37,6 +38,7 @@ Naval.HUD = class HUD {
 
     this._e = new THREE.Euler();
     this._hdg = new THREE.Vector3();
+    this._buildRose();
 
     this.el.seaState.addEventListener('input', ()=> this.refreshSea());
     this.el.windDir .addEventListener('input', ()=> this.refreshSea());
@@ -79,6 +81,49 @@ Naval.HUD = class HUD {
     const e = parseFloat(this.el.sunElev.value);
     this.stage.setSun(e, this.stage.sunBearing);
     this.el.sunVal.textContent = e < 0 ? 'nuit '+Math.round(e)+'°' : Math.round(e)+'°';
+  }
+
+  /* Draw the compass card once: ticks every ten degrees, the four points
+     lettered, and a needle. Built here rather than written out in the markup
+     because thirty-six ticks of hand-written SVG is thirty-six chances to get
+     one wrong. */
+  _buildRose(){
+    const g = this.el.roseCard;
+    if(!g) return;
+    const NS = 'http://www.w3.org/2000/svg';
+    const add = (tag, attrs, text) => {
+      const n = document.createElementNS(NS, tag);
+      for(const k in attrs) n.setAttribute(k, attrs[k]);
+      if(text != null) n.textContent = text;
+      g.appendChild(n);
+      return n;
+    };
+    for(let d=0; d<360; d+=10){
+      const maj = (d % 30) === 0;
+      const r = Math.PI*d/180, s = Math.sin(r), c = Math.cos(r);
+      // 0° at the top, clockwise, as a compass is lettered
+      const r0 = maj ? 68 : 74, r1 = 82;
+      add('line', { x1:(s*r0).toFixed(2), y1:(-c*r0).toFixed(2),
+                    x2:(s*r1).toFixed(2), y2:(-c*r1).toFixed(2),
+                    class:'tick' + (maj ? ' maj' : '') });
+    }
+    const pts = [['N',0,'card n'], ['E',90,'card'], ['S',180,'card'], ['O',270,'card']];
+    for(const [txt, d, cls] of pts){
+      const r = Math.PI*d/180;
+      add('text', { x:(Math.sin(r)*52).toFixed(2), y:(-Math.cos(r)*52).toFixed(2),
+                    class:cls }, txt);
+    }
+    /* No needle. On a card compass the CARD is the magnet — a needle drawn on
+       top of it is both wrong and, with the heading read out in the middle,
+       simply clutter across the figures. The red N carries north on its own. */
+    add('path', { d:'M0 -62 L6 -50 L-6 -50 Z', class:'needle' });
+  }
+
+  // The sixteen points of the compass, lettered the French way — O for ouest.
+  rhumb(deg){
+    const R = ['N','NNE','NE','ENE','E','ESE','SE','SSE',
+               'S','SSO','SO','OSO','O','ONO','NO','NNO'];
+    return R[Math.round(((deg%360)+360)%360 / 22.5) % 16];
   }
 
   refreshSea(){
@@ -124,6 +169,15 @@ Naval.HUD = class HUD {
     const pitch = this._e.x*180/Math.PI;
 
     e.heading.textContent = String(Math.round(headingDeg)).padStart(3,'0');
+
+    /* The card turns, the lubber line does not — the ship's head is always at
+       the top of the glass and you read what lies under it. Rotating the ship
+       instead would be a map, not a compass. */
+    if(e.roseCard){
+      e.roseCard.setAttribute('transform', 'rotate(' + (-headingDeg).toFixed(1) + ')');
+      e.roseDeg.textContent = String(Math.round(headingDeg)).padStart(3,'0');
+      e.roseRhumb.textContent = this.rhumb(headingDeg);
+    }
     // speed over ground: horizontal component only, so heave doesn't inflate it
     e.speed.textContent = (Math.hypot(b.vel.x, b.vel.z)*C.MS_TO_KN).toFixed(1);
     e.draft.textContent = p.draft.toFixed(2);

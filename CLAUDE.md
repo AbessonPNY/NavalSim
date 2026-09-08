@@ -647,6 +647,15 @@ en fichier image séparé ne marchera jamais — la politique de sécurité bloq
 `fetch` d'un fichier local, et le build n'embarque que les `.glb`. `normalMap`,
 `roughnessMap` et `metalnessMap` passent par le même chemin.
 
+**Le compas : c'est la CARTE qui tourne.** La ligne de foi reste en haut et la
+rose pivote de `−cap` dessous, comme dans un habitacle — on lit ce qui passe
+sous la marque. Faire tourner le navire au-dessus d'une rose fixe donnerait une
+carte de navigation, pas un compas. Pas d'aiguille non plus : sur un compas à
+carte, la carte *est* l'aimant, et une aiguille dessinée par-dessus est à la
+fois fausse et illisible en travers des chiffres. Le N rouge porte le nord seul.
+Les trente-six graduations sont construites en JavaScript plutôt qu'écrites dans
+le balisage — trente-six occasions de se tromper d'une.
+
 **Réglage des voiles.** Le modèle ne donne aucun retour lisible : à 45° de vent
 apparent, des écoutes à 40° ne laissent que 5° d'incidence, donc `CL` s'effondre
 et la poussée tombe au cinquième — sans que rien ne l'annonce, la console

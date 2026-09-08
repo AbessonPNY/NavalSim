@@ -70,6 +70,29 @@
   .rollReadout span b{color:var(--ink);font-weight:600}
   .rollReadout .k{color:var(--muted)}
 
+  /* Compass, under the attitude gauge. The CARD turns and the lubber line
+     stays put, as on a real binnacle: you read the heading against the ship,
+     not the ship against the heading. */
+  #compass{top:294px;left:282px;width:172px;padding:12px}
+  #compass .lbl{margin-bottom:8px}
+  .roseWrap{position:relative;width:148px;height:148px;margin:0 auto}
+  .rose,.lubber{position:absolute;inset:0;width:100%;height:100%}
+  .rose{border-radius:50%;background:#06121d;border:1px solid var(--edge)}
+  #roseCard{transition:none}
+  .rose .tick{stroke:rgba(220,236,245,.34);stroke-width:2}
+  .rose .tick.maj{stroke:rgba(220,236,245,.62);stroke-width:3}
+  .rose .card{font-family:var(--mono);font-size:15px;font-weight:600;
+    fill:var(--ink);text-anchor:middle;dominant-baseline:central}
+  .rose .card.n{fill:var(--crit)}
+  .rose .needle{fill:var(--crit)}
+  .lubber path{fill:#ffdf6b}
+  .lubber{pointer-events:none}
+  .roseRead{position:absolute;left:0;right:0;top:56%;text-align:center;pointer-events:none}
+  .roseRead b{display:block;font-family:var(--mono);font-weight:600;font-size:21px;
+    color:var(--accent);font-variant-numeric:tabular-nums;line-height:1;
+    text-shadow:0 0 10px rgba(6,18,29,.95),0 0 4px rgba(6,18,29,1)}
+  .roseRead span{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--muted)}
+
   /* Sea state (top-right) */
   #sea{top:16px;right:16px;width:236px}
   #sea .row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:9px 0}
