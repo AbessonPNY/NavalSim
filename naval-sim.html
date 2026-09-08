@@ -118,6 +118,18 @@
     </div>
   </div>
 
+  <!-- Fleet -->
+  <div id="fleetPanel" class="panel">
+    <div class="lbl">Flotte</div>
+    <div class="hair"></div>
+    <div id="fleetList"></div>
+    <div class="fleetAdd">
+      <select id="fleetSel" aria-label="Navire à mettre à l'eau"></select>
+      <button id="fleetAdd">Mettre à l'eau</button>
+    </div>
+    <div class="fleetNote" id="fleetNote"></div>
+  </div>
+
   <div id="lost" hidden>
     <b>Votre navire a sombré !</b>
     <span>Elle repose par le fond. <kbd>R</kbd> pour la renflouer.</span>
@@ -209,6 +221,7 @@ async function main(){
   const lostMsg = document.getElementById("lost");
   const lostBox = new THREE.Box3();
   const fleet = [];
+  let fleetTick = 0;
 
   async function commission(index){
     spec = specs[index];
@@ -264,9 +277,13 @@ async function main(){
        at the wrong height, and the foam would trace her topsides. */
     /* The sea carries a FLEET. Only one vessel is sailed today, but every hull
        afloat must be in this list or she will cut the water without foaming. */
+    // the consorts go with her: emptying the list without disposing them would
+    // leave their hulls in the scene, sailing on with nothing driving them
+    for(let k=1;k<fleet.length;k++) if(fleet[k].ship) fleet[k].ship.dispose();
     fleet.length = 0;
-    fleet.push({ body:physics.body, spec, afloat:1 });
-    ocean.setHullProfile(0, ship.hullProfile(64, -hud.eqY));
+    fleet.push({ body:physics.body, spec, afloat:1,
+                 profile: ship.hullProfile(64, -hud.eqY) });
+    ocean.setHullProfile(0, fleet[0].profile);
     hud.refreshSea();
     /* Hand her over ready to sail. The sheets are trimmed on the first frame
        rather than here, because the trim depends on the apparent wind, and the
@@ -284,8 +301,125 @@ async function main(){
   sel.addEventListener('change', async ()=>{
     sel.disabled = true;
     await commission(parseInt(sel.value, 10));
+    drawFleet();
     sel.disabled = false;
   });
+
+  /* --- the fleet, and how a hull joins it ---------------------------------
+
+     Every profile is re-uploaded whenever the fleet changes, because a vessel's
+     row in the profile texture IS her index: remove the second of three and the
+     third slides down a slot, so leaving the rows alone would have her foaming
+     around another ship's lines. */
+  function refitProfiles(){
+    for(let i=0;i<fleet.length;i++)
+      if(fleet[i].profile) ocean.setHullProfile(i, fleet[i].profile);
+  }
+
+  /* Put a vessel in the water. Everything a hull needs to exist properly is
+     here, because doing it by hand missed something every time: she must be
+     given the atmosphere and the lighting layers or she takes no haze, no
+     shadow and no occlusion; she must settle BEFORE being positioned or she
+     arrives in mid-air; and her profile must go to her own row. */
+  async function launch(sp){
+    if(fleet.length >= Naval.Config.MAX_SHIPS) return null;
+    const ln = new Naval.HullLines(sp);
+    const sh = new Naval.ShipModel(stage.scene, sp, ln);
+    await sh.loadModel();
+    sh.applyAtmosphere(ocean.uniforms, stage.aoUniforms);
+    sh.enableLighting();
+
+    const ph = new Naval.ShipPhysics(sp, ln);
+    const ct = { throttle:0, rudder:0, sheet:sp.maxSheet*0.5, sailsSet:true };
+    const eq = ph.settle(ocean, ct);
+
+    /* Well clear of the vessel at the helm, and fanned out so a third does not
+       land on the second. Ranged on the two lengths involved, so a frigate is
+       given the room a frigate needs. */
+    const ang = fleet.length*2.2;
+    const reach = 2.4*(spec.L + sp.L);
+    ph.body.pos.set(physics.body.pos.x + Math.sin(ang)*reach, eq,
+                    physics.body.pos.z + Math.cos(ang)*reach);
+    ph.body.quat.copy(physics.body.quat);          // heading with the flagship
+
+    const entry = { body:ph.body, spec:sp, afloat:1, physics:ph, ship:sh, ctrl:ct,
+                    profile: sh.hullProfile(64, -eq) };
+    fleet.push(entry);
+    refitProfiles();
+    return entry;
+  }
+
+  function scuttle(i){
+    if(i < 1 || i >= fleet.length) return;         // entry 0 is the one at the helm
+    fleet[i].ship.dispose();
+    fleet.splice(i, 1);
+    refitProfiles();
+  }
+
+  const fleetEls = {
+    list: document.getElementById('fleetList'),
+    sel:  document.getElementById('fleetSel'),
+    add:  document.getElementById('fleetAdd'),
+    note: document.getElementById('fleetNote'),
+  };
+  specs.forEach((s,i)=>{
+    const o = document.createElement('option');
+    o.value = i; o.textContent = s.name;
+    fleetEls.sel.appendChild(o);
+  });
+
+  function drawFleet(){
+    fleetEls.list.textContent = '';
+    fleet.forEach((e,i)=>{
+      const row = document.createElement('div');
+      row.className = 'fleetRow' + (i===0 ? ' helm' : '');
+      const nm = document.createElement('span');
+      nm.className = 'nm';
+      nm.textContent = (i===0 ? '⚓ ' : '') + e.spec.name;
+      const sp = document.createElement('span');
+      sp.className = 'sp';
+      sp.textContent = Math.round(Math.hypot(e.body.vel.x, e.body.vel.z)*1.94384) + ' nds';
+      row.append(nm, sp);
+      if(i > 0){
+        const rm = document.createElement('button');
+        rm.textContent = '✕';
+        rm.title = 'Retirer de la flotte';
+        rm.addEventListener('click', ()=>{ scuttle(i); drawFleet(); });
+        row.append(rm);
+      }
+      fleetEls.list.append(row);
+    });
+    const full = fleet.length >= Naval.Config.MAX_SHIPS;
+    fleetEls.add.disabled = full;
+    fleetEls.note.textContent = full
+      ? 'Flotte au complet (' + Naval.Config.MAX_SHIPS + ' coques).'
+      : fleet.length + ' / ' + Naval.Config.MAX_SHIPS + ' coques à l’eau.';
+  }
+
+  /* Speeds tick over without rebuilding the list: replacing the rows every
+     fraction of a second would throw away the buttons under the pointer. */
+  function refreshFleetSpeeds(){
+    const rows = fleetEls.list.children;
+    for(let i=0;i<rows.length && i<fleet.length;i++){
+      const sp = rows[i].querySelector('.sp');
+      if(sp) sp.textContent =
+        Math.round(Math.hypot(fleet[i].body.vel.x, fleet[i].body.vel.z)*1.94384) + ' nds';
+    }
+  }
+
+  fleetEls.add.addEventListener('click', async ()=>{
+    fleetEls.add.disabled = true;
+    fleetEls.note.textContent = 'mise à l’eau…';
+    try{
+      await launch(specs[parseInt(fleetEls.sel.value,10)]);
+    }catch(err){
+      fleetEls.note.textContent = 'échec : ' + err.message;
+      return;
+    }
+    drawFleet();
+  });
+
+  drawFleet();          // after fleetEls exists, not before
 
   /* The live instances, reachable from the console. Several bugs in this project
      were slow to pin down purely because nothing was inspectable at runtime. */
@@ -357,6 +491,8 @@ async function main(){
     }
 
     hud.update(dt);
+    fleetTick += dt;
+    if(fleetTick > 0.4){ fleetTick = 0; refreshFleetSpeeds(); }
     // both offscreen passes must run before the sea that samples them
     stage.updateWeather(dt, parseFloat(document.getElementById('seaState').value));
     foam.update(stage.renderer, dt, t, physics.body.pos);

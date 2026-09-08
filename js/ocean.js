@@ -643,6 +643,8 @@ Naval.Ocean = class Ocean {
     this.waves = [];
     const wr = windDeg*Math.PI/180;
     const s = Math.max(0, seaState);
+    // remembered so a caller that must flatten her can put her back exactly
+    this.seaState = seaState; this.windDeg = windDeg;
 
     // true wind from the Beaufort number: v ≈ 0.836·B^1.5 m/s
     this.windSpeed = 0.836*Math.pow(s,1.5) + 0.8;

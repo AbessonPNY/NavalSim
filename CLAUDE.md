@@ -73,6 +73,23 @@ Ce qui suppose encore un navire unique, et qu'il faudra lever :
   C'est voulu — ce sont ceux du navire qu'on commande — mais rien ne permet
   encore d'en désigner un autre.
 
+**Mettre une coque à l'eau se fait par le panneau « Flotte »**, et il y a une
+raison de ne pas le faire à la main : quatre choses sont faciles à oublier et
+chacune donne un symptôme discret. Sans `applyAtmosphere` et `enableLighting`
+elle ne prend ni brume, ni ombre, ni occlusion, et n'apparaît pas dans l'eau
+transparente. Sans `settle()` **avant** de la positionner elle arrive en plein
+ciel et rebondit. Sans `setHullProfile(i, …)` à son propre indice elle écume
+autour des formes d'un autre. Et une entrée réduite à `{body, spec, afloat}` est
+valide — la mer l'écumera — mais rien ne la fera naviguer : il lui faut aussi son
+`physics`, son `ship` et son `ctrl`. `launch()` fait les quatre.
+
+**L'indice dans la flotte EST la ligne de texture**, donc tout retrait réécrit
+tous les profils (`refitProfiles`). Retirer le deuxième de trois fait glisser le
+troisième d'un cran : sans réécriture il hériterait des formes du navire retiré.
+De même, changer de navire **détruit les conserves** au lieu de vider la liste,
+sinon leurs coques resteraient dans la scène, à naviguer sans rien pour les
+piloter.
+
 **Un profil de coque par LIGNE de texture, pas une texture par navire.** GLSL
 ES 1.0 refuse d'indexer un tableau de samplers, donc `Naval.HullProfiles` empile
 les demi-largeurs de chaque bâtiment dans une texture de `MAX_SHIPS` lignes, lue
@@ -546,6 +563,16 @@ jetant de toute façon le détail supplémentaire. Mesuré sur la Roter Löwe :
 occlusion moyenne 0,90 et minimum 0,53 au fond des creux, sur 5,3 % de l'image —
 soit exactement sa surface à l'écran. Surcoût de soumission relevé à 0,10 ms par
 image.
+
+**`settle()` aussi avait un effet de bord**, de la même famille que `setSun()`.
+Il aplatit la mer — nécessaire, la coque devant trouver ses lignes sans qu'une
+houle la secoue — mais il la laissait plate. `commission()` masquait la faute en
+appelant `refreshSea()` juste après, si bien qu'elle n'est apparue qu'avec le
+**deuxième** appelant : mettre une coque à l'eau depuis le panneau Flotte
+aplatissait la mer définitivement, la console continuant d'afficher force 6 et
+plein creux au-dessus d'un lac. `setSeaState` retient donc son état, et `settle`
+le remet en partant — aucun appelant n'a plus à le savoir. Leçon générale : un
+effet de bord qu'un seul appelant compense n'est pas corrigé, il est caché.
 
 **Attention en mesurant : `setSun()` a des effets de bord.** Il recalcule
 `sun.intensity`, `hemi.intensity` **et** rappelle `refreshEnvironment()`, qui

@@ -123,6 +123,25 @@
      the row stayed on screen after she was repaired, still reading SOMBRÉ. */
   .allure.damage[hidden]{display:none}
   .allure.damage b{font-size:13px;text-align:right;max-width:74%}
+  /* Under the sea console: the vessels afloat, and the way to add one. */
+  #fleetPanel{top:332px;right:16px;width:236px}
+  #fleetList{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+  .fleetRow{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px}
+  .fleetRow .nm{flex:1;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fleetRow .sp{color:var(--muted);font-variant-numeric:tabular-nums}
+  .fleetRow.helm .nm{color:var(--accent)}
+  .fleetRow button{background:none;border:0;color:var(--muted);cursor:pointer;
+    font-family:var(--mono);font-size:12px;line-height:1;padding:2px 4px;border-radius:3px}
+  .fleetRow button:hover{color:var(--crit);background:rgba(255,110,90,.14)}
+  .fleetAdd{display:flex;gap:6px}
+  .fleetAdd select{flex:1;min-width:0}
+  .fleetAdd button{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
+    padding:5px 8px;border-radius:5px;cursor:pointer;color:var(--ink);
+    background:rgba(140,168,182,.16);border:1px solid rgba(200,220,232,.22)}
+  .fleetAdd button:hover:not(:disabled){background:rgba(140,168,182,.28)}
+  .fleetAdd button:disabled{opacity:.4;cursor:default}
+  .fleetNote{margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--muted)}
+
   #helm{bottom:18px;left:50%;transform:translateX(-50%);width:min(720px,90vw);
     display:flex;gap:18px;align-items:stretch;padding:12px 16px}
   .helm-col{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0}

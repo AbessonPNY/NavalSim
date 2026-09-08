@@ -515,7 +515,16 @@ Naval.ShipPhysics = class ShipPhysics {
   /* Let her find her own flotation in FLAT water, so the recorded equilibrium
      height is exact. A heavy ship has a longer heave period, so the settling
      time is scaled by the square root of her length. */
+  /* Find her flotation in a flat calm, then PUT THE SEA BACK as it was.
+
+     Flattening it is necessary — she has to settle on her lines without a swell
+     throwing her about — but leaving it flat is a trap. It cost a bug: adding a
+     vessel from the fleet panel flattened the sea for good, the console still
+     showing force 6 and a full swell over a millpond. commission() happened to
+     hide it by calling refreshSea() straight after, so the fault only surfaced
+     through the second caller. Restoring it here means no caller has to know. */
   settle(ocean, ctrl){
+    const sea = ocean.seaState, deg = ocean.windDeg;
     ocean.setSeaState(0, 0);
     this.body.pos.set(0, 0.4, 0);
     const steps = Math.round(1200 * Math.sqrt(this.spec.L/24));
@@ -523,6 +532,7 @@ Naval.ShipPhysics = class ShipPhysics {
     for(let i=0;i<steps;i++){ this.step(1/120, ocean, ctrl, t); t += 1/120; }
     this.body.vel.set(0,0,0);
     this.body.angVel.set(0,0,0);
+    if(sea != null) ocean.setSeaState(sea, deg);
     return this.body.pos.y;
   }
 };
