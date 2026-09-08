@@ -34,6 +34,7 @@ Naval.HUD = class HUD {
       tonnage:el('roTonnage'), dims:el('roDims'),
       sunElev:el('sunElev'), sunVal:el('sunVal'),
       swell:el('swell'), swellVal:el('swellVal'),
+      cloud:el('cloud'), cloudVal:el('cloudVal'),
     };
 
     this._e = new THREE.Euler();
@@ -44,6 +45,19 @@ Naval.HUD = class HUD {
     this.el.windDir .addEventListener('input', ()=> this.refreshSea());
     if(this.el.sunElev){
       this.el.sunElev.addEventListener('input', ()=> this.refreshSun());
+    }
+    /* Cloud is weather like the rest, and deliberately NOT tied to the sea
+       state — the same reason the haze is not. A gale that also shut the sky
+       would take the fine day away from the one place it is worth having. */
+    if(this.el.cloud && this.stage && this.stage.skyUniforms){
+      const setCloud = ()=>{
+        const v = parseFloat(this.el.cloud.value)/100;
+        this.stage.skyUniforms.uCloud.value = v;
+        this.el.cloudVal.textContent = Math.round(v*100)+'%';
+        this.stage.refreshEnvironment();    // the sky lights the ship, so it must follow
+      };
+      this.el.cloud.addEventListener('input', setCloud);
+      setCloud();
     }
     if(this.el.swell){
       this.el.swell.addEventListener('input', ()=>{

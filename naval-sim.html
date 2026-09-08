@@ -100,6 +100,8 @@
     <input id="sunElev" type="range" min="-10" max="80" step="1" value="38">
     <div class="row"><span class="name">Creux de la houle</span><span class="num" id="swellVal">1.35&#215;</span></div>
     <input id="swell" type="range" min="0.4" max="2.6" step="0.05" value="1.35">
+    <div class="row"><span class="name">Nuages</span><span class="num" id="cloudVal">12&#37;</span></div>
+    <input id="cloud" type="range" min="0" max="100" step="1" value="12">
     <div class="presets">
       <button data-s="0.8">Calme</button>
       <button data-s="4" class="on">Modérée</button>
@@ -186,6 +188,7 @@
 <script src="js/underwater.js"></script>
 <script src="js/world.js"></script>
 <script src="js/land.js"></script>
+<script src="js/gulls.js"></script>
 <script src="js/chart.js"></script>
 <script src="js/explosion.js"></script>
 <script src="js/ship-model.js"></script>
@@ -212,6 +215,12 @@ async function main(){
   const world = new Naval.World();
   const land  = new Naval.Land(stage.scene, world, stage);
   land.onNew = m => { Naval.applyHaze(m.material, ocean.uniforms); };
+
+  /* Gulls, which are simply part of the land: they appear with it and leave
+     with it. Hazed like everything else, or they would hang in front of the
+     island they are supposed to be circling. */
+  const gulls = new Naval.Gulls(stage.scene, world);
+  for(const m of gulls.materials) Naval.applyHaze(m, ocean.uniforms);
 
   /* Land you can steer for has to be VISIBLE. The haze was tuned when there was
      nothing beyond the ship to see, at 2.4 km of visibility — an island a mile
@@ -555,7 +564,7 @@ async function main(){
   Naval.app = { stage, ocean, foam, controls,
                 get physics(){ return physics; }, get ship(){ return ship; },
                 get cam(){ return cam; }, get hud(){ return hud; },
-                world, land, chart, blast, takeHelm,
+                world, land, gulls, chart, blast, takeHelm,
                 get fleet(){ return fleet; } };
 
   let last = performance.now();
@@ -621,6 +630,7 @@ async function main(){
     worldPos.set(ocean.origin.x + physics.body.pos.x, 0,
                  ocean.origin.z + physics.body.pos.z);
     land.update(worldPos, ocean.origin);
+    gulls.update(dt, worldPos, ocean.origin);
     chart.note(worldPos.x, worldPos.z);
     chartTick += dt;
     if(chartTick > 0.25){

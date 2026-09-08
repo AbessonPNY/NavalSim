@@ -7,6 +7,15 @@ window.Naval = window.Naval || {};
    read as fake. The dome adds the sun's disc on top; the sea gets its highlight
    from a microfacet term instead, which is what spreads it into a glitter path. */
 Naval.SKY_GLSL = `
+  /* Declared here, under a guard, because THREE shaders include this file — the
+     dome, the sea's reflection and every hazed material — and a uniform declared
+     twice in one program fails the whole compile. Same reasoning as
+     SUN_UNIFORMS_GLSL. */
+  #ifndef NAVAL_SKY_UNIFORMS
+  #define NAVAL_SKY_UNIFORMS
+  uniform float uCloud, uSkyTime;
+  #endif
+
   float navalHash13(vec3 p){
     p = fract(p*0.1031);
     p += dot(p, p.yzx + 33.33);
@@ -35,9 +44,73 @@ Naval.SKY_GLSL = `
     return smoothstep(0.17, 0.02, r) * (0.28 + 0.95*mag);
   }
 
+  float navalNoise2(vec2 p){
+    vec2 i = floor(p), f = fract(p);
+    f = f*f*(3.0 - 2.0*f);
+    float a = navalHash13(vec3(i, 7.0));
+    float b = navalHash13(vec3(i + vec2(1.0, 0.0), 7.0));
+    float c = navalHash13(vec3(i + vec2(0.0, 1.0), 7.0));
+    float d = navalHash13(vec3(i + vec2(1.0, 1.0), 7.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+  }
+
+  /* Cloud, on a PLANE and not on the dome.
+
+     Projecting the view direction through dir.xz/dir.y puts the noise on a flat
+     deck overhead, which is what clouds actually sit on: they crowd together
+     toward the horizon and open out at the zenith, all on their own. Wrapping a
+     texture round the sphere instead gives an even scatter that reads as
+     wallpaper, and no amount of detail rescues it.
+
+     Three octaves and a coverage threshold — below it there is simply blue sky,
+     which is what makes a sky read as weather rather than as fog. */
+  float navalClouds(vec3 dir){
+    float up = dir.y;
+    if(up < 0.02) return 0.0;
+    /* The scale matters more than anything else here. At 0.055 the whole
+       visible sky mapped into a few hundredths of a noise unit — the pattern
+       was all but constant across it, and what came out was a flat pale veil
+       rather than cloud. The noise has features about one unit across, so the
+       sky must span a dozen of them. */
+    /* Stretched hard along one axis. Isotropic noise gives an even mackerel
+       sky — cloud everywhere, all the same size, which is a real sky but a
+       heavy one. Fair weather is a few CIRRUS: long thin streaks combed out by
+       the wind aloft, with wide blue between them. That length is the whole
+       character of them, and it comes from nothing more than reading the noise
+       four times finer across the streak than along it. */
+    vec2 q = vec2(dir.x, dir.z)/up;
+    vec2 p = vec2(q.x*4.2, q.y*17.0) + vec2(uSkyTime*0.012, uSkyTime*0.030);
+    float f  = navalNoise2(p)*0.55;
+    f += navalNoise2(p*2.13 + 3.7)*0.28;
+    f += navalNoise2(p*4.37 + 9.1)*0.17;
+    /* Stretch it. Three octaves averaged sit tightly around a half, so a
+       threshold across that range switches the WHOLE sky partly on and gives a
+       flat pale wash — which is exactly what the first attempt produced. Pulled
+       apart, the low ground falls clear of the threshold and there is real blue
+       between the clouds, which is what makes a sky read as weather. */
+    f = clamp((f - 0.5)*2.2 + 0.5, 0.0, 1.0);
+    /* High and to the right of the histogram: only the crests of the noise come
+       through, and they come through as wisps. The slider still runs the whole
+       way to overcast, but a fine day is the default. */
+    float c = smoothstep(0.80 - uCloud*0.52, 0.99 - uCloud*0.36, f);
+    return c * smoothstep(0.02, 0.11, up);
+  }
+
   vec3 navalSky(vec3 dir, vec3 sunDir, vec3 zenith, vec3 horizon){
     float h = clamp(dir.y, 0.0, 1.0);
     vec3 c = mix(horizon, zenith, pow(h, 0.55));
+
+    /* Cloud goes on BEFORE the sun's halo and before the horizon haze: a cloud
+       is lit by the sun and then seen through the same air as everything else,
+       so laying it on afterwards would leave it floating in front of the murk. */
+    float cl = navalClouds(normalize(dir));
+    if(cl > 0.001){
+      float sd0 = max(dot(normalize(dir), sunDir), 0.0);
+      vec3 lit = mix(horizon*1.22, vec3(1.0, 0.98, 0.94), 0.30);
+      // grey underside, and a bright rim where the sun is behind them
+      lit = mix(lit*0.66, lit*1.18, pow(sd0, 3.0));
+      c = mix(c, lit, cl*0.62);   // cirrus are thin: the blue shows through
+    }
 
     /* Stars come out as the sun goes under, and they belong UNDER the haze —
        added before the horizon mix below, so they thin out toward the horizon
@@ -111,6 +184,8 @@ Naval.applyHaze = function(mat, u){
     shader.uniforms.uSubmerged = u.uSubmerged;
     shader.uniforms.uAbsorb = u.uAbsorb;
     shader.uniforms.uDeep = u.uDeep;
+    shader.uniforms.uCloud = u.uCloud;
+    shader.uniforms.uSkyTime = u.uSkyTime;
 
     shader.vertexShader = 'varying vec3 vHazeW;\n' + shader.vertexShader.replace(
       '#include <project_vertex>',
@@ -258,6 +333,9 @@ Naval.Stage = class Stage {
     this.zenith  = new THREE.Color(0x1e5c86);
     this.horizon = new THREE.Color(0xd2e3ec);
 
+    /* Shared by the dome, the sea and every hazed material — one object, so the
+       clouds overhead and the clouds the sea mirrors can never drift apart. */
+    this.skyUniforms = { uCloud:{value:0.12}, uSkyTime:{value:0} };
     this.sunDir = new THREE.Vector3();
     this.sun = new THREE.DirectionalLight(0xfff2dc, 2.1);
     this.sun.castShadow = true;
@@ -382,6 +460,7 @@ Naval.Stage = class Stage {
         uZenith:{value:this.zenith.clone()},
         uHorizon:{value:this.horizon.clone()},
         uFlash:{value:0},
+        uCloud:this.skyUniforms.uCloud, uSkyTime:this.skyUniforms.uSkyTime,
         /* Under water there is no sky to draw: the vault becomes the deep. */
         uSubmerged:{value:0}, uDeep:{value:new THREE.Color(0x0e3347)}
       },

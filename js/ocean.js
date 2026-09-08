@@ -173,6 +173,9 @@ Naval.Ocean = class Ocean {
         uNear:{value:0.7}, uFar:{value:14000},
         // 0 above the surface, 1 beneath it, smoothed across the crossing
         uSubmerged:{value:0.0},
+        // the very objects the dome uses, so sea and sky share one weather
+        uCloud:(stage && stage.skyUniforms) ? stage.skyUniforms.uCloud : {value:0.42},
+        uSkyTime:(stage && stage.skyUniforms) ? stage.skyUniforms.uSkyTime : {value:0},
         // planar reflection of the world above the water
         uReflTex:{value:null},
         uReflMat:{value:new THREE.Matrix4()},
@@ -880,6 +883,7 @@ Naval.Ocean = class Ocean {
        — the bridge and fixed cameras zoom the lens rather than move, so this
        changes under us and a matrix copied once would be wrong after a scroll. */
     if(this._cam) this.uniforms.uProj.value.copy(this._cam.projectionMatrix);
+    this.uniforms.uSkyTime.value = t;        // the cloud deck drifts with the day
   }
 
   /* Hand the sea the foam field. Its window slides with the vessel, so the

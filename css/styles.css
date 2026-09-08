@@ -147,7 +147,10 @@
   .allure.damage[hidden]{display:none}
   .allure.damage b{font-size:13px;text-align:right;max-width:74%}
   /* The chart, under the fleet. North-up, and big enough to read a bearing off. */
-  #chartPanel{top:506px;right:16px;width:236px}
+  /* Anchored to the FOOT of the window, not to a fixed top: the right-hand column
+     grows every time the sea console gains a control — the cloud slider pushed it
+     66 px down — and a fixed top eventually runs the chart off a short window. */
+  #chartPanel{bottom:16px;right:16px;width:236px}
   #chart{display:block;margin:8px auto 0;border-radius:50%}
   .chartFix{margin-top:8px;text-align:center;font-family:var(--mono);font-size:11px;
     color:var(--accent);letter-spacing:.02em;font-variant-numeric:tabular-nums}
@@ -168,7 +171,7 @@
   #fps.crit b{color:var(--crit)}
 
   /* Under the sea console: the vessels afloat, and the way to add one. */
-  #fleetPanel{top:332px;right:16px;width:236px}
+  #fleetPanel{top:398px;right:16px;width:236px}
   #fleetList{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
   .fleetRow{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px}
   .fleetRow .nm{flex:1;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -206,7 +209,7 @@
 
   /* hint / help toggle */
   /* tucked under the sea-state panel — clear of the helm along the bottom */
-  #hint{position:absolute;top:300px;right:16px;z-index:5;
+  #hint{position:absolute;top:366px;right:16px;z-index:5;
     display:flex;flex-direction:column;align-items:flex-end;gap:6px}
   #camNote{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--muted);
     text-transform:uppercase;white-space:nowrap;

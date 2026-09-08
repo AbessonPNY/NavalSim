@@ -880,6 +880,50 @@ passé.
 déclenche un éclair à la demande. Plusieurs bugs de ce projet ont été longs à
 cerner faute de pouvoir inspecter quoi que ce soit à l'exécution.
 
+**Nuages : l'échelle du bruit est tout.** Le premier jet lisait le bruit sur
+`dir.xz/up*0.055`, ce qui fait tenir **tout le ciel visible dans quelques
+centièmes d'unité de bruit** : le motif y est quasi constant, et ce qui en sort
+est un voile pâle uniforme, pas des nuages. Le bruit a des motifs d'environ une
+unité, donc le ciel doit en couvrir une dizaine. Le piège s'est doublé d'un
+piège de mesure : un A/B au pixel donnait « 30 743 px changés, écart moyen
+9/255 », que j'ai lu comme « effet présent mais faible » alors que c'est la
+signature exacte d'un bruit presque constant. Un écart faible et **étalé
+partout** ne dit pas « trop discret », il dit « pas de structure ».
+
+Le caractère vient ensuite de l'**anisotropie** : le bruit est lu quatre fois
+plus fin en travers de la traînée que dans sa longueur (`vec2(q.x*4.2,
+q.y*17.0)`). Isotrope, on obtient un ciel pommelé — vrai, mais couvert. Étiré,
+on obtient des cirrus, et c'est ce qu'on veut par beau temps. Le seuil est pris
+haut dans l'histogramme pour ne laisser passer que les crêtes, et la couverture
+par défaut est de 12 % : du bleu, quelques traînées. Le curseur « Nuages » de la
+console de mer va jusqu'au couvert.
+
+Comme le reste du ciel, ils n'existent **qu'une fois** : `ocean.js` prend les
+objets uniformes `uCloud`/`uSkyTime` de `stage.skyUniforms`, pas des copies,
+donc la mer reflète exactement les nuages qu'on voit au-dessus. Et comme la
+brume, ils sont **découplés de l'état de la mer** — une tempête qui fermerait
+aussi le ciel enlèverait le beau temps du seul endroit où il vaut la peine.
+
+**Les mouettes sont du mouvement, pas des oiseaux** (`gulls.js`). Ce que l'œil
+reconnaît à distance n'est pas l'animal mais le vol : un cercle lent, un
+inclinaison **dans** le virage, et des battements par bouffées entrecoupés de
+vol plané. Tout le fichier est cette arithmétique-là ; l'oiseau lui-même n'est
+que deux ailes, un corps et une queue.
+
+Un tiers du vol suit le **navire** plutôt que l'île. Ce n'est pas une licence :
+les goélands suivent les bâtiments, et surtout une mouette au-dessus de l'île
+fait trois pixels à quatre cents mètres, quand une qui tourne au-dessus de la
+dunette est un oiseau. Les autres restent sur leur île, pour que l'endroit garde
+sa vie propre quand rien ne passe.
+
+Deux détails de forme comptent. L'aile doit être **longue et mince** : la
+première coupe avait 0,36 m de corde pour 0,9 m de demi-envergure, un allongement
+de cinq, soit un pigeon qui plane. Et la **queue ne bat pas** — c'est le seul
+élément fixe de la silhouette, sans elle l'oiseau est un corps entre deux ailes
+et se lit comme une fléchette. Placées comme la terre, dans le repère de l'île
+et positionnées contre l'origine courante, donc l'origine flottante ne leur
+coûte rien. Surcoût mesuré : **0,05 ms par image** pour douze oiseaux.
+
 **Brume.** Volontairement **découplée** de l'état de la mer. Physiquement un coup
 de vent charge l'air, mais cela fermait l'horizon précisément quand les grosses
 lames devenaient intéressantes à regarder.
