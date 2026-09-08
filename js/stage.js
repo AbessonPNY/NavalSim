@@ -7,9 +7,47 @@ window.Naval = window.Naval || {};
    read as fake. The dome adds the sun's disc on top; the sea gets its highlight
    from a microfacet term instead, which is what spreads it into a glitter path. */
 Naval.SKY_GLSL = `
+  float navalHash13(vec3 p){
+    p = fract(p*0.1031);
+    p += dot(p, p.yzx + 33.33);
+    return fract((p.x + p.y)*p.z);
+  }
+
+  /* Stars, laid on a lattice of cells in the direction vector rather than on a
+     grid of latitude and longitude — the latter would crowd them at the poles
+     and leave a bald patch overhead. One cell in a hundred and thirty holds a
+     star, jittered inside its cell so the lattice never shows.
+
+     They are given a real WIDTH rather than being drawn as points. A star
+     narrower than a pixel is a guaranteed sparkle storm the moment the camera
+     turns, which is the same aliasing trap the sea's ripples fell into: the
+     cure is to be wider than the sample spacing, not brighter. */
+  float navalStars(vec3 dir){
+    vec3 d = dir*190.0;
+    vec3 id = floor(d), f = fract(d) - 0.5;
+    float h = navalHash13(id);
+    if(h < 0.986) return 0.0;
+    vec3 off = vec3(navalHash13(id + 11.0), navalHash13(id + 23.0),
+                    navalHash13(id + 37.0)) - 0.5;
+    float r = length(f - off*0.55);
+    // a spread of magnitudes: a sky of equal stars reads as a texture, not a sky
+    float mag = pow(fract(h*613.0), 1.5);
+    return smoothstep(0.17, 0.02, r) * (0.28 + 0.95*mag);
+  }
+
   vec3 navalSky(vec3 dir, vec3 sunDir, vec3 zenith, vec3 horizon){
     float h = clamp(dir.y, 0.0, 1.0);
     vec3 c = mix(horizon, zenith, pow(h, 0.55));
+
+    /* Stars come out as the sun goes under, and they belong UNDER the haze —
+       added before the horizon mix below, so they thin out toward the horizon
+       the way real ones do rather than sitting on top of the murk. */
+    float night = smoothstep(0.05, -0.12, sunDir.y);
+    if(night > 0.001){
+      c += vec3(0.88, 0.92, 1.00) * 1.7 * navalStars(normalize(dir))
+           * night * smoothstep(-0.02, 0.16, dir.y);
+    }
+
     float sd = max(dot(normalize(dir), sunDir), 0.0);
     // broad halo: air scatters the sun's light across a wide arc
     c += vec3(1.00, 0.82, 0.55) * pow(sd, 8.0) * 0.30;

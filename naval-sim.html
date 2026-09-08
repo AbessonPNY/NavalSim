@@ -235,7 +235,7 @@ async function main(){
   const lostMsg = document.getElementById("lost");
   const lostBox = new THREE.Box3();
   const fleet = [];
-  let fleetTick = 0, fpsFrames = 0, fpsAccum = 0;
+  let fleetTick = 0, fpsFrames = 0, fpsAccum = 0, fpsWork = 0;
   const fpsEls = { box:document.getElementById("fps"),
                    val:document.getElementById("fpsVal"),
                    ms: document.getElementById("fpsMs") };
@@ -447,6 +447,7 @@ async function main(){
 
   let last = performance.now();
   function frame(now){
+    const frameT0 = performance.now();
     const dt = Math.min(0.05, (now-last)/1000); last = now;
     t += dt;
 
@@ -466,6 +467,7 @@ async function main(){
       e.ship.setTrim(e.ctrl.sheet, e.physics.tack, e.ctrl.sailsSet,
                      e.physics.luffing, t, e.physics.sailLoad);
       e.ship.setFlag(e.physics.appWindAngle, e.physics.tack, e.physics.appWindSpeed, t);
+      e.ship.setLantern(stage.night, t);
     }
 
     if(trimPending && physics.optSheet !== null){
@@ -477,6 +479,7 @@ async function main(){
     ship.setTrim(controls.state.sheet, physics.tack,
                  controls.state.sailsSet, physics.luffing, t, physics.sailLoad);
     ship.setFlag(physics.appWindAngle, physics.tack, physics.appWindSpeed, t);
+    ship.setLantern(stage.night, t);
     ship.updateWake(physics.body, ocean, t);
 
     /* --- the floating origin ---
@@ -532,16 +535,26 @@ async function main(){
     fleetTick += dt;
     if(fleetTick > 0.4){ fleetTick = 0; refreshFleetSpeeds(); }
 
-    /* Frame rate, averaged over half a second. The MILLISECONDS are the useful
-       half: frames per second compress everything above 60 into nothing, while
-       16.7 → 20 ms says plainly what a change just cost. */
-    fpsFrames++; fpsAccum += dt;
+    /* Frame rate, and — the useful half — the WORK inside the frame.
+
+       The rate alone says almost nothing here: measured with an empty callback,
+       this preview paces at 31.2 ms whatever it is asked to do, so the counter
+       read a flat 32 in a flat calm and in a full gale alike. It was telling the
+       truth about the browser's clock and nothing about the simulation.
+
+       So the work is timed separately: everything from the top of the frame to
+       the end of the render call. Against it, 0.6 ms out of 31.2 says plainly
+       that the page is idle 98% of the time — and that figure DOES move when a
+       vessel joins the fleet. It counts CPU only; without a timer query the GPU
+       cannot be read, so a shader that grew costly would not show here. */
+    fpsFrames++; fpsAccum += dt; fpsWork += performance.now() - frameT0;
     if(fpsAccum >= 0.5){
-      const fps = fpsFrames/fpsAccum, ms = 1000*fpsAccum/fpsFrames;
+      const fps = fpsFrames/fpsAccum;
       fpsEls.val.textContent = Math.round(fps);
-      fpsEls.ms.textContent = ms.toFixed(1) + ' ms';
+      fpsEls.ms.textContent = (fpsWork/fpsFrames).toFixed(2) + ' / '
+                            + (1000*fpsAccum/fpsFrames).toFixed(1) + ' ms';
       fpsEls.box.className = fps < 24 ? 'crit' : fps < 45 ? 'low' : '';
-      fpsFrames = 0; fpsAccum = 0;
+      fpsFrames = 0; fpsAccum = 0; fpsWork = 0;
     }
     // both offscreen passes must run before the sea that samples them
     stage.updateWeather(dt, parseFloat(document.getElementById('seaState').value));

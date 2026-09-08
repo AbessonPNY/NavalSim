@@ -13,6 +13,27 @@
    simulation always has something to show. */
 window.Naval = window.Naval || {};
 
+/* A soft round glow, drawn rather than loaded — a published page cannot fetch a
+   local image, and this is three lines of canvas. Built once and shared: every
+   lantern in the fleet wants the same one. */
+Naval.glowTexture = function(){
+  if(Naval._glowTex) return Naval._glowTex;
+  const s = 128, cv = document.createElement('canvas');
+  cv.width = cv.height = s;
+  const ctx = cv.getContext('2d');
+  const g = ctx.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
+  g.addColorStop(0.00, 'rgba(255,255,255,1)');
+  g.addColorStop(0.16, 'rgba(255,228,170,0.92)');
+  g.addColorStop(0.42, 'rgba(255,170,70,0.32)');
+  g.addColorStop(1.00, 'rgba(255,140,40,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, s, s);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  Naval._glowTex = tex;
+  return tex;
+};
+
 Naval.ShipModel = class ShipModel {
   constructor(scene, spec, lines){
     this.spec = spec;
@@ -52,6 +73,7 @@ Naval.ShipModel = class ShipModel {
     this._buildHull();
     this._buildRig();
     this._buildFlag();
+    this._buildLantern();
     this._buildWake(scene);
     this._fwd = new THREE.Vector3();
   }
@@ -289,6 +311,7 @@ Naval.ShipModel = class ShipModel {
       this.rigs = []; this.canvases = [];   // the procedural rig went with the hull
       this._rigModel();
       this._buildFlag();
+      this._buildLantern();
       return true;
     }catch(err){
       console.warn('[' + this.spec.id + '] could not load ' + (m.glb || 'embedded model') +
@@ -666,6 +689,91 @@ Naval.ShipModel = class ShipModel {
     }
     attr.needsUpdate = true;
     f.mesh.geometry.computeVertexNormals();
+  }
+
+  /* The poop lantern, and how she is found at night.
+
+     Two glows, not one, and for two different jobs. The near one is a sprite of
+     real size in the world, so it grows as you come alongside and reads as a
+     lamp hanging over her taffrail. The far one does NOT scale with distance
+     (sizeAttenuation off): a lamp of honest size is sub-pixel at two miles and
+     simply vanishes, which is the opposite of what a light is for. That one is
+     the position mark, and it holds a few pixels however far off she is.
+
+     The texture is drawn on a canvas rather than loaded: the published page
+     cannot fetch a local image, and a radial gradient is three lines. */
+  _buildLantern(){
+    if(this.lantern){ this.group.remove(this.lantern.group); this.lantern = null; }
+    const spec = this.spec;
+    let y, z;
+
+    if(this.modelRoot){
+      const parts = this._modelParts();
+      const deckAt = this._deckProfile(parts);
+      let hull = parts[0], best = -1;
+      for(const p of parts){
+        const v = p.size.x*p.size.y*p.size.z;
+        if(v > best){ best = v; hull = p; }
+      }
+      /* Right aft on the taffrail, +z being the bow — and the height taken as
+         the HIGHEST point over the after stretch, not the deck at one station.
+
+         A carved stern reads back as a saw: on the Roter Löwe the profile runs
+         18.4, then 12.4, then 5.3 metres from one station to the next, the bins
+         straddling her galleries and her open rails. Sampling a single station
+         dropped the lantern into a trough five metres below her taffrail and a
+         little too far forward — she carried it inside her own stern castle. */
+      const zA = hull.box.min.z, span = hull.box.max.z - zA;
+      z = zA + span*0.02;
+      y = -Infinity;
+      for(let f=0; f<=0.07; f+=0.01) y = Math.max(y, deckAt(zA + span*f));
+      y += 0.10*spec.L/6;
+      for(const p of parts) p.geom.dispose();
+    }else{
+      z = -spec.L*0.45;
+      y = this.lines.deckY(0.05) + 0.10*spec.L/6;
+    }
+
+    const tex = Naval.glowTexture();
+    const group = new THREE.Group();
+    group.position.set(0, y, z);
+
+    const k = spec.L/24;
+    const mk = (size, atten, op) => {
+      const m = new THREE.Sprite(new THREE.SpriteMaterial({
+        map:tex, color:0xffcf7a, transparent:true, opacity:op,
+        blending:THREE.AdditiveBlending, depthWrite:false,
+        sizeAttenuation:atten, fog:false }));
+      m.scale.setScalar(size);
+      group.add(m);
+      return m;
+    };
+    const halo = mk(3.4*k, true, 0.85);       // the lamp, in metres
+    const mark = mk(0.030, false, 0.95);      // the position mark, in screen size
+
+    /* A real flame, not a bulb: she is lit by a wick in a horn lantern, so she
+       breathes. Cheap, and it is what stops the mark reading as a HUD marker. */
+    const light = new THREE.PointLight(0xffb765, 0, 26*k, 2);
+    group.add(light);
+
+    this.group.add(group);
+    this.lantern = { group, halo, mark, light, k, seed: Math.random()*100 };
+  }
+
+  /* Lit only when it is dark enough to want her. `night` comes from the stage,
+     so lantern, sky and the sun's own colour all turn together. */
+  setLantern(night, t){
+    const L = this.lantern;
+    if(!L) return;
+    const on = Math.max(0, Math.min(1, night));
+    L.group.visible = on > 0.01;
+    if(!L.group.visible) return;
+    // two slow beats out of phase read as a flame; one alone reads as a pulse
+    const flick = 0.86 + 0.14*Math.sin(t*7.3 + L.seed)
+                       + 0.06*Math.sin(t*17.1 + L.seed*1.7);
+    L.halo.material.opacity = 0.85*on*flick;
+    L.mark.material.opacity = 0.95*on*flick;
+    L.light.intensity = 2.6*on*flick;
   }
 
   /* Put her into the lighting: her own shadows, and the layer that the

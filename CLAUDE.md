@@ -218,6 +218,21 @@ puis réécrire un fichier accentué produit du mojibake et un BOM. Utiliser
 **Git et les .glb.** Ils sont binaires ; une conversion de fins de ligne les
 corromprait silencieusement. `.gitattributes` les marque `binary`.
 
+**Le compteur d'images ne mesure pas la simulation, il mesure l'horloge du
+volet.** Mesuré avec une boucle `requestAnimationFrame` **vide**, ne faisant
+rigoureusement rien : intervalle médian de 31,2 ms, soit 32 images/s. Le volet
+de prévisualisation cadence à 32 quoi qu'on lui demande, si bien que le compteur
+affichait le même 32 par mer calme et en tempête. Il disait vrai et n'apprenait
+rien.
+
+D'où le second chiffre, le **travail** dans l'image : du haut de la boucle à la
+fin du rendu. Il bouge, lui — 0,86 ms à un navire, 2,72 ms à quatre, dans un
+budget de 31,3. Autrement dit la page est oisive 98 % du temps, et le rendu
+coûte la même chose par mer plate qu'en tempête (0,22 contre 0,21 ms), le shader
+bouclant de toute façon sur les dix-huit composantes. Attention : c'est du CPU
+seul — sans requête de chronomètre GPU, un shader devenu coûteux ne s'y verrait
+pas.
+
 **Mesures dans le navigateur.** Quand le volet de prévisualisation n'est pas
 composité, `requestAnimationFrame` est bridé — jusqu'à **zéro** image, pas
 seulement une par seconde : la simulation est alors complètement arrêtée et les
@@ -553,6 +568,41 @@ une fois passée une largeur de bordé, plutôt que d'ouvrir des trous indépend
 une coque ne perce pas en cinq endroits à la fois, une couture cède et travaille.
 Six pressions mènent la frégate au fond en 5,2 minutes, contre plus d'une
 demi-heure avec des brèches séparées de taille fixe.
+
+**Les étoiles vivent dans `navalSky`, donc la mer les reflète.** Elles sont
+posées sur un réseau de cellules du **vecteur direction**, pas sur une grille de
+latitude et longitude — celle-ci les entasserait aux pôles et laisserait une
+calvitie au zénith. Elles sont ajoutées **avant** le mélange vers l'horizon, si
+bien qu'elles s'amincissent dans la brume comme les vraies au lieu de flotter
+par-dessus.
+
+Une étoile plus étroite qu'un pixel est une tempête de scintillement garantie
+dès que la caméra tourne : c'est le **même piège d'aliasing** que les rides de
+la mer, et le remède est le même — être plus large que le pas d'échantillonnage,
+pas plus brillant. D'où une vraie largeur et un `smoothstep`, jamais un point.
+
+**La lanterne, ce sont DEUX lueurs pour deux métiers.** La proche est un sprite
+de taille réelle, qui grossit quand on accoste et se lit comme un fanal pendu au
+couronnement. La lointaine **ne s'atténue pas avec la distance**
+(`sizeAttenuation:false`) : un fanal de taille honnête fait moins d'un pixel à
+deux milles et disparaît, ce qui est exactement le contraire de ce à quoi sert
+un feu. Celle-là est le repère de position, et tient quelques pixels quelle que
+soit la distance.
+
+**Le profil de pont est en dents de scie, il faut le lire au maximum.** Sur la
+Roter Löwe il donne 18,4 puis 12,4 puis 5,3 m d'une station à l'autre, les cases
+chevauchant ses galeries et ses rambardes ouvertes. Échantillonner **une seule**
+station a fait tomber la lanterne dans un creux, cinq mètres sous son
+couronnement et un peu trop en avant : elle la portait à l'intérieur de son
+propre château arrière. La hauteur se prend donc au maximum sur la tranche
+arrière, jamais à une station. Le même piège guette tout ce qu'on voudra poser
+sur le pont d'un modèle importé.
+
+Elle bat — deux sinusoïdes lentes déphasées, une seule se lirait comme une
+pulsation régulière. C'est ce qui l'empêche de ressembler à un marqueur
+d'interface plutôt qu'à une mèche dans une lanterne à corne. Sa texture est
+**dessinée sur un canvas**, jamais chargée : une page publiée ne peut pas aller
+chercher une image locale.
 
 **Le pavillon montre le vent, les voiles montrent le réglage.** Un pavillon blanc
 uni est envergué à la tête du grand mât, trouvé par la même lecture de forme que
