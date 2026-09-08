@@ -55,18 +55,31 @@ Ce qui supporte déjà N navires, sans rien changer :
 - les **ombres portées** et les patches de matériau (`applyHaze`,
   `applySailLight`, `applyShipAO`), tous par maillage ou par matériau.
 
+- **la mer et l'écume portent la flotte.** Les uniformes de coque sont des
+  tableaux de `Naval.Config.MAX_SHIPS`, `uShipCount` disant combien sont vivants,
+  et les deux shaders bouclent dessus en combinant par `max()` — deux coques bord
+  à bord font une tache blanche, pas une tache deux fois blanche. Coût mesuré
+  nul : la boucle tourne `NSHIP` fois quoi qu'il arrive, 0,40 ms à trois coques
+  contre 0,42 à une ;
+- **la passe d'eau transparente et le SSAO** portaient déjà N navires sans le
+  savoir, isolant par couche de rendu et non par objet.
+
 Ce qui suppose encore un navire unique, et qu'il faudra lever :
 
-- **la mer et l'écume ne connaissent qu'une coque.** `uShipPos`, `uShipFwd`,
-  `uShipHalf`, `uShipSpeed`, `uHullProf` et `uHullEnds` décrivent *un* bâtiment,
-  et `ocean.js` comme `foam.js` les lisent tels quels. Le champ d'écume est déjà
-  en espace monde, donc y **déposer** plusieurs navires est naturel ; c'est le
-  collier instantané de `ocean.js` qui demandera un tableau ou une passe par
-  navire ;
 - **la fenêtre d'écume et la boîte d'ombre suivent un seul navire**
   (`foam.update(..., body.pos)`, `stage.aimSun(body.pos)`) : deux bâtiments
   éloignés ne peuvent pas être servis par la même fenêtre de 620 m ;
-- **`main()` ne câble qu'un exemplaire** de chaque objet.
+- **la barre, les instruments et les caméras** désignent l'entrée 0 de la flotte.
+  C'est voulu — ce sont ceux du navire qu'on commande — mais rien ne permet
+  encore d'en désigner un autre.
+
+**Un profil de coque par LIGNE de texture, pas une texture par navire.** GLSL
+ES 1.0 refuse d'indexer un tableau de samplers, donc `Naval.HullProfiles` empile
+les demi-largeurs de chaque bâtiment dans une texture de `MAX_SHIPS` lignes, lue
+au centre exact de sa ligne — aucun mélange entre navires. Pour la même raison,
+`hullGap()` reçoit les uniformes de la coque **en paramètres** plutôt qu'un
+indice : seule une expression constante peut indexer un tableau d'uniformes, et
+un compteur de boucle en est une, un paramètre de fonction non.
 
 En revanche la barre, les instruments et les caméras n'ont *pas* à devenir
 multiples : ce sont ceux du navire qu'on commande. Il leur faudra désigner

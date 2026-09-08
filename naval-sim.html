@@ -208,6 +208,7 @@ async function main(){
   let spec, lines, ship, physics, cam, hud, t = 0, trimPending = false, lost = false;
   const lostMsg = document.getElementById("lost");
   const lostBox = new THREE.Box3();
+  const fleet = [];
 
   async function commission(index){
     spec = specs[index];
@@ -261,7 +262,11 @@ async function main(){
     /* Now that her flotation is known, measure the outline she actually cuts at
        that waterline and hand it to the sea. Before the settle it would be read
        at the wrong height, and the foam would trace her topsides. */
-    ocean.setHullProfile(ship.hullProfile(64, -hud.eqY));
+    /* The sea carries a FLEET. Only one vessel is sailed today, but every hull
+       afloat must be in this list or she will cut the water without foaming. */
+    fleet.length = 0;
+    fleet.push({ body:physics.body, spec, afloat:1 });
+    ocean.setHullProfile(0, ship.hullProfile(64, -hud.eqY));
     hud.refreshSea();
     /* Hand her over ready to sail. The sheets are trimmed on the first frame
        rather than here, because the trim depends on the apparent wind, and the
@@ -286,7 +291,8 @@ async function main(){
      were slow to pin down purely because nothing was inspectable at runtime. */
   Naval.app = { stage, ocean, foam, controls,
                 get physics(){ return physics; }, get ship(){ return ship; },
-                get cam(){ return cam; }, get hud(){ return hud; } };
+                get cam(){ return cam; }, get hud(){ return hud; },
+                get fleet(){ return fleet; } };
 
   let last = performance.now();
   function frame(now){
@@ -296,6 +302,20 @@ async function main(){
     controls.update(dt);
     const SUB = 4;                       // fixed substeps keep the solver stable
     for(let i=0;i<SUB;i++) physics.step(dt/SUB, ocean, controls.state, t);
+
+    /* Any other vessel in the fleet sails herself. Entry 0 is the one at the
+       helm, handled below with the instruments and the cameras; the rest need
+       only be stepped and shown, and they carry their own controls. */
+    for(let k=1;k<fleet.length;k++){
+      const e = fleet[k];
+      if(!e.physics || !e.ship) continue;
+      for(let i=0;i<SUB;i++) e.physics.step(dt/SUB, ocean, e.ctrl, t);
+      e.afloat = e.physics.afloat;
+      e.ship.syncTo(e.physics.body);
+      e.ship.setTrim(e.ctrl.sheet, e.physics.tack, e.ctrl.sailsSet,
+                     e.physics.luffing, t, e.physics.sailLoad);
+      e.ship.setFlag(e.physics.appWindAngle, e.physics.tack, e.physics.appWindSpeed, t);
+    }
 
     if(trimPending && physics.optSheet !== null){
       controls.state.sheet = physics.optSheet;
@@ -310,7 +330,8 @@ async function main(){
 
     stage.aimSun(physics.body.pos);       // the shadow box travels with her
     cam.update(dt, physics.body, ocean, t);
-    ocean.trackShip(physics.body, spec, physics.afloat);
+    fleet[0].afloat = physics.afloat;
+    ocean.trackShips(fleet);
     stage.renderer.getDrawingBufferSize(ocean.uniforms.uShipRes.value);
 
     ocean.update(t, stage.camera.position);

@@ -58,6 +58,7 @@ Naval.FoamField = class FoamField {
       // shared with the sea, so waves and hull can never disagree
       uWaveA: oceanUniforms.uWaveA,
       uWaveB: oceanUniforms.uWaveB,
+      uShipCount: oceanUniforms.uShipCount,
       uShipPos: oceanUniforms.uShipPos,
       uShipFwd: oceanUniforms.uShipFwd,
       uShipHalf: oceanUniforms.uShipHalf,
@@ -69,16 +70,15 @@ Naval.FoamField = class FoamField {
 
     this.mat = new THREE.ShaderMaterial({
       uniforms:this.uniforms,
-      defines:{NW:C.NWAVES_FOAM},
+      defines:{NW:C.NWAVES_FOAM, NSHIP:C.MAX_SHIPS},
       vertexShader:`
         varying vec2 vUv;
         void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
       fragmentShader:`
         precision highp float;
         uniform sampler2D uPrev;
-        uniform vec2 uOffsetUV, uOrigin, uShipFwd, uShipHalf;
-        uniform float uDecay, uSize, uTexel, uTime, uSeed, uShipSpeed, uShipAfloat;
-        uniform vec3 uShipPos;
+        uniform vec2 uOffsetUV, uOrigin;
+        uniform float uDecay, uSize, uTexel, uTime, uSeed;
         uniform vec4 uWaveA[NW]; uniform vec2 uWaveB[NW];
         varying vec2 vUv;
         ${Naval.HULL_GLSL}
@@ -110,13 +110,17 @@ Naval.FoamField = class FoamField {
           }
           float breaking = smoothstep(0.66, 1.05, steep) * 0.9;
 
-          // --- and where the hull tears the surface open ---
-          vec2 rel = wpos - uShipPos.xz;
-          vec2 f2 = normalize(uShipFwd);
+          // --- and where each hull tears the surface open ---
+          float hull = 0.0;
+          for(int i=0;i<NSHIP;i++){
+          if(i < uShipCount){
+          vec2 rel = wpos - uShipPos[i].xz;
+          vec2 f2 = normalize(uShipFwd[i]);
           vec2 r2 = vec2(f2.y, -f2.x);
           float tAlong;
-          float gapM = hullGap(rel, f2, r2, tAlong);   // metres to her real waterline
-          float way = clamp(uShipSpeed/3.0, 0.0, 1.0);
+          float gapM = hullGap(rel, f2, r2, uShipHalf[i], uHullEnds[i],
+                               (float(i) + 0.5)/float(NSHIP), tAlong);   // metres to her waterline
+          float way = clamp(uShipSpeed[i]/3.0, 0.0, 1.0);
           /* A ring ON her waterline, not a disc filling her whole footprint —
              and it needs way to appear. A vessel lying stopped disturbs almost
              nothing; filling the hull outline regardless left her sitting in a
@@ -129,12 +133,13 @@ Naval.FoamField = class FoamField {
           /* The bow wings again, laid into the field this time rather than
              drawn on the sea: that is what leaves the V astern of her once she
              has passed, instead of a wave welded to the stem. */
-          float fast   = clamp(uShipSpeed/6.0, 0.0, 1.0);
-          float sAft   = max(uHullEnds.y - tAlong*uShipHalf.x, 0.0);
+          float fast   = clamp(uShipSpeed[i]/6.0, 0.0, 1.0);
+          float sAft   = max(uHullEnds[i].y - tAlong*uShipHalf[i].x, 0.0);
           float spread = 1.7*sqrt(sAft)*fast;
           float wing   = exp(-pow((gapM - spread)/(1.0 + 1.2*fast), 2.0)) * fast;
 
-          float hull = max(band * (0.06 + 1.0*way), wing*0.85) * uShipAfloat;
+          hull = max(hull, max(band * (0.06 + 1.0*way), wing*0.85) * uShipAfloat[i]);
+          }}
 
           // deposit, never accumulate past saturation
           gl_FragColor = vec4(clamp(max(prev, max(breaking, hull)), 0.0, 1.0), 0.0, 0.0, 1.0);

@@ -30,47 +30,79 @@ window.Naval = window.Naval || {};
    to bloat the collar at her ends. Negative inside, positive outside, so one
    number serves both the collar and the gates that used to test `ed`. */
 Naval.HULL_GLSL = `
-  uniform sampler2D uHullProf;   // half breadth per station, as a fraction of uShipHalf.y
-  uniform vec2 uHullEnds;        // where her waterline body starts and ends, in metres
-  // uShipHalf = (half length overall, greatest half breadth), both in metres
-  float hullGap(vec2 rel, vec2 f2, vec2 r2, out float tAlong){
+  /* One ROW of this texture per vessel: her half breadths, stern to stem, as
+     fractions of her own greatest half breadth. A row rather than a texture
+     each, because GLSL ES 1.0 will not index an array of samplers. */
+  uniform sampler2D uHullProf;
+  uniform int uShipCount;
+  uniform vec3 uShipPos[NSHIP];
+  uniform vec2 uShipFwd[NSHIP];
+  uniform vec2 uShipHalf[NSHIP];    // (half length overall, greatest half breadth), metres
+  uniform vec2 uHullEnds[NSHIP];    // where her waterline body starts and ends, metres
+  uniform float uShipSpeed[NSHIP];
+  uniform float uShipAfloat[NSHIP];
+
+  /* Signed distance in METRES to one vessel's real waterline.
+
+     Her uniforms are read at the CALL SITE and passed in, rather than passing
+     an index: GLSL ES 1.0 only lets a uniform array be indexed by a constant
+     expression, and a function parameter is not one — a loop counter is. */
+  float hullGap(vec2 rel, vec2 f2, vec2 r2, vec2 halfLB, vec2 ends, float row,
+                out float tAlong){
     float along   = dot(rel, f2);
     float athwart = dot(rel, r2);
-    float halfL   = max(uShipHalf.x, 0.01);
+    float halfL   = max(halfLB.x, 0.01);
     tAlong = along / halfL;                        // -1 astern .. +1 at the stem
-    float halfB = texture2D(uHullProf, vec2(clamp(tAlong*0.5 + 0.5, 0.0, 1.0), 0.5)).r
-                  * uShipHalf.y;
+    float halfB = texture2D(uHullProf, vec2(clamp(tAlong*0.5 + 0.5, 0.0, 1.0), row)).r
+                  * halfLB.y;
     /* Bound the body on its OWN ends, not on her length overall. Her waterline
        is shorter than she is — the stem rakes out above it, the counter
        overhangs it — so measuring the ends at half her length left a hairline
        of foam running on past the stem where the profile had already tapered to
        nothing. Taken about the middle of the body, so a fine bow and a full run
        are handled without assuming she is symmetrical. */
-    float mid  = (uHullEnds.x + uHullEnds.y)*0.5;
-    float halfBody = max((uHullEnds.y - uHullEnds.x)*0.5, 0.01);  // NOT 'half': reserved in GLSL
+    float mid  = (ends.x + ends.y)*0.5;
+    float halfBody = max((ends.y - ends.x)*0.5, 0.01);  // NOT 'half': reserved in GLSL
     vec2 d = vec2(abs(athwart) - halfB, abs(along - mid) - halfBody);
     return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
   }`;
 
-/* Half breadths, from stern to stem, as a one-row texture. Values are given as
-   fractions of the greatest half breadth. RGBA rather than a single-channel
-   format because RedFormat needs WebGL2 and this has to work wherever the rest
-   of the page does; sixty-four texels cost 256 bytes. Linear filtering does the
-   interpolation between stations for free. */
-Naval.makeHullProfileTexture = function(fractions){
-  const n = fractions.length;
-  const data = new Uint8Array(n*4);
-  for(let i=0;i<n;i++){
-    const v = Math.max(0, Math.min(255, Math.round(fractions[i]*255)));
-    data[i*4] = data[i*4+1] = data[i*4+2] = v;
-    data[i*4+3] = 255;
+/* The fleet's half breadths: one row per vessel, one column per station, given
+   as fractions of that vessel's own greatest half breadth.
+
+   RGBA rather than a single-channel format because RedFormat needs WebGL2 and
+   this has to work wherever the rest of the page does; four vessels at
+   sixty-four stations cost a kilobyte. Linear filtering interpolates between
+   stations for free, and sampling at a row's exact texel centre means no
+   bleeding between vessels. */
+Naval.HullProfiles = class HullProfiles {
+  constructor(rows, cols){
+    this.rows = rows; this.cols = cols || 64;
+    this.data = new Uint8Array(this.rows*this.cols*4);
+    this.data.fill(255);                   // a plain rectangle until told otherwise
+    this.texture = new THREE.DataTexture(this.data, this.cols, this.rows, THREE.RGBAFormat);
+    this.texture.minFilter = this.texture.magFilter = THREE.LinearFilter;
+    this.texture.wrapS = this.texture.wrapT = THREE.ClampToEdgeWrapping;
+    this.texture.generateMipmaps = false;
+    this.texture.needsUpdate = true;
   }
-  const tex = new THREE.DataTexture(data, n, 1, THREE.RGBAFormat);
-  tex.minFilter = tex.magFilter = THREE.LinearFilter;
-  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-  tex.generateMipmaps = false;
-  tex.needsUpdate = true;
-  return tex;
+
+  set(index, fractions){
+    if(index < 0 || index >= this.rows) return;
+    const n = Math.min(fractions.length, this.cols), base = index*this.cols*4;
+    for(let i=0;i<this.cols;i++){
+      // a shorter profile is stretched across the row rather than left blank
+      const f = fractions[Math.min(n-1, Math.floor(i*n/this.cols))];
+      const v = Math.max(0, Math.min(255, Math.round(f*255)));
+      const o = base + i*4;
+      this.data[o] = this.data[o+1] = this.data[o+2] = v;
+      this.data[o+3] = 255;
+    }
+    this.texture.needsUpdate = true;
+  }
+
+  // the V coordinate of a vessel's row, at its exact texel centre
+  row(index){ return (index + 0.5)/this.rows; }
 };
 
 Naval.Ocean = class Ocean {
@@ -82,6 +114,7 @@ Naval.Ocean = class Ocean {
     this.sharp = 1.0;                // crest peaking exponent
     this.windSpeed = 0;                    // m/s, true wind
     this.windVec = new THREE.Vector3();    // true wind velocity (blows toward)
+    this.profiles = new Naval.HullProfiles(C.MAX_SHIPS, 64);
 
     const half = C.OCEAN_SIZE * 0.5;
     const geo = new THREE.PlaneGeometry(C.OCEAN_SIZE, C.OCEAN_SIZE, C.OCEAN_SEG, C.OCEAN_SEG);
@@ -112,18 +145,19 @@ Naval.Ocean = class Ocean {
         uRipple:{value:1.0},                    // ripple strength, grows with sea state
         uHaze:{value:0.0016},                   // extinction per metre at sea level
         uHazeH:{value:110.0},                   // scale height of the haze layer (m)
-        // the hull, so the sea can foam where she cuts it
-        uShipPos:{value:new THREE.Vector3(0,0,0)},
-        uShipFwd:{value:new THREE.Vector2(0,1)},
-        uShipHalf:{value:new THREE.Vector2(12,3)},
-        // one row of half breadths; a flat 1.0 until a vessel supplies her own,
-        // which reads as a plain rectangle rather than as nothing at all
-        uHullProf:{value:Naval.makeHullProfileTexture(new Float32Array([1]))},
-        uHullEnds:{value:new THREE.Vector2(-12, 12)},
-        uShipSpeed:{value:0},
+        /* The fleet, so the sea can foam where each hull cuts it. Arrays, not
+           single values: several vessels may be afloat at once. uShipCount says
+           how many of the slots are live. */
+        uShipCount:{value:0},
+        uShipPos:{value:Array.from({length:C.MAX_SHIPS},()=>new THREE.Vector3())},
+        uShipFwd:{value:Array.from({length:C.MAX_SHIPS},()=>new THREE.Vector2(0,1))},
+        uShipHalf:{value:Array.from({length:C.MAX_SHIPS},()=>new THREE.Vector2(12,3))},
+        uHullEnds:{value:Array.from({length:C.MAX_SHIPS},()=>new THREE.Vector2(-12,12))},
+        uShipSpeed:{value:new Array(C.MAX_SHIPS).fill(0)},
         // 1 while she rides the surface, 0 once she has gone under: an epave
         // makes no collar, and a foam ring left over a wreck reads as a bug
-        uShipAfloat:{value:1},
+        uShipAfloat:{value:new Array(C.MAX_SHIPS).fill(1)},
+        uHullProf:{value:this.profiles.texture},
         /* Seeing her through the water. Absorption per metre, per channel: red
            dies in about 3 m, blue carries past 10 — that is what turns her
            green then blue then dark, instead of merely grey. */
@@ -152,7 +186,7 @@ Naval.Ocean = class Ocean {
       uniforms:this.uniforms,
       // the sea carries its own layered haze; Three's flat fog would double it
       fog:false,
-      defines:{NW:C.NWAVES},
+      defines:{NW:C.NWAVES, NSHIP:C.MAX_SHIPS},
       vertexShader:`
         uniform float uTime, uHalf, uSeg, uSharp; uniform vec4 uWaveA[NW]; uniform vec2 uWaveB[NW];
         uniform mat4 uReflMat;
@@ -238,9 +272,8 @@ Naval.Ocean = class Ocean {
       fragmentShader:`
         precision highp float;
         uniform vec3 uSun,uCam,uDeep,uShallow,uSSS,uZenith,uHorizon;
-        uniform float uTime, uAmpMax, uRipple, uShipSpeed, uShipAfloat;
-        uniform vec2 uWind, uShipFwd, uShipHalf;
-        uniform vec3 uShipPos;
+        uniform float uTime, uAmpMax, uRipple;
+        uniform vec2 uWind;
         uniform sampler2D uReflTex; uniform float uReflOn;
         uniform sampler2D uShipTex, uShipDepth;
         uniform vec2 uShipRes; uniform float uShipOn, uNear, uFar, uRefract;
@@ -377,12 +410,16 @@ Naval.Ocean = class Ocean {
              plating, then a broader band that only shows once she has way on.
              hullGap gives the distance to her REAL waterline, in metres —
              negative inside her, positive outside. */
-          vec2 rel = vW.xz - uShipPos.xz;
-          vec2 f2 = normalize(uShipFwd);
+          float hullFoam = 0.0;
+          for(int i=0;i<NSHIP;i++){
+          if(i < uShipCount){
+          vec2 rel = vW.xz - uShipPos[i].xz;
+          vec2 f2 = normalize(uShipFwd[i]);
           vec2 r2 = vec2(f2.y, -f2.x);
           float tAlong;
-          float gapM = hullGap(rel, f2, r2, tAlong);
-          float way = clamp(uShipSpeed/3.0, 0.0, 1.0);
+          float gapM = hullGap(rel, f2, r2, uShipHalf[i], uHullEnds[i],
+                               (float(i) + 0.5)/float(NSHIP), tAlong);
+          float way = clamp(uShipSpeed[i]/3.0, 0.0, 1.0);
 
           /* Only the crisp collar and bow wave stay instantaneous — they belong
              to the hull and must move with her. The lingering trail astern now
@@ -402,16 +439,20 @@ Naval.Ocean = class Ocean {
              The "fast" ramp saturates at twice the speed "way" does, so the
              gerbe keeps building after the collar has stopped growing: that is
              what makes her look driven rather than merely afloat. */
-          float fast   = clamp(uShipSpeed/6.0, 0.0, 1.0);
-          float along  = tAlong * uShipHalf.x;
-          float sAft   = max(uHullEnds.y - along, 0.0);      // metres abaft the stem
+          float fast   = clamp(uShipSpeed[i]/6.0, 0.0, 1.0);
+          float along  = tAlong * uShipHalf[i].x;
+          float sAft   = max(uHullEnds[i].y - along, 0.0);   // metres abaft the stem
           float spread = 1.7*sqrt(sAft)*fast;
           float wing   = exp(-pow((gapM - spread)/(0.75 + 0.9*fast), 2.0));
           float fade   = exp(-sAft/(5.0 + 30.0*fast));       // dies away astern
           float bow    = wing * fade * way * step(-0.1, gapM);
 
-          float hullFoam = clamp(collar*0.70 + bow*(0.55 + 0.75*fast), 0.0, 1.0) * uShipAfloat
-                           * (0.45 + 0.80*fn);
+          /* Vessels do not add foam past saturation, they share it: two hulls
+             lying alongside make one white patch, not a doubly white one. */
+          hullFoam = max(hullFoam,
+            clamp(collar*0.70 + bow*(0.55 + 0.75*fast), 0.0, 1.0) * uShipAfloat[i]);
+          }}
+          hullFoam *= (0.45 + 0.80*fn);
 
           /* Foam that was laid down earlier and is still dispersing. Sampled in
              world space, so it stays where it was made while the ship sails on. */
@@ -770,12 +811,12 @@ Naval.Ocean = class Ocean {
 
   /* Hand the sea this vessel's outline. Until one is given she foams around a
      plain rectangle, which is wrong but never absent. */
-  setHullProfile(prof){
-    const u = this.uniforms;
-    if(u.uHullProf.value) u.uHullProf.value.dispose();
-    u.uHullProf.value = Naval.makeHullProfileTexture(prof.fractions);
-    u.uHullEnds.value.set(prof.ends.aft, prof.ends.fwd);
-    this._hullProf = prof;
+  /* Give the sea one vessel's outline, into her own row. */
+  setHullProfile(index, prof){
+    if(index >= this.C.MAX_SHIPS) return;
+    this.profiles.set(index, prof.fractions);
+    this.uniforms.uHullEnds.value[index].set(prof.ends.aft, prof.ends.fwd);
+    (this._profs = this._profs || [])[index] = prof;
   }
 
   // Tell the sea where the hull is, so it can foam along her waterline.
@@ -790,17 +831,25 @@ Naval.Ocean = class Ocean {
     this._shipBuf = buf;
   }
 
-  trackShip(body, spec, afloat){
-    const u = this.uniforms;
-    u.uShipPos.value.copy(body.pos);
+  /* Tell the sea about every hull afloat. One entry per vessel:
+     { body, spec, afloat }. Slots past uShipCount are simply not read. */
+  trackShips(fleet){
+    const u = this.uniforms, profs = this._profs || [];
+    const n = Math.min(fleet.length, this.C.MAX_SHIPS);
+    u.uShipCount.value = n;
     this._sf = this._sf || new THREE.Vector3();
-    this._sf.set(0,0,1).applyQuaternion(body.quat);
-    u.uShipFwd.value.set(this._sf.x, this._sf.z).normalize();
-    // her greatest half breadth AS MEASURED, which the profile is scaled by;
-    // spec.B is only the stated figure and a model rarely matches it exactly
-    u.uShipHalf.value.set(spec.L*0.5, this._hullProf ? this._hullProf.maxHalfB : spec.B*0.5);
-    u.uShipSpeed.value = Math.hypot(body.vel.x, body.vel.z);
-    u.uShipAfloat.value = afloat == null ? 1 : afloat;
+    for(let i=0;i<n;i++){
+      const e = fleet[i], b = e.body;
+      u.uShipPos.value[i].copy(b.pos);
+      this._sf.set(0,0,1).applyQuaternion(b.quat);
+      u.uShipFwd.value[i].set(this._sf.x, this._sf.z).normalize();
+      // her greatest half breadth AS MEASURED, which her profile is scaled by;
+      // spec.B is only the stated figure and a model rarely matches it exactly
+      u.uShipHalf.value[i].set(e.spec.L*0.5,
+        profs[i] ? profs[i].maxHalfB : e.spec.B*0.5);
+      u.uShipSpeed.value[i] = Math.hypot(b.vel.x, b.vel.z);
+      u.uShipAfloat.value[i] = e.afloat == null ? 1 : e.afloat;
+    }
   }
 
   // Ripples travel with the wind, and grow with it.

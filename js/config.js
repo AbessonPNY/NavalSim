@@ -13,6 +13,9 @@ Naval.Config = {
   // ---- buoyancy probe grid (cells across the hull envelope) ----
   PN_Z: 11, PN_X: 7, PN_Y: 7,
 
+  // ---- how many hulls the sea and the foam can carry at once ----
+  MAX_SHIPS: 4,
+
   // ---- watertight compartments, along her length ----
   NCOMP: 5,
 
