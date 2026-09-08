@@ -361,7 +361,11 @@ async function main(){
     // leave their hulls in the scene, sailing on with nothing driving them
     for(let k=1;k<fleet.length;k++) if(fleet[k].ship) fleet[k].ship.dispose();
     fleet.length = 0;
-    fleet.push({ body:physics.body, spec, afloat:1,
+    /* Entry 0 carries the SAME fields as every other, though the helm drives
+       her: the moment the helm moves to another vessel, this one must have her
+       own physics, model and controls to go on sailing with. */
+    fleet.push({ body:physics.body, spec, lines, physics, ship, afloat:1,
+                 ctrl:controls.state, eqY:hud.eqY,
                  profile: ship.hullProfile(64, -hud.eqY) });
     ocean.setHullProfile(0, fleet[0].profile);
     hud.refreshSea();
@@ -423,11 +427,51 @@ async function main(){
                     physics.body.pos.z + Math.cos(ang)*reach);
     ph.body.quat.copy(physics.body.quat);          // heading with the flagship
 
-    const entry = { body:ph.body, spec:sp, afloat:1, physics:ph, ship:sh, ctrl:ct,
-                    profile: sh.hullProfile(64, -eq) };
+    const entry = { body:ph.body, spec:sp, lines:ln, physics:ph, ship:sh, ctrl:ct,
+                    afloat:1, eqY:eq, profile: sh.hullProfile(64, -eq) };
     fleet.push(entry);
     refitProfiles();
     return entry;
+  }
+
+  /* Move the helm to another vessel.
+
+     The fleet is not reordered for show: entry 0 IS the commanded ship, for the
+     loop, the instruments, the cameras and the foam window alike. So taking the
+     helm is a swap — and because a vessel's index is also her row in the hull
+     profile texture, the profiles are rewritten with it, exactly as when one is
+     removed.
+
+     The orders travel too. The ship being left keeps a COPY of the helm state
+     as her own, so she sails on under the throttle and sheets she was given
+     rather than going slack; and the one taken over hands hers to the helm, so
+     the console shows what she is actually doing and not what the last ship
+     was. Sharing one object instead would make every vessel obey the wheel. */
+  function takeHelm(i){
+    if(i <= 0 || i >= fleet.length) return;
+    const leaving = fleet[0], taking = fleet[i];
+
+    leaving.ctrl = Object.assign({}, controls.state);
+    leaving.eqY = hud.eqY;
+    Object.assign(controls.state, taking.ctrl);
+    taking.ctrl = controls.state;
+
+    fleet[0] = taking; fleet[i] = leaving;
+    refitProfiles();
+
+    spec = taking.spec; lines = taking.lines;
+    ship = taking.ship; physics = taking.physics;
+
+    controls.setSpec(spec);
+    hud.setSpec(spec, physics);
+    hud.eqY = taking.eqY;
+    cam.setSpec(spec);
+    if(sel) sel.value = String(Math.max(0, specs.indexOf(spec)));
+
+    // she is a different ship: whatever became of the last one is not her state
+    lost = false;
+    lostMsg.hidden = true;
+    drawFleet();
   }
 
   function scuttle(i){
@@ -462,11 +506,15 @@ async function main(){
       sp.textContent = Math.round(Math.hypot(e.body.vel.x, e.body.vel.z)*1.94384) + ' nds';
       row.append(nm, sp);
       if(i > 0){
+        const hl = document.createElement('button');
+        hl.textContent = '⚓';
+        hl.title = 'Prendre la barre de ce navire';
+        hl.addEventListener('click', ()=> takeHelm(i));
         const rm = document.createElement('button');
         rm.textContent = '✕';
         rm.title = 'Retirer de la flotte';
         rm.addEventListener('click', ()=>{ scuttle(i); drawFleet(); });
-        row.append(rm);
+        row.append(hl, rm);
       }
       fleetEls.list.append(row);
     });
@@ -507,7 +555,7 @@ async function main(){
   Naval.app = { stage, ocean, foam, controls,
                 get physics(){ return physics; }, get ship(){ return ship; },
                 get cam(){ return cam; }, get hud(){ return hud; },
-                world, land, chart, blast,
+                world, land, chart, blast, takeHelm,
                 get fleet(){ return fleet; } };
 
   let last = performance.now();

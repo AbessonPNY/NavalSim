@@ -72,8 +72,18 @@ Ce qui suppose encore un navire unique, et qu'il faudra lever :
   (`foam.update(..., body.pos)`, `stage.aimSun(body.pos)`) : deux bâtiments
   éloignés ne peuvent pas être servis par la même fenêtre de 620 m ;
 - **la barre, les instruments et les caméras** désignent l'entrée 0 de la flotte.
-  C'est voulu — ce sont ceux du navire qu'on commande — mais rien ne permet
-  encore d'en désigner un autre.
+  C'est voulu — ce sont ceux du navire qu'on commande — et le bouton ⚓ du
+  panneau Flotte déplace la barre en **échangeant** les entrées, puisque l'indice
+  0 *est* le navire commandé pour la boucle, les instruments, les caméras et la
+  fenêtre d'écume. L'indice étant aussi la ligne de texture, les profils sont
+  réécrits avec, exactement comme à un retrait.
+
+  **Les ordres voyagent aussi.** Le navire qu'on quitte garde une **copie** de
+  l'état de barre comme sien, donc il continue sous la machine et les écoutes
+  qu'on lui a laissées au lieu de se mettre en panne ; celui qu'on prend cède
+  les siens à la console, qui montre alors ce qu'il fait vraiment et non ce que
+  faisait le précédent. Partager un seul objet ferait obéir toute la flotte à la
+  même roue.
 
 **Mettre une coque à l'eau se fait par le panneau « Flotte »**, et il y a une
 raison de ne pas le faire à la main : quatre choses sont faciles à oublier et
