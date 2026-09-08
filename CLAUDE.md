@@ -403,6 +403,27 @@ la raison pour laquelle ça se lit comme de l'eau et non comme du brouillard —
 coefficient gris unique la ferait virer au gris, ce que fait la brume, pas la
 mer.
 
+**La perte d'un navire se mesure sur son point le plus haut.** Passé dix mètres
+sous la surface elle disparaît, la caméra bascule en vue fixe et un message le
+dit. Mais le seuil porte sur le **sommet** du navire, jamais sur l'origine de sa
+coque : elle sombre presque à la verticale, l'étambot le premier, et descend
+l'étrave et le gréement encore en l'air. Relevé sur la Roter Löwe, avec l'origine
+à dix mètres sous l'eau il restait **trente-trois mètres de mâture dressés au-
+dessus de la mer** — l'escamoter là aurait fait s'évanouir ses mâts en pleine
+vue. Sur le point le plus haut, elle est réellement partie. Coût : une boîte
+englobante par image, et seulement une fois `foundered`.
+
+La caméra fixe reçoit alors la **hauteur de la mer** comme cible (`plant(aimY)`)
+et non la position de l'épave : braquée sur cette dernière elle plongerait du nez
+sur cent mètres d'eau vide au lieu de tenir le carré de mer qui l'a engloutie.
+
+**Un attribut `hidden` ne suffit pas si la classe pose un `display`.** La ligne
+d'avarie porte `.allure`, qui vaut `display:flex` et l'emporte sur la règle
+`[hidden]` du navigateur : elle restait donc affichée après réparation, à
+annoncer « SOMBRÉ » sur un navire intact. Il faut une règle
+`.allure.damage[hidden]{display:none}` explicite. Le piège vaut pour toute ligne
+qu'on masque par attribut.
+
 **La réfraction doit reporter l'ondulation, pas effacer l'épave.** Sans elle la
 coque immergée se lit comme un autocollant vu à travers une vitre plate. Mais
 c'est un effet qu'on rate par excès bien plus facilement que par défaut, et la

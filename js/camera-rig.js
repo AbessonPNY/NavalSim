@@ -68,9 +68,15 @@ Naval.CameraRig = class CameraRig {
     this.orbitDist = this.cam.orbitDist;
   }
 
-  cycle(){
-    this.mode = (this.mode+1) % this.C.CAM_NAMES.length;
-    if(this.mode===3) this.plant();
+  cycle(){ this.setMode(this.mode + 1); }
+
+  /* Go to a named camera rather than stepping to the next one. Losing a ship
+     switches to the fixed view, and that must not depend on which camera the
+     user happened to be on when she went. */
+  setMode(m, aimY){
+    const n = this.C.CAM_NAMES.length;
+    this.mode = ((m % n) + n) % n;
+    if(this.mode===3) this.plant(aimY);
     else if(this.mode===2){ this.bridgeYaw=0; this.bridgePitch=0; }
     if(this.mode<2 && this.camera.fov!==55){
       this.camera.fov=55; this.camera.updateProjectionMatrix();
@@ -85,8 +91,13 @@ Naval.CameraRig = class CameraRig {
   }
 
   /* Plant off her starboard quarter: she then draws away diagonally and
-     shrinks, instead of crossing the frame and sliding straight out of it. */
-  plant(){
+     shrinks, instead of crossing the frame and sliding straight out of it.
+
+     aimY says WHAT height to train on. It defaults to the vessel; when she is
+     lost the caller passes the sea surface instead, because trained on the
+     wreck the camera would pitch steeply down at a hundred metres of empty
+     water rather than hold the patch of sea she went through. */
+  plant(aimY){
     const b = this.body, ocean = this.ocean, t = this.time;
     if(!b) return;
     const k = this.scale;
@@ -96,7 +107,7 @@ Naval.CameraRig = class CameraRig {
     this.anchor.y = ocean.sample(this.anchor.x, this.anchor.z, t) + 12*k;
     // train it on her once; from then on it holds unless the user drags
     const dx = b.pos.x - this.anchor.x, dz = b.pos.z - this.anchor.z;
-    const dy = (b.pos.y + 2*k) - this.anchor.y;
+    const dy = (aimY != null ? aimY : b.pos.y + 2*k) - this.anchor.y;
     this.fixedYaw = Math.atan2(dx, dz);
     this.fixedPitch = Math.atan2(dy, Math.hypot(dx, dz));
     this.pos.copy(this.anchor);            // snap, so the attitude is steady at once

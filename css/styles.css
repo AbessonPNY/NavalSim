@@ -100,8 +100,28 @@
   .allure{display:flex;align-items:baseline;justify-content:space-between;margin-top:9px}
   .allure .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
   .allure b{font-family:var(--disp);font-weight:600;font-size:15px;color:var(--accent);letter-spacing:.03em}
+  /* She is gone. Centred and unmissable, but it must not black out the sea —
+     the point of the fixed camera is that you go on watching the spot. */
+  #lost{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);
+    display:flex;flex-direction:column;align-items:center;gap:9px;
+    padding:18px 34px;border-radius:10px;text-align:center;pointer-events:none;
+    background:rgba(10,20,30,.62);border:1px solid rgba(255,110,90,.42);
+    box-shadow:0 8px 40px rgba(0,0,0,.5);backdrop-filter:blur(3px);
+    animation:lostIn .8s ease-out both}
+  #lost b{font-family:var(--disp);font-weight:700;font-size:23px;letter-spacing:.07em;
+    color:var(--crit);text-transform:uppercase}
+  #lost span{font-family:var(--mono);font-size:11.5px;color:var(--muted);letter-spacing:.05em}
+  #lost kbd{font-family:var(--mono);font-size:11px;padding:1px 5px;border-radius:3px;
+    background:rgba(140,168,182,.18);border:1px solid rgba(200,220,232,.22);color:var(--ink)}
+  #lost[hidden]{display:none}
+  @keyframes lostIn{from{opacity:0;transform:translate(-50%,-50%) scale(.94)}
+                    to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+
   /* the damage line sets itself apart: it is the one row you must not miss */
   .allure.damage{margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,138,110,.28)}
+  /* .allure sets display:flex, which beats the browser's own [hidden] rule — so
+     the row stayed on screen after she was repaired, still reading SOMBRÉ. */
+  .allure.damage[hidden]{display:none}
   .allure.damage b{font-size:13px;text-align:right;max-width:74%}
   #helm{bottom:18px;left:50%;transform:translateX(-50%);width:min(720px,90vw);
     display:flex;gap:18px;align-items:stretch;padding:12px 16px}

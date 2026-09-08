@@ -331,6 +331,9 @@ Naval.ShipPhysics = class ShipPhysics {
     this.submergedFrac = submergedVol / this.hullVolume;
     this.draft = Math.max(0, ocean.sample(cog.x, cog.z, t) - lowestY);
 
+    // how far under the sea she now lies — the measure by which she is lost
+    this.depthBelow = ocean.sample(b.pos.x, b.pos.z, t) - b.pos.y;
+
     /* How much of her is still working the surface. The collar, the bow wave
        and the wake all belong to a hull CUTTING the water; once she is under
        they have to go, or a ring of foam is left riding over the wreck with

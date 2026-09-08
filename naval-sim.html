@@ -118,6 +118,11 @@
     </div>
   </div>
 
+  <div id="lost" hidden>
+    <b>Votre navire a sombré !</b>
+    <span>Elle repose par le fond. <kbd>R</kbd> pour la renflouer.</span>
+  </div>
+
   <div id="hint">
     <span id="camNote" hidden>Glisser — orienter · Molette — zoom · X — replanter ici</span>
     <button id="camBtn">Caméra : Poursuite</button>
@@ -200,7 +205,9 @@ async function main(){
     sel.appendChild(o);
   });
 
-  let spec, lines, ship, physics, cam, hud, t = 0, trimPending = false;
+  let spec, lines, ship, physics, cam, hud, t = 0, trimPending = false, lost = false;
+  const lostMsg = document.getElementById("lost");
+  const lostBox = new THREE.Box3();
 
   async function commission(index){
     spec = specs[index];
@@ -231,7 +238,18 @@ async function main(){
          the pumps; the second is what drowns her. */
       controls.onBreach   = ()=> physics.worsenBreach();
       controls.onPumps    = ()=> { physics.pumpOn = !physics.pumpOn; };
-      controls.onSalvage  = ()=> physics.salvage();
+      /* Plug, pump dry — and refloat her if she is already on the bottom, since
+         the same key has to be the way back from a loss. */
+      controls.onSalvage  = ()=> {
+        physics.salvage();
+        if(!lost) return;
+        const b = physics.body;
+        b.pos.y = hud.eqY; b.vel.set(0,0,0); b.angVel.set(0,0,0); b.quat.identity();
+        ship.group.visible = true;
+        cam.setMode(0);
+        lostMsg.hidden = true;
+        lost = false;
+      };
     }else{
       cam.setSpec(spec);
     }
@@ -250,6 +268,9 @@ async function main(){
        apparent wind is only known once the solver has run under the sea state
        refreshSea() has just restored — settle() ran her in a flat calm. */
     trimPending = true;
+    // a fresh vessel is not the lost one, whatever became of her predecessor
+    lost = false;
+    lostMsg.hidden = true;
     t = 0;
   }
 
@@ -293,6 +314,27 @@ async function main(){
     stage.renderer.getDrawingBufferSize(ocean.uniforms.uShipRes.value);
 
     ocean.update(t, stage.camera.position);
+    /* Ten metres down she is gone: hidden, the camera left holding the patch of
+       sea that swallowed her.
+
+       Measured on her HIGHEST point, not on her hull's origin. She founders
+       nearly upright, stern first, and rides down with her bow and her rig
+       still in the air — with the origin ten metres under, thirty-three metres
+       of mast were still standing above the sea, and hiding her there would
+       have snuffed them out in plain sight. On the topmost point she is
+       genuinely gone. It costs one bounding box per frame, and only once she
+       has foundered. */
+    if(!lost && physics.foundered){
+      lostBox.setFromObject(ship.group);
+      const sea = ocean.sample(physics.body.pos.x, physics.body.pos.z, t);
+      if(lostBox.max.y - sea < -10){
+        lost = true;
+        ship.group.visible = false;
+        cam.setMode(3, sea);            // hold the surface, not the wreck below it
+        lostMsg.hidden = false;
+      }
+    }
+
     hud.update(dt);
     // both offscreen passes must run before the sea that samples them
     stage.updateWeather(dt, parseFloat(document.getElementById('seaState').value));
