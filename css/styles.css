@@ -146,6 +146,17 @@
      the row stayed on screen after she was repaired, still reading SOMBRÉ. */
   .allure.damage[hidden]{display:none}
   .allure.damage b{font-size:13px;text-align:right;max-width:74%}
+  /* The chart, under the fleet. North-up, and big enough to read a bearing off. */
+  #chartPanel{top:506px;right:16px;width:236px}
+  #chart{display:block;margin:8px auto 0;border-radius:50%}
+  .chartFix{margin-top:8px;text-align:center;font-family:var(--mono);font-size:11px;
+    color:var(--accent);letter-spacing:.02em;font-variant-numeric:tabular-nums}
+  .chartZoom{display:flex;gap:6px;justify-content:center;margin-top:7px}
+  .chartZoom button{width:34px;font-family:var(--mono);font-size:13px;line-height:1;
+    padding:4px 0;border-radius:5px;cursor:pointer;color:var(--ink);
+    background:rgba(140,168,182,.16);border:1px solid rgba(200,220,232,.22)}
+  .chartZoom button:hover{background:rgba(140,168,182,.30)}
+
   /* Frame rate, bottom-left and deliberately quiet: it is a diagnostic, not an
      instrument, and must not compete with the bridge for attention. */
   #fps{position:absolute;left:16px;bottom:18px;display:flex;align-items:baseline;gap:6px;

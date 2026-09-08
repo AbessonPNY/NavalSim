@@ -32,6 +32,8 @@ logique est dans `js/`, en classes attachées à un espace de noms global `Naval
 | `ocean.js` | houle de Gerstner : shader GPU **et** échantillonnage CPU |
 | `foam.js` · `ssao.js` | champ d'écume persistant · occlusion ambiante du navire |
 | `underwater.js` | la coque vue à travers l'eau, extinction par canal |
+| `world.js` · `land.js` | les îles, en fonction pure de la position · leur maillage |
+| `chart.js` | la carte marine, le point et le sillage tracé |
 | `ship-model.js` | coque, gréement, voiles, sillage, chargement .glb |
 | `ship-physics.js` | sondes, corps rigide 6 ddl, gouvernail, voiles |
 | `controls.js` · `camera-rig.js` · `hud.js` | barre, caméras, instruments |
@@ -101,6 +103,45 @@ un compteur de boucle en est une, un paramètre de fonction non.
 En revanche la barre, les instruments et les caméras n'ont *pas* à devenir
 multiples : ce sont ceux du navire qu'on commande. Il leur faudra désigner
 lequel, pas se dupliquer.
+
+## Le monde ouvert
+
+**Il n'y a pas de fichier de carte, et il n'y en aura jamais.** Les îles sont
+une **fonction pure de la position** : un hachage sur une grille grossière de
+5,2 km, une île dans à peu près une case sur deux. La mer est donc sans fin,
+identique sur toutes les machines et d'une session à l'autre, et ne coûte rien à
+stocker. Revenir à 46° N y retrouve la même île, avec les mêmes baies.
+
+**`world.js` travaille en mètres monde VRAIS, jamais en coordonnées locales.**
+L'origine flottante fait glisser le zéro local à mesure qu'elle navigue ; une
+terre placée en local s'en irait sous elle à chaque recentrage. C'est aussi
+pourquoi `land.js` bâtit la géométrie dans le repère **de l'île** et se contente
+de la **positionner** à `île − origine` : une île ne change jamais, donc la
+recentrer est une affectation de vecteur, pas une reconstruction.
+
+**Le rivage n'est pas un cercle.** Le rayon est modulé par quelques harmoniques
+du relèvement, ce qui lui donne caps et anses — un disque se lit comme une pièce
+tombée dans l'eau, et aucun détail de relief ne l'en sauve. `Chart` trace son
+contour avec **le même `_shore`** que le maillage du terrain, donc la carte ne
+peut pas montrer une côte que l'œil ne trouve pas : c'est la règle du plan de
+formes unique, appliquée à la terre.
+
+**La brume a dû s'ouvrir.** Réglée à 2,4 km de portée quand il n'y avait rien à
+voir au-delà du navire, elle ne laissait passer que 11 % d'une île à un mille et
+la réduisait à une tache. Portée à environ 8 km — un jour clair plutôt qu'un
+jour de brume — sans quoi « terres à vue » ne veut rien dire.
+
+**Le point se prend en latitude et longitude.** Un mille marin **est** une
+minute de latitude, par définition, donc le nord se convertit exactement, sans
+projection ni bidouille. L'est se resserre en cosinus de la latitude, ce qui est
+réel : un degré de longitude fait 111 km à l'équateur et rien au pôle. L'ignorer
+fausserait toute distance lue sur la carte de ce facteur.
+
+**La carte est un canvas 2-D**, pas du WebGL : elle est plate, nord en haut,
+faite de traits fins et de texte — ce qu'un canvas fait bien et un shader mal —
+et la page a de toute façon 98 % de son image inoccupée. Elle trace en
+coordonnées **vraies** ; en local, le navire reviendrait au centre à chaque
+recentrage, ce qu'une carte ne doit jamais faire.
 
 ## Invariants à ne pas casser
 

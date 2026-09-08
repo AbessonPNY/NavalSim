@@ -142,6 +142,16 @@
     <div class="fleetNote" id="fleetNote"></div>
   </div>
 
+  <!-- Chart -->
+  <div id="chartPanel" class="panel">
+    <div class="lbl">Carte · <span id="chartScale">1.60 M</span></div>
+    <canvas id="chart" width="212" height="212"></canvas>
+    <div class="chartFix" id="chartFix">—</div>
+    <div class="chartZoom">
+      <button id="chartOut">−</button><button id="chartIn">+</button>
+    </div>
+  </div>
+
   <div id="lost" hidden>
     <b>Votre navire a sombré !</b>
     <span>Elle repose par le fond. <kbd>R</kbd> pour la renflouer.</span>
@@ -174,6 +184,9 @@
 <script src="js/foam.js"></script>
 <script src="js/ssao.js"></script>
 <script src="js/underwater.js"></script>
+<script src="js/world.js"></script>
+<script src="js/land.js"></script>
+<script src="js/chart.js"></script>
 <script src="js/ship-model.js"></script>
 <script src="js/ship-physics.js"></script>
 <script src="js/controls.js"></script>
@@ -192,6 +205,23 @@ async function main(){
   const stage    = new Naval.Stage(canvas);
   const ocean    = new Naval.Ocean(stage.scene, stage.sunDir, stage);
   ocean.useShipBuffer(stage.shipBuf, stage.camera);   // so she shows through the water
+
+  /* The world she sails in, and the land drawn out of it. The land breathes the
+     same air as everything else, so each new island is hazed as it appears. */
+  const world = new Naval.World();
+  const land  = new Naval.Land(stage.scene, world, stage);
+  land.onNew = m => { Naval.applyHaze(m.material, ocean.uniforms); };
+
+  /* Land you can steer for has to be VISIBLE. The haze was tuned when there was
+     nothing beyond the ship to see, at 2.4 km of visibility — an island a mile
+     off came through at 11 % and read as a smudge. Opened to about 8 km, which
+     is a clear day rather than a hazy one, and still leaves the sea its depth. */
+  ocean.uniforms.uHaze.value = 0.0005;
+
+  const chart = new Naval.Chart(document.getElementById("chart"), world,
+    { fix:document.getElementById("chartFix"), scale:document.getElementById("chartScale") });
+  document.getElementById("chartIn") .addEventListener("click", ()=> chart.zoom(1/1.6));
+  document.getElementById("chartOut").addEventListener("click", ()=> chart.zoom(1.6));
   const foam     = new Naval.FoamField(stage.renderer, ocean.uniforms);
   ocean.attachFoam(foam);
   const controls = new Naval.Controls();
@@ -234,6 +264,9 @@ async function main(){
   let spec, lines, ship, physics, cam, hud, t = 0, trimPending = false, lost = false;
   const lostMsg = document.getElementById("lost");
   const lostBox = new THREE.Box3();
+  const worldPos = new THREE.Vector3(), chartHdg = new THREE.Vector3();
+  const chartFleet = [];
+  let chartTick = 0;
   const fleet = [];
   let fleetTick = 0, fpsFrames = 0, fpsAccum = 0, fpsWork = 0;
   const fpsEls = { box:document.getElementById("fps"),
@@ -443,6 +476,7 @@ async function main(){
   Naval.app = { stage, ocean, foam, controls,
                 get physics(){ return physics; }, get ship(){ return ship; },
                 get cam(){ return cam; }, get hud(){ return hud; },
+                world, land, chart,
                 get fleet(){ return fleet; } };
 
   let last = performance.now();
@@ -501,6 +535,24 @@ async function main(){
       cam.rebase(dx, dz);
       for(const e of fleet) if(e.ship) e.ship.syncTo(e.body);
       ship.syncTo(physics.body);
+    }
+
+    /* Her TRUE position, which is the only thing the world may be asked about:
+       local coordinates mean nothing to land that has to stay where it is. */
+    worldPos.set(ocean.origin.x + physics.body.pos.x, 0,
+                 ocean.origin.z + physics.body.pos.z);
+    land.update(worldPos, ocean.origin);
+    chart.note(worldPos.x, worldPos.z);
+    chartTick += dt;
+    if(chartTick > 0.25){
+      chartTick = 0;
+      /* The whole fleet in TRUE coordinates. Built here rather than in the
+         chart, which has no business knowing how the origin is carried. */
+      chartFleet.length = 0;
+      for(const e of fleet) chartFleet.push({
+        x: ocean.origin.x + e.body.pos.x, z: ocean.origin.z + e.body.pos.z });
+      chartHdg.set(0,0,1).applyQuaternion(physics.body.quat);
+      chart.draw(worldPos, Math.atan2(chartHdg.x, chartHdg.z), chartFleet);
     }
 
     stage.aimSun(physics.body.pos);       // the shadow box travels with her
