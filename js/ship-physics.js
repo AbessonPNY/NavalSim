@@ -34,10 +34,44 @@ Naval.ShipPhysics = class ShipPhysics {
     spec.checkFlotation(this.hullVolume, C.RHO);
     this._buildCompartments();
 
+    /* What she may load before she is down to her marks. Not a number chosen
+       for balance: it is the weight that brings her to 85 % of her hull
+       submerged, which is deep. She may be loaded past it — nothing prevents
+       it, and being able to ruin a ship by overloading her is the point — but
+       the console will be showing red long before she goes. */
+    this.cargoCapacity = Math.max(0,
+      (0.85*this.hullVolume*C.RHO - spec.massKg)/1000);
+
     /* Flooding, by the added-weight method: water aboard is weight at the place
        it actually lies. Nothing about sinking is scripted — she founders when
        that weight beats what her hull can displace, and she capsizes first if it
        lies badly, which is what usually really happens. */
+    /* CARGO. The same idea as the water she takes aboard, and deliberately the
+       same machinery: a weight, at the place it actually lies. The difference
+       is that cargo is DEAD weight — it is lashed down and does not slosh — so
+       it brings no free surface with it, and that is the whole of the
+       distinction in the arithmetic.
+
+       Where it is stowed matters more than how much of it there is, which is
+       the point of allowing it to be placed at all:
+
+       · fore and aft it changes her TRIM, and a bow buried by a badly stowed
+         hold is how a ship takes the sea green over her forecastle;
+       · athwartships it gives her a LIST she cannot steer out of;
+       · and high or low it moves G, which is the dangerous one. Weight on deck
+         buys nothing and eats the metacentric height that keeps her upright —
+         the classic way to lose a ship that is otherwise perfectly sound.
+
+       Stowed into the same compartments the flooding uses, because they are
+       cut on the probe grid and so their volumes, breadths and heights are
+       real hull, measured on the same lines as everything else. */
+    this.cargo = [];
+    this.cargoTonnes = 0;
+    /* NOT initialised here. Her capacity needs the hull volume, which is only
+       known once the probes are built — and the probes are built ABOVE this
+       block, so a zero written here would quietly overwrite the real figure.
+       It did, and the console read a capacity of nought. */
+
     this.breaches = [];
     this.floodVol = 0;                     // m³ aboard, all compartments
     this.floodTonnes = 0;
@@ -138,6 +172,31 @@ Naval.ShipPhysics = class ShipPhysics {
     this._down=new THREE.Vector3(); this._wc=new THREE.Vector3();
     this._com=new THREE.Vector3();
   }
+
+  /* Stow, or strike down. `hold` is 0 aft to NCOMP-1 forward, `level` is the
+     height in the hold as a fraction of its depth, `side` is -1 to +1 across
+     her. Tonnes may be negative, which lands it back on the quay. */
+  loadCargo(hold, level, side, tonnes){
+    const c = this.comps[Math.max(0, Math.min(this.comps.length-1, hold|0))];
+    if(!c || c.cap <= 0) return 0;
+    let slot = this.cargo.find(p => p.hold === hold && p.level === level && p.side === side);
+    if(!slot){
+      slot = { hold, level, side, kg:0, at:new THREE.Vector3() };
+      /* The place is worked out ONCE and kept. It is fixed in her own frame —
+         cargo does not move about the hold as she rolls, which is exactly what
+         separates it from the water in her bilges. */
+      slot.at.set(side*0.55*c.halfB,
+                  c.keelY + level*(c.deckY - c.keelY),
+                  c.mid.z);
+      this.cargo.push(slot);
+    }
+    slot.kg = Math.max(0, slot.kg + tonnes*1000);
+    if(slot.kg < 1) this.cargo.splice(this.cargo.indexOf(slot), 1);
+    this._updateMass();
+    return this.cargoTonnes;
+  }
+
+  clearCargo(){ this.cargo.length = 0; this._updateMass(); }
 
   /* Divide her into compartments along her length, out of the probes that
      already describe her volume — so a compartment's capacity is real hull
@@ -241,15 +300,20 @@ Naval.ShipPhysics = class ShipPhysics {
     this.floodTonnes = vol*C.RHO/1000;
 
     const wm = vol*C.RHO;
-    b.mass = S.massKg + wm;
+    let cargoKg = 0;
+    for(const p of this.cargo) cargoKg += p.kg;
+    this.cargoTonnes = cargoKg/1000;
+    b.mass = S.massKg + wm + cargoKg;
 
-    if(wm < 1e-6){ b.com.copy(this._dryCom); }
+    if(wm < 1e-6 && cargoKg < 1e-6){ b.com.copy(this._dryCom); }
     else{
       // which way is down, in her own frame — this carries heel AND trim
       this._down.set(0,-1,0).applyQuaternion(this._qc.copy(b.quat).invert());
       const lat = this._down.x, lon = this._down.z;
 
       this._com.copy(this._dryCom).multiplyScalar(S.massKg);
+      // cargo first: fixed in her frame, and no free surface of its own
+      for(const p of this.cargo) this._com.addScaledVector(p.at, p.kg);
       for(const c of this.comps){
         if(c.vol <= 1e-9) continue;
         const f = c.vol/c.cap;

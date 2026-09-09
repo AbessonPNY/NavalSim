@@ -186,6 +186,30 @@
 
   /* Under the sea console: the vessels afloat, and the way to add one. */
   #fleetPanel{top:398px;right:16px;width:236px}
+  /* In the gap between the attitude column and the sea console. It goes with
+     the attitude panel on a narrow screen, being the same kind of luxury. */
+  #cargoPanel{top:16px;left:470px;width:238px}
+  .stowGrid{display:grid;grid-template-columns:34px repeat(5,1fr);gap:3px;margin-top:8px}
+  .stowGrid .hd{font-family:var(--mono);font-size:9px;color:var(--muted);
+    display:flex;align-items:center;justify-content:center;letter-spacing:.04em}
+  .stowGrid button{font-family:var(--mono);font-size:10px;color:var(--ink);
+    background:var(--panel);border:1px solid var(--line);border-radius:3px;
+    padding:5px 0;cursor:pointer;font-variant-numeric:tabular-nums}
+  .stowGrid button:hover{border-color:var(--accent);color:var(--accent)}
+  .stowGrid button.has{background:rgba(70,224,208,.12);border-color:var(--accent);color:var(--accent)}
+  /* Weight on deck is the one that kills a ship, so it is marked as a warning
+     the moment there is any of it there. */
+  .stowGrid button.high{background:rgba(255,176,71,.14);border-color:var(--warn);color:var(--warn)}
+  .stowSide{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:8px}
+  .stowSide button,.stowFoot button{font-family:var(--disp);font-weight:600;font-size:10px;
+    letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:var(--panel);
+    border:1px solid var(--line);border-radius:3px;padding:5px 0;cursor:pointer}
+  .stowSide button:hover,.stowFoot button:hover{border-color:var(--accent);color:var(--accent)}
+  .stowSide button.on{background:rgba(70,224,208,.14);border-color:var(--accent);color:var(--accent)}
+  .stowFoot{display:grid;grid-template-columns:28px 1fr 28px 60px;gap:4px;
+    align-items:center;margin-top:6px}
+  .stowFoot b{font-family:var(--mono);font-size:11px;color:var(--ink);text-align:center;
+    font-variant-numeric:tabular-nums}
   #fleetList{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
   .fleetRow{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px}
   .fleetRow .nm{flex:1;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -235,7 +259,7 @@
   .flash{animation:flash .5s ease}
   @keyframes flash{0%,100%{color:var(--ink)}50%{color:var(--warn)}}
   @media (max-width:720px){
-    #attitude{display:none}
+    #attitude,#cargoPanel{display:none}
     #instruments{width:210px}
     #sea{width:200px}
   }

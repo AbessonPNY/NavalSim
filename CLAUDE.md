@@ -1564,6 +1564,65 @@ l'embrun suspendu à quinze cents mètres derrière. L'explosion avait la même
 faute en sommeil depuis le début — trois secondes de vol suffisent à croiser un
 recentrage.
 
+## Le fret, et où on le met
+
+**Le fret est la même chose que l'eau embarquée, et c'est délibérément la même
+machinerie** : un poids, à l'endroit où il repose. La méthode du poids ajouté
+était déjà écrite pour l'envahissement ; charger un navire n'a demandé que de
+lui donner un second client. Une seule différence dans l'arithmétique, et elle
+est la bonne : le fret est du poids **mort**, saisi et arrimé, donc il n'apporte
+aucune carène liquide. Il alourdit et déplace le centre de gravité ; il ne
+ballotte pas.
+
+Il se range dans les **compartiments de l'envahissement**, parce qu'ils sont
+découpés sur la grille de sondes : une cale est donc du vrai volume de coque,
+avec une largeur et une hauteur mesurées sur le même plan de formes que tout le
+reste. Trois hauteurs et cinq compartiments — assez pour que l'arrimage soit une
+décision, pas assez pour que ce soit un tableur.
+
+**L'endroit compte plus que la quantité, et c'est tout l'intérêt de pouvoir le
+choisir.** Relevé sur le chaland, lège 210 t, avec 120 t de fret :
+
+| arrimage | déplacement | immersion | assiette | gîte | GM |
+|---|---|---|---|---|---|
+| à vide | 210 t | 39 % | 1,2° | 0° | 2,37 |
+| fond, au milieu | 330 t | 61 % | 1,8° | 0° | **2,48** |
+| fond, **à l'avant** | 330 t | 61 % | **16,2°** | 0° | 2,48 |
+| **sur le pont** | 330 t | 61 % | 1,8° | 0° | **1,85** |
+| entrepont, **à tribord** | 330 t | 60 % | 1,7° | **−16°** | 2,18 |
+
+Trois leçons, et aucune n'a été écrite à la main :
+
+- **d'avant en arrière, c'est l'assiette.** Cent vingt tonnes dans la cale
+  avant enfoncent l'étrave de seize degrés et portent le tirant de 2,35 m à
+  5,48 — c'est ainsi qu'un navire mal chargé embarque la mer par l'avant ;
+- **en travers, c'est une gîte qu'aucune barre ne rattrape.** Seize degrés pour
+  le même poids mis à tribord, et deux cents tonnes en font trente-sept, ce qui
+  est la limite du raisonnable ;
+- **en hauteur, c'est le GM, et c'est la dangereuse.** Du poids sur le pont
+  n'achète rien et coûte un quart de la hauteur métacentrique. Du lest au fond
+  de cale fait l'inverse et la **raidit** — 2,48 contre 2,37 à vide. C'est la
+  manière classique de perdre un navire par ailleurs sain, et elle est ici
+  gratuite : elle sort du calcul du centre de gravité, pas d'une règle ajoutée.
+
+**Sa capacité n'est pas un chiffre d'équilibrage** : c'est le poids qui l'amène
+à 85 % de coque immergée, ce qui est déjà bas sur l'eau. Rien n'empêche de la
+charger au-delà — pouvoir ruiner un navire en le surchargeant est précisément
+l'intérêt — mais la console vire à l'orange puis au rouge bien avant qu'elle ne
+s'en aille.
+
+**Le déplacement affiché est devenu vivant.** Il donnait la valeur de la fiche,
+qui ne bougeait jamais et ne disait donc rien ; il donne maintenant ce qu'elle
+pèse réellement — lège, plus le fret, plus l'eau prise. Tout l'intérêt de
+charger un navire est de le voir s'alourdir et s'enfoncer.
+
+**Un piège d'ordre d'initialisation.** La capacité a besoin du volume de coque,
+qui n'est connu qu'une fois les sondes construites — et les sondes se
+construisent AVANT le bloc où vivent les autres champs. Un `= 0` d'apparence
+inoffensive écrivait donc par-dessus la vraie valeur, et la console annonçait
+une capacité de zéro. Le champ n'est plus initialisé là, et la raison est
+écrite sur place.
+
 ## Les quatre caméras
 
 **La vue de poursuite a été retirée**, remplacée par une vue de **proue**
@@ -1609,7 +1668,8 @@ donc reprise.
 **`H` fait le vide.** Tout ce qui n'est pas la mer disparaît, message de naufrage
 compris : le but est une image propre, et une demi-interface est pire que
 l'interface entière. Les commandes continuent de répondre — on masque les
-cadrans, on ne met pas le navire en panne.
+cadrans, on ne met pas le navire en panne. `F` cache le seul plan d'arrimage,
+qui ne sert qu'à quai.
 
 ## Conventions
 

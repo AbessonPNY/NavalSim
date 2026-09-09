@@ -37,6 +37,11 @@
     </div>
     <div class="hair"></div>
     <div class="readouts">
+      <div class="ro"><span class="k">Frêt</span><span class="v"><span id="roCargo">0</span><small>t</small></span></div>
+      <div class="ro"><span class="k">Capacité</span><span class="v"><span id="roCargoPct">0</span><small>%</small></span></div>
+    </div>
+    <div class="hair"></div>
+    <div class="readouts">
       <div class="ro"><span class="k">Eau embarquée</span><span class="v"><span id="roFlood">0</span><small>t</small></span></div>
       <div class="ro"><span class="k">Pompes</span><span class="v" style="font-size:15px"><span id="roPumps">—</span></span></div>
     </div>
@@ -112,6 +117,21 @@
       <button data-s="8">Tempête</button>
     </div>
     <div class="wxAuto"><button id="autoWx">Météo automatique</button></div>
+  </div>
+
+  <!-- Stowage -->
+  <div id="cargoPanel" class="panel">
+    <div class="lbl">Cale · arrimage</div>
+    <div class="hair"></div>
+    <div class="stowGrid" id="stowGrid"></div>
+    <div class="stowSide" id="stowSide">
+      <button data-s="-1">Bâbord</button><button data-s="0" class="on">Centre</button><button data-s="1">Tribord</button>
+    </div>
+    <div class="stowFoot">
+      <button id="stepDn">−</button><b id="stepVal">10 t</b><button id="stepUp">+</button>
+      <button id="cargoClear">Vider</button>
+    </div>
+    <div class="fleetNote">Clic : charger · clic droit : décharger · <kbd>F</kbd> masquer</div>
   </div>
 
   <!-- Helm -->
@@ -265,6 +285,82 @@ async function main(){
     ph.onSlam = (at, rate, speed) => splash.burst(at, rate*0.12, speed);
   }
 
+  /* --- the hold ---
+     Three heights and five compartments, which is enough to make stowage a
+     real decision without turning it into a spreadsheet. The compartments are
+     the ones the flooding already uses, so a hold is a real piece of hull with
+     a measured volume, breadth and depth rather than a box drawn on a plan. */
+  const LEVELS = [
+    { name:'Pont',  y:0.85 },   // on deck: buys nothing, costs stability
+    { name:'Entre', y:0.50 },
+    { name:'Fond',  y:0.18 }    // bottom of the hold: ballast, and she stiffens
+  ];
+  const HOLDS = ['Ar', '2', '3', '4', 'Av'];
+  const STEPS = [1, 5, 10, 25, 50, 100];
+  const stowGrid = document.getElementById('stowGrid');
+  const stowSideEls = document.getElementById('stowSide');
+  const stepVal = document.getElementById('stepVal');
+  let stowSide = 0, stepIdx = 2;
+  const stowCells = [];
+
+  function stow(hold, level, tonnes){
+    physics.loadCargo(hold, level, stowSide, tonnes);
+    refreshStow();
+  }
+
+  function buildStow(){
+    stowGrid.innerHTML = '';
+    stowCells.length = 0;
+    const corner = document.createElement('div');
+    corner.className = 'hd';
+    stowGrid.appendChild(corner);
+    for(const h of HOLDS){
+      const d = document.createElement('div');
+      d.className = 'hd'; d.textContent = h;
+      stowGrid.appendChild(d);
+    }
+    for(const L of LEVELS){
+      const lab = document.createElement('div');
+      lab.className = 'hd'; lab.textContent = L.name;
+      stowGrid.appendChild(lab);
+      for(let i=0;i<HOLDS.length;i++){
+        const btn = document.createElement('button');
+        btn.title = L.name + ' · cale ' + HOLDS[i];
+        btn.addEventListener('click', ()=> stow(i, L.y, STEPS[stepIdx]));
+        // the quay side of the same gesture; no second mode to remember
+        btn.addEventListener('contextmenu', e=>{ e.preventDefault(); stow(i, L.y, -STEPS[stepIdx]); });
+        stowGrid.appendChild(btn);
+        stowCells.push({ el:btn, hold:i, level:L.y, deck:L.y > 0.7 });
+      }
+    }
+  }
+
+  function refreshStow(){
+    for(const c of stowCells){
+      let t = 0;
+      for(const p of physics.cargo)
+        if(p.hold === c.hold && p.level === c.level) t += p.kg/1000;
+      c.el.textContent = t > 0 ? (t < 10 ? t.toFixed(1) : Math.round(t)) : '·';
+      c.el.classList.toggle('has', t > 0 && !c.deck);
+      c.el.classList.toggle('high', t > 0 && c.deck);
+    }
+  }
+
+  stowSideEls.addEventListener('click', e=>{
+    const b = e.target.closest('button');
+    if(!b) return;
+    stowSide = parseFloat(b.dataset.s);
+    [...stowSideEls.children].forEach(x => x.classList.toggle('on', x === b));
+  });
+  function showStep(){ stepVal.textContent = STEPS[stepIdx] + ' t'; }
+  document.getElementById('stepUp').addEventListener('click', ()=>{
+    stepIdx = Math.min(STEPS.length-1, stepIdx+1); showStep(); });
+  document.getElementById('stepDn').addEventListener('click', ()=>{
+    stepIdx = Math.max(0, stepIdx-1); showStep(); });
+  document.getElementById('cargoClear').addEventListener('click', ()=>{
+    physics.clearCargo(); refreshStow(); });
+  buildStow(); showStep();
+
   const weather = new Naval.Weather();
   const wxBtn = document.getElementById('autoWx');
   const seaSlider = document.getElementById('seaState');
@@ -381,6 +477,10 @@ async function main(){
       hud = new Naval.HUD(ocean, physics, controls, cam, spec, stage);
       controls.onCycleCam = ()=> cam.cycle();
       controls.onToggleHud = ()=> document.getElementById('app').classList.toggle('nohud');
+      controls.onToggleCargo = ()=> {
+        const el = document.getElementById('cargoPanel');
+        el.style.display = (el.style.display === 'none') ? '' : 'none';
+      };
       controls.onReplant  = ()=> { if(cam.mode===0 || cam.mode===3) cam.plant(); };
       controls.onTrim     = ()=> {
         if(physics.optSheet !== null) controls.state.sheet = physics.optSheet;
@@ -457,6 +557,8 @@ async function main(){
        rather than here, because the trim depends on the apparent wind, and the
        apparent wind is only known once the solver has run under the sea state
        refreshSea() has just restored — settle() ran her in a flat calm. */
+    // a new hull is an empty hull: the stowage plan must say so
+    refreshStow();
     trimPending = true;
     // a fresh vessel is not the lost one, whatever became of her predecessor
     lost = false;

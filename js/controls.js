@@ -18,6 +18,7 @@ Naval.Controls = class Controls {
     this.onSalvage = null;
     this.onBlowUp = null;         // the powder magazine, for the fun of it
     this.onToggleHud = null;      // clear the instruments off the glass
+    this.onToggleCargo = null;    // show or hide the stowage plan
 
     addEventListener('keydown', e=>{
       const k = e.key.toLowerCase();
@@ -32,6 +33,7 @@ Naval.Controls = class Controls {
       if(k==='r' && this.onSalvage) this.onSalvage();
       if(k==='k' && this.onBlowUp) this.onBlowUp();
       if(k==='h' && this.onToggleHud) this.onToggleHud();
+      if(k==='f' && this.onToggleCargo) this.onToggleCargo();
     });
     addEventListener('keyup', e=>{ this.keys[e.key.toLowerCase()] = false; });
   }

@@ -23,6 +23,7 @@ Naval.HUD = class HUD {
       shtText:el('shtText'), shtBar:el('shtBar'), shtTele:el('shtTele'),
       shtOpt:el('shtOpt'),
       flood:el('roFlood'), pumps:el('roPumps'),
+      cargo:el('roCargo'), cargoPct:el('roCargoPct'),
       damageRow:el('damageRow'), damage:el('roDamage'),
       wind:el('roWind'), appWind:el('roAppWind'), point:el('roPoint'),
       dot:el('statusDot'),
@@ -81,6 +82,7 @@ Naval.HUD = class HUD {
     this.spec = spec;
     if(physics) this.physics = physics;
     if(this.el.shipName) this.el.shipName.textContent = spec.name;
+    // her light displacement; the readout goes live once she is loaded
     if(this.el.tonnage)  this.el.tonnage.textContent = Math.round(spec.tonnes);
     if(this.el.dims){
       this.el.dims.textContent = spec.L.toFixed(0)+' × '+spec.B.toFixed(1)+' m';
@@ -217,6 +219,21 @@ Naval.HUD = class HUD {
     e.draft.textContent = p.draft.toFixed(2);
     e.heave.textContent = (b.pos.y - this.eqY).toFixed(2);
     e.submerged.textContent = Math.round(p.submergedFrac*100);
+
+    /* Displacement is now what she ACTUALLY weighs — light ship, plus her
+       freight, plus whatever water she has taken. It used to be the figure off
+       her specification, which never moved and so said nothing: the whole point
+       of loading a ship is to watch her get heavier and see her settle. */
+    if(e.tonnage) e.tonnage.textContent = Math.round(b.mass/1000);
+    if(e.cargo){
+      const c = p.cargoTonnes || 0;
+      e.cargo.textContent = c < 10 ? c.toFixed(1) : Math.round(c);
+      const pct = p.cargoCapacity > 0 ? 100*c/p.cargoCapacity : 0;
+      e.cargoPct.textContent = Math.round(pct);
+      /* Past her marks she is not merely full, she is dangerous, and the
+         console should say so before the sea does. */
+      e.cargoPct.style.color = pct > 100 ? 'var(--crit)' : pct > 85 ? 'var(--warn)' : '';
+    }
     // indicative GM: lower CoG and wider beam ⇒ stiffer
     const S = this.spec;
     const gm = (S.B*S.B)/(12*(S.D*0.46)) - (b.com.y + S.deckMid);
