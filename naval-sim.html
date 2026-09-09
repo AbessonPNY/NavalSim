@@ -165,7 +165,7 @@
       <div class="telegraph" id="shtTele">— voiles établies —</div>
       <div class="keys"><kbd>Q</kbd><kbd>E</kbd> écoutes · <kbd>T</kbd> au mieux · <kbd>V</kbd> ferler</div>
       <div class="keys"><kbd>B</kbd> voie d&apos;eau · <kbd>P</kbd> pompes · <kbd>R</kbd> réparer · <kbd>K</kbd> sauter</div>
-      <div class="keys"><kbd>G</kbd> bordée tribord · <kbd>⇧G</kbd> bâbord</div>
+      <div class="keys"><kbd>G</kbd> un coup · maintenu, la bordée · <kbd>⇧G</kbd> bâbord</div>
       <div class="keys"><kbd>H</kbd> masquer l&apos;affichage</div>
     </div>
   </div>
@@ -598,9 +598,10 @@ async function main(){
            smoke that says the rest. */
         ship.dropAllMasts();
       };
-      controls.onFire = side => {
+      controls.onFire = (side, held) => {
         if(!ship.guns.length){ hud.flash && hud.flash(); return; }
-        guns.broadside(ship.guns, side, physics.body, spec, ocean.windVec);
+        if(held) guns.broadside(ship.guns, side, physics.body, spec, ocean.windVec);
+        else     guns.fireOne(ship.guns, side, physics.body, spec, ocean.windVec);
       };
       controls.onSalvage  = ()=> {
         physics.salvage();

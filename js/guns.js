@@ -81,6 +81,8 @@ Naval.Guns = class Guns {
     this.live = [];
     this._queue = [];
     this.shot = [];            // round shot in the air
+    // which gun speaks next, one cursor per side: [babord, tribord]
+    this._next = [0, 0];
     this.targets = [];         // fleet entries a ball may find, set by the page
     this.onRecoil = null;      // wired by the page, so the hull answers back
     this.onSplash = null;      // ... and so the sea answers back
@@ -130,21 +132,54 @@ Naval.Guns = class Guns {
     return m;
   }
 
-  /* A BROADSIDE, gun by gun rather than all together.
+  _battery(muzzles, side){
+    const out = [];
+    for(const g of muzzles) if(g.side === side) out.push(g);
+    return out;
+  }
 
-     They were fired in ripple down the side, a beat apart, and not for show:
-     a whole battery let off at one instant is a single shove, and it both
-     sounds and looks like one object breaking. Rippled, the eye follows it
-     along her side and reads a row of guns. Same argument as the three charges
-     in the magazine, and the masts going over one after another. */
+  /* ONE GUN, and the next one next time. A tap on the key is a single piece
+     going off, and the battery is walked down from forward to aft press by
+     press — which is how a gundeck is actually worked when it is not firing
+     together, and gives the player something to do between broadsides. */
+  fireOne(muzzles, side, body, spec, wind){
+    const g = this._battery(muzzles, side);
+    if(!g.length) return 0;
+    const s = side > 0 ? 1 : 0;
+    const i = this._next[s] % g.length;
+    this._next[s] = (i + 1) % g.length;
+    this._queue.push({ t:0, g:g[i], body, spec, wind });
+    return 1;
+  }
+
+  /* THE WHOLE BROADSIDE, gun by gun rather than all together.
+
+     They were fired in ripple down the side, a beat apart, and not for show: a
+     whole battery let off at one instant is a single shove, and it both sounds
+     and looks like one object breaking. Rippled, the eye follows it along her
+     side and reads a row of guns. Same argument as the three charges in the
+     magazine, and the masts going over one after another.
+
+     And the ripple is IRREGULAR, which matters more than it sounds. An even
+     ninth of a second between guns is a drum roll — a machine, not a crew.
+     Every gun has its own captain waiting for his own moment, his own quill,
+     his own match; the intervals scatter, and now and then one hangs fire
+     altogether and speaks well after its neighbour. That stutter is most of
+     what makes a broadside sound crewed, and it costs two lines. */
   broadside(muzzles, side, body, spec, wind){
-    let n = 0;
-    for(const g of muzzles){
-      if(g.side !== side) continue;
-      this._queue.push({ t:-n*0.09, g, body, spec, wind });
-      n++;
+    const g = this._battery(muzzles, side);
+    if(!g.length) return 0;
+    const s = side > 0 ? 1 : 0;
+    const start = this._next[s] % g.length;
+    let delay = 0;
+    for(let n = 0; n < g.length; n++){
+      this._queue.push({ t:-delay, g:g[(start + n) % g.length], body, spec, wind });
+      delay += 0.05 + Math.random()*0.13;
+      if(Math.random() < 0.18) delay += 0.12 + Math.random()*0.30;   // one hangs fire
     }
-    return n;
+    // every piece has spoken, so the next tap starts where this salvo did
+    this._next[s] = start;
+    return g.length;
   }
 
   /* One gun. `g` is a muzzle in the HULL's frame, so it is carried round by her
@@ -174,7 +209,24 @@ Naval.Guns = class Guns {
        towering one is laid well down, with nothing to set per ship. */
     const overSea = Math.max(0, g.p.y + body.pos.y);
     const elev = -Math.max(0, overSea - 2.9)/300;      // 2,9 m is the drop at 300 m
-    this._d.set(g.side, elev, 0).applyQuaternion(body.quat).normalize();
+
+    /* And it is laid against the HORIZON, not against her deck. A gun captain
+       sights along his piece at the enemy's waterline and works the quoin until
+       it bears; her heel is his problem, not the ball's.
+
+       Laid on the deck instead — which is what taking the hull's attitude
+       whole amounts to — the steady heel she carries under canvas decides
+       everything, and the measurement was brutal: from the same ship in the
+       same breath, the weather battery threw its shot 830 m and the lee battery
+       put it in the water at 45. One side at the moon and the other into her
+       own side. Every ship that ever fought under sail carried that heel; what
+       they did about it was aim. */
+    this._d.set(g.side, 0, 0).applyQuaternion(body.quat);
+    this._d.y = 0;                       // her bearing, taken flat
+    if(this._d.lengthSq() < 1e-6) this._d.set(g.side, 0, 0);
+    this._d.normalize();
+    this._d.y = elev;                    // and then the quoin, against the sea
+    this._d.normalize();
     const at = this._p.clone(), out = this._d.clone();
     // something to spread the jet about, square to the way it points
     const up = new THREE.Vector3(0,1,0);
@@ -263,11 +315,16 @@ Naval.Guns = class Guns {
        She also throws it from a moving deck, so the ship's own way goes into
        it. And guns scatter: a smoothbore firing a ball that rattles down the
        barrel was not a precision instrument. */
+    /* No two charges alike either. Powder was made by hand, scooped or
+       cartridged by hand, and rammed by a man in a hurry: a few per cent either
+       way on the charge is generous rather than pessimistic, and it scatters
+       the fall of shot on its own without a second rule about accuracy. */
+    const charge = 0.94 + Math.random()*0.12;
     const spread = 0.010;
     const v0 = out.clone()
       .applyAxisAngle(sideV, (Math.random()-0.5)*spread)
       .applyAxisAngle(up,    (Math.random()-0.5)*spread)
-      .multiplyScalar(440)
+      .multiplyScalar(440*charge)
       .add(body.vel);
     const m = new THREE.Mesh(this.ballGeom, this.ballMat);
     m.position.copy(at);
@@ -421,10 +478,48 @@ Naval.Guns = class Guns {
 
   update(dt, wind, ocean, t){
     this._flight(dt, ocean, t);
+    /* SHE FIRES ON THE ROLL, and this is not a refinement — without it the
+       guns are useless in any sea worth sailing.
+
+       The laying is worth eight hundredths of a degree. Her PITCH in a force 4
+       is four, fifty times as much, and it goes straight into the barrel: the
+       muzzle sweeps up and down as she works, and a shot loosed on the up-roll
+       goes over everything. Measured, the same broadside from the same ship:
+       fell at 178 m in flat water — which is the point-blank the laying was
+       built for — and at 799 m by force 4. Four times too far, every time.
+
+       So each gun waits for its own moment, as its captain did: once its turn
+       in the ripple has come it holds until the piece is COMING DOWN, and only
+       then speaks. It is the oldest trick on a gundeck and the reason
+       broadsides were ragged — every captain judging his own roll, which is the
+       same irregularity the ripple already has, now arising rather than
+       imposed. And he cannot wait for ever: two seconds and a half, and he
+       fires whatever she is doing.
+
+       Coming DOWN and not level, which took a wrong turn to see. A gun points
+       athwartships, so her PITCH barely touches it — rotating about the
+       athwartships axis leaves an athwartships barrel where it was. What lifts
+       a gun is her HEEL, and under canvas she carries a steady one: the weather
+       battery looks at the sky and the lee battery at the water, all day, which
+       is true of every ship that ever fought under sail. Waiting for level
+       therefore never came true on the weather side at all, and every piece
+       went off on the timeout instead — the same 800 m in a flat calm as in a
+       gale, which is how the mistake announced itself.
+
+       The rate is the honest test: fire while the muzzle is descending, whatever
+       height it is descending from. */
     for(let i=this._queue.length-1; i>=0; i--){
       const q = this._queue[i];
       q.t += dt;
-      if(q.t >= 0){ this.fire(q.g, q.body, q.spec, q.wind); this._queue.splice(i,1); }
+      if(q.t < 0) continue;
+      if(q.t < 2.5){
+        this._d.set(q.g.side, 0, 0).applyQuaternion(q.body.quat);
+        // d/dt of the muzzle's height is (omega x d).y — negative is coming down
+        this._a.crossVectors(q.body.angVel, this._d);
+        if(this._a.y > -0.004) continue;        // still rising, or dead still: hold
+      }
+      this.fire(q.g, q.body, q.spec, q.wind);
+      this._queue.splice(i,1);
     }
     const wx = wind ? wind.x : 0, wz = wind ? wind.z : 0;
 

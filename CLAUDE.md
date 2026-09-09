@@ -2161,12 +2161,33 @@ où il y en a douze**, toutes sur l'avant — et c'est la forme même du navire 
 en était la cause. Corrigé, la lecture donne les douze, et l'on voit la muraille
 rentrer : x passe de 7,54 à 6,72 m et y monte de 5,95 à 6,68 avec la tonture.
 
-**La bordée part pièce par pièce**, à un dixième de seconde d'écart. Elles
-étaient tirées en roulement le long du bord, et pas pour la parade : une
-batterie lâchée d'un seul coup est une seule poussée, et cela se lit comme un
-seul objet qui casse. En roulement, l'œil suit le long de sa muraille et lit une
-**rangée de canons**. Même argument que les trois charges de la soute et que les
-mâts qui tombent l'un après l'autre.
+**Une pression, un coup ; la touche maintenue, la bordée.** Un appui fait parler
+une seule pièce, et la batterie se descend d'avant en arrière appui par appui —
+ce qui donne quelque chose à faire entre deux salves et correspond à la manière
+dont on sert un pont quand on ne tire pas ensemble. Les deux gestes se
+distinguent par le **drapeau de répétition du navigateur** plutôt que par une
+horloge à nous : le premier événement d'une pression porte `repeat` faux et
+tous les suivants vrai, et un verrou empêche un maintien long de lâcher salve
+sur salve.
+
+**La bordée part pièce par pièce, et à intervalles IRRÉGULIERS.** Elles étaient
+tirées en roulement le long du bord, et pas pour la parade : une batterie lâchée
+d'un seul coup est une seule poussée, et cela se lit comme un seul objet qui
+casse. Même argument que les trois charges de la soute et que les mâts qui
+tombent l'un après l'autre.
+
+Mais un neuvième de seconde régulier entre les pièces est un **roulement de
+tambour** — une machine, pas un équipage. Chaque canon a son chef qui attend son
+moment, sa lumière, sa mèche ; les intervalles s'éparpillent, et de temps en
+temps une pièce a un long feu et parle bien après sa voisine. Relevé sur quarante
+bordées : durée totale de **0,38 à 1,86 s** (moyenne 0,81), écart médian entre
+coups de 0,133 s, neuvième décile 0,347, et **15 %** de longs silences. Aucune
+salve ne sonne comme la précédente.
+
+**Et aucune charge n'est pareille.** La poudre était faite, dosée et bourrée à la
+main : quelques pour cent d'écart sur la charge est généreux plutôt que
+pessimiste, et cela éparpille la chute des coups tout seul, sans seconde règle
+sur la précision.
 
 **La fumée de poudre est PÂLE et ÉPAISSE**, et les deux ont été ratés dans le
 même sens à la première écriture : à demi-opacité et sept dixièmes de gris, cela
@@ -2342,8 +2363,45 @@ pixel et n'existerait tout simplement pas. Même argument que la lueur lointaine
 de la lanterne, et même réponse. Son **vol** est exact ; seul son diamètre est
 un mensonge.
 
-**Ce qui reste à faire** : le pointage. Les pièces tirent perpendiculairement au
-bord, sans hausse ni gisement — il n'y a pas encore de visée.
+**ELLE TIRE À LA ROULÉE**, et ce n'est pas un raffinement : sans cela les pièces
+ne servent à rien dès qu'il y a de la mer.
+
+Le pointage vaut huit centièmes de degré. Son mouvement en vaut plusieurs, et il
+va droit dans le canon. Chaque pièce attend donc son moment, comme son chef le
+faisait : une fois son tour venu dans le roulement, elle tient jusqu'à ce que la
+volée **descende**, et parle alors. C'est le plus vieux tour d'un pont de
+batterie et la raison pour laquelle les bordées étaient déchirées — chaque chef
+jugeant sa propre roulée, ce qui est la même irrégularité que le roulement, mais
+née plutôt qu'imposée. Et il ne peut pas attendre indéfiniment : deux secondes et
+demie, puis il tire quoi qu'elle fasse.
+
+**Qui descend, et non qui est horizontale**, ce qui a demandé un détour. Une
+pièce pointe **en travers**, donc son **tangage** ne la touche presque pas :
+tourner autour de l'axe transversal laisse un tube transversal où il était. Ce
+qui lève un canon, c'est sa **gîte** — et sous voiles elle en porte une
+permanente, la batterie au vent regardant le ciel et celle sous le vent
+regardant l'eau, ce qui fut vrai de tout navire ayant jamais combattu à la
+voile. Attendre l'horizontale n'arrivait donc jamais au vent, et toutes les
+pièces partaient sur l'expiration du délai : les mêmes 800 m par calme plat que
+par gros temps, ce qui est la façon dont la faute s'est signalée.
+
+**Et la pièce est pointée sur l'HORIZON, pas sur son pont.** Un chef de pièce
+vise le long de son tube la flottaison de l'ennemi et joue du coin de mire
+jusqu'à ce que ça porte ; la gîte est son affaire, pas celle du boulet. Pointée
+sur le pont — ce que revient à faire prendre l'assiette de la coque telle
+quelle — la gîte permanente décide de tout, et la mesure fut brutale :
+
+| batterie, force 4 | avant | après |
+|---|---|---|
+| au vent | 830 m | **274 m** |
+| sous le vent | 45 m | **241 m** |
+
+Un bord visant la lune et l'autre tirant dans sa propre muraille. Corrigé, les
+deux tombent dans la même fourchette de 200 à 320 m, par calme comme par force
+4, et la dispersion qui reste est celle des charges et du roulis.
+
+**Ce qui reste à faire** : le gisement. Les pièces tirent perpendiculairement au
+bord — on choisit le moment et le bord, pas encore la direction.
 
 ## Un mât qui tombe
 

@@ -19,7 +19,8 @@ Naval.Controls = class Controls {
     this.onBlowUp = null;         // the powder magazine, for the fun of it
     this.onToggleHud = null;      // clear the instruments off the glass
     this.onToggleCargo = null;    // show or hide the stowage plan
-    this.onFire = null;           // give her the broadside, +1 starboard, -1 port
+    this.onFire = null;           // (side, held) — +1 starboard, -1 port
+    this._salvo = false;          // this hold has already loosed its broadside
 
     addEventListener('keydown', e=>{
       const k = e.key.toLowerCase();
@@ -35,10 +36,22 @@ Naval.Controls = class Controls {
       if(k==='k' && this.onBlowUp) this.onBlowUp();
       if(k==='h' && this.onToggleHud) this.onToggleHud();
       if(k==='f' && this.onToggleCargo) this.onToggleCargo();
-      // G to starboard, shift for the other side: one mnemonic, two batteries
-      if(k==='g' && this.onFire) this.onFire(e.shiftKey ? -1 : 1);
+      /* G to starboard, shift for the other side: one mnemonic, two batteries.
+         A TAP is one gun; HOLDING it is the whole broadside. The two are told
+         apart by the browser's own auto-repeat flag rather than by a timer of
+         our own — the first event of a press has `repeat` false, and every one
+         after it true — and a latch keeps a long hold from loosing salvo after
+         salvo. */
+      if(k==='g' && this.onFire){
+        if(!e.repeat) this.onFire(e.shiftKey ? -1 : 1, false);
+        else if(!this._salvo){ this._salvo = true; this.onFire(e.shiftKey ? -1 : 1, true); }
+      }
     });
-    addEventListener('keyup', e=>{ this.keys[e.key.toLowerCase()] = false; });
+    addEventListener('keyup', e=>{
+      const k = e.key.toLowerCase();
+      this.keys[k] = false;
+      if(k==='g') this._salvo = false;      // the next press starts a fresh hold
+    });
   }
 
   update(dt){
