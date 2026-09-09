@@ -1,3 +1,14 @@
+<meta charset="utf-8">
+<!-- La page porte son propre charset, et il doit rester la PREMIERE chose du
+     document : un navigateur ne lit que le premier kilo-octet pour le trouver.
+
+     Il n'y en avait pas, au motif que l'hôte des artifacts en fournit un et que
+     le serveur de dev pose l'en-tête lui-même. Les deux sont vrais et cela ne
+     suffit pas : déposée sur un hébergeur ordinaire — Apache chez OVH — la page
+     est servie en text/html sans charset, le navigateur retombe sur du latin-1,
+     et toute l'interface française part en mojibake. Un fichier autonome doit
+     se déclarer lui-même ; les deux autres mécanismes deviennent une ceinture
+     par-dessus les bretelles. -->
 <title>Passerelle</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <link rel="preconnect" href="https://fonts.googleapis.com">

@@ -1,8 +1,10 @@
 // Minimal static server for this project (a single-page WebGL simulation).
 // No dependencies — plain Node, so it runs without an install step.
 //
-// The charset matters: naval-sim.html has no <meta charset> of its own (the
-// Artifact host supplies one), so serving it without "charset=utf-8" mangles
+// The charset header is kept although the page now declares its own <meta
+// charset> — belt and braces. It did NOT declare one for a long time, on the
+// grounds that the Artifact host supplies it, and that held until the page was
+// put on an ordinary host: serving it without "charset=utf-8" mangles
 // every accented character in the French UI.
 
 const http = require('http');
