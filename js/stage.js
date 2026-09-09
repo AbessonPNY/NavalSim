@@ -95,8 +95,16 @@ Naval.SKY_GLSL = `
     f = clamp((f - 0.5)*2.2 + 0.5, 0.0, 1.0);
     /* High and to the right of the histogram: only the crests of the noise come
        through, and they come through as wisps. The slider still runs the whole
-       way to overcast, but a fine day is the default. */
-    float c = smoothstep(0.80 - amt*0.52, 0.99 - amt*0.36, f);
+       way to overcast, but a fine day is the default.
+
+       The LOW end was raised by hand and the top left where it was, because
+       halving the setting did not halve the sky: the threshold band is wide, so
+       a small shift of its edge slides a lot of noise across it slowly. Going
+       from 12 to 6 per cent took the cover from 16,3 % of the sky to 14,0 —
+       fourteen per cent less, where half was wanted. Raising the floor instead
+       does it properly, and the slope is raised with it so that full cover
+       still lands exactly where it did. */
+    float c = smoothstep(0.93 - amt*0.65, 0.99 - amt*0.36, f);
     return c * smoothstep(0.02, 0.11, up);
   }
 
@@ -114,7 +122,18 @@ Naval.SKY_GLSL = `
     /* Cloud goes on BEFORE the sun's halo and before the horizon haze: a cloud
        is lit by the sun and then seen through the same air as everything else,
        so laying it on afterwards would leave it floating in front of the murk. */
-    float cl = navalClouds(normalize(dir), cloudAmt) * (1.0 - uStorm);
+    /* And they GO OUT WITH THE SUN. A cloud has no light of its own: it is
+       visible only because the sun is on it, so when the sun goes under there
+       is nothing to see and the sky is simply dark. Left lit through the night
+       they were the one thing in the picture glowing on their own — the same
+       fault the foam had, and the same cure.
+
+       It reuses the very smoothstep that brings the stars out, a little lower
+       so that the cloud is gone by the time they are properly out: they are the
+       same event seen from two sides, and writing a second threshold for it
+       would let the two drift apart. */
+    float dusk = 1.0 - smoothstep(0.02, -0.10, sunDir.y);
+    float cl = navalClouds(normalize(dir), cloudAmt) * (1.0 - uStorm) * dusk;
     if(cl > 0.001){
       float sd0 = max(dot(normalize(dir), sunDir), 0.0);
       vec3 lit = mix(horizon*1.22, vec3(1.0, 0.98, 0.94), 0.30);
@@ -425,7 +444,9 @@ Naval.Stage = class Stage {
 
     /* Shared by the dome, the sea and every hazed material — one object, so the
        clouds overhead and the clouds the sea mirrors can never drift apart. */
-    this.skyUniforms = { uCloud:{value:0.12}, uSkyTime:{value:0}, uStorm:{value:0},
+    /* Six per cent, not twelve. A fine day is a lot of blue and a few
+       streaks, and at twice this the sky read as busy rather than as fair. */
+    this.skyUniforms = { uCloud:{value:0.06}, uSkyTime:{value:0}, uStorm:{value:0},
                          uStormDir:{value:new THREE.Vector2(0,1)}, uStormLoom:{value:0},
                          uStormFlashDir:{value:new THREE.Vector2(0,1)}, uStormFlash:{value:0} };
     this.storm = 0;

@@ -1115,6 +1115,34 @@ haut dans l'histogramme pour ne laisser passer que les crêtes, et la couverture
 par défaut est de 12 % : du bleu, quelques traînées. Le curseur « Nuages » de la
 console de mer va jusqu'au couvert.
 
+**Et ils s'éteignent la nuit.** Un nuage n'a pas de lumière à lui : on ne le
+voit que parce que le soleil est dessus, donc quand celui-ci passe sous
+l'horizon il n'y a plus rien à voir et le ciel est simplement noir. Éclairés
+toute la nuit ils étaient la seule chose de l'image à briller d'elle-même —
+même faute que l'écume, même remède. L'extinction réemploie le smoothstep qui
+fait sortir les étoiles, un peu plus bas pour que le nuage soit parti quand
+elles sont franchement là : c'est le même événement vu des deux côtés, et lui
+écrire un second seuil laisserait les deux dériver. Vérifié : à −12° de soleil,
+couvert plein contre ciel clair, **zéro pixel d'écart**.
+
+**Baisser le curseur ne baissait pas le ciel**, et c'est le piège de ce réglage.
+La bande du seuil est large, donc déplacer son bord fait glisser beaucoup de
+bruit au travers, mais lentement : passer de 12 % à 6 % ne retirait que 14 % de
+nuage — 16,3 % du ciel couvert contre 14,0 — là où on en voulait la moitié.
+C'est le **plancher** qu'il faut relever, la pente montant avec lui pour que le
+couvert plein retombe exactement où il était. Réglé à `smoothstep(0,93 - amt·0,65, 0,99 - amt·0,36, f)` :
+8,75 % du ciel au défaut contre 16,26 avant, soit la moitié, et le curseur va
+toujours jusqu'au couvert.
+
+**Piège de mesure, et il a coûté trois essais.** Lire les pixels après
+`stage.render()` donne n'importe quoi : le rendu laisse une autre cible liée —
+il y a la passe d'eau transparente, l'occlusion et la réflexion — et l'on relit
+celle-là. Un ciel de nuit ressortait en bleu de plein jour, ce qui a fait
+soupçonner le shader pendant un moment alors que seul le banc était faux. Il
+faut `gl.bindFramebuffer(gl.FRAMEBUFFER, null)` avant de lire. Une fois
+rebasculé, deux lectures de suite du même réglage donnent **0 %** d'écart, ce
+qui est la vérification qu'il fallait faire d'abord.
+
 Comme le reste du ciel, ils n'existent **qu'une fois** : `ocean.js` prend les
 objets uniformes `uCloud`/`uSkyTime` de `stage.skyUniforms`, pas des copies,
 donc rien ne peut diverger de ce qu'on voit au-dessus. La mer, elle, ne les
