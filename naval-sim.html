@@ -290,9 +290,37 @@ async function main(){
     b.angVel.x += tq.x/b.Ib.x; b.angVel.y += tq.y/b.Ib.y; b.angVel.z += tq.z/b.Ib.z;
   };
 
+  /* What a ball COSTS her. The geometry of the hit is found in guns.js because
+     it is geometry; what it does to her is decided here, which is the half that
+     knows about flooding and rigging.
+
+     And it costs her through machinery that already existed. A hole in her side
+     is the same breach the B key opens, so Torricelli, the free surface and the
+     downflooding all take over without a line written for gunnery; a mast is
+     the same fall the magazine causes. Nothing about being shot at is a special
+     case — which is the whole reason the two were built first. */
+  guns.onStrike = (e, kind, index, local, speed) => {   // local: height fraction
+    if(kind === 'mast'){
+      /* Masts were TOUGH. A single ball through a lower mast did not bring it
+         down — they were a yard thick at the partners and made to be shot at —
+         so it takes several, and losing one is the reward for sustained fire
+         rather than for a lucky shot. */
+      const f = e.ship.falls[index];
+      f.userData.wounds = (f.userData.wounds || 0) + 1;
+      if(f.userData.wounds >= 3) e.ship.dropMast(index);
+      return;
+    }
+    /* A tenth of a square metre: the ball's own hole plus the seams it springs
+       around it. Deliberately small against the pumps, which are dosed so that
+       ONE hole is answerable — so a ship is not lost to a lucky shot, she is
+       lost to being hulled again and again, which is how it went. */
+    e.physics.breach(index, 0.10, Math.max(0, Math.min(1, local)));
+  };
+
   const blast = new Naval.Explosion(stage.scene, stage);
   // her splinters must breathe the same air as her hull
   Naval.applyHaze(blast.woodMat, ocean.uniforms);
+  Naval.applyHaze(guns.ballMat, ocean.uniforms);
   blast.onSplash = (at, water, speed) => splash.burst(at, water, speed);
 
   const chart = new Naval.Chart(document.getElementById("chart"), world,
@@ -310,6 +338,7 @@ async function main(){
      fall out of step. Watching the console move is the readout. */
   const rain = new Naval.Rain(stage.scene);
   const splash = new Naval.Splash(stage.scene, stage);
+  guns.onSplash = (at, water, speed) => splash.burst(at, water, speed);
 
   /* What a hull throws when she comes down. The solver hands over cubic metres
      a SECOND of water driven down, so a sixth of a second of it is about what
@@ -942,7 +971,9 @@ async function main(){
     }
 
     blast.update(dt, ocean, t);
-    guns.update(dt, ocean.windVec);
+    // every hull afloat is something a ball may find, her own excepted
+    guns.targets = fleet;
+    guns.update(dt, ocean.windVec, ocean, t);
     splash.update(dt);
     hud.update(dt);
     fleetTick += dt;

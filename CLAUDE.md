@@ -2027,11 +2027,25 @@ meurt là où elle est née se lit comme un effet ; un banc qui descend sous le
 vent se lit comme de l'artillerie.
 
 La fumée ne décroît donc pas vers l'**arrêt** comme celle de l'explosion : elle
-relaxe vers la **vitesse de l'air**. C'est une ligne, et elle donne d'un coup la
-dérive, le banc sous le vent et le navire qui se dégage, sans un cas
-particulier pour aucun des trois. Mesuré, bordée de six pièces par vent de
-7,5 m/s : le banc est à **35 m d'écart en moyenne et 47 au plus loin** trois
-secondes après le feu, sabords dégagés.
+relaxe vers la vitesse de l'air. C'est une ligne, et elle donne d'un coup la
+dérive, le banc sous le vent et le navire qui se dégage.
+
+**Mais vers une FRACTION de la vitesse du vent seulement** — trois dixièmes — et
+il a fallu la regarder pour le voir. Prise à la pleine vitesse de l'air, une
+bordée est balayée du bord avant que l'œil ait fini de la lire : 7,5 m/s font
+une encablure en vingt secondes. Un nuage de poudre est froid, dense et chargé
+de grains imbrûlés ; il **tient où les pièces ont parlé** et s'affaisse bien plus
+lentement que l'air autour de lui. La stagnation d'abord, la dérive ensuite.
+Mesuré à `LAG = 0,30` : le banc s'écarte de 16 à 33 m en huit secondes, soit
+2,1 m/s dans un vent de 7,5.
+
+**Grise, et disparue en dix secondes plutôt qu'en vingt-deux.** Le blanc se lit
+comme de la vapeur ; c'est la grisaille autant que l'opacité qui fait lire
+quelque chose qui a **brûlé** et non quelque chose qui a bouilli. Et elle s'en
+va tôt mais toujours **progressivement**, la décroissance étant une courbe lisse
+sur toute la vie plutôt qu'un palier suivi d'une extinction : un banc s'amincit
+sur place au lieu de s'éteindre. Relevé, opacité moyenne : 0,73 · 0,40 · 0,27 ·
+0,12 · 0,04, plus rien à 10 s.
 
 **Les bouches sont lues dans le modèle, mais par le NOM DE MATIÈRE**, ce qui
 est un écart aux vergues et aux mâts et demande d'être défendu. Ces deux-là ont
@@ -2095,8 +2109,105 @@ centre de gravité. Mesuré sur la frégate de 2 000 t, bordée de six pièces :
 bordée qui couche un navire est l'une des choses les plus répétées sur la marine
 à voile, et c'est à peu près un mythe : on la sent, elle ne renverse rien.
 
-**Ce qui reste à faire** : le boulet lui-même. Rien ne part de la volée pour
-l'instant — c'est la fumée et le recul, pas encore l'artillerie.
+### Le boulet
+
+**Il vole pour de vrai, et c'est la TRAÎNÉE QUADRATIQUE qui fait tout le
+caractère du boulet rond.** Une sphère est un projectile déplorable : avec un
+Cd voisin de 0,9, 5,4 kg et onze centimètres, la décélération vaut `c·v²` avec
+`c = ρ·Cd·A/2m ≈ 0,001` par mètre. Ce seul nombre produit, sans un cas
+particulier :
+
+| portée | 100 m | 200 | 300 | 400 | 500 | 800 |
+|---|---|---|---|---|---|---|
+| vitesse | 397 m/s | 360 | 328 | 298 | 271 | 202 |
+| temps | 0,25 s | 0,52 | 0,80 | 1,12 | 1,47 | 2,77 |
+| **chute** | 0,3 m | **1,2** | 2,9 | 5,4 | **9,1** | **29,7** |
+
+Et donc la **portée de plein fouet**, qui n'a pas été décidée : on se battait à
+deux cents mètres non par sauvagerie mais parce que c'est la distance à laquelle
+une pièce pointée à plat touche ce qu'elle vise. À 500 m on est neuf mètres
+bas ; à 800, c'est sans espoir. Le boulet est plus petit et plus léger sur un
+petit navire, et `c` va comme l'inverse du calibre — la masse en cube quand
+l'aire est en carré — donc son boulet perd son erre plus vite, sans second
+réglage.
+
+**Le tir est POINTÉ EN DESSOUS**, et c'est le troisième pointage : les deux
+premiers se sont trompés dans le même sens. Trois degrés en l'air envoyaient le
+boulet huit mètres au-dessus de sa lisse ; **à plat aussi**, et la mesure a dit
+pourquoi : cette batterie est à six mètres et demi au-dessus de la mer, donc une
+pièce à plat passe par-dessus une coque dont tout le franc-bord est moindre.
+Six touches sur six à 160 m, six trous ouverts — et **pas une tonne d'eau en
+cinq minutes**, tous étant au-dessus de sa flottaison. Ce qui est juste, et
+inutile.
+
+La pièce est donc pointée pour poser son coup **sur la mer** à une portée de
+référence, ce que voulait dire *plein fouet* et à quoi servait le coin de mire :
+d'un navire haut sur l'eau et à bout portant, il faut abaisser ou l'on tire dans
+le gréement tout l'après-midi. L'angle sort de la hauteur de la volée au-dessus
+de l'eau, donc une batterie basse est pointée à plat et une batterie haute bien
+en dessous, sans rien à régler par navire. Relevé après correction : quatre
+trous sur six **sous** la flottaison, deux au ras.
+
+**L'essai se fait sur un SEGMENT, jamais sur un point.** Un boulet franchit
+quatorze mètres en une image à soixante images par seconde, ce qui est plus
+large que la coque qu'il doit toucher : essayé point par point il la traverse à
+tous les coups, ce qui est la manière classique d'écrire un projectile qui ne
+touche jamais rien. Et le vol est sous-divisé sur la **distance** et non sur le
+temps — quatre mètres par pas — puisqu'il va quatorze mètres par image au départ
+et deux à l'arrivée.
+
+**La coque qu'il frappe est celle qu'on VOIT, et c'est ici que le modèle et le
+solveur se sont contredits tout haut.** La grille de sondes est bâtie sur
+`hull-lines.js` — longueur, largeur, franc-bord, tirant, tout de sa fiche —
+tandis que le `.glb` est un autre objet, mis à l'échelle sur sa seule
+**longueur**. Sur le pirate le solveur met son pont à y = 2,8 et le modèle met
+ses sabords à y = 6,0 : trois mètres d'écart. Le premier coup est passé **six
+mètres au-dessus d'elle**.
+
+On ne peut pas simplement préférer le solveur : le joueur vise le bordé qu'il
+regarde, et un boulet qui traverse l'image de sa muraille doit compter. La
+**forme** est donc prise sur le modèle (`_hullShell()`, découpée dans les mêmes
+compartiments que l'envahissement), et ce qu'on remet à la voie d'eau est une
+**fraction** de son creux plutôt qu'une hauteur en mètres. Une fraction veut
+dire la même chose dans les deux repères — zéro à la quille, un au livet — et
+c'est exactement ce que `breach()` demande, si bien que le trou finit là où
+l'œil l'a vu entrer sans que ni l'un ni l'autre ait eu à bouger.
+
+**Et ce qu'il coûte passe par ce qui existait déjà.** Un trou dans son bordé est
+la même voie d'eau que la touche `B` ouvre, donc Torricelli, la carène liquide
+et l'envahissement par le pont prennent le relais sans une ligne écrite pour
+l'artillerie ; un mât est la même chute que la soute provoque. Rien de ce qui
+arrive à un navire canonné n'est un cas particulier — ce qui est toute la raison
+d'avoir bâti les deux d'abord. Mesuré, une bordée de six pièces à 160 m, pompes
+en route :
+
+| minutes | 0 | 2 | 4 | 6 | 8 | 10 | 12 | 14 |
+|---|---|---|---|---|---|---|---|---|
+| eau embarquée | 0 t | 75 | 160 | 256 | 371 | 504 | 657 | **834** |
+
+Le débit **s'emballe**, les pompes perdent, et une seule bordée bien placée la
+condamne en un quart d'heure. Une bordée ne coule donc pas un navire d'un coup,
+et c'est juste.
+
+**Un mât demande TROIS boulets.** Ils étaient épais comme une cuisse aux
+jottereaux et faits pour être canonnés ; le perdre est le prix d'un feu soutenu
+et non d'un coup heureux. Vérifié : trois touches et il part.
+
+**Le boulet qui manque tombe à la mer**, et la gerbe est celle qui existait
+déjà — six coups, six colonnes, à 248 · 248 · 256 · 256 · 293 · 304 m, ce qui
+est bien le pointage à plein fouet. On lui passe un volume modeste et une
+vitesse franche plutôt que les 300 m/s réels : ce qu'une gerbe demande est la
+**forme** de l'événement, une colonne haute et étroite, et `splash.js` a déjà
+son propre plafond honnête sur la vitesse.
+
+**Le boulet est dessiné bien au-dessus de sa taille** (0,55 m de rayon pour onze
+centimètres réels), et c'est délibéré : à un demi-mille il ferait un tiers de
+pixel et n'existerait tout simplement pas. Même argument que la lueur lointaine
+de la lanterne, et même réponse. Son **vol** est exact ; seul son diamètre est
+un mensonge.
+
+**Ce qui reste à faire** : le pointage. Les pièces tirent perpendiculairement au
+bord, sans hausse ni gisement — il n'y a pas encore de visée.
 
 ## Un mât qui tombe
 

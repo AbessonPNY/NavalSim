@@ -159,6 +159,7 @@ Naval.ShipModel = class ShipModel {
     this.rigs = [];                          // what braces or swings when trimmed
     this.falls = [];                         // and what can come down, mast and all
     this.guns = [];                          // where her muzzles poke out, if any
+    this.shell = null;                       // the side a shot has to get through
     this._shareTot = 0;                      // canvas those masts carry between them
     this.canvases = [];                      // the cloth alone — furling hides only this
 
@@ -565,6 +566,7 @@ Naval.ShipModel = class ShipModel {
       this.falls = []; this._shareTot = 0;
       this._rigModel();
       this._findGuns();
+      this._hullShell();
       this._buildFlag();
       this._buildLantern();
       return true;
@@ -867,6 +869,56 @@ Naval.ShipModel = class ShipModel {
       s += f.userData.share * Math.max(0, k);
     }
     return s/this._shareTot;
+  }
+
+  /* THE SIDE A SHOT HAS TO GET THROUGH, and it is the MODEL's side, not the
+     solver's.
+
+     Gunnery is the first thing in this project that made the two disagree out
+     loud. The probe grid is built from hull-lines.js — length, beam, freeboard,
+     draught, all from her paper — while the .glb is a different object scaled
+     only so that its LENGTH matches. On the pirate the solver puts her deck at
+     y = 2,8 and the model puts her gunports at y = 6,0: three metres apart. Aim
+     at what you can see and the ball sails over a hull the physics thinks is
+     lower than the one on the screen. Measured, the first shot passed six
+     metres above her.
+
+     One cannot simply prefer the solver — the player aims at the planking he is
+     looking at, and a ball that goes through the picture of her side must count.
+     So the SHAPE is taken from the model, and what is handed to the flooding is
+     a FRACTION of her depth rather than a height in metres. A fraction means
+     the same thing in both frames — nought at the keel, one at the deck — which
+     is exactly what breach() asks for, so the hole ends up where the eye saw it
+     go in without either side having to move.
+
+     Cut into the same compartments the flooding uses, so a hit knows which room
+     it has opened without a second division of her length. */
+  _hullShell(){
+    this.shell = null;
+    if(!this.modelRoot) return;
+    const parts = this._modelParts();
+    let hull = parts[0], best = -1;
+    for(const p of parts){
+      const v = p.size.x*p.size.y*p.size.z;
+      if(v > best){ best = v; hull = p; }
+    }
+    const N = Naval.Config.NCOMP, L = this.spec.L, half = L*0.5;
+    const box = [];
+    for(let i=0;i<N;i++)
+      box.push({ z0:-half + i*L/N, z1:-half + (i+1)*L/N,
+                 half:0, deck:-Infinity, keel:Infinity });
+    const pos = hull.geom.attributes.position;
+    for(let i=0;i<pos.count;i++){
+      const z = pos.getZ(i);
+      const b = box[Math.min(N-1, Math.max(0, Math.floor((z + half)/L*N)))];
+      const x = Math.abs(pos.getX(i)), y = pos.getY(i);
+      if(x > b.half) b.half = x;
+      if(y > b.deck) b.deck = y;
+      if(y < b.keel) b.keel = y;
+    }
+    for(const p of parts) p.geom.dispose();
+    for(const b of box) if(!(b.half > 0) || b.deck <= b.keel) return;   // unusable
+    this.shell = box;
   }
 
   /* WHERE HER MUZZLES ARE, read off the model rather than written in her paper.
