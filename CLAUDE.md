@@ -325,7 +325,9 @@ un `#define N` écrase l'identifiant `N` jusque dans le fragment shader.
 maillage. Une voile opaque éclairée à contre-jour devient noire : le tissu porte
 une composante `emissive` pour rester lisible.
 
-**Mise en ligne.** `node build.js` écrit `ships/index.json`. Le serveur de dev
+**Mise en ligne.** `node build.js` écrit `ships/index.json` — et **avertit** quand
+`Naval.Config.SHIPS` a dérivé du dossier, ce qui arrive à chaque navire ajouté.
+L'avertissement a servi dès le navire pirate. Le serveur de dev
 répond à ce chemin par un listage en direct, sans fichier ; un hébergeur statique
 non. Sans cet index, la page retombe sur la liste courte de `config.js` et tout
 navire ajouté depuis n'est jamais demandé — ses .glb paraissent alors ne pas se
@@ -930,6 +932,29 @@ les vergues : sur un modèle, la pièce la plus haute, bien plus haute qu'épais
 et sur l'axe ; sur un navire procédural, simplement son plus grand mât. Un
 bâtiment sans mât dans son modèle n'en porte pas, ce qui est le comportement
 voulu — il n'a pas de drisse.
+
+**Et il peut être noir.** Une fiche déclare son pavillon dans son
+`appearance.ensign` : `"jolly"` pour la tête de mort, ou une couleur pour un
+pavillon uni. Rien d'autre à toucher — le mât est trouvé par la même lecture de
+forme, quel que soit le navire.
+
+Le motif est **dessiné sur un canvas, jamais chargé**, et ce n'est pas une
+préférence : une page publiée ne peut pas aller chercher une image, donc les
+seules images de ce projet sont celles qu'il dessine — comme la lanterne, la
+fumée et l'embrun — ou celles qui vivent *dans* un `.glb`, dont le build emporte
+les octets en base64.
+
+Dessiné **gros exprès**. Un motif lisible sur un écran à bout de bras est une
+tache grise sur un pavillon à un demi-mille : à la taille où cette chose est
+réellement vue, seules les grandes formes survivent, donc le crâne est large,
+les os sont épais, et il n'y a aucun détail qui ne se lirait pas comme une
+bavure.
+
+Deux détails qui ont coûté un aller-retour. Le pavillon **n'avait pas de
+coordonnées de texture** : ses `u` et `v` étaient calculés pour l'ondulation puis
+jetés. Et l'émissif qui empêche un pavillon blanc de virer au gris contre un
+ciel clair rendrait un pavillon noir **anthracite** — un pavillon sale et non un
+pavillon sinistre : le motif apporte donc le sien, bien plus faible.
 
 Il porte sur le vent **apparent**, comme tout ce qui flotte depuis un pont en
 mouvement, et son lacet se déduit directement de ce que le solveur connaît déjà :

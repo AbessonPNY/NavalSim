@@ -13,6 +13,87 @@
    simulation always has something to show. */
 window.Naval = window.Naval || {};
 
+/* The black flag, DRAWN and not fetched.
+ *
+ * Not a preference: a published page cannot go and get an image, so the only
+ * pictures this project may have are the ones it draws on a canvas — as the
+ * lantern, the smoke and the spray already do — or ones living inside a .glb,
+ * whose bytes the build carries in base64. A skull on a canvas costs a few
+ * dozen lines, embeds itself, and scales to any flag on any vessel.
+ *
+ * Drawn BOLD on purpose. A device that is legible on a screen at arm's length
+ * is a grey smudge on a flag half a mile off: at the size this thing is
+ * actually seen, only the largest shapes survive, so the skull is wide, the
+ * bones are thick, and there is no detail that will not read as a blob. */
+Naval.jollyTexture = function(){
+  if(Naval._jollyTex) return Naval._jollyTex;
+  const W = 256, H = 160, cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const c = cv.getContext('2d');
+
+  c.fillStyle = '#0a0a0c'; c.fillRect(0, 0, W, H);   // the ground
+  const cx = W*0.5, cy = H*0.47, s = H/160;
+  c.fillStyle = '#eae7df';
+  c.strokeStyle = '#eae7df';
+  c.lineCap = 'round';
+
+  // --- the two bones, behind ---
+  c.lineWidth = 13*s;
+  for(const d of [1, -1]){
+    c.beginPath();
+    c.moveTo(cx - 62*s, cy - d*40*s);
+    c.lineTo(cx + 62*s, cy + d*40*s);
+    c.stroke();
+    // knuckles: a bone end is two lobes, which is what makes it read as bone
+    for(const e of [-1, 1]) for(const o of [-1, 1]){
+      c.beginPath();
+      c.arc(cx + e*62*s, cy + e*d*40*s + o*9*s, 8.5*s, 0, 6.2832);
+      c.fill();
+    }
+  }
+
+  // --- the skull, in front ---
+  c.beginPath();
+  c.ellipse(cx, cy - 6*s, 40*s, 34*s, 0, 0, 6.2832);
+  c.fill();
+  // jaw
+  c.beginPath();
+  c.moveTo(cx - 22*s, cy + 18*s);
+  c.lineTo(cx + 22*s, cy + 18*s);
+  c.lineTo(cx + 17*s, cy + 40*s);
+  c.lineTo(cx - 17*s, cy + 40*s);
+  c.closePath();
+  c.fill();
+
+  // sockets and nose, punched back out to the ground
+  c.fillStyle = '#0a0a0c';
+  for(const e of [-1, 1]){
+    c.beginPath();
+    c.ellipse(cx + e*15*s, cy - 8*s, 11*s, 12.5*s, 0, 0, 6.2832);
+    c.fill();
+  }
+  c.beginPath();
+  c.moveTo(cx, cy + 4*s);
+  c.lineTo(cx + 7*s, cy + 17*s);
+  c.lineTo(cx - 7*s, cy + 17*s);
+  c.closePath();
+  c.fill();
+  // teeth
+  c.lineWidth = 3*s;
+  c.strokeStyle = '#0a0a0c';
+  for(const g of [-11, 0, 11]){
+    c.beginPath();
+    c.moveTo(cx + g*s, cy + 20*s);
+    c.lineTo(cx + g*s, cy + 38*s);
+    c.stroke();
+  }
+
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  Naval._jollyTex = tex;
+  return tex;
+};
+
 /* A soft round glow, drawn rather than loaded — a published page cannot fetch a
    local image, and this is three lines of canvas. Built once and shared: every
    lantern in the fleet wants the same one. */
@@ -58,11 +139,19 @@ Naval.ShipModel = class ShipModel {
       canvas: new THREE.MeshStandardMaterial({
         color:hex(A.canvas), roughness:0.95, side:THREE.DoubleSide,
         emissive:0x8d866f, emissiveIntensity:0.12}),
-      // bunting is lighter and thinner than sailcloth, and a plain white
-      // ensign has to stay white against a bright sky rather than go grey
-      flag: new THREE.MeshStandardMaterial({
-        color:0xf6f4ef, roughness:0.88, side:THREE.DoubleSide,
-        emissive:0x7c7a72, emissiveIntensity:0.14})
+      /* Bunting is lighter and thinner than sailcloth, and a plain white
+         ensign has to stay white against a bright sky rather than go grey —
+         hence the emissive lift. A BLACK flag wants the opposite: lift it the
+         same way and it comes out charcoal, which is a dirty flag and not a
+         sinister one. So the device brings its own, much smaller. */
+      flag: (A && A.ensign === 'jolly')
+        ? new THREE.MeshStandardMaterial({
+            map:Naval.jollyTexture(), roughness:0.92, side:THREE.DoubleSide,
+            emissive:0x2a2a2e, emissiveIntensity:0.10 })
+        : new THREE.MeshStandardMaterial({
+            color:(A && A.ensign) ? parseInt(A.ensign) : 0xf6f4ef,
+            roughness:0.88, side:THREE.DoubleSide,
+            emissive:0x7c7a72, emissiveIntensity:0.14})
     };
 
     this.procedural = new THREE.Group();     // everything we build ourselves
@@ -821,6 +910,12 @@ Naval.ShipModel = class ShipModel {
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    /* Texture coordinates, which it never had — the u and v were worked out
+       for the ripple and then thrown away. v is flipped because the flag is
+       built downward from its hoist while an image is read from the top. */
+    const uvs = [];
+    for(let k=0;k<us.length;k++) uvs.push(us[k], 1 - vs[k]);
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     g.setIndex(idx);
     g.computeVertexNormals();
 
