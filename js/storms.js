@@ -7,13 +7,17 @@
  * AND of the clock, which costs nothing extra and buys a sky that comes to meet
  * her as much as she sails into it.
  *
- * The drift is a triangle wave inside the cell rather than a straight line, and
- * that is not laziness. A centre marching off in one direction leaves its own
- * cell within the hour, so a search of the neighbouring cells would stop
- * finding it; taking the drift modulo the cell instead makes it JUMP to the
- * other side, and a jump is a sea state that changes by four Beaufort between
- * two frames. A triangle stays inside, never jumps, and a depression that
- * wanders back and forth over a day is not an outrageous thing for one to do.
+ * The drift is a TRIANGLE WAVE rather than a straight line, and that is not
+ * laziness. A centre marching off in one direction wanders away without bound,
+ * so no search of neighbouring cells could ever be sure of finding it; taking
+ * the drift modulo something instead makes it JUMP back, and a jump is a sea
+ * state that changes by four Beaufort between two frames. A triangle is bounded
+ * AND continuous, which is the only combination that serves — the same reason
+ * the wave phase is reduced modulo 2π rather than clamped.
+ *
+ * The wander is set at rather more than a cell, so a depression genuinely
+ * passes: confined to its own cell it swung on and off a vessel lying to,
+ * for ever, which is not weather but a place.
  *
  * Everything here is in TRUE WORLD metres, like world.js and for the same
  * reason: the floating origin slides local zero about as she sails.
@@ -51,7 +55,16 @@ Naval.Storms = class Storms {
     if(this._h(i, j, 0) > this.chance) return null;
     const c = this.cell;
     const r = 1800 + this._h(i, j, 1)*2400;
-    const room = c*0.5 - r - 500;
+    /* Room to travel, and it has to be a good deal MORE than the cell — which
+       was the first mistake. Confined inside its own cell a centre wandered
+       three kilometres against a radius of three and a half, under one radius,
+       so a vessel lying to found the storm swinging off her and back onto her
+       for ever: measured, the intensity went 1 · 0,74 · 0,01 · 0,82 · 0,99 over
+       half an hour. Lulls, but no deliverance — and a depression that never
+       leaves is not weather, it is a place. Given a wander of better than a
+       cell it genuinely passes, and waiting it out becomes a real choice beside
+       sailing out of it. */
+    const room = c*1.35 - r;
     const spd = this.drift*(0.55 + this._h(i, j, 2));
     // one full sweep of the cell and back, at her own speed
     const per = Math.max(60, 4*room/spd);
@@ -69,13 +82,14 @@ Naval.Storms = class Storms {
   /* The weather at a world point. Returns the nearest depression, how deep into
      it she is, and what the wind is doing there — or null in clear air.
 
-     Only the nine cells about her are searched: a storm cannot leave its own
-     cell, which is the whole point of the triangle above. */
+     Two rings of cells are searched rather than one, since a centre now
+     wanders by better than a cell — twenty-five hashes a frame, which costs
+     nothing and is the price of storms that actually travel. */
   at(x, z, t){
     const c = this.cell;
     const i0 = Math.floor(x/c), j0 = Math.floor(z/c);
     let best = null, bd = Infinity;
-    for(let i=i0-1;i<=i0+1;i++) for(let j=j0-1;j<=j0+1;j++){
+    for(let i=i0-2;i<=i0+2;i++) for(let j=j0-2;j<=j0+2;j++){
       const s = this.cellStorm(i, j, t);
       if(!s) continue;
       const d = Math.hypot(s.x - x, s.z - z);

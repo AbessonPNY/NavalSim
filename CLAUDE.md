@@ -1654,13 +1654,30 @@ a aussi un **temps** — un système se déplace — donc c'est une fonction pur
 la position *et* de l'horloge, ce qui ne coûte rien de plus et offre un ciel qui
 vient à sa rencontre autant qu'elle y navigue.
 
-**La dérive est une onde triangulaire dans la cellule, pas une droite**, et ce
-n'est pas de la paresse. Un centre qui file dans une direction quitte sa propre
-cellule en moins d'une heure : la recherche des cellules voisines cesserait de
-le trouver. Prendre la dérive modulo la cellule le fait au contraire **sauter**
-de l'autre côté — et un saut, c'est un état de mer qui change de quatre Beaufort
-entre deux images. Un triangle reste dedans, ne saute jamais, et une dépression
-qui va et vient sur une journée n'a rien d'aberrant.
+**La dérive est une onde triangulaire, pas une droite**, et ce n'est pas de la
+paresse. Un centre qui file dans une direction s'en va sans borne : aucune
+recherche de cellules voisines ne pourrait être sûre de le trouver. Prendre la
+dérive modulo quelque chose le fait au contraire **sauter** en arrière — et un
+saut, c'est un état de mer qui change de quatre Beaufort entre deux images. Un
+triangle est **borné ET continu**, seule combinaison qui serve ici : c'est la
+même raison qui fait réduire la phase de la houle modulo 2π plutôt que de
+l'écrêter.
+
+**Et l'amplitude doit dépasser la cellule**, ce qui fut la première faute.
+Enfermé dans la sienne, un centre parcourait trois kilomètres pour un rayon de
+trois et demi — moins d'un rayon — si bien qu'un navire à la cape voyait le
+grain se retirer et revenir sur lui indéfiniment : relevé, l'intensité faisait
+1 · 0,74 · 0,01 · 0,82 · 0,99 sur une demi-heure. Des accalmies, jamais de
+délivrance ; et une dépression qui ne part jamais n'est pas de la météo, c'est
+un lieu. Portée à plus d'une cellule, elle parcourt **24,4 km, sept fois son
+rayon**, et le même navire immobile est dégagé dès la sixième minute, revisité
+vers la trente-cinquième, puis tranquille deux heures durant. Attendre devient
+un vrai choix à côté de s'en aller.
+
+Le prix est une recherche sur **deux anneaux** de cellules au lieu d'un, soit
+vingt-cinq hachages par image, ce qui ne coûte rien. Couverture mesurée sur
+1 600 km² et six instants : **5,9 %** de la mer sous un grain, **28,8 %** à
+portée d'en voir un à l'horizon.
 
 Dimensionnées pour un navire et non pour une carte météo : onze kilomètres entre
 candidates, deux à quatre de rayon. Une vraie dépression fait des centaines de
