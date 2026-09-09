@@ -260,6 +260,22 @@ node tools/add-ship.js ships/models/mon-bateau.glb --nom "La Sirène"
 L'outil lit la boîte englobante réelle du .glb et mesure le volume d'enveloppe
 **avec les mêmes formules que le solveur**, pour proposer un tonnage cohérent.
 
+**Deux fiches peuvent partager une carène, et alors elles partagent ses cotes.**
+La Roter Löwe et le navire pirate sortent du même dessin : relevé sur les
+maillages, bau/longueur 0,26 et creux/longueur 0,42 pour l'un comme pour
+l'autre, toutes les cotes du second valant exactement le double du premier. Ils
+sont donc à 30 m et 240 t tous les deux.
+
+Le piège est qu'une fiche est un **tout cohérent** : corriger la longueur et le
+tonnage sans le reste laisse un navire impossible. Passée à 30 m sans y toucher,
+la Roter Löwe gardait 14,5 m de bau, des mâts de 38 m plus hauts qu'elle n'est
+longue et 1 850 m² de voilure — **8,4 % d'immersion**, elle flottait comme un
+bouchon. Les longueurs vont en ×s, les surfaces en ×s², la vitesse machine en
+×√s (Froude), et `rudder.power` ne bouge pas, étant par unité de surface —
+mais il revient de 275 à 91,5, le triplement ayant visé les lourds carrés de
+60 m dont l'inertie de lacet est trente-deux fois celle-ci. Après : **32,6 %**
+d'immersion et 2,82 m de tirant.
+
 Voir `ships/README.md` pour le format complet.
 
 ## Contraintes de publication (raison d'être de build.js)
@@ -1963,11 +1979,17 @@ trente-trois minutes à gagner huit mètres.
 Force 4, écoutes sur `optSheet`, cap tenu 150 s. Vitesse, route réelle, gain au
 vent **sur cette route** :
 
-| cap au vent | 40° | 50° | 60° | 70° | 90° |
-|---|---|---|---|---|---|
-| pirate, carré | 1,43 | 1,94 | 2,40 | 2,78 | 3,26 |
-| *route* | 63° | 68° | 74° | 81° | 97° |
-| *gain au vent* | 0,64 | **0,73** | 0,66 | 0,43 | −0,39 |
+| cap au vent | 40° | 50° | 60° | 70° |
+|---|---|---|---|---|
+| pirate, carré, 30 m | 2,33 | 3,09 | 3,72 | 4,22 |
+| *route* | 56° | 63° | 71° | 79° |
+| *gain au vent* | 1,29 | **1,40** | 1,23 | 0,82 |
+
+*(Relevé refait après que le pirate est passé de 60 m à 30. À 60 m il donnait
+1,94 nœud au cap de 50° pour 0,73 de gain, sur une route de 68° : la petite
+coque dérive cinq degrés de moins et gagne presque le double. L'angle de
+meilleur gain, lui, ne bouge pas — cinquante degrés dans les deux cas — donc
+`closeHauled` n'a rien à changer.)*
 
 | cap au vent | 35° | 40° | 45° | 50° | 60° |
 |---|---|---|---|---|---|
@@ -2003,14 +2025,14 @@ Vérifiée en chasse, but fixe à 900 m, départ cap opposé et vitesse nulle :
 | goélette | 700 → 327 m en 20 min | 5,9 min, à 42 m | — |
 | chaland (machine) | 10,3 min, à 12 m | — | — |
 
-**Le pirate ne remonte pas au vent, et ce n'est pas la barre.** C'est le navire :
-0,73 nœud de gain réel, et une abattée qui coûte dix minutes et trois cents
-mètres à chaque changement d'amure. Sur cent minutes il gagne 851, puis 748, puis
-691 m — il converge, mais il faudrait des heures. C'est historiquement juste, un
-lourd carré était misérable au près, mais cela veut dire qu'un pirate placé au
-vent du joueur n'est pas une menace. Le levier serait la **dérive** (14 à 23°,
-beaucoup pour un voilier réel), et il vaut pour les navires du joueur autant que
-pour lui — donc il ne sera pas touché sans qu'on le demande.
+**Le pirate remontait mal au vent, et ce n'était pas la barre : c'était sa
+taille.** À 60 m il ne gagnait que 0,73 nœud et payait dix minutes et trois
+cents mètres à chaque abattée — il convergeait, mais il aurait fallu des heures,
+et un pirate placé au vent du joueur n'était pas une menace. Descendu à 30 m il
+gagne **1,40**, ce qui règle le grief sans toucher à la barre : c'est
+exactement ce que la mise à l'échelle du gréement carré annonçait, et
+accessoirement ce qu'un vrai pirate montait — un navire rapide et ardent, pas
+une frégate.
 
 **Ce que la mesure a trouvé au passage.** L'autorité du gouvernail va comme le
 CARRÉ de la vitesse, donc aux allures de voile les grosses coques n'obéissent
@@ -2145,11 +2167,15 @@ Cd voisin de 0,9, 5,4 kg et onze centimètres, la décélération vaut `c·v²` 
 `c = ρ·Cd·A/2m ≈ 0,001` par mètre. Ce seul nombre produit, sans un cas
 particulier :
 
-| portée | 100 m | 200 | 300 | 400 | 500 | 800 |
-|---|---|---|---|---|---|---|
-| vitesse | 397 m/s | 360 | 328 | 298 | 271 | 202 |
-| temps | 0,25 s | 0,52 | 0,80 | 1,12 | 1,47 | 2,77 |
-| **chute** | 0,3 m | **1,2** | 2,9 | 5,4 | **9,1** | **29,7** |
+| portée | 100 m | 200 | 300 | 400 | 500 |
+|---|---|---|---|---|---|
+| vitesse | 358 m/s | 296 | 244 | 201 | 165 |
+| temps | 0,27 s | 0,57 | 0,93 | 1,38 | 1,95 |
+| **chute** | 0,3 m | **1,4** | 3,6 | 7,5 | **14** |
+
+*(Calibre du navire de 30 m. Le même tableau sur la coque de 60 m donnait 1,2 m
+de chute à 200 et 9,1 à 500 : un boulet deux fois plus gros porte plus loin,
+`c` allant comme l'inverse du calibre.)*
 
 Et donc la **portée de plein fouet**, qui n'a pas été décidée : on se battait à
 deux cents mètres non par sauvagerie mais parce que c'est la distance à laquelle
@@ -2200,6 +2226,14 @@ compartiments que l'envahissement), et ce qu'on remet à la voie d'eau est une
 dire la même chose dans les deux repères — zéro à la quille, un au livet — et
 c'est exactement ce que `breach()` demande, si bien que le trou finit là où
 l'œil l'a vu entrer sans que ni l'un ni l'autre ait eu à bouger.
+
+**Le trou va comme le CARRÉ du calibre**, parce qu'un trou est une aire. Il
+avait été écrit comme un dixième de mètre carré tout sec, ce qui n'est juste que
+pour une seule taille de pièce : divisez le navire par deux et ses canons
+suivent, mais un trou fixe dans une coque de huit fois moins de déplacement est
+quatre fois la blessure. Mesuré avant correction, cinq trous coulaient un navire
+de 240 t en **quatre minutes** là où six en condamnaient un de 2 000 en un quart
+d'heure. Corrigé : 0,025 m² au lieu de 0,10, et elle sombre en douze minutes.
 
 **Et ce qu'il coûte passe par ce qui existait déjà.** Un trou dans son bordé est
 la même voie d'eau que la touche `B` ouvre, donc Torricelli, la carène liquide

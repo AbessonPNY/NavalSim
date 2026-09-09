@@ -262,7 +262,7 @@ Naval.Guns = class Guns {
     const m = new THREE.Mesh(this.ballGeom, this.ballMat);
     m.position.copy(at);
     this.group.add(m);
-    this.shot.push({ m, p:at.clone(), v:v0, t:0, c:0.00097/k, from:body });
+    this.shot.push({ m, p:at.clone(), v:v0, t:0, c:0.00097/k, k, from:body });
 
     /* And she FEELS it. Not a shove that moves her — the arithmetic says
        otherwise and it is worth having the arithmetic say it — but a real
@@ -340,7 +340,7 @@ Naval.Guns = class Guns {
             const u = Guns._slab(l0, l1, this._mn, this._mx);
             if(u < 0) continue;
             if(this.onStrike)
-              this.onStrike(e, 'mast', fi, this._l2.copy(l0).lerp(l1, u), b.v.length());
+              this.onStrike(e, 'mast', fi, this._l2.copy(l0).lerp(l1, u), b.v.length(), b.k);
             dead = true;
             break;
           }
@@ -369,7 +369,7 @@ Naval.Guns = class Guns {
             const hit = this._l2.copy(l0).lerp(l1, u);
             // a fraction of her depth, which means the same in either frame
             frac = (hit.y - this._mn.y)/Math.max(0.5, this._mx.y - this._mn.y);
-            if(this.onStrike) this.onStrike(e, 'hull', ci, frac, b.v.length());
+            if(this.onStrike) this.onStrike(e, 'hull', ci, frac, b.v.length(), b.k);
             dead = true;
             break;
           }

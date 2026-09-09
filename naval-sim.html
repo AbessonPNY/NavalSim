@@ -299,7 +299,7 @@ async function main(){
      downflooding all take over without a line written for gunnery; a mast is
      the same fall the magazine causes. Nothing about being shot at is a special
      case — which is the whole reason the two were built first. */
-  guns.onStrike = (e, kind, index, local, speed) => {   // local: height fraction
+  guns.onStrike = (e, kind, index, local, speed, k) => {   // local: height fraction
     if(kind === 'mast'){
       /* Masts were TOUGH. A single ball through a lower mast did not bring it
          down — they were a yard thick at the partners and made to be shot at —
@@ -310,11 +310,19 @@ async function main(){
       if(f.userData.wounds >= 3) e.ship.dropMast(index);
       return;
     }
-    /* A tenth of a square metre: the ball's own hole plus the seams it springs
-       around it. Deliberately small against the pumps, which are dosed so that
-       ONE hole is answerable — so a ship is not lost to a lucky shot, she is
-       lost to being hulled again and again, which is how it went. */
-    e.physics.breach(index, 0.10, Math.max(0, Math.min(1, local)));
+    /* A tenth of a square metre for a full-sized gun: the ball's own hole plus
+       the seams it springs around it. Deliberately small against the pumps,
+       which are dosed so that ONE hole is answerable — so a ship is not lost to
+       a lucky shot, she is lost to being hulled again and again, which is how
+       it went.
+
+       And it goes as the SQUARE of the calibre, because a hole is an area. It
+       was written as a flat tenth of a metre, which is only ever right for one
+       size of gun: halve the ship and her guns halve with her, but a fixed hole
+       in a hull of an eighth the displacement is four times the wound. Measured
+       before the fix, five holes sank a 240-tonne ship in four minutes where
+       six took a quarter of an hour to condemn one of 2 000. */
+    e.physics.breach(index, 0.10*(k||1)*(k||1), Math.max(0, Math.min(1, local)));
   };
 
   const blast = new Naval.Explosion(stage.scene, stage);
