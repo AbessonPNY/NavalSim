@@ -1,76 +1,123 @@
 {
   "id": "frigate17e",
   "name": "Fregate Roter Lowe 1597",
-  "note": "",
+  "note": "Petit galion de 30 m, 240 t : demi-echelle de la fregate de 60 m. Longueurs en x0,5, voilure en x0,25, vitesse machine en x racine(0,5). rudder.power revient a 91,5, etant par unite de surface.",
   "hull": {
     "length": 30,
-    "beam": 14.5,
-    "freeboardMid": 3.6,
-    "sheerBow": 2.4,
-    "sheerStern": 1.8,
-    "keelDepth": 6.4,
-    "keelExtra": 1.3,
-
+    "beam": 7.25,
+    "freeboardMid": 1.8,
+    "sheerBow": 1.2,
+    "sheerStern": 0.9,
+    "keelDepth": 3.2,
+    "keelExtra": 0.65,
     "dragAft": 0.9,
-    "forefootLift": 0.70,
+    "forefootLift": 0.7,
     "counterLift": 0.35,
-
     "waterlinePower": 0.88,
     "waterlineFull": 0.48,
     "transomWidth": 0.55,
-
     "sectionTuck": 0.46,
-    "sectionPower": 0.60
+    "sectionPower": 0.6
   },
   "displacementTonnes": 240,
-	"cog": { "yFracKeel": -0.43, "zFracLength": -0.055 },
-
-	  "hydro": {
-		"resistance": 61,
-		"lateralGrip": 654,
-		"lateralQuad": 131,
-		"heaveDamp": 1100
-	  },
-
-	  "engine": { "topSpeed": 5.6, "sternPower": -0.5 },
-
-	  "rudder": { "power": 275, "maxAngle": 0.61, "postZFrac": -0.47, "postY": -1.6 },
-
-	  "rig": {
-		"type": "square",
-		"sailArea": 1850,
-		"ceHeight": 19.5,
-		"ceZ": -1.0,
-		"maxSheet": 1.30,
-		"belly": 3.3,
-		"masts": [
-		  { "zFrac": 0.26,  "height": 34, "yards": [0.30, 0.52, 0.72], "yardSpan": 0.98 },
-		  { "zFrac": -0.02, "height": 38, "yards": [0.28, 0.50, 0.70], "yardSpan": 1.12 },
-		  { "zFrac": -0.30, "height": 32, "yards": [0.30, 0.54, 0.74], "yardSpan": 0.86 }
-		],
-		"jib": { "footFrac": 0.235, "tackAbove": 2.2, "clewAbove": 4.0, "headDrop": 6.0 },
-		"bowsprit": { "length": 15.5, "steeve": 0.22 }
-	  },
-
-	  "deckhouse": { "beamFrac": 0.34, "height": 4.7, "lengthFrac": 0.14, "zFrac": -0.30 },
-
-	  "appearance": {
-		"hull": "0x2b2118",
-		"timber": "0x6f5334",
-		"spar": "0xa8875a",
-		"house": "0xc9bda4",
-		"canvas": "0xece4d2"
-	  },
-
-	  "camera": { "chaseDist": 92, "chaseHigh": 32, "orbitDist": 115, "helmZFrac": -0.40, "helmHeight": 18.85 },
-	  "model": {
-		"glb": "ships/models/fregate17e.glb",
-		"lengthAxis": "z",
-		"offset": [
-		  0,
-		  0,
-		  0
-		],
-		"rotationY": 0
-	  }
+  "cog": {
+    "yFracKeel": -0.43,
+    "zFracLength": -0.055
+  },
+  "hydro": {
+    "resistance": 61,
+    "lateralGrip": 654,
+    "lateralQuad": 131,
+    "heaveDamp": 1100
+  },
+  "engine": {
+    "topSpeed": 3.96,
+    "sternPower": -0.5
+  },
+  "rudder": {
+    "power": 91.5,
+    "maxAngle": 0.61,
+    "postZFrac": -0.47,
+    "postY": -0.8
+  },
+  "rig": {
+    "type": "square",
+    "sailArea": 463,
+    "ceHeight": 9.75,
+    "ceZ": -0.5,
+    "maxSheet": 1.3,
+    "belly": 1.65,
+    "masts": [
+      {
+        "zFrac": 0.26,
+        "height": 17,
+        "yards": [
+          0.3,
+          0.52,
+          0.72
+        ],
+        "yardSpan": 0.98
+      },
+      {
+        "zFrac": -0.02,
+        "height": 19,
+        "yards": [
+          0.28,
+          0.5,
+          0.7
+        ],
+        "yardSpan": 1.12
+      },
+      {
+        "zFrac": -0.3,
+        "height": 16,
+        "yards": [
+          0.3,
+          0.54,
+          0.74
+        ],
+        "yardSpan": 0.86
+      }
+    ],
+    "jib": {
+      "footFrac": 0.235,
+      "tackAbove": 1.1,
+      "clewAbove": 2,
+      "headDrop": 3
+    },
+    "bowsprit": {
+      "length": 7.75,
+      "steeve": 0.22
+    }
+  },
+  "deckhouse": {
+    "beamFrac": 0.34,
+    "height": 2.35,
+    "lengthFrac": 0.14,
+    "zFrac": -0.3
+  },
+  "appearance": {
+    "hull": "0x2b2118",
+    "timber": "0x6f5334",
+    "spar": "0xa8875a",
+    "house": "0xc9bda4",
+    "canvas": "0xece4d2"
+  },
+  "camera": {
+    "chaseDist": 46,
+    "chaseHigh": 16,
+    "orbitDist": 57.5,
+    "helmZFrac": -0.4,
+    "helmHeight": 9.43
+  },
+  "model": {
+    "glb": "ships/models/fregate17e.glb",
+    "lengthAxis": "z",
+    "offset": [
+      0,
+      0,
+      0
+    ],
+    "rotationY": 0
+  }
 }
