@@ -121,7 +121,9 @@ Naval.Splash = class Splash {
 
   /* `water` is cubic metres thrown, `speed` the closing speed in m/s.
      `at` is in the same local frame as everything else drawn. */
-  burst(at, water, speed){
+  /* `jet` lifts the cavity-width ceiling for the one case that ceiling does
+     not describe — see below. Absent, it is 1 and nothing changes. */
+  burst(at, water, speed, jet){
     water = Math.max(0, water);
     speed = Math.max(0, speed);
     if(water < 0.02 || speed < 0.4) return;
@@ -158,8 +160,18 @@ Naval.Splash = class Splash {
        same water, folded up — so a plume going three or four times its own
        radius into the air has stopped being water displaced and become a
        firework. The cap binds only in a heavy swell, which is exactly where it
-       was wanted. */
-    const vMax = Math.sqrt(2*9.81*1.05*R);
+       was wanted.
+
+       EXCEPT for a small body going very fast, which is precisely where that
+       rule breaks and where round shot lives. A hull settling into a trough is
+       blunt and slow: it opens a wide shallow cavity and the crown is about as
+       high as the cavity is broad. A ball at three hundred metres a second
+       punches a narrow deep one, and the water closing over it fires a
+       Worthington jet many times the cavity's own width — tall, thin and quite
+       unlike a ship's splash. Sized honestly as a volume it came out 1,2 m
+       high with eighteen drops in it, which at the range a gun is fired is
+       nothing at all. So the caller may raise the ceiling, and says why. */
+    const vMax = Math.sqrt(2*9.81*1.05*R) * Math.max(1, jet || 1);
     const v0 = Math.min(vMax, (0.6 + speed*0.85) * froude);
 
     /* Many and small beats few and large. Spray is not a set of objects, it

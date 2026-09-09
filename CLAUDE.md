@@ -2223,10 +2223,29 @@ et non d'un coup heureux. Vérifié : trois touches et il part.
 
 **Le boulet qui manque tombe à la mer**, et la gerbe est celle qui existait
 déjà — six coups, six colonnes, à 248 · 248 · 256 · 256 · 293 · 304 m, ce qui
-est bien le pointage à plein fouet. On lui passe un volume modeste et une
-vitesse franche plutôt que les 300 m/s réels : ce qu'une gerbe demande est la
-**forme** de l'événement, une colonne haute et étroite, et `splash.js` a déjà
-son propre plafond honnête sur la vitesse.
+est bien le pointage à plein fouet.
+
+**Mais elle était invisible, et pour une raison de fond.** Dimensionnée
+honnêtement en volume — 1,6 m³ pour le trou qu'un boulet fait — elle sortait à
+**0,7 m de haut avec dix-huit gouttes**, ce qui à la distance où l'on tire n'est
+rien du tout. Le plafond de `splash.js` en est la cause, et il est juste
+partout ailleurs : *la couronne d'une gerbe monte à peu près autant que la
+cavité est large*. Une coque qui s'assoit dans un creux est émoussée et lente,
+elle ouvre une cavité large et peu profonde. **Un boulet à trois cents mètres
+par seconde en perce une étroite et profonde**, et l'eau qui se referme dessus
+tire un jet de Worthington bien plus haut que la cavité n'est large — grand,
+mince, et sans rapport avec la gerbe d'un navire. C'est exactement le cas que la
+règle ne décrit pas, donc l'appelant peut relever le plafond (`jet`, absent =
+1, rien ne change ailleurs) et dit pourquoi.
+
+Et le **volume** est fixé par une contrainte qui n'a rien à voir avec l'eau : la
+réserve de gouttes en contient deux mille et une gerbe en prend onze par mètre
+cube, donc une bordée de six doit y tenir ou les dernières pièces volent les
+premières par le curseur tournant. Vingt-six mètres cubes font 286 gouttes
+chacune, 1 716 pour la salve. Relevé : **8,5 m de haut, 286 gouttes**, contre
+0,7 m et dix-huit — et c'est la densité bien plus que la hauteur qui fait lire
+une colonne à distance. La gerbe de coque, elle, ne bouge pas d'un pouce : 420
+gouttes et 2,4 m avant comme après.
 
 **Le boulet est dessiné bien au-dessus de sa taille** (0,55 m de rayon pour onze
 centimètres réels), et c'est délibéré : à un demi-mille il ferait un tiers de

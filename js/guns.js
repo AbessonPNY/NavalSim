@@ -381,12 +381,24 @@ Naval.Guns = class Guns {
         if(ocean){
           const sea = ocean.sample(b.p.x, b.p.z, t || 0);
           if(b.p.y <= sea){
-            /* A ball makes a small hole in the water very fast, so what one
-               sees is a TALL THIN column and not a wide dome — the volume it
-               throws is modest and the speed is what does the work. The spray
-               has its own honest cap on speed, so handing it the real 300 m/s
-               would be meaningless; what it wants is the shape of the event. */
-            if(this.onSplash) this.onSplash(b.p.clone().setY(sea), 1.6, 11);
+            /* A ball makes a narrow hole in the water very fast, so what one
+               sees is a TALL THIN column and not a wide dome. Three numbers say
+               exactly that: a modest volume, so the foot of it stays narrow and
+               the drop count stays sensible; a brisk throw; and a raised jet
+               ceiling, because the rule that a crown rises about as far as its
+               cavity is wide describes a hull settling into a trough and not a
+               ball at three hundred metres a second. Handing it the real
+               impact speed would be meaningless — spray has its own honest cap
+               — what it wants is the SHAPE of the event.
+
+               The volume is set by a constraint that has nothing to do with
+               water: the spray pool holds two thousand drops and a burst takes
+               eleven per cubic metre, so a broadside of six must fit inside it
+               or the last guns rob the first through the rolling cursor.
+               Twenty-six cubic metres gives 286 drops apiece, 1 716 for the
+               salvo — and the density is what makes a column read at the range
+               a gun is fired, far more than its height does. */
+            if(this.onSplash) this.onSplash(b.p.clone().setY(sea), 26, 16, 3.0);
             dead = true;
           }
         }

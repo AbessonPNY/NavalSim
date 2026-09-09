@@ -338,7 +338,7 @@ async function main(){
      fall out of step. Watching the console move is the readout. */
   const rain = new Naval.Rain(stage.scene);
   const splash = new Naval.Splash(stage.scene, stage);
-  guns.onSplash = (at, water, speed) => splash.burst(at, water, speed);
+  guns.onSplash = (at, water, speed, jet) => splash.burst(at, water, speed, jet);
 
   /* What a hull throws when she comes down. The solver hands over cubic metres
      a SECOND of water driven down, so a sixth of a second of it is about what
