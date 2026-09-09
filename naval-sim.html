@@ -771,7 +771,7 @@ async function main(){
       for(let i=0;i<SUB;i++) e.physics.step(dt/SUB, ocean, e.ctrl, t);
       e.afloat = e.physics.afloat;
       e.ship.syncTo(e.physics.body);
-      e.ship.setTrim(e.ctrl.sheet, e.physics.tack, e.ctrl.sailsSet,
+      e.ship.setTrim(e.ctrl.sheet, e.physics.tack, e.physics.setFrac,
                      e.physics.luffing, t, e.physics.sailLoad);
       e.ship.setFlag(e.physics.appWindAngle, e.physics.tack, e.physics.appWindSpeed, t);
       e.ship.setLantern(stage.night, t);
@@ -784,7 +784,7 @@ async function main(){
 
     ship.syncTo(physics.body);
     ship.setTrim(controls.state.sheet, physics.tack,
-                 controls.state.sailsSet, physics.luffing, t, physics.sailLoad);
+                 physics.setFrac, physics.luffing, t, physics.sailLoad);
     ship.setFlag(physics.appWindAngle, physics.tack, physics.appWindSpeed, t);
     ship.setLantern(stage.night, t);
     ship.updateWake(physics.body, ocean, t);

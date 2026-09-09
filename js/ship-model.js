@@ -279,9 +279,12 @@ Naval.ShipModel = class ShipModel {
     g.setIndex(idx);
     g.computeVertexNormals();
     const mesh = new THREE.Mesh(g, this.mats.canvas);
+    /* nu1 is kept because furling needs it: a vertex rolls up onto the one
+       directly above it in row nought, and finding that one means knowing the
+       width of a row. */
     mesh.userData.sail = { base:Float32Array.from(pos), w:Float32Array.from(w),
                            sag:Float32Array.from(sag), u:Float32Array.from(us),
-                           dir:dir.clone().normalize() };
+                           nu1:nu+1, dir:dir.clone().normalize() };
     this.canvases.push(mesh);
     return mesh;
   }
@@ -293,26 +296,53 @@ Naval.ShipModel = class ShipModel {
      goes slack the moment the sheets are started, with no second rule to keep
      in step with the first. A luffing sail holds almost none of it and shivers
      instead, the shake running from luff to leech as it does on the water. */
-  setSailShape(load, luffing, t){
+  /* `set` is the fraction of canvas spread, from the solver. */
+  setSailShape(load, luffing, t, set){
     const full = this.spec.rig.belly || 0.8;
     const press = Math.min(1, Math.max(0, load/35));   // Pa — a fresh breeze fills her
     const depth = luffing ? full*0.12 : full*press;
+
+    /* Rolling up.
+
+       Every vertex travels toward the one directly above it in ROW NOUGHT, and
+       that single rule serves all three rigs, which is a happy accident of the
+       order their corners were given in. Row nought is the HEAD of a square
+       sail, so she gathers up to her yard as her buntlines are hauled; it is
+       the FOOT of a gaff sail, so that one comes down onto its boom; and it is
+       the tack-to-clew line of a jib, which runs down its stay. Each is what
+       the rig actually does.
+
+       Never quite to nothing, though. Collapsed exactly onto the row the sail
+       has no area at all and simply vanishes, where a handed sail is a fat roll
+       of cloth one can see from a mile off. Six per cent of her drop left over
+       is that roll, and the belly still working on it keeps it from being a
+       flat ribbon. */
+    const sf = (set == null) ? 1 : Math.max(0, Math.min(1, set));
+    const stow = 0.06 + 0.94*sf;
+    /* And the roll is FATTEST when she is fully handed, which is the opposite
+       of the belly. Without it the stowed remnant is a flat ribbon on the spar
+       — geometrically a furled sail, visually a strip of tape. Gathered cloth
+       is bulky: this is the bunt of it. */
+    const bunt = full*0.45*(1 - sf);
     for(const m of this.canvases){
       const s = m.userData.sail;
       if(!s) continue;
       const attr = m.geometry.attributes.position, arr = attr.array;
-      const base = s.base, w = s.w, sg = s.sag, u = s.u, d = s.dir;
+      const base = s.base, w = s.w, sg = s.sag, u = s.u, d = s.dir, nu1 = s.nu1 || 9;
       /* And then she hangs a little, on top of whatever she was cut. The cut
          is the larger of the two by some way — the foot of a course stands
          well above the line of her clews whatever the wind does — so this only
          eases the roach, it never turns it back into a smile. */
       const hang = full*(0.10 + 0.06*press);
       for(let k=0, n=w.length; k<n; k++){
-        const i3 = k*3;
-        const f = w[k]*(depth + (luffing ? full*0.22*Math.sin(u[k]*7 - t*9) : 0));
-        arr[i3  ] = base[i3  ] + d.x*f;
-        arr[i3+1] = base[i3+1] + d.y*f - (sg ? sg[k]*hang : 0);
-        arr[i3+2] = base[i3+2] + d.z*f;
+        const i3 = k*3, r0 = (k % nu1)*3;          // her own place on row nought
+        /* Belly and hang go with the canvas that is out: half spread is half
+           the cloth to fill, and a sail half handed does not bag. */
+        const f = w[k]*((depth + (luffing ? full*0.22*Math.sin(u[k]*7 - t*9) : 0))*sf + bunt);
+        const g = (sg ? sg[k]*hang*sf : 0);
+        arr[i3  ] = base[r0  ] + (base[i3  ] - base[r0  ])*stow + d.x*f;
+        arr[i3+1] = base[r0+1] + (base[i3+1] - base[r0+1])*stow + d.y*f - g;
+        arr[i3+2] = base[r0+2] + (base[i3+2] - base[r0+2])*stow + d.z*f;
       }
       attr.needsUpdate = true;
       m.geometry.computeVertexNormals();        // the shading is the whole point
@@ -927,7 +957,9 @@ Naval.ShipModel = class ShipModel {
     this.group.quaternion.copy(body.quat);
   }
 
-  setTrim(sheet, tack, sailsSet, luffing, t, load){
+  /* `set` is the fraction spread, which the solver carries. It used to be the
+     boolean order, and the cloth appeared and vanished with it. */
+  setTrim(sheet, tack, set, luffing, t, load){
     if(!this.rigs.length) return;          // no canvas to trim
     const shake = luffing ? Math.sin(t*11)*0.10 : 0;
     const angle = tack * sheet + shake;
@@ -935,12 +967,15 @@ Naval.ShipModel = class ShipModel {
        still has her yards crossed and her boom shipped. It matters twice over
        for an imported model, whose own yards now hang in these pivots: hiding
        the group would strip her rig off the masts. */
-    for(const c of this.canvases) c.visible = sailsSet;
+    /* Always drawn, roll and all. Hiding her at nought was the old behaviour
+       and it threw away the very thing the stowed remnant exists for: a handed
+       sail is a fat roll of canvas along its spar, not an absence. Eighty-one
+       vertices a sail — there is nothing to save by leaving it out. */
+    for(const c of this.canvases) c.visible = true;
     for(const rig of this.rigs){
       rig.rotation.y = (rig===this.jibRig ? angle*0.75 : angle);
     }
-    // furled canvas is hidden, so there is nothing to reshape
-    if(sailsSet) this.setSailShape(load || 0, luffing, t);
+    this.setSailShape(load || 0, luffing, t, set);
   }
 
   updateWake(body, ocean, t){

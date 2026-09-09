@@ -122,6 +122,20 @@ Naval.ShipPhysics = class ShipPhysics {
        the way of, per second — and both fall out of the buoyancy loop for the
        price of one multiply, since it already knows every probe's depth and
        every probe's velocity. */
+    /* How much of her canvas is actually spread, from nought to one.
+
+       It lives HERE and not in the model, and that is the whole point of it: a
+       sail coming in is not an animation with a force bolted alongside, it is
+       less area aloft. Set as a fraction, the aerodynamic pressure is simply
+       multiplied by it — half her canvas, half her drive — and the picture and
+       the physics cannot drift apart because there is only one number. The
+       model reads it to know how far to roll the cloth up.
+
+       Three seconds or so to hand or make sail, which is brisk for a real
+       crew and about right for a game that must not feel glued. */
+    this.setFrac = 1;
+    this.setRate = 1/3.0;      // per second
+
     this.slamRate = 0; this.slamSpeed = 0;
     /* Frames to let the probes fill in before any of this is believed. Anything
        that MOVES her without sailing her — settling a new hull, salvaging a
@@ -511,6 +525,11 @@ Naval.ShipPhysics = class ShipPhysics {
 
     // Water in and out FIRST: it sets the mass and the centre of gravity that
     // everything below — gravity, moments, inertia — is then taken against.
+    /* Canvas in or out, before anything asks how much drive she has. */
+    const wantSet = ctrl.sailsSet ? 1 : 0;
+    const stepSet = this.setRate*dt;
+    this.setFrac += Math.max(-stepSet, Math.min(stepSet, wantSet - this.setFrac));
+
     this._flooding(dt, ocean, t);
 
     force.set(0,0,0); torque.set(0,0,0);
@@ -799,12 +818,14 @@ Naval.ShipPhysics = class ShipPhysics {
                       beta - Naval.ShipPhysics.optimalAoA(beta)));
 
     const aoa = beta - ctrl.sheet;
-    if(!ctrl.sailsSet) return;
+    // nothing left aloft to speak of
+    if(this.setFrac < 0.01) return;
     if(aoa <= 0.02){ this.luffing = true; return; }          // over-eased, or in irons
 
     const CL = F.KL*Math.sin(2*aoa);
     const CD = F.CD0 + F.KD*Math.sin(aoa)*Math.sin(aoa);
-    const q  = 0.5*C.RHO_AIR*vApp*vApp*S.sailArea;
+    // area actually spread, which is what the wind has to push against
+    const q  = 0.5*C.RHO_AIR*vApp*vApp*S.sailArea*this.setFrac;
 
     this._sailF.copy(this._app).multiplyScalar(CD*q/vApp);   // drag along the wind
     this._lift.set(this._app.z, 0, -this._app.x).normalize();

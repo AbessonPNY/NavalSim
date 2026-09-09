@@ -359,10 +359,44 @@ des voiles est bornée par le **pont réel du modèle**, échantillonné par
 Löwe portant son château arrière neuf mètres au-dessus de son maître-bau : les
 basses voiles traversaient la coque.
 
-**Ferler prend la toile, pas les espars.** `setTrim` masque `this.canvases`, plus
-jamais le groupe entier. Un navire à sec de toile garde ses vergues en croix et
-sa bôme en place — et pour un modèle importé, masquer le groupe lui arracherait
-son gréement, puisque ses propres vergues y vivent désormais.
+**Ferler prend la toile, pas les espars.** `setTrim` n'a jamais touché au groupe
+entier, seulement à `this.canvases`. Un navire à sec de toile garde ses vergues en
+croix et sa bôme en place — et pour un modèle importé, masquer le groupe lui
+arracherait son gréement, puisque ses propres vergues y vivent désormais.
+
+**Et elle se roule maintenant, au lieu de disparaître.**
+
+La fraction de toile établie vit dans le **solveur** et non dans le modèle, et
+c'est tout le point : une voile qu'on rentre n'est pas une animation avec une
+force posée à côté, c'est **moins de surface en l'air**. Portée comme une
+fraction, la pression aérodynamique est simplement multipliée par elle — moitié
+de toile, moitié de poussée — et l'image ne peut pas diverger de la physique
+puisqu'il n'y a qu'un seul nombre. Le modèle le lit pour savoir jusqu'où
+enrouler le tissu. Mesuré sur la goélette pendant un ferlage : 0,99 de toile
+pour 55 kN, 0,66 pour 37, 0,33 pour 19, 0 pour 0.
+
+**Une seule règle sert les trois gréements**, et c'est un heureux hasard de
+l'ordre dans lequel leurs coins avaient été donnés : chaque sommet remonte vers
+celui qui lui fait face **au rang zéro**. Ce rang est la têtière d'un carré, qui
+se rassemble donc sur sa vergue comme le feraient ses cargues ; c'est le point
+d'une voile aurique, qui descend sur sa bôme ; et c'est la ligne d'amure d'un
+foc, qui court le long de son étai. Chacun fait ce que son gréement fait
+réellement.
+
+**Jamais tout à fait à rien, cependant.** Rabattue exactement sur le rang, la
+voile n'a plus aucune surface et disparaît, là où une voile ferlée est un gros
+rouleau de toile qu'on voit d'un mille. Il reste six pour cent de sa chute, et
+un **bourrelet** qui est le plus épais quand elle est complètement rentrée —
+l'inverse du creux, qui lui s'annule. Sans ce bourrelet le reste est un ruban
+plat : géométriquement une voile ferlée, visuellement un bout de ruban adhésif.
+Mesuré sur la Roter Löwe à sec de toile : 0,55 m de haut pour 1,47 m
+d'épaisseur.
+
+Elle est donc **toujours dessinée**. La masquer à zéro était l'ancien
+comportement et jetait précisément ce pour quoi le reliquat existe — quatre-
+vingt-un sommets par voile, il n'y a rien à économiser. Trois secondes pour
+ferler ou établir, ce qui est vif pour un vrai équipage et juste pour une
+interface qui ne doit pas paraître collée.
 
 **L'échelle d'un modèle se prend sur la coque seule.** `_hullScale()` cherche le
 maillage le plus volumineux — les espars sont longs mais n'enferment presque
