@@ -180,17 +180,27 @@ Naval.Guns = class Guns {
     const up = new THREE.Vector3(0,1,0);
     const sideV = new THREE.Vector3().crossVectors(out, up).normalize();
 
-    /* FLASH. Gone in a twentieth of a second, which is the point — it is what
-       makes the eye believe the smoke was thrown rather than released. It does
-       NOT light the sky the way the magazine does: a gun is a bright thing in
-       one place, not a second sun. */
-    for(let i=0;i<3;i++){
-      const s = this._sprite(glow, 0xffe2ae, true);
+    /* FLASH — a TONGUE of flame, not a spark. It is what makes the eye believe
+       the smoke was thrown rather than released, and the first cut had far too
+       little of it: three small sprites gone in a twentieth of a second, which
+       the smoke covered before one had seen them. A gun throws burning powder
+       several metres out of the muzzle and it lasts long enough to be read.
+
+       Drawn strictly OUTWARD along the barrel and growing as it goes, so it is
+       a cone and not a ball, and given a render order so the smoke cannot
+       swallow it: additive light in front of its own cloud is exactly what a
+       muzzle flash is.
+
+       Still not a second sun, mind. It does not light the sky the way the
+       magazine does — a gun is a bright thing in one place. */
+    for(let i=0;i<6;i++){
+      const s = this._sprite(glow, i<2 ? 0xfff4d2 : 0xffc766, true);
+      s.renderOrder = 12;
       this.live.push({
-        m:s, t:-i*0.012, life:0.07 + i*0.03, kind:'flash',
-        p:at.clone().addScaledVector(out, 0.6*k*(1+i)),
-        v:out.clone().multiplyScalar(9*k), drag:6.0, lift:0,
-        s0:(1.4 + i*0.9)*k, s1:(3.4 + i*1.6)*k });
+        m:s, t:-i*0.010, life:0.10 + i*0.032, kind:'flash',
+        p:at.clone().addScaledVector(out, (0.5 + i*0.85)*k),
+        v:out.clone().multiplyScalar((14 - i)*k), drag:5.0, lift:0,
+        s0:(1.5 + i*0.75)*k, s1:(3.0 + i*1.5)*k });
     }
 
     /* THE JET. Fast out of the muzzle and stopped almost at once — twenty-five
@@ -207,7 +217,7 @@ Naval.Guns = class Guns {
         v:out.clone().multiplyScalar((16 + Math.random()*14)*k)
             .addScaledVector(sideV, spread*4*k)
             .add(new THREE.Vector3(0, (Math.random()-0.2)*2.5*k, 0)),
-        drag:3.4, lift:0.55*k, spin:(Math.random()-0.5)*1.1,
+        drag:3.4, lift:0.55*k, spin:(Math.random()-0.5)*1.1, flash:1.0,
         s0:2.4*k, s1:(10 + Math.random()*5)*k });
     }
 
@@ -226,7 +236,7 @@ Naval.Guns = class Guns {
         v:out.clone().multiplyScalar((1.5 + Math.random()*3)*k)
             .add(new THREE.Vector3(Math.cos(a)*0.9*k, 0.7 + Math.random()*1.0,
                                    Math.sin(a)*0.9*k)),
-        drag:0.7, lift:0.22*k, spin:(Math.random()-0.5)*0.5,
+        drag:0.7, lift:0.22*k, spin:(Math.random()-0.5)*0.5, flash:0.5,
         s0:(3.4 + Math.random()*2.6)*k, s1:(15 + Math.random()*12)*k });
     }
 
@@ -471,7 +481,27 @@ Naval.Guns = class Guns {
            out where it stands instead of switching off. */
         p.m.material.opacity = Math.min(1, u*11) * Math.pow(1-u, 1.15) * 0.95;
         const g = 0.62 - 0.10*u;
-        p.m.material.color.setRGB(g, g*0.99, g*0.95);
+
+        /* THE LIGHT GETS INTO THE CLOUD, and this is most of what makes a gun
+           smell of powder rather than look like a smoke machine. The flash is
+           inside its own smoke, not in front of it, so for a fraction of a
+           second the newborn cloud glows from within — orange at the muzzle,
+           cooling outward and away. Lit only from outside, as it was, the flame
+           was hidden by the very thing it had just made.
+
+           It rides on the particle's own age rather than on a clock of its own:
+           the puffs are born in a ripple down the barrel, so each one lights
+           and cools on its own beat and the whole bank does not flare as one
+           slab. Three tenths of a second, which is about how long the charge
+           goes on burning outside the piece. */
+        const hot = p.flash ? p.flash*Math.max(0, 1 - p.t/0.30) : 0;
+        if(hot > 0.002){
+          const q = hot*hot;                       // it cools fast, then lingers faintly
+          p.m.material.color.setRGB(g + (1.00-g)*q, g + (0.66-g)*q, g + (0.22-g)*q);
+          p.m.material.opacity *= 1 + 0.75*q;
+        }else{
+          p.m.material.color.setRGB(g, g*0.99, g*0.95);
+        }
       }
     }
   }

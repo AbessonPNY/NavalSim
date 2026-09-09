@@ -1714,6 +1714,24 @@ et l'on jetait le seul moment où une planche qui retombe vaut d'être regardée
 Elle disparaît maintenant à l'entrée, en jetant son eau. Mesuré : quarante-quatre
 planches à la mer pour une soute qui saute.
 
+**Et les débris gerbent pour de bon en retombant.** La planche demandait neuf
+dixièmes de mètre cube, ce qui décrit le bois lui-même et non le trou qu'il
+perce : dix gouttes, un demi-mètre, invisible. Elle emprunte désormais la
+**colonne** du boulet plutôt que la couronne de la coque — une planche qui
+arrive à vingt-cinq mètres par seconde est bien plus près d'un projectile que
+d'un navire qui s'assoit dans un creux — mais avec un plafond plus bas, donc
+plus courte et plus large, ce que fait réellement un morceau de bois.
+
+La taille est fixée par la **réserve** autant que par l'eau, et c'est elle qui a
+tranché. Une soute qui saute jette une soixantaine de planches qui retombent en
+quelques secondes, chacune avec sa colonne. La réserve est passée de deux mille
+à **quatre mille places** — un tampon deux fois plus gros et rien d'autre de
+mesurable, 76 µs par image au plus fort — et le volume à 4,5 m³ : relevé, 57
+gerbes, un pic de 2 850 gouttes, **aucune saturation**, et des colonnes de plus
+de six mètres. À six mètres cubes la réserve restait saturée quatre secondes et
+demie, et le curseur tournant recyclait alors des gouttes encore en vol : les
+premiers panaches étaient coupés en plein vol pour payer les derniers.
+
 Enfin, la gerbe et les débris **se recentrent** avec le reste. Chaque goutte
 tient une position dans le repère local ; sans cela un recentrage laisse
 l'embrun suspendu à quinze cents mètres derrière. L'explosion avait la même
@@ -2088,6 +2106,25 @@ de grains imbrûlés ; il **tient où les pièces ont parlé** et s'affaisse bie
 lentement que l'air autour de lui. La stagnation d'abord, la dérive ensuite.
 Mesuré à `LAG = 0,30` : le banc s'écarte de 16 à 33 m en huit secondes, soit
 2,1 m/s dans un vent de 7,5.
+
+**ET LE FEU SE DIFFUSE DEDANS**, ce qui est l'essentiel de ce qui fait sentir la
+poudre. La flamme est **dans** sa propre fumée et non devant : pendant une
+fraction de seconde le nuage qui vient de naître brûle de l'intérieur, orange à
+la volée, refroidissant vers l'extérieur. Éclairée seulement du dehors — ce
+qu'elle était — la flamme était cachée par la chose même qu'elle venait de
+faire, et la bordée se lisait comme une machine à fumée.
+
+Chaque bouffée porte donc un facteur d'embrasement qui décroît sur **son propre
+âge** et non sur une horloge à part : elles naissent en roulement le long du
+bord, donc chacune s'allume et refroidit à son propre rythme et le banc entier
+ne s'embrase pas d'un bloc. Trois dixièmes de seconde, soit à peu près le temps
+que la charge continue de brûler hors de la pièce.
+
+Et la flamme elle-même est une **langue**, pas une étincelle : six sprites
+plutôt que trois, lancés strictement vers le dehors le long de l'âme et
+grandissant en chemin — donc un cône et non une boule — avec un ordre de rendu
+qui empêche la fumée de l'avaler. De la lumière additive devant son propre nuage
+est exactement ce qu'est une lueur de bouche.
 
 **Grise, et disparue en dix secondes plutôt qu'en vingt-deux.** Le blanc se lit
 comme de la vapeur ; c'est la grisaille autant que l'opacité qui fait lire

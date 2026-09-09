@@ -148,6 +148,7 @@ Naval.Explosion = class Explosion {
         g:true
       });
       m.rotation.set(Math.random()*6.28, Math.random()*6.28, Math.random()*6.28);
+      this.live[this.live.length-1].k = k;   // for the splash it will make
     }
 
     // and a handful of true sparks, which ARE points of light
@@ -211,7 +212,32 @@ Naval.Explosion = class Explosion {
         if(ocean && this.onSplash){
           const sea = ocean.sample(p.p.x, p.p.z, t || 0);
           if(p.p.y < sea && p.v.y < 0){
-            this.onSplash(p.p, 0.9, -p.v.y);
+            /* And it throws a REAL one. It used to ask for nine tenths of a
+               cubic metre, which is about the timber itself and nothing about
+               the hole it punches — ten drops, half a metre, invisible. What
+               one is watching after a magazine goes up is two dozen of these
+               coming down over a quarter of a minute, and each arrival is a
+               beat of the event.
+
+               It borrows the round shot's column rather than the hull's crown,
+               because a plank arriving at twenty-five metres a second is far
+               nearer a projectile than a ship settling into a trough — but not
+               as far: a plank is blunt and light where a ball is small and
+               dense, so it is given a lower ceiling and comes out shorter and
+               fatter, which is what a lump of timber actually does.
+
+               The size is set by the spray pool as much as by the water. Two
+               dozen planks land over several seconds and a drop lives about
+               one, so a dozen bursts can be in the air at once — eight cubic
+               metres apiece keeps the whole shower inside the two thousand
+               places rather than letting the last planks rob the first.
+
+               Measured on a magazine going up: 57 splashes, a peak of 2 850
+               drops in a reserve of 4 000, no saturation at any moment, and
+               columns better than six metres. At six cubic metres the pool sat
+               pegged for four and a half seconds and the earliest plumes were
+               recycled out from under themselves. */
+            this.onSplash(p.p, 4.5*(p.k || 1), -p.v.y, 2.2);
             this.group.remove(p.m);
             this.live.splice(i, 1);
             continue;

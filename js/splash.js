@@ -46,7 +46,20 @@ Naval.Splash = class Splash {
   constructor(scene, stage){
     this.scene = scene;
     this.stage = stage;
-    this.max = 2000;
+    /* Four thousand, not two. The reserve is a BUDGET and not a fact about
+       water, and one event asks far more of it than any other: a magazine going
+       up throws better than sixty planks, which come down over a few seconds
+       and each throw their own column. At two thousand the pool sat pegged for
+       the whole shower — the rolling cursor then recycles drops that are still
+       in the air, so the first plumes are cut off in mid-flight to pay for the
+       last. Measured: saturated at every plank size worth having, and clear
+       only when each splash was cut to a stub of five metres.
+
+       It costs a buffer twice the size and nothing else worth measuring — the
+       update was 13 µs a frame at seven hundred live drops. The real bill is
+       overdraw where the sprites pile up, which is exactly the case this is for
+       and is paid for two or three seconds. */
+    this.max = 4000;
 
     this.pos   = new Float32Array(this.max*3);
     this.size  = new Float32Array(this.max);

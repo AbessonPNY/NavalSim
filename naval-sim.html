@@ -329,7 +329,7 @@ async function main(){
   // her splinters must breathe the same air as her hull
   Naval.applyHaze(blast.woodMat, ocean.uniforms);
   Naval.applyHaze(guns.ballMat, ocean.uniforms);
-  blast.onSplash = (at, water, speed) => splash.burst(at, water, speed);
+  blast.onSplash = (at, water, speed, jet) => splash.burst(at, water, speed, jet);
 
   const chart = new Naval.Chart(document.getElementById("chart"), world,
     { fix:document.getElementById("chartFix"), scale:document.getElementById("chartScale") });

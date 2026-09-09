@@ -1,6 +1,6 @@
 {
   "id": "pirate",
-  "name": "Pirate Ship Frigate",
+  "name": "Galion pirate",
   "note": "Petit galion de 30 m, 240 t : meme carene que la Roter Lowe, aux memes cotes. Longueurs en x0,5, voilure en x0,25, vitesse machine en x racine(0,5). rudder.power revient a 91,5, etant par unite de surface.",
   "hull": {
     "length": 30,
