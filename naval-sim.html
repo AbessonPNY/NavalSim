@@ -165,7 +165,7 @@
 
   <div id="hint">
     <span id="camNote" hidden>Glisser — orienter · Molette — zoom · X — replanter ici</span>
-    <button id="camBtn">Caméra : Poursuite</button>
+    <button id="camBtn">Caméra : Proue</button>
   </div>
 </div>
 
@@ -343,7 +343,7 @@ async function main(){
       hud = new Naval.HUD(ocean, physics, controls, cam, spec, stage);
       controls.onCycleCam = ()=> cam.cycle();
       controls.onToggleHud = ()=> document.getElementById('app').classList.toggle('nohud');
-      controls.onReplant  = ()=> { if(cam.mode===3) cam.plant(); };
+      controls.onReplant  = ()=> { if(cam.mode===0 || cam.mode===3) cam.plant(); };
       controls.onTrim     = ()=> {
         if(physics.optSheet !== null) controls.state.sheet = physics.optSheet;
       };

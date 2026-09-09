@@ -1213,6 +1213,53 @@ Prendre un curseur en main **arrête** la météo automatique plutôt que d'êtr
 affiche. Une mer qui a rattrapé un vent stable ne reconstruit **rien du tout** :
 `chaseSea` dit qu'elle n'a pas bougé et l'appel est sauté.
 
+## Les quatre caméras
+
+**La vue de poursuite a été retirée**, remplacée par une vue de **proue**
+plantée en avant de sa route. L'arrière est le seul relèvement d'où un carré ne
+montre presque rien de lui-même : les voiles sont vues par la tranche ou se
+masquent l'une l'autre, et le sillage — ce que la vue existait pour montrer —
+est la partie de lui qui bouge le moins. De l'avant il présente tout son plan de
+voilure, sa lame d'étrave et sa gîte, et chacun des trois répond à la barre. La
+distance qui grandissait avec la vitesse est partie avec : elle cadrait le
+navire différemment à chaque nœud, ce qui est une drôle d'exigence pour une
+caméra.
+
+**Proue et Fixe sont la MÊME caméra** et partagent chacune de ses lignes :
+plantée dans le monde, position et cap verrouillés, braquée sur le navire une
+fois puis laissée tranquille. Seule la **station** diffère — en avant sur sa
+route, ou par sa hanche tribord — et cette unique différence vaut deux entrées
+au menu, un navire qui vient sur vous et un navire qui s'en va n'étant pas le
+même plan. Les écrire comme deux caméras aurait voulu dire tenir en accord deux
+gestions de glissement, deux zooms et deux recentrages, sans le moindre gain.
+
+Une seule finesse de station : la vue de proue se plante un peu **en dehors** de
+sa ligne de route et non dessus. Dessus, le navire viendrait droit sur
+l'objectif ; à côté, il s'ouvre de bout en bout du plan à mesure qu'il passe, ce
+qui est tout l'intérêt de la vue.
+
+Une caméra plantée n'avance ni ne recule : la molette **ouvre la focale**, elle
+ne déplace rien. Vérifié, ancre inchangée au millimètre pendant que le navire
+passait de 92 à 87 m, focale de 55° à 75°.
+
+Et la vue **Fixe** garde son indice, ce qui est voulu : le naufrage y bascule
+(`setMode(3)`), la touche `X` la replante, et rien de tout cela n'a eu à
+bouger. Une caméra nommée dans le code par son numéro se remplace en gardant son
+numéro. `X` replante désormais l'une comme l'autre.
+
+**Un piège de mise en route.** Proue est la vue de départ, et une caméra plantée
+qui n'a jamais été plantée regarde l'origine du monde. Rien ne la plante au
+démarrage : `setMode` le fait, mais le mode initial est une affectation, pas un
+appel — le constructeur appelle donc `setMode(0)` pour de bon, et `update`
+plante à la première image si personne ne l'a fait. Même raison pour
+`setSpec` : un nouveau navire n'est pas là où était l'ancien, la station est
+donc reprise.
+
+**`H` fait le vide.** Tout ce qui n'est pas la mer disparaît, message de naufrage
+compris : le but est une image propre, et une demi-interface est pire que
+l'interface entière. Les commandes continuent de répondre — on masque les
+cadrans, on ne met pas le navire en panne.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

@@ -1,9 +1,24 @@
 /* Four ways to watch her, and the mouse handling that goes with each.
 
-   0 Poursuite  — trails astern, lagging, falling back as she gathers way
+   0 Proue      — planted ahead on her course; she comes on, and passes
    1 Orbite     — free orbit about the hull
    2 Passerelle — at the wheel; aims in ship-local coords so the view heels with the deck
-   3 Fixe       — planted in the world, position AND bearing locked; she sails out of shot */
+   3 Fixe       — planted off her quarter; she draws away and out of shot
+
+   Proue replaced a chase camera that trailed astern, lagging and falling back
+   as she gathered way. Astern is the one bearing from which a square-rigger
+   shows least of herself: the sails are edge-on or hidden behind one another,
+   and the wake — the thing the view existed to show — is the part of her that
+   moves least. From ahead she presents her whole sail plan, her bow wave and
+   her heel, and every one of those answers to the helm.
+
+   Proue and Fixe are the SAME camera and share every line of it: planted in
+   the world, position and bearing locked, trained on her once and then left
+   alone. Only the station differs — ahead on her course, or off her quarter —
+   and that one difference is worth two entries in the menu, since a vessel
+   coming at you and a vessel leaving you are not the same shot. Writing them
+   as two cameras would have meant keeping two sets of drag handling, two zooms
+   and two rebases in step, for no gain whatever. */
 window.Naval = window.Naval || {};
 
 Naval.CameraRig = class CameraRig {
@@ -16,15 +31,17 @@ Naval.CameraRig = class CameraRig {
     this.setSpec(spec);
 
     this.orbitYaw = 2.4; this.orbitPitch = 0.32; this.orbitDist = this.cam.orbitDist;
-    this.fixedYaw = 0; this.fixedPitch = 0;      // trainable by dragging
+    this.fixedYaw = 0; this.fixedPitch = 0;      // trainable by dragging, both planted views
+    /* A planted camera that has never been planted would sit at the world
+       origin staring at nothing. Proue is the view she STARTS on, so the first
+       frame has to plant it — there is no cycle() to do it. */
+    this._planted = false;
     this.bridgeYaw = 0; this.bridgePitch = 0;    // where the helmsman looks
-    this.camHeading = 0;                          // lagged, so turns swing
 
     this.anchor = new THREE.Vector3();
     this.fixedTgt = new THREE.Vector3();
     this.pos = new THREE.Vector3(0,16,44);
     this.tgt = new THREE.Vector3();
-    this._fwd = new THREE.Vector3();
     this._aR = new THREE.Vector3(); this._aF = new THREE.Vector3();
     this._desired = new THREE.Vector3();
 
@@ -34,7 +51,7 @@ Naval.CameraRig = class CameraRig {
     addEventListener('pointermove', e=>{
       if(!dragging) return;
       const dx=e.clientX-px, dy=e.clientY-py;
-      if(this.mode===3){                     // train the locked camera by hand
+      if(this.mode===0 || this.mode===3){    // train a planted camera by hand
         this.fixedYaw -= dx*0.004;
         this.fixedPitch = Math.max(-0.9, Math.min(0.9, this.fixedPitch - dy*0.004));
       }else if(this.mode===2){               // look around from the wheel
@@ -47,7 +64,7 @@ Naval.CameraRig = class CameraRig {
       px=e.clientX; py=e.clientY;
     });
     canvas.addEventListener('wheel', e=>{
-      if(this.mode===2 || this.mode===3){    // zoom the lens, keeping the camera put
+      if(this.mode !== 1){                   // zoom the lens, keeping the camera put
         camera.fov = Math.max(12, Math.min(75, camera.fov + e.deltaY*0.02));
         camera.updateProjectionMatrix();
       }else{
@@ -57,6 +74,12 @@ Naval.CameraRig = class CameraRig {
     }, {passive:false});
 
     if(btn) btn.addEventListener('click', ()=> this.cycle());
+
+    /* Say out loud which camera she starts on, rather than trusting the markup
+       to agree with this file. The button's label and the drag hint both live
+       in setMode, so a mode reached by assignment instead of by call arrives
+       with last session's caption. */
+    this.setMode(0);
   }
 
   /* Every viewing distance is stated per vessel, so a 60 m frigate is filmed
@@ -66,6 +89,16 @@ Naval.CameraRig = class CameraRig {
     this.cam = spec.camera;
     this.scale = spec.L / 24;
     this.orbitDist = this.cam.orbitDist;
+    /* The bow view borrows the chase distance every spec already states, so no
+       ship file has to be touched and each vessel is still filmed from
+       proportionally as far off. It sits LOWER than the chase did — a camera
+       looking back at a bow wants to be near the water, where the sail plan
+       stands against the sky instead of being looked down upon. A spec may
+       state its own figures when one of them deserves better. */
+    this.bowDist = (this.cam.bowDist != null) ? this.cam.bowDist : this.cam.chaseDist;
+    this.bowHigh = (this.cam.bowHigh != null) ? this.cam.bowHigh : this.cam.chaseHigh*0.55;
+    // a new vessel is not where the old one was: take the station again
+    this._planted = false;
   }
 
   cycle(){ this.setMode(this.mode + 1); }
@@ -76,22 +109,32 @@ Naval.CameraRig = class CameraRig {
   setMode(m, aimY){
     const n = this.C.CAM_NAMES.length;
     this.mode = ((m % n) + n) % n;
-    if(this.mode===3) this.plant(aimY);
+    if(this.mode===0 || this.mode===3) this.plant(aimY);
     else if(this.mode===2){ this.bridgeYaw=0; this.bridgePitch=0; }
-    if(this.mode<2 && this.camera.fov!==55){
+    /* Only the orbit has no zoom of its own, so only the orbit gets the lens
+       put back. It used to be "the first two modes", which was true when the
+       first of them was a chase camera and is not now. */
+    if(this.mode===1 && this.camera.fov!==55){
       this.camera.fov=55; this.camera.updateProjectionMatrix();
     }
     if(this.btn) this.btn.textContent = 'Caméra : ' + this.C.CAM_NAMES[this.mode];
     if(this.note){
-      this.note.hidden = (this.mode<2);   // respond at once, not on the next HUD tick
-      this.note.textContent = (this.mode===3)
+      this.note.hidden = (this.mode===1);  // respond at once, not on the next HUD tick
+      this.note.textContent = (this.mode===0 || this.mode===3)
         ? 'Glisser — orienter · Molette — zoom · X — replanter ici'
         : 'Glisser — regarder autour · Molette — zoom';
     }
   }
 
-  /* Plant off her starboard quarter: she then draws away diagonally and
-     shrinks, instead of crossing the frame and sliding straight out of it.
+  /* Take a station and hold it. The station is the ONLY thing that separates
+     the two planted views:
+
+     · Proue stands ahead on her present course, so she comes on bows-first and
+       passes. A little off the line rather than dead on it — she would
+       otherwise run the camera down, and passing to one side is what opens her
+       from bow-on to broadside, which is the whole of the shot.
+     · Fixe stands off her starboard quarter, so she draws away diagonally and
+       shrinks, instead of crossing the frame and sliding straight out of it.
 
      aimY says WHAT height to train on. It defaults to the vessel; when she is
      lost the caller passes the sea surface instead, because trained on the
@@ -103,14 +146,22 @@ Naval.CameraRig = class CameraRig {
     const k = this.scale;
     this._aR.set(1,0,0).applyQuaternion(b.quat);
     this._aF.set(0,0,1).applyQuaternion(b.quat);
-    this.anchor.copy(b.pos).addScaledVector(this._aR, 26*k).addScaledVector(this._aF, -34*k);
-    this.anchor.y = ocean.sample(this.anchor.x, this.anchor.z, t) + 12*k;
+    if(this.mode===0){
+      this.anchor.copy(b.pos)
+        .addScaledVector(this._aF, this.bowDist)
+        .addScaledVector(this._aR, this.bowDist*0.16);
+      this.anchor.y = ocean.sample(this.anchor.x, this.anchor.z, t) + this.bowHigh;
+    }else{
+      this.anchor.copy(b.pos).addScaledVector(this._aR, 26*k).addScaledVector(this._aF, -34*k);
+      this.anchor.y = ocean.sample(this.anchor.x, this.anchor.z, t) + 12*k;
+    }
     // train it on her once; from then on it holds unless the user drags
     const dx = b.pos.x - this.anchor.x, dz = b.pos.z - this.anchor.z;
     const dy = (aimY != null ? aimY : b.pos.y + 2*k) - this.anchor.y;
     this.fixedYaw = Math.atan2(dx, dz);
     this.fixedPitch = Math.atan2(dy, Math.hypot(dx, dz));
     this.pos.copy(this.anchor);            // snap, so the attitude is steady at once
+    this._planted = true;
   }
 
   /* Every position this rig holds is in the world that just moved. The planted
@@ -127,22 +178,12 @@ Naval.CameraRig = class CameraRig {
     this.body = body; this.ocean = ocean; this.time = t;   // for plant()/replant
 
     this.tgt.copy(body.pos); this.tgt.y += 1.5*k;
-    this._fwd.set(0,0,1).applyQuaternion(body.quat);
-    const heading = Math.atan2(this._fwd.x, this._fwd.z);
     const desired = this._desired;
 
-    if(this.mode===0){                     // chase astern, lagged
-      let dh = heading - this.camHeading;
-      dh = Math.atan2(Math.sin(dh), Math.cos(dh));         // the short way round
-      this.camHeading += dh * Math.min(1, 1-Math.pow(0.25, dt));
-      const spd = Math.hypot(body.vel.x, body.vel.z);
-      const dist = this.cam.chaseDist + spd*1.8*k;         // pulls back with speed
-      const high = this.cam.chaseHigh + spd*0.45*k;
-      desired.set(Math.sin(this.camHeading+Math.PI)*dist, high,
-                  Math.cos(this.camHeading+Math.PI)*dist).add(body.pos);
-      desired.y = Math.max(desired.y, ocean.sample(desired.x, desired.z, t)+5*k);
-      this.tgt.addScaledVector(this._fwd, 10*k).y += 1.5*k; // look past the bow
-    }else if(this.mode===1){               // orbit
+    // she starts on a planted camera, so the first frame is where it gets planted
+    if(!this._planted && (this.mode===0 || this.mode===3)) this.plant();
+
+    if(this.mode===1){                     // orbit
       const cp = Math.cos(this.orbitPitch);
       desired.set(Math.sin(this.orbitYaw)*this.orbitDist*cp,
                   Math.sin(this.orbitPitch)*this.orbitDist + 8*k,
@@ -161,7 +202,7 @@ Naval.CameraRig = class CameraRig {
       const cp = Math.cos(this.bridgePitch);
       this.tgt.set(Math.sin(this.bridgeYaw)*cp, Math.sin(this.bridgePitch), Math.cos(this.bridgeYaw)*cp)
               .applyQuaternion(body.quat).multiplyScalar(120*k).add(eye);
-    }else{                                 // fixed vantage
+    }else{                                 // a planted vantage — Proue or Fixe
       desired.copy(this.anchor);
       const cp = Math.cos(this.fixedPitch), reach = 200*k;
       this.fixedTgt.set(
@@ -172,18 +213,23 @@ Naval.CameraRig = class CameraRig {
       this.tgt.copy(this.fixedTgt);
     }
 
-    // Soft spring, so acceleration and turns are felt. Bridge and fixed views
-    // are rigid — no easing, no drift.
-    const lerp = (this.mode===2 || this.mode===3) ? 1 : 1-Math.pow(0.12, dt);
+    /* Soft spring on the orbit, so acceleration and turns are felt. Every
+       other view is rigid — no easing, no drift. The bow view carries its lag
+       in its HEADING already, and a second one on top of it would make the
+       station wallow behind the turn it is already lagging. */
+    const lerp = (this.mode===1) ? 1-Math.pow(0.12, dt) : 1;
     this.pos.lerp(desired, Math.min(1, lerp));
     this.camera.position.copy(this.pos);
     this.camera.lookAt(this.tgt);
   }
 
-  // How far she has run from the planted viewpoint (shown on the button).
+  /* How far she has run from the planted viewpoint (shown on the button).
+     Both planted views want it: on the bow camera it counts DOWN as she comes
+     on, which is the more useful of the two readings. */
   refreshLabel(body){
-    if(this.mode===3 && this.btn){
-      this.btn.textContent = 'Caméra : Fixe · ' + Math.round(body.pos.distanceTo(this.anchor)) + ' m';
+    if((this.mode===0 || this.mode===3) && this.btn){
+      this.btn.textContent = 'Caméra : ' + this.C.CAM_NAMES[this.mode] + ' · '
+                           + Math.round(body.pos.distanceTo(this.anchor)) + ' m';
     }
   }
 };

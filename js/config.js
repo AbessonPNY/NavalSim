@@ -33,7 +33,7 @@ Naval.Config = {
   OCEAN_SIZE: 7000,
   OCEAN_SEG: 384,
 
-  CAM_NAMES: ['Poursuite','Orbite','Passerelle','Fixe'],
+  CAM_NAMES: ['Proue','Orbite','Passerelle','Fixe'],
 
   /* Last-resort list, used only when ships/index.json is missing too — the dev
      server lists the folder live and the build writes that index, so this is
