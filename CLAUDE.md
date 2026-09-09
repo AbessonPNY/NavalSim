@@ -27,6 +27,7 @@ logique est dans `js/`, en classes attachées à un espace de noms global `Naval
 |---|---|
 | `config.js` | constantes du monde (ρ, g, grille de sondes, liste de repli des navires) |
 | `weather.js` | le vent qui se conduit seul : rafales, risées, systèmes |
+| `rain.js` | le rideau de pluie du gros temps |
 | `ship-spec.js` | lit une fiche JSON et en **dérive** tout ce que le solveur consomme |
 | `hull-lines.js` | le plan de formes, en fonctions pures |
 | `stage.js` | renderer, scène, lumière, ciel |
@@ -331,10 +332,11 @@ navire ajouté depuis n'est jamais demandé — ses .glb paraissent alors ne pas
 charger alors qu'ils n'ont jamais été réclamés. Le plus sûr reste de déployer
 `dist/naval-sim.html` seul, qui embarque tout.
 
-**Console de mer.** Cinq réglages : force de la houle (Beaufort), direction du
-vent, hauteur du soleil (négative = nuit), **creux** — qui multiplie la hauteur
-significative au-delà de la table Beaufort — et couverture nuageuse. Plus un
-bouton « Météo automatique », qui laisse le vent se conduire tout seul. Ce dernier existe parce qu'un spectre
+**Console de mer.** Six réglages : force de la houle (Beaufort), direction du
+vent, hauteur du soleil (négative = nuit), **défilement du jour**, **creux** —
+qui multiplie la hauteur significative au-delà de la table Beaufort — et
+couverture nuageuse. Plus un bouton « Météo automatique », qui laisse le vent se
+conduire tout seul. Ce dernier existe parce qu'un spectre
 étalé sur dix-huit composantes et un éventail de directions paraît plus plat que
 six harmoniques alignées, à hauteur égale : les crêtes ne se superposent plus.
 Au-delà de ~1,6 un navire peut réellement chavirer, ce qui est voulu.
@@ -1003,9 +1005,9 @@ console de mer va jusqu'au couvert.
 
 Comme le reste du ciel, ils n'existent **qu'une fois** : `ocean.js` prend les
 objets uniformes `uCloud`/`uSkyTime` de `stage.skyUniforms`, pas des copies,
-donc la mer reflète exactement les nuages qu'on voit au-dessus. Et comme la
-brume, ils sont **découplés de l'état de la mer** — une tempête qui fermerait
-aussi le ciel enlèverait le beau temps du seul endroit où il vaut la peine.
+donc rien ne peut diverger de ce qu'on voit au-dessus. La mer, elle, ne les
+reflète **pas** — c'était un choix, expliqué plus bas — et le gros temps les
+efface au profit de son couvercle.
 
 **Les mouettes sont du mouvement, pas des oiseaux** (`gulls.js`). Ce que l'œil
 reconnaît à distance n'est pas l'animal mais le vol : un cercle lent, un
@@ -1027,9 +1029,8 @@ et se lit comme une fléchette. Placées comme la terre, dans le repère de l'î
 et positionnées contre l'origine courante, donc l'origine flottante ne leur
 coûte rien. Surcoût mesuré : **0,05 ms par image** pour douze oiseaux.
 
-**Brume.** Volontairement **découplée** de l'état de la mer. Physiquement un coup
-de vent charge l'air, mais cela fermait l'horizon précisément quand les grosses
-lames devenaient intéressantes à regarder.
+**Brume.** Liée à l'état de la mer — voir « Le jour, la nuit, et le gros temps ».
+Elle ne l'était délibérément pas, et le renversement est raisonné là-bas.
 
 **Spectre.** Les vagues viennent d'un spectre JONSWAP : il fixe la *forme*
 (quelles fréquences portent l'énergie, comment elles s'étalent), et la table
@@ -1212,6 +1213,110 @@ Prendre un curseur en main **arrête** la météo automatique plutôt que d'êtr
 écrasé un dixième de seconde plus tard, et l'arrêt adopte ce que la console
 affiche. Une mer qui a rattrapé un vent stable ne reconstruit **rien du tout** :
 `chaseSea` dit qu'elle n'a pas bougé et l'appel est sauté.
+
+## Le jour, la nuit, et le gros temps
+
+**Le soleil suit de la vraie trigonométrie sphérique, pas une sinusoïde
+déguisée.** Trois lignes, une latitude — que ce monde a déjà, la carte prenant
+le point en latitude et longitude — et l'on obtient gratuitement tout ce qu'un
+arc dessiné à la main doit se faire dire : le soleil se lève à l'est, se couche
+à l'ouest, passe plein sud au méridien sous ces latitudes, monte plus haut en
+été, et reste sous l'horizon pour la bonne part de la journée. Une sinusoïde en
+hauteur avec un relèvement fixe fait lever et coucher le soleil au même endroit,
+ce dont on s'aperçoit sans pouvoir dire pourquoi. Vérifié : coucher à 18 h 42 au
+relèvement 286°, hauteur maximale 55,4° au méridien, pour 46,2° N et 12° de
+déclinaison.
+
+**La vitesse de défilement est un multiplicateur d'un taux ÉNONCÉ** : une minute
+réelle pour une heure, donc vingt-quatre minutes pour un jour entier à ×1, et
+douze à ×2, où le curseur se trouve au départ. Énoncer le taux est le point —
+« ×2 » ne veut rien dire tant que ×1 n'en veut rien. La console affiche donc
+« ×2 · 12 min/jour » et non un chiffre nu. Mesuré à 2,7 µs par appel, soit
+0,17 ms par seconde : le prix est la cubemap d'environnement qu'il fait
+reconstruire, et elle est déjà bridée.
+
+Prendre le curseur de hauteur en main **arrête** le défilement, pour la même
+raison que la mer : être écrasé un quart de seconde plus tard n'est pas une
+interface. Et le curseur descend maintenant à −40°, parce que le soleil y
+descend vraiment sous ces latitudes ; arrêté à −10, il aurait montré une nuit
+bloquée au crépuscule.
+
+**Le gros temps ne fait pas descendre le soleil.** C'était la première lecture
+et elle était fausse. Un coup de vent à midi est sombre parce que le ciel s'est
+fermé, pas parce que le soleil s'est couché : la lumière reste où elle est dans
+le ciel et cesse simplement d'arriver. La hauteur n'est donc pas touchée, et ce
+qui change est le couvercle au-dessus, la crasse entre, et ce qui passe du
+soleil.
+
+**Et la brume est désormais LIÉE à l'état de la mer, alors qu'elle ne l'était
+délibérément pas.** La règle d'origine — un coup de vent ne doit pas fermer
+l'horizon, puisqu'il le fermait exactement quand les grosses lames devenaient
+intéressantes à regarder — était juste tant qu'un coup de vent était la seule
+météo qui existait : fermer la vue enlevait toute la récompense d'avoir levé la
+mer. Elle cesse de l'être dès que le coup de vent apporte un ciel à lui,
+couvercle au-dessus et pluie sur l'eau, car alors la crasse ne cache plus le
+spectacle, elle **est** le spectacle — et une tempête à travers laquelle on voit
+à huit kilomètres n'est pas une tempête. Elle arrive donc tard et raide : rien
+du tout sous force 5, où la mer est vive et la journée belle, puis en quelques
+crans jusqu'à un mille de visibilité. Le beau temps n'est pas touché.
+
+**Le couvercle se pose EN DERNIER, et c'est tout ce qui compte.** Posé avant, il
+était défait : la quasi-totalité du ciel qu'on regarde vraiment tient à moins de
+vingt degrés de l'horizon, soit exactement la bande que le terme de brume est en
+train de relaver en blanc. La tempête sortait alors en gris pâle au lieu de
+sombre. Il passe donc après le halo solaire et après le voile d'horizon. Pas
+d'une couleur plate non plus : un ciel couvert est le plus sombre au zénith et
+se relève un peu vers l'horizon, où la lumière passe sous le bord des nuages —
+et ce dégradé est l'essentiel de ce qui l'empêche de se lire comme un mur.
+
+Trois choses suivent, et en oublier une trahit tout. Les **nuages s'effacent**
+au lieu d'être poussés au maximum : un ciel couvert n'a pas de structure, et une
+tempête qui montrerait encore des cirrus se lirait comme une belle journée mal
+éclairée. Le **corps de l'eau** s'assombrit aussi — l'essentiel de la couleur
+d'une mer est de la lumière du ciel rediffusée vers le haut, donc un couvercle
+là-haut doit atteindre l'eau, faute de quoi la mer restait turquoise sous un
+ciel d'ardoise, ce qui se lit comme deux images collées l'une à l'autre. Et
+l'**environnement** partage l'uniforme de tempête, si bien que le navire est
+éclairé *par* le gros temps et pas seulement *devant* lui : sans cela il
+resterait en pleine lumière sous un ciel noir, la seule erreur d'éclairage que
+personne ne rate.
+
+**Plus de nuages dans l'eau**, sur demande. Un cirrus réfléchi est une bavure
+grise qui se lit comme de la saleté sur la surface plutôt que comme du ciel : le
+reflet est un lobe micro-facettes, donc tout ce qui a une structure fine revient
+en bouillie. La règle du ciel unique tient toujours — c'est la même fonction, le
+même code, la même météo, à qui l'on demande une couverture différente, la
+quantité de nuage étant devenue un paramètre.
+
+Mais il faut les **deux moitiés** pour que cela veuille dire quelque chose, et
+la première tentative n'en avait qu'une. Le ciel analytique ne mettait plus de
+nuages dans le lobe, mais la passe de **réflexion planaire** rend la scène
+réelle, dôme compris, et le dôme les remettait aussitôt dans l'eau par la
+texture. Mesuré caméra plongeante à 66°, de ciel bleu à couvert complet : 1,78 %
+des pixels changeaient encore, contre **zéro** une fois le dôme éteint pour la
+durée de la passe.
+
+**La pluie est un RÉSEAU, pas une simulation** (`rain.js`). Chaque goutte porte
+un point de départ fixe, et le vertex shader replie `graine − œil` dans une
+seule boîte par un modulo avant d'y rajouter l'œil. Il en sort une boîte de
+pluie toujours centrée sur le spectateur si loin qu'il navigue, avec une vraie
+parallaxe — une goutte à un mètre file, une goutte à trente bouge à peine — sans
+un seul repli à tenir, sans une position à réécrire et sans un octet de travail
+processeur par image. L'origine flottante ne lui coûte rien pour la même raison :
+tout est relatif à un œil qu'on lui donne à chaque image.
+
+Trois détails la font lire comme de la pluie. Ce sont des **segments** et non des
+points : ce que l'œil reconnaît est la traînée, un point qui tombe se lit comme
+de la neige ou comme une saleté sur l'objectif. La traînée est ajoutée **après**
+le repli, sinon une goutte à cheval sur le bord de la boîte serait coupée en
+deux. Et l'**inclinaison** vaut à elle seule tout le reste : la pluie tombe à peu
+près à la même vitesse par tous les temps, donc c'est le vent qui la couche, et
+cet angle-là se lit instantanément et sans y penser.
+
+Elle est coupée sous l'eau — un rideau de pluie vu d'en dessous n'a aucun sens —
+et retirée de la **passe de réflexion**, son réseau étant replié autour de l'œil
+réel : vue depuis la caméra miroir sous la surface, elle serait tout simplement
+ailleurs.
 
 ## Les quatre caméras
 

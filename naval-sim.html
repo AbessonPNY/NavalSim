@@ -97,7 +97,11 @@
     <div class="row"><span class="name">Direction du vent</span><span class="num" id="windVal">045°</span></div>
     <input id="windDir" type="range" min="0" max="359" step="1" value="45">
     <div class="row"><span class="name">Hauteur du soleil</span><span class="num" id="sunVal">38°</span></div>
-    <input id="sunElev" type="range" min="-10" max="80" step="1" value="38">
+    <!-- Down to -40: the sun really does go that far under at this latitude,
+         and a slider that stopped at -10 would show a night stuck at dusk. -->
+    <input id="sunElev" type="range" min="-40" max="80" step="1" value="38">
+    <div class="row"><span class="name">Défilement du jour</span><span class="num" id="sunSpeedVal">&#215;2</span></div>
+    <input id="sunSpeed" type="range" min="0" max="16" step="0.5" value="2">
     <div class="row"><span class="name">Creux de la houle</span><span class="num" id="swellVal">1.35&#215;</span></div>
     <input id="swell" type="range" min="0.4" max="2.6" step="0.05" value="1.35">
     <div class="row"><span class="name">Nuages</span><span class="num" id="cloudVal">12&#37;</span></div>
@@ -189,6 +193,7 @@
 <script src="js/ssao.js"></script>
 <script src="js/underwater.js"></script>
 <script src="js/weather.js"></script>
+<script src="js/rain.js"></script>
 <script src="js/world.js"></script>
 <script src="js/land.js"></script>
 <script src="js/gulls.js"></script>
@@ -248,11 +253,33 @@ async function main(){
      source of truth for the spectrum, the lightning and the readouts, so
      writing to them keeps every one of those honest and leaves nothing to
      fall out of step. Watching the console move is the readout. */
+  const rain = new Naval.Rain(stage.scene);
+
   const weather = new Naval.Weather();
   const wxBtn = document.getElementById('autoWx');
   const seaSlider = document.getElementById('seaState');
   const dirSlider = document.getElementById('windDir');
-  let wxTick = 0;
+  const sunSlider = document.getElementById('sunElev');
+  const sunSpeed  = document.getElementById('sunSpeed');
+  const sunSpeedVal = document.getElementById('sunSpeedVal');
+  let wxTick = 0, sunTick = 0;
+
+  /* The day going round. The speed is a plain multiplier on ONE stated rate —
+     a real minute to the hour, so a whole day takes twenty-four minutes at ×1
+     and twelve at ×2, which is where it starts. Stating the rate is the point:
+     "×2" means nothing unless ×1 does. */
+  function showSunSpeed(){
+    const v = parseFloat(sunSpeed.value);
+    sunSpeedVal.textContent = v <= 0 ? 'arrêt'
+      : '×' + (v % 1 ? v.toFixed(1) : v) + ' · ' + Math.round(24/v) + ' min/jour';
+  }
+  sunSpeed.addEventListener('input', showSunSpeed);
+  showSunSpeed();
+  /* Taking the sun in hand stops the clock, for the same reason as the sea:
+     being overwritten a fifth of a second later is not an interface. */
+  sunSlider.addEventListener('pointerdown', ()=>{
+    sunSpeed.value = '0'; showSunSpeed();
+  });
   /* The sea the wind is still raising, carried apart from the wind itself and
      in full precision — the slider's tenth of a Beaufort is far too coarse a
      step to move a spectrum by. */
@@ -601,7 +628,7 @@ async function main(){
   Naval.app = { stage, ocean, foam, controls,
                 get physics(){ return physics; }, get ship(){ return ship; },
                 get cam(){ return cam; }, get hud(){ return hud; },
-                world, land, gulls, chart, blast, takeHelm, weather,
+                world, land, gulls, chart, blast, takeHelm, weather, rain,
                 get fleet(){ return fleet; } };
 
   let last = performance.now();
@@ -748,6 +775,20 @@ async function main(){
       fpsEls.box.className = fps < 24 ? 'crit' : fps < 45 ? 'low' : '';
       fpsFrames = 0; fpsAccum = 0; fpsWork = 0;
     }
+    /* The day going round, and the sun with it. setTimeOfDay is cheap; what
+       is not is the environment cubemap it asks to be rebuilt, and that is
+       already throttled inside the stage with a catch-up in render(). */
+    const sunRate = parseFloat(sunSpeed.value);
+    if(sunRate > 0){
+      stage.setTimeOfDay(stage.dayTime + dt*sunRate/60);
+      sunTick += dt;
+      if(sunTick > 0.25){
+        sunTick = 0;
+        sunSlider.value = String(Math.round(stage.sunElev));
+        hud.showSun(stage.sunElev);
+      }
+    }
+
     /* Let the weather have its way.
 
        The sea is rebuilt EVERY frame, and that was worth changing: at five
@@ -778,11 +819,25 @@ async function main(){
       }
     }
 
+    /* Rain, and only when it is really blowing. It is fed the TRUE wind, so
+       the streaks lie over as the gale gets up, and it is cut off under water —
+       a curtain of rain seen from below the surface is nonsense, and the drops
+       would sit in front of the Snell window besides. */
+    const wet = Math.max(0, Math.min(1, (ocean.seaState - 5.5)/2.8));
+    rain.update(dt, t, stage.camera.position, ocean.windVec, wet*(1 - under));
+
     // both offscreen passes must run before the sea that samples them
     stage.updateWeather(dt, parseFloat(document.getElementById('seaState').value));
     foam.update(stage.renderer, dt, t, physics.body.pos);
     ocean.syncFoam();
+    /* The mirror must not carry the rain. Its lattice is folded about the
+       REAL eye, so seen from the mirrored camera below the water it would be
+       in quite the wrong place — and rain reflected in the sea it is falling
+       into is not a thing anyone has ever seen. */
+    const wasRaining = rain.group.visible;
+    rain.group.visible = false;
     ocean.renderReflection(stage.renderer, stage.scene, stage.camera);
+    rain.group.visible = wasRaining;
     stage.render();
     requestAnimationFrame(frame);
   }

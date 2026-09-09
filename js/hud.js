@@ -94,6 +94,14 @@ Naval.HUD = class HUD {
     if(!this.stage || !this.el.sunElev) return;
     const e = parseFloat(this.el.sunElev.value);
     this.stage.setSun(e, this.stage.sunBearing);
+    this.showSun(e);
+  }
+
+  /* The reading alone. The day cycle drives the stage directly — it has a
+     bearing to set as well as an elevation, which no single slider can carry —
+     and asks only that the console say so. */
+  showSun(e){
+    if(!this.el.sunVal) return;
     this.el.sunVal.textContent = e < 0 ? 'nuit '+Math.round(e)+'°' : Math.round(e)+'°';
   }
 

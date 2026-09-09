@@ -13,7 +13,7 @@ Naval.SKY_GLSL = `
      SUN_UNIFORMS_GLSL. */
   #ifndef NAVAL_SKY_UNIFORMS
   #define NAVAL_SKY_UNIFORMS
-  uniform float uCloud, uSkyTime;
+  uniform float uCloud, uSkyTime, uStorm;
   #endif
 
   float navalHash13(vec3 p){
@@ -64,9 +64,9 @@ Naval.SKY_GLSL = `
 
      Three octaves and a coverage threshold — below it there is simply blue sky,
      which is what makes a sky read as weather rather than as fog. */
-  float navalClouds(vec3 dir){
+  float navalClouds(vec3 dir, float amt){
     float up = dir.y;
-    if(up < 0.02) return 0.0;
+    if(up < 0.02 || amt <= 0.0) return 0.0;
     /* The scale matters more than anything else here. At 0.055 the whole
        visible sky mapped into a few hundredths of a noise unit — the pattern
        was all but constant across it, and what came out was a flat pale veil
@@ -92,18 +92,25 @@ Naval.SKY_GLSL = `
     /* High and to the right of the histogram: only the crests of the noise come
        through, and they come through as wisps. The slider still runs the whole
        way to overcast, but a fine day is the default. */
-    float c = smoothstep(0.80 - uCloud*0.52, 0.99 - uCloud*0.36, f);
+    float c = smoothstep(0.80 - amt*0.52, 0.99 - amt*0.36, f);
     return c * smoothstep(0.02, 0.11, up);
   }
 
-  vec3 navalSky(vec3 dir, vec3 sunDir, vec3 zenith, vec3 horizon){
+  /* The cloud amount is a PARAMETER and not simply uCloud, for one caller:
+     the sea's mirror asks for none. Cirrus reflected in water are a smear of
+     grey that reads as dirt on the surface rather than as sky — the reflection
+     is a micro-facet lobe, so anything with fine structure is averaged into
+     mush on the way down. The rule that the sky exists only once still holds:
+     it is the same function, the same code, the same weather, asked for a
+     different coverage. */
+  vec3 navalSky(vec3 dir, vec3 sunDir, vec3 zenith, vec3 horizon, float cloudAmt){
     float h = clamp(dir.y, 0.0, 1.0);
     vec3 c = mix(horizon, zenith, pow(h, 0.55));
 
     /* Cloud goes on BEFORE the sun's halo and before the horizon haze: a cloud
        is lit by the sun and then seen through the same air as everything else,
        so laying it on afterwards would leave it floating in front of the murk. */
-    float cl = navalClouds(normalize(dir));
+    float cl = navalClouds(normalize(dir), cloudAmt) * (1.0 - uStorm);
     if(cl > 0.001){
       float sd0 = max(dot(normalize(dir), sunDir), 0.0);
       vec3 lit = mix(horizon*1.22, vec3(1.0, 0.98, 0.94), 0.30);
@@ -117,7 +124,7 @@ Naval.SKY_GLSL = `
        the way real ones do rather than sitting on top of the murk. */
     float night = smoothstep(0.05, -0.12, sunDir.y);
     if(night > 0.001){
-      c += vec3(0.88, 0.92, 1.00) * 1.7 * navalStars(normalize(dir))
+      c += vec3(0.88, 0.92, 1.00) * 1.7 * (1.0 - uStorm) * navalStars(normalize(dir))
            * night * smoothstep(-0.02, 0.16, dir.y);
     }
 
@@ -127,8 +134,28 @@ Naval.SKY_GLSL = `
     c += vec3(1.00, 0.90, 0.72) * pow(sd, 64.0) * 0.35;
     // haze thickens toward the horizon, where you look through more atmosphere
     c = mix(c, horizon * 1.04, smoothstep(0.22, -0.02, dir.y));
+
+    /* And then the gale puts its lid on, over everything — the sun's halo and
+       the horizon wash included. It has to come LAST. Applied before them it
+       was simply undone: nearly all of the sky one actually looks at lies
+       within twenty degrees of the horizon, which is exactly the band the haze
+       term was busy washing back to white, so the storm came out as a pale
+       grey day rather than as a dark one.
+
+       Not a flat colour either. Overcast is darkest overhead and lifts a little
+       toward the horizon, where the light gets in under the edge of the cloud —
+       and that gradient is most of what stops a storm sky reading as a wall. */
+    if(uStorm > 0.001){
+      vec3 lid = horizon * mix(0.40, 0.16, smoothstep(0.0, 0.45, dir.y));
+      c = mix(c, lid, uStorm*0.96);
+    }
     return c;
-  }`;
+  }
+  // What the sky is actually wearing today, for every caller but the mirror.
+  vec3 navalSky(vec3 dir, vec3 sunDir, vec3 zenith, vec3 horizon){
+    return navalSky(dir, sunDir, zenith, horizon, uCloud);
+  }
+`;
 
 /* The eye and the sun, declared once however many patches ask for them.
 
@@ -186,6 +213,7 @@ Naval.applyHaze = function(mat, u){
     shader.uniforms.uDeep = u.uDeep;
     shader.uniforms.uCloud = u.uCloud;
     shader.uniforms.uSkyTime = u.uSkyTime;
+    shader.uniforms.uStorm = u.uStorm;
 
     shader.vertexShader = 'varying vec3 vHazeW;\n' + shader.vertexShader.replace(
       '#include <project_vertex>',
@@ -335,7 +363,8 @@ Naval.Stage = class Stage {
 
     /* Shared by the dome, the sea and every hazed material — one object, so the
        clouds overhead and the clouds the sea mirrors can never drift apart. */
-    this.skyUniforms = { uCloud:{value:0.12}, uSkyTime:{value:0} };
+    this.skyUniforms = { uCloud:{value:0.12}, uSkyTime:{value:0}, uStorm:{value:0} };
+    this.storm = 0;
     this.sunDir = new THREE.Vector3();
     this.sun = new THREE.DirectionalLight(0xfff2dc, 2.1);
     this.sun.castShadow = true;
@@ -351,7 +380,9 @@ Naval.Stage = class Stage {
     this.shadowSpan = 40;
     this.hemi = new THREE.HemisphereLight(0xbcd8ec, 0x1a3346, 0.9);
     this.scene.add(this.hemi);
-    this.setSun(38, 225);            // elevation and bearing, in degrees
+    this.declination = 12;           // degrees: late spring, long days
+    this.dayTime = 9.5;                // hours; the cycle carries it on from here
+    this.setTimeOfDay(this.dayTime);
 
     this._addSky();
     this._buildEnvSky();
@@ -390,7 +421,8 @@ Naval.Stage = class Stage {
       1.0 - 0.55*night,
       (0.72 + 0.23*t) - 0.30*night,
       (0.45 + 0.42*t) + 0.28*night);
-    this.sun.intensity = (1.1 + 1.0*t)*(1 - night) + 0.28*night;
+    this._sunBase = (1.1 + 1.0*t)*(1 - night) + 0.28*night;
+    this.sun.intensity = this._sunBase * (1 - 0.62*this.storm);
     this.horizon.setRGB(
       (0.62 + 0.20*t)*(1-night) + 0.055*night,
       (0.70 + 0.19*t)*(1-night) + 0.075*night,
@@ -403,7 +435,7 @@ Naval.Stage = class Stage {
        its old strength the hemisphere counted that light a second time and
        flattened out exactly the directional shading the environment is there to
        provide. What is left is mostly the carrier for the lightning flash. */
-    this._hemiBase = (0.14 + 0.14*t)*(1-night) + 0.04*night;
+    this._hemiBase = ((0.14 + 0.14*t)*(1-night) + 0.04*night) * (1 - 0.55*this.storm);
     this.hemi.intensity = this._hemiBase + (this.flash||0)*2.6;
 
     if(this.skyMat){
@@ -414,6 +446,49 @@ Naval.Stage = class Stage {
     // the environment IS that sky, so it has to follow the sun with it
     this.refreshEnvironment();
     if(this.onSunChange) this.onSunChange(this);
+  }
+
+  /* How hard it is blowing, from nought to a full gale, and what that does to
+     the light. It is NOT the sun going down — that was the first reading of it
+     and it was wrong. A gale at noon is dark because the sky has closed over,
+     not because the sun has set: the light stays where it is in the sky and
+     simply stops arriving. So the elevation is untouched and what changes is
+     the lid above, the murk between, and how much of the sun gets through. */
+  setStorm(x){
+    x = Math.max(0, Math.min(1, x));
+    if(Math.abs(x - this.storm) < 1e-4) return;
+    this.storm = x;
+    this.skyUniforms.uStorm.value = x;
+    if(this._sunBase != null) this.sun.intensity = this._sunBase*(1 - 0.62*x);
+    this.setSun(this.sunElev, this.sunBearing);   // colours and ambient follow
+  }
+
+  /* Where the sun stands at a given hour of the day.
+
+     Not a sine wave dressed up as a sun. The real thing is three lines of
+     spherical trigonometry, it needs a latitude — which this world already has,
+     since the chart takes her position in latitude and longitude — and it gets
+     for free everything a hand-drawn arc has to be told: the sun rises in the
+     east and sets in the west, transits due south in these latitudes, climbs
+     higher in summer, and stays below the horizon for the right share of the
+     day. A sine in elevation with a fixed bearing has the sun rising and
+     setting in the same place, which is the sort of thing one notices without
+     being able to say why. */
+  setTimeOfDay(hours){
+    const rad = Math.PI/180;
+    this.dayTime = ((hours % 24) + 24) % 24;
+    const phi = (Naval.Geo ? Naval.Geo.LAT0 : 46.2) * rad;
+    const decl = this.declination * rad;          // the season
+    const H = (this.dayTime - 12)/24 * 2*Math.PI; // hour angle: nil at noon
+
+    const sinAlt = Math.sin(decl)*Math.sin(phi)
+                 + Math.cos(decl)*Math.cos(phi)*Math.cos(H);
+    const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
+    const cosA = (Math.sin(decl) - Math.sin(alt)*Math.sin(phi))
+               / Math.max(1e-4, Math.cos(alt)*Math.cos(phi));
+    let A = Math.acos(Math.max(-1, Math.min(1, cosA)));
+    if(Math.sin(H) > 0) A = 2*Math.PI - A;        // afternoon: she is in the west
+    this.setSun(alt/rad, A/rad);
   }
 
   /* Lightning.
@@ -431,6 +506,11 @@ Naval.Stage = class Stage {
   }
 
   updateWeather(dt, seaState){
+    /* The weather in the sky, from the weather on the water. It comes on late
+       and hard: a fresh breeze is a fine day with a lively sea, and there is no
+       reason to spoil the view for it. From about force 5 the lid comes down. */
+    this.setStorm((seaState - 5.0)/3.2);
+
     // storms only: below a strong breeze there is nothing to discharge
     const p = Math.max(0, (seaState - 5.2)/3.8);
     if(p > 0 && Math.random() < p*p*dt*0.20) this.strike();   // ~1 per 5 s at full gale
@@ -461,6 +541,7 @@ Naval.Stage = class Stage {
         uHorizon:{value:this.horizon.clone()},
         uFlash:{value:0},
         uCloud:this.skyUniforms.uCloud, uSkyTime:this.skyUniforms.uSkyTime,
+        uStorm:this.skyUniforms.uStorm,
         /* Under water there is no sky to draw: the vault becomes the deep. */
         uSubmerged:{value:0}, uDeep:{value:new THREE.Color(0x0e3347)}
       },
@@ -513,7 +594,12 @@ Naval.Stage = class Stage {
     const u = this.skyMat.uniforms;
     const mat = new THREE.ShaderMaterial({
       side:THREE.BackSide, depthWrite:false,
-      uniforms:{ uSun:u.uSun, uZenith:u.uZenith, uHorizon:u.uHorizon, uFlash:u.uFlash },
+      /* uStorm is shared too, so a gale darkens the light the ship is lit BY
+         and not merely the backdrop she is lit against. Without it she would
+         stand brightly lit under a black sky, which is the one lighting error
+         nobody fails to notice. */
+      uniforms:{ uSun:u.uSun, uZenith:u.uZenith, uHorizon:u.uHorizon, uFlash:u.uFlash,
+                 uStorm:this.skyUniforms.uStorm },
       vertexShader:`
         varying vec3 vDir;
         void main(){

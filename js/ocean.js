@@ -193,6 +193,7 @@ Naval.Ocean = class Ocean {
         // 0 above the surface, 1 beneath it, smoothed across the crossing
         uSubmerged:{value:0.0},
         // the very objects the dome uses, so sea and sky share one weather
+        uStorm:(stage && stage.skyUniforms) ? stage.skyUniforms.uStorm : {value:0},
         uCloud:(stage && stage.skyUniforms) ? stage.skyUniforms.uCloud : {value:0.42},
         uSkyTime:(stage && stage.skyUniforms) ? stage.skyUniforms.uSkyTime : {value:0},
         // planar reflection of the world above the water
@@ -369,7 +370,10 @@ Naval.Ocean = class Ocean {
           // --- the mirror ---
           vec3 R = reflect(-V, N);
           R.y = abs(R.y) + 0.003;            // never sample below the horizon
-          vec3 sky = navalSky(R, uSun, uZenith, uHorizon);
+          /* No cloud in the mirror. The reflection is a microfacet lobe, so
+             anything with the fine structure of cirrus comes down as a grey
+             smear that reads as dirt on the water rather than as sky. */
+          vec3 sky = navalSky(R, uSun, uZenith, uHorizon, 0.0);
 
           /* The mirrored world, over the analytic sky. The lookup is nudged by
              the surface slope so the reflection ripples with the waves instead
@@ -397,6 +401,12 @@ Naval.Ocean = class Ocean {
              not the water pigment alone — without that term it reads as ink. */
           vec3 body = mix(uDeep, uShallow, pow(c, 1.6));
           body += uHorizon * 0.13;
+          /* A gale takes the colour out of the water as surely as out of the
+             sky. Most of a sea colour is skylight scattered back up out of it,
+             so a lid overhead has to reach the body of the water too — without
+             this the sea stayed turquoise under a sky of slate, which reads as
+             two pictures pasted together. */
+          body *= 1.0 - 0.50*uStorm;
 
           /* Subsurface glow: a crest lit from behind passes light through, and
              turns that characteristic green. Strongest on the wave tops, and
@@ -688,6 +698,13 @@ Naval.Ocean = class Ocean {
     const prevPlanes = renderer.clippingPlanes;
     const prevTarget = renderer.getRenderTarget();
     const prevCam = this.uniforms.uCam.value.clone();
+    /* No cloud in the mirror — and it takes BOTH halves to mean it. The
+       analytic sky is asked for none where the lobe is computed, but the
+       planar pass renders the actual scene, dome and all, so the dome would
+       put the cirrus straight back into the water through the texture. Cheap
+       to say here, and impossible to forget: the two live in one place. */
+    const prevCloud = this.uniforms.uCloud.value;
+    this.uniforms.uCloud.value = 0;
 
     this.mesh.visible = false;                    // the sea must not mirror itself
     renderer.clippingPlanes = [this._clip];       // keep only what is above water
@@ -701,6 +718,7 @@ Naval.Ocean = class Ocean {
     renderer.clippingPlanes = prevPlanes;
     this.mesh.visible = seaWasVisible;
     this.uniforms.uCam.value.copy(prevCam);
+    this.uniforms.uCloud.value = prevCloud;
     this.uniforms.uReflOn.value = 1.0;
   }
 
@@ -1020,11 +1038,22 @@ Naval.Ocean = class Ocean {
     const w = this.windVec, s = Math.hypot(w.x, w.z);
     if(s > 1e-4) this.uniforms.uWind.value.set(w.x/s, w.z/s);
     this.uniforms.uRipple.value = Math.min(2.6, 0.40 + this.windSpeed*0.105);
-    /* Haze is deliberately NOT tied to the sea state. Physically a blow does
-       thicken the air, but it shut the horizon down exactly when the big seas
-       became worth looking at. A steady, clear atmosphere serves the view
-       better; adjust these two numbers to taste. */
-    this.uniforms.uHaze.value  = 0.00085;
-    this.uniforms.uHazeH.value = 150.0;
+    /* Haze IS tied to the sea state, and used not to be.
+
+       The first rule here was that a blow must not shut the horizon down,
+       because it did so exactly when the big seas became worth looking at. That
+       was right while a gale was the only weather there was: closing the view
+       took away the whole reward for raising one. It stops being right once a
+       gale brings a sky of its own — a lid overhead, rain across the water —
+       since then the murk is not hiding the spectacle, it IS the spectacle, and
+       a storm one can see eight kilometres through is no storm at all.
+
+       So it comes on LATE and steeply: nothing at all below force 5, where the
+       sea is lively and the day is fine, and then quickly down to about a mile
+       of visibility. Fine weather is untouched. */
+    const st = Math.max(0, Math.min(1, (this.seaState - 5.0)/3.2));
+    this.uniforms.uHaze.value  = 0.00085 * (1 + 6.4*st*st);
+    // and it fills the height as well, or the sky stays clear above the murk
+    this.uniforms.uHazeH.value = 150.0 * (1 + 2.4*st);
   }
 };
