@@ -19,6 +19,7 @@ Naval.Controls = class Controls {
     this.onBlowUp = null;         // the powder magazine, for the fun of it
     this.onToggleHud = null;      // clear the instruments off the glass
     this.onToggleCargo = null;    // show or hide the stowage plan
+    this.onFire = null;           // give her the broadside, +1 starboard, -1 port
 
     addEventListener('keydown', e=>{
       const k = e.key.toLowerCase();
@@ -34,6 +35,8 @@ Naval.Controls = class Controls {
       if(k==='k' && this.onBlowUp) this.onBlowUp();
       if(k==='h' && this.onToggleHud) this.onToggleHud();
       if(k==='f' && this.onToggleCargo) this.onToggleCargo();
+      // G to starboard, shift for the other side: one mnemonic, two batteries
+      if(k==='g' && this.onFire) this.onFire(e.shiftKey ? -1 : 1);
     });
     addEventListener('keyup', e=>{ this.keys[e.key.toLowerCase()] = false; });
   }

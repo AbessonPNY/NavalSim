@@ -165,6 +165,7 @@
       <div class="telegraph" id="shtTele">— voiles établies —</div>
       <div class="keys"><kbd>Q</kbd><kbd>E</kbd> écoutes · <kbd>T</kbd> au mieux · <kbd>V</kbd> ferler</div>
       <div class="keys"><kbd>B</kbd> voie d&apos;eau · <kbd>P</kbd> pompes · <kbd>R</kbd> réparer · <kbd>K</kbd> sauter</div>
+      <div class="keys"><kbd>G</kbd> bordée tribord · <kbd>⇧G</kbd> bâbord</div>
       <div class="keys"><kbd>H</kbd> masquer l&apos;affichage</div>
     </div>
   </div>
@@ -233,6 +234,7 @@
 <script src="js/gulls.js"></script>
 <script src="js/chart.js"></script>
 <script src="js/explosion.js"></script>
+<script src="js/guns.js"></script>
 <script src="js/ship-model.js"></script>
 <script src="js/ship-physics.js"></script>
 <script src="js/controls.js"></script>
@@ -269,6 +271,24 @@ async function main(){
      off came through at 11 % and read as a smudge. Opened to about 8 km, which
      is a clear day rather than a hazy one, and still leaves the sea its depth. */
   ocean.uniforms.uHaze.value = 0.0005;
+
+  const guns = new Naval.Guns(stage.scene);
+  /* The recoil is a real impulse at a real place, and it is here rather than in
+     guns.js for the reason the helm is: the effect writes into the ship the way
+     a hand would, and nothing inside it reaches into the solver.
+
+     It is deliberately NOT scaled up to be felt. A broadside heeling a ship
+     over is one of the most repeated things about the age of sail and it is
+     very nearly a myth — the arithmetic is worth letting speak. */
+  guns.onRecoil = (g, out, impulse) => {
+    const b = physics.body;
+    const dir = out.clone().multiplyScalar(-impulse);          // back through the trunnions
+    b.vel.addScaledVector(dir, 1/b.mass);
+    // and about her centre of gravity, which is what actually tips her
+    const arm = g.p.clone().sub(b.com).applyQuaternion(b.quat);
+    const tq = new THREE.Vector3().crossVectors(arm, dir);
+    b.angVel.x += tq.x/b.Ib.x; b.angVel.y += tq.y/b.Ib.y; b.angVel.z += tq.z/b.Ib.z;
+  };
 
   const blast = new Naval.Explosion(stage.scene, stage);
   // her splinters must breathe the same air as her hull
@@ -541,6 +561,10 @@ async function main(){
            smoke that says the rest. */
         ship.dropAllMasts();
       };
+      controls.onFire = side => {
+        if(!ship.guns.length){ hud.flash && hud.flash(); return; }
+        guns.broadside(ship.guns, side, physics.body, spec, ocean.windVec);
+      };
       controls.onSalvage  = ()=> {
         physics.salvage();
         ship.restoreMasts();
@@ -773,7 +797,7 @@ async function main(){
   Naval.app = { stage, ocean, foam, controls,
                 get physics(){ return physics; }, get ship(){ return ship; },
                 get cam(){ return cam; }, get hud(){ return hud; },
-                world, land, gulls, chart, blast, takeHelm, weather, rain, splash,
+                world, land, gulls, chart, blast, guns, takeHelm, weather, rain, splash,
                 storms, get squall(){ return squall; },
                 get fleet(){ return fleet; } };
 
@@ -848,6 +872,7 @@ async function main(){
       cam.rebase(dx, dz);
       splash.rebase(dx, dz);
       blast.rebase(dx, dz);
+      guns.rebase(dx, dz);
       for(const e of fleet) if(e.ship) e.ship.syncTo(e.body);
       ship.syncTo(physics.body);
     }
@@ -917,6 +942,7 @@ async function main(){
     }
 
     blast.update(dt, ocean, t);
+    guns.update(dt, ocean.windVec);
     splash.update(dt);
     hud.update(dt);
     fleetTick += dt;

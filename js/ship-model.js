@@ -158,6 +158,7 @@ Naval.ShipModel = class ShipModel {
     this.group.add(this.procedural);
     this.rigs = [];                          // what braces or swings when trimmed
     this.falls = [];                         // and what can come down, mast and all
+    this.guns = [];                          // where her muzzles poke out, if any
     this._shareTot = 0;                      // canvas those masts carry between them
     this.canvases = [];                      // the cloth alone — furling hides only this
 
@@ -563,6 +564,7 @@ Naval.ShipModel = class ShipModel {
       this.rigs = []; this.canvases = [];   // the procedural rig went with the hull
       this.falls = []; this._shareTot = 0;
       this._rigModel();
+      this._findGuns();
       this._buildFlag();
       this._buildLantern();
       return true;
@@ -865,6 +867,84 @@ Naval.ShipModel = class ShipModel {
       s += f.userData.share * Math.max(0, k);
     }
     return s/this._shareTot;
+  }
+
+  /* WHERE HER MUZZLES ARE, read off the model rather than written in her paper.
+
+     This one is found by MATERIAL NAME, which is a departure from the yards and
+     the masts and wants defending. Those two have a shape a rule can state — a
+     spar is long and thin, a mast is that stood on end — and a gun barrel has
+     no such luck: it is a short thick cylinder, which describes half the deck
+     furniture on a ship. Worse, a battery is almost always one buffer holding
+     every gun on board, so there is not even an object per gun to test.
+
+     What there IS, is a modeller who has already told us: the pirate's barrels
+     carry a material called "black_canon". So the contract is one word in a
+     material name, which is a far smaller thing to ask than a mesh per gun, and
+     a ship that says nothing simply has no battery and cannot fire.
+
+     The muzzles themselves are then pure geometry, and the order of the two
+     steps is the whole of it. GROUP FIRST, then look outboard: a barrel lies
+     across the ship, so it occupies only its own diameter in z while the guns
+     stand metres apart — one gap test separates them, the same one that sorts
+     yards onto masts — and the muzzle is simply the outboard-most vertex of
+     its own group.
+
+     Done the other way about it misses half the battery, which is what the
+     first writing did. Taking the vertices near the widest point of the WHOLE
+     battery assumes her side is a flat plane; it is not, it curves in towards
+     bow and stern, so the after guns sit inboard of the midship ones and fell
+     outside the window. Six guns found where there are twelve, all of them
+     forward — and the ship's own shape was the reason. */
+  _findGuns(){
+    this.guns = [];
+    if(!this.modelRoot) return;             // a procedural hull carries no battery
+
+    let batt = null;
+    this.modelRoot.traverse(o => {
+      if(batt || !o.isMesh || !o.geometry) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      for(const m of mats) if(m && /canon|cannon|gun/i.test(m.name || '')) batt = o;
+    });
+    if(!batt) return;
+
+    this.group.updateWorldMatrix(true, true);
+    const toLocal = new THREE.Matrix4().copy(this.group.matrixWorld).invert();
+    batt.updateWorldMatrix(true, false);
+    const g = batt.geometry.clone();
+    g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(toLocal, batt.matrixWorld));
+    const pos = g.attributes.position;
+
+    for(const side of [-1, 1]){
+      const tips = [];
+      for(let i=0;i<pos.count;i++){
+        const x = pos.getX(i);
+        if(x*side > 0.05) tips.push({ z:pos.getZ(i), y:pos.getY(i), x:x });
+      }
+      if(!tips.length) continue;
+
+      /* Grouped by the gap in z, exactly as the yards are sorted onto masts:
+         a barrel's own ring is a few tenths of a metre deep and the guns stand
+         a couple of metres apart, so one threshold separates them and no count
+         has to be assumed. */
+      tips.sort((a,b) => a.z - b.z);
+      let run = [tips[0]];
+      const flush = () => {
+        // the muzzle is where this gun reaches furthest outboard, and the
+        // barrel's own axis is the middle of its ring
+        let z=0, y=0, best=run[0];
+        for(const t of run){ z+=t.z; y+=t.y; if(t.x*side > best.x*side) best = t; }
+        this.guns.push({ side,
+          p: new THREE.Vector3(best.x, y/run.length, z/run.length) });
+      };
+      for(let i=1;i<tips.length;i++){
+        if(tips[i].z - tips[i-1].z > 0.60){ flush(); run = []; }
+        run.push(tips[i]);
+      }
+      flush();
+    }
+    g.dispose();
+    this.guns.sort((a,b) => b.p.z - a.p.z);      // forward gun first, as they fire
   }
 
   // A soft foam trail astern, painted into a canvas so it has no hard edges.

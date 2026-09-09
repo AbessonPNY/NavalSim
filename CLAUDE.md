@@ -40,6 +40,7 @@ logique est dans `js/`, en classes attachées à un espace de noms global `Naval
 | `ship-physics.js` | sondes, corps rigide 6 ddl, gouvernail, voiles |
 | `controls.js` · `camera-rig.js` · `hud.js` | barre, caméras, instruments |
 | `helm.js` | la barre des navires qui ne sont pas le vôtre |
+| `guns.js` | la bordée, et surtout sa fumée |
 
 ## Cahier des charges
 
@@ -2009,6 +2010,94 @@ sur demande, les trois carrés passant de 92 à 275 :
 Un quart de tour en trois minutes à trois nœuds, ce qui est juste pour un lourd
 carré sous voiles, et sans nervosité à la machine (62° en une minute).
 
+## Les grosses pièces
+
+**Un coup de canon n'est pas une petite explosion**, et le traiter comme telle
+est la manière de le rater. Une explosion est une boule qui grandit dans toutes
+les directions et qui **monte**. Un canon est un **jet** : les gaz sortent par
+le travers à une vitesse énorme, l'air les arrête en quelques mètres, et le tout
+s'enroule en un gros nuage qui ne va plus nulle part — sauf sous le vent.
+
+**Et c'est ce dernier point qui est tout l'effet.** La fumée de poudre est
+lente, épaisse et durable, donc **le navire sort de dessous la sienne** et
+laisse une file de nuages suspendus au-dessus de l'eau là où chaque pièce a
+parlé. Tous les récits de combat parlent de la fumée : elle aveuglait la
+batterie, elle cachait l'ennemi, elle disait où était le vent. Une bouffée qui
+meurt là où elle est née se lit comme un effet ; un banc qui descend sous le
+vent se lit comme de l'artillerie.
+
+La fumée ne décroît donc pas vers l'**arrêt** comme celle de l'explosion : elle
+relaxe vers la **vitesse de l'air**. C'est une ligne, et elle donne d'un coup la
+dérive, le banc sous le vent et le navire qui se dégage, sans un cas
+particulier pour aucun des trois. Mesuré, bordée de six pièces par vent de
+7,5 m/s : le banc est à **35 m d'écart en moyenne et 47 au plus loin** trois
+secondes après le feu, sabords dégagés.
+
+**Les bouches sont lues dans le modèle, mais par le NOM DE MATIÈRE**, ce qui
+est un écart aux vergues et aux mâts et demande d'être défendu. Ces deux-là ont
+une forme qu'une règle peut énoncer — un espar est long et mince, un mât c'est
+la même chose debout. Un tube de canon n'a pas cette chance : c'est un cylindre
+court et épais, ce qui décrit la moitié des accessoires de pont. Pire, une
+batterie entière est presque toujours **un seul maillage**, donc il n'y a même
+pas un objet par pièce à tester. Ce qu'il y a, en revanche, c'est un modéliste
+qui l'a déjà dit : les tubes du pirate portent une matière nommée
+`black_canon`. Le contrat est donc **un mot dans un nom de matière**
+(`/canon|cannon|gun/i`), ce qui est bien moins à demander qu'un mesh par
+pièce, et un navire qui ne dit rien n'a pas de batterie et ne tire pas.
+
+**Grouper D'ABORD, chercher le large ensuite** — l'ordre des deux est tout. Un
+tube est posé en travers, donc il n'occupe que son propre diamètre en `z`
+alors que les pièces sont à des mètres l'une de l'autre : un seul test d'écart
+les sépare, le même qui range les vergues sur les mâts, et la volée est
+simplement le sommet le plus au large de son propre groupe.
+
+Fait dans l'autre sens, on en perd la moitié — ce que faisait la première
+écriture. Prendre les sommets proches du point le plus large de **toute** la
+batterie suppose que son flanc est un plan ; il ne l'est pas, il rentre vers
+l'avant et vers l'arrière, si bien que les pièces de l'arrière sont en dedans
+des pièces du milieu et tombaient hors de la fenêtre. **Six pièces trouvées là
+où il y en a douze**, toutes sur l'avant — et c'est la forme même du navire qui
+en était la cause. Corrigé, la lecture donne les douze, et l'on voit la muraille
+rentrer : x passe de 7,54 à 6,72 m et y monte de 5,95 à 6,68 avec la tonture.
+
+**La bordée part pièce par pièce**, à un dixième de seconde d'écart. Elles
+étaient tirées en roulement le long du bord, et pas pour la parade : une
+batterie lâchée d'un seul coup est une seule poussée, et cela se lit comme un
+seul objet qui casse. En roulement, l'œil suit le long de sa muraille et lit une
+**rangée de canons**. Même argument que les trois charges de la soute et que les
+mâts qui tombent l'un après l'autre.
+
+**La fumée de poudre est PÂLE et ÉPAISSE**, et les deux ont été ratés dans le
+même sens à la première écriture : à demi-opacité et sept dixièmes de gris, cela
+se lisait comme un banc de **brume** couché le long du bord. Un canon et une
+soute se séparent par la couleur autant que par la forme — la suie est un
+incendie à bord, le blanc est de l'artillerie — et la densité n'est pas un goût,
+c'est la raison même pour laquelle la fumée comptait : elle **aveuglait**.
+
+**Et elle a sa propre texture, ce qui vaut vingt lignes.** La bouffée de
+l'explosion est un dégradé radial dont on a mordu le bord, ce qui lui convient :
+la fumée d'une boule de feu est mince et on en voit quelques-unes. Dessinez-en
+quarante l'une sur l'autre à pleine opacité — ce que fait une bordée — et chaque
+bord mordu tombe au même endroit : les dégradés s'additionnent en un galet blanc
+parfaitement lisse. Le remède est des **grumeaux dans la texture** et non
+davantage de sprites : une demi-douzaine de taches décentrées de tailles
+différentes donnent à chaque bouffée une silhouette déchirée, et quarante de
+celles-là, chacune tournée à son propre angle, ne s'accordent jamais et se
+lisent comme des volutes. Même leçon que les voiles : ce que l'œil lit d'abord
+est le **contour**, pas l'ombrage dedans.
+
+**Et elle le SENT.** Pas une secousse décidée — l'arithmétique dit autre chose
+et il vaut la peine de la laisser parler. Un boulet de douze part à quelque
+440 m/s, donc avec les gaz derrière lui une pièce rend environ trois mille
+kilogrammes-mètres par seconde à travers ses tourillons, six mètres au-dessus du
+centre de gravité. Mesuré sur la frégate de 2 000 t, bordée de six pièces :
+**1,07° de gîte** et 0,68 °/s de roulis, pour 0,009 m/s de translation. La
+bordée qui couche un navire est l'une des choses les plus répétées sur la marine
+à voile, et c'est à peu près un mythe : on la sent, elle ne renverse rien.
+
+**Ce qui reste à faire** : le boulet lui-même. Rien ne part de la volée pour
+l'instant — c'est la fumée et le recul, pas encore l'artillerie.
+
 ## Un mât qui tombe
 
 **Deux groupes emboîtés, et l'emboîtement est toute l'astuce.** Un mât s'abat
@@ -2129,6 +2218,9 @@ appel — le constructeur appelle donc `setMode(0)` pour de bon, et `update`
 plante à la première image si personne ne l'a fait. Même raison pour
 `setSpec` : un nouveau navire n'est pas là où était l'ancien, la station est
 donc reprise.
+
+**Les touches.** `G` donne la bordée tribord, `⇧G` celle de bâbord —
+un seul moyen mnémotechnique et deux batteries.
 
 **`H` fait le vide.** Tout ce qui n'est pas la mer disparaît, message de naufrage
 compris : le but est une image propre, et une demi-interface est pire que
