@@ -117,6 +117,25 @@ Naval.Ocean = class Ocean {
     this.profiles = new Naval.HullProfiles(C.MAX_SHIPS, 64);
     // where local (0,0,0) actually lies in the world — see syncPhase()
     this.origin = new THREE.Vector3();
+    /* What each spectral band looked like the last time she was built, and the
+       phase correction that keeps her continuous across a rebuild. Kept per
+       BAND rather than per entry of `waves`, which is sorted by energy and so
+       reorders itself whenever the wind changes. See setSeaState. */
+    this.band = [];
+    for(let i=0;i<C.NWAVES;i++) this.band.push({ k:0, dx:0, dz:0, omega:0, corr:0 });
+    /* Pools. setSeaState used to build a fresh array of eighteen objects on
+       every call, which was nothing at all when a hand on a slider called it
+       twice a minute. Automatic weather calls it on every frame, and eleven
+       hundred short-lived objects a second is a collection pause — which is
+       precisely what a stutter is made of. Nothing is allocated in a rebuild
+       now; the fields are written in place. */
+    this._raw = [];
+    this._pool = [];
+    for(let i=0;i<C.NWAVES;i++){
+      this._raw.push({ amp:0, w:0, dir:0 });
+      this._pool.push({ dx:0, dz:0, amp:0, k:1, omega:0, Q:0, L:1, band:i, phase:0 });
+    }
+    this.cpuWaves = [];
 
     const half = C.OCEAN_SIZE * 0.5;
     const geo = new THREE.PlaneGeometry(C.OCEAN_SIZE, C.OCEAN_SIZE, C.OCEAN_SEG, C.OCEAN_SEG);
@@ -689,15 +708,15 @@ Naval.Ocean = class Ocean {
      FROM, as a seaman states it, on the same compass as the heading. */
   setSeaState(seaState, windDeg){
     const C = this.C, G = C.G;
-    this.waves = [];
+    this.waves.length = 0;
     const wr = windDeg*Math.PI/180;
     const s = Math.max(0, seaState);
     // remembered so a caller that must flatten her can put her back exactly
     this.seaState = seaState; this.windDeg = windDeg;
 
-    // true wind from the Beaufort number: v ≈ 0.836·B^1.5 m/s
-    this.windSpeed = 0.836*Math.pow(s,1.5) + 0.8;
-    this.windVec.set(-Math.sin(wr)*this.windSpeed, 0, -Math.cos(wr)*this.windSpeed);
+    /* The wind that goes with this sea. A caller wanting a gust the sea has
+       not caught up with says so afterwards — see setWind. */
+    this.setWind(seaState, windDeg);
 
     /* --- the wave spectrum ---
        The old harmonic series (wavelengths in 0.62^i) was arbitrary: it made a
@@ -721,7 +740,7 @@ Naval.Ocean = class Ocean {
 
     const N = C.NWAVES;
     const wLo = wp*0.62, wHi = wp*3.4;    // where the energy actually lives
-    const raw = [];
+    const raw = this._raw;
     let m0 = 0;
     for(let i=0;i<N;i++){
       // geometric spacing: the low frequencies deserve the resolution
@@ -741,7 +760,7 @@ Naval.Ocean = class Ocean {
          the horizon. Deterministic offsets, so the CPU and GPU never disagree. */
       const spread = (0.16 + 0.55*Math.min(1, w/wp - 0.4)) * (0.34 + 0.045*s);
       const u = ((i*7)%N)/(N-1)*2 - 1;    // spread the components, no randomness
-      raw.push({ amp, w, dir: wr + spread*u });
+      raw[i].amp = amp; raw[i].w = w; raw[i].dir = wr + spread*u;
     }
 
     // anchor the scale: match the significant height this sea state announces
@@ -772,7 +791,33 @@ Naval.Ocean = class Ocean {
     this.sharp = 1 + Math.min(0.95, (0.06 + 0.055*s) * (0.55 + 0.62*this.swell));
     this.uniforms.uSharp.value = this.sharp;
 
+    /* --- keeping the sea continuous while the wind changes ---
+
+       The console used to be the only thing that ever called this, and a
+       console is used a few times a minute. Automatic weather calls it several
+       times a SECOND, and that turns a detail into the whole problem.
+
+       A component's phase is k·(d·r) − ω·t + correction. Rebuild the spectrum
+       with a slightly different ω and the term ω·t jumps by Δω·t — and t is
+       the running clock, thousands of seconds in. A thousandth of a radian per
+       second of frequency drift is a whole radian of jump. The same is true of
+       the direction: k·(d·origin) is evaluated against an origin that may be
+       hundreds of kilometres out, so a hundredth of a degree of veer moves the
+       phase at the ship by a good fraction of a wavelength.
+
+       Neither is a rounding error to be lived with — together they would make
+       the sea reshuffle itself on every gust, which reads as boiling.
+
+       Both are absorbed exactly, and for the same reason the floating origin
+       works: what changes is a phase, and a phase only matters modulo 2π. The
+       correction is set so the total is unchanged AT THE LOCAL ORIGIN, which
+       is where the fleet is and therefore where continuity is worth having;
+       far from it the two spectra part company slowly, as they must, since
+       they are genuinely different seas. */
+    const o = this.origin, TAU = Math.PI*2, tNow = this.uniforms.uTime.value;
+
     let ampSum = 0;
+    let band = 0;
     for(const r of raw){
       // sharpening lowers the RMS of the profile; give it back so the stated
       // significant height still holds
@@ -781,9 +826,18 @@ Naval.Ocean = class Ocean {
       // steepness normalised so the crest never loops (Σ Q·k·A < 1)
       const Q = Math.min(0.85, chop / (k*amp*N + 1e-4));
       // seas run with the wind, i.e. away from the bearing it blows from
-      this.waves.push({ dx:-Math.sin(r.dir), dz:-Math.cos(r.dir),
-                        amp, k, omega:r.w, Q, L:2*Math.PI/k });
+      const dx = -Math.sin(r.dir), dz = -Math.cos(r.dir);
+      const W = this._pool[band], B = this.band[band];
+      if(B.k > 0) B.corr = (B.corr
+                    + (B.k*(B.dx*o.x + B.dz*o.z) - k*(dx*o.x + dz*o.z))
+                    + (r.w - B.omega)*tNow) % TAU;
+      B.k = k; B.dx = dx; B.dz = dz; B.omega = r.w;
+
+      W.dx = dx; W.dz = dz; W.amp = amp; W.k = k;
+      W.omega = r.w; W.Q = Q; W.L = 2*Math.PI/k;
+      this.waves.push(W);
       ampSum += amp;
+      band++;
     }
     /* Order by ENERGY, not by length, and let the solver and the foam pass take
        the head of that list. Taking the longest instead was wrong: in a gale the
@@ -791,11 +845,28 @@ Naval.Ocean = class Ocean {
        the ship merely lifts her bodily — it is the band around the spectral peak
        that actually works her. Sorting by amplitude puts that band first. */
     this.waves.sort((a,b2) => b2.amp - a.amp);
-    this.cpuWaves = this.waves.slice(0, C.NWAVES_CPU);
+    this.cpuWaves.length = 0;
+    for(let i=0;i<C.NWAVES_CPU && i<this.waves.length;i++) this.cpuWaves.push(this.waves[i]);
 
     // reference height for the crest glow, so it scales with the sea state
     this.uniforms.uAmpMax.value = Math.max(0.05, ampSum*0.8);
     this.syncUniforms();
+  }
+
+  /* The wind alone, leaving the spectrum where it stands.
+
+     For a hand on the console the two are the same thing and setSeaState sets
+     both. Under weather that runs itself they are NOT: a squall is felt in the
+     sails the instant it arrives, while the sea it raises takes minutes to get
+     up and minutes more to lie down again. Splitting them is not a licence —
+     it is the honest account, and it is also what makes automatic weather
+     affordable, since only this half is cheap enough to run every frame. */
+  setWind(force, windDeg){
+    const wr = windDeg*Math.PI/180;
+    const s = Math.max(0, force);
+    // true wind from the Beaufort number: v ≈ 0.836·B^1.5 m/s
+    this.windSpeed = 0.836*Math.pow(s,1.5) + 0.8;
+    this.windVec.set(-Math.sin(wr)*this.windSpeed, 0, -Math.cos(wr)*this.windSpeed);
     this.syncWind();
   }
 
@@ -831,7 +902,8 @@ Naval.Ocean = class Ocean {
       const w = this.waves[i];
       let p = 0;
       if(w){
-        p = (w.k*(w.dx*o.x + w.dz*o.z)) % TAU;
+        const B = this.band[w.band];
+        p = (w.k*(w.dx*o.x + w.dz*o.z) + (B ? B.corr : 0)) % TAU;
         w.phase = p;                       // the CPU sampler reads it off the wave
       }
       this.uniforms.uWavePhase.value[i] = p;

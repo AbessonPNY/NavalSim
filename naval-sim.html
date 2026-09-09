@@ -107,6 +107,7 @@
       <button data-s="4" class="on">Modérée</button>
       <button data-s="8">Tempête</button>
     </div>
+    <div class="wxAuto"><button id="autoWx">Météo automatique</button></div>
   </div>
 
   <!-- Helm -->
@@ -129,6 +130,7 @@
       <div class="telegraph" id="shtTele">— voiles établies —</div>
       <div class="keys"><kbd>Q</kbd><kbd>E</kbd> écoutes · <kbd>T</kbd> au mieux · <kbd>V</kbd> ferler</div>
       <div class="keys"><kbd>B</kbd> voie d&apos;eau · <kbd>P</kbd> pompes · <kbd>R</kbd> réparer · <kbd>K</kbd> sauter</div>
+      <div class="keys"><kbd>H</kbd> masquer l&apos;affichage</div>
     </div>
   </div>
 
@@ -186,6 +188,7 @@
 <script src="js/foam.js"></script>
 <script src="js/ssao.js"></script>
 <script src="js/underwater.js"></script>
+<script src="js/weather.js"></script>
 <script src="js/world.js"></script>
 <script src="js/land.js"></script>
 <script src="js/gulls.js"></script>
@@ -239,6 +242,39 @@ async function main(){
   const foam     = new Naval.FoamField(stage.renderer, ocean.uniforms);
   ocean.attachFoam(foam);
   const controls = new Naval.Controls();
+
+  /* The weather, which may run itself. It drives the CONSOLE rather than the
+     sea directly, and that is deliberate: the sliders are already the single
+     source of truth for the spectrum, the lightning and the readouts, so
+     writing to them keeps every one of those honest and leaves nothing to
+     fall out of step. Watching the console move is the readout. */
+  const weather = new Naval.Weather();
+  const wxBtn = document.getElementById('autoWx');
+  const seaSlider = document.getElementById('seaState');
+  const dirSlider = document.getElementById('windDir');
+  let wxTick = 0;
+  /* The sea the wind is still raising, carried apart from the wind itself and
+     in full precision — the slider's tenth of a Beaufort is far too coarse a
+     step to move a spectrum by. */
+  const seaLag = { force:4, dir:45 };
+
+  function setAutoWeather(on){
+    weather.on = on;
+    wxBtn.classList.toggle('on', on);
+    wxBtn.textContent = on ? 'Météo automatique · en route' : 'Météo automatique';
+    if(on){
+      weather.sync(parseFloat(seaSlider.value), parseFloat(dirSlider.value));
+      seaLag.force = weather.force; seaLag.dir = weather.dir;
+    }else{
+      // standing down, she takes the sea the console is showing — no argument
+      hud.refreshSea();
+    }
+  }
+  wxBtn.addEventListener('click', ()=> setAutoWeather(!weather.on));
+  /* Taking hold of a slider is an order, so it stands the watch down rather
+     than being overwritten a tenth of a second later. */
+  seaSlider.addEventListener('pointerdown', ()=> setAutoWeather(false));
+  dirSlider.addEventListener('pointerdown', ()=> setAutoWeather(false));
 
   /* The sea mirrors the sky, so when the sun moves the water's copy of it has
      to move too — otherwise the reflection and the dome disagree and the
@@ -306,6 +342,7 @@ async function main(){
               document.getElementById('camNote'), spec);
       hud = new Naval.HUD(ocean, physics, controls, cam, spec, stage);
       controls.onCycleCam = ()=> cam.cycle();
+      controls.onToggleHud = ()=> document.getElementById('app').classList.toggle('nohud');
       controls.onReplant  = ()=> { if(cam.mode===3) cam.plant(); };
       controls.onTrim     = ()=> {
         if(physics.optSheet !== null) controls.state.sheet = physics.optSheet;
@@ -564,7 +601,7 @@ async function main(){
   Naval.app = { stage, ocean, foam, controls,
                 get physics(){ return physics; }, get ship(){ return ship; },
                 get cam(){ return cam; }, get hud(){ return hud; },
-                world, land, gulls, chart, blast, takeHelm,
+                world, land, gulls, chart, blast, takeHelm, weather,
                 get fleet(){ return fleet; } };
 
   let last = performance.now();
@@ -711,6 +748,36 @@ async function main(){
       fpsEls.box.className = fps < 24 ? 'crit' : fps < 45 ? 'low' : '';
       fpsFrames = 0; fpsAccum = 0; fpsWork = 0;
     }
+    /* Let the weather have its way.
+
+       The sea is rebuilt EVERY frame, and that was worth changing: at five
+       beats a second each rebuild had to carry a fifth of a second of drift,
+       and out beyond half a mile that is a fifth of a metre of surface moving
+       all at once, five times a second — a shimmer. Spread over every frame,
+       the same total drift is a tenth of that per step and cannot be seen. It
+       is affordable only because a rebuild now allocates nothing: 5 µs, some
+       0,3 ms out of every second. */
+    if(weather.on){
+      weather.update(dt);
+      if(weather.chaseSea(seaLag, dt)) ocean.setSeaState(seaLag.force, seaLag.dir);
+      /* The last word belongs to the gust. setSeaState fits the wind to the
+         sea it has just built, which is right for a hand on the console and
+         wrong here: the swell lags, the canvas does not. */
+      ocean.setWind(weather.force, weather.dir);
+
+      /* The console is a reading, not a control loop — a few times a second is
+         plenty, and writing to a slider on every frame is real DOM work. It
+         shows the WIND's bearing and not the swell's, because that is what its
+         label says; the gap between the two is the thing worth seeing. */
+      wxTick += dt;
+      if(wxTick > 0.2){
+        wxTick = 0;
+        seaSlider.value = seaLag.force.toFixed(1);
+        dirSlider.value = String(Math.round(weather.dir) % 360);
+        hud.showSea(seaLag.force, weather.dir);
+      }
+    }
+
     // both offscreen passes must run before the sea that samples them
     stage.updateWeather(dt, parseFloat(document.getElementById('seaState').value));
     foam.update(stage.renderer, dt, t, physics.body.pos);

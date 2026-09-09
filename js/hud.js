@@ -144,8 +144,20 @@ Naval.HUD = class HUD {
     const s = parseFloat(this.el.seaState.value);
     const w = parseInt(this.el.windDir.value);
     this.ocean.setSeaState(s, w);
+    this.showSea(s, w);
+  }
+
+  /* The console's own reading, without touching the sea. Automatic weather
+     drives the ocean with finer numbers than a slider can hold — a tenth of a
+     Beaufort is already a whole new sea — so it sets the spectrum itself and
+     asks only for the display. Keeping the two apart is what lets the console
+     go on telling the truth while something else holds the helm. */
+  showSea(s, w){
     this.el.seaVal.textContent = s.toFixed(1);
-    this.el.windVal.textContent = String(w).padStart(3,'0')+'°';
+    /* Rounded here rather than by the caller: the console hands whole
+       degrees, but automatic weather works in fractions of one and would
+       otherwise print a bearing sixteen digits long. */
+    this.el.windVal.textContent = String(Math.round(w) % 360).padStart(3,'0')+'°';
     const b = this.C.BEAUFORT[Math.max(0, Math.min(9, Math.round(s)))];
     this.el.beauNum.textContent = b[0];
     this.el.beauDesc.textContent = b[1]+' · '+b[2]+' m';

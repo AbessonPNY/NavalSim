@@ -26,6 +26,7 @@ logique est dans `js/`, en classes attachées à un espace de noms global `Naval
 | module | rôle |
 |---|---|
 | `config.js` | constantes du monde (ρ, g, grille de sondes, liste de repli des navires) |
+| `weather.js` | le vent qui se conduit seul : rafales, risées, systèmes |
 | `ship-spec.js` | lit une fiche JSON et en **dérive** tout ce que le solveur consomme |
 | `hull-lines.js` | le plan de formes, en fonctions pures |
 | `stage.js` | renderer, scène, lumière, ciel |
@@ -330,9 +331,10 @@ navire ajouté depuis n'est jamais demandé — ses .glb paraissent alors ne pas
 charger alors qu'ils n'ont jamais été réclamés. Le plus sûr reste de déployer
 `dist/naval-sim.html` seul, qui embarque tout.
 
-**Console de mer.** Quatre réglages : force de la houle (Beaufort), direction du
-vent, hauteur du soleil (négative = nuit) et **creux**, qui multiplie la hauteur
-significative au-delà de la table Beaufort. Ce dernier existe parce qu'un spectre
+**Console de mer.** Cinq réglages : force de la houle (Beaufort), direction du
+vent, hauteur du soleil (négative = nuit), **creux** — qui multiplie la hauteur
+significative au-delà de la table Beaufort — et couverture nuageuse. Plus un
+bouton « Météo automatique », qui laisse le vent se conduire tout seul. Ce dernier existe parce qu'un spectre
 étalé sur dix-huit composantes et un éventail de directions paraît plus plat que
 six harmoniques alignées, à hauteur égale : les crêtes ne se superposent plus.
 Au-delà de ~1,6 un navire peut réellement chavirer, ce qui est voulu.
@@ -1071,6 +1073,145 @@ quelques mètres du bord. La commande « hauteur du soleil » existe pour ça.
 **Ce qu'on ne fera pas.** Le turquoise à caustiques des images de lagon vient
 d'un fond de sable vu à travers deux mètres d'eau, pas d'un meilleur shader. En
 pleine mer, rien ne remonte. Ce serait un décor distinct, pas du réalisme.
+
+## La météo qui se fait toute seule
+
+**Un vent posé une fois et jamais retouché est ce qu'il reste de plus artificiel
+sur l'eau** : chaque mer devient sa propre photographie, et rien de ce qui
+arrivera dans l'heure n'était pas déjà vrai à la première minute.
+
+Ce qui rend un vrai vent vivant n'est pas d'être aléatoire, c'est d'avoir de la
+**mémoire** : la prochaine rafale ressemble à la précédente. Tirer un nombre
+neuf toutes les quelques secondes donne exactement l'inverse — un vent sans
+passé, sautant entre des états sans rapport. D'où un processus
+d'Ornstein-Uhlenbeck sur **deux échelles de temps** : le *système* (force et cap
+moyens, une dizaine de minutes), qui donne sa forme à une heure de navigation,
+et le *vent lui-même* autour de cette moyenne (une vingtaine de secondes), qui
+sont les rafales et les risées.
+
+La **force** revient vers une moyenne climatique, parce que la plupart des jours
+sont une brise modérée et que les coups de vent sont rares : le rappel produit
+cette distribution gratuitement, sans table de probabilités. Le **cap** ne
+revient nulle part — aucun point de la rose n'est plus naturel qu'un autre, donc
+sa moyenne est une marche aléatoire pure et le vent peut finir la journée
+n'importe où. Mesuré sur une heure : force médiane 4,5, du 2,2 au 6,3 en
+déciles, 34° de rotation totale.
+
+Deux couplages, vrais tous les deux sur l'eau : un vent fort est plus rafaleux
+en valeur absolue, donc la taille des rafales suit la force moyenne ; mais c'est
+le vent **faible** qui est capricieux en direction, un coup de vent tenant son
+cap des heures durant. Les deux vont donc en sens inverse. Et le cap a sa
+**propre** constante de temps, plus longue que celle des rafales : une direction
+qui oscille aussi vite que la force ne se lit pas comme de la météo mais comme
+un instrument cassé — la barre la poursuivrait sans arrêt. Avec la même
+constante que les rafales on mesurait **48° de rotation par minute** ; séparée,
+16°.
+
+Le pas d'intégration est la forme **exacte** du processus, pas un pas d'Euler :
+le temps d'image n'est pas fixe, et un pas naïf rendrait le vent plus rafaleux
+sur une image lente que sur une rapide — la météo dépendrait de la fréquence
+d'affichage.
+
+**Le vent et la mer ne sont pas la même chose, et c'est là que tout se joue.**
+Pour une main sur la console les deux vont ensemble et `setSeaState` règle les
+deux. Sous une météo qui tourne seule, non : une risée se sent dans la toile à
+l'instant où elle arrive, alors que la mer qu'elle lève met des minutes à se
+former et des minutes à se coucher. D'où `setWind`, qui ne touche pas au
+spectre, appelé à chaque image, tandis que le spectre est reconstruit en
+**retard** sur le vent. Ce n'est pas une licence, c'est le récit honnête.
+
+**Reconstruire le spectre rejoue la phase de chaque composante**, et c'est le
+vrai piège. La phase vaut `k·(d·r) − ω·t + correction`. Changez ω d'un millième
+et le terme `ω·t` saute de `Δω·t` — or `t` est l'horloge courante, des milliers
+de secondes : un radian entier. Même chose pour la direction, `k·(d·origine)`
+étant évalué contre une origine qui peut être à des centaines de kilomètres, si
+bien qu'un centième de degré déplace la phase au navire d'une bonne fraction de
+longueur d'onde.
+
+Ce n'est pas une erreur d'arrondi avec laquelle on vit : ensemble elles
+rebrassent la mer à chaque rafale, ce qui se lit comme un bouillonnement. Les
+deux sont absorbées **exactement**, et pour la raison qui fait marcher l'origine
+flottante : ce qui change est une phase, et une phase ne compte que modulo 2π.
+La correction est posée pour que le total soit inchangé **à l'origine locale**,
+là où est la flotte. Mesuré, pour un pas de veille, contre un creux de 0,60 m
+de rms :
+
+| distance | avec report | sans report |
+|---|---|---|
+| 0 – 25 m | **0,003 m** | 0,812 |
+| 25 – 100 m | 0,013 | 0,752 |
+| 100 – 250 m | 0,032 | 0,729 |
+| 250 – 600 m | 0,076 | 0,770 |
+| 600 – 1500 m | 0,195 | 0,762 |
+
+Sans report la mer est intégralement rebrassée partout — l'écart dépasse la mer
+elle-même. Avec, le navire flotte dans une mer continue au millimètre, et
+l'écart croît avec la distance comme il le doit, deux spectres différents étant
+réellement deux mers différentes. La correction est gardée **par bande
+spectrale** et non par entrée de `waves`, qui est triée par énergie et se
+réordonne dès que le vent change.
+
+**La vitesse est plafonnée, et ce n'est pas un réglage de goût.** Une
+reconstruction déplace le nombre d'onde de chaque composante, et `k` entre dans
+la phase multiplié par la position : mesuré sur 400 m, un pas d'**un** Beaufort
+déplace la surface de 9,8 m de rms. Autrement dit un seul cran de 0,1 — le plus
+fin que la console sache même afficher — suffirait à rebrasser la mer. D'où
+`seaRate`, 0,0125 Beaufort **par seconde**, et 0,30° de rotation par seconde :
+encore trois quarts de Beaufort par minute, bien plus vite que n'importe quelle
+météo.
+
+Par **seconde**, et non par reconstruction, ce qui a d'abord été écrit de
+travers. Un plafond par appel fait avancer la mer plus vite sur une machine
+rapide, et pose son pas de façon inégale dès que le temps d'image se met à
+flotter — la fréquence d'affichage devient un paramètre physique. Seule la
+vitesse a un sens ; le pas est ce que `dt` en fait.
+
+**Et le spectre est reconstruit à CHAQUE image**, pas cinq fois par seconde.
+À 5 Hz, chaque reconstruction devait porter un cinquième de seconde de dérive,
+et au-delà du demi-mille cela fait vingt centimètres de surface qui bougent
+d'un coup, cinq fois par seconde — un scintillement, et c'est exactement ce
+qu'on voyait. Étalée sur les images, la même dérive totale fait un onzième de
+cela par pas :
+
+| pas | 600 – 1500 m | part du creux |
+|---|---|---|
+| 0,2 s (5 Hz) | 0,188 m | 32 % |
+| une image (60 Hz) | **0,016 m** | 2,8 % |
+
+Le total déplacé est identique — c'est le **grain** qui change, et c'est lui
+seul que l'œil attrape.
+
+**Reconstruire à chaque image ne se paie qu'à une condition : ne rien
+allouer.** `setSeaState` fabriquait dix-neuf objets neufs par appel, ce qui
+n'était rien quand une main sur un curseur l'appelait deux fois par minute.
+Soixante fois par seconde, cela fait plus de mille objets éphémères par
+seconde, donc des pauses de ramasse-miettes — et une pause de ramasse-miettes
+*est* une saccade. Les tableaux sont désormais des réserves écrites sur place :
+mesuré à **7 octets par reconstruction**, soit rien, pour 10 µs de calcul.
+
+Enfin, **un processus d'Ornstein-Uhlenbeck échantillonné par image est du bruit
+blanc**. Ses trajectoires sont continues mais nulle part dérivables : le vent
+reçoit un coup de dé neuf soixante fois par seconde, et les voiles, le pavillon
+et tous les cadrans tremblent avec. Une vraie rafale n'a aucune énergie à
+trente hertz. Le processus est donc la **cible**, et le vent qui souffle la
+suit à travers un retard court (1,1 s) : mêmes statistiques sur vingt secondes,
+courbe lisse sur une. Mesuré sur la dérivée seconde image par image :
+**0,00028 contre 0,0268**, soit 96 fois moins de secousse, pour une amplitude
+de rafale inchangée.
+
+Corollaire : la météo pilote l'océan **directement**, en pleine précision, et
+n'écrit dans les curseurs que pour l'affichage. D'où la séparation de
+`refreshSea()` (régler *et* afficher) et de `showSea()` (afficher seulement) —
+sans quoi la console, dont le pas est cent fois trop grossier, serait le goulot
+qui empêche la mer d'être continue. Le panneau montre le cap du **vent** et non
+celui de la houle, comme son étiquette le dit ; l'écart entre les deux est
+justement ce qu'il y a d'intéressant à voir — après une saute, les lames
+continuent de courir d'où le vent soufflait un quart d'heure plus tôt.
+
+Prendre un curseur en main **arrête** la météo automatique plutôt que d'être
+écrasé un dixième de seconde plus tard, et l'arrêt adopte ce que la console
+affiche. Une mer qui a rattrapé un vent stable ne reconstruit **rien du tout** :
+`chaseSea` dit qu'elle n'a pas bougé et l'appel est sauté.
 
 ## Conventions
 

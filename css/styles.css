@@ -109,6 +109,20 @@
     border-radius:7px;padding:7px 4px;cursor:pointer;transition:.15s}
   .presets button:hover{border-color:var(--accent);color:var(--accent)}
   .presets button.on{background:rgba(70,224,208,.14);border-color:var(--accent);color:var(--accent)}
+  .wxAuto{margin-top:6px}
+  .wxAuto button{width:100%;font-family:var(--disp);font-weight:600;letter-spacing:.06em;font-size:11px;
+    text-transform:uppercase;color:var(--muted);background:var(--panel);border:1px solid var(--line);
+    border-radius:3px;padding:5px 0;cursor:pointer}
+  .wxAuto button:hover{border-color:var(--accent);color:var(--accent)}
+  .wxAuto button.on{background:rgba(70,224,208,.14);border-color:var(--accent);color:var(--accent)}
+  /* H clears the glass. Everything but the sea goes, the boot splash included:
+     the point is a clean picture, and half an interface is worse than all of
+     it. The controls keep working — this hides the readouts, it does not put
+     the ship in irons. */
+  #app.nohud .panel,
+  #app.nohud #fps,
+  #app.nohud #hint,
+  #app.nohud #lost{display:none}
   .beaufort{display:flex;align-items:baseline;gap:8px;margin-top:4px}
   .beaufort .bn{font-family:var(--mono);font-weight:600;font-size:26px;color:var(--accent);line-height:1;font-variant-numeric:tabular-nums}
   .beaufort .bd{font-family:var(--mono);font-size:10.5px;color:var(--muted);letter-spacing:.02em}
