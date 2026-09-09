@@ -157,6 +157,8 @@ Naval.ShipModel = class ShipModel {
     this.procedural = new THREE.Group();     // everything we build ourselves
     this.group.add(this.procedural);
     this.rigs = [];                          // what braces or swings when trimmed
+    this.falls = [];                         // and what can come down, mast and all
+    this._shareTot = 0;                      // canvas those masts carry between them
     this.canvases = [];                      // the cloth alone — furling hides only this
 
     this._buildHull();
@@ -559,6 +561,7 @@ Naval.ShipModel = class ShipModel {
       this.group.add(obj);
       this.modelRoot = obj;
       this.rigs = []; this.canvases = [];   // the procedural rig went with the hull
+      this.falls = []; this._shareTot = 0;
       this._rigModel();
       this._buildFlag();
       this._buildLantern();
@@ -674,6 +677,19 @@ Naval.ShipModel = class ShipModel {
           && across > 0.25*spec.B                // a spar, not a bit of deck gear
           && Math.abs(p.mid.x) < 0.15*across;    // squarely across the centreline
     });
+    /* And the MASTS, by the same shape test stood on end: tall, thin BOTH
+       ways, and on the centreline. Thin both ways is what does the work — it
+       throws out anything welded to its neighbours, which is the usual state of
+       an imported model and the reason a mast may or may not be able to fall.
+       On the pirate, one spar of 1,1 x 38,7 x 1,1 m comes through clean while a
+       second of 0,9 x 34,4 x 43,1 is two or three masts fused into one mesh and
+       is rightly refused: nothing could drop one of those without the others. */
+    const poles = parts.filter(p => {
+      const tall = p.size.y, thick = Math.max(p.size.x, p.size.z);
+      return tall > 4*thick
+          && tall > 0.20*spec.L
+          && Math.abs(p.mid.x) < 0.12*spec.B;
+    });
     const deckAt = this._deckProfile(parts);
     for(const p of parts) p.geom.dispose();      // measurements taken; buffers freed
 
@@ -697,9 +713,37 @@ Naval.ShipModel = class ShipModel {
     for(const mast of masts){
       mast.sort((a,b) => b.mid.y - a.mid.y);            // highest yard first
       const z0 = mast.reduce((s,y) => s + y.mid.z, 0) / mast.length;
+
+      /* TWO nested groups, and the nesting is the whole trick.
+
+         A mast goes over its HEEL, so the thing that turns must have its origin
+         down at the step. Bracing, on the other hand, is a rotation about the
+         VERTICAL axis — and a rotation about an axis is the same wherever the
+         origin sits along it. So the outer group can be dropped to the heel for
+         free, and setTrim goes on turning the inner one exactly as before,
+         knowing nothing about any of this.
+
+         The mast spar itself is carried by the outer group; the yards and the
+         canvas hang in the inner one, as they already did. Everything that
+         belongs to this mast therefore goes over the side together. */
+      let pole = null, near = 0.06*spec.L;
+      for(const p of poles){
+        const d = Math.abs(p.mid.z - z0);
+        if(!p.taken && d < near){ near = d; pole = p; }
+      }
+      if(pole) pole.taken = true;
+      const heel = pole ? pole.box.min.y : deckAt(z0);
+
+      const fall = new THREE.Group();
+      fall.position.set(0, heel, z0);
+      this.group.add(fall);
+      // attach, not add: it keeps the spar exactly where the modeller put it
+      if(pole) fall.attach(pole.mesh);
+
       const pivot = new THREE.Group();
-      pivot.position.set(0, 0, z0);
-      this.group.add(pivot);
+      pivot.position.set(0, -heel, 0);
+      fall.add(pivot);
+      let share = 0;
 
       for(let i=0;i<mast.length;i++){
         const y = mast[i], half = y.size.x*0.5*0.97;
@@ -717,6 +761,7 @@ Naval.ShipModel = class ShipModel {
         const drop = Math.min(0.82*gap, 1.1*half,
                               yy - deckAt(y.mid.z) - 0.02*spec.L);
         if(drop < 0.2*half) continue;   // too near the deck to be a yard at all
+        share += half*2*drop;           // roughly her area, for what she drives
 
         const V = (x,ay,z)=>new THREE.Vector3(x,ay,z);
         pivot.add(this._sailSurface([
@@ -729,8 +774,97 @@ Naval.ShipModel = class ShipModel {
              uPin0:false, uPin1:false, freeU:0.35, hangU0:true, hangU1:true,
              bow:0.05, roachFoot:0.11 }));
       }
+      /* Only a mast that is its OWN mesh can be brought down. Without one,
+         the canvas would fall off a spar still standing in the air, which is
+         worse than nothing happening — so she keeps her rig and says so. */
+      fall.userData.mast = pole ? pole.mesh : null;
+      fall.userData.share = share;
+      fall.userData.height = pole ? pole.size.y : (mast[0].mid.y - heel);
+      this._shareTot += share;
       this.rigs.push(pivot);
+      this.falls.push(fall);
     }
+  }
+
+  /* ------------------------------------------------------------------------
+     A MAST COMES DOWN, and it is a pendulum rather than an animation.
+
+     A spar hinged at its step is a uniform rod on a pin, and that has an
+     equation — a" = (3g/2L)·sin a — which is worth using instead of a curve
+     drawn by hand for one reason: it carries the ship's SIZE. The rate goes as
+     one over the root of the length, so a short stick whips over while a heavy
+     one leans a long while first, with no number tuned for either. Measured on
+     the pirate's mainmast, 38,7 m: 2 degrees, then 8, 14, 21, 30, 42, 59 and
+     over at 3,5 s. A fifteen-metre mast does the same in 2,2. It is the same argument as
+     Froude's in the spray, and the same reason a model boat never looks big.
+
+     It also has the right shape in time all by itself: barely moving at first,
+     then going with a rush. A mast does not topple, it hangs, leans, and then
+     goes — and no eased curve reproduces that, because what makes it is that
+     gravity's moment grows with the very angle it is producing.
+
+     She stops at eighty degrees rather than falling flat: a real mast goes over
+     the side and brings up hard in her own standing rigging, which is why a
+     dismasted ship is dragged round by the wreckage instead of being rid of it.
+     Ninety degrees, and she would look like a felled tree. */
+  dropMast(i, side, delay){
+    const f = this.falls[i];
+    if(!f || f.userData.mast === null || f.userData.fall) return false;
+    const L = Math.max(4, f.userData.height);
+    f.userData.fall = {
+      a: 0.03, stop: 1.40,
+      rate: Math.sqrt(3*9.81/(2*L)),
+      side: side || (Math.random() < 0.5 ? -1 : 1),
+      w: 0, wait: delay || 0 };
+    f.userData.fall.w = 0.30*f.userData.fall.rate;   // the blast does not nudge it
+    return true;
+  }
+
+  /* The magazine takes them all — but not together. They go a few tenths of a
+     second apart and to alternate sides, for exactly the reason the three
+     charges do: at the same instant it reads as one object breaking, and
+     staggered it reads as a ship coming to pieces. */
+  dropAllMasts(){
+    let n = 0, side = Math.random() < 0.5 ? -1 : 1;
+    for(let i=0;i<this.falls.length;i++)
+      if(this.dropMast(i, side*(i%2 ? -1 : 1), n*0.45)) n++;
+    return n;
+  }
+
+  restoreMasts(){
+    for(const f of this.falls){ f.userData.fall = null; f.rotation.z = 0; }
+  }
+
+  stepRigging(dt){
+    for(const f of this.falls){
+      const s = f.userData.fall;
+      if(!s || s.a >= s.stop) continue;
+      if(s.wait > 0){ s.wait -= dt; continue; }
+      s.w += s.rate*s.rate*Math.sin(s.a)*dt;
+      s.a = Math.min(s.stop, s.a + s.w*dt);
+      f.rotation.z = s.side*s.a;
+    }
+  }
+
+  /* What fraction of her canvas is still ALOFT, weighted by the area each mast
+     carries rather than by counting sticks — a mizzen is not a mainmast.
+
+     It falls off with the cosine of the lean instead of switching off, which is
+     both continuous and true: a mast forty degrees over still holds her canvas
+     to the wind at some angle. But the cosine is REMAPPED to reach nought where
+     she brings up, not at ninety — a raw cosine left her eight per cent of her
+     drive with the sails already in the water, being pulled through it. This is
+     the single number the solver multiplies into her sail force, so what you
+     see and what drives her cannot come apart. */
+  standing(){
+    if(!(this._shareTot > 0)) return 1;
+    let s = 0;
+    for(const f of this.falls){
+      const st = f.userData.fall;
+      const k = st ? (Math.cos(st.a) - Math.cos(st.stop))/(1 - Math.cos(st.stop)) : 1;
+      s += f.userData.share * Math.max(0, k);
+    }
+    return s/this._shareTot;
   }
 
   // A soft foam trail astern, painted into a canvas so it has no hard edges.

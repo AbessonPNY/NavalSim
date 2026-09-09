@@ -535,9 +535,15 @@ async function main(){
                        spec.L*s);
         }
         physics.blowUp();
+        /* And her masts go. A magazine that opens her from end to end does not
+           leave three sticks standing in her — and the rigging coming down is
+           most of what says she is finished, the hull being half hidden by the
+           smoke that says the rest. */
+        ship.dropAllMasts();
       };
       controls.onSalvage  = ()=> {
         physics.salvage();
+        ship.restoreMasts();
         if(!lost) return;
         const b = physics.body;
         b.pos.y = hud.eqY; b.vel.set(0,0,0); b.angVel.set(0,0,0); b.quat.identity();
@@ -778,6 +784,11 @@ async function main(){
     t += dt;
 
     controls.update(dt);
+    /* A mast that is going over takes its canvas with it, and it must do so
+       BEFORE she is stepped: read after, she would be driven for one more frame
+       by sails that are already in the water. */
+    ship.stepRigging(dt);
+    physics.standing = ship.standing();
     const SUB = 4;                       // fixed substeps keep the solver stable
     for(let i=0;i<SUB;i++) physics.step(dt/SUB, ocean, controls.state, t);
 
@@ -795,6 +806,8 @@ async function main(){
          swaps the control objects between entries, and a helm holding the one
          it was built with would go on writing into the console you are using. */
       if(e.helm){ e.helm.target = fleet[0].body.pos; e.helm.update(dt, ocean, e.ctrl); }
+      e.ship.stepRigging(dt);
+      e.physics.standing = e.ship.standing();
       for(let i=0;i<SUB;i++) e.physics.step(dt/SUB, ocean, e.ctrl, t);
       e.afloat = e.physics.afloat;
       e.ship.syncTo(e.physics.body);

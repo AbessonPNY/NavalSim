@@ -134,6 +134,12 @@ Naval.ShipPhysics = class ShipPhysics {
        Three seconds or so to hand or make sail, which is brisk for a real
        crew and about right for a game that must not feel glued. */
     this.setFrac = 1;
+    /* How much of her rig is still standing, 0 to 1. Written by the model when
+       a mast goes over, because the model is what knows one has. Losing a mast
+       is not a visual effect with a force bolted alongside it — it is LESS
+       CANVAS IN THE AIR, so it is one number multiplied into the pressure,
+       exactly as the furling fraction is. */
+    this.standing = 1;
     this.setRate = 1/3.0;      // per second
 
     this.slamRate = 0; this.slamSpeed = 0;
@@ -477,6 +483,7 @@ Naval.ShipPhysics = class ShipPhysics {
     this.breaches.length = 0;
     for(const c of this.comps) c.vol = 0;
     this.foundered = false;
+    this.standing = 1;                    // and her masts are stepped again
     this._updateMass();
   }
 
@@ -819,13 +826,13 @@ Naval.ShipPhysics = class ShipPhysics {
 
     const aoa = beta - ctrl.sheet;
     // nothing left aloft to speak of
-    if(this.setFrac < 0.01) return;
+    if(this.setFrac*this.standing < 0.01) return;
     if(aoa <= 0.02){ this.luffing = true; return; }          // over-eased, or in irons
 
     const CL = F.KL*Math.sin(2*aoa);
     const CD = F.CD0 + F.KD*Math.sin(aoa)*Math.sin(aoa);
     // area actually spread, which is what the wind has to push against
-    const q  = 0.5*C.RHO_AIR*vApp*vApp*S.sailArea*this.setFrac;
+    const q  = 0.5*C.RHO_AIR*vApp*vApp*S.sailArea*this.setFrac*this.standing;
 
     this._sailF.copy(this._app).multiplyScalar(CD*q/vApp);   // drag along the wind
     this._lift.set(this._app.z, 0, -this._app.x).normalize();
@@ -837,7 +844,9 @@ Naval.ShipPhysics = class ShipPhysics {
     torque.add(this._mom.crossVectors(this._arm, this._sailF));
     this.sailDrive = this._sailF.dot(fwd);
     // pressure on the canvas, which is what makes it belly out
-    this.sailLoad = this._sailF.length() / S.sailArea;
+    // per unit of canvas SHE STILL HAS, or the sails left standing would go
+    // slack merely because a neighbour came down
+    this.sailLoad = this._sailF.length() / (S.sailArea*Math.max(0.05, this.standing));
   }
 
   /* Let her find her own flotation in FLAT water, so the recorded equilibrium

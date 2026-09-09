@@ -2009,6 +2009,85 @@ sur demande, les trois carrés passant de 92 à 275 :
 Un quart de tour en trois minutes à trois nœuds, ce qui est juste pour un lourd
 carré sous voiles, et sans nervosité à la machine (62° en une minute).
 
+## Un mât qui tombe
+
+**Deux groupes emboîtés, et l'emboîtement est toute l'astuce.** Un mât s'abat
+sur son **pied**, donc ce qui tourne doit avoir son origine au niveau de
+l'emplanture. Brasser, au contraire, est une rotation autour de l'axe
+**vertical** — et une rotation autour d'un axe est la même où qu'on place
+l'origine le long de cet axe. Le groupe extérieur peut donc descendre au pied
+gratuitement, et `setTrim` continue de faire tourner l'intérieur exactement comme
+avant, sans rien savoir de tout cela. Le fût est porté par l'extérieur, les
+vergues et la toile pendent dans l'intérieur, où elles étaient déjà : tout ce
+qui appartient à ce mât passe par-dessus bord ensemble.
+
+**Le mât se trouve par la forme, comme la vergue, le test mis debout** : haut,
+mince **des deux côtés**, et sur l'axe. Mince des deux côtés est ce qui fait le
+travail — cela écarte tout ce qui est soudé à ses voisins, ce qui est l'état
+ordinaire d'un modèle importé et décide de ce qui peut tomber ou non. Relevé
+sur `pirateship.glb` :
+
+| mesh | dx | dy | dz | verdict |
+|---|---|---|---|---|
+| `Cylinder` | 1,1 | 38,7 | 1,1 | un mât propre, il tombe |
+| `Cylinder001` | 0,9 | 34,4 | **43,1** | deux ou trois mâts fondus en un seul mesh — refusé |
+| `Cylinder004…008` | 13–21 | 0,3–0,5 | 0,3–0,6 | les vergues, chacune la sienne |
+
+Le refus est voulu : sans mesh à lui, la toile tomberait d'un espar resté en
+l'air, ce qui est pire que rien. **Modéliser un mesh par mât est donc la seule
+exigence** — les origines, elles, n'ont pas à être placées, la boîte englobante
+donnant le pied.
+
+**C'est un PENDULE, pas une animation.** Un espar articulé à son emplanture est
+une tige homogène sur un pivot, et cela a une équation — `a" = (3g/2L)·sin a` —
+qu'il vaut mieux employer qu'une courbe dessinée à la main, pour une raison :
+elle porte la **taille** du navire. Le taux va comme l'inverse de la racine de
+la longueur, donc un petit mât fouette pendant qu'un lourd s'incline longtemps
+d'abord, sans qu'un nombre ait été réglé pour l'un ni pour l'autre. C'est
+l'argument de Froude déjà employé pour la gerbe, et la raison pour laquelle une
+maquette ne paraît jamais grande.
+
+Elle a aussi la bonne forme dans le temps toute seule : à peine mobile, puis
+d'un coup. Un mât ne bascule pas, il pend, il s'incline, et il part — et aucune
+courbe adoucie ne le reproduit, parce que ce qui le fait est que le moment de la
+pesanteur croît avec l'angle même qu'il produit. Mesuré sur le grand mât du
+pirate, 38,7 m :
+
+| temps | 0 | 0,5 s | 1,0 | 1,5 | 2,0 | 2,5 | 3,0 | 3,6 |
+|---|---|---|---|---|---|---|---|---|
+| inclinaison | 2° | 8° | 14° | 21° | 30° | 42° | 59° | **80°** |
+
+Un mât de quinze mètres fait le même parcours en **2,2 s** contre 3,6.
+
+**Elle s'arrête à quatre-vingts degrés**, pas à plat : un vrai mât passe
+par-dessus bord et **s'arrête net dans ses propres haubans**, ce qui est
+justement pourquoi un navire démâté est traîné par son gréement au lieu d'en
+être débarrassé. À quatre-vingt-dix, on lirait un arbre abattu.
+
+**Et la toile perdue est perdue pour de bon**, ce qui est la moitié de
+l'intérêt. Le modèle rend la fraction de gréement encore debout, pondérée par
+la **surface que chaque mât porte** et non par le nombre de mâts — un artimon
+n'est pas un grand mât — et le solveur la multiplie dans la pression, exactement
+comme la fraction de toile établie. Un seul nombre, donc l'image et la physique
+ne peuvent pas diverger. Le grand mât du pirate porte la moitié de sa voilure :
+tombé, `standing` vaut 0,501 des deux côtés.
+
+La décroissance suit le **cosinus** de l'inclinaison, mais **remappé** pour
+s'annuler là où elle s'arrête et non à quatre-vingt-dix : un cosinus brut lui
+laissait huit pour cent de sa poussée avec les voiles déjà dans l'eau, en train
+d'y être traînées.
+
+**La soute qui saute les prend tous** — mais pas ensemble. Ils partent à
+quelques dixièmes de seconde d'écart et alternativement de chaque bord, pour
+exactement la raison des trois charges : au même instant cela se lit comme un
+seul objet qui casse, échelonné cela se lit comme un navire qui se disloque.
+
+**Ce qui manque encore**, et qu'il faudra pour un galion : une **antenne
+latine** n'est pas reconnue. Le détecteur de vergues exige un espar posé en
+travers de l'axe, et une antenne est inclinée dans le plan longitudinal — le mât
+sera bien trouvé et tombera, mais nu. La civadière sous le beaupré passe, elle :
+le code lit déjà un « mât » à 40,7 m sur l'avant du pirate.
+
 ## Les quatre caméras
 
 **La vue de poursuite a été retirée**, remplacée par une vue de **proue**
