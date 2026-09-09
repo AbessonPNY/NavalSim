@@ -213,6 +213,7 @@
 <script src="js/ssao.js"></script>
 <script src="js/underwater.js"></script>
 <script src="js/weather.js"></script>
+<script src="js/storms.js"></script>
 <script src="js/rain.js"></script>
 <script src="js/splash.js"></script>
 <script src="js/world.js"></script>
@@ -360,6 +361,11 @@ async function main(){
   document.getElementById('cargoClear').addEventListener('click', ()=>{
     physics.clearCargo(); refreshStow(); });
   buildStow(); showStep();
+
+  /* Weather that has a place. Like the islands, a pure function of where she
+     is — and of the clock, since a depression travels. */
+  const storms = new Naval.Storms();
+  let squall = null;
 
   const weather = new Naval.Weather();
   const wxBtn = document.getElementById('autoWx');
@@ -743,6 +749,7 @@ async function main(){
                 get physics(){ return physics; }, get ship(){ return ship; },
                 get cam(){ return cam; }, get hud(){ return hud; },
                 world, land, gulls, chart, blast, takeHelm, weather, rain, splash,
+                storms, get squall(){ return squall; },
                 get fleet(){ return fleet; } };
 
   let last = performance.now();
@@ -811,6 +818,9 @@ async function main(){
                  ocean.origin.z + physics.body.pos.z);
     land.update(worldPos, ocean.origin);
     gulls.update(dt, worldPos, ocean.origin);
+    /* Asked here, where her TRUE position is known and before anything wants
+       the answer: the sea state below, and the chart just after. */
+    squall = storms.at(worldPos.x, worldPos.z, t);
     chart.note(worldPos.x, worldPos.z);
     chartTick += dt;
     if(chartTick > 0.25){
@@ -821,7 +831,8 @@ async function main(){
       for(const e of fleet) chartFleet.push({
         x: ocean.origin.x + e.body.pos.x, z: ocean.origin.z + e.body.pos.z });
       chartHdg.set(0,0,1).applyQuaternion(physics.body.quat);
-      chart.draw(worldPos, Math.atan2(chartHdg.x, chartHdg.z), chartFleet);
+      chart.draw(worldPos, Math.atan2(chartHdg.x, chartHdg.z), chartFleet,
+                 squall ? { x:squall.storm.x, z:squall.storm.z, r:squall.storm.r } : null);
     }
 
     stage.aimSun(physics.body.pos);       // the shadow box travels with her
@@ -915,24 +926,58 @@ async function main(){
        the same total drift is a tenth of that per step and cannot be seen. It
        is affordable only because a rebuild now allocates nothing: 5 µs, some
        0,3 ms out of every second. */
-    if(weather.on){
-      weather.update(dt);
-      if(weather.chaseSea(seaLag, dt)) ocean.setSeaState(seaLag.force, seaLag.dir);
-      /* The last word belongs to the gust. setSeaState fits the wind to the
-         sea it has just built, which is right for a hand on the console and
-         wrong here: the swell lags, the canvas does not. */
-      ocean.setWind(weather.force, weather.dir);
+    /* --- the sea she is actually in ---
 
-      /* The console is a reading, not a control loop — a few times a second is
-         plenty, and writing to a slider on every frame is real DOM work. It
-         shows the WIND's bearing and not the swell's, because that is what its
-         label says; the gap between the two is the thing worth seeing. */
+       Three things can decide it and they compose in one place: the console,
+       which sets the day; the weather, when it is running itself; and any
+       squall she happens to be in, which overrides both because a depression
+       does not negotiate. Written as ONE target that the spectrum then chases,
+       rather than as three callers taking turns at setSeaState — that way the
+       rate limit applies to all of them, which matters most for the squall,
+       sailing into one being exactly the case where an unbounded jump would
+       reshuffle the whole sea. */
+    if(weather.on) weather.update(dt);
+    let tgtF = weather.on ? weather.force : parseFloat(seaSlider.value);
+    let tgtD = weather.on ? weather.dir   : parseFloat(dirSlider.value);
+
+    if(squall && squall.force > tgtF){
+      tgtF = squall.force;
+      /* And the wind turns around the middle of it, the shorter way round and
+         weighted by how deep in she is — so it backs steadily as she closes,
+         which is how one finds the centre without a barometer. */
+      const dd = ((squall.windDeg - tgtD + 540) % 360) - 180;
+      tgtD += dd*squall.inten;
+    }
+
+    /* Left to herself with nothing happening, the console IS the sea, and the
+       lag is held equal to it. Without this a slider moved by hand would be
+       quietly dragged back toward wherever the lag had got to. */
+    if(!weather.on && !squall){ seaLag.force = tgtF; seaLag.dir = tgtD; }
+
+    if(weather.chaseSea(seaLag, dt, tgtF, tgtD))
+      ocean.setSeaState(seaLag.force, seaLag.dir);
+    /* The last word belongs to the gust. setSeaState fits the wind to the sea
+       it has just built, which is right for a hand on the console and wrong
+       here: the swell lags, the canvas does not. */
+    ocean.setWind(tgtF, tgtD);
+
+    // the black quarter of sky one steers away from, or toward
+    if(stage.skyUniforms){
+      stage.skyUniforms.uStormLoom.value = squall ? squall.loom : 0;
+      if(squall) stage.skyUniforms.uStormDir.value.set(squall.toX, squall.toZ);
+    }
+
+    /* The console is a reading, not a control loop — a few times a second is
+       plenty, and writing to a slider on every frame is real DOM work. It shows
+       the WIND's bearing and not the swell's, because that is what its label
+       says; the gap between the two is the thing worth seeing. */
+    if(weather.on || squall){
       wxTick += dt;
       if(wxTick > 0.2){
         wxTick = 0;
         seaSlider.value = seaLag.force.toFixed(1);
-        dirSlider.value = String(Math.round(weather.dir) % 360);
-        hud.showSea(seaLag.force, weather.dir);
+        dirSlider.value = String(Math.round(tgtD) % 360);
+        hud.showSea(seaLag.force, tgtD);
       }
     }
 

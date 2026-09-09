@@ -194,6 +194,8 @@ Naval.Ocean = class Ocean {
         uSubmerged:{value:0.0},
         // the very objects the dome uses, so sea and sky share one weather
         uStorm:(stage && stage.skyUniforms) ? stage.skyUniforms.uStorm : {value:0},
+        uStormDir:(stage && stage.skyUniforms) ? stage.skyUniforms.uStormDir : {value:new THREE.Vector2(0,1)},
+        uStormLoom:(stage && stage.skyUniforms) ? stage.skyUniforms.uStormLoom : {value:0},
         uCloud:(stage && stage.skyUniforms) ? stage.skyUniforms.uCloud : {value:0.42},
         uSkyTime:(stage && stage.skyUniforms) ? stage.skyUniforms.uSkyTime : {value:0},
         // planar reflection of the world above the water

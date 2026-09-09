@@ -14,6 +14,8 @@ Naval.SKY_GLSL = `
   #ifndef NAVAL_SKY_UNIFORMS
   #define NAVAL_SKY_UNIFORMS
   uniform float uCloud, uSkyTime, uStorm;
+  uniform vec2 uStormDir;      // world bearing toward the nearest squall
+  uniform float uStormLoom;    // how black that quarter of the sky is
   #endif
 
   float navalHash13(vec3 p){
@@ -149,6 +151,32 @@ Naval.SKY_GLSL = `
       vec3 lid = horizon * mix(0.40, 0.16, smoothstep(0.0, 0.45, dir.y));
       c = mix(c, lid, uStorm*0.96);
     }
+
+    /* A squall one has not yet reached: a black quarter standing on the
+       horizon, in its own direction and nowhere else. It is what makes weather
+       something one can SEE coming and steer around, rather than something
+       that simply arrives — and it costs a dot product.
+
+       Only near the horizon, and only in that bearing: a low seen from outside
+       is a wall with sky above it and clear water either side. It hands over to
+       the lid above as she enters, there being nothing to point at once one is
+       inside the thing. */
+    if(uStormLoom > 0.001){
+      vec2 hz = dir.xz;
+      float hl = length(hz);
+      if(hl > 1e-4){
+        float al = max(0.0, dot(hz/hl, uStormDir));
+        /* Wide, and TALL. The first cut used a narrow cone dying out by fifteen
+           degrees of elevation, which confined the whole thing to a strip of
+           sky a few dozen pixels high above the horizon — measurable at nine
+           per cent of the frame and quite invisible to the eye. A squall seen
+           from six miles off is a WALL: it stands well up into the sky and
+           spreads across a good part of the horizon, and it has to be drawn
+           that way or it reads as a smudge on the sea line. */
+        float sect = pow(al, 4.5) * (1.0 - smoothstep(0.03, 0.34, dir.y));
+        c = mix(c, horizon*0.09, sect*uStormLoom);
+      }
+    }
     return c;
   }
   // What the sky is actually wearing today, for every caller but the mirror.
@@ -214,6 +242,8 @@ Naval.applyHaze = function(mat, u){
     shader.uniforms.uCloud = u.uCloud;
     shader.uniforms.uSkyTime = u.uSkyTime;
     shader.uniforms.uStorm = u.uStorm;
+    shader.uniforms.uStormDir = u.uStormDir;
+    shader.uniforms.uStormLoom = u.uStormLoom;
 
     shader.vertexShader = 'varying vec3 vHazeW;\n' + shader.vertexShader.replace(
       '#include <project_vertex>',
@@ -363,7 +393,8 @@ Naval.Stage = class Stage {
 
     /* Shared by the dome, the sea and every hazed material — one object, so the
        clouds overhead and the clouds the sea mirrors can never drift apart. */
-    this.skyUniforms = { uCloud:{value:0.12}, uSkyTime:{value:0}, uStorm:{value:0} };
+    this.skyUniforms = { uCloud:{value:0.12}, uSkyTime:{value:0}, uStorm:{value:0},
+                         uStormDir:{value:new THREE.Vector2(0,1)}, uStormLoom:{value:0} };
     this.storm = 0;
     this.sunDir = new THREE.Vector3();
     this.sun = new THREE.DirectionalLight(0xfff2dc, 2.1);
@@ -542,6 +573,7 @@ Naval.Stage = class Stage {
         uFlash:{value:0},
         uCloud:this.skyUniforms.uCloud, uSkyTime:this.skyUniforms.uSkyTime,
         uStorm:this.skyUniforms.uStorm,
+        uStormDir:this.skyUniforms.uStormDir, uStormLoom:this.skyUniforms.uStormLoom,
         /* Under water there is no sky to draw: the vault becomes the deep. */
         uSubmerged:{value:0}, uDeep:{value:new THREE.Color(0x0e3347)}
       },
@@ -599,7 +631,9 @@ Naval.Stage = class Stage {
          stand brightly lit under a black sky, which is the one lighting error
          nobody fails to notice. */
       uniforms:{ uSun:u.uSun, uZenith:u.uZenith, uHorizon:u.uHorizon, uFlash:u.uFlash,
-                 uStorm:this.skyUniforms.uStorm },
+                 uStorm:this.skyUniforms.uStorm,
+                 uStormDir:this.skyUniforms.uStormDir,
+                 uStormLoom:this.skyUniforms.uStormLoom },
       vertexShader:`
         varying vec3 vDir;
         void main(){

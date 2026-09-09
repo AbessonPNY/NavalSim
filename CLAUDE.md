@@ -26,7 +26,7 @@ logique est dans `js/`, en classes attachées à un espace de noms global `Naval
 | module | rôle |
 |---|---|
 | `config.js` | constantes du monde (ρ, g, grille de sondes, liste de repli des navires) |
-| `weather.js` | le vent qui se conduit seul : rafales, risées, systèmes |
+| `weather.js` · `storms.js` | le vent qui se conduit seul · les dépressions, qui ont un lieu |
 | `rain.js` · `splash.js` | le rideau de pluie · l’eau jetée par ce qui tombe dedans |
 | `ship-spec.js` | lit une fiche JSON et en **dérive** tout ce que le solveur consomme |
 | `hull-lines.js` | le plan de formes, en fonctions pures |
@@ -1622,6 +1622,80 @@ construisent AVANT le bloc où vivent les autres champs. Un `= 0` d'apparence
 inoffensive écrivait donc par-dessus la vraie valeur, et la console annonçait
 une capacité de zéro. Le champ n'est plus initialisé là, et la raison est
 écrite sur place.
+
+## Les dépressions ont un lieu
+
+**Écrites comme les îles, et pour les mêmes raisons** : un hachage sur une
+grille grossière, pas de fichier de carte, pas d'état, rien à stocker. Revenir
+sur la même eau y retrouve la même dépression. La différence est qu'une tempête
+a aussi un **temps** — un système se déplace — donc c'est une fonction pure de
+la position *et* de l'horloge, ce qui ne coûte rien de plus et offre un ciel qui
+vient à sa rencontre autant qu'elle y navigue.
+
+**La dérive est une onde triangulaire dans la cellule, pas une droite**, et ce
+n'est pas de la paresse. Un centre qui file dans une direction quitte sa propre
+cellule en moins d'une heure : la recherche des cellules voisines cesserait de
+le trouver. Prendre la dérive modulo la cellule le fait au contraire **sauter**
+de l'autre côté — et un saut, c'est un état de mer qui change de quatre Beaufort
+entre deux images. Un triangle reste dedans, ne saute jamais, et une dépression
+qui va et vient sur une journée n'a rien d'aberrant.
+
+Dimensionnées pour un navire et non pour une carte météo : onze kilomètres entre
+candidates, deux à quatre de rayon. Une vraie dépression fait des centaines de
+kilomètres et demanderait une semaine à traverser à la voile ; celles-ci se
+franchissent en dix ou vingt minutes, ce qui est assez long pour être une
+épreuve et assez court pour qu'on en sorte.
+
+**Le creusement n'est pas linéaire.** Une dépression a une large épaule et un
+cœur dur, donc l'essentiel de la traversée n'est que du mauvais temps et c'est
+le dernier tiers qu'on retient. Relevé en approchant du centre, dépression de
+3,5 km de rayon, pic 8,5 :
+
+| distance | 11 km | 8,4 | 6,3 | 3,5 (lisière) | 2,4 | 1,4 | 0,5 | 0 |
+|---|---|---|---|---|---|---|---|---|
+| force | 0 | 0 | 0 | 0 | 1,8 | 5,5 | 8,0 | 8,5 |
+| noirceur du ciel | 0 | 0,13 | 0,50 | 1,00 | 0,82 | 0,45 | 0,20 | 0,15 |
+
+**Le vent tourne AUTOUR du centre**, et c'est ce qui fait lire un système comme
+un système plutôt que comme une mer qui grossit. Surtout tangentiel avec un peu
+d'aspiration vers l'intérieur, ce que fait une vraie dépression — et cela veut
+dire qu'on peut trouver le milieu à la seule sensation du vent, sans baromètre.
+
+**Une seule cible, chassée par le spectre.** Trois choses peuvent décider de
+l'état de mer — la console, la météo automatique, et la dépression, qui
+l'emporte sur les deux autres parce qu'une dépression ne négocie pas. Elles sont
+composées en **un** objectif que le spectre poursuit ensuite, plutôt qu'en trois
+appelants qui se relaient sur `setSeaState` : ainsi le plafond de vitesse
+s'applique à toutes, ce qui compte surtout pour la dépression — y entrer est
+exactement le cas où un saut sans borne rebrasserait toute la mer.
+
+Le plafond ne mord pas, et c'est voulu : monter de 0 à 7,5 Beaufort demande
+600 s au plafond, quand traverser 3,5 km à quatre nœuds en prend 875. **C'est la
+géométrie qui gouverne**, le plafond n'étant là que pour le cas pathologique.
+
+Corollaire : laissée à elle-même, sans météo automatique ni dépression, la
+console **est** la mer, et le retard est tenu égal à elle. Sans cela un curseur
+déplacé à la main serait doucement ramené vers la valeur où le retard en était
+resté.
+
+**Le grain se voit venir**, et c'est la moitié de l'intérêt : un quart de ciel
+noir posé sur l'horizon, dans sa direction et nulle part ailleurs, qui s'efface
+au profit du couvercle général une fois qu'on est dedans — il n'y a plus rien à
+désigner quand on y est. Cela coûte un produit scalaire.
+
+Le régler a demandé trois essais, et le premier était **géométriquement juste et
+visuellement nul** : un grain à six kilomètres sous-tend ±29° et ne monte qu'à
+13°, si bien que le cône étroit d'origine confinait tout à une bande de ciel de
+cent cinquante pixels — mesurable à 8,9 % de l'image, avec un écart moyen de
+25/255, et parfaitement invisible. En l'élargissant grossièrement on obtient
+l'inverse : 98,7 % de l'image et 197 d'écart, tout le ciel et toute la mer lavés
+de gris. Ce qui manquait au premier n'était pas l'étendue mais la **noirceur**.
+Le réglage retenu donne 87 d'écart moyen à sa noirceur réelle — un banc gris
+qu'on distingue nettement, avec du ciel clair de part et d'autre.
+
+La dépression est aussi **portée sur la carte**, en disque doux plutôt qu'en
+contour : on sait à peu près où est un grain, jamais où il finit. Et sous la
+terre, étant de la météo et non de la géographie.
 
 ## Les quatre caméras
 

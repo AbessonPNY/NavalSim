@@ -55,7 +55,7 @@ Naval.Chart = class Chart {
 
   /* `fleet` entries carry world positions computed by the caller: the chart
      must not guess at the origin convention on its own. */
-  draw(centre, headingRad, fleet){
+  draw(centre, headingRad, fleet, squall){
     const ctx = this.ctx, W = this.cv.width, H = this.cv.height;
     const R = Math.min(W, H)/2;
     const M = this.scale*1852;                 // metres from centre to edge
@@ -83,6 +83,20 @@ Naval.Chart = class Chart {
     for(let z=gz0; z<centre.z+M; z+=gm){ const a=px(centre.x-M, z), b=px(centre.x+M, z);
       ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); }
     ctx.stroke();
+
+    /* --- the depression, if there is one within reach ---
+       Drawn UNDER the land, being weather rather than geography, and as a soft
+       disc rather than an outline: one knows roughly where a squall is, never
+       exactly where it ends. */
+    if(squall){
+      const q = px(squall.x, squall.z), rp = squall.r*k;
+      const g = ctx.createRadialGradient(q[0], q[1], 0, q[0], q[1], Math.max(2, rp));
+      g.addColorStop(0.00, 'rgba(20,26,34,.80)');
+      g.addColorStop(0.55, 'rgba(28,38,50,.46)');
+      g.addColorStop(1.00, 'rgba(30,42,56,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(q[0], q[1], Math.max(2, rp), 0, 6.2832); ctx.fill();
+    }
 
     // --- land, with a shoal ring outside the shore ---
     for(const isl of this.world.near(centre.x, centre.z, M*1.6)){

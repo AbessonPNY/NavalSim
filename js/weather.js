@@ -94,10 +94,16 @@ Naval.Weather = class Weather {
      of so much per call makes the sea move faster on a fast machine, and lands
      its step unevenly the moment the frame time wanders. The rate is the thing
      with a physical meaning; the step is whatever dt makes of it. */
-  chaseSea(sea, dt){
+  chaseSea(sea, dt, force, dir){
+    /* The target is an argument now, not simply what the weather is doing. A
+       local squall wants the same rate limit — the reason for it is the
+       spectrum, not the source of the number — and sailing into one is exactly
+       the case where an unlimited jump would reshuffle the whole sea. */
+    if(force == null) force = this.force;
+    if(dir == null) dir = this.dir;
     const mf = this.seaRate*dt, mv = this.veerRate*dt;
-    const df = this.force - sea.force;
-    const dd = ((this.dir - sea.dir + 540) % 360) - 180;    // the shorter way round
+    const df = force - sea.force;
+    const dd = ((dir - sea.dir + 540) % 360) - 180;         // the shorter way round
     /* Nothing worth rebuilding a spectrum for. A sea that has caught up with a
        steady wind should cost exactly nothing, and saying so here is cheaper
        than saying it at the call site. */
