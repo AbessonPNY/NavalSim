@@ -3,7 +3,7 @@
   "name": "Fregate Roter Lowe 1597",
   "note": "",
   "hull": {
-    "length": 60,
+    "length": 30,
     "beam": 14.5,
     "freeboardMid": 3.6,
     "sheerBow": 2.4,
@@ -22,7 +22,7 @@
     "sectionTuck": 0.46,
     "sectionPower": 0.60
   },
-  "displacementTonnes": 2000,
+  "displacementTonnes": 240,
 	"cog": { "yFracKeel": -0.43, "zFracLength": -0.055 },
 
 	  "hydro": {

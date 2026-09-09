@@ -2242,10 +2242,28 @@ Et le **volume** est fixé par une contrainte qui n'a rien à voir avec l'eau : 
 réserve de gouttes en contient deux mille et une gerbe en prend onze par mètre
 cube, donc une bordée de six doit y tenir ou les dernières pièces volent les
 premières par le curseur tournant. Vingt-six mètres cubes font 286 gouttes
-chacune, 1 716 pour la salve. Relevé : **8,5 m de haut, 286 gouttes**, contre
+chacune, 1 716 pour la salve. Relevé : **9,1 m de haut, 286 gouttes**, contre
 0,7 m et dix-huit — et c'est la densité bien plus que la hauteur qui fait lire
-une colonne à distance. La gerbe de coque, elle, ne bouge pas d'un pouce : 420
-gouttes et 2,4 m avant comme après.
+une colonne à distance.
+
+**Et la FORME sort du même nombre**, plutôt que d'un second bouton, parce que
+c'est la même cause. Une cavité large et plate jette son eau en dehors et fait
+une **couronne** ; une cavité étroite et profonde la tire presque à la verticale
+et fait une **colonne**. Ce qui relève le plafond est exactement ce qui redresse
+le panache, donc un seul facteur dit les deux : moins de gouttes dans la collerette
+basse, plus raides au-dessus, et une bouche plus petite. Élancement mesuré,
+hauteur sur demi-largeur :
+
+| | avant | après |
+|---|---|---|
+| boulet | 0,89 | **1,74** |
+| coque, frégate | — | 0,54 |
+| coque, chaland | — | 0,49 |
+
+Un appelant qui ne demande rien reçoit la couronne **inchangée dans le moindre
+détail** : `jet` absent donne `tight = 0`, et chacun des quatre termes retombe
+alors exactement sur son ancienne valeur. La gerbe de coque ne bouge pas d'un
+pouce — 420 gouttes et 2,4 m avant comme après.
 
 **Le boulet est dessiné bien au-dessus de sa taille** (0,55 m de rayon pour onze
 centimètres réels), et c'est délibéré : à un demi-mille il ferait un tiers de

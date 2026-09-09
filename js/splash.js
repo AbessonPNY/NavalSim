@@ -174,6 +174,15 @@ Naval.Splash = class Splash {
     const vMax = Math.sqrt(2*9.81*1.05*R) * Math.max(1, jet || 1);
     const v0 = Math.min(vMax, (0.6 + speed*0.85) * froude);
 
+    /* And the SHAPE follows from the same number, rather than from a second
+       knob — because it is the same cause. A wide shallow cavity throws its
+       water outward and makes a crown; a narrow deep one fires it very nearly
+       straight up and makes a COLUMN. The thing that raises the ceiling is
+       exactly the thing that stands the plume up, so one factor says both, and
+       a caller that asks for nothing gets the crown unchanged in every
+       particular. */
+    const tight = Math.min(1, Math.max(0, (Math.max(1, jet || 1) - 1)/2.0));
+
     /* Many and small beats few and large. Spray is not a set of objects, it
        is a texture, and the eye reads it by its grain: too few sprites and one
        counts the dots. */
@@ -185,14 +194,19 @@ Naval.Splash = class Splash {
       /* A splash is a CROWN, not a fountain: the water leaves the rim of the
          cavity, so it goes up and OUTWARD at a steep angle, and the middle is
          comparatively empty. Straight up is what a garden hose does. */
-      const sheet = i < count*0.16;
+      // fewer in the low collar, and steeper above it, the tighter it is
+      const sheet = i < count*(0.16 - 0.07*tight);
       const a = Math.random()*Math.PI*2;
-      const e = sheet ? (0.15 + Math.random()*0.45) : (0.55 + Math.random()*0.85);
-      const sp = v0 * (sheet ? 0.20 + Math.random()*0.35 : 0.35 + Math.random()*0.95);
+      const e = sheet ? (0.15 + Math.random()*0.45)
+                      : (0.55 + 0.62*tight + Math.random()*(0.85 - 0.48*tight));
+      const sp = v0 * (sheet ? (0.20 + Math.random()*0.35)*(1 - 0.45*tight)
+                             : 0.35 + Math.random()*0.95);
 
-      d.p.set(at.x + Math.cos(a)*R*0.5*Math.random(),
+      // and it leaves a smaller mouth, which is the cavity being narrow
+      const mouth = R*(0.5 - 0.30*tight);
+      d.p.set(at.x + Math.cos(a)*mouth*Math.random(),
               at.y + Math.random()*R*0.3,
-              at.z + Math.sin(a)*R*0.5*Math.random());
+              at.z + Math.sin(a)*mouth*Math.random());
       d.v.set(Math.cos(a)*Math.cos(e)*sp, Math.sin(e)*sp, Math.sin(a)*Math.cos(e)*sp);
 
       /* The sheet is the white curtain at the foot of it — slow, wide, and
