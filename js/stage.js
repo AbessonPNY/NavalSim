@@ -16,6 +16,8 @@ Naval.SKY_GLSL = `
   uniform float uCloud, uSkyTime, uStorm;
   uniform vec2 uStormDir;      // world bearing toward the nearest squall
   uniform float uStormLoom;    // how black that quarter of the sky is
+  uniform vec2 uStormFlashDir; // where in the bank this particular stroke is
+  uniform float uStormFlash;   // and how bright, just now
   #endif
 
   float navalHash13(vec3 p){
@@ -175,6 +177,34 @@ Naval.SKY_GLSL = `
            that way or it reads as a smudge on the sea line. */
         float sect = pow(al, 4.5) * (1.0 - smoothstep(0.03, 0.34, dir.y));
         c = mix(c, horizon*0.09, sect*uStormLoom);
+
+        /* And it flickers. A squall seen from six miles is not a dead grey
+           shape: it lights from the inside, briefly, somewhere along its front
+           — and that is most of what tells one it is a storm and not a bank of
+           fog. ADDED rather than mixed, because a discharge is light arriving
+           and not a colour being chosen.
+
+           On a tight lobe about its OWN bearing, not the bank's: a stroke
+           happens somewhere in the cloud, so it lights one part of it, and a
+           whole front blinking as one reads as a switch being thrown. */
+        if(uStormFlash > 0.001){
+          float fa = max(0.0, dot(hz/hl, uStormFlashDir));
+          /* Faint, and TIGHT. Additive light in a sky the haze then smears
+             across the sea does not stay where it is put: at nearly twice the
+             horizon colour it came out as a second sun sitting on the water,
+             which is a nuclear test and not a squall. A stroke five miles off
+             lights a patch of cloud a little brighter than the cloud beside
+             it — no more than that. */
+          float lobe = pow(fa, 34.0) * (1.0 - smoothstep(0.01, 0.20, dir.y));
+          /* Its OWN colour, and not the horizon reduced. That distinction cost
+             a version: foam takes its brightness off the sky because foam
+             REFLECTS, and the same reflex applied here made the stroke
+             proportional to the ambient — so it faded to nothing at night,
+             which is the one hour a distant squall lights up like a lamp
+             behind a sheet. Lightning EMITS. What it adds does not depend on
+             what else is lit; that is what makes it lightning. */
+          c += vec3(0.58, 0.66, 0.85) * (uStormFlash * lobe * 0.55 * uStormLoom);
+        }
       }
     }
     return c;
@@ -244,6 +274,8 @@ Naval.applyHaze = function(mat, u){
     shader.uniforms.uStorm = u.uStorm;
     shader.uniforms.uStormDir = u.uStormDir;
     shader.uniforms.uStormLoom = u.uStormLoom;
+    shader.uniforms.uStormFlashDir = u.uStormFlashDir;
+    shader.uniforms.uStormFlash = u.uStormFlash;
 
     shader.vertexShader = 'varying vec3 vHazeW;\n' + shader.vertexShader.replace(
       '#include <project_vertex>',
@@ -394,7 +426,8 @@ Naval.Stage = class Stage {
     /* Shared by the dome, the sea and every hazed material — one object, so the
        clouds overhead and the clouds the sea mirrors can never drift apart. */
     this.skyUniforms = { uCloud:{value:0.12}, uSkyTime:{value:0}, uStorm:{value:0},
-                         uStormDir:{value:new THREE.Vector2(0,1)}, uStormLoom:{value:0} };
+                         uStormDir:{value:new THREE.Vector2(0,1)}, uStormLoom:{value:0},
+                         uStormFlashDir:{value:new THREE.Vector2(0,1)}, uStormFlash:{value:0} };
     this.storm = 0;
     this.sunDir = new THREE.Vector3();
     this.sun = new THREE.DirectionalLight(0xfff2dc, 2.1);
@@ -536,7 +569,53 @@ Naval.Stage = class Stage {
     this._flashT = 0;
   }
 
+  /* Lightning in a squall one is NOT in.
+
+     A cousin of strike() and deliberately not the same thing. A stroke
+     overhead lights the deck, the canvas and the whole sky together, which is
+     right when the storm is on top of her and quite wrong at six miles: from
+     there one sees a patch of cloud glow and nothing else — no light on the
+     sails, no shadow moving. So this one never leaves the sky shader.
+
+     Short, too. The near flash carries a four-spike envelope over a second
+     because one is inside it and the detail tells; at this distance a stroke is
+     a blink, and drawing it longer makes it read as a lamp rather than as
+     lightning. */
+  _farLightning(dt){
+    const u = this.skyUniforms;
+    const loom = u.uStormLoom.value;
+    this._farT = (this._farT || 0) + dt;
+
+    if(this._farA == null) this._farA = 0;
+    if(this._farA > 0){
+      // fast decay with a second kick, which is what a return stroke looks like
+      this._farA *= Math.exp(-dt*22.0);
+      if(this._farT > this._farNext2 && this._farNext2 > 0){
+        this._farA = Math.max(this._farA, 0.55);
+        this._farNext2 = -1;
+      }
+      if(this._farA < 0.004) this._farA = 0;
+    }
+
+    /* Only from a bank one can actually see, and oftener the blacker it is.
+       Roughly one stroke every three seconds off a full-grown squall, which is
+       a busy front but not a strobe. */
+    if(loom > 0.06 && this._farA === 0 && Math.random() < loom*dt*0.34){
+      this._farA = 1.0;
+      this._farT = 0;
+      this._farNext2 = (Math.random() < 0.55) ? 0.09 + Math.random()*0.10 : -1;
+      /* Somewhere along the front rather than dead centre: the stroke gets its
+         own bearing, a few tens of degrees off the middle of the bank. */
+      const d = u.uStormDir.value, a = (Math.random() - 0.5)*0.95;
+      const ca = Math.cos(a), sa = Math.sin(a);
+      u.uStormFlashDir.value.set(d.x*ca - d.y*sa, d.x*sa + d.y*ca);
+    }
+    u.uStormFlash.value = this._farA;
+  }
+
   updateWeather(dt, seaState){
+    this._farLightning(dt);
+
     /* The weather in the sky, from the weather on the water. It comes on late
        and hard: a fresh breeze is a fine day with a lively sea, and there is no
        reason to spoil the view for it. From about force 5 the lid comes down. */
@@ -574,6 +653,8 @@ Naval.Stage = class Stage {
         uCloud:this.skyUniforms.uCloud, uSkyTime:this.skyUniforms.uSkyTime,
         uStorm:this.skyUniforms.uStorm,
         uStormDir:this.skyUniforms.uStormDir, uStormLoom:this.skyUniforms.uStormLoom,
+        uStormFlashDir:this.skyUniforms.uStormFlashDir,
+        uStormFlash:this.skyUniforms.uStormFlash,
         /* Under water there is no sky to draw: the vault becomes the deep. */
         uSubmerged:{value:0}, uDeep:{value:new THREE.Color(0x0e3347)}
       },
@@ -633,7 +714,9 @@ Naval.Stage = class Stage {
       uniforms:{ uSun:u.uSun, uZenith:u.uZenith, uHorizon:u.uHorizon, uFlash:u.uFlash,
                  uStorm:this.skyUniforms.uStorm,
                  uStormDir:this.skyUniforms.uStormDir,
-                 uStormLoom:this.skyUniforms.uStormLoom },
+                 uStormLoom:this.skyUniforms.uStormLoom,
+                 uStormFlashDir:this.skyUniforms.uStormFlashDir,
+                 uStormFlash:this.skyUniforms.uStormFlash },
       vertexShader:`
         varying vec3 vDir;
         void main(){

@@ -529,6 +529,28 @@ Trois détails qui ont chacun coûté un aller-retour :
   à `spec.L/2`, il restait un filet d'écume filant devant l'étrave, là où le
   profil s'était déjà annulé.
 
+**L'écume ne fabrique pas de lumière, elle en renvoie.** Sa couleur était une
+constante presque blanche, `vec3(0,92 0,96 0,98)`, si bien qu'elle était aussi
+claire à minuit qu'à midi : un sillage de nuit sortait **lumineux**, seule chose
+de l'image à s'éclairer toute seule. De l'écume est blanche parce qu'elle
+DIFFUSE, donc elle ne peut jamais être plus claire que ce qui l'éclaire.
+
+Deux termes, et il faut les deux. Le terme de **ciel** est la lumière qui fait
+le travail, et il porte déjà l'heure, la saison et le gros temps, `setSun`
+reconstruisant la couleur d'horizon chaque fois que le soleil bouge. Le terme
+d'**eau** est là parce que la mer garde un pigment **constant** — `uDeep` et
+`uShallow` ne suivent pas le soleil — de sorte qu'en n'éclairant que l'écume on
+la rendait plus **sombre** que l'eau sur laquelle elle repose, ce qui est le
+même défaut retourné. De l'écume est claire *par rapport à la mer d'en dessous*,
+à toute heure.
+
+À midi la somme tombe à un centième de l'ancienne constante, donc le plein jour
+ne bouge pas ; à minuit c'est une traînée pâle sur une mer sombre. Piège de
+mesure au passage : comparer la contribution de l'écume d'une session à l'autre
+ne veut rien dire, le champ d'écume étant persistant — quarante secondes de
+sillage accumulé contre plusieurs minutes ne donnent pas le même nombre de
+pixels blancs, et l'on croit avoir cassé ce qu'on vient de régler.
+
 **Le collier s'éteint vers l'intérieur, la gerbe vers l'arrière.** Deux règles
 distinctes, et il ne faut pas les confondre. Le collier se fond *sous* le bordé
 (`smoothstep(-1.3, -0.1, gapM)` plutôt qu'un `step`) : l'écume s'accumule contre
@@ -1696,6 +1718,36 @@ qu'on distingue nettement, avec du ciel clair de part et d'autre.
 La dépression est aussi **portée sur la carte**, en disque doux plutôt qu'en
 contour : on sait à peu près où est un grain, jamais où il finit. Et sous la
 terre, étant de la météo et non de la géographie.
+
+**Et le banc s'allume par en dedans.** Un grain vu de six milles n'est pas une
+forme grise morte : il s'éclaire brièvement, quelque part le long de son front,
+et c'est l'essentiel de ce qui le distingue d'un banc de brume. Cousin de
+`strike()` et délibérément pas la même chose : un coup au-dessus d'elle éclaire
+le pont, la toile et tout le ciel ensemble, ce qui est juste quand l'orage est
+sur elle et faux à six milles, où l'on voit une tache de nuage s'allumer et
+rien d'autre — pas de lumière sur les voiles, pas d'ombre qui bouge. Celui-ci ne
+sort donc jamais du shader de ciel.
+
+Court, aussi : la foudre proche porte une enveloppe de quatre pointes sur une
+seconde parce qu'on est dedans et que le détail se voit ; à cette distance un
+coup est un clignement, et le dessiner plus long le fait lire comme une lampe.
+Et sur son **propre** relèvement, à quelques dizaines de degrés du milieu du
+banc — un front entier qui clignote d'un bloc se lit comme un interrupteur.
+Mesuré : un éclair toutes les 5,7 s à 0,53 de noirceur, allumé 5 % du temps.
+
+**Deux erreurs de luminosité, opposées, et la seconde est instructive.** La
+première version ajoutait 1,9 fois la couleur d'horizon : additive dans un ciel
+que la brume étale ensuite sur la mer, elle sortait comme un second soleil posé
+sur l'eau. La correction évidente — la rendre proportionnelle à l'horizon, comme
+l'écume — est **exactement fausse**, et pour une raison qui vaut d'être retenue :
+l'écume **réfléchit**, donc elle doit suivre la lumière ; un éclair **émet**.
+Proportionnel à l'ambiante il s'éteignait la nuit, c'est-à-dire précisément à
+l'heure où un grain lointain s'allume comme une lampe derrière un drap.
+
+Il a donc sa couleur propre, bleutée, et ce qu'il ajoute ne dépend pas de ce qui
+est éclairé par ailleurs — c'est ce qui en fait un éclair. Vérifié : contribution
+**identique à midi et à minuit**, +53 au maximum et +16 en moyenne dans les deux
+cas.
 
 ## Les quatre caméras
 

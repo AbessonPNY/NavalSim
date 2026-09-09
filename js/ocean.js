@@ -196,6 +196,8 @@ Naval.Ocean = class Ocean {
         uStorm:(stage && stage.skyUniforms) ? stage.skyUniforms.uStorm : {value:0},
         uStormDir:(stage && stage.skyUniforms) ? stage.skyUniforms.uStormDir : {value:new THREE.Vector2(0,1)},
         uStormLoom:(stage && stage.skyUniforms) ? stage.skyUniforms.uStormLoom : {value:0},
+        uStormFlashDir:(stage && stage.skyUniforms) ? stage.skyUniforms.uStormFlashDir : {value:new THREE.Vector2(0,1)},
+        uStormFlash:(stage && stage.skyUniforms) ? stage.skyUniforms.uStormFlash : {value:0},
         uCloud:(stage && stage.skyUniforms) ? stage.skyUniforms.uCloud : {value:0.42},
         uSkyTime:(stage && stage.skyUniforms) ? stage.skyUniforms.uSkyTime : {value:0},
         // planar reflection of the world above the water
@@ -514,7 +516,29 @@ Naval.Ocean = class Ocean {
 
           float foam = clamp(max(crestFoam, persist) + hullFoam, 0.0, 1.0)
                      * (1.0 - far*0.85);
-          col = mix(col, vec3(0.92,0.96,0.98), foam*0.85);
+          /* Foam is white because it SCATTERS, not because it shines: it can
+             never be brighter than what is lighting it. Written as a constant
+             near-white it was as bright at midnight as at noon, and a wake at
+             night came out luminous — the one thing in the picture making its
+             own light.
+
+             Taken off the horizon colour instead, which already carries the
+             hour, the season and the weather, since setSun rebuilds it every
+             time the sun moves. By day that lands within a hundredth of the old
+             constant, so nothing changes in daylight; at night it falls to a
+             dim grey-blue, which is what one actually sees. The gale dims it
+             further, a lid overhead lighting the sea no better than it lights
+             anything else. */
+          /* Two terms, and it takes both. The sky term is the light doing the
+             work, and carries the hour, the season and the gale. The water term
+             is there because the sea keeps a CONSTANT pigment — uDeep and
+             uShallow never follow the sun — so lighting the foam alone drove it
+             DARKER than the water it sits on at night, which is the same fault
+             inverted. Foam is bright relative to the sea beneath it, whatever
+             the hour; at noon the pair lands within a hundredth of the old
+             constant, and at midnight it is a pale streak on a dark sea. */
+          vec3 foamCol = body*0.5 + uHorizon*1.05*(1.0 - 0.55*uStorm);
+          col = mix(col, foamCol, foam*0.85);
 
           /* Fade into the sky that lies exactly behind this patch of water,
              not into one flat fog colour. That is what makes the horizon
