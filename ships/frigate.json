@@ -37,7 +37,7 @@
 
   "engine": { "topSpeed": 5.6, "sternPower": -0.5 },
 
-  "rudder": { "power": 91.5, "maxAngle": 0.61, "postZFrac": -0.47, "postY": -1.6 },
+  "rudder": { "power": 275, "maxAngle": 0.61, "postZFrac": -0.47, "postY": -1.6 },
 
   "rig": {
     "type": "square",

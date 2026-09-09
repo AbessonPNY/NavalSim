@@ -265,6 +265,19 @@ n'interrompt jamais la simulation.
 
 ## Pièges rencontrés
 
+**Une page autonome doit déclarer son propre encodage, en PREMIER.** Il n'y
+avait aucun `<meta charset>` dans `naval-sim.html`, au motif que l'hôte des
+artifacts en fournit un et que le serveur de dev pose l'en-tête lui-même. Les
+deux sont vrais, et cela ne suffit pas : déposée sur un hébergeur ordinaire —
+Apache chez OVH — la page est servie en `text/html` sans charset, le navigateur
+retombe sur du latin-1, et toute l'interface française part en mojibake. Le
+symptôme est déroutant parce qu'il **n'apparaît pas en local** : les deux
+mécanismes qui masquaient le manque sont justement ceux du développement.
+
+La balise est à l'**octet 0**. Un navigateur ne lit que le premier kilo-octet du
+document pour la trouver, donc tout ce qui la précède la met en danger — et rien
+n'a besoin de la précéder, pas même le `<title>`.
+
 **Encodage.** `Get-Content` en PowerShell 5.1 lit en ANSI, pas en UTF-8 : extraire
 puis réécrire un fichier accentué produit du mojibake et un BOM. Utiliser
 `[System.IO.File]::ReadAllText/WriteAllText` avec un encodage explicite.
@@ -1838,32 +1851,98 @@ elle ne sait pas remonter au vent, vous non plus.
 au vent n'est pas un cap mais une suite de **bords**, et choisir lequel est
 l'essentiel du métier. Le choix a de la mémoire : pris à neuf à chaque image sur
 le côté où la proie se trouve, un but plein vent debout passe d'une amure à
-l'autre à chaque instant et le navire reste en panne, à virer sans fin. Quinze
-degrés de marge avant de virer transforment cela en un vrai bord.
+l'autre à chaque instant et le navire reste en panne, à virer sans fin.
+
+**ELLE ABAT, ELLE NE VIRE PAS VENT DEVANT.** C'est la décision qui sépare une
+barre qui marche d'un navire planté dans le lit du vent jusqu'à la marée
+suivante, et elle a coûté trois tentatives.
+
+Le chemin le plus court vers un cap n'est pas toujours un chemin praticable.
+Virer vent devant traverse le lit du vent, où les écoutes reviennent dans l'axe
+et où il n'y a **plus aucune poussée** ; le navire perd son erre, et l'autorité
+du gouvernail allant comme le **carré** de la vitesse, elle meurt avant que
+l'étrave soit passée. C'est manquer à virer, à tous les coups.
+
+Et ce n'est pas affaire de degré. La règle avait d'abord été écrite comme une
+particularité du carré, sur un critère de vitesse — c'était faux : **rien** dans
+ce modèle ne vire vent devant. Mise sur l'autre amure, abattée interdite, depuis
+le meilleur de ce que chacune tient au près :
+
+| | départ | au plus près | issue |
+|---|---|---|---|
+| goélette, aurique | 4,07 nds | 22° du vent | retombe |
+| pirate, carré | 2,18 nds | 29° du vent | s'arrête à 0,96 nd |
+
+Aucune ne passe. Le pirate, à qui l'on demandait 119° sur bâbord à neuf dixièmes
+de nœud, a tourné de **cinq degrés en dix minutes** en ralentissant tout du long.
+
+Elle fait donc le tour par l'**autre côté** — en s'écartant du vent, trois fois
+plus loin mais voiles pleines sur tout le parcours, en gagnant de la vitesse au
+lieu d'en perdre. C'est abattre en grand, c'est ce que les carrés faisaient
+vraiment, et voilà pourquoi. La manœuvre **se verrouille** : abattre la rend
+rapide, ce qui défait la condition même qui l'a déclenchée, et elle se
+remettrait au lof à mi-tour.
+
+**Ce qu'il ne faut PAS faire, et que j'ai fait deux fois.** Un terme intégral
+dans le *gouvernail* ne peut rien : la barre était déjà à fond, et à un nœud la
+toile la bat sans discussion. Et **faire faseyer** pour ôter la poussée — ce
+qu'un marin ferait d'un navire coiffé — est exactement le remède qui tue : ne
+pas être poussée est ce qui la maintient coiffée, donc la condition qui
+déclenche le faseyement se confirme elle-même. Écrite sur un critère de vitesse,
+elle se déclenchait à **zéro nœud**, avant que le navire ait jamais bougé, et il
+est resté en panne pendant les seize minutes de l'essai. Rien ne fait donc
+faseyer ; abattre est la réponse à être bloqué.
+
+**Elle change d'amure sur la LIGNE DE BORD**, quand le but relève de son angle
+de près sur l'autre bord — c'est le premier instant où l'autre amure le fait
+porter. Une marge de quinze degrés paraissait raisonnable et ne l'était pas :
+elle changeait d'amure alors qu'elle refermait très bien, et chaque changement
+coûtait plus que le bord n'avait rapporté — la distance a oscillé entre 1 190 et
+1 500 m pendant trois quarts d'heure sans jamais converger. La ligne de bord
+porte en outre sa propre hystérésis, le but relevant du même angle de l'autre
+bord dès qu'elle est passée.
+
+Prolonger **au-delà** de la ligne de bord a été essayé aussi, en se disant qu'une
+manœuvre aussi chère doit être rare. Ça n'apporte rien : à quatre fois la bordée
+minimale, 756 m contre 754.
+
+**L'angle de bord est MESURÉ, et sur la ROUTE, pas sur le cap.** C'est là qu'est
+toute la difficulté, et ma première table s'y est trompée. Ce qui compte n'est
+pas jusqu'où elle peut pointer mais où son gain au vent culmine — question
+différente et toujours plus ouverte. Or ces navires **dérivent beaucoup** : le
+pirate, cap à 50° du vent, fait en réalité route à **68°**. Une polaire prise sur
+le cap le flatte du double. La mienne annonçait 1,23 nœud de gain là où la vérité
+est 0,73, et j'ai ensuite passé une heure à me demander pourquoi il mettait
+trente-trois minutes à gagner huit mètres.
+
+Force 4, écoutes sur `optSheet`, cap tenu 150 s. Vitesse, route réelle, gain au
+vent **sur cette route** :
+
+| cap au vent | 40° | 50° | 60° | 70° | 90° |
+|---|---|---|---|---|---|
+| pirate, carré | 1,43 | 1,94 | 2,40 | 2,78 | 3,26 |
+| *route* | 63° | 68° | 74° | 81° | 97° |
+| *gain au vent* | 0,64 | **0,73** | 0,66 | 0,43 | −0,39 |
+
+| cap au vent | 35° | 40° | 45° | 50° | 60° |
+|---|---|---|---|---|---|
+| goélette, aurique | 2,25 | 2,71 | 3,14 | 3,54 | 4,22 |
+| *route* | 52° | 55° | 58° | 62° | 70° |
+| *gain au vent* | 1,39 | 1,56 | 1,65 | **1,66** | 1,44 |
+
+Cinquante degrés pour le carré, quarante-sept pour l'aurique. Ni l'un ni l'autre
+n'est l'angle réel d'un navire de ce gréement — un carré tient soixante-dix —
+et les deux viennent de la mesure et non du souvenir : soixante-dix coûterait au
+pirate **les deux cinquièmes** de sa remontée dans CE modèle. La barre mène le
+navire qu'elle a.
+
+Voir la dernière colonne : au travers, la route du pirate est à **97°** du vent.
+Il **recule** au vent en traversant.
 
 **Au près elle gouverne au VENT, pas au compas**, ce qui est la manière dont on
 le fait vraiment : une saute est ainsi rattrapée avant d'avoir rien coûté. Et
 les écoutes suivent `optSheet`, que le solveur calcule déjà pour tracer le repère
 vert de la console — une définition, deux usagers.
-
-**L'angle de bord est MESURÉ**, et ce n'est pas celui qu'on croit. Ce qui compte
-n'est pas jusqu'où elle peut pointer mais où son gain au vent culmine, question
-différente et toujours plus ouverte : serrer trop gagne du cap et perd plus en
-vitesse. Polaires prises par force 4, écoutes tenues sur `optSheet`, quatre-vingt-
-dix secondes d'établissement à chaque cap — vitesse, puis gain au vent :
-
-| écart au vent | 40° | 50° | 60° | 70° | 90° |
-|---|---|---|---|---|---|
-| pirate, carré | 1,44 | 1,92 | 2,35 | 2,69 | 3,09 |
-| *gain au vent* | 1,10 | **1,23** | 1,18 | 0,92 | 0 |
-| goélette, aurique | 3,73 | 4,23 | 4,57 | 4,81 | 5,27 |
-| *gain au vent* | **2,86** | 2,72 | 2,28 | 1,65 | 0 |
-
-Cinquante degrés pour le carré, quarante pour l'aurique. Le premier surprend :
-soixante-dix degrés — ce qu'un vrai trois-mâts carré tient, et ce à quoi cette
-barre avait d'abord été écrite — lui coûterait **un quart** de sa remontée dans
-CE modèle. Le gréement y est plus obligeant que dans la réalité ; la barre mène
-le navire qu'elle a, pas celui qu'on imagine.
 
 **Elle vise la RIVE de sa distance de garde, pas le navire.** Un chasseur qui
 gouverne sur le centre de sa proie l'aborde, ce qui n'est pas une manœuvre : elle
@@ -1871,39 +1950,48 @@ est dirigée sur un cercle autour d'elle et referme par la tangente. Et un
 bâtiment sans gréement — le chaland — passe **sous machine** : une barre qui
 tire des bords sans toile ne fait que dériver.
 
-Vérifiée en chasse réelle, goélette contre un but plein vent debout à 700 m,
-vent de nord : **700 → 554 m en six minutes**, un seul virement, tenant 324°
-pour 320° demandés. L'écart résiduel est celui d'un correcteur sans terme
-intégral, et il est sans conséquence.
+Vérifiée en chasse, but fixe à 900 m, départ cap opposé et vitesse nulle :
 
-**Ce que la mesure a trouvé au passage, et qui ne vient pas de la barre.**
-L'autorité du gouvernail va comme le CARRÉ de la vitesse, donc aux allures de
-voile les grosses coques n'obéissent quasiment plus. Taux de giration du pirate,
-barre à fond :
+| | but au vent | par le travers | sous le vent |
+|---|---|---|---|
+| pirate | ne rallie pas | rallie en 9,6 min, à 85 m | 11,7 min, à 54 m |
+| goélette | 700 → 327 m en 20 min | 5,9 min, à 42 m | — |
+| chaland (machine) | 10,3 min, à 12 m | — | — |
+
+**Le pirate ne remonte pas au vent, et ce n'est pas la barre.** C'est le navire :
+0,73 nœud de gain réel, et une abattée qui coûte dix minutes et trois cents
+mètres à chaque changement d'amure. Sur cent minutes il gagne 851, puis 748, puis
+691 m — il converge, mais il faudrait des heures. C'est historiquement juste, un
+lourd carré était misérable au près, mais cela veut dire qu'un pirate placé au
+vent du joueur n'est pas une menace. Le levier serait la **dérive** (14 à 23°,
+beaucoup pour un voilier réel), et il vaut pour les navires du joueur autant que
+pour lui — donc il ne sera pas touché sans qu'on le demande.
+
+**Ce que la mesure a trouvé au passage.** L'autorité du gouvernail va comme le
+CARRÉ de la vitesse, donc aux allures de voile les grosses coques n'obéissent
+quasiment plus. Taux de giration du pirate, barre à fond, avant correction :
 
 | lancée | 1 nd | 2 | 3 | 5 | 8 |
 |---|---|---|---|---|---|
 | giration | 0,03 °/s | 0,08 | 0,17 | 0,46 | 1,13 |
 
-À ses deux ou trois nœuds sous voiles, il lui faut **quarante minutes pour virer
-d'un quart**. Ce n'est pas une constante recopiée : `rudderK` est bien mis à
-l'échelle de la surface latérale, comme tous les coefficients hydro. C'est que
-son inertie de lacet vaut cent huit fois celle de la goélette pour seize fois le
-moment de barre. La goélette, elle, manœuvre très bien.
+Ce n'est pas une constante recopiée : `rudderK` est bien mis à l'échelle de la
+surface latérale, comme tous les coefficients hydro. C'est que l'inertie de lacet
+du pirate vaut cent huit fois celle de la goélette pour seize fois le moment de
+barre. La goélette, elle, manœuvre très bien.
 
-Cela vaut pour les frégates du joueur autant que pour le pirate — on ne s'en
-aperçoit pas parce qu'on les mène à la machine, où elles filent onze nœuds et
-retrouvent leur gouvernail. Multiplier `rudder.power` par trois donnerait
-0,51 °/s à trois nœuds, soit un quart de tour en trois minutes, ce qui est juste
-pour un lourd carré sous voiles :
+Cela valait pour les frégates du joueur autant que pour le pirate — on ne s'en
+apercevait pas parce qu'on les mène à la machine, où elles filent onze nœuds et
+retrouvent leur gouvernail. `rudder.power` a donc été **multiplié par trois**,
+sur demande, les trois carrés passant de 92 à 275 :
 
 | `rudder.power` | 92 | 183 | 275 | 366 |
 |---|---|---|---|---|
 | à 3 nds | 0,18 °/s | 0,34 | **0,51** | 0,67 |
 | à 5 nds | 0,46 | 0,91 | 1,35 | 1,78 |
 
-C'est un changement de comportement des navires du joueur, donc il n'a pas été
-fait sans qu'on le demande.
+Un quart de tour en trois minutes à trois nœuds, ce qui est juste pour un lourd
+carré sous voiles, et sans nervosité à la machine (62° en une minute).
 
 ## Les quatre caméras
 
