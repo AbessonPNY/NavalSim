@@ -48,6 +48,7 @@ Naval.Explosion = class Explosion {
     this.live = [];
     this._queue = [];
     this._v = new THREE.Vector3();
+    this.onSplash = null;         // wired by the page, so the sea answers back
 
     /* Timber. Shared by every splinter, so the page patches it with haze once
        and every piece of every blast breathes the same air. */
@@ -163,7 +164,17 @@ Naval.Explosion = class Explosion {
     }
   }
 
-  update(dt){
+  /* The world slid under the fleet: the debris in the air has to go with it,
+     like every other thing that holds a position. Short-lived as it is, a
+     rebase during the three seconds a plank is aloft would fling it a mile. */
+  rebase(dx, dz){
+    for(const p of this.live){ p.p.x -= dx; p.p.z -= dz; p.m.position.copy(p.p); }
+    for(const q of this._queue){ q.at.x -= dx; q.at.z -= dz; }
+  }
+
+  /* `ocean` and `t` are optional; given them, the timber knows where the sea
+     is and stops falling through it. */
+  update(dt, ocean, t){
     for(let i=this._queue.length-1; i>=0; i--){
       const q = this._queue[i];
       q.t += dt;
@@ -191,6 +202,21 @@ Naval.Explosion = class Explosion {
       p.m.position.copy(p.p);
 
       if(p.kind === 'wood'){
+        /* Into the sea, and out of the story. It used to be left to sink
+           quietly behind an opaque surface, which cost nothing and looked
+           right — but it also meant a plank that missed the water went on
+           falling for ever, and it threw away the one moment a falling plank
+           is worth watching. A cubic metre of timber puts up rather more than
+           a cubic metre of water. */
+        if(ocean && this.onSplash){
+          const sea = ocean.sample(p.p.x, p.p.z, t || 0);
+          if(p.p.y < sea && p.v.y < 0){
+            this.onSplash(p.p, 0.9, -p.v.y);
+            this.group.remove(p.m);
+            this.live.splice(i, 1);
+            continue;
+          }
+        }
         // it keeps its size and keeps turning; nothing else to do to it
         p.m.rotation.x += p.w.x*dt;
         p.m.rotation.y += p.w.y*dt;

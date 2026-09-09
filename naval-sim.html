@@ -194,6 +194,7 @@
 <script src="js/underwater.js"></script>
 <script src="js/weather.js"></script>
 <script src="js/rain.js"></script>
+<script src="js/splash.js"></script>
 <script src="js/world.js"></script>
 <script src="js/land.js"></script>
 <script src="js/gulls.js"></script>
@@ -239,6 +240,7 @@ async function main(){
   const blast = new Naval.Explosion(stage.scene, stage);
   // her splinters must breathe the same air as her hull
   Naval.applyHaze(blast.woodMat, ocean.uniforms);
+  blast.onSplash = (at, water, speed) => splash.burst(at, water, speed);
 
   const chart = new Naval.Chart(document.getElementById("chart"), world,
     { fix:document.getElementById("chartFix"), scale:document.getElementById("chartScale") });
@@ -254,6 +256,14 @@ async function main(){
      writing to them keeps every one of those honest and leaves nothing to
      fall out of step. Watching the console move is the readout. */
   const rain = new Naval.Rain(stage.scene);
+  const splash = new Naval.Splash(stage.scene, stage);
+
+  /* What a hull throws when she comes down. The solver hands over cubic metres
+     a SECOND of water driven down, so a sixth of a second of it is about what
+     one entry puts in the air — the rest is simply her settling. */
+  function wireSplash(ph){
+    ph.onSlam = (at, rate, speed) => splash.burst(at, rate*0.12, speed);
+  }
 
   const weather = new Naval.Weather();
   const wxBtn = document.getElementById('autoWx');
@@ -361,6 +371,7 @@ async function main(){
     stage.frameVessel(spec.L);              // shadow box sized to this vessel
     physics = new Naval.ShipPhysics(spec, lines);
     physics.world = world;                // sans lui, sa quille ne touche jamais rien
+    wireSplash(physics);
     controls.setSpec(spec);
 
     if(!cam){
@@ -488,6 +499,7 @@ async function main(){
 
     const ph = new Naval.ShipPhysics(sp, ln);
     ph.world = world;
+    wireSplash(ph);                       // every hull throws water, not only ours
     const ct = { throttle:0, rudder:0, sheet:sp.maxSheet*0.5, sailsSet:true };
     const eq = ph.settle(ocean, ct);
 
@@ -628,7 +640,7 @@ async function main(){
   Naval.app = { stage, ocean, foam, controls,
                 get physics(){ return physics; }, get ship(){ return ship; },
                 get cam(){ return cam; }, get hud(){ return hud; },
-                world, land, gulls, chart, blast, takeHelm, weather, rain,
+                world, land, gulls, chart, blast, takeHelm, weather, rain, splash,
                 get fleet(){ return fleet; } };
 
   let last = performance.now();
@@ -685,6 +697,8 @@ async function main(){
       ocean.rebase(dx, dz);
       foam.rebase(dx, dz);
       cam.rebase(dx, dz);
+      splash.rebase(dx, dz);
+      blast.rebase(dx, dz);
       for(const e of fleet) if(e.ship) e.ship.syncTo(e.body);
       ship.syncTo(physics.body);
     }
@@ -749,7 +763,8 @@ async function main(){
       }
     }
 
-    blast.update(dt);
+    blast.update(dt, ocean, t);
+    splash.update(dt);
     hud.update(dt);
     fleetTick += dt;
     if(fleetTick > 0.4){ fleetTick = 0; refreshFleetSpeeds(); }

@@ -27,7 +27,7 @@ logique est dans `js/`, en classes attachées à un espace de noms global `Naval
 |---|---|
 | `config.js` | constantes du monde (ρ, g, grille de sondes, liste de repli des navires) |
 | `weather.js` | le vent qui se conduit seul : rafales, risées, systèmes |
-| `rain.js` | le rideau de pluie du gros temps |
+| `rain.js` · `splash.js` | le rideau de pluie · l’eau jetée par ce qui tombe dedans |
 | `ship-spec.js` | lit une fiche JSON et en **dérive** tout ce que le solveur consomme |
 | `hull-lines.js` | le plan de formes, en fonctions pures |
 | `stage.js` | renderer, scène, lumière, ciel |
@@ -1317,6 +1317,252 @@ Elle est coupée sous l'eau — un rideau de pluie vu d'en dessous n'a aucun sen
 et retirée de la **passe de réflexion**, son réseau étant replié autour de l'œil
 réel : vue depuis la caméra miroir sous la surface, elle serait tout simplement
 ailleurs.
+
+## La gerbe
+
+**Une gerbe n'est pas un effet accroché à un événement, c'est le volume d'eau
+que l'objet vient de prendre à sa place, et qui arrive ailleurs.** Tout découle
+de là, à commencer par les deux nombres qu'on donne à une gerbe, qui font deux
+métiers différents :
+
+- **combien d'eau**, en mètres cubes. C'est par là que le poids entre : un corps
+  lourd s'enfonce davantage avant que l'eau ne l'arrête, donc il déplace plus, et
+  ce qu'on lit comme « une grosse gerbe » est presque entièrement de la quantité
+  — le nombre de gouttes, la largeur de la nappe, le temps qu'elle reste en
+  l'air ;
+- **à quelle vitesse il est entré**, en mètres par seconde. C'est ce qui décide
+  de la **hauteur**, et rien d'autre ne le décide. Lâchez doucement un boulet et
+  beaucoup d'eau bougera de très peu.
+
+Le poids entre aussi dans la vitesse, mais par la porte de service : un corps
+léger est arrêté par la surface et sa gerbe meurt avec lui, un corps lourd
+continue comme si l'eau n'était pas là.
+
+**L'eau sort PLUS VITE que le corps n'est entré.** Elle est chassée d'un
+interstice qui se referme — c'est pourquoi un plat fait mal, et pourquoi une
+coque qui tape à quatre mètres par seconde envoie de l'eau à cinq mètres de
+haut et non à un. La première écriture la faisait sortir plus lentement que le
+choc : le panache dépassait à peine la surface et se lisait comme de la mousse.
+
+**Le déclencheur était déjà calculé, mais pas celui qu'on croit.** La première
+écriture mesurait la coque qui descend — et cela rate la moitié de ce que l'œil
+voit. Une lame qui monte à la rencontre d'une étrave immobile jette tout autant
+d'eau : c'est même la définition d'une déferlante. La bonne question n'est pas
+« à quelle vitesse la coque descend-elle » mais **« à quelle vitesse cette
+cellule passe-t-elle sous l'eau »**, et elle ne demande pas lequel des deux a
+bougé.
+
+Elle se localise en prime toute seule. Une cellule déjà profonde ne compte pour
+rien, puisque rien de neuf n'y est déplacé ; une cellule en l'air non plus.
+Seules comptent celles qui **traversent** la surface, c'est-à-dire exactement
+l'endroit d'où l'eau est jetée — sans pondération de profondeur à inventer et
+sans flottaison à aller chercher. Il suffit de garder d'une image à l'autre le
+taux de remplissage de chaque sonde.
+
+**Une moyenne tombe toujours au milieu, et le milieu n'est pas où l'on regarde.**
+Deuxième faute, plus subtile que la première et signalée à l'usage : « on ne
+constate pas l'effet devant la coque quand le bateau retombe ou fend la mer ».
+La moyenne pondérée des cellules qui traversent atterrit au maître-bau presque à
+tous les coups, et non parce que la physique le dit — parce que la coque y est
+la plus **large**, donc c'est là qu'il y a le plus de cellules. Moyenner une
+étrave qui plonge à quatre mètres par seconde avec un milieu tranquille plein de
+cellules donne un point au milieu : l'effet était là, et il n'était jamais où
+l'œil se portait.
+
+L'eau est jetée là où le travail est le plus dur, ce qui est un **maximum** et
+non une moyenne. Pondérer la position par le **carré** de la vitesse de passage
+tire le point dessus — seize contre un pour une étrave qui descend quatre fois
+plus vite — tandis qu'une coque qui retombe à plat garde son point au milieu,
+toutes ses cellules passant alors à la même vitesse et rien ne se détachant.
+Mesuré : sur les impacts francs, **100 %** tombent en avant du tiers avant, et
+jusqu'à 0,71 de la demi-longueur, soit au ras de l'étrave. La *taille* de la
+gerbe, elle, garde la moyenne honnête en mètres cubes par seconde : ce sont deux
+questions différentes et elles ont chacune leur accumulateur.
+
+**Et le point est porté jusqu'à la RALINGUE de sa flottaison.** Le centroïde vit
+dans le plan de flottaison, donc l'embrun montait à travers son propre pont et
+se lisait comme de l'eau embarquée plutôt que de l'eau jetée.
+
+L'écarter d'une distance fixe ne suffit pas, et ce fut la deuxième tentative :
+une coque est **longue**, donc un point à huit mètres en avant du maître-bau,
+poussé de deux mètres de plus, reste à quatre mètres de l'étrave — et l'embrun
+court le long du pont de l'avant vers la taille, ce qui est exactement ce qu'on
+a vu.
+
+Il faut le poser **sur** son contour, pas le pousser vers lui. Ramenée à sa
+demi-longueur et à sa demi-largeur, la coque devient un cercle unité :
+normaliser là puis revenir pose la gerbe sur la flottaison, au relèvement d'où
+le coup est venu, quelles que soient ses proportions. Un coup à l'avant crève à
+l'étrave, un coup par le travers par-dessus bord, et une seule ligne
+d'arithmétique fait les deux. Retombant à plat il n'y a pas de relèvement — la
+moyenne est au centre — et c'est l'étrave qui est prise, là où une chute à plat
+jette l'eau qu'on remarque.
+
+**Un impact est un ÉVÉNEMENT, pas un état.** Elle chasse toujours *un peu* d'eau
+vers le bas ; ce qui compte est le franchissement d'un seuil, suivi d'un temps
+mort avant le suivant. Sans ce temps mort une entrée franche engendrerait une
+gerbe à chaque image pendant un tiers de seconde, ce qui se lit comme un jet.
+
+**Le seuil est une VITESSE, en mètres par seconde, et il a fallu une frégate
+pour montrer pourquoi.** Il avait d'abord été écrit comme une fraction du volume
+de coque par seconde, ce qui avait l'air indépendant du navire et ne l'était pas.
+Le débit de traversée va comme la **surface** de flottaison multipliée par la
+vitesse de passage, donc en L·B ; le volume de coque va en L·B·D. Diviser l'un
+par l'autre laisse un D au dénominateur, et pénalise donc un navire d'être
+profond : la frégate, trois fois le creux du chaland, sortait au tiers du débit
+pour la même mer et ne jetait **rien du tout** — deux minutes de force 7 sans
+une seule gerbe, et personne ne l'aurait deviné en regardant le chaland.
+
+Divisé par sa section moyenne — volume de coque sur creux — il reste des mètres
+par seconde, c'est-à-dire la même question posée à toutes les coques : à quelle
+vitesse, en moyenne sur sa longueur mouillée, passe-t-elle sous l'eau ? Relevé
+à 1,9 m/s, deux minutes de mer établie par état, en route :
+
+| force | 3 | 4 | 5 | 6 | 7 | 9 |
+|---|---|---|---|---|---|---|
+| chaland, gerbes/min | 0 | — | 2 | 4 | 7 | 12 |
+| frégate, gerbes/min | 0 | 2 | 4 | 4 | 4 | 9,5 |
+
+Silencieuse sous force 4 sur l'une comme sur l'autre, ce qui est le point : un
+seul nombre, et il veut dire la même chose partout.
+
+**Et une gerbe toutes les cinq secondes au plus, ce qui est une borne assumée et
+non un anti-rebond.** La physique trouve volontiers une douzaine d'impacts dans
+ces cinq secondes et tous sont réels — mais douze panaches en cinq secondes ne
+se lisent pas comme un navire qui travaille dans la lame, ils se lisent comme un
+chapelet de pétards le long du bord. Ce que l'œil demande à une mer, c'est **une**
+masse d'eau jetée, assez grosse pour être regardée, puis le temps de la regarder.
+
+Un défaut à corriger dans la borne : une claque tire, et la lame verte qui monte
+à bord deux secondes plus tard — celle qui valait le coup — est jetée parce que
+la pendule n'avait pas fini. Un impact au moins **deux fois** plus gros que celui
+qui tient la place peut donc la prendre, passé une seconde. Il reste rare par
+construction, doubler étant beaucoup : relevé, l'écart minimal tombe à 5 s par
+tous les temps sauf en tempête, où l'exception a joué une fois à 2,2 s.
+
+**La vitesse d'éjection s'est trompée des deux côtés avant de tomber juste.** En
+dessous de la vitesse de choc, la couronne dépassait à peine la surface et se
+lisait comme de la mousse ; au double, une belle brise envoyait l'eau à cinq
+mètres. Ce qui tranche est que la première de ces mesures a été prise pendant
+que l'embrun naissait encore **dans** la coque, où la moitié ne se voyait pas :
+la faute était l'endroit, pas la vitesse, et monter la vitesse pour compenser
+soignait le symptôme.
+
+**Et elle est mise à l'échelle de l'événement, ce qui est ce qui empêche un
+grand navire de ressembler à sa maquette.** La pesanteur fixe la seule pendule
+qu'ait une gerbe : de l'eau lancée à quatre mètres par seconde est montée et
+retombée en huit dixièmes de seconde quoi qu'elle côtoie — donc à côté d'une
+frégate de soixante mètres c'est un clignotement, et l'œil lit le clignotement
+et dit « petit ». Le cinéma le sait depuis un siècle : une maquette se trahit
+par une eau qui bouge trop vite pour sa taille apparente.
+
+Le remède est la similitude de **Froude**, qui se trouve être la physique
+exacte : pour un mouvement gouverné par la pesanteur, des écoulements
+géométriquement semblables ont des vitesses en **racine de la longueur**. Le jet
+porte donc un facteur √(R/Rréf) et tout le reste suit tout seul — la couronne
+monte proportionnellement à R et tient l'air proportionnellement à √R, sous une
+pesanteur ordinaire et sans rien truquer.
+
+Cela sonne à l'envers de rendre une grosse gerbe plus **rapide** quand le
+reproche était qu'elle avait l'air trop rapide. Ce n'en est pas un : la vitesse
+absolue croît en √R tandis que la taille croît en R, donc ce qu'on voit — la
+vitesse rapportée à la taille — décroît en 1/√R. Une grosse gerbe est une gerbe
+lente, et c'est l'arithmétique qui le dit. Mesuré, chaland contre frégate :
+
+| | chaland, L = 28 m | frégate, L = 60 m |
+|---|---|---|
+| rayon de gerbe | 3,3 m | 4,9 m |
+| hauteur | 0,8 – 1,0 m | 1,5 – 2,1 m |
+| durée de vol | 0,8 s | 1,1 – 1,3 s |
+
+**La traînée aussi va avec la taille**, et par la même porte : elle croît comme
+une surface quand la masse croît comme un volume, donc ce qui freine va en
+1/taille. Sans cela chaque paquet décélère pareil et une nappe entière se
+dissipe aussi vite qu'une gouttelette — la maquette revient par un autre
+chemin.
+
+**Et par grosse houle, ça partait en feu d'artifice — à cause de la fréquence
+d'affichage.** Une cellule ne peut se remplir que d'une cellule entière en une
+image, donc la vitesse de passage **sature à `probeH/dt`** : quelque trente-six
+mètres par seconde à soixante images, et *davantage* sur une image lente. Ce
+plafond est une propriété de l'horloge d'affichage et non de la mer. Pris au
+mot, il envoyait l'embrun à seize mètres en l'air par forte houle — et plus haut
+encore sur une machine plus lente, ce qui est la signature même d'une grandeur
+qu'on n'aurait jamais dû lire telle quelle.
+
+Sept mètres par seconde est la borne honnête : c'est à peu près la vitesse
+orbitale de la mer la plus creuse de ce modèle, et une coque et une lame qui se
+rencontrent plus fort que cela, c'est l'arithmétique qui manque d'images, pas
+l'océan qui fait quelque chose de remarquable.
+
+Le jet est en outre **borné par ce qu'une cavité de cette taille peut jeter** :
+la couronne monte à peu près autant que la cavité est large, étant la même eau
+repliée, donc un panache qui part à trois ou quatre fois son propre rayon a
+cessé d'être de l'eau déplacée pour devenir une fusée. Et la taille d'un paquet
+est plafonnée en mètres autant que mise à l'échelle — de l'eau déchirée ne tient
+pas ensemble au-delà d'un demi-mètre, quoi qu'on l'ait lancée, sans quoi un gros
+événement partait en poignée de rochers. Mesuré, hauteur maximale du panache sur
+deux minutes :
+
+| | force 6 | force 8 | force 9 |
+|---|---|---|---|
+| chaland, 28 m | 0,9 m | 3,6 m | 4,4 m |
+| frégate, 60 m | 4,3 m | 5,5 m | 7,0 m |
+
+Contre seize mètres avant les bornes. La frégate monte plus haut en mètres et
+moins haut rapportée à sa longueur — un neuvième contre un sixième — ce qui est
+exactement ce que la similitude demande.
+
+**Et rien ne compte tant que les sondes ne sont pas remplies.** Tout ce qui la
+DÉPLACE sans la faire naviguer — asseoir une coque neuve, renflouer une épave —
+fait traverser la surface à toutes ses cellules d'un coup, ce qui se lirait
+comme le navire entier qui tape. Trois images de chauffe suffisent.
+
+**Piège de mesure, et il a failli passer.** Le premier comptage changeait l'état
+de mer puis comptait aussitôt, et trouvait des gerbes par calme plat. Changer le
+spectre fait **sursauter** la coque, et le sursaut déclenche un impact bien
+réel. Quinze secondes de décantation avant de compter, et le calme ressort
+silencieux à tous les seuils — comme il se doit. Un relevé pris juste après
+avoir changé un réglage mesure le changement, pas le réglage.
+
+**Second piège, du même banc.** Les rappels de test posés sur `onSlam` se
+chaînent d'une expérience à l'autre : chaque essai gardait le précédent et
+l'appelait, si bien qu'un ancien rappel écrivait par-dessus le résultat du
+nouveau et l'on lisait la mesure d'avant en croyant lire celle d'après. Rendre
+le rappel d'origine à la fin de chaque essai, ou recharger la page entre deux.
+
+**Fin et nombreux plutôt que gros et rares.** L'embrun n'est pas un ensemble
+d'objets, c'est une texture, et l'œil la lit à son grain. Trop peu de sprites et
+l'on compte les points ; trop gros, et c'est de l'ouate — les deux ont été
+essayés dans cet ordre. Et l'opacité reste bien sous l'unité, un panache étant
+fait de dizaines de ces sprites qui se recouvrent : à pleine opacité ils
+s'empilent en un corps blanc plein au lieu de se construire en quelque chose au
+travers de quoi on voit.
+
+Un sprite n'est pas **une** goutte, c'est un paquet d'eau déchirée et de l'air
+qu'elle contient : dimensionné comme une vraie goutte, il disparaît à toute
+distance et le panache entier se lit comme de la poussière sur l'objectif.
+
+Le tout tient dans **un** objet `Points` et un seul appel de dessin — des sprites
+avec chacun leur matériau conviennent très bien à une douzaine de bouffées de
+fumée et pas du tout à deux cents gouttes. La recherche d'un emplacement libre
+se fait au **curseur tournant** : une grosse gerbe en demande quatre cents d'un
+coup, et repartir du début à chaque fois en faisait un quart de million de
+comparaisons dans une seule image, pour une réserve presque vide. Coût mesuré :
+**13 µs par image** avec sept cents gouttes vivantes.
+
+**Et les débris de l'explosion giclent aussi.** Une planche qui touchait l'eau
+était laissée à couler derrière une surface opaque, ce qui ne coûtait rien et
+avait l'air juste — mais celle qui manquait l'eau tombait alors pour l'éternité,
+et l'on jetait le seul moment où une planche qui retombe vaut d'être regardée.
+Elle disparaît maintenant à l'entrée, en jetant son eau. Mesuré : quarante-quatre
+planches à la mer pour une soute qui saute.
+
+Enfin, la gerbe et les débris **se recentrent** avec le reste. Chaque goutte
+tient une position dans le repère local ; sans cela un recentrage laisse
+l'embrun suspendu à quinze cents mètres derrière. L'explosion avait la même
+faute en sommeil depuis le début — trois secondes de vol suffisent à croiser un
+recentrage.
 
 ## Les quatre caméras
 

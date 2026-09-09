@@ -83,6 +83,43 @@ Naval.ShipPhysics = class ShipPhysics {
 
     // telemetry for the instruments
     this.submergedFrac = 0; this.draft = 0;
+    /* How hard she is driving water down, in cubic metres a second, and where.
+       That is the honest measure of a splash — what the sea has to get out of
+       the way of, per second — and both fall out of the buoyancy loop for the
+       price of one multiply, since it already knows every probe's depth and
+       every probe's velocity. */
+    this.slamRate = 0; this.slamSpeed = 0;
+    /* Frames to let the probes fill in before any of this is believed. Anything
+       that MOVES her without sailing her — settling a new hull, salvaging a
+       wreck — makes every cell cross the surface at once, and that would read
+       as the whole ship slamming. */
+    this._slamWarm = 3;
+    /* A SPEED, in metres a second, and it took a frigate to show why.
+
+       It was first written as a fraction of hull volume per second, which
+       looked vessel-independent and was not. The crossing rate goes as
+       waterline AREA times closing speed — as L·B — while hull volume goes as
+       L·B·D. Dividing one by the other leaves a D in the denominator, so a
+       deep ship is penalised for being deep: the frigate, three times the
+       draught of the barge, came out at a third of the rate for the same sea
+       and threw no water at all. Two minutes of force 7 and not one burst.
+
+       Divided by her mean section area instead — hull volume over depth — what
+       is left is metres per second, which is the same question asked of every
+       hull: how fast, on average over her wetted length, is she going under? */
+    this.slamTrigger = 1.9;        // m/s of mean closing speed
+    /* One burst in five seconds, and it is a deliberate bound rather than a
+       debounce. The physics will happily find a dozen impacts in that time and
+       every one of them is real, but a dozen plumes in five seconds does not
+       read as a ship working in a seaway — it reads as a string of firecrackers
+       going off along her side. What the eye wants from a sea is ONE piece of
+       water thrown, big enough to watch, and then time to watch it. */
+    this.slamPause = 5.0;
+    this._slamLast = 0;
+    this._slamAt = new THREE.Vector3();
+    this._slamOut = new THREE.Vector3();
+    this._slamCool = 0;
+    this.onSlam = null;
     this.appWindAngle = 0; this.appWindSpeed = 0;
     this.tack = 1; this.sailDrive = 0; this.luffing = false;
     this.optSheet = null;                  // null while there is no wind to trim to
@@ -392,7 +429,7 @@ Naval.ShipPhysics = class ShipPhysics {
         for(let ix=0;ix<nx;ix++){
           const x = -B/2 + ((ix+0.5)/nx)*B;
           if(Math.abs(x) > beam) continue;
-          this.probes.push({local:new THREE.Vector3(x,y,z), vol:cellVol});
+          this.probes.push({local:new THREE.Vector3(x,y,z), vol:cellVol, frac:0});
           this.hullVolume += cellVol;
         }
       }
@@ -420,13 +457,73 @@ Naval.ShipPhysics = class ShipPhysics {
 
     // --- buoyancy + vertical damping over the submerged probes ---
     let submergedVol = 0, lowestY = Infinity;
+    let slamW = 0, slamV = 0, slamP = 0;
+    const slamAt = this._slamAt.set(0,0,0);
     for(let i=0;i<this.probes.length;i++){
       const pr = this.probes[i];
       this._pw.copy(pr.local).applyQuaternion(b.quat).add(b.pos);
       if(this._pw.y < lowestY) lowestY = this._pw.y;
       const depth = ocean.sample(this._pw.x, this._pw.z, t, this._norm) - this._pw.y;
+
+      /* How full this cell is, and how fast that is CHANGING. The rate is the
+         whole of the splash detector, and it is a different question from the
+         one asked first.
+
+         The first version measured the hull moving DOWN, which misses half of
+         what the eye actually sees: a sea rising to meet a bow that is not
+         moving at all throws just as much water — that is what a breaking wave
+         IS. Asking instead how fast each cell is going under catches both, and
+         does not care which of the two moved.
+
+         Better still, it localises itself. A cell already deep contributes
+         nothing, because nothing new is being displaced there; a cell fully in
+         the air contributes nothing either. Only cells CROSSING the surface
+         count, which is exactly where water is thrown from — no depth
+         weighting to invent, and no waterline to look for. */
+      const f = depth > 0 ? Math.min(1, depth / this.probeH) : 0;
+      const df = f - pr.frac;
+      pr.frac = f;
+      if(df > 0 && this._slamWarm <= 0){
+        const drive = pr.vol*df/dt;                 // m³/s newly displaced here
+        slamW += drive;
+        /* How fast hull and sea are closing, in m/s — but READ THE CEILING.
+          A cell can fill by at most one whole cell in one frame, so this
+          measure saturates at probeH/dt: some thirty-six metres a second at
+          sixty frames, and MORE on a slow frame. That ceiling is a property of
+          the frame rate and not of the sea, and taken at face value it sent
+          spray a good sixteen metres into the air in a heavy swell — a firework
+          rather than a splash, and one that would have gone higher still on a
+          slower machine.
+
+          Seven metres a second is the honest bound. It is about the orbital
+          speed of the steepest sea in this model, and a hull and a wave meeting
+          any harder than that is the arithmetic running out of frames, not the
+          ocean doing something remarkable. */
+        const closing = Math.min(7.0, df*this.probeH/dt);
+        if(closing > slamV) slamV = closing;
+        /* WHERE it happens is weighted by the square of the closing speed, and
+           that is the difference between a splash at the bow and a splash
+           nowhere in particular.
+
+           A plain mean over the crossing cells lands amidships almost every
+           time, and not because the physics says so — because the hull is
+           WIDEST there, so that is where most of the cells are. Averaging a bow
+           plunging at four metres a second against a quiet midships full of
+           cells gives a point in the middle, which is exactly what one saw: the
+           effect was there and it was never where the eye was looking.
+
+           Water is thrown where the work is hardest, which is a maximum and not
+           a mean. Squaring the closing speed pulls the point onto it — sixteen
+           to one for a bow going down four times faster — while a hull dropping
+           flat into a trough still gives amidships, since then every cell is
+           crossing at the same speed and there is nothing to pick out. */
+        const wpos = drive*closing*closing;
+        slamP += wpos;
+        slamAt.addScaledVector(this._pw, wpos);
+      }
+
       if(depth <= 0) continue;
-      const dispVol = pr.vol * Math.min(1, depth / this.probeH);
+      const dispVol = pr.vol * f;
       submergedVol += dispVol;
 
       this._r.copy(this._pw).sub(cog);                   // lever arm from the CoG
@@ -443,6 +540,73 @@ Naval.ShipPhysics = class ShipPhysics {
     }
     this.submergedFrac = submergedVol / this.hullVolume;
     this.draft = Math.max(0, ocean.sample(cog.x, cog.z, t) - lowestY);
+
+    /* A slam is an EVENT, not a state. She is always driving SOME water down —
+       every roll does it — so what matters is crossing a threshold, and then a
+       moment of quiet before another may fire. Without that pause a hard entry
+       would spawn a burst on every frame for a third of a second and read as a
+       jet rather than as a splash.
+
+       The threshold is a fraction of her OWN hull volume per second, which is
+       what lets one number serve a 210-tonne barge and a 2000-tonne frigate: it
+       asks not "how much water" but "how much of herself, per second". */
+    this.slamRate = slamW; this.slamSpeed = slamV;
+    if(slamP > 0){
+      slamAt.divideScalar(slamP);
+      /* Up to the SURFACE. The centroid is a weighted mean of submerged probe
+         positions, so it lies inside the hull and below the waterline — and a
+         splash born there is a splash born inside the ship, which is exactly
+         what the first attempt looked like: four hundred drops alive and
+         perhaps six of them visible past the planking. Water is thrown from
+         where the hull meets the sea, not from the middle of the carpentry. */
+      /* Carried out to the RIM. The centroid lives inside the
+         waterline plane — it is an average of points within the hull — so
+         spray born there rises through her own deck and reads as water taken
+         aboard rather than water thrown off.
+
+         Pushing it out by a fixed distance does not fix it, and that was the
+         second attempt: a hull is LONG, so a point eight metres forward of
+         amidships shoved two metres further forward is still four metres short
+         of the stem, and the spray runs along the deck from bow to waist —
+         which is exactly what one saw.
+
+         The point has to be put ON her outline, not merely moved toward it.
+         Scaled into her own half-length and half-beam the hull becomes a unit
+         circle; normalising there and coming back lands the burst on the
+         waterline at the bearing the impact came from, whatever her
+         proportions. A blow forward breaks at the stem, a blow abeam over the
+         side, and one line of arithmetic does both.
+
+         Coming down flat there is no bearing to speak of — every cell crosses
+         at once and the centroid sits at her centre — so she is given the bow,
+         which is where such a drop throws the water one actually notices. */
+      const out = this._slamOut.copy(slamAt).sub(b.pos);
+      let ex = out.dot(right)/(S.B*0.5), ez = out.dot(fwd)/(S.L*0.5);
+      const n = Math.hypot(ex, ez);
+      if(n < 0.2){ ex = 0; ez = 1.0; }        // flat drop: take it at the stem
+      else { ex /= n; ez /= n; }
+      slamAt.copy(b.pos)
+            .addScaledVector(right, ex*S.B*0.5*1.06)
+            .addScaledVector(fwd,   ez*S.L*0.5*1.06);
+      slamAt.y = ocean.sample(slamAt.x, slamAt.z, t);
+    }
+    if(this._slamWarm > 0) this._slamWarm--;
+    this._slamCool -= dt;
+
+    /* A flat five seconds of silence has one failing worth mending: a slap
+       fires, and the green sea that comes aboard two seconds later — the one
+       worth having — is thrown away because the clock had not run out. So a
+       burst at least twice the size of the one holding the floor may take it,
+       provided a second has passed. It stays rare by construction, doubling
+       being a lot, and it means the pause never costs the best moment. */
+    const big = slamW > this._slamLast*2
+             && (this.slamPause - this._slamCool) > 1.0;
+    if(this.onSlam && (this._slamCool <= 0 || big)
+       && slamW > (this.hullVolume/S.D)*this.slamTrigger){
+      this._slamCool = this.slamPause;
+      this._slamLast = slamW;
+      this.onSlam(slamAt, slamW, slamV);
+    }
 
     // how far under the sea she now lies — the measure by which she is lost
     this.depthBelow = ocean.sample(b.pos.x, b.pos.z, t) - b.pos.y;
@@ -603,6 +767,8 @@ Naval.ShipPhysics = class ShipPhysics {
      hide it by calling refreshSea() straight after, so the fault only surfaced
      through the second caller. Restoring it here means no caller has to know. */
   settle(ocean, ctrl){
+    // she is about to be put somewhere: no cell crossing counts as a splash
+    this._slamWarm = 3;
     const sea = ocean.seaState, deg = ocean.windDeg;
     ocean.setSeaState(0, 0);
     this.body.pos.set(0, 0.4, 0);
