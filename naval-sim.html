@@ -791,7 +791,10 @@ async function main(){
          controls, exactly as a hand would, and the solver knows no difference.
          The chase is always the vessel at the wheel — entry 0 — read fresh
          because commissioning a new ship replaces that body. */
-      if(e.helm){ e.helm.target = fleet[0].body.pos; e.helm.update(dt, ocean); }
+      /* Her controls are passed in rather than remembered: taking the helm
+         swaps the control objects between entries, and a helm holding the one
+         it was built with would go on writing into the console you are using. */
+      if(e.helm){ e.helm.target = fleet[0].body.pos; e.helm.update(dt, ocean, e.ctrl); }
       for(let i=0;i<SUB;i++) e.physics.step(dt/SUB, ocean, e.ctrl, t);
       e.afloat = e.physics.afloat;
       e.ship.syncTo(e.physics.body);

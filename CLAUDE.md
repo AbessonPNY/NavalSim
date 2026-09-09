@@ -88,6 +88,22 @@ Ce qui suppose encore un navire unique, et qu'il faudra lever :
   faisait le précédent. Partager un seul objet ferait obéir toute la flotte à la
   même roue.
 
+  **Et rien ne doit RETENIR cet objet, ce qui a coûté un vrai bug.** L'échange
+  réaffecte le `ctrl` de chaque entrée, mais une barre automatique construite
+  avec `controls.state` en gardait une référence capturée à l'armement — que
+  l'échange ne pouvait pas suivre. Le navire qu'on venait de quitter continuait
+  donc d'écrire dans **votre** console, soixante fois par seconde : un chaland
+  laissé derrière mettait votre machine en avant toute et votre barre à fond,
+  un voilier laissé derrière tenait votre machine à zéro — la machine ne
+  répondait plus du tout — et vos écoutes comme votre voilure ne vous
+  appartenaient pas davantage.
+
+  Les commandes sont donc **passées à chaque image** (`helm.update(dt, ocean, e.ctrl)`)
+  plutôt que retenues. Ce n'est pas la même chose que de corriger l'échange pour
+  qu'il répare aussi les barres : l'appelant tient l'entrée, l'entrée tient ses
+  commandes du moment, et il ne reste plus rien qui puisse se périmer. Même
+  famille de faute que le vecteur temporaire aliasé sur une valeur vivante.
+
 **Mettre une coque à l'eau se fait par le panneau « Flotte »**, et il y a une
 raison de ne pas le faire à la main : quatre choses sont faciles à oublier et
 chacune donne un symptôme discret. Sans `applyAtmosphere` et `enableLighting`

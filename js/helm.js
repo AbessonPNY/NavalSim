@@ -23,6 +23,8 @@ window.Naval = window.Naval || {};
 Naval.AutoHelm = class AutoHelm {
   constructor(physics, ctrl, opts){
     this.ph = physics;
+    /* A FALLBACK ONLY. The controls she really writes into are the ones handed
+       to update() — see there for why holding this one would be a bug. */
     this.ctrl = ctrl;
     const o = opts || {};
 
@@ -89,8 +91,22 @@ Naval.AutoHelm = class AutoHelm {
     this._to = new THREE.Vector3();
   }
 
-  update(dt, ocean){
-    const ph = this.ph, c = this.ctrl, b = ph.body;
+  /* The controls are given at EVERY update, and are deliberately not the ones
+     she was built with. Taking the helm of another vessel swaps the two ships'
+     control objects — the one being left is handed a copy so she sails on under
+     the orders she was given, the one taken over gets the live console — so a
+     reference captured at construction goes stale at that instant.
+
+     It went stale in the worst possible way: the helm of the ship you had just
+     left went on writing into YOUR wheel, sixty times a second. A barge left
+     astern put your engine full ahead and your rudder hard over; a sailing ship
+     left astern held your throttle at zero, so the engine would not answer at
+     all, and your sheets and your canvas were not yours either. Passing them in
+     is what makes that impossible rather than merely fixed: the caller has the
+     entry, the entry has the current controls, and there is nothing left to go
+     out of date. */
+  update(dt, ocean, ctrl){
+    const ph = this.ph, c = ctrl || this.ctrl, b = ph.body;
     if(!this.target || ph.foundered){ c.rudder = 0; return; }
 
     this._fwd.set(0,0,1).applyQuaternion(b.quat);
