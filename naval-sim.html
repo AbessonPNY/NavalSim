@@ -214,6 +214,7 @@
 <script src="js/underwater.js"></script>
 <script src="js/weather.js"></script>
 <script src="js/storms.js"></script>
+<script src="js/helm.js"></script>
 <script src="js/rain.js"></script>
 <script src="js/splash.js"></script>
 <script src="js/world.js"></script>
@@ -556,6 +557,11 @@ async function main(){
        own physics, model and controls to go on sailing with. */
     fleet.push({ body:physics.body, spec, lines, physics, ship, afloat:1,
                  ctrl:controls.state, eqY:hud.eqY,
+                 /* She carries a helmsman she does not use: the wheel is yours
+                    while she is entry 0, and the moment it moves to another
+                    vessel this one must be able to sail herself without
+                    anything being built at that instant. */
+                 helm: new Naval.AutoHelm(physics, controls.state),
                  profile: ship.hullProfile(64, -hud.eqY) });
     ocean.setHullProfile(0, fleet[0].profile);
     hud.refreshSea();
@@ -609,6 +615,8 @@ async function main(){
     ph.world = world;
     wireSplash(ph);                       // every hull throws water, not only ours
     const ct = { throttle:0, rudder:0, sheet:sp.maxSheet*0.5, sailsSet:true };
+    // she sails herself: nobody else is going to steer her
+    const helm = new Naval.AutoHelm(ph, ct);
     const eq = ph.settle(ocean, ct);
 
     /* Well clear of the vessel at the helm, and fanned out so a third does not
@@ -621,7 +629,7 @@ async function main(){
     ph.body.quat.copy(physics.body.quat);          // heading with the flagship
 
     const entry = { body:ph.body, spec:sp, lines:ln, physics:ph, ship:sh, ctrl:ct,
-                    afloat:1, eqY:eq, profile: sh.hullProfile(64, -eq) };
+                    helm, afloat:1, eqY:eq, profile: sh.hullProfile(64, -eq) };
     fleet.push(entry);
     refitProfiles();
     return entry;
@@ -768,6 +776,11 @@ async function main(){
     for(let k=1;k<fleet.length;k++){
       const e = fleet[k];
       if(!e.physics || !e.ship) continue;
+      /* She sails herself: the helm writes a rudder and a sheet into her own
+         controls, exactly as a hand would, and the solver knows no difference.
+         The chase is always the vessel at the wheel — entry 0 — read fresh
+         because commissioning a new ship replaces that body. */
+      if(e.helm){ e.helm.target = fleet[0].body.pos; e.helm.update(dt, ocean); }
       for(let i=0;i<SUB;i++) e.physics.step(dt/SUB, ocean, e.ctrl, t);
       e.afloat = e.physics.afloat;
       e.ship.syncTo(e.physics.body);

@@ -39,6 +39,7 @@ logique est dans `js/`, en classes attachées à un espace de noms global `Naval
 | `ship-model.js` | coque, gréement, voiles, sillage, chargement .glb |
 | `ship-physics.js` | sondes, corps rigide 6 ddl, gouvernail, voiles |
 | `controls.js` · `camera-rig.js` · `hud.js` | barre, caméras, instruments |
+| `helm.js` | la barre des navires qui ne sont pas le vôtre |
 
 ## Cahier des charges
 
@@ -1824,6 +1825,85 @@ Il a donc sa couleur propre, bleutée, et ce qu'il ajoute ne dépend pas de ce q
 est éclairé par ailleurs — c'est ce qui en fait un éclair. Vérifié : contribution
 **identique à midi et à minuit**, +53 au maximum et +16 en moyenne dans les deux
 cas.
+
+## Une barre qui n'est pas la vôtre
+
+**Elle écrit dans le même `ctrl` qu'une main sur la roue** : un gouvernail de −1
+à 1, une écoute, des voiles établies ou ferlées. Rien n'atteint le solveur, et
+c'est le point — une barre automatique capable de pousser la coque tricherait,
+et cesserait du même coup d'être une épreuve de la navigabilité du navire. Si
+elle ne sait pas remonter au vent, vous non plus.
+
+**Elle ne peut pas aller où elle vise**, si c'est dans le vent. Une chasse droit
+au vent n'est pas un cap mais une suite de **bords**, et choisir lequel est
+l'essentiel du métier. Le choix a de la mémoire : pris à neuf à chaque image sur
+le côté où la proie se trouve, un but plein vent debout passe d'une amure à
+l'autre à chaque instant et le navire reste en panne, à virer sans fin. Quinze
+degrés de marge avant de virer transforment cela en un vrai bord.
+
+**Au près elle gouverne au VENT, pas au compas**, ce qui est la manière dont on
+le fait vraiment : une saute est ainsi rattrapée avant d'avoir rien coûté. Et
+les écoutes suivent `optSheet`, que le solveur calcule déjà pour tracer le repère
+vert de la console — une définition, deux usagers.
+
+**L'angle de bord est MESURÉ**, et ce n'est pas celui qu'on croit. Ce qui compte
+n'est pas jusqu'où elle peut pointer mais où son gain au vent culmine, question
+différente et toujours plus ouverte : serrer trop gagne du cap et perd plus en
+vitesse. Polaires prises par force 4, écoutes tenues sur `optSheet`, quatre-vingt-
+dix secondes d'établissement à chaque cap — vitesse, puis gain au vent :
+
+| écart au vent | 40° | 50° | 60° | 70° | 90° |
+|---|---|---|---|---|---|
+| pirate, carré | 1,44 | 1,92 | 2,35 | 2,69 | 3,09 |
+| *gain au vent* | 1,10 | **1,23** | 1,18 | 0,92 | 0 |
+| goélette, aurique | 3,73 | 4,23 | 4,57 | 4,81 | 5,27 |
+| *gain au vent* | **2,86** | 2,72 | 2,28 | 1,65 | 0 |
+
+Cinquante degrés pour le carré, quarante pour l'aurique. Le premier surprend :
+soixante-dix degrés — ce qu'un vrai trois-mâts carré tient, et ce à quoi cette
+barre avait d'abord été écrite — lui coûterait **un quart** de sa remontée dans
+CE modèle. Le gréement y est plus obligeant que dans la réalité ; la barre mène
+le navire qu'elle a, pas celui qu'on imagine.
+
+**Elle vise la RIVE de sa distance de garde, pas le navire.** Un chasseur qui
+gouverne sur le centre de sa proie l'aborde, ce qui n'est pas une manœuvre : elle
+est dirigée sur un cercle autour d'elle et referme par la tangente. Et un
+bâtiment sans gréement — le chaland — passe **sous machine** : une barre qui
+tire des bords sans toile ne fait que dériver.
+
+Vérifiée en chasse réelle, goélette contre un but plein vent debout à 700 m,
+vent de nord : **700 → 554 m en six minutes**, un seul virement, tenant 324°
+pour 320° demandés. L'écart résiduel est celui d'un correcteur sans terme
+intégral, et il est sans conséquence.
+
+**Ce que la mesure a trouvé au passage, et qui ne vient pas de la barre.**
+L'autorité du gouvernail va comme le CARRÉ de la vitesse, donc aux allures de
+voile les grosses coques n'obéissent quasiment plus. Taux de giration du pirate,
+barre à fond :
+
+| lancée | 1 nd | 2 | 3 | 5 | 8 |
+|---|---|---|---|---|---|
+| giration | 0,03 °/s | 0,08 | 0,17 | 0,46 | 1,13 |
+
+À ses deux ou trois nœuds sous voiles, il lui faut **quarante minutes pour virer
+d'un quart**. Ce n'est pas une constante recopiée : `rudderK` est bien mis à
+l'échelle de la surface latérale, comme tous les coefficients hydro. C'est que
+son inertie de lacet vaut cent huit fois celle de la goélette pour seize fois le
+moment de barre. La goélette, elle, manœuvre très bien.
+
+Cela vaut pour les frégates du joueur autant que pour le pirate — on ne s'en
+aperçoit pas parce qu'on les mène à la machine, où elles filent onze nœuds et
+retrouvent leur gouvernail. Multiplier `rudder.power` par trois donnerait
+0,51 °/s à trois nœuds, soit un quart de tour en trois minutes, ce qui est juste
+pour un lourd carré sous voiles :
+
+| `rudder.power` | 92 | 183 | 275 | 366 |
+|---|---|---|---|---|
+| à 3 nds | 0,18 °/s | 0,34 | **0,51** | 0,67 |
+| à 5 nds | 0,46 | 0,91 | 1,35 | 1,78 |
+
+C'est un changement de comportement des navires du joueur, donc il n'a pas été
+fait sans qu'on le demande.
 
 ## Les quatre caméras
 
