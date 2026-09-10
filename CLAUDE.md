@@ -2801,6 +2801,51 @@ travers de l'axe, et une antenne est inclinée dans le plan longitudinal — le 
 sera bien trouvé et tombera, mais nu. La civadière sous le beaupré passe, elle :
 le code lit déjà un « mât » à 40,7 m sur l'avant du pirate.
 
+## Combien de coques
+
+**Huit, et c'est mesuré et non ressenti.** `MAX_SHIPS` n'est pas un nombre libre :
+il dimensionne les tableaux d'uniformes que les deux shaders indexent, le
+`NSHIP` contre lequel ils sont compilés, et le nombre de lignes de la texture
+de profils de coque. L'augmenter coûte un peu de travail dans **chaque fragment
+de mer**, que les coques soient là ou non.
+
+Le solveur domine et il est rigoureusement **linéaire** — ce sont les 539 sondes
+de la grille, quatre sous-pas par image, et rien ne les partage entre navires :
+
+| coques | 1 | 2 | 4 | 6 | 8 |
+|---|---|---|---|---|---|
+| solveur | 1,37 ms | 2,64 | 5,31 | 8,16 | **10,73** |
+| par coque | 1,37 | 1,32 | 1,33 | 1,36 | **1,34** |
+
+Le rendu de huit coques ajoute 3,56 ms, et les effets d'une vraie canonnade —
+fumée, boulets, échardes, gerbes — moins d'un demi. Total autour de **15 ms pour
+huit**, contre un budget de 16,7 à soixante images par seconde : quatre-vingt-
+dix pour cent. En bataille réelle, un quart des images dépasse. Huit est donc le
+plafond et non le confort ; **six** tient à 11 ms sans jamais déborder.
+
+**Trois pièges de mesure, et le premier a failli me faire doubler le chiffre.**
+
+- `stage.render()` dessine **toutes** les coques de la scène, pas seulement
+  celles qu'on fait tourner. Un banc qui n'en anime que deux paie quand même le
+  rendu des huit, et le coût par navire ressort à moitié de sa valeur. Il faut
+  masquer les autres (`ship.group.visible`) pour isoler un palier.
+- **Les relevés dérivent d'une session à l'autre.** Le même palier de huit a
+  donné 8,3 ms sur une page fraîche et 16,2 après une longue série d'essais :
+  modèles accumulés en mémoire, ramasse-miettes, état des coques. Prendre le
+  chiffre conservateur, et refaire la mesure sur une page neuve avant de
+  conclure.
+- C'est du **processeur seul**. Sans requête de chronomètre GPU, un shader
+  devenu coûteux ne s'y verrait pas.
+
+**Une hypothèse testée et FAUSSE, qui vaut d'être gardée.** Après une longue
+canonnade les navires portent dix-neuf à quarante-quatre voies d'eau chacun —
+l'artillerie appelle `breach()` à chaque touche et la liste grandit sans borne,
+contrairement à `worsenBreach()` qui aggrave le même trou. J'ai cru tenir là
+l'explosion du coût. Mesuré : **cent soixante** voies d'eau réparties sur huit
+coques ne coûtent que **9 %** de plus (10,77 contre 11,71 ms). Ce n'est pas le
+sujet. La liste reste non bornée, ce qui n'est pas joli, mais cela ne se paie
+pas.
+
 ## Les quatre caméras
 
 **La vue de poursuite a été retirée**, remplacée par une vue de **proue**

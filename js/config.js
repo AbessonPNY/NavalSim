@@ -13,8 +13,18 @@ Naval.Config = {
   // ---- buoyancy probe grid (cells across the hull envelope) ----
   PN_Z: 11, PN_X: 7, PN_Y: 7,
 
-  // ---- how many hulls the sea and the foam can carry at once ----
-  MAX_SHIPS: 4,
+  /* How many hulls the sea and the foam can carry at once.
+
+     Not a free number: it sizes the uniform ARRAYS both shaders index, the
+     NSHIP they are compiled against, and the number of rows in the hull-profile
+     texture. Raising it costs a little work in every fragment of sea, whether
+     the hulls are there or not.
+
+     Eight is where the measurement put the ceiling rather than where it felt
+     right — see « Combien de coques » in CLAUDE.md. At eight she is exactly on
+     the 60 fps budget with occasional overruns; six is the comfortable number
+     and four was the old cap. */
+  MAX_SHIPS: 8,
 
   /* How far she may stray from local zero before the world is slid back under
      her. Small enough that the Gerstner phase keeps its precision, large enough
