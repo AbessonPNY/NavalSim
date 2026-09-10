@@ -854,6 +854,22 @@ Naval.ShipModel = class ShipModel {
       if(s.a < s.stop){
         if(s.wait > 0){ s.wait -= dt; continue; }
         s.w += s.rate*s.rate*Math.sin(s.a)*dt;
+
+        /* ET LES HAUBANS LE RETIENNENT sur la fin. Le pendule donne un très bon
+           départ — immobile, puis d'un coup — mais il arrivait à sa butée à
+           pleine vitesse et s'y arrêtait NET, ce qui est le seul endroit du
+           mouvement qui trahissait une valeur écrêtée plutôt qu'une chose qui
+           s'arrête. Un mât ne rencontre pas un mur : ses rides prennent la
+           charge sur le dernier quart et le freinent.
+
+           L'amortissement va donc comme le CARRÉ de ce qu'il a parcouru dans ce
+           dernier quart — nul quand il y entre, entier quand il y arrive — et
+           il est écrit par seconde et non par image, sans quoi le freinage
+           dépendrait de la fréquence d'affichage comme tant d'autres choses
+           dans ce projet. */
+        const pris = Math.max(0, (s.a - 0.72*s.stop)/(0.28*s.stop));
+        if(pris > 0) s.w -= s.w*pris*pris*7.0*dt;
+
         s.a = Math.min(s.stop, s.a + s.w*dt);
         f.rotation.z = s.side*s.a;
         continue;
@@ -894,11 +910,26 @@ Naval.ShipModel = class ShipModel {
          haubans le tenaient, et parte par le travers. Trois mètres de côté
          suffisent, en quadratique pour qu'il s'écarte d'abord doucement puis
          franchement, comme une chose qui bascule. */
-      const u = Math.min(1, s.sink/2.2);
-      f.rotation.z = s.side*(s.stop + 1.05*u);       // il roule au-delà de la lisse
-      f.position.x = -s.side*3.4*u*u;                // et s'en va par le travers
-      f.position.y = f.userData.heel - 5.5*s.sink;
-      if(s.sink > 3.0) f.visible = false;
+      /* ET RIEN DE TOUT CELA N'EST LINÉAIRE.
+
+         Le roulé était une rampe droite et la descente une vitesse constante :
+         deux mouvements qui commencent et finissent à pleine allure, ce que ne
+         fait aucune chose qui bascule. Le roulé prend donc un `smoothstep` —
+         doux aux deux bouts — parce qu'il part d'un objet en équilibre sur sa
+         lisse et finit couché : les deux extrémités sont des états de repos.
+
+         La descente, elle, ne prend QUE l'entrée en douceur. Elle n'a pas de
+         fin : le mât ne se pose pas au fond, il s'en va, et l'eau ne le freine
+         pas dans le peu qu'on en voit. Lui mettre une sortie douce serait le
+         faire ralentir en s'enfonçant, ce qui est joli et faux. Elle va donc
+         comme le carré du temps, ce qui est aussi ce que fait un corps qui
+         coule. */
+      const u = Math.min(1, s.sink/2.4);
+      const e = u*u*(3 - 2*u);                       // doux au départ comme à l'arrivée
+      f.rotation.z = s.side*(s.stop + 1.10*e);       // il roule au-delà de la lisse
+      f.position.x = -s.side*3.6*e;                  // et s'en va par le travers
+      f.position.y = f.userData.heel - (2.6*e + 4.2*s.sink*s.sink);
+      if(s.sink > 2.6) f.visible = false;
     }
   }
 

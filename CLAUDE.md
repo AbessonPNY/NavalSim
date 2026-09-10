@@ -2731,6 +2731,37 @@ voulait éviter, et signalé à l'usage. À 240 tonneaux la chose est brutale :
 `blowUp()` verse d'emblée 154 t dans une coque qui en déplace 240, donc elle est
 condamnée à la première image et sous l'eau à six secondes.
 
+**ET RIEN DE TOUT CELA NE DOIT ÊTRE LINÉAIRE**, ce qui fut signalé et juste. Le
+pendule donnait un très beau départ — immobile, puis d'un coup — mais il
+arrivait à sa butée **à pleine vitesse** et s'y arrêtait net : le seul endroit
+du mouvement qui trahissait une valeur écrêtée plutôt qu'une chose qui s'arrête.
+Un mât ne rencontre pas un mur, ses rides prennent la charge sur le dernier
+quart et le freinent. L'amortissement va donc comme le **carré** de ce qu'il a
+parcouru dans ce dernier quart — nul quand il y entre, entier quand il y arrive
+— et il est écrit par seconde et non par image, sans quoi le freinage
+dépendrait de la fréquence d'affichage comme tant d'autres choses ici.
+
+Le **roulé** était une rampe droite : il prend un `smoothstep`, doux aux deux
+bouts, parce qu'il part d'un objet en équilibre sur sa lisse et finit couché —
+les deux extrémités sont des états de repos.
+
+La **descente**, elle, ne prend QUE l'entrée en douceur, et c'est délibéré :
+elle n'a pas de fin. Le mât ne se pose pas au fond, il s'en va. Lui donner une
+sortie douce serait le faire ralentir en s'enfonçant, ce qui est joli et faux ;
+elle va donc comme le carré du temps, ce qui est aussi ce que fait un corps qui
+coule.
+
+Relevé sur les **vitesses**, qui sont ce qui dit s'il y a de la douceur — la
+position ne le dit jamais :
+
+| chute | 0,3 s | 1,3 | 2,0 | 2,3 | 2,5 | 2,8 | 3,0 |
+|---|---|---|---|---|---|---|---|
+| °/s | 15 | 25 | 43 | **51** | 47 | 13 | **0** |
+
+| roulé | 3,3 s | 3,8 | 4,3 | 4,5 | 5,0 | 5,5 | 6,0 |
+|---|---|---|---|---|---|---|---|
+| °/s | 2 | 26 | 37 | **39** | 31 | 10 | **0** |
+
 **Et raccourcir ne suffit pas : il faut qu'il ROULE.** Descendre tout droit à
 côté d'une coque qui descend aussi ne se lit pas comme un départ. Il passe donc
 la lisse, tourne au-delà de l'angle où ses haubans le tenaient, et part par le
