@@ -2331,9 +2331,28 @@ main : quelques pour cent d'écart sur la charge est généreux plutôt que
 pessimiste, et cela éparpille la chute des coups tout seul, sans seconde règle
 sur la précision.
 
-**La fumée de poudre est PÂLE et ÉPAISSE**, et les deux ont été ratés dans le
-même sens à la première écriture : à demi-opacité et sept dixièmes de gris, cela
-se lisait comme un banc de **brume** couché le long du bord. Un canon et une
+**MINCE PAR BOUFFÉE, épaisse par accumulation.** Une bordée seule ne doit pas
+être un mur : ce qui remplissait une batterie n'était pas un coup mais une heure
+de coups. L'opacité s'empile en 1−(1−a)ⁿ, donc il faut descendre franchement
+pour que le cumul se voie — à 0,95, **deux** sprites suffisaient à boucher
+(0,9975) et la première pièce posait déjà un mur que rien ne pouvait épaissir.
+Ramenée au cinquième, une bouffée est un voile et l'on voit la mer au travers
+d'une bordée.
+
+**Mais le cumul bute sur autre chose que l'opacité, et il faut le dire.** Cinq
+bordées coup sur coup ne font pas un mur : relevé, elles donnent un voile plus
+mince qu'une seule bordée regardée à son sommet. La raison n'est pas la densité
+— à 0,38 simulé, même image — c'est que le banc **s'étale et dérive** pendant
+ce temps, chaque bouffée grandissant jusqu'à cinq mètres et s'en allant sous le
+vent. Deux demandes se tirent dessus : « qu'elle disparaisse plus vite » et
+« que le cumul fasse un nuage opaque » ne peuvent pas être vraies ensemble, la
+fumée qui s'accumule étant par définition celle qui reste. Les leviers sont la
+DURÉE de vie du banc et sa dispersion, pas l'opacité ; ils n'ont pas été touchés
+sans qu'on le demande.
+
+**La fumée de poudre est PÂLE**, et cela avait été raté dans le même sens à la
+première écriture : à sept dixièmes de gris, cela se lisait comme un banc de
+**brume** couché le long du bord. Un canon et une
 soute se séparent par la couleur autant que par la forme — la suie est un
 incendie à bord, le blanc est de l'artillerie — et la densité n'est pas un goût,
 c'est la raison même pour laquelle la fumée comptait : elle **aveuglait**.

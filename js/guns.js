@@ -706,7 +706,18 @@ Naval.Guns = class Guns {
            And it goes sooner but always GRADUALLY: the fade is a smooth curve
            over the whole life rather than a hold and a vanish, so a bank thins
            out where it stands instead of switching off. */
-        p.m.material.opacity = Math.min(1, u*11) * Math.pow(1-u, 1.15) * 0.95;
+        /* MINCE PAR BOUFFÉE, épais par accumulation.
+
+           Une bordée seule ne doit pas être un mur : ce qui remplissait une
+           batterie n'était pas un coup mais une heure de coups, et c'est le
+           cumul qui doit faire le nuage. L'opacité s'empile en 1−(1−a)ⁿ, donc
+           il faut descendre franchement pour que ça se voie : à 0,95 deux
+           sprites suffisaient à boucher (0,9975), et le premier canon posait
+           déjà un mur que rien ne pouvait épaissir. À un cinquième de ça, une
+           bouffée est un voile, une bordée un banc qu'on traverse du regard,
+           et trois bordées le mur — qui est alors quelque chose qu'on a
+           construit plutôt que reçu. */
+        p.m.material.opacity = Math.min(1, u*11) * Math.pow(1-u, 1.15) * 0.20;
         const g = 0.62 - 0.10*u;
 
         /* THE LIGHT GETS INTO THE CLOUD, and this is most of what makes a gun
