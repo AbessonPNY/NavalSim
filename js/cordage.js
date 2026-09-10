@@ -93,8 +93,20 @@ Naval.Cordage = class Cordage {
     const u = ocean ? ocean.uniforms : null;
     this.uniforms = {
       uColor:  {value:new THREE.Color(0x5b4c3c)},
-      uWidth:  {value:0.16},             // a brace is about a hand thick
-      uMinPx:  {value:1.6},              // and never thinner than this on screen
+      /* And this is now the HONEST diameter, which it was not. Rope was sized
+         by its circumference: a brace on a ship this size is a four-inch rope,
+         some three centimetres through, and a shroud six or seven. Sixteen
+         centimetres was a cable, not cordage, and it read as one — a hand-thick
+         line hanging off a yardarm is a hawser.
+
+         What was really keeping them visible at any distance worth having was
+         never the metres, it was the pixel floor below — so the metres could
+         come down to the truth without costing anything. Both had to move
+         together, mind: the floor takes over beyond about forty-five metres, so
+         thinning only the width would have changed nothing at the range one
+         actually looks at her from. */
+      uWidth:  {value:0.07},             // a four-inch rope, through the middle
+      uMinPx:  {value:1.3},              // and never thinner than this on screen
       uPxScale:{value:0.0018},
       /* Shared objects, never copies: the haze in front of a rope is the haze
          in front of the sea it hangs over. */

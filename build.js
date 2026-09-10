@@ -77,6 +77,42 @@ for (const rel of shipList) {
                    ' will fall back to its procedural hull');
     }
   }
+  /* A PAINTED SAIL is the one picture this project does not draw for itself,
+   * so it is the one that has to be carried in by hand. The rule has not
+   * changed — a published page cannot fetch a local image — but the answer
+   * differs from the .glb's: rather than adding a second field beside the
+   * path, the PATH ITSELF is rewritten to a `data:` URI. ShipModel then hands
+   * whatever string it finds to a TextureLoader and never learns which of the
+   * two it got: a file on the dev server, the bytes in the built page.
+   *
+   * The warning matters more than usual here. A missing model falls back to
+   * the procedural hull and says so on the console; a missing sail texture
+   * would leave the cloth plain, which looks exactly like a sail nobody had
+   * painted yet — a failure indistinguishable from the intended state is a
+   * failure that ships. */
+  const maps = spec.appearance && spec.appearance.canvasMap;
+  if (maps) for (const kind of Object.keys(maps)) {
+    const rel2 = maps[kind];
+    if (/^data:/.test(rel2)) continue;                 // already carried
+    const p = path.join(ROOT, rel2);
+    const mime = { '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg',
+                   '.webp':'image/webp' }[path.extname(rel2).toLowerCase()];
+    if (!mime) {
+      console.warn('  WARNING: ' + spec.id + ' voile "' + kind + '" : ' + rel2 +
+                   " n'est pas une image embarquable (png, jpg, webp)");
+      continue;
+    }
+    if (!fs.existsSync(p)) {
+      console.warn('  WARNING: ' + rel2 + ' is missing — ' + spec.id +
+                   ' voile "' + kind + '" restera unie');
+      continue;
+    }
+    const bytes = fs.readFileSync(p);
+    maps[kind] = 'data:' + mime + ';base64,' + bytes.toString('base64');
+    console.log('  embedded ' + rel2 + '  (voile ' + kind + ', ' +
+                (bytes.length/1024).toFixed(1) + ' KB)');
+  }
+
   shipData[rel] = spec;
   inlined.push(rel);
 }

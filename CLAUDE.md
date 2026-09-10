@@ -433,6 +433,48 @@ d'une voile aurique, qui descend sur sa bôme ; et c'est la ligne d'amure d'un
 foc, qui court le long de son étai. Chacun fait ce que son gréement fait
 réellement.
 
+**ET ELLE PEND EN FESTONS, ce qui est ce à quoi on reconnaît un carré
+ferlé.** Une voile carrée handée n'est pas un boudin : elle est cargue-fond sur
+sa vergue puis saisie par des **garcettes** à intervalles, si bien qu'entre deux
+garcettes la toile pend en baie. Cette rangée de baies se lit d'une encablure,
+là où un rouleau d'épaisseur constante se lit comme un store enroulé. La
+demande venait d'une photo, et elle avait raison.
+
+Le compte est **dérivé** et non choisi : une garcette tous les trois mètres de
+vergue, soit à peu près la portée d'un bras — la basse vergue de 10,2 m en
+reçoit quatre, les huniers de 6,6 m en reçoivent deux, et rien n'est réglé par
+navire. Les deux bouts du réglage comptent : le gonflement seul donne un ruban
+ondulé, c'est le **pincement** qui dit « saisi ici ». La chute résiduelle passe
+donc de 0,20 à 2,05 fois sa moyenne, et le bourrelet suit — la toile est la plus
+épaisse là où il y en a le plus à ramasser.
+
+Tout cela arrive avec le ferlage et s'en va avec lui : à voile pleine chaque
+facteur vaut exactement un et l'arithmétique est celle d'avant. Relevé sur la
+basse voile, chute colonne par colonne :
+
+| | ondulation |
+|---|---|
+| toute dehors | 5,17 → 4,83 → 5,17 m, c'est sa **coupe** et rien d'autre |
+| à mi-voilure | 2,4 à 2,8 m, elle commence à se ramasser |
+| ferlée | **0,06** sous chaque garcette, **0,61** au creux des baies |
+
+**Et il a fallu SEIZE colonnes**, ce qui est la seule chose que cela ait coûté.
+Une baie demande quatre colonnes pour se dessiner en boucle plutôt qu'en
+encoche, et surtout une garcette qui tombe **entre** deux colonnes n'est jamais
+échantillonnée à son pincement : mesuré sur la grille de huit, trois festons sur
+une vergue de dix mètres donnaient 0,58 m de creux contre 0,32 sous les
+saisines, un rapport de deux là où le calcul en demande dix. Même aliasing que
+les rides de la mer et que les étoiles — la forme était là et l'échantillonnage
+ne pouvait pas la tenir. Le compte est en outre **rabattu sur un diviseur** du
+nombre de colonnes, faute de quoi les garcettes retombent dans les trous.
+
+Seules les voiles carrées prennent ces colonnes, puisqu'elles seules sont handées
+ainsi. Mesuré : **0,051 ms par image** pour les cinq voiles du galion à huit
+colonnes, **0,097 à seize** — un vingtième de milliseconde par navire à
+gréement carré. L'aurique descend sur sa bôme et le foc court le long de son
+étai ; ni l'un ni l'autre ne se ferle comme ça, et ils gardent le rouleau uni
+jusqu'à ce qu'ils aient leur propre règle.
+
 **Jamais tout à fait à rien, cependant.** Rabattue exactement sur le rang, la
 voile n'a plus aucune surface et disparaît, là où une voile ferlée est un gros
 rouleau de toile qu'on voit d'un mille. Il reste six pour cent de sa chute, et
@@ -574,6 +616,9 @@ forme, et seul le relevé du bord réel le dit.
 
 La grille est passée de 8×6 à 8×8 : la forme intéressante est désormais celle
 qui court le long de la voile, et six rangs rendaient le creux bas en facettes.
+
+Et à **16×8 pour les carrés seuls**, les festons du ferlage l'ayant exigé —
+voir plus haut.
 
 **Ombres portées, et surtout pas de SSAO.** Le SSAO réclame une passe de
 profondeur, que three rend avec un matériau de substitution. Or la mer est
@@ -1141,6 +1186,55 @@ la transmission retombant bien avec l'angle.
   la coque et son code n'est jamais compilé : le patch est correct, se compose
   correctement, et ne s'exécute jamais, sans le moindre message. `applySailLight`
   ajoute donc `|sail-translucent` à la clé.
+
+**Une voile peut être PEINTE, et c'est la seule image de ce projet qui soit
+fournie plutôt que dessinée.** Toutes les autres — la lanterne, la fumée,
+l'embrun, la tête de mort — sont faites sur un canvas à l'exécution, précisément
+parce qu'une page publiée ne peut pas aller chercher un fichier local. Un motif
+sur une basse voile ne se dessine pas en vingt lignes, donc la règle est
+honorée autrement : `build.js` lit l'image et **réécrit le chemin en `data:`
+URI** dans la fiche embarquée, exactement comme il embarque les octets d'un
+`.glb`. La chaîne qui arrive au `TextureLoader` est un chemin sur le serveur de
+dev et les octets eux-mêmes dans la page publiée ; rien du côté du jeu ne
+connaît la différence. Vérifié sur le fichier construit : les octets sont
+identiques à ceux du disque et **aucun chemin local ne survit**.
+
+**Les coordonnées de texture étaient calculées puis jetées** — exactement la
+faute du pavillon, retrouvée au même endroit et pour la même raison : `u` était
+gardé parce que le ferlage en a besoin, et `v` n'existait que comme variable de
+boucle. `1 - v` parce que les rangs courent de la têtière vers le bas quand le
+`v` d'une image monte ; sans le retournement, un motif arrive sur la tête.
+
+**Et elles sont posées sur la grille PARAMÉTRIQUE, pas sur les positions
+finales.** C'est ce qui compte : la coupe, le creux, l'affaissement et
+l'enroulement déplacent la toile — trois d'entre eux à chaque image — et aucun
+ne doit traîner la peinture dessus. Une voile est peinte avant d'être
+enverguée, donc la peinture suit le tissu. Vérifié : un ferlage complet ne
+bouge pas une seule UV. Le carré unitaire tombe **entièrement** sur la voile ;
+la coupe ne rogne rien, elle déforme — le milieu du bas de l'image est tiré
+vers le haut par le rond de fond.
+
+**Une matière par TYPE de voile, pas une par navire ni une par voile.** Un motif
+appartient aux carrés et n'a rien à faire sur un foc, qui est une autre voile
+d'une autre coupe : une fiche les peint donc un type à la fois
+(`appearance.canvasMap.square`), et ce qu'elle ne nomme pas garde la toile unie.
+Pas une par voile non plus — un galion en porte neuf, ce qui ferait neuf
+programmes là où un suffit. Relevé : cinq voiles carrées, **une** matière.
+
+Deux pièges. La **couleur reste** et multiplie l'image plutôt que de passer au
+blanc : `appearance.canvas` est le ton de sa toile, et c'est lui qui garde une
+voile peinte du même écru fatigué que ses voiles unies. Et la matière neuve doit
+être **prévenue du ciel à la main** : `applyHaze` la trouve toute seule en
+parcourant le groupe, mais `applySailLight` est appelée sur des matières
+nommées, si bien qu'une voile peinte aurait été la seule chose à bord à ne pas
+s'éclairer à travers. Le modèle arrivant du réseau bien après la coque, les
+uniformes sont retenus et le patch posé à la construction de la matière.
+
+`node tools/uv-chart.js` écrit le repère UV — quadrillage 8 × 8, bandeau de
+têtière, flèche vers le haut et quatre coins de couleurs différentes, la seule
+chose qu'un repère UV doit rendre impossible à confondre étant une image
+retournée ou en miroir. Voir `ships/textures/README.md`. Fait pour les carrés ;
+le foc et l'antenne latine seront la même ligne avec un autre mot dedans.
 
 **Textures PBR.** Elles fonctionnent, et la Roter Löwe s'en sert déjà : son
 matériau `hull` porte un `baseColorTexture` et ses maillages un `TEXCOORD_0`.
@@ -2663,11 +2757,16 @@ détail** : `jet` absent donne `tight = 0`, et chacun des quatre termes retombe
 alors exactement sur son ancienne valeur. La gerbe de coque ne bouge pas d'un
 pouce — 420 gouttes et 2,4 m avant comme après.
 
-**Le boulet est dessiné bien au-dessus de sa taille** (0,55 m de rayon pour onze
+**Le boulet est dessiné bien au-dessus de sa taille** (0,37 m de rayon pour onze
 centimètres réels), et c'est délibéré : à un demi-mille il ferait un tiers de
 pixel et n'existerait tout simplement pas. Même argument que la lueur lointaine
 de la lanterne, et même réponse. Son **vol** est exact ; seul son diamètre est
 un mensonge.
+
+Rentré d'une fois et demie, de 0,55 m à 0,37, sur demande. Le premier chiffre
+avait été réglé sur ce qui se voit à la distance où l'on tire et jamais vérifié
+de près, où le boulet quittait une bouche plus petite que lui. Six fois nature
+plutôt que neuf — ce qui reste le principe, simplement sans le baril.
 
 **ELLE TIRE À LA ROULÉE**, et ce n'est pas un raffinement : sans cela les pièces
 ne servent à rien dès qu'il y a de la mer.
@@ -2950,11 +3049,31 @@ filé dans tout ce dans quoi il était passé — et la traînée à 0,28 :
 | longueur moyenne | 12,4 m | **3,6 m** |
 | inclinaison sur la verticale, vent 7,5 m/s | 21–40° | **12°** (5 à 21) |
 
-Relevé au pixel, douze bouts à 46 m, largeur honnête de 16 cm : **1 168 pixels**
+Relevé au pixel, douze bouts à 46 m, à la largeur d'alors : **1 168 pixels**
 changés, soit 0,117 % de l'image, pour un écart moyen de **78/255** et un maximum
 de 184. Petite surface et fort contraste, ce qui est exactement le bon registre
 pour du cordage — l'inverse du banc de grain, qui couvrait 8,9 % de l'image à
 25/255 et ne se voyait pas.
+
+**Et le diamètre est devenu HONNÊTE, ce qu'il n'était pas.** Un cordage se
+mesurait à sa circonférence : un bras sur un navire de cette taille est un
+quatre-pouces, soit trois centimètres au travers, et un hauban six ou sept.
+Seize centimètres était une aussière et se lisait comme telle. Ce qui les rendait
+visibles à toute distance qui compte n'a jamais été les mètres mais le **plancher
+en pixels**, donc les mètres pouvaient revenir à la vérité sans que cela coûte
+rien — à condition de bouger les deux ensemble, le plancher prenant la main
+au-delà d'une quarantaine de mètres : n'affiner que la largeur n'aurait rien
+changé à la distance d'où on la regarde réellement.
+
+| largeur à l'écran | 15 m | 25 | 46 | 80 et au-delà |
+|---|---|---|---|---|
+| 16 cm, plancher 1,6 px | 6,7 px | 4,0 | 2,9 | 1,6 |
+| **7 cm, plancher 1,3 px** | **2,9** | **1,8** | **1,3** | **1,3** |
+
+Relevé au pixel sur huit bouts à 25 m : 2 167 pixels marqués contre **1 250**,
+pour un écart moyen qui passe de 47,7 à **41,3** — deux fois moins d'encre et
+toujours une marque franche. En dessous d'environ 1,2 px de plancher on
+retomberait dans le scintillement contre lequel tout ce ruban a été écrit.
 
 **Ce qu'on ne fait pas** : aucune collision cordage/coque ni cordage/vergue. Un
 bout qui traverse un espar ne se remarque pas ; un bout qui ne bouge pas se

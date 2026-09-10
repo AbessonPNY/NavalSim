@@ -116,8 +116,14 @@ Naval.Guns = class Guns {
        at a cable's distance — it would simply not exist. Same argument as the
        lantern's far glow, and the same answer: the thing has to be the size the
        eye needs, not the size the tables give. Its FLIGHT is exact; only its
-       diameter is a lie, and it is the one lie worth telling here. */
-    this.ballGeom = new THREE.SphereGeometry(0.55, 10, 7);
+       diameter is a lie, and it is the one lie worth telling here.
+
+       Reined in by half again, from 0,55 m to 0,37: the first figure was set
+       by what could be seen at the range one fires at, and never checked
+       against what it looks like close to, where a shot leaving the muzzle was
+       plainly larger than the port it came out of. Still six times life size,
+       which is the point; simply no longer a cannonball the size of a keg. */
+    this.ballGeom = new THREE.SphereGeometry(0.37, 10, 7);
     this.ballMat = new THREE.MeshStandardMaterial({ color:0x14120f, roughness:0.62,
                                                     metalness:0.35 });
 

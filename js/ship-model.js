@@ -94,6 +94,36 @@ Naval.jollyTexture = function(){
   return tex;
 };
 
+/* A PAINTED SAIL — the one image in this project that is supplied rather than
+   drawn, and therefore the one that needs care.
+
+   Every other picture here is made on a canvas element at run time, precisely
+   because a published page cannot go and fetch a local file. A device on a
+   course cannot be drawn in twenty lines, so this one is an image the spec
+   names — and the rule is honoured a different way: `build.js` reads the file
+   and rewrites the path in the embedded spec as a `data:` URI, so the string
+   that reaches here is a path on the dev server and the bytes themselves in a
+   published page. Nothing on this side knows the difference.
+
+   Cached on the source string: two ships sharing a device share one upload.
+
+   ClampToEdge rather than Repeat. The image is a SAIL — one picture over the
+   whole cloth, head to foot and leech to leech — not a bolt of material to be
+   tiled, and a repeat wrap would smear the outermost row of pixels round to
+   the far side the moment a coordinate landed a hair outside. */
+Naval.sailTexture = function(src){
+  Naval._sailTex = Naval._sailTex || {};
+  if(Naval._sailTex[src]) return Naval._sailTex[src];
+  const t = new THREE.TextureLoader().load(src, undefined, undefined,
+    () => console.warn('[voile] texture introuvable : ' + src +
+                       ' — la toile reste unie'));
+  t.colorSpace = THREE.SRGBColorSpace;      // it is artwork, not data
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  t.anisotropy = 4;                          // she is seen at a glancing angle
+  Naval._sailTex[src] = t;
+  return t;
+};
+
 /* A soft round glow, drawn rather than loaded — a published page cannot fetch a
    local image, and this is three lines of canvas. Built once and shared: every
    lantern in the fleet wants the same one. */
@@ -273,6 +303,50 @@ Naval.ShipModel = class ShipModel {
      Corners come in cyclic order, as the flat quads took them, so a
      three-cornered sail just repeats its last corner and the grid closes along
      that edge. No depth is baked in here: setSailShape sets it every frame. */
+
+  /* PAINTED CANVAS, one material per KIND of sail rather than one for the ship.
+     A device belongs on the courses and topsails and has no business on a jib,
+     which is a different sail cut to a different shape — so a spec paints them
+     one at a time (`appearance.canvasMap.square`) and anything it does not name
+     keeps the plain cloth. The square sails are done; the jib and the lateen
+     will be the same line with a different word in it.
+
+     One material per kind and not per SAIL: a galleon carries nine squares, and
+     nine materials would be nine programs where one does. */
+  _canvasMat(kind){
+    const map = this.spec.appearance && this.spec.appearance.canvasMap;
+    const src = kind && map && map[kind];
+    if(!src) return this.mats.canvas;
+    this._painted = this._painted || {};
+    if(this._painted[kind]) return this._painted[kind];
+
+    const base = this.mats.canvas;
+    const m = new THREE.MeshStandardMaterial({
+      map: Naval.sailTexture(src),
+      /* The colour STAYS and multiplies the image, rather than going white.
+         `appearance.canvas` is the tone of her cloth, and it is what keeps a
+         painted sail the same weathered off-white as her unpainted ones — hand
+         a device to a white material and it is a bedsheet next to her jib. */
+      color: base.color.clone(),
+      roughness: base.roughness, side: base.side,
+      emissive: base.emissive.clone(), emissiveIntensity: base.emissiveIntensity
+    });
+    /* And it must be told about the sky by hand. applyHaze finds it on its own,
+       the group being traversed — but applySailLight is called on named
+       materials, so a new one is invisible to it and the sail would be the one
+       thing aboard that does not light through. If the ship is already at sea
+       the patch is applied here and now; the model arriving late is the normal
+       case and not an edge one. */
+    (this._sailMats = this._sailMats || []).push(m);
+    if(this._skyU){
+      Naval.applySailLight(m, this._skyU);
+      if(this._aoU) Naval.applyShipAO(m, this._aoU);
+      Naval.applyHaze(m, this._skyU);
+    }
+    this._painted[kind] = m;
+    return m;
+  }
+
   _sailSurface(corners, dir, cut){
     const c = cut || {};
     const uPeak = c.uPeak !== undefined ? c.uPeak : 0.5;
@@ -306,8 +380,21 @@ Naval.ShipModel = class ShipModel {
     const bow = c.bow !== undefined ? c.bow : 0;
     const roachFoot = c.roachFoot !== undefined ? c.roachFoot : 0;
     /* Eight by eight rather than eight by six: the interesting shape is now the
-       one down the sail, and six rows read the deep low belly as facets. */
-    const nu = 8, nv = 8;
+       one down the sail, and six rows read the deep low belly as facets.
+
+       SIXTEEN across for a square sail, though, and the swags are what forced
+       it. A bight needs four columns or so to draw as a loop rather than as a
+       notch, and a gasket that falls BETWEEN two columns is never sampled at
+       its pinch — measured on the old grid, three swags on a ten-metre yard
+       came out 0,58 m deep in the bights against 0,32 under the ties, a ratio
+       of not quite two where the arithmetic asks for ten. It was the same
+       aliasing that the sea's ripples and the stars have each run into: the
+       feature was there and the sampling could not hold it.
+
+       Nothing else on the ship wants the extra columns, so nothing else gets
+       them. Measured: 0,051 ms a frame for her five sails at eight columns,
+       0,097 at sixteen — a twentieth of a millisecond per square-rigged hull. */
+    const nu = c.kind === 'square' ? 16 : 8, nv = 8;
     /* How free the cloth is along one axis: nil against a laced edge, one at a
        free one. It is what decides where she is allowed to hang. */
     const hangU = x => (hPinU0 ? 0 : (1-x)*(1-x)) + (hPinU1 ? 0 : x*x);
@@ -333,6 +420,38 @@ Naval.ShipModel = class ShipModel {
        rather than driven by the fill: canvas hanging slack keeps her shape,
        she does not lose it when the sheets are started. Nil at the earings and
        nil at the clews, which are hauled taut into their corners. */
+    /* HOW SHE IS HANDED, decided here because here is where her head is known.
+
+       A furled square sail is not a sausage. She is bunted up onto her yard and
+       passed with gaskets at intervals, so between one gasket and the next the
+       cloth hangs in a bight — a row of swags under the spar, pinched hard
+       where each gasket is round her and full between them. That row of loops
+       is what one actually recognises a handed square-rigger by, at any
+       distance; a roll of even thickness reads as a rolled blind.
+
+       The count is DERIVED and not chosen: a gasket about every three metres of
+       yard, which is roughly a man's reach, so a long lower yard gets more of
+       them than a topsail yard above it and nothing has to be set per ship.
+
+       But it is SNAPPED to a divisor of the column count, and that is not
+       tidiness. A gasket has to fall on a column of vertices or it is never
+       drawn at its pinch — three swags across eight columns put both ties in
+       the gaps between vertices and the pinch came out barely deeper than the
+       bights. The spacing therefore goes to the nearest count the grid can
+       actually hold, which is what "resolve the feature, do not merely compute
+       it" has meant everywhere else in this file.
+
+       Square sails only for now. A gaff sail comes down onto its boom and a jib
+       runs down its stay, and neither is handed like this — they keep the plain
+       roll until they get a rule of their own. */
+    let nSwag = 0;
+    if(c.kind === 'square'){
+      const yard = c00.distanceTo(c10), want = yard/3.0;   // a gasket to a man's reach
+      let bestErr = Infinity;
+      for(let d = 2; d <= 4; d *= 2)              // divisors of 16, four columns apiece
+        if(Math.abs(d - want) < bestErr){ bestErr = Math.abs(d - want); nSwag = d; }
+    }
+
     const across = new THREE.Vector3().subVectors(c10, c00);
     const head = across.length();
     if(head > 1e-6) across.divideScalar(head);
@@ -341,7 +460,7 @@ Naval.ShipModel = class ShipModel {
     if(drop > 1e-6) up.divideScalar(drop);
     const kRoach = Math.log(0.5)/Math.log(0.58);   // deepest at v = 0.58
 
-    const pos=[], w=[], sag=[], us=[], idx=[];
+    const pos=[], w=[], sag=[], us=[], uvs=[], swag=[], idx=[];
     const a=new THREE.Vector3(), b=new THREE.Vector3(), p=new THREE.Vector3();
     for(let j=0;j<=nv;j++){
       const v = j/nv;
@@ -366,6 +485,34 @@ Naval.ShipModel = class ShipModel {
         sag.push(Math.max(hangU(u)*Math.sin(Math.PI*v),
                           hangV(v)*Math.sin(Math.PI*u)));
         us.push(u);
+
+        /* HER TEXTURE COORDINATES, which were being computed and thrown away —
+           exactly the fault the ensign had, and found the same way: `u` was
+           kept because furling needs it and `v` existed only as a loop
+           variable, so the one thing a painted sail needs was the one thing
+           nobody had written down.
+
+           `1 - v` because the rows run from the head DOWN, while a texture's
+           v runs up: without the flip a device comes out standing on its
+           head, and it is the sort of thing one then blames on the image.
+
+           And they are set on the parametric grid, NOT on the finished
+           positions. That matters: the gore, the belly, the sag and the furl
+           all move the cloth about — every frame, in the case of the last
+           three — and none of them may drag the pattern across it. Canvas is
+           painted before it is bent, so the paint travels with the weave. The
+           whole unit square lands on the sail; the cut simply deforms it, the
+           roach pulling the middle of the foot upward. */
+        uvs.push(u, 1 - v);
+
+        /* Where she is in her own bight, nil under a gasket and one in the
+           middle of a swag — and worked out ONCE, here, because it depends on
+           `u` alone and `u` never changes. Doing it in setSailShape would be a
+           sine and a power per vertex per frame for a number that cannot
+           possibly have moved. The exponent flattens the top of the loop: cloth
+           gathered in a bight is round-bottomed and full across most of its
+           span, and only draws in sharply against the gasket itself. */
+        swag.push(nSwag ? Math.pow(Math.abs(Math.sin(Math.PI*u*nSwag)), 0.7) : 0);
       }
     }
     for(let j=0;j<nv;j++) for(let i=0;i<nu;i++){
@@ -374,14 +521,16 @@ Naval.ShipModel = class ShipModel {
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs,2));
     g.setIndex(idx);
     g.computeVertexNormals();
-    const mesh = new THREE.Mesh(g, this.mats.canvas);
+    const mesh = new THREE.Mesh(g, this._canvasMat(c.kind));
     /* nu1 is kept because furling needs it: a vertex rolls up onto the one
        directly above it in row nought, and finding that one means knowing the
        width of a row. */
     mesh.userData.sail = { base:Float32Array.from(pos), w:Float32Array.from(w),
                            sag:Float32Array.from(sag), u:Float32Array.from(us),
+                           swag:Float32Array.from(swag), nSwag:nSwag,
                            nu1:nu+1, dir:dir.clone().normalize() };
     this.canvases.push(mesh);
     return mesh;
@@ -422,11 +571,24 @@ Naval.ShipModel = class ShipModel {
        — geometrically a furled sail, visually a strip of tape. Gathered cloth
        is bulky: this is the bunt of it. */
     const bunt = full*0.45*(1 - sf);
+    /* And it hangs in SWAGS, which is the thing one recognises a handed square
+       sail by. The gaskets pinch her tight to the yard at intervals and the
+       cloth bags between them, so the residual drop is not a constant along the
+       yard: it swells to twice its average in the middle of each bight and
+       draws in to a fifth of it under each gasket. Both ends of that range
+       matter — the swelling alone gives a wavy ribbon, and it is the pinch that
+       says "tied here".
+
+       It comes on with the FURL and vanishes with it, so a sail fully set is
+       untouched to the last decimal: at `furl` nought every factor below is
+       exactly one and the arithmetic is the old arithmetic. */
+    const furl = 1 - sf;
     for(const m of this.canvases){
       const s = m.userData.sail;
       if(!s) continue;
       const attr = m.geometry.attributes.position, arr = attr.array;
       const base = s.base, w = s.w, sg = s.sag, u = s.u, d = s.dir, nu1 = s.nu1 || 9;
+      const sw = s.nSwag ? s.swag : null;        // null: she is not handed this way
       /* And then she hangs a little, on top of whatever she was cut. The cut
          is the larger of the two by some way — the foot of a course stands
          well above the line of her clews whatever the wind does — so this only
@@ -434,13 +596,21 @@ Naval.ShipModel = class ShipModel {
       const hang = full*(0.10 + 0.06*press);
       for(let k=0, n=w.length; k<n; k++){
         const i3 = k*3, r0 = (k % nu1)*3;          // her own place on row nought
+        /* Her bight: 0,20 under a gasket, 2,05 at the belly of a swag, and
+           exactly 1 when she is set, so nothing moves until she is handed. */
+        const q = sw ? sw[k] : 1;
+        const st = sw ? 0.06*(1 + furl*(0.20 + 1.85*q - 1)) + 0.94*sf : stow;
         /* Belly and hang go with the canvas that is out: half spread is half
-           the cloth to fill, and a sail half handed does not bag. */
-        const f = w[k]*((depth + (luffing ? full*0.22*Math.sin(u[k]*7 - t*9) : 0))*sf + bunt);
+           the cloth to fill, and a sail half handed does not bag. And the bunt
+           swells with the bight — gathered cloth is thickest where there is
+           most of it to gather, so the roll is fat between the gaskets and
+           squeezed flat under each one. */
+        const f = w[k]*((depth + (luffing ? full*0.22*Math.sin(u[k]*7 - t*9) : 0))*sf
+                        + bunt*(sw ? 0.35 + 0.85*q : 1));
         const g = (sg ? sg[k]*hang*sf : 0);
-        arr[i3  ] = base[r0  ] + (base[i3  ] - base[r0  ])*stow + d.x*f;
-        arr[i3+1] = base[r0+1] + (base[i3+1] - base[r0+1])*stow + d.y*f - g;
-        arr[i3+2] = base[r0+2] + (base[i3+2] - base[r0+2])*stow + d.z*f;
+        arr[i3  ] = base[r0  ] + (base[i3  ] - base[r0  ])*st + d.x*f;
+        arr[i3+1] = base[r0+1] + (base[i3+1] - base[r0+1])*st + d.y*f - g;
+        arr[i3+2] = base[r0+2] + (base[i3+2] - base[r0+2])*st + d.z*f;
       }
       attr.needsUpdate = true;
       m.geometry.computeVertexNormals();        // the shading is the whole point
@@ -467,7 +637,7 @@ Naval.ShipModel = class ShipModel {
       V(0, spec.deckMid+m.height-1.0*sc, -m.boom*0.70),
       V(0, spec.deckMid+m.height-0.6*sc, -0.2*sc)
       // laced on three sides; deepest four tenths abaft the luff
-    ], new THREE.Vector3(1,0,0), { uPeak:0.42, crown:0.80 }));
+    ], new THREE.Vector3(1,0,0), { kind:'gaff', uPeak:0.42, crown:0.80 }));
     this.procedural.add(rig);
     return rig;
   }
@@ -509,7 +679,8 @@ Naval.ShipModel = class ShipModel {
         V( span*0.86, y-drop, 0),
         V(-span*0.86, y-drop, 0)
       ], new THREE.Vector3(0,0,1),
-         { vPeak:0.30, vPin1:false, free:0.25, crown:0.55,
+         { kind:'square',
+           vPeak:0.30, vPin1:false, free:0.25, crown:0.55,
            uPin0:false, uPin1:false, freeU:0.35, hangU0:true, hangU1:true,
            bow:0.05, roachFoot:0.11 }));
     }
@@ -530,7 +701,7 @@ Naval.ShipModel = class ShipModel {
       V(0, spec.deckMid+j.clewAbove, back+0.6),
       V(0, spec.deckMid+fore.height-j.headDrop, back+0.15)
       // hanked to her stay up the luff, but her foot flies free
-    ], new THREE.Vector3(1,0,0), { uPeak:0.40, vPeak:0.34, vPin0:false, crown:0.80 }));
+    ], new THREE.Vector3(1,0,0), { kind:'jib', uPeak:0.40, vPeak:0.34, vPin0:false, crown:0.80 }));
     this.procedural.add(rig);
     return rig;
   }
@@ -803,7 +974,8 @@ Naval.ShipModel = class ShipModel {
           V( half*0.86, yy-drop, dz),
           V(-half*0.86, yy-drop, dz)
         ], new THREE.Vector3(0,0,1),
-           { vPeak:0.30, vPin1:false, free:0.25, crown:0.55,
+           { kind:'square',
+             vPeak:0.30, vPin1:false, free:0.25, crown:0.55,
              uPin0:false, uPin1:false, freeU:0.35, hangU0:true, hangU1:true,
              bow:0.05, roachFoot:0.11 }));
       }
@@ -1177,8 +1349,14 @@ Naval.ShipModel = class ShipModel {
      glTF model is adopted too, so an imported hull fades with the rest instead
      of hanging sharp in the haze. */
   applyAtmosphere(oceanUniforms, aoUniforms){
+    /* Kept, because a painted sail may be built LATER than this runs — a model
+       arrives from the network long after her hull is at sea — and it would
+       then have no way of learning that the sky exists. */
+    this._skyU = oceanUniforms;
+    this._aoU = aoUniforms;
     // Before the haze, which chains onto it and must dim it in its turn.
     Naval.applySailLight(this.mats.canvas, oceanUniforms);
+    for(const m of (this._sailMats || [])) Naval.applySailLight(m, oceanUniforms);
     Naval.applySailLight(this.mats.flag, oceanUniforms);
     const patch = obj => {
       if(!obj.material) return;

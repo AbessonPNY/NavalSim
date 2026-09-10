@@ -102,6 +102,9 @@
     "spar": "0xa8875a",
     "house": "0xc9bda4",
     "canvas": "0xece4d2",
+    "canvasMap": {
+      "square": "ships/textures/toile-carree.jpg"
+    },
     "ensign": "jolly"
   },
   "camera": {
