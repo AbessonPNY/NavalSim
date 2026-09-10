@@ -817,7 +817,7 @@ Naval.ShipModel = class ShipModel {
     if(!f || f.userData.mast === null || f.userData.fall) return false;
     const L = Math.max(4, f.userData.height);
     f.userData.fall = {
-      a: 0.03, stop: 1.40, drag: 6.0, sink: 0,
+      a: 0.03, stop: 1.40, drag: 0.5, sink: 0,
       rate: Math.sqrt(3*9.81/(2*L)),
       side: side || (Math.random() < 0.5 ? -1 : 1),
       w: 0, wait: delay || 0 };
@@ -840,7 +840,8 @@ Naval.ShipModel = class ShipModel {
     for(const f of this.falls){
       f.userData.fall = null;
       f.rotation.z = 0;
-      f.position.y = f.userData.heel;    // elle est remontée d'où elle est partie
+      f.position.x = 0;                  // elle revient où elle était plantée
+      f.position.y = f.userData.heel;
       f.visible = true;
     }
   }
@@ -877,8 +878,27 @@ Naval.ShipModel = class ShipModel {
          que les planches de l'explosion. */
       if(s.drag > 0){ s.drag -= dt; continue; }
       s.sink += dt;
-      f.position.y = f.userData.heel - Math.min(14, 1.6*s.sink);
-      if(s.sink > 9) f.visible = false;
+
+      /* ELLE ROULE PAR-DESSUS LA LISSE, et vite.
+
+         Le premier réglage la faisait traîner six secondes puis s'enfoncer tout
+         droit sur huit — dix-huit secondes en tout. Or le navire qu'on fait
+         sauter passe sous l'eau au bout de SIX : le mât descendait donc avec
+         lui au lieu de s'en aller, ce qui est exactement ce qu'on voulait
+         éviter. Le budget n'était pas le bon, et il se mesure sur elle et non
+         sur le mât.
+
+         Et il ne suffit pas de raccourcir : descendre tout droit à côté d'une
+         coque qui descend aussi ne se lit pas comme un départ. Il faut qu'il
+         **roule** — qu'il passe la lisse, tourne au-delà de l'angle où ses
+         haubans le tenaient, et parte par le travers. Trois mètres de côté
+         suffisent, en quadratique pour qu'il s'écarte d'abord doucement puis
+         franchement, comme une chose qui bascule. */
+      const u = Math.min(1, s.sink/2.2);
+      f.rotation.z = s.side*(s.stop + 1.05*u);       // il roule au-delà de la lisse
+      f.position.x = -s.side*3.4*u*u;                // et s'en va par le travers
+      f.position.y = f.userData.heel - 5.5*s.sink;
+      if(s.sink > 3.0) f.visible = false;
     }
   }
 

@@ -2722,8 +2722,29 @@ Il s'enfonce dans **son repère à elle** plutôt que dans le monde, ce qui épa
 tout à ce morceau d'épave — rien à recentrer quand l'origine glisse, rien à
 sortir du graphe, rien à détruire. Et la mer étant opaque, il disparaît de
 lui-même en passant dessous, exactement comme les planches de l'explosion.
-Relevé : par terre à 4 s, il traîne jusqu'à 10, s'enfonce de 1,7 à −12,3 m et
-n'est plus là à 18 s.
+
+**Mais le budget se mesure sur ELLE, pas sur le mât**, et le premier réglage
+s'était trompé de montre : six secondes de traîne puis huit d'enfoncement font
+dix-huit, quand un navire qu'on fait sauter passe sous l'eau au bout de **six**.
+Le mât descendait donc avec lui au lieu de s'en aller — précisément ce qu'on
+voulait éviter, et signalé à l'usage. À 240 tonneaux la chose est brutale :
+`blowUp()` verse d'emblée 154 t dans une coque qui en déplace 240, donc elle est
+condamnée à la première image et sous l'eau à six secondes.
+
+**Et raccourcir ne suffit pas : il faut qu'il ROULE.** Descendre tout droit à
+côté d'une coque qui descend aussi ne se lit pas comme un départ. Il passe donc
+la lisse, tourne au-delà de l'angle où ses haubans le tenaient, et part par le
+travers — trois mètres et demi de côté, en quadratique pour qu'il s'écarte
+d'abord doucement puis franchement, comme une chose qui bascule. Relevé :
+
+| | mât | coque |
+|---|---|---|
+| 3 s | par terre à 80° | −2,4 m |
+| 4 s | roule, −3,7 m, 0,7 m de côté | −1,5 m |
+| 5 s | −9,2 m, 2,8 m de côté | −1,4 m |
+| **7 s** | **parti** | −4,3 m, encore à flot |
+
+Il est dégagé pendant qu'elle est encore là, ce qui est tout l'objet.
 
 **Et la toile perdue est perdue pour de bon**, ce qui est la moitié de
 l'intérêt. Le modèle rend la fraction de gréement encore debout, pondérée par
