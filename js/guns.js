@@ -391,7 +391,26 @@ Naval.Guns = class Guns {
        du tiers de sa longueur — le bordé autour du sabord, le livet au-dessus,
        et la mer juste dessous ; l'autre bout d'elle reste dans le noir. */
     lp.L.distance = 18*k;
-    lp.peak = 45*k*k;
+    /* L'INTENSITÉ, pas la portée : une lueur de bouche doit frapper fort et
+       rester chez elle. La chute étant en carré de la distance, multiplier
+       l'intensité n'étend son atteinte utile que d'une racine, et la borne de
+       portée ne bouge pas du tout — plus vive sans être plus large.
+
+       Et l'échelle avait été réglée à l'œil sur une image où la FLAMME faisait
+       tout le travail. Mesuré ensuite au pixel, à 126 m, le réglage d'origine
+       n'éclairait que six pixels : il ne faisait rien du tout. Une lumière
+       ponctuelle est en candelas et l'éclairement va en I/d², donc les
+       quelques dizaines qui paraissaient raisonnables à côté d'un soleil à
+       0,77 sont une bougie. Courbe relevée, lampe seule, flamme éteinte :
+
+         intensité    22    100    400   1 500   6 000
+         pixels        6     70    402     645     778
+         gain moyen   17     20     26      54     117
+
+       Quatre cents est le point où elle se lit franchement sans brûler — le
+       pixel le plus touché gagne 149 sur 765, soit la moitié de ce que donne
+       1 500 et le quart de 6 000, qui sortent tous deux en tache blanche. */
+    lp.peak = 1600*k*k;
     lp.life = 0.10;
     lp.t = 0;
     lp.L.intensity = lp.peak;

@@ -2192,9 +2192,27 @@ muraille : posée sur la volée même, elle se trouve à l'intérieur d'elle et 
 éclaire la batterie à travers la coque au lieu de ses œuvres mortes. Et elle est
 **bornée en portée** — neuf mètres sur un navire de trente, moins du tiers de sa
 longueur — parce qu'une lampe sans portée inonderait tout son bord et se lirait
-comme un éclair. Réglée au crépuscule, seul moment où l'on peut en juger : en
-plein soleil elle ne dispute rien au jour, de nuit elle serait tout ce qu'on
-voit.
+comme un éclair.
+
+**Son intensité, elle, a été réglée à l'œil sur une image où la FLAMME faisait
+tout le travail**, et c'était faux d'un ordre de grandeur. Mesuré ensuite au
+pixel, lampe seule et flamme éteinte, à 126 m : le premier réglage n'éclairait
+que **six pixels**. Il ne faisait rien du tout, et ce qu'on prenait pour la
+lueur était le sprite. Une lumière ponctuelle est en **candelas** et
+l'éclairement va en I/d², donc les quelques dizaines qui paraissaient
+raisonnables à côté d'un soleil réglé à 0,77 sont une bougie :
+
+| intensité (cd) | 22 | 100 | **400** | 1 500 | 6 000 |
+|---|---|---|---|---|---|
+| pixels éclairés | 6 | 70 | **402** | 645 | 778 |
+| gain moyen | 17 | 20 | **26** | 54 | 117 |
+| gain du plus touché | 23 | 66 | **149** | 240 | 402 |
+
+Quatre cents est le point où elle se lit franchement sans brûler : le pixel le
+plus touché gagne 149 sur 765, moitié moins qu'à 1 500 et quatre fois moins qu'à
+6 000, qui sortent tous deux en tache blanche. Leçon générale, et c'est la même
+que celle des nuages : **un effet réglé à l'œil au milieu d'autres effets mesure
+la somme, pas la part**. Il faut éteindre les voisins avant de juger.
 
 **Grise, et disparue en dix secondes plutôt qu'en vingt-deux.** Le blanc se lit
 comme de la vapeur ; c'est la grisaille autant que l'opacité qui fait lire
