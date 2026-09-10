@@ -2339,16 +2339,45 @@ pour que le cumul se voie — à 0,95, **deux** sprites suffisaient à boucher
 Ramenée au cinquième, une bouffée est un voile et l'on voit la mer au travers
 d'une bordée.
 
-**Mais le cumul bute sur autre chose que l'opacité, et il faut le dire.** Cinq
-bordées coup sur coup ne font pas un mur : relevé, elles donnent un voile plus
-mince qu'une seule bordée regardée à son sommet. La raison n'est pas la densité
-— à 0,38 simulé, même image — c'est que le banc **s'étale et dérive** pendant
-ce temps, chaque bouffée grandissant jusqu'à cinq mètres et s'en allant sous le
-vent. Deux demandes se tirent dessus : « qu'elle disparaisse plus vite » et
-« que le cumul fasse un nuage opaque » ne peuvent pas être vraies ensemble, la
-fumée qui s'accumule étant par définition celle qui reste. Les leviers sont la
-DURÉE de vie du banc et sa dispersion, pas l'opacité ; ils n'ont pas été touchés
-sans qu'on le demande.
+**Le cumul butait d'abord sur autre chose que l'opacité.** Cinq bordées coup sur
+coup donnaient un voile plus mince qu'une seule bordée regardée à son sommet —
+et ce n'était pas la densité (à 0,38 simulé, même image), c'était que le banc
+s'étalait et dérivait pendant ce temps. Deux demandes se tiraient dessus :
+« qu'elle disparaisse plus vite » et « que le cumul fasse un nuage opaque » ne
+peuvent pas être vraies ensemble, la fumée qui s'accumule étant par définition
+celle qui reste. La première a donc été **révoquée** au profit de la seconde.
+
+**ELLE EST LOURDE, ET ELLE SE COUCHE SUR L'EAU.** Le banc vit maintenant dix-
+sept à vingt-huit secondes au lieu de sept à onze, et surtout sa portance est
+**négative** : une fumée de poudre est froide et chargée de grains imbrûlés,
+donc par petit temps elle ne monte pas, elle s'affaisse et reste sur la mer en
+nappe. C'est ce que dit chaque récit de calme après un combat, et c'est ce qui
+la rend gênante — un nuage qui monte libère la vue, un nuage qui se couche la
+bouche.
+
+Il lui faut alors un **plancher**, faute de quoi elle passe sous la surface et
+disparaît par en dessous. La mer est échantillonnée **une fois par coup** et non
+par bouffée et par image : deux cents bouffées interrogeant l'océan coûteraient
+plus cher que le solveur, et en vingt secondes la mer sous un banc n'a pas bougé
+de ce qui vaudrait la peine. Même arbitrage que pour les gouttes de l'embrun.
+
+**Et la montée se compte en SECONDES, la descente en fraction de vie.** Écrite
+en `u*11`, la montée s'allongeait avec la durée de vie : en portant le banc à
+vingt secondes, une bouffée mettait presque deux secondes à devenir visible, ce
+qui n'a aucun sens — une bouffée se forme en un instant quoi qu'il lui reste à
+vivre. La disparition, elle, est bien une affaire de proportion.
+
+Mesuré, cinq bordées coup sur coup puis quinze secondes d'attente :
+
+| | avant | après |
+|---|---|---|
+| bouffées en l'air | 204 | **408** |
+| encore là 15 s plus tard | — | **299** |
+| hauteur sur l'eau | montait | 4,9 m de moyenne, 6,9 au plus haut |
+| dérive du banc | — | 25 m de moyenne, 37 au plus loin |
+
+Le banc finit couché **entre les deux navires**, ce qui est exactement le rôle
+qu'il jouait.
 
 **La fumée de poudre est PÂLE**, et cela avait été raté dans le même sens à la
 première écriture : à sept dixièmes de gris, cela se lisait comme un banc de

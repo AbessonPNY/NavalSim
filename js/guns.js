@@ -225,6 +225,7 @@ Naval.Guns = class Guns {
     const k = Math.max(0.35, spec.L/60);       // a carronade is not a 32-pounder
     const smoke = Naval.powderTexture(), glow = Naval.glowTexture();
 
+
     // muzzle and the way it points, both carried into the world by her attitude
     this._p.copy(g.p).applyQuaternion(body.quat).add(body.pos);
     /* POINT-BLANK, and it is a DEPRESSION rather than an elevation.
@@ -265,6 +266,16 @@ Naval.Guns = class Guns {
     this._d.y = elev;                    // and then the quoin, against the sea
     this._d.normalize();
     const at = this._p.clone(), out = this._d.clone();
+    /* Où est la mer sous cette pièce, prise UNE fois pour tout le coup.
+
+       C'est le plancher sur lequel la fumée va se coucher, et il n'est pas
+       échantillonné par bouffée et par image : deux cents bouffées demandant à
+       l'océan où il se trouve coûteraient plus cher que le solveur, et en vingt
+       secondes la mer sous un banc n'a pas bougé de ce qui vaudrait la peine.
+       Même raison, et même arbitrage, que pour les gouttes de l'embrun. */
+    const sea = this._ocean
+      ? this._ocean.sample(at.x, at.z, this._t) + 0.25*k
+      : at.y - 3*k;
     // something to spread the jet about, square to the way it points
     const up = new THREE.Vector3(0,1,0);
     const sideV = new THREE.Vector3().crossVectors(out, up).normalize();
@@ -301,12 +312,12 @@ Naval.Guns = class Guns {
       const s = this._sprite(smoke, 0xf0ece2, false);
       const spread = (Math.random()-0.5);
       this.live.push({
-        m:s, t:-i*0.018, life:3.4 + Math.random()*2.0, kind:'smoke',
+        m:s, t:-i*0.018, life:5.5 + Math.random()*3.0, kind:'smoke',
         p:at.clone().addScaledVector(out, 0.4*k),
         v:out.clone().multiplyScalar((16 + Math.random()*14)*k)
             .addScaledVector(sideV, spread*4*k)
             .add(new THREE.Vector3(0, (Math.random()-0.2)*2.5*k, 0)),
-        drag:3.4, lift:0.55*k, spin:(Math.random()-0.5)*1.1, flash:1.0,
+        drag:3.4, lift:0.10*k, spin:(Math.random()-0.5)*1.1, flash:1.0, floor:sea,
         s0:2.4*k, s1:(10 + Math.random()*5)*k });
     }
 
@@ -317,7 +328,7 @@ Naval.Guns = class Guns {
       const s = this._sprite(smoke, 0xe8e3d8, false);
       const a = Math.random()*6.2832;
       this.live.push({
-        m:s, t:0.06 + Math.random()*0.5, life:7.0 + Math.random()*4.0, kind:'smoke',
+        m:s, t:0.06 + Math.random()*0.5, life:17 + Math.random()*11, kind:'smoke',
         p:at.clone().addScaledVector(out, (2 + Math.random()*7)*k)
             .add(new THREE.Vector3((Math.random()-0.5)*4*k,
                                    (Math.random()-0.4)*3*k,
@@ -325,7 +336,7 @@ Naval.Guns = class Guns {
         v:out.clone().multiplyScalar((1.5 + Math.random()*3)*k)
             .add(new THREE.Vector3(Math.cos(a)*0.9*k, 0.7 + Math.random()*1.0,
                                    Math.sin(a)*0.9*k)),
-        drag:0.7, lift:0.22*k, spin:(Math.random()-0.5)*0.5, flash:0.5,
+        drag:0.7, lift:-0.12*k, spin:(Math.random()-0.5)*0.5, flash:0.5, floor:sea,
         s0:(3.4 + Math.random()*2.6)*k, s1:(15 + Math.random()*12)*k });
     }
 
@@ -565,6 +576,7 @@ Naval.Guns = class Guns {
   }
 
   update(dt, wind, ocean, t){
+    this._ocean = ocean; this._t = t || 0;    // fire() en a besoin pour son plancher
     this._flight(dt, ocean, t);
     /* SHE FIRES ON THE ROLL, and this is not a refinement — without it the
        guns are useless in any sea worth sailing.
@@ -685,6 +697,17 @@ Naval.Guns = class Guns {
       p.v.z += (wz*Naval.Guns.LAG - p.v.z)*kd;
       p.v.y += (p.lift - p.v.y)*kd;         // barely buoyant: it rolls, it does not tower
       p.p.addScaledVector(p.v, dt);
+
+      /* ELLE SE COUCHE SUR L'EAU. Une fumée de poudre est froide et chargée :
+         par petit temps elle ne monte pas, elle s'affaisse et reste sur la mer
+         en nappe — c'est ce que dit chaque récit de calme après un combat. La
+         portance est donc légèrement NÉGATIVE, et il faut alors un plancher,
+         faute de quoi le banc passe sous la surface et disparaît par en
+         dessous. Arrivée au ras, elle s'étale au lieu de continuer. */
+      if(p.floor != null && p.p.y < p.floor){
+        p.p.y = p.floor;
+        if(p.v.y < 0) p.v.y = 0;
+      }
       p.m.position.copy(p.p);
       p.m.scale.setScalar(p.s0 + (p.s1 - p.s0)*Math.pow(u, 0.5));
       if(p.spin) p.m.material.rotation += p.spin*dt;
@@ -717,7 +740,14 @@ Naval.Guns = class Guns {
            bouffée est un voile, une bordée un banc qu'on traverse du regard,
            et trois bordées le mur — qui est alors quelque chose qu'on a
            construit plutôt que reçu. */
-        p.m.material.opacity = Math.min(1, u*11) * Math.pow(1-u, 1.15) * 0.20;
+        /* La montée se compte en SECONDES et la descente en fraction de vie,
+           et les deux ne sont pas la même horloge. Écrite en `u*11`, la montée
+           s'allongeait avec la durée de vie : en portant le banc à vingt
+           secondes, une bouffée mettait presque deux secondes à devenir
+           visible, ce qui n'a aucun sens — une bouffée se forme en un instant
+           quoi qu'il lui reste à vivre. La disparition, elle, est bien une
+           affaire de proportion. */
+        p.m.material.opacity = Math.min(1, p.t/0.55) * Math.pow(1-u, 1.15) * 0.20;
         const g = 0.62 - 0.10*u;
 
         /* THE LIGHT GETS INTO THE CLOUD, and this is most of what makes a gun
@@ -758,6 +788,7 @@ Naval.Guns = class Guns {
     // the queue needs nothing: a shot not yet fired is placed off her hull at
     // the instant it goes, and by then she has moved with the world herself
     for(const p of this.live){ p.p.x -= dx; p.p.z -= dz; p.m.position.copy(p.p); }
+    // (le plancher est une hauteur, pas une position : un recentrage ne le bouge pas)
     for(const b of this.shot){ b.p.x -= dx; b.p.z -= dz; b.m.position.copy(b.p); }
     // a lamp holds a position too, and lives long enough to cross a rebase
     for(const lp of this.lamps){ lp.L.position.x -= dx; lp.L.position.z -= dz; }
