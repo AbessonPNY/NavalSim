@@ -242,6 +242,7 @@
 <script src="js/helm.js"></script>
 <script src="js/rain.js"></script>
 <script src="js/splash.js"></script>
+<script src="js/cordage.js"></script>
 <script src="js/world.js"></script>
 <script src="js/land.js"></script>
 <script src="js/gulls.js"></script>
@@ -324,6 +325,12 @@ async function main(){
          rather than for a lucky shot. */
       const f = e.ship.falls[index];
       f.userData.wounds = (f.userData.wounds || 0) + 1;
+      /* And now it SHOWS. A ball through a mast cuts some of what is seized to
+         it, so a couple of ends are left swinging — until this, a mast that had
+         been hit twice looked exactly like one never touched, and there was no
+         way of knowing one was hurting her short of the third shot bringing it
+         down. */
+      e.ship.cutRigging(index, 2);
       if(f.userData.wounds >= 3) e.ship.dropMast(index);
       return;
     }
@@ -378,6 +385,11 @@ async function main(){
   const rain = new Naval.Rain(stage.scene);
   const splash = new Naval.Splash(stage.scene, stage);
   guns.onSplash = (at, water, speed, jet) => splash.burst(at, water, speed, jet);
+
+  /* Les bouts rompus qui pendent d'un mât touché. Une seule réserve pour toute
+     la flotte et un seul appel de dessin : les navires DEMANDENT leurs bouts,
+     ils ne les tiennent pas — voir `rigCuts` sur le modèle. */
+  const cordage = new Naval.Cordage(stage.scene, stage, ocean);
 
   /* What a hull throws when she comes down. The solver hands over cubic metres
      a SECOND of water driven down, so a sixth of a second of it is about what
@@ -992,6 +1004,7 @@ async function main(){
                 get physics(){ return physics; }, get ship(){ return ship; },
                 get cam(){ return cam; }, get hud(){ return hud; },
                 world, land, gulls, chart, blast, guns, takeHelm, weather, rain, splash,
+                cordage,
                 storms, get squall(){ return squall; },
                 get fleet(){ return fleet; } };
 
@@ -1073,6 +1086,7 @@ async function main(){
       splash.rebase(dx, dz);
       blast.rebase(dx, dz);
       guns.rebase(dx, dz);
+      cordage.rebase(dx, dz);
       for(const e of fleet) if(e.ship) e.ship.syncTo(e.body);
       ship.syncTo(physics.body);
     }
@@ -1146,6 +1160,7 @@ async function main(){
     guns.targets = fleet;
     guns.update(dt, ocean.windVec, ocean, t);
     splash.update(dt);
+    cordage.update(dt, fleet, t, stage.camera.position);
     hud.update(dt);
     fleetTick += dt;
     if(fleetTick > 0.4){ fleetTick = 0; refreshFleetSpeeds(); }

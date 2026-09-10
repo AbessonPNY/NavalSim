@@ -158,6 +158,11 @@ Naval.ShipModel = class ShipModel {
     this.group.add(this.procedural);
     this.rigs = [];                          // what braces or swings when trimmed
     this.falls = [];                         // and what can come down, mast and all
+    /* Cut rigging is HER state, so it lives on her: she asks for the ends, and
+       the shared pool in cordage.js hangs them. A hull that leaves the fleet
+       takes its requests with it and there is nothing to remember elsewhere. */
+    this.rigCuts = [];                       // ends asked for and not yet hung
+    this.rigEpoch = 0;                       // a refit voids every end already out
     this.guns = [];                          // where her muzzles poke out, if any
     this.shell = null;                       // the side a shot has to get through
     this._shareTot = 0;                      // canvas those masts carry between them
@@ -564,6 +569,7 @@ Naval.ShipModel = class ShipModel {
       this.modelRoot = obj;
       this.rigs = []; this.canvases = [];   // the procedural rig went with the hull
       this.falls = []; this._shareTot = 0;
+      this.rigCuts.length = 0; this.rigEpoch++;   // and so did anything hanging off it
       this._rigModel();
       this._findGuns();
       this._hullShell();
@@ -749,6 +755,18 @@ Naval.ShipModel = class ShipModel {
       fall.add(pivot);
       let share = 0;
 
+      /* WHERE A CUT END CAN HANG FROM, recorded here because here is the only
+         place that knows. The yards have just been read off the geometry and
+         sorted onto their mast; asking a second time later would mean a second
+         rule to keep in step with this one, which is the mistake the single
+         set of hull lines exists to prevent.
+
+         Nothing per ship, as everywhere else in the rig: a modeller who drops a
+         square-rigger into ships/models gets her braces and her shrouds for
+         free, and a hull with no mast mesh of its own has no anchors and simply
+         trails nothing. */
+      const cord = [];
+
       for(let i=0;i<mast.length;i++){
         const y = mast[i], half = y.size.x*0.5*0.97;
         pivot.attach(y.mesh);      // braces with the mast, canvas or no canvas
@@ -762,6 +780,17 @@ Naval.ShipModel = class ShipModel {
                   : above ? (above.mid.y - y.mid.y)
                   : half*2;
         const dz = y.mid.z - z0, yy = y.mid.y;
+
+        /* Both yardarms, and they carry the LONG ends. A brace runs from the arm
+           right aft to the rail and a lift runs from it up to the cap, so either
+           one shot away leaves several metres of rope swinging off the tip —
+           which is the piece the eye actually catches, being furthest from the
+           mast and moving most. Held in the PIVOT, so a cut brace swings round
+           with the yard when she braces up, as it must. */
+        const armLen = Math.max(2.5, Math.min(7, 0.22*(yy - heel)));
+        cord.push({obj:pivot, x:-half*0.98, y:yy, z:dz, len:armLen},
+                  {obj:pivot, x: half*0.98, y:yy, z:dz, len:armLen});
+
         const drop = Math.min(0.82*gap, 1.1*half,
                               yy - deckAt(y.mid.z) - 0.02*spec.L);
         if(drop < 0.2*half) continue;   // too near the deck to be a yard at all
@@ -785,6 +814,27 @@ Naval.ShipModel = class ShipModel {
       fall.userData.mast = pole ? pole.mesh : null;
       fall.userData.share = share;
       fall.userData.height = pole ? pole.size.y : (mast[0].mid.y - heel);
+
+      /* And the shrouds, which come off the HOUNDS rather than the truck — the
+         standing rigging is seized round the masthead just under the top, not
+         at the very tip, and an end hanging from the tip reads as a flag
+         halyard instead. They live in the FALL and not in the pivot: shrouds do
+         not brace round, they belong to the mast itself. */
+      /* SHORT, and that was measured on the screen rather than reasoned from
+         the rigging. A shroud runs from the hounds all the way to the channel,
+         so a parted one really does hang some sixteen metres on a mast of this
+         size — and sixteen metres of rope is dead straight, because a free end
+         hangs straight whatever it is made of, and a straight line that long
+         reads as WIRE. It looked like somebody had stayed her with fencing.
+
+         So the ends are cut to what the eye can take for cordage. It is not the
+         whole shroud, it is what is left of it after it has run out through
+         everything it was rove through, which is honest enough and reads. */
+      const mh = fall.userData.height;
+      for(const sx of [-1, 1])
+        cord.push({obj:fall, x:sx*Math.min(1.4, 0.05*mh), y:mh*0.78, z:0,
+                   len:Math.max(4, Math.min(10, 0.26*mh))});
+      fall.userData.cordage = cord;
       this._shareTot += share;
       this.rigs.push(pivot);
       this.falls.push(fall);
@@ -822,7 +872,19 @@ Naval.ShipModel = class ShipModel {
       side: side || (Math.random() < 0.5 ? -1 : 1),
       w: 0, wait: delay || 0 };
     f.userData.fall.w = 0.30*f.userData.fall.rate;   // the blast does not nudge it
+    /* Going over the side is where the whole of it lets go at once — which is
+       also what makes the wreck read as being DRAGGED rather than dropped. */
+    this.cutRigging(i, 4);
     return true;
+  }
+
+  /* Ends shot away, asked for and not yet hung. A count rather than a list of
+     which ropes: they are picked at random from the anchors this mast has, so
+     no two hits on the same mast look alike and none of it is data. */
+  cutRigging(i, n){
+    const f = this.falls[i];
+    if(!f || !f.userData.cordage || !f.userData.cordage.length) return;
+    this.rigCuts.push({i:i, n:Math.max(1, n|0)});
   }
 
   /* The magazine takes them all — but not together. They go a few tenths of a
@@ -837,7 +899,12 @@ Naval.ShipModel = class ShipModel {
   }
 
   restoreMasts(){
+    /* A refit re-reeves her rigging, so every end already hanging is void. The
+       epoch says so once instead of every caller having to remember it. */
+    this.rigCuts.length = 0;
+    this.rigEpoch++;
     for(const f of this.falls){
+      f.userData.wounds = 0;
       f.userData.fall = null;
       f.rotation.z = 0;
       f.position.x = 0;                  // elle revient où elle était plantée

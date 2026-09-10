@@ -41,6 +41,7 @@ logique est dans `js/`, en classes attachées à un espace de noms global `Naval
 | `controls.js` · `camera-rig.js` · `hud.js` | barre, caméras, instruments |
 | `helm.js` | la barre des navires qui ne sont pas le vôtre |
 | `guns.js` | la bordée, et surtout sa fumée |
+| `cordage.js` | les bouts rompus qui pendent d'un mât touché |
 
 ## Cahier des charges
 
@@ -2612,6 +2613,12 @@ une roulée à attendre ; sans elle, il tire.
 jottereaux et faits pour être canonnés ; le perdre est le prix d'un feu soutenu
 et non d'un coup heureux. Vérifié : trois touches et il part.
 
+**Et les deux premières SE VOIENT désormais**, ce qui manquait : un boulet
+tranche une partie de ce qui est saisi au mât, donc chaque touche laisse deux
+bouts rompus qui pendent — voir « Les bouts rompus ». Sans eux, un mât blessé
+deux fois était rigoureusement identique à un mât intact, et l'on ne pouvait pas
+savoir qu'on était en train de le user.
+
 **Le boulet qui manque tombe à la mer**, et la gerbe est celle qui existait
 déjà — six coups, six colonnes, à 248 · 248 · 256 · 256 · 293 · 304 m, ce qui
 est bien le pointage à plein fouet.
@@ -2847,6 +2854,111 @@ latine** n'est pas reconnue. Le détecteur de vergues exige un espar posé en
 travers de l'axe, et une antenne est inclinée dans le plan longitudinal — le mât
 sera bien trouvé et tombera, mais nu. La civadière sous le beaupré passe, elle :
 le code lit déjà un « mât » à 40,7 m sur l'avant du pirate.
+
+## Les bouts rompus
+
+**Le projet AFFIRMAIT deux choses qu'il ne montrait pas.** Qu'un mât qui tombe
+s'arrête net dans ses propres haubans, et qu'un navire démâté est traîné par son
+épave au lieu d'en être quitte. Les deux sont écrites plus haut et aucune n'était
+à l'écran — si bien qu'un mât qui avait encaissé deux boulets ressemblait
+exactement à un mât qu'on n'avait jamais touché : rien ne disait qu'on était en
+train de le blesser, sinon le troisième coup qui l'abattait. Quelques bouts qui
+pendent règlent ça, et c'est la manière la moins chère de le faire honnêtement.
+
+**UN CORDAGE EST UNE CHAÎNE DE VERLET, pas une animation.** Des points, une
+contrainte de distance entre voisins, et rien d'autre : pas d'angle, pas de
+rotation, aucune force à intégrer et rien qui puisse diverger. C'est l'argument
+du pendule du mât — employer l'arithmétique que la chose suit réellement plutôt
+qu'une courbe dessinée à la main — et ici c'est en prime ce qu'il y a de moins
+cher dans le fichier. Mesuré, douze points et trois itérations de contrainte :
+
+| cordages | 8 | 24 | 64 | 160 |
+|---|---|---|---|---|
+| ms/image | 0,005 | 0,014 | 0,037 | **0,100** |
+
+Relevé ensuite dans le navigateur et non plus dans node : **0,031 ms** pour les
+douze bouts d'un galion, **0,118 ms** au plafond de la réserve (96 bouts,
+1 728 triangles, **un** appel de dessin). La simulation n'est pas la facture.
+
+**CE QUI COÛTE, C'EST DE LES DESSINER.** Un `THREE.Line` fait un pixel de large
+quel que soit le `linewidth` demandé, WebGL l'ignorant sur presque toutes les
+plateformes : un cordage tracé en ligne est un scintillement sous-pixel à toute
+distance qui vaille. C'est le même piège d'aliasing que l'étoile plus étroite
+qu'un pixel, la lueur lointaine de la lanterne et le boulet dessiné à cinq fois
+sa taille, et la réponse est la même — être **plus large** que le pas
+d'échantillonnage, jamais plus brillant. Chaque bout est donc un **ruban**, une
+bande de triangles tournée vers la caméra, sa largeur en mètres réels avec un
+plancher en pixels. Tous les cordages de la flotte vivent dans une seule
+géométrie, exactement comme `splash.js` tient sept cents gouttes dans un seul
+`Points`.
+
+**Et au-delà d'une certaine distance ils ne sont plus dessinés du tout** — mais
+la coupure est affaire de **lisibilité et non de coût**. À trois cents mètres un
+cordage est un cheveu qui se lit comme du bruit sur le gréement, et le plancher
+en pixels qui le sauve de près est précisément ce qui le fait scintiller de
+loin. La simulation, elle, continue à travers la coupure : elle est gratuite, et
+l'arrêter voudrait dire que le bout se remet d'un coup en position de repos dès
+qu'on se rapproche. Fondu de 190 à 300 m ; vérifié en déplaçant la fenêtre
+plutôt que la caméra, sur des bouts à 59 m : 12 tirés à pleine opacité, écart
+moyen 44/255 en plein fondu, **zéro pixel** passé la borne.
+
+**Un SOUS-PAS FIXE, et il compte plus ici que presque partout ailleurs.** Verlet
+à `dt` variable n'est pas seulement imprécis, il change l'amortissement effectif
+— et le volet cadence à 32 quoi qu'on lui demande. Plafonné à cinq sous-pas, sans
+quoi un volet resté figé une seconde essaierait de rattraper d'un coup et
+enverrait tout le gréement de la flotte en l'air.
+
+**Les points d'attache sont relevés AU GRÉAGE**, là où les vergues viennent
+d'être lues sur la géométrie et rangées sur leur mât. Les redemander plus tard
+voudrait dire une seconde règle à tenir en accord avec la première, ce que
+l'invariant du plan de formes unique existe pour empêcher. Rien par navire, comme
+tout le reste du gréement : déposer un carré dans `ships/models` suffit à lui
+donner ses bras et ses haubans. Les bouts de vergue vivent dans le **pivot**,
+donc un bras coupé tourne avec sa vergue quand on brasse ; les haubans vivent
+dans la **chute**, un hauban ne brassant pas.
+
+**Et chaque bout tient un DÉCALAGE LOCAL, pas un point monde**, ce qui rend
+l'origine flottante gratuite ici : l'attache est relue dans une matrice vivante à
+chaque image, donc elle suit son roulis, sa gîte et un mât qui passe par-dessus
+bord sans qu'aucun des trois ait à savoir que ceci existe.
+
+**Ils réfléchissent, ils n'émettent pas**, sur la luminance de la couleur
+d'horizon — la faute qu'avaient eue l'écume puis la fumée, et le même remède.
+
+**Trois façons de mourir, et aucune n'est un appel à retenir** : la coque quitte
+la scène, une réparation incrémente son *époque*, ou le mât finit de s'enfoncer
+et devient invisible. Vérifié bout à bout : un mât abattu emporte ses quatre
+bouts pendant les cinq secondes de sa chute, de sa roulée et de son enfoncement,
+puis ils disparaissent avec lui au même instant ; une réparation en efface douze
+d'un coup ; un changement de navire en efface quatre-vingt-seize.
+
+**Deux réglages ratés, tous les deux dans le même sens, et il a fallu les
+peindre en rouge pour les voir.** Un hauban court des jottereaux au cadènage,
+donc un hauban rompu pend réellement seize mètres sur un mât de cette taille — et
+seize mètres de cordage sont **parfaitement droits**, un bout libre pendant droit
+quoi qu'il soit fait. Une droite de cette longueur ne se lit pas comme du cordage
+mais comme du **fil de fer** : on aurait dit qu'on l'avait haubanée au grillage.
+Et le terme de traînée de l'air, écrit à 0,55, paraît modeste et ne l'est pas :
+contre 9,81 de pesanteur il couche un bout de plus de vingt degrés par brise
+maniable, et tous les bouts du navire filent alors dans le même sens au même
+angle, ce qui se lit comme un gréement sous tension et non comme un gréement
+coupé. Ramenés à ce que l'œil accepte — ce qui reste d'un hauban après qu'il a
+filé dans tout ce dans quoi il était passé — et la traînée à 0,28 :
+
+| | avant | après |
+|---|---|---|
+| longueur moyenne | 12,4 m | **3,6 m** |
+| inclinaison sur la verticale, vent 7,5 m/s | 21–40° | **12°** (5 à 21) |
+
+Relevé au pixel, douze bouts à 46 m, largeur honnête de 16 cm : **1 168 pixels**
+changés, soit 0,117 % de l'image, pour un écart moyen de **78/255** et un maximum
+de 184. Petite surface et fort contraste, ce qui est exactement le bon registre
+pour du cordage — l'inverse du banc de grain, qui couvrait 8,9 % de l'image à
+25/255 et ne se voyait pas.
+
+**Ce qu'on ne fait pas** : aucune collision cordage/coque ni cordage/vergue. Un
+bout qui traverse un espar ne se remarque pas ; un bout qui ne bouge pas se
+remarque tout de suite.
 
 ## Combien de coques
 
