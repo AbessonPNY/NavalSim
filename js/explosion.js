@@ -63,6 +63,27 @@ Naval.Explosion = class Explosion {
        geometry serves them all — there is no reason to build two dozen boxes
        per explosion and throw them away three seconds later. */
     this.plank = new THREE.BoxGeometry(1, 1, 1);
+
+    /* LA LUEUR, et non plus la foudre. Le premier jet réemployait `strike()`,
+       qui éclaire le pont, la toile et TOUT LE CIEL ensemble — ce qui est juste
+       quand l'orage est au-dessus d'elle et faux pour une soute : une explosion
+       est une lumière quelque part, pas partout. Le ciel qui blanchit d'un bloc
+       se lisait comme un éclair mal placé, et il fallait un instant pour
+       comprendre que le navire venait de sauter.
+
+       Une réserve fixe, laissée dans la scène et commutée par l'intensité, pour
+       la raison mesurée du côté des canons : ajouter puis retirer une lumière
+       fait recompiler tous les matériaux, et trois charges en feraient six
+       recompilations. Trois lampes, une par charge, qui se chevauchent comme
+       les charges se chevauchent. */
+    this.lamps = [];
+    for(let i=0;i<3;i++){
+      const L = new THREE.PointLight(0xffc25a, 0, 1, 2);
+      L.castShadow = false;
+      scene.add(L);
+      this.lamps.push({ L, t:0, life:0, peak:0 });
+    }
+    this._lamp = 0;
   }
 
   /* Touch one off LATER. A magazine does not go up in one clean blast: the
@@ -91,9 +112,18 @@ Naval.Explosion = class Explosion {
     const k = Math.max(0.4, size/24);
     const glow = Naval.glowTexture(), smoke = Naval.smokeTexture();
 
-    // The flash. Reuses the lightning: it already lights deck, canvas and sky
-    // together, which is exactly what a magazine going up should do.
-    if(this.stage && this.stage.strike) this.stage.strike();
+    /* La lueur, centrée sur la charge et bornée en portée. Elle est vive et
+       jaune parce qu'une soute qui saute est du feu et non un arc électrique,
+       et elle est LOCALE : ce qui doit s'éclairer est elle et l'eau autour
+       d'elle, pas l'horizon. */
+    const lp = this.lamps[this._lamp];
+    this._lamp = (this._lamp + 1) % this.lamps.length;
+    lp.L.position.copy(at);
+    lp.L.distance = 55*k;
+    lp.peak = 9000*k*k;
+    lp.life = 0.42;
+    lp.t = 0;
+    lp.L.intensity = lp.peak;
 
     /* FIRE. Bright, fast, and gone — a fireball that lingers reads as a balloon.
        Each puff has its own delay so the ball boils outward instead of
@@ -175,6 +205,7 @@ Naval.Explosion = class Explosion {
      like every other thing that holds a position. Short-lived as it is, a
      rebase during the three seconds a plank is aloft would fling it a mile. */
   rebase(dx, dz){
+    for(const lp of this.lamps){ lp.L.position.x -= dx; lp.L.position.z -= dz; }
     for(const p of this.live){ p.p.x -= dx; p.p.z -= dz; p.m.position.copy(p.p); }
     for(const q of this._queue){ q.at.x -= dx; q.at.z -= dz; }
   }
@@ -255,6 +286,17 @@ Naval.Explosion = class Explosion {
   /* `ocean` and `t` are optional; given them, the timber knows where the sea
      is and stops falling through it. */
   update(dt, ocean, t){
+    /* Elle part vite et meurt vite, mais moins vite qu'une bouche à feu : une
+       boule de feu tient quelques dixièmes de seconde là où une charge de poudre
+       est partie en un vingtième. Le carré raccourcit la traîne. */
+    for(const lp of this.lamps){
+      if(lp.life <= 0) continue;
+      lp.t += dt;
+      const u = lp.t/lp.life;
+      lp.L.intensity = u >= 1 ? 0 : lp.peak*(1-u)*(1-u);
+      if(u >= 1) lp.life = 0;
+    }
+
     for(let i=this._queue.length-1; i>=0; i--){
       const q = this._queue[i];
       q.t += dt;

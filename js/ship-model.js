@@ -781,6 +781,7 @@ Naval.ShipModel = class ShipModel {
       /* Only a mast that is its OWN mesh can be brought down. Without one,
          the canvas would fall off a spar still standing in the air, which is
          worse than nothing happening — so she keeps her rig and says so. */
+      fall.userData.heel = heel;      // pour l'y ramener si on la répare
       fall.userData.mast = pole ? pole.mesh : null;
       fall.userData.share = share;
       fall.userData.height = pole ? pole.size.y : (mast[0].mid.y - heel);
@@ -816,7 +817,7 @@ Naval.ShipModel = class ShipModel {
     if(!f || f.userData.mast === null || f.userData.fall) return false;
     const L = Math.max(4, f.userData.height);
     f.userData.fall = {
-      a: 0.03, stop: 1.40,
+      a: 0.03, stop: 1.40, drag: 6.0, sink: 0,
       rate: Math.sqrt(3*9.81/(2*L)),
       side: side || (Math.random() < 0.5 ? -1 : 1),
       w: 0, wait: delay || 0 };
@@ -836,17 +837,48 @@ Naval.ShipModel = class ShipModel {
   }
 
   restoreMasts(){
-    for(const f of this.falls){ f.userData.fall = null; f.rotation.z = 0; }
+    for(const f of this.falls){
+      f.userData.fall = null;
+      f.rotation.z = 0;
+      f.position.y = f.userData.heel;    // elle est remontée d'où elle est partie
+      f.visible = true;
+    }
   }
 
   stepRigging(dt){
     for(const f of this.falls){
       const s = f.userData.fall;
-      if(!s || s.a >= s.stop) continue;
-      if(s.wait > 0){ s.wait -= dt; continue; }
-      s.w += s.rate*s.rate*Math.sin(s.a)*dt;
-      s.a = Math.min(s.stop, s.a + s.w*dt);
-      f.rotation.z = s.side*s.a;
+      if(!s) continue;
+
+      if(s.a < s.stop){
+        if(s.wait > 0){ s.wait -= dt; continue; }
+        s.w += s.rate*s.rate*Math.sin(s.a)*dt;
+        s.a = Math.min(s.stop, s.a + s.w*dt);
+        f.rotation.z = s.side*s.a;
+        continue;
+      }
+
+      /* ELLE S'EN DÉBARRASSE. Arrêté à quatre-vingts degrés, le mât restait là
+         pour toujours, couché en travers de son bord et la suivant partout —
+         il avait l'air ACCROCHÉ à elle, ce qui était signalé et juste.
+
+         Ce qui se passe réellement est en deux temps, et le premier était déjà
+         là sans le second. Un mât abattu tient d'abord dans ses propres
+         haubans et **traîne** : c'est ce qui rend un démâtage si dangereux, le
+         navire étant tiré par son épave au lieu d'en être quitte. Puis
+         l'équipage prend les haches, coupe les rides, et le tout part par le
+         travers et coule — le bois gorgé d'eau avec sa mâture et sa toile ne
+         flotte pas longtemps.
+
+         Il s'enfonce dans SON repère à elle plutôt que dans le monde, ce qui
+         évite tout à ce morceau d'épave : rien à recentrer quand l'origine
+         glisse, rien à sortir du graphe, rien à détruire. Et comme la mer est
+         opaque, il disparaît de lui-même en passant dessous — la même gratuité
+         que les planches de l'explosion. */
+      if(s.drag > 0){ s.drag -= dt; continue; }
+      s.sink += dt;
+      f.position.y = f.userData.heel - Math.min(14, 1.6*s.sink);
+      if(s.sink > 9) f.visible = false;
     }
   }
 

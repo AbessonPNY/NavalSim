@@ -708,11 +708,24 @@ Une conséquence gratuite : le bois étant opaque et la mer aussi, une planche q
 retombe **disparaît d'elle-même derrière l'eau**. La gerbe ne coûte rien parce
 qu'il n'y a pas de gerbe à écrire.
 
+**Une LUEUR LOCALE, et non plus la foudre.** Le premier jet réemployait
+`strike()`, au motif qu'une soute qui saute éclaire pont, toile et ciel
+ensemble. C'était faux, et signalé à l'usage : `strike()` blanchit **tout le
+ciel**, ce qui est juste quand l'orage est au-dessus d'elle et absurde pour une
+explosion, laquelle est une lumière *quelque part*. Le ciel qui vire d'un bloc
+se lisait comme un éclair mal placé, et il fallait un instant pour comprendre
+que le navire venait de sauter.
+
+Chaque charge porte donc sa propre lampe jaune, bornée à cinquante-cinq mètres :
+ce qui doit s'éclairer est elle et l'eau autour d'elle, pas l'horizon. Réserve
+fixe commutée par l'intensité, pour la raison mesurée du côté des canons — une
+lumière ajoutée puis retirée fait recompiler tous les matériaux, et trois
+charges en feraient six recompilations. Vérifié : le flash de ciel reste à
+**zéro** avant comme après, et la coque, le pont et la toile prennent le jaune.
+
 Tout le reste est en billboards. Du feu volumétrique serait des jours de travail pour un
 événement de trois secondes, et une douzaine de sprites bien cadencés se lisent
-mieux qu'un mauvais volume. L'éclair réutilise la **foudre** déjà câblée, qui
-éclaire pont, toile et ciel ensemble — exactement ce que fait une soute qui
-saute. Les textures sont dessinées sur un canvas, une page publiée ne pouvant
+mieux qu'un mauvais volume. Les textures sont dessinées sur un canvas, une page publiée ne pouvant
 pas aller chercher d'image.
 
 **Et le naufrage qui suit n'est pas un cas particulier** : `blowUp()` ouvre
@@ -2693,9 +2706,24 @@ pirate, 38,7 m :
 Un mât de quinze mètres fait le même parcours en **2,2 s** contre 3,6.
 
 **Elle s'arrête à quatre-vingts degrés**, pas à plat : un vrai mât passe
-par-dessus bord et **s'arrête net dans ses propres haubans**, ce qui est
-justement pourquoi un navire démâté est traîné par son gréement au lieu d'en
-être débarrassé. À quatre-vingt-dix, on lirait un arbre abattu.
+par-dessus bord et **s'arrête net dans ses propres haubans**. À quatre-vingt-dix,
+on lirait un arbre abattu.
+
+**Puis elle s'en débarrasse**, ce qui manquait et se voyait : arrêté là, le mât
+restait pour toujours couché en travers de son bord et la suivait partout — il
+avait l'air **accroché** à elle. Ce qui se passe réellement est en deux temps et
+le premier était là sans le second. Un mât abattu tient d'abord dans ses propres
+haubans et **traîne**, c'est ce qui rend un démâtage si dangereux — le navire
+est tiré par son épave au lieu d'en être quitte. Puis l'équipage prend les
+haches, coupe les rides, et le tout part par le travers et coule : du bois
+gorgé d'eau avec sa mâture et sa toile ne flotte pas longtemps.
+
+Il s'enfonce dans **son repère à elle** plutôt que dans le monde, ce qui épargne
+tout à ce morceau d'épave — rien à recentrer quand l'origine glisse, rien à
+sortir du graphe, rien à détruire. Et la mer étant opaque, il disparaît de
+lui-même en passant dessous, exactement comme les planches de l'explosion.
+Relevé : par terre à 4 s, il traîne jusqu'à 10, s'enfonce de 1,7 à −12,3 m et
+n'est plus là à 18 s.
 
 **Et la toile perdue est perdue pour de bon**, ce qui est la moitié de
 l'intérêt. Le modèle rend la fraction de gréement encore debout, pondérée par
