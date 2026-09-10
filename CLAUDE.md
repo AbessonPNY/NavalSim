@@ -2160,6 +2160,42 @@ grandissant en chemin — donc un cône et non une boule — avec un ordre de re
 qui empêche la fumée de l'avaler. De la lumière additive devant son propre nuage
 est exactement ce qu'est une lueur de bouche.
 
+**ET LA LUEUR ÉCLAIRE SON BORDÉ**, ce qui est une lumière et non un dessin. Le
+billboard à la volée est le feu qu'on voit ; ceci est ce que ce feu **fait** —
+un coup de jaune sur sa muraille, sur ses porte-haubans et sous la voile
+au-dessus, parti avant qu'on l'ait tout à fait vu. Un sprite ne sait pas le
+faire : il est devant le bois, pas dessus.
+
+**Une RÉSERVE, bâtie une fois et jamais remise dans la scène**, et c'est toute
+l'ingénierie de la chose. Three compile ses shaders contre le nombre de lumières
+qu'il voit, donc ajouter une lumière et la retirer un dixième de seconde plus
+tard fait recompiler **tous** les matériaux de la scène, deux fois, par pièce —
+une bordée serait une douzaine de recompilations complètes et une saccade
+visible. Elles sont donc créées au démarrage, laissées dans la scène, laissées
+**visibles**, et commutées par leur seule intensité : zéro est éteint, le compte
+de lumières ne change jamais, et rien n'est jamais reconstruit. Mesuré :
+
+| | programmes |
+|---|---|
+| réserve, allumée puis éteinte | 16 → **16** |
+| une lumière ajoutée à la scène | 16 → **18** |
+
+Et les retirer ne les rend pas : le coût est payé de nouveau au prochain ajout.
+
+Quatre lampes, parce qu'une bordée part en roulement : à un dixième de seconde
+chacune et autant d'intervalle, trois peuvent se chevaucher et quatre est
+confortable. La cinquième pièce à parler dans le dixième de seconde vole la plus
+ancienne, qui est invisible — une lueur déjà en train de mourir.
+
+Elle est posée un peu **en dehors** de la volée, la pièce tirant à travers sa
+muraille : posée sur la volée même, elle se trouve à l'intérieur d'elle et lui
+éclaire la batterie à travers la coque au lieu de ses œuvres mortes. Et elle est
+**bornée en portée** — neuf mètres sur un navire de trente, moins du tiers de sa
+longueur — parce qu'une lampe sans portée inonderait tout son bord et se lirait
+comme un éclair. Réglée au crépuscule, seul moment où l'on peut en juger : en
+plein soleil elle ne dispute rien au jour, de nuit elle serait tout ce qu'on
+voit.
+
 **Grise, et disparue en dix secondes plutôt qu'en vingt-deux.** Le blanc se lit
 comme de la vapeur ; c'est la grisaille autant que l'opacité qui fait lire
 quelque chose qui a **brûlé** et non quelque chose qui a bouilli. Et elle s'en

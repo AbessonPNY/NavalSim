@@ -118,6 +118,34 @@ Naval.Guns = class Guns {
     this.ballGeom = new THREE.SphereGeometry(0.55, 10, 7);
     this.ballMat = new THREE.MeshStandardMaterial({ color:0x14120f, roughness:0.62,
                                                     metalness:0.35 });
+
+    /* THE FLASH ON HER OWN PLANKING, and it is a real light rather than a
+       painted-on glow. The billboard at the muzzle is the fire one sees; this
+       is what that fire DOES — a stab of yellow across her side, her channels
+       and the underside of the sail above, gone before one has quite seen it.
+       A sprite cannot do that: it is in front of the timber, not on it.
+
+       A POOL, built once and never added to the scene again, and that is the
+       whole engineering of it. three.js compiles its shaders against the number
+       of lights it can see, so adding a light and removing it a tenth of a
+       second later recompiles EVERY material in the scene, twice, per gun — a
+       broadside would be a dozen full recompiles and a visible stall. They are
+       therefore all created at startup, all left in the scene, all left
+       VISIBLE, and switched by their intensity alone: nought is off, and the
+       light count never changes, so nothing is ever rebuilt.
+
+       Four of them because a broadside ripples: at a tenth of a second each and
+       an interval of about the same, three can overlap and four is comfortable.
+       The fifth gun to speak within a tenth of a second steals the oldest lamp,
+       which is invisible — a flash that has already begun to die. */
+    this.lamps = [];
+    for(let i=0;i<4;i++){
+      const L = new THREE.PointLight(0xffb454, 0, 1, 2);
+      L.castShadow = false;
+      scene.add(L);
+      this.lamps.push({ L, t:0, life:0, peak:0 });
+    }
+    this._lamp = 0;
   }
 
   /* Every puff gets its OWN orientation, and the bank turns slowly as it goes.
@@ -344,6 +372,30 @@ Naval.Guns = class Guns {
        ball leaves at some 440 m/s, so with the gases behind it a gun throws
        about three thousand kilogramme-metres a second back through its
        trunnions, six metres above her centre of gravity. */
+    /* Light her up. Set a little OUTBOARD of the muzzle, because the piece
+       fires through her side and the flash belongs outside the planking — put
+       at the muzzle itself it sits inside her and lights her gundeck through
+       the hull instead of her topsides.
+
+       Ranged, not global: a point light with a distance falls off to nothing at
+       that distance, so a dozen metres lights the strake around the port, the
+       channel above and the sea just under it, and leaves the rest of her to
+       the sun. That is what "localised" has to mean — a lamp with no range
+       would flood her whole side and read as lightning. */
+    const lp = this.lamps[this._lamp];
+    this._lamp = (this._lamp + 1) % this.lamps.length;
+    lp.L.position.copy(at).addScaledVector(out, 1.1*k);
+    /* Réglé à l'œil au crépuscule, qui est le seul moment où l'on peut juger :
+       en plein soleil la lueur ne dispute rien au jour, de nuit elle est tout
+       ce qu'on voit. Neuf mètres de portée sur un navire de trente, c'est moins
+       du tiers de sa longueur — le bordé autour du sabord, le livet au-dessus,
+       et la mer juste dessous ; l'autre bout d'elle reste dans le noir. */
+    lp.L.distance = 18*k;
+    lp.peak = 45*k*k;
+    lp.life = 0.10;
+    lp.t = 0;
+    lp.L.intensity = lp.peak;
+
     if(this.onRecoil) this.onRecoil(g, out, 3000*k*k);
   }
 
@@ -542,6 +594,17 @@ Naval.Guns = class Guns {
       this.fire(q.g, q.body, q.spec, q.wind);
       this._queue.splice(i,1);
     }
+    /* The flash dies fast and unevenly: a charge does not fade out, it goes.
+       The square makes the tail short so what is left is a stab and not a
+       lamp being turned down. */
+    for(const lp of this.lamps){
+      if(lp.life <= 0) continue;
+      lp.t += dt;
+      const u = lp.t/lp.life;
+      lp.L.intensity = u >= 1 ? 0 : lp.peak*(1-u)*(1-u);
+      if(u >= 1) lp.life = 0;
+    }
+
     const wx = wind ? wind.x : 0, wz = wind ? wind.z : 0;
 
     for(let i=this.live.length-1; i>=0; i--){
@@ -631,6 +694,8 @@ Naval.Guns = class Guns {
     // the instant it goes, and by then she has moved with the world herself
     for(const p of this.live){ p.p.x -= dx; p.p.z -= dz; p.m.position.copy(p.p); }
     for(const b of this.shot){ b.p.x -= dx; b.p.z -= dz; b.m.position.copy(b.p); }
+    // a lamp holds a position too, and lives long enough to cross a rebase
+    for(const lp of this.lamps){ lp.L.position.x -= dx; lp.L.position.z -= dz; }
   }
 
   dispose(){
