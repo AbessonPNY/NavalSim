@@ -243,6 +243,31 @@ Naval.SKY_GLSL = `
 Naval.SUN_UNIFORMS_GLSL =
   '#ifndef NAVAL_SUN_UNIFORMS\n#define NAVAL_SUN_UNIFORMS\nuniform vec3 uCam, uSun;\n#endif\n';
 
+/* WHAT SURVIVES OF THE SEA INSIDE A HARBOUR, as one shared GLSL function — and
+   the twin of World.shelter in world.js. The two are a MATCHED PAIR and the
+   pairing is the whole risk of this feature: it is a fraction of AMPLITUDE, so
+   the sea's vertex shader, the CPU sampler the buoyancy solver reads and the
+   foam pass must all apply it or they part company in silence, which is the
+   failure this project has already been bitten by over the Gerstner phase.
+
+   uHarbour is (centre.x, centre.z, outer radius, 1 = there is one), in LOCAL
+   metres, and uHarbourPass is the middle of the entrance. One harbour and not
+   four: they are seven miles apart and this reaches two hundred metres, so no
+   two can ever be in play at once — the page hands over the nearest.
+
+   The model is the honest one for a basin behind a wall. Everything that gets
+   in comes through the passe and spreads from it, so what is left falls off
+   with the distance from the mouth; outside the wall nothing changes at all. */
+Naval.SHELTER_GLSL = `
+  uniform vec4 uHarbour;
+  uniform vec2 uHarbourPass;
+  float shelterAt(vec2 p){
+    if(uHarbour.w < 0.5) return 1.0;
+    if(distance(p, uHarbour.xy) > uHarbour.z) return 1.0;
+    float u = clamp(distance(p, uHarbourPass) / (1.6*(uHarbour.z - 18.0)), 0.0, 1.0);
+    return 1.0 - u*u*(3.0 - 2.0*u)*0.88;
+  }`;
+
 /* The haze, also as one shared GLSL function.
    Everything the eye can see through air must use THIS, not a second fog model:
    the sea and the ship have to dim at the same rate or the vessel stays sharp

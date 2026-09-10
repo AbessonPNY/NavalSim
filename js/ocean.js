@@ -117,6 +117,9 @@ Naval.Ocean = class Ocean {
     this.profiles = new Naval.HullProfiles(C.MAX_SHIPS, 64);
     // where local (0,0,0) actually lies in the world — see syncPhase()
     this.origin = new THREE.Vector3();
+    /* Donné par la page. Sans lui, pas d'abri au CPU — et un havre calme à
+       l'œil dans lequel la coque continue de rouler. */
+    this.world = null;
     /* What each spectral band looked like the last time she was built, and the
        phase correction that keeps her continuous across a rebuild. Kept per
        BAND rather than per entry of `waves`, which is sorted by energy and so
@@ -148,6 +151,11 @@ Naval.Ocean = class Ocean {
       THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
       {
         uTime:{value:0},
+        /* Le havre le plus proche, en mètres LOCAUX : la page le réécrit à
+           chaque image, comme tout ce qui tient une position ici. w = 0 quand
+           il n'y en a aucun en vue, et la fonction rend alors 1 tout de suite. */
+        uHarbour:{value:new THREE.Vector4(0,0,1,0)},
+        uHarbourPass:{value:new THREE.Vector2()},
         uWaveA:{value:Array.from({length:C.NWAVES},()=>new THREE.Vector4())}, // dx,dz,amp,k
         uWaveB:{value:Array.from({length:C.NWAVES},()=>new THREE.Vector2())}, // omega,Q
         // phase the floating origin owes each wave, reduced mod 2π
@@ -222,7 +230,7 @@ Naval.Ocean = class Ocean {
       // the sea carries its own layered haze; Three's flat fog would double it
       fog:false,
       defines:{NW:C.NWAVES, NSHIP:C.MAX_SHIPS},
-      vertexShader:`
+      vertexShader: Naval.SHELTER_GLSL + `
         uniform float uTime, uHalf, uSeg, uSharp; uniform vec4 uWaveA[NW]; uniform vec2 uWaveB[NW];
         uniform float uWavePhase[NW];
         uniform mat4 uReflMat;
@@ -254,6 +262,7 @@ Naval.Ocean = class Ocean {
           vec3 w0 = (modelMatrix * vec4(lp,1.0)).xyz;
           vec3 p = w0; vec3 n = vec3(0.0);
           float steep = 0.0, height = 0.0;
+          float shelter = shelterAt(w0.xz);
 
           for(int i=0;i<NW;i++){
             vec2 d = uWaveA[i].xy; float amp=uWaveA[i].z; float k=uWaveA[i].w;
@@ -269,6 +278,12 @@ Naval.Ocean = class Ocean {
                buoyancy solver samples. */
             float lambda = 6.28318530718 / k;
             amp *= smoothstep(2.5, 6.0, lambda / spacing);
+            /* Et ce qui reste d'elle dans le havre. Contrairement au terme
+               ci-dessus, qui est de l'anticrénelage et n'appartient donc qu'au
+               maillage, celui-ci est de la PHYSIQUE : le solveur et l'écume le
+               lisent aussi, sans quoi elle flotterait sur une mer que l'œil ne
+               voit pas. */
+            amp *= shelter;
 
             float f = k*dot(d, w0.xz) - omega*uTime + uWavePhase[i];
             float c = cos(f), s = sin(f);
@@ -972,6 +987,15 @@ Naval.Ocean = class Ocean {
   sample(x, z, t, outNormal){
     let y = 0, nx = 0, nz = 0, ny = 0;
     const src = this.cpuWaves || this.waves;
+    /* LE TROISIÈME CALCULATEUR, et celui qui compte le plus : c'est cette
+       hauteur-là que la grille de sondes lit. Le `world` est donné par la page,
+       et l'abri se prend en mètres MONDE puisque c'est là que le havre est
+       défini — la mer, elle, travaille déjà en monde pour cette raison exacte.
+       L'oublier ici ferait flotter la coque sur une mer que l'œil ne voit pas,
+       ce qui est précisément la panne silencieuse contre laquelle la phase de
+       Gerstner s'était déjà retournée. */
+    const sh = this.world
+      ? this.world.shelter(x + this.origin.x, z + this.origin.z) : 1;
     for(let i=0;i<src.length;i++){
       const w = src[i];
       const f = w.k*(w.dx*x + w.dz*z) - w.omega*t + (w.phase || 0);
@@ -979,8 +1003,9 @@ Naval.Ocean = class Ocean {
       // the very same sharpened profile the vertex shader draws
       const as = Math.abs(sn);
       const sp = Math.pow(Math.max(as, 1e-4), this.sharp - 1);
-      y += w.amp * Math.sign(sn) * as * sp;
-      const WA = w.k * w.amp * this.sharp * sp;
+      const amp = w.amp * sh;
+      y += amp * Math.sign(sn) * as * sp;
+      const WA = w.k * amp * this.sharp * sp;
       nx -= w.dx * WA * c;
       nz -= w.dz * WA * c;
       ny -= w.Q  * WA * sn;

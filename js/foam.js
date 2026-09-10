@@ -56,6 +56,8 @@ Naval.FoamField = class FoamField {
       uTime:{value:0},
       uSeed:{value:0},
       // shared with the sea, so waves and hull can never disagree
+      uHarbour: oceanUniforms.uHarbour,          // les objets de la mer, pas des copies
+      uHarbourPass: oceanUniforms.uHarbourPass,
       uWaveA: oceanUniforms.uWaveA,
       uWaveB: oceanUniforms.uWaveB,
       uWavePhase: oceanUniforms.uWavePhase,
@@ -75,7 +77,7 @@ Naval.FoamField = class FoamField {
       vertexShader:`
         varying vec2 vUv;
         void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
-      fragmentShader:`
+      fragmentShader: Naval.SHELTER_GLSL + `
         precision highp float;
         uniform sampler2D uPrev;
         uniform vec2 uOffsetUV, uOrigin;
@@ -103,8 +105,10 @@ Naval.FoamField = class FoamField {
 
           // --- fresh foam where a crest is breaking ---
           float steep = 0.0;
+          // le même abri que la mer et que le solveur, ou le havre écumerait
+          float shelter = shelterAt(wpos);
           for(int i=0;i<NW;i++){
-            vec2 d = uWaveA[i].xy; float amp=uWaveA[i].z; float k=uWaveA[i].w;
+            vec2 d = uWaveA[i].xy; float amp=uWaveA[i].z*shelter; float k=uWaveA[i].w;
             float omega=uWaveB[i].x; float Q=uWaveB[i].y;
             float f = k*dot(d, wpos) - omega*uTime + uWavePhase[i];
             steep += Q*k*amp*max(sin(f), 0.0);

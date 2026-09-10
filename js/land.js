@@ -81,6 +81,21 @@ Naval.Land = class Land {
     mesh.receiveShadow = true;
     mesh.castShadow = false;         // a whole island's shadow map is not worth it
     mesh.userData.island = isl;
+
+    /* And her PORT goes on as a child of the island, which is what makes the
+       floating origin free for it: this mesh is the thing that gets moved
+       against the current origin every frame, so anything parented to it is
+       recentred for nothing and can never drift off its own beach. Written as
+       a sibling it would have needed its own place in the rebase, which is the
+       list this project has already forgotten something on twice. */
+    if(this.jetty && isl.port){
+      /* Le môle d'abord : c'est lui le havre, le ponton n'est que ce à quoi on
+         s'amarre dedans. */
+      const w = this.jetty.mole(this.world, isl);
+      if(w){ mesh.add(w); if(this.onNewProp) this.onNewProp(w); }
+      const j = this.jetty.make(this.world, isl);
+      if(j){ mesh.add(j); if(this.onNewProp) this.onNewProp(j); }
+    }
     return mesh;
   }
 

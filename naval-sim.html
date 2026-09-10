@@ -158,6 +158,7 @@
       <div class="barmeter center"><i id="rudBar"></i></div>
       <div class="telegraph" id="rudTele">— gouvernail droit —</div>
       <div class="keys"><kbd>A</kbd><kbd>D</kbd> barre · <kbd>Espace</kbd> stop</div>
+      <div class="keys"><kbd>M</kbd> larguer les amarres</div>
     </div>
     <div class="helm-col">
       <div class="helm-head"><span class="k">Écoutes</span><span class="v" id="shtText">40°</span></div>
@@ -245,6 +246,7 @@
 <script src="js/cordage.js"></script>
 <script src="js/world.js"></script>
 <script src="js/land.js"></script>
+<script src="js/jetty.js"></script>
 <script src="js/gulls.js"></script>
 <script src="js/chart.js"></script>
 <script src="js/explosion.js"></script>
@@ -272,8 +274,23 @@ async function main(){
   /* The world she sails in, and the land drawn out of it. The land breathes the
      same air as everything else, so each new island is hazed as it appears. */
   const world = new Naval.World();
+  /* Sans cela l'abri du havre n'existe qu'à l'œil : c'est cet échantillonneur
+     que la grille de sondes lit, et la coque continuerait de rouler dans un
+     bassin que le shader dessine plat. */
+  ocean.world = world;
   const land  = new Naval.Land(stage.scene, world, stage);
   land.onNew = m => { Naval.applyHaze(m.material, ocean.uniforms); };
+
+  /* Le ponton de chaque port. Chargé UNE fois avant que la première île ne
+     soit bâtie, pour que Land puisse la doter de son port à l'instant où il
+     décide de la construire — sinon il faudrait retenir les îles déjà faites
+     et y revenir, ce qui est la liste qu'on oublie. */
+  const jetty = new Naval.Jetty();
+  await jetty.load();
+  land.jetty = jetty;
+  land.onNewProp = g => g.traverse(o => {
+    if(o.material) Naval.applyHaze(o.material, ocean.uniforms);
+  });
 
   /* Gulls, which are simply part of the land: they appear with it and leave
      with it. Hazed like everything else, or they would hang in front of the
@@ -563,6 +580,10 @@ async function main(){
   });
 
   let spec, lines, ship, physics, cam, hud, t = 0, trimPending = false, lost = false;
+  let startHeading = 0, startPort = null, mooringsPending = false, atBerth = false;
+  let berthOff = 0;
+  const berthAt = new THREE.Vector3();
+  const UP = new THREE.Vector3(0, 1, 0);
   const lostMsg = document.getElementById("lost");
   const lostBox = new THREE.Box3();
   const worldPos = new THREE.Vector3(), chartHdg = new THREE.Vector3();
@@ -668,6 +689,10 @@ async function main(){
         if(held) guns.broadside(ship.guns, side, physics.body, spec, ocean.windVec);
         else     guns.fireOne(ship.guns, side, physics.body, spec, ocean.windVec);
       };
+      controls.onCastOff = ()=> {
+        const n = physics.castOff();
+        if(hud.say) hud.say(n ? 'Amarres larguées' : 'Elle est déjà libre');
+      };
       controls.onSalvage  = ()=> {
         physics.salvage();
         ship.restoreMasts();
@@ -683,6 +708,25 @@ async function main(){
       cam.setSpec(spec);
     }
     hud.setSpec(spec, physics);
+
+    /* AMARRÉE AVANT DE S'ASSEOIR, et dans cet ordre. `settle()` fait tourner le
+       vrai solveur mille deux cents fois, échouage compris, donc son cap n'est
+       pas décoratif pendant qu'elle s'installe : posée en travers du poste elle
+       trouverait le fond avec un bord au lieu de sa quille. Une seule fois — un
+       changement de navire en pleine mer ne doit pas la renvoyer au port. */
+    /* ELLE EST AU POSTE OU ELLE NE L'EST PAS, et c'est une QUESTION DE LIEU et
+       non de rang. La condition était « au premier armement », ce qui a coûté
+       un bug signalé à l'usage : `settle()` repose toujours la coque au zéro
+       LOCAL, donc changer de navire la ramène au poste de toute façon — mais
+       sans cap et sans amarres, si bien que la Roter Löwe arrivait en travers
+       du ponton, collée dessus. Un drapeau « déjà fait » ne pouvait pas le
+       voir ; la position, oui. */
+    atBerth = !!startPort &&
+      Math.hypot(ocean.origin.x - berthAt.x, ocean.origin.z - berthAt.z) < 60;
+    if(atBerth){
+      physics.body.quat.setFromAxisAngle(UP, startHeading);
+      mooringsPending = true;
+    }
 
     // Let her find her flotation in flat water before a frame is drawn, then
     // restore the sea state the console is asking for.
@@ -716,10 +760,181 @@ async function main(){
     // a new hull is an empty hull: the stowage plan must say so
     refreshStow();
     trimPending = true;
+    /* ET ON LA GARDE À QUAI. Sans cela le « départ au port » ne tient pas une
+       minute : rien ne retient une coque libre, le vent la fait éviter et elle
+       s'en va sur le ponton — vérifié, trente degrés d'abattée en quelques
+       secondes. Quatre bouts, comme on amarre vraiment : une amarre de proue,
+       une de poupe, et deux gardes qui l'empêchent de ranger le long du quai.
+
+       Les points de touage sont pris sur le PORT et non sur le maillage du
+       ponton, pour que cela tienne aussi bien avec le ponton construit ici
+       qu'avec celui que l'on fournira. */
+    if(mooringsPending){
+      mooringsPending = false;
+      const p = startPort.port;
+      const ca = Math.cos(p.ang), sa = Math.sin(p.ang);
+      const hw = jetty.width*0.5;
+      const deck = spec.deckMid || 2, L = spec.L;
+
+      /* ET ELLE S'ÉCARTE DE CE QU'IL FAUT POUR SON PROPRE BAU. Le poste a été
+         calé une fois pour toutes sur le premier navire ; une coque plus large
+         qui vient s'y ranger chevaucherait le ponton d'autant. On ne déplace
+         pas le poste — ce serait un recentrage, et le recentrage a sa propre
+         liste de choses à décaler — on écarte la COQUE, en local, de la
+         différence. Deux mètres de côté après le settle ne changent rien à la
+         profondeur qu'elle vient d'y trouver. */
+      const besoin = hw + (spec.B || 8)*0.5 + 4.5;
+      const ecart = besoin - berthOff;
+      if(Math.abs(ecart) > 0.05){
+        physics.body.pos.x += -sa*ecart;
+        physics.body.pos.z +=  ca*ecart;
+      }
+
+      /* ET ELLE SE RANGE PLUS AU LARGE SI ELLE CALE PLUS PROFOND, ce qui est
+         ce qu'un quai fait vraiment : le fond remonte vers la plage, donc les
+         petits fonds sont pour les petits navires et les gros vont au bout.
+
+         Le poste avait été calé sur le premier navire, un chaland qui tire un
+         mètre quatre-vingt-sept ; les quatre autres talonnaient de trente
+         centimètres à peine posées, la frégate de deux mille tonneaux en tête.
+         On la fait donc marcher vers le musoir jusqu'à trouver l'eau qu'il lui
+         faut — un mètre et demi sous la quille, la même marge que `navigable`
+         emploie — et pas plus loin que le musoir, au-delà duquel il n'y a plus
+         de quai contre lequel s'amarrer. Elle n'y arrive pas toujours : une
+         coque trop profonde pour ce port reste trop profonde pour ce port, et
+         le dire est plus honnête que de creuser la baie sous elle. */
+      /* Deux mètres six et non un mètre cinq sous la quille : `navigable` parle
+         d'un navire qui PASSE, et un navire qui reste s'y fait poser par la
+         houle plusieurs fois par minute. */
+      const besoinFond = physics.draft + 2.6;
+      const limite = p.shoreR + p.reach;              // le musoir
+      /* SOUS SES EXTRÉMITÉS, pas sous son milieu — la même leçon que l'échouage,
+         qui se sonde en trois points pour cette raison exacte. Le fond remonte
+         vers la plage, donc sa poupe est toujours dans moins d'eau que son
+         nombril : sondée au centre seul, elle se rangeait dans sept mètres et
+         talonnait quand même de vingt-neuf centimètres, de l'arrière. */
+      const sonde = () => {
+        let pire = 99;
+        for(const dz of [L*0.46, 0, -L*0.46]){
+          const wx = ocean.origin.x + physics.body.pos.x + ca*dz;
+          const wz = ocean.origin.z + physics.body.pos.z + sa*dz;
+          pire = Math.min(pire, -world.heightAt(wx, wz));
+        }
+        return pire;
+      };
+      for(let k=0; k<40; k++){
+        if(sonde() >= besoinFond) break;
+        const wx = ocean.origin.x + physics.body.pos.x;
+        const wz = ocean.origin.z + physics.body.pos.z;
+        const rNow = (wx - startPort.x)*ca + (wz - startPort.z)*sa;
+        if(rNow >= limite) break;                     // plus rien devant elle
+        physics.body.pos.x += ca*1.5;
+        physics.body.pos.z += sa*1.5;
+      }
+      physics.body.pos.y = hud.eqY;                   // elle reflotte de ce qu'elle a gagné
+      physics.aground = 0;
+      const b0 = physics.body, pw = new THREE.Vector3();
+
+      /* LES BITTES SE PRENNENT EN FACE DE SES ÉCUBIERS, pas le long du ponton.
+         Réparties d'avance sur la longueur du quai, elles tombent n'importe où
+         par rapport au navire qui vient s'y ranger : relevé, des bouts de 30 m
+         sur un chaland de 28 — soit trente mètres de mou avant que quoi que ce
+         soit ne raidisse. On amarre dans l'autre sens. On prend l'écubier, on
+         cherche la bitte en face, et l'amarre porte de biais de quelques
+         mètres, dans le sens où elle doit retenir : une amarre de proue élonge
+         vers l'avant, une garde montante vers l'arrière, et c'est ce croisement
+         qui l'empêche de ranger le long du quai. */
+      const R0 = p.shoreR - 6, R1 = p.shoreR + p.reach;   // racine et musoir
+      const ligne = (lz, lead, push) => {
+        pw.set(0, deck, lz).applyQuaternion(b0.quat).add(b0.pos);
+        const wx = ocean.origin.x + pw.x, wz = ocean.origin.z + pw.z;
+        // sa position le long du ponton, par projection sur son axe
+        const along = (wx - startPort.x)*ca + (wz - startPort.z)*sa;
+        const r = Math.max(R0 + 2, Math.min(R1 - 2, along + lead));
+        const m = { lx:0, ly:deck, lz,
+                    wx: startPort.x + ca*r - sa*hw,
+                    wz: startPort.z + sa*r + ca*hw,
+                    wy: jetty.deckY + 0.6 };
+        const d0 = Math.hypot(m.wx - ocean.origin.x - pw.x,
+                              m.wy - pw.y,
+                              m.wz - ocean.origin.z - pw.z);
+        /* Un bout se frappe un peu plus long que la distance, une défense se
+           cale exactement dessus : à sa longueur au repos elle ne pousse pas,
+           et pousse dès qu'on entame son épaisseur. */
+        if(push){ m.push = true; m.len = d0; }
+        else m.len = d0 + 0.5;
+        return m;
+      };
+
+      /* ET LE MOU LUI EST RENDU, le havre étant fermé. Il avait fallu le lui
+         retirer — quinze centimètres, un boulon plutôt qu'une amarre — parce
+         que dans une échancrure ouverte un demi-mètre de mou la laissait
+         promener ses extrémités sur des fonds que son milieu ne voyait jamais.
+         Le môle a supprimé la cause : 0,35 m de hauteur significative au poste
+         contre 2,29 au large, soit la mer divisée par six et demi. On peut donc
+         de nouveau l'amarrer comme on amarre — elle évite un peu, range dans le
+         clapot du bassin et raidit quand elle a filé son mou.
+
+         Les gardes restent élongées de cinq mètres : ce sont elles qui la
+         tiennent de l'avant et de l'arrière, une amarre qui traverse par le
+         travers ne retenant rien dans le sens du quai. */
+      physics.moorings = [
+        ligne( L*0.46,  7),      // amarre de proue, élongée vers l'avant
+        ligne(-L*0.46, -7),      // amarre de poupe, vers l'arrière
+        ligne( L*0.30, -5),      // garde montante
+        ligne(-L*0.30,  5),      // garde descendante
+        /* ET DEUX DÉFENSES, sans quoi rien ne la tient ÉCARTÉE : un cordage
+           tire et ne pousse jamais, donc un vent qui la met au quai la fait
+           traverser le ponton pendant que ses quatre bouts pendent mous. C'est
+           le quai qui tient un navire à distance du quai, pas ses amarres.
+           Frappées par le travers, à l'avant et à l'arrière, là où l'on pose
+           réellement un paillet. */
+        ligne( L*0.34, 0, true),
+        ligne(-L*0.34, 0, true)
+      ];
+    }
+
     // a fresh vessel is not the lost one, whatever became of her predecessor
     lost = false;
     lostMsg.hidden = true;
     t = 0;
+  }
+
+  /* ELLE COMMENCE À QUAI, et c'est l'origine flottante qui le permet sans une
+     ligne de cas particulier : `settle()` pose toujours la coque au zéro LOCAL, donc
+     il suffit de dire où ce zéro se trouve réellement dans le monde et elle s'y
+     assoit — sondes, échouage et tirant d'eau compris, puisque le solveur tourne
+     pendant qu'elle s'installe.
+
+     Le poste est bord à bord du musoir : la moitié de la largeur du ponton, la
+     moitié de son bau, et de quoi passer un défense entre les deux. Le cap est
+     PARÉ À SORTIR — elle est mouillée l'étrave au large — parce qu'un navire
+     qu'on prend en main doit pouvoir faire servir sans commencer par un
+     demi-tour dans un cul-de-sac. */
+  {
+    const home = world.byKey('port-royal');
+    const p = home.port, B = specs[0].B || 8;
+    const ca = Math.cos(p.ang), sa = Math.sin(p.ang);
+    /* Demi-ponton, demi-bau, et QUATRE MÈTRES ET DEMI de dégagement. Un mètre
+       quatre suffit à ne pas toucher un quai quand on y est tenu court, et pas
+       du tout quand la coque évite sur ses bouts dans une baie ouverte : elle
+       venait frotter le bordage. Le dégagement fait le travail que l'abri
+       ferait, en attendant l'abri. */
+    const off = jetty.width*0.5 + B*0.5 + 4.5;
+    /* Et RENTRÉE sous le musoir, pas à cheval dessus. Le centre posé en face de
+       la tête du ponton lui fait dépasser de la moitié de sa longueur : son
+       amarre de proue n'a alors plus de bitte devant elle et se retrouve élongée
+       de seize mètres vers l'arrière, ce qui est du mou et non une amarre. Elle
+       se range donc le long du quai comme un navire s'y range. Borné à la moitié
+       de la longueur du ponton, faute de quoi une grande coque irait chercher le
+       fond en remontant vers la plage. */
+    const rentre = Math.min((specs[0].L || 28)*0.45, p.reach*0.5);
+    const R = p.shoreR + p.reach - rentre;
+    ocean.rebase(home.x + ca*R - sa*off, home.z + sa*R + ca*off);   // le zéro local EST le poste
+    startHeading = Math.atan2(ca, sa);              // étrave au large, le long du ponton
+    startPort = home;
+    berthAt.set(ocean.origin.x, 0, ocean.origin.z);   // en mètres monde, une fois pour toutes
+    berthOff = off;
   }
 
   await commission(0);
@@ -1095,6 +1310,26 @@ async function main(){
        local coordinates mean nothing to land that has to stay where it is. */
     worldPos.set(ocean.origin.x + physics.body.pos.x, 0,
                  ocean.origin.z + physics.body.pos.z);
+
+    /* LE HAVRE LE PLUS PROCHE, en mètres locaux, réécrit à chaque image comme
+       tout ce qui tient une position ici. Un seul : ils sont à sept milles les
+       uns des autres et l'abri porte à deux cents mètres, donc deux ne peuvent
+       jamais être en jeu ensemble. */
+    {
+      let best = null, bd = 1e9;
+      for(const isl of world.isles){
+        const H = isl.port && isl.port.harbour;
+        if(!H) continue;
+        const d = Math.hypot(H.cx - worldPos.x, H.cz - worldPos.z);
+        if(d < bd){ bd = d; best = H; }
+      }
+      const u = ocean.uniforms;
+      if(best && bd < 4000){
+        u.uHarbour.value.set(best.cx - ocean.origin.x, best.cz - ocean.origin.z,
+                             best.r + best.wall, 1);
+        u.uHarbourPass.value.set(best.px - ocean.origin.x, best.pz - ocean.origin.z);
+      }else u.uHarbour.value.w = 0;
+    }
     land.update(worldPos, ocean.origin);
     gulls.update(dt, worldPos, ocean.origin);
     /* Asked here, where her TRUE position is known and before anything wants

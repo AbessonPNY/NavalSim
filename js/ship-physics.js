@@ -88,6 +88,9 @@ Naval.ShipPhysics = class ShipPhysics {
     this.world = null;                     // set by the page; without it she never touches
     this.touching = 0;                     // metres her side is INTO another hull
     this.neighbours = null;                // the other hulls afloat, set by the page
+    /* Her lines to the shore. Empty at sea, which is the usual case, so this
+       costs a length test a frame and nothing else. */
+    this.moorings = [];
     this.foundered = false;
     this.pumpOn = true;
     /* Pumps are sized so that ONE modest hole is just beatable and two are not
@@ -573,6 +576,76 @@ Naval.ShipPhysics = class ShipPhysics {
     }
   }
 
+  /* MADE FAST, and it is the ground and the hulls written a third time — a
+     stiff spring, heavily damped, applied AT the point it acts on, so she is
+     held, swung and brought up exactly as the geometry demands. Nothing decides
+     she is alongside; the ropes do, the same way nothing decides she floats.
+
+     WITH ONE DIFFERENCE, and it is the whole character of a rope: it pulls and
+     it never pushes. Below its own length a line is slack and does nothing at
+     all, so she lies to her moorings with a little play in them, ranging in the
+     swell and snubbing up when she has run out — which is what a moored ship
+     actually does, and what a pair of stiff springs to a fixed point would not
+     do. She would sit as though bolted to the pier.
+
+     The bollards are held in TRUE WORLD metres and converted here. Local ones
+     would have to be added to the list of things that shift at a rebase, which
+     is the list this project has already forgotten something on twice — and
+     unlike the spray, a mooring that missed a rebase would drag her fifteen
+     hundred metres in one frame. */
+  _moor(dt, force, torque, cog, ocean){
+    const M = this.moorings;
+    if(!M || !M.length) return;
+    const b = this.body, C = this.C;
+    const ox = ocean ? ocean.origin.x : 0, oz = ocean ? ocean.origin.z : 0;
+    // she takes her own weight at eighty centimetres of stretch: hemp, not steel
+    const kLine = b.mass*C.G/0.8;
+
+    for(const m of M){
+      this._pw.set(m.lx, m.ly, m.lz).applyQuaternion(b.quat).add(b.pos);  // the fairlead
+      this._nrm.set(m.wx - ox - this._pw.x,
+                    (m.wy || 0)    - this._pw.y,
+                    m.wz - oz - this._pw.z);
+      const d = this._nrm.length();
+      if(d < 1e-4) continue;
+      /* A ROPE AND A FENDER ARE THE SAME SPRING WITH THE SIGN TURNED ROUND, and
+         a berth needs both. A line pulls when it has run out and does nothing
+         at all when it has not; a fender pushes when she comes closer than its
+         thickness and does nothing when she has not. Written with ropes alone
+         a ship cannot be held ALONGSIDE anything — nothing whatever stops her
+         coming ON, so a wind setting her onto the pier walks her straight
+         through it while every line hangs slack. Which is what happened, and
+         it is obvious in hindsight: it is the pier that holds a ship off a
+         pier, not her ropes. */
+      if(m.push ? (d >= m.len) : (d <= m.len)) continue;
+      this._nrm.divideScalar(d);
+
+      this._r.copy(this._pw).sub(cog);
+      // the speed of THIS point, so the damping fights the real motion
+      this._tmp.copy(b.angVel).cross(this._r).add(b.vel);
+      const closing = this._tmp.dot(this._nrm);     // toward the bollard is positive
+      /* One expression for both: the rope wants d down to len, the fender wants
+         d up to len, so the stretch simply changes sign — and so does the sense
+         in which "closing" is the motion the damping should fight. */
+      const sgn = m.push ? -1 : 1;
+      let pull = sgn*(kLine*(d - m.len)) - sgn*closing*b.mass*0.9;
+      if(pull <= 0) continue;
+      pull *= sgn;
+      /* Capped at a weight and a half. A rope parts, and even before it parts
+         there is no sense in a line hauling harder than the ship weighs — an
+         uncapped spring plus a large step is how a solver throws a hull into
+         the sky. */
+      pull = sgn*Math.min(Math.abs(pull), b.mass*C.G*1.5);
+
+      this._fVec.copy(this._nrm).multiplyScalar(pull);
+      force.add(this._fVec);
+      torque.add(this._mom.crossVectors(this._r, this._fVec));
+    }
+  }
+
+  // Cast off: she is her own again.
+  castOff(){ const n = this.moorings.length; this.moorings.length = 0; return n; }
+
   /* The magazine goes up: her bottom is opened from end to end at once.
 
      Not a special sinking path — the same flooding as any other, with every
@@ -853,6 +926,7 @@ Naval.ShipPhysics = class ShipPhysics {
     this._sails(ctrl, ocean, cog, force, torque, fwd, right);
     this._ground(dt, force, torque, cog, ocean);
     this._collide(dt, force, torque, cog);
+    this._moor(dt, force, torque, cog, ocean);
 
     // --- integrate linear ---
     b.vel.addScaledVector(force, dt/b.mass);

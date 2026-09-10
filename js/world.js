@@ -1,65 +1,73 @@
 /* The world outside the ship: where the land is, and where SHE is.
  *
- * There is no map file and there never will be one. The islands are a pure
- * function of position — a hash over a coarse grid of cells, one island in
- * roughly half of them — so the sea is endless, identical on every machine and
- * in every session, and costs nothing to store. Sail back to 40° N and the same
- * island is there, with the same bays.
+ * FOUR ISLANDS, EACH WITH A PORT, and this is a deliberate change of mind.
  *
- * Everything here works in TRUE WORLD metres, never in the local coordinates
- * the renderer uses. The floating origin slides local zero around as she sails
- * (see Ocean.syncPhase); if the land were placed in local coordinates it would
- * swim away from under her at every rebase. Callers convert on the way out.
+ * The islands used to be a pure function of position — a hash over a coarse
+ * grid, one island in roughly half the cells — so the sea was endless and cost
+ * nothing to store. That was the right shape for a world with nothing in it:
+ * an infinity of anonymous land is worth more than four bits of it, right up
+ * until the moment there is something to sail BETWEEN. A named port one can
+ * leave and return to is worth more than ten thousand nameless bays, and one
+ * cannot name what one has not decided on.
+ *
+ * So the hash is gone and a table of four takes its place. What survives is the
+ * part of the old rule that was actually load-bearing: this is still a pure
+ * function of position with no state and no file to load, and it still answers
+ * in TRUE WORLD metres, never in the local coordinates the renderer uses. The
+ * floating origin slides local zero around as she sails (see Ocean.syncPhase);
+ * land placed in local coordinates would swim out from under her at every
+ * rebase. Callers convert on the way out.
+ *
+ * The sea beyond them is empty, and that is the price. Sail west from La Tortue
+ * and there is nothing, for ever.
  */
 window.Naval = window.Naval || {};
 
+/* An archipelago of the buccaneering years, laid out like the Windwards it is
+   modelled on: a chain running roughly north and south with one island out to
+   the east, ten to twenty kilometres apart — far enough that a passage is a
+   passage, near enough that one raises the next before losing the last.
+
+   Every name is a real port of the period. Port-Royal was the great one and is
+   where she starts; La Tortue was the buccaneers' own; Saint-Pierre was the
+   richest town in the French islands; Le Carénage is what the anchorage at
+   Sainte-Lucie was called long before anybody called it Castries — a bay one
+   went to in order to careen, which is exactly what a port is for here. */
+Naval.ARCHIPELAGO = [
+  { key:'port-royal',  name:'Port-Royal',   x:  12000, z: -7000,
+    r:4200, h:280, lobes:4, phase:0.9,  rough:0.44 },
+  { key:'carenage',    name:'Le Carénage',  x:   1500, z:  3000,
+    r:3100, h:520, lobes:3, phase:2.4,  rough:0.52 },
+  { key:'saint-pierre',name:'Saint-Pierre', x:  -2000, z: 16000,
+    r:3600, h:430, lobes:5, phase:5.1,  rough:0.38 },
+  { key:'tortue',      name:'La Tortue',    x:  -9000, z: -9000,
+    r:2600, h:240, lobes:3, phase:3.7,  rough:0.60 }
+];
+
 Naval.World = class World {
-  constructor(seed){
-    this.seed = seed == null ? 20260911 : seed;
-    this.cell = 5200;            // metres between candidate islands
-    this.chance = 0.46;          // how many cells actually hold one
-    this._meshes = new Map();    // island key → built geometry, cached
+  constructor(){
+    /* How far the bottom keeps falling away beyond the shore line, in METRES
+       and not as a fraction of the island. It used to be 0,35 of the radius,
+       which was invisible while every island was a few hundred metres across
+       and absurd the moment they became kilometres: a four-kilometre island
+       had a mile and a half of wading depth round it, so nothing could lie
+       alongside anything and a jetty would have had to be a causeway. A shelf
+       is a few hundred metres wide whatever the island behind it is doing. */
+    this.shelf = 240;
+    this.deep = 70;              // how deep it is once past the shelf
+
+    this.isles = Naval.ARCHIPELAGO.map(t => Object.assign({}, t));
+    for(const isl of this.isles) isl.port = this._port(isl);
   }
 
-  /* A stable hash of two cell indices and a channel. Integer-safe over the
-     range a ship can reach in any plausible voyage. */
-  _h(i, j, k){
-    let n = (i*374761393 + j*668265263 + k*1274126177 + this.seed) | 0;
-    n = (n ^ (n >>> 13)) * 1274126177 | 0;
-    n = (n ^ (n >>> 16)) >>> 0;
-    return n / 4294967296;
-  }
+  byKey(key){ return this.isles.find(i => i.key === key) || null; }
 
-  /* The island in cell (i,j), or null. Its centre is jittered well inside the
-     cell so two neighbours can never touch, whatever their radii. */
-  island(i, j){
-    if(this._h(i, j, 0) > this.chance) return null;
-    const c = this.cell;
-    const r = 420 + this._h(i, j, 1)*1350;              // 0.4 to 1.8 km across
-    const room = c*0.5 - r - 260;                        // keep clear of the seam
-    return {
-      key: i + ':' + j,
-      x: (i + 0.5)*c + (this._h(i, j, 2) - 0.5)*2*room,
-      z: (j + 0.5)*c + (this._h(i, j, 3) - 0.5)*2*room,
-      r,
-      h: 40 + this._h(i, j, 4)*230,                      // summit, metres
-      lobes: 3 + Math.floor(this._h(i, j, 6)*4),
-      phase: this._h(i, j, 5)*6.2831853,
-      rough: 0.30 + this._h(i, j, 7)*0.45
-    };
-  }
-
-  /* Every island whose LAND could reach within `range` of a world point. */
+  /* Every island whose land could reach within `range` of a world point.
+     Four of them, so this is a filter rather than a search. */
   near(x, z, range){
-    const c = this.cell, out = [];
-    const i0 = Math.floor((x - range)/c), i1 = Math.floor((x + range)/c);
-    const j0 = Math.floor((z - range)/c), j1 = Math.floor((z + range)/c);
-    for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
-      const isl = this.island(i, j);
-      if(!isl) continue;
-      const d = Math.hypot(isl.x - x, isl.z - z);
-      if(d < range + isl.r*1.6) out.push(isl);
-    }
+    const out = [];
+    for(const isl of this.isles)
+      if(Math.hypot(isl.x - x, isl.z - z) < range + isl.r*1.6) out.push(isl);
     return out;
   }
 
@@ -74,27 +82,123 @@ Naval.World = class World {
       + 0.06*isl.rough*Math.sin(a*(isl.lobes*3 + 2) + 4.1));
   }
 
+  /* WHERE THE PORT IS, and it is not chosen — it is read off the island.
+
+     A harbour is a bight, so the port stands on the bearing where the shore
+     comes in CLOSEST to the middle of the island: that is the deepest bite out
+     of the coast, the one with land on either hand of it. It follows the same
+     rule as everything else here — the shape decides, and the same `_shore`
+     the terrain mesh and the chart are drawn from decides it — so the jetty
+     can never end up on a headland the eye can plainly see is a headland.
+
+     A margin of a few degrees is kept off the exact minimum on purpose: the
+     very bottom of a bight is where the beach is flattest, and a jetty wants a
+     little more water under its head than that. */
+  _port(isl){
+    const p = this._bight(isl);
+    return p;
+  }
+
+  _bight(isl){
+    let bestA = 0, bestS = Infinity;
+    for(let i=0;i<360;i++){
+      const a = (i/360)*Math.PI*2, s = this._shore(isl, a);
+      if(s < bestS){ bestS = s; bestA = a; }
+    }
+    const ca = Math.cos(bestA), sa = Math.sin(bestA);
+    /* The jetty runs out from the beach until there is water enough under it,
+       and NO FURTHER: it is a pier, not a causeway. So the length is solved
+       for rather than picked — invert the shelf profile for the depth a berth
+       wants and that is where the head goes.
+
+       Nine metres, and every bound was found by trying it. Twelve gave a pier of
+       eighty-five metres on fourteen-metre legs, which is a viaduct. Six and a
+       half looked right at the head and was not: a hull lies ALONGSIDE and
+       therefore inside the head, where the bottom is still coming up, so the
+       berth itself was in four metres and she touched by forty-five centimetres
+       ranging on her lines.
+
+       And seven and a half was not enough either, which is where the SWELL came
+       into it. A significant height of 1,6 m means individual waves half again
+       as big, so a moored hull is set down more than a metre below her own mean
+       draught several times a minute — while ranging on her lines, which walks
+       her ends into shallower water than her middle ever sees. Static clearance
+       is not clearance. A ship that grounds at her own quay is not a port. */
+    const berthDepth = 9.0;
+    const reach = Math.min(150, this.shelf*Math.sqrt(berthDepth/this.deep));
+    const p = {
+      name: isl.name,
+      ang: bestA,
+      shoreR: bestS,
+      // the root, on the beach, and the head, out in the stream
+      sx: isl.x + ca*(bestS - 6), sz: isl.z + sa*(bestS - 6),
+      hx: isl.x + ca*(bestS + reach), hz: isl.z + sa*(bestS + reach),
+      reach
+    };
+    /* ET UN VRAI HAVRE AUTOUR, parce qu'une échancrure n'abrite rien. Relevé
+       sur celle de Port-Royal avant de la construire : 2 043 m d'ouverture pour
+       675 m de creux dans la côte, quand la houle qui compte à force 4 fait 23 à
+       40 m de longueur d'onde. Le rapport ouverture sur longueur d'onde vaut
+       SOIXANTE-DEUX, et c'est lui qui décide de tout : la diffraction n'abrite
+       que si la passe est de l'ordre de quelques longueurs d'onde. À
+       soixante-deux, la mer entre tout droit sans rien perdre, et aucun
+       coefficient d'atténuation n'aurait été autre chose qu'un abri décrété.
+
+       Le havre est donc un BASSIN fermé par un môle, et l'abri en sort par la
+       géométrie : 130 m de passe pour 33 m de lame, soit un rapport de quatre.
+
+       Un disque et un anneau, ce qui n'est pas de la paresse mais la condition
+       pour que la même forme soit calculable trois fois — au CPU pour le
+       solveur, dans le shader de la mer et dans celui de l'écume — sans que les
+       trois puissent diverger. Une côte dessinée à la main ne s'écrit pas en
+       quatre lignes de GLSL. */
+    const Rb = 170;                                  // rayon du bassin
+    const gap = Math.asin(Math.min(0.95, 65/Rb));    // demi-passe : 130 m de corde
+    const cx = isl.x + ca*(bestS + Rb*0.80);
+    const cz = isl.z + sa*(bestS + Rb*0.80);
+    p.harbour = {
+      cx, cz, r:Rb, wall:18, top:3.4, gap,
+      ang: bestA,
+      // le milieu de la passe, d'où toute l'énergie qui entre doit venir
+      px: cx + ca*(Rb + 9), pz: cz + sa*(Rb + 9)
+    };
+    return p;
+  }
+
   /* Height of the land at a world point, in metres relative to sea level.
      Negative offshore, so the same function serves the shoreline, the shoals
-     around it and — later — anything that wants to know if she can float here. */
+     around it and anything that wants to know if she can float here.
+
+     THE MOLE IS LAND, which is the whole reason to write it here rather than as
+     an object with a collision box: a wall that is land is a wall the grounding
+     already knows about. She strikes it, is lifted, slews and opens her side on
+     it exactly as she would on a shoal, and not one line of that had to be
+     written twice. */
   heightAt(x, z){
+    return this._mole(x, z, this._islandHeight(x, z));
+  }
+
+  /* The island alone, harbour works excluded — what the terrain mesh is built
+     on, and what the mole is measured against so it is not drawn buried in a
+     hillside. */
+  _islandHeight(x, z){
     let best = -1e9;
     for(const isl of this.near(x, z, 60)){
       const dx = x - isl.x, dz = z - isl.z;
       const d = Math.hypot(dx, dz);
       const s = this._shore(isl, Math.atan2(dz, dx));
-      const t = d/s;
       let h;
-      if(t >= 1.35) h = -70;
-      else if(t >= 1.0){
+      const out = d - s;                      // metres beyond the shore line
+      if(out >= this.shelf) h = -this.deep;
+      else if(out >= 0){
         // the beach runs on under water into a shoal, not off a cliff
-        const u = (t - 1.0)/0.35;
-        h = -70*u*u;
+        const u = out/this.shelf;
+        h = -this.deep*u*u;
       }else{
         /* A summit that falls away as a smoothstep, plus a ridge or two so the
            silhouette is not a dome. Beaches are flat: the profile is deliberately
            slack in the last tenth before the shore. */
-        const u = 1 - t;
+        const u = 1 - d/s;
         const base = u*u*(3 - 2*u);
         const ridge = 0.22*Math.sin(Math.atan2(dz, dx)*isl.lobes*2 + isl.phase*2)
                           *Math.sin(Math.PI*u);
@@ -102,7 +206,53 @@ Naval.World = class World {
       }
       if(h > best) best = h;
     }
-    return best === -1e9 ? -70 : best;
+    return best === -1e9 ? -this.deep : best;
+  }
+
+  /* The ring wall, and the gap in it. One angular test and two radial ones;
+     everything else about a harbour follows from where those fall. */
+  _mole(x, z, h){
+    for(const isl of this.isles){
+      const H = isl.port && isl.port.harbour;
+      if(!H) continue;
+      const dx = x - H.cx, dz = z - H.cz;
+      const d = Math.hypot(dx, dz);
+      if(d < H.r || d > H.r + H.wall) continue;
+      let a = Math.atan2(dz, dx) - H.ang;
+      while(a >  Math.PI) a -= 2*Math.PI;
+      while(a < -Math.PI) a += 2*Math.PI;
+      if(Math.abs(a) < H.gap) continue;              // la passe
+      /* Les têtes du môle sont arrondies plutôt que coupées net : une arête
+         verticale à l'entrée est ce sur quoi on s'ouvre le flanc en entrant,
+         et un musoir se doit d'être franchissable de justesse. */
+      const t = Math.min(1, (Math.abs(a) - H.gap)/0.10);
+      if(h < H.top*t) h = H.top*t;
+    }
+    return h;
+  }
+
+  /* WHAT SURVIVES OF THE SEA IN HERE, from nought to one — and it is a fraction
+     of AMPLITUDE, so it must be read identically by the three things that
+     compute the swell or they part company in silence: the sea's vertex shader,
+     this sampler, and the foam pass. Its GLSL twin is Naval.SHELTER_GLSL, and
+     the two are a matched pair.
+
+     The model is the honest one for a basin behind a wall: everything that gets
+     in comes through the passe and spreads from it, so what is left falls off
+     with the distance from the mouth. Outside the wall, nothing changes. */
+  shelter(x, z){
+    let f = 1;
+    for(const isl of this.isles){
+      const H = isl.port && isl.port.harbour;
+      if(!H) continue;
+      const d = Math.hypot(x - H.cx, z - H.cz);
+      if(d > H.r + H.wall) continue;
+      const dp = Math.hypot(x - H.px, z - H.pz);
+      const u = Math.min(1, dp/(1.6*H.r));
+      const s = 1 - u*u*(3 - 2*u)*0.88;              // 1 à la passe, 0,12 au fond
+      if(s < f) f = s;
+    }
+    return f;
   }
 
   // Is there water enough here for a hull drawing `draft` metres?
@@ -111,16 +261,22 @@ Naval.World = class World {
 
 /* Where she is, in the terms a navigator would use.
  *
- * The world's zero is placed at an arbitrary point of open sea. A nautical mile
- * IS one minute of latitude — that is its definition — so northing converts
- * exactly, with no projection and no fudge. Easting shrinks with the cosine of
- * the latitude, which is real: a degree of longitude is 111 km at the equator
- * and nothing at all at the pole. Ignoring it would make every distance read on
- * the chart wrong by that factor.
+ * The world's zero is a patch of open water in the middle of the archipelago. A
+ * nautical mile IS one minute of latitude — that is its definition — so
+ * northing converts exactly, with no projection and no fudge. Easting shrinks
+ * with the cosine of the latitude, which is real: a degree of longitude is
+ * 111 km at the equator and nothing at all at the pole. Ignoring it would make
+ * every distance read on the chart wrong by that factor.
+ *
+ * Thirteen degrees north rather than forty-six, the islands having moved to
+ * the Windwards. It is not decoration: the sun follows real spherical
+ * trigonometry from this latitude, so the day is nearly even all year, noon is
+ * very near the zenith, and dusk is short. That is the tropics, and it is what
+ * the light should do above these islands.
  */
 Naval.Geo = {
-  LAT0: 46.20,                  // a patch of the Bay of Biscay, near enough
-  LON0: -4.75,
+  LAT0: 13.60,                  // between Martinique and Sainte-Lucie
+  LON0: -61.00,
   M_PER_MIN: 1852,              // metres in one minute of latitude
 
   fix(x, z){

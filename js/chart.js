@@ -110,6 +110,25 @@ Naval.Chart = class Chart {
         ctx.closePath();
         ctx.fillStyle = style; ctx.fill();
       }
+
+      /* Her NAME, and a chart without names is a picture of a coast rather
+         than a chart. Set on the island itself and not offset to one side: a
+         label with a leader line is for a mark too small to write on, and
+         these are kilometres across. The port is a ring at the head of its own
+         jetty, which is the one thing on the shore one steers for. */
+      const c = px(isl.x, isl.z);
+      ctx.font = '600 10px var(--disp, system-ui)';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(18,26,34,.72)';
+      ctx.strokeText(isl.name, c[0], c[1]);
+      ctx.fillStyle = '#e8ddc2';
+      ctx.fillText(isl.name, c[0], c[1]);
+
+      if(isl.port){
+        const h = px(isl.port.hx, isl.port.hz);
+        ctx.strokeStyle = '#e8ddc2'; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(h[0], h[1], 2.6, 0, 6.2832); ctx.stroke();
+      }
     }
 
     // --- her track ---

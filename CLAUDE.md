@@ -34,7 +34,8 @@ logique est dans `js/`, en classes attachées à un espace de noms global `Naval
 | `ocean.js` | houle de Gerstner : shader GPU **et** échantillonnage CPU |
 | `foam.js` · `ssao.js` | champ d'écume persistant · occlusion ambiante du navire |
 | `underwater.js` | la coque vue à travers l'eau, extinction par canal |
-| `world.js` · `land.js` | les îles, en fonction pure de la position · leur maillage |
+| `world.js` · `land.js` | l'archipel et ses ports · le maillage des îles |
+| `jetty.js` | le ponton d'un port, construit ici ou fourni en .glb |
 | `chart.js` | la carte marine, le point et le sillage tracé |
 | `ship-model.js` | coque, gréement, voiles, sillage, chargement .glb |
 | `ship-physics.js` | sondes, corps rigide 6 ddl, gouvernail, voiles |
@@ -135,13 +136,47 @@ En revanche la barre, les instruments et les caméras n'ont *pas* à devenir
 multiples : ce sont ceux du navire qu'on commande. Il leur faudra désigner
 lequel, pas se dupliquer.
 
-## Le monde ouvert
+## Le monde : quatre îles et leurs ports
 
-**Il n'y a pas de fichier de carte, et il n'y en aura jamais.** Les îles sont
-une **fonction pure de la position** : un hachage sur une grille grossière de
-5,2 km, une île dans à peu près une case sur deux. La mer est donc sans fin,
-identique sur toutes les machines et d'une session à l'autre, et ne coûte rien à
-stocker. Revenir à 46° N y retrouve la même île, avec les mêmes baies.
+**« Il n'y a pas de fichier de carte, et il n'y en aura jamais » — c'était faux,
+et le revirement est raisonné.** Les îles étaient une fonction pure de la
+position : un hachage sur une grille de 5,2 km, une île dans une case sur deux,
+donc une mer sans fin qui ne coûtait rien à stocker. C'était la bonne forme pour
+un monde où il n'y a rien — une infinité de terres anonymes vaut mieux que
+quatre bits de terre, jusqu'à l'instant précis où il y a quelque chose entre
+quoi naviguer. Un port qu'on quitte et où l'on revient vaut mieux que dix mille
+baies sans nom, et on ne nomme pas ce qu'on n'a pas décidé.
+
+Le hachage est donc remplacé par une **table de quatre**, dans
+`Naval.ARCHIPELAGO`. Ce qui survit est la part de l'ancienne règle qui portait
+vraiment quelque chose : c'est toujours une fonction pure de la position, sans
+état et sans fichier à charger, et cela répond toujours en mètres monde vrais.
+Il n'y a pas de fichier de carte ; il y a quatre constantes.
+
+**Le prix est que la mer au-delà est vide**, et pour de bon : mettre le cap à
+l'ouest de La Tortue, c'est ne plus jamais rien rencontrer.
+
+**Port-Royal, Le Carénage, Saint-Pierre, La Tortue** — quatre ports réels de
+l'époque de la flibuste, disposés comme les Îles du Vent dont ils sont tirés :
+une chaîne nord-sud avec une île au large dans l'est, de **7,3 à 14,5 milles**
+les unes des autres. Assez loin pour qu'une traversée en soit une, assez près
+pour qu'on lève la suivante avant d'avoir perdu la précédente. Elles font de 2,6
+à 4,2 km de rayon et jusqu'à 520 m de haut, soit dix fois les cailloux d'avant.
+
+**Et le point est passé à 13° N.** Ce n'est pas de la décoration : le soleil suit
+de la vraie trigonométrie sphérique depuis cette latitude, donc le jour est
+presque égal toute l'année, midi passe près du zénith et le crépuscule est
+court. C'est ce que fait la lumière aux Antilles, et c'est une seule constante
+dans `Naval.Geo` si l'on veut revenir en Gascogne.
+
+**Le plateau côtier se compte en MÈTRES, plus en fraction de rayon.** Il valait
+0,35 du rayon de l'île, ce qui ne se voyait pas tant qu'une île faisait quelques
+centaines de mètres et devenait absurde dès qu'elles ont fait des kilomètres :
+une île de quatre kilomètres avait un mille et demi de hauts-fonds autour
+d'elle, donc rien ne pouvait accoster nulle part et un ponton aurait dû être une
+digue. Un plateau fait quelques centaines de mètres quoi que fasse l'île
+derrière — 240 m, ce qui tombe dans la fourchette où les anciennes mesures
+d'échouage avaient été prises.
 
 **`world.js` travaille en mètres monde VRAIS, jamais en coordonnées locales.**
 L'origine flottante fait glisser le zéro local à mesure qu'elle navigue ; une
@@ -173,6 +208,201 @@ faite de traits fins et de texte — ce qu'un canvas fait bien et un shader mal 
 et la page a de toute façon 98 % de son image inoccupée. Elle trace en
 coordonnées **vraies** ; en local, le navire reviendrait au centre à chaque
 recentrage, ce qu'une carte ne doit jamais faire.
+
+## Elle commence à quai
+
+## Le môle, le bassin, et l'abri qui en sort
+
+**UNE ÉCHANCRURE N'ABRITE RIEN, et c'est un rapport de deux nombres qui le
+dit.** Relevé sur la baie de Port-Royal avant d'y toucher : **2 043 m
+d'ouverture** pour 675 m de creux dans la côte, quand la houle qui porte
+l'énergie à force 4 fait **23 à 40 m de longueur d'onde**. Le rapport ouverture
+sur longueur d'onde vaut **soixante-deux**. Or la diffraction n'abrite que si la
+passe est de l'ordre de quelques longueurs d'onde : à soixante-deux, la mer
+entre tout droit sans rien perdre, et un coefficient d'atténuation posé là
+n'aurait été qu'un abri décrété.
+
+Le havre est donc un **bassin fermé par un môle**, et l'abri sort de la
+géométrie : **130 m de passe pour 33 m de lame**, soit un rapport de quatre.
+
+**Un disque et un anneau**, ce qui n'est pas de la paresse mais la condition
+pour que la même forme soit calculable **trois fois** sans pouvoir diverger — au
+CPU pour le solveur, dans le shader de la mer et dans celui de l'écume. Une côte
+dessinée à la main ne s'écrit pas en quatre lignes de GLSL.
+
+**Le môle est de la TERRE**, et c'est tout l'intérêt de l'écrire dans
+`heightAt` plutôt que comme un objet avec une boîte de collision : un mur qui
+est de la terre est un mur dont l'échouage sait déjà s'occuper. Elle le heurte,
+se soulève, embarde et s'ouvre le flanc dessus exactement comme sur un
+haut-fond, et pas une ligne de cela n'a été écrite deux fois.
+
+Le maillage sort des **mêmes quatre nombres** — centre, rayon, épaisseur,
+demi-angle de la passe — donc ce qui arrête la coque est ce que l'œil voit
+l'arrêter. Vérifié sur les sommets : rayon 163 à 195 m, hauteurs −9,4 à +3,4,
+soit 18 m d'arase et deux talus de 7, ce que `heightAt` donne au centimètre
+près. Chaque tronçon demande à l'île ce qu'il y a dessous et s'efface quand elle
+est plus haute — sans quoi une bande de pierre monterait à flanc de colline — ce
+qui lui donne ses racines sur la plage pour rien.
+
+**L'ABRI EST UNE FRACTION D'AMPLITUDE, ET TROIS CALCULATEURS DOIVENT LA LIRE.**
+`Naval.SHELTER_GLSL` et `World.shelter` sont une **paire appariée**, et c'est
+tout le risque de cette fonctionnalité : le shader de la mer, l'échantillonneur
+CPU que la grille de sondes lit, et la passe d'écume. En oublier un ne casse
+rien visiblement — il fait flotter la coque sur une mer que l'œil ne voit pas,
+ce qui est exactement la panne silencieuse contre laquelle la phase de Gerstner
+s'était déjà retournée.
+
+Le modèle est celui d'un bassin derrière un mur : tout ce qui entre passe par la
+passe et s'étale depuis elle, donc ce qui reste décroît avec la distance à la
+bouche ; hors du mur, rien ne change. Un seul havre est passé au shader, en
+mètres **locaux**, réécrit à chaque image : ils sont à sept milles les uns des
+autres et l'abri porte à deux cents mètres, donc deux ne peuvent jamais être en
+jeu ensemble.
+
+Mesuré, hauteur significative à force 4 :
+
+| | au poste | dans la passe | au large |
+|---|---|---|---|
+| Hs | **0,35 m** | 2,32 | 2,29 |
+
+La mer divisée par **six et demi**, et le mou a pu être rendu aux amarres.
+Relevé sur quatre minutes, mou de cinquante centimètres retrouvé : chaland
+**0 talonnage** pour 0,54 m d'évitage, galion **0** pour 0,87 m. Contre 0,29 m
+de talonnage avant le môle, quand il fallait les tenir à quinze centimètres.
+
+Reste la frégate de deux mille tonneaux, à 0,18 m : elle cale 6,78 m et ce port
+n'est pas pour elle.
+
+**Le port est LU sur l'île, pas posé dessus.** Un havre est une baie, donc le
+port se tient sur le relèvement où la côte rentre le plus près du milieu de
+l'île — la plus profonde morsure du rivage, celle qui a de la terre de part et
+d'autre. C'est le même `_shore` qui dessine le maillage du terrain et le
+contour de la carte qui en décide, si bien que le ponton ne peut pas se
+retrouver sur un cap que l'œil voit être un cap.
+
+**La longueur du ponton est RÉSOLUE, pas choisie** : on inverse le profil du
+plateau pour la profondeur qu'un poste demande, et c'est là que va le musoir.
+Les deux bornes ont été trouvées en les essayant. Douze mètres donnaient un
+appontement de 85 m sur des pieux de quatorze, c'est-à-dire un viaduc. Six et
+demi paraissaient bons au musoir et ne l'étaient pas : une coque se range **le
+long** du ponton, donc en dedans du musoir, là où le fond remonte encore — le
+poste faisait quatre mètres, et par force 4 elle talonnait de 45 cm en évitant
+sur ses amarres. Un navire qui touche à son propre quai n'est pas un port. À
+sept mètres et demi : poste à **5,33 m**, talonnage maximal **0,23 m** sur cinq
+minutes de force 4.
+
+**Le ponton est CONSTRUIT tant que personne n'en fournit un**, et dans cet
+ordre. Un repli écrit après l'asset est un repli que personne ne regarde. Ce qui
+le fait lire comme un ponton plutôt que comme une planche sur l'eau, ce sont ses
+**jambes** : le tablier est de niveau parce qu'un tablier l'est, les pieux ne le
+sont pas parce que le fond ne l'est pas — chaque paire est coupée sur le fond
+qu'elle touche, lu dans le même `heightAt` où la quille talonne. La structure
+s'allonge donc des jambes à mesure qu'elle marche vers le large, et c'est toute
+sa silhouette ; une rangée de poteaux égaux se lit comme une clôture. Le bordage
+court **en travers**, comme on borde un appontement sur ses bauquières.
+
+**Elle démarre à Port-Royal, et c'est l'origine flottante qui rend cela gratuit.**
+`settle()` pose toujours la coque au zéro **local** ; il suffit donc de dire où
+ce zéro se trouve réellement dans le monde et elle s'y assoit — sondes, échouage
+et tirant d'eau compris, puisque le vrai solveur tourne pendant qu'elle
+s'installe. Son cap est mis **avant** le settle et non après : posée en travers
+du poste elle chercherait le fond avec un bord au lieu de sa quille.
+
+**Et elle est AMARRÉE, sans quoi le départ au port ne tient pas une minute.**
+Rien ne retient une coque libre : relevé avant les bouts, trente degrés
+d'abattée en quelques secondes et vingt mètres de dérive sur le ponton. Les
+amarres sont l'échouage et l'abordage écrits une troisième fois — un ressort
+raide, très amorti, appliqué **au** point où il agit — **avec une différence, et
+c'est tout le caractère d'un cordage : il tire et ne pousse jamais.** En deçà de
+sa longueur un bout est mou et ne fait rien, donc elle évite sur son mou et
+raidit quand elle l'a filé, ce qui est ce que fait une coque à quai ; deux
+ressorts vers un point fixe la feraient tenir comme boulonnée.
+
+Trois choses ont coûté un essai chacune :
+
+- **les bittes sont du MÊME bord que le poste.** Posées en face, les bouts la
+  halaient au travers du ponton — et elle s'en allait de vingt mètres en tenant
+  parfaitement son cap, ce qui est exactement ce à quoi ressemble une amarre qui
+  tire du bon côté à travers la structure ;
+- **elles se prennent en face de ses écubiers, pas le long du quai.** Réparties
+  d'avance sur la longueur du ponton elles tombent n'importe où par rapport au
+  navire : relevé, des bouts de **30 m** sur un chaland de 28. On prend
+  l'écubier, on cherche la bitte en face, et l'amarre élonge de quelques mètres
+  dans le sens où elle doit retenir. Après : **6,3 · 9,2 · 7,8 · 7,7 m** ;
+- **et elle se range en dedans du musoir.** Le centre posé en face de la tête du
+  ponton la fait dépasser de la moitié de sa longueur, et son amarre de proue
+  n'a plus de bitte devant elle.
+
+Chaque bout est enfin **frappé à la longueur mesurée sur place**, plus un demi-
+mètre de mou. Une longueur choisie d'avance donne des gardes tendues au repos —
+12,1 m sur un bout de 5,1 — qui halent en permanence et déplacent le poste
+jusqu'à trouver leur équilibre. Un matelot tourne le bout à la longueur où il
+tombe. Vérifié : elle tient son poste à 5–7 m pendant huit minutes de force 4,
+puis **`M`** largue tout et elle sort à 3,8 nœuds sans toucher.
+
+Les bittes sont prises sur le **port** et non sur le maillage du ponton, pour
+que l'amarrage tienne aussi bien avec le ponton construit ici qu'avec celui
+qu'on fournira.
+
+**ÊTRE AU POSTE EST UNE QUESTION DE LIEU, PAS DE RANG**, et l'avoir écrit
+autrement a coûté un bug signalé à l'usage : « la Roter Löwe apparaît face au
+port, collée au ponton ». La condition était « au premier armement ».
+Or `settle()` repose **toujours** la coque au zéro local, donc changer de navire
+la ramène au poste de toute façon — mais avec un quaternion neuf, c'est-à-dire
+cap zéro, en travers du ponton, et sans un bout. Un drapeau « déjà fait » ne
+pouvait pas voir ça ; comparer l'origine courante au poste, oui.
+
+Deux corollaires, une fois la question posée en termes de lieu :
+
+- **l'écartement suit le bau de CE navire.** Le poste est calé une fois pour
+  toutes sur le premier ; une coque plus large chevaucherait le ponton d'autant.
+  On n'y déplace pas le poste — ce serait un recentrage, qui a sa propre liste de
+  choses à décaler — on écarte la coque en local de la différence ;
+- **et les gros vont au bout du quai**, ce qu'un vrai quai impose : le fond
+  remonte vers la plage. Elle marche vers le musoir jusqu'à trouver l'eau qu'il
+  lui faut, et pas au-delà — au-delà il n'y a plus de quai. Une coque trop
+  profonde pour ce port le reste, et le dire vaut mieux que creuser la baie
+  sous elle.
+
+Il faut **2,6 m sous quille et non 1,5** : `navigable` parle d'un navire qui
+passe, un navire qui reste s'y fait poser par la houle plusieurs fois par
+minute. Et la sonde se prend **sous ses extrémités**, pas sous son milieu —
+même leçon que l'échouage, qui se sonde en trois points pour cette raison
+exacte. Le fond remonte vers la plage, donc sa poupe est toujours dans moins
+d'eau que son nombril : sondée au centre seul, elle se rangeait dans sept mètres
+et talonnait quand même de vingt-neuf centimètres, de l'arrière.
+
+**UN CORDAGE TIRE ET NE POUSSE JAMAIS, DONC IL NE PEUT PAS LA TENIR ÉCARTÉE.**
+C'est évident après coup et cela ne l'était pas : avec quatre bouts et rien
+d'autre, un vent qui la met au quai la fait traverser le ponton pendant que
+toutes ses amarres pendent molles. **C'est le quai qui tient un navire à
+distance du quai**, pas ses cordages.
+
+Une défense est donc **le même ressort avec le signe retourné** : elle pousse
+quand on entame son épaisseur et ne fait rien tant qu'on ne l'entame pas. Un
+seul drapeau (`push`) dans `_moor`, deux défenses frappées par le travers à
+l'avant et à l'arrière, et la question est réglée. Relevé, trois minutes de
+force 4, six navires :
+
+| | chaland | Roter Löwe | pirate | goélette | cotre | frégate 2000 t |
+|---|---|---|---|---|---|---|
+| tirant | 2,86 m | 3,21 | 3,15 | 2,87 | 2,46 | **6,78** |
+| évitage | 0,50 | 0,38 | 0,38 | 0,48 | 0,58 | 0,62 |
+| jeu au ponton | 4,04 | 4,25 | 4,26 | 4,10 | 3,97 | 4,32 |
+| talonnage | **0** | **0** | **0** | **0** | **0** | 0,29 |
+
+Contre six à dix mètres d'évitage et un bordage frotté avant les défenses. Reste
+la frégate de deux mille tonneaux, qui cale **6,78 m** et en demanderait 9,4
+sous ses extrémités quand le musoir n'en offre que neuf : elle est trop grosse
+pour ce ponton, elle le restera, et le dire vaut mieux que creuser la baie sous
+elle. Un vrai navire de ce port mouillerait en rade.
+
+**Tenue courte, et c'est un renoncement assumé.** Un demi-mètre de mou lisait
+bien — elle évitait, rangeait dans la houle et raidissait en filant son mou, ce
+que fait une coque à quai — mais dans une baie ouverte cela lui faisait promener
+ses extrémités jusqu'à toucher. Quinze centimètres, donc : on prend le boulon en
+attendant que le port soit abrité, auquel cas c'est ce chiffre-là qu'il faudra
+rendre.
 
 ## Invariants à ne pas casser
 
@@ -1599,6 +1829,12 @@ hauteur avec un relèvement fixe fait lever et coucher le soleil au même endroi
 ce dont on s'aperçoit sans pouvoir dire pourquoi. Vérifié : coucher à 18 h 42 au
 relèvement 286°, hauteur maximale 55,4° au méridien, pour 46,2° N et 12° de
 déclinaison.
+
+*(Relevé en Gascogne, avant que l'archipel ne parte aux Antilles. À 13,6° N la
+même arithmétique donne un tout autre ciel — jour presque égal toute l'année,
+midi près du zénith, crépuscule court — et c'est précisément l'intérêt d'avoir
+écrit la trigonométrie plutôt qu'une courbe : la latitude a changé d'une
+constante et la lumière a suivi toute seule.)*
 
 **La vitesse de défilement est un multiplicateur d'un taux ÉNONCÉ** : une minute
 réelle pour une heure, donc vingt-quatre minutes pour un jour entier à ×1, et
@@ -3185,7 +3421,8 @@ plante à la première image si personne ne l'a fait. Même raison pour
 `setSpec` : un nouveau navire n'est pas là où était l'ancien, la station est
 donc reprise.
 
-**Les touches.** `G` tire du bord **en batterie**, `⇧G` de l'autre. Le bord
+**Les touches.** `M` largue les amarres, et c'est annoncé sur la console de
+barre — une manœuvre sans touche affichée n'existe pas. `G` tire du bord **en batterie**, `⇧G` de l'autre. Le bord
 est choisi dans le panneau de barre et non deviné : la touche seule savait le
 dire, ce qui est un moyen mnémotechnique et non une commande — rien à l'écran ne
 disait de quel côté on allait tirer, et il fallait s'en souvenir au moment où

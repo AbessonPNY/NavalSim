@@ -20,6 +20,7 @@ Naval.Controls = class Controls {
     this.onToggleHud = null;      // clear the instruments off the glass
     this.onToggleCargo = null;    // show or hide the stowage plan
     this.onFire = null;           // (autreBord, maintenu)
+    this.onCastOff = null;        // larguer les amarres
     this.onDebug = null;          // show or hide the bench
     this.onShot = null;           // take the screen
     this._salvo = false;          // this hold has already loosed its broadside
@@ -35,6 +36,7 @@ Naval.Controls = class Controls {
       if(k==='b' && this.onBreach) this.onBreach();
       if(k==='p' && this.onPumps) this.onPumps();
       if(k==='r' && this.onSalvage) this.onSalvage();
+      if(k==='m' && this.onCastOff) this.onCastOff();   // M comme amarres
       if(k==='k' && this.onBlowUp) this.onBlowUp();
       if(k==='h' && this.onToggleHud) this.onToggleHud();
       if(k==='f' && this.onToggleCargo) this.onToggleCargo();
