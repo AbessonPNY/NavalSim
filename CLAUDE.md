@@ -1142,6 +1142,34 @@ Elle est une **copie du navire qu'on mène** plutôt qu'un galion écrit en dur 
 deux exemplaires de ce qu'on est en train d'essayer est presque toujours ce
 qu'on voulait dire.
 
+**La capture d'écran s'écrit dans le dossier du jeu** (touche `I`), et il a
+fallu passer par le serveur pour ça : une page ne peut pas écrire sur le disque,
+alors que le serveur de dev sert déjà ce dossier-là. Elle lui est donc postée et
+c'est lui qui écrit, dans `captures/`, sous un nom horodaté. Une page publiée
+n'a pas de serveur derrière elle et retombe sur le navigateur — c'est une autre
+chose à un autre endroit, et le message le dit plutôt que de faire comme si
+c'était pareil.
+
+Ce qui en sort **ne porte aucun instrument** : les cadrans sont des éléments DOM
+posés par-dessus le canvas, donc ils ne sont tout simplement pas dans le tampon
+de dessin. La capture est la mer et le navire, sans avoir eu à masquer quoi que
+ce soit.
+
+**Le piège est de dessiner d'abord.** Le renderer est construit avec
+`preserveDrawingBuffer` à faux, donc le contenu du tampon est **indéfini** une
+fois l'image composée. Appelé depuis une touche — ce qui arrive entre deux
+images et non pendant l'une d'elles — `toDataURL` rend une image vide ou
+déchirée, et sans le moindre message. Redessiner juste avant de lire est ce qui
+fait exister les pixels au moment où on les demande.
+
+**Et il faut refuser une image vide plutôt que l'écrire.** Un canvas sans
+surface — fenêtre réduite, volet non composité — rend un PNG de **trois
+octets**, et c'est exactement ce qui s'est retrouvé sur le disque au premier
+essai, avec un message annonçant que tout allait bien. Le garde-fou est des deux
+côtés : la page refuse sous huit pixels de côté, le serveur refuse sous un
+kilo-octet encodé. Un outil qui ment sur ce qu'il vient d'écrire est pire que
+pas d'outil.
+
 **Débogage.** `Naval.app` expose les instances vivantes (`stage`, `ocean`,
 `foam`, `physics`, `ship`, `cam`, `hud`) depuis la console. `Naval.app.stage.strike()`
 déclenche un éclair à la demande. Plusieurs bugs de ce projet ont été longs à
@@ -2213,6 +2241,32 @@ plus touché gagne 149 sur 765, moitié moins qu'à 1 500 et quatre fois moins q
 6 000, qui sortent tous deux en tache blanche. Leçon générale, et c'est la même
 que celle des nuages : **un effet réglé à l'œil au milieu d'autres effets mesure
 la somme, pas la part**. Il faut éteindre les voisins avant de juger.
+
+**ELLE NE FABRIQUE PAS DE LUMIÈRE, ELLE EN RENVOIE** — et c'est mot pour mot la
+faute que l'écume avait eue, refaite ailleurs. Écrite en gris fixe, la fumée
+était aussi pâle à minuit qu'à midi : une bordée de nuit sortait en **tache
+blanche éclatante**, seule chose de l'image à s'éclairer toute seule. Signalé à
+l'usage, capture à l'appui.
+
+Le terme à employer est la couleur d'horizon, parce que `setSun` la reconstruit
+déjà pour l'heure, la saison et le gros temps : la fumée hérite des trois sans
+rien savoir d'aucun. Relevé de sa luminance :
+
+| soleil | +50° | +20° | +5° | 0° | −6° | −12° et moins |
+|---|---|---|---|---|---|---|
+| horizon | 0,878 | 0,814 | 0,719 | 0,687 | 0,319 | **0,074** |
+
+Un facteur **douze** que la fumée ignorait entièrement. Normalisée sur un beau
+jour pour que le plein jour ne bouge pas, et plancher à 0,18, un nuage éclairé
+par rien du tout étant un trou noir dans la mer — il y a toujours du ciel. La
+teinte vient avec : un banc au couchant vire au chaud tout seul, pour rien.
+Mesuré sur le gris de la bouffée : **0,64 à midi** (contre 0,62 avant, donc
+inchangé), 0,32 au couchant, **0,112 la nuit** et bleuté.
+
+**Mais la FLAMME n'est pas touchée**, et c'est toute la distinction : la fumée
+réfléchit, le feu émet. Le même partage que l'écume et l'éclair lointain, qui
+avait déjà coûté un aller-retour de ce côté-là. Seul le gris est atténué ; le
+terme d'embrasement garde sa couleur pleine quelle que soit l'heure.
 
 **Grise, et disparue en dix secondes plutôt qu'en vingt-deux.** Le blanc se lit
 comme de la vapeur ; c'est la grisaille autant que l'opacité qui fait lire

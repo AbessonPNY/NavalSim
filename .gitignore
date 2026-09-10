@@ -14,3 +14,6 @@ Desktop.ini
 # Node, si des dépendances arrivent un jour
 node_modules/
 npm-debug.log*
+
+# Captures d'écran, produites par la touche I
+captures/

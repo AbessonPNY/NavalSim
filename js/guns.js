@@ -74,8 +74,10 @@ Naval.Guns = class Guns {
      of the air the bank left her side before one had finished looking at it. */
   static LAG = 0.30;
 
-  constructor(scene){
+  constructor(scene, stage){
     this.scene = scene;
+    this.stage = stage;            // for the light there is to reflect — see update()
+    this._lit = new THREE.Color(1, 1, 1);
     this.group = new THREE.Group();
     scene.add(this.group);
     this.live = [];
@@ -624,6 +626,33 @@ Naval.Guns = class Guns {
       if(u >= 1) lp.life = 0;
     }
 
+    /* WHAT LIGHT THERE IS TO REFLECT.
+
+       Powder smoke does not make light, it RETURNS it — so it can never be
+       brighter than what is falling on it. Written as a fixed grey it was as
+       pale at midnight as at noon, and a broadside at night came out as a
+       brilliant white blob, the one thing in the picture glowing on its own.
+       Exactly the fault the foam had, and exactly the same cure: multiply by
+       the sky.
+
+       The horizon colour is the term to use because setSun already rebuilds it
+       for the hour, the season and the weather, so the smoke inherits all three
+       without knowing about any of them. Measured, its luminance: 0,88 at fifty
+       degrees of sun, 0,69 at the horizon, 0,32 six degrees under, and 0,074
+       once night is properly down — a range of TWELVE that the smoke was
+       ignoring entirely.
+
+       Normalised on a bright day so daylight does not change, and floored at
+       0,18, because a cloud lit by nothing at all would be a black hole in the
+       sea and there is always some skylight. The hue comes with it: a bank at
+       sunset goes warm on its own, for nothing. */
+    const H = this.stage && this.stage.horizon;
+    if(H){
+      const l = Math.max(1e-3, 0.2126*H.r + 0.7152*H.g + 0.0722*H.b);
+      const k = Math.max(0.18, l/0.85);
+      this._lit.setRGB(H.r/l*k, H.g/l*k, H.b/l*k);
+    }
+
     const wx = wind ? wind.x : 0, wz = wind ? wind.z : 0;
 
     for(let i=this.live.length-1; i>=0; i--){
@@ -692,13 +721,19 @@ Naval.Guns = class Guns {
            and cools on its own beat and the whole bank does not flare as one
            slab. Three tenths of a second, which is about how long the charge
            goes on burning outside the piece. */
+        /* The grey is what the sky lends it; the fire is its own. Only the
+           first is dimmed — that is the whole distinction, and this project has
+           met it before: the foam reflects and must follow the light, the
+           distant lightning EMITS and must not. A muzzle flash is lightning. */
+        const L = this._lit;
+        const gr = g*L.r, gg = g*0.99*L.g, gb = g*0.95*L.b;
         const hot = p.flash ? p.flash*Math.max(0, 1 - p.t/0.30) : 0;
         if(hot > 0.002){
           const q = hot*hot;                       // it cools fast, then lingers faintly
-          p.m.material.color.setRGB(g + (1.00-g)*q, g + (0.66-g)*q, g + (0.22-g)*q);
+          p.m.material.color.setRGB(gr + (1.00-gr)*q, gg + (0.66-gg)*q, gb + (0.22-gb)*q);
           p.m.material.opacity *= 1 + 0.75*q;
         }else{
-          p.m.material.color.setRGB(g, g*0.99, g*0.95);
+          p.m.material.color.setRGB(gr, gg, gb);
         }
       }
     }

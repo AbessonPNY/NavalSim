@@ -166,7 +166,7 @@
       <div class="keys"><kbd>Q</kbd><kbd>E</kbd> écoutes · <kbd>T</kbd> au mieux · <kbd>V</kbd> ferler</div>
       <div class="keys"><kbd>B</kbd> voie d&apos;eau · <kbd>P</kbd> pompes · <kbd>R</kbd> réparer · <kbd>K</kbd> sauter</div>
       <div class="keys"><kbd>G</kbd> un coup · maintenu, la bordée · <kbd>⇧G</kbd> bâbord</div>
-      <div class="keys"><kbd>H</kbd> masquer l&apos;affichage</div>
+      <div class="keys"><kbd>H</kbd> masquer l&apos;affichage · <kbd>I</kbd> capture d&apos;écran</div>
     </div>
   </div>
 
@@ -204,6 +204,8 @@
     <b>Votre navire a sombré !</b>
     <span>Elle repose par le fond. <kbd>R</kbd> pour la renflouer.</span>
   </div>
+
+  <div id="shotNote"></div>
 
   <div id="fps"><b id="fpsVal">—</b><span id="fpsMs">—</span></div>
 
@@ -243,6 +245,7 @@
 <script src="js/chart.js"></script>
 <script src="js/explosion.js"></script>
 <script src="js/guns.js"></script>
+<script src="js/capture.js"></script>
 <script src="js/ship-model.js"></script>
 <script src="js/ship-physics.js"></script>
 <script src="js/controls.js"></script>
@@ -280,7 +283,7 @@ async function main(){
      is a clear day rather than a hazy one, and still leaves the sea its depth. */
   ocean.uniforms.uHaze.value = 0.0005;
 
-  const guns = new Naval.Guns(stage.scene);
+  const guns = new Naval.Guns(stage.scene, stage);
   /* The recoil is a real impulse at a real place, and it is here rather than in
      guns.js for the reason the helm is: the effect writes into the ship the way
      a hand would, and nothing inside it reaches into the solver.
@@ -336,6 +339,19 @@ async function main(){
     e.physics.breach(index, 0.10*(k||1)*(k||1), Math.max(0, Math.min(1, local)));
   };
 
+  /* La capture s'écrit dans le dossier du projet quand le serveur de dev est
+     derrière la page, et retombe sur le navigateur sinon. */
+  const capture = new Naval.Capture(stage);
+  {
+    const note = document.getElementById('shotNote');
+    let hide = 0;
+    capture.onDone = m => {
+      note.textContent = m;
+      note.classList.add('on');
+      clearTimeout(hide);
+      hide = setTimeout(()=> note.classList.remove('on'), 2600);
+    };
+  }
   const blast = new Naval.Explosion(stage.scene, stage);
   // her splinters must breathe the same air as her hull
   Naval.applyHaze(blast.woodMat, ocean.uniforms);
@@ -610,6 +626,8 @@ async function main(){
            smoke that says the rest. */
         ship.dropAllMasts();
       };
+      // la touche est posée ici, avec les autres : plus haut, controls n'existe pas encore
+      controls.onShot = ()=> capture.take();
       controls.onFire = (side, held) => {
         if(!ship.guns.length){ hud.flash && hud.flash(); return; }
         if(held) guns.broadside(ship.guns, side, physics.body, spec, ocean.windVec);
