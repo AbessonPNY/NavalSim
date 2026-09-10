@@ -1108,6 +1108,40 @@ repère à la **première image** après l'armement, car `settle()` fait flotter
 navire dans un calme plat et le vent apparent n'existe qu'une fois `refreshSea()`
 passé.
 
+**Le banc tient dans un bouton** (`J`, ou la ligne « Débogage » du panneau
+Flotte). Toute mesure d'artillerie de ce projet a commencé de la même façon :
+une seconde coque de la même classe, arrêtée, parallèle, voiles ferlées, à une
+distance connue par le travers, et les deux réparées entre deux coups. Le monter
+à la main prenait une douzaine de lignes à chaque fois et se trompait une fois
+sur trois — la mauvaise batterie, un navire encore sur son erre, une barre
+automatique qui emmenait tranquillement la cible hors du banc.
+
+Trois choses en font un banc plutôt que deux navires qui se trouvent près l'un
+de l'autre, et toutes les trois sont faciles à oublier :
+
+- **les deux sont ARRÊTÉS**, toile ferlée. Une cible qui dérive transforme une
+  mesure reproductible en anecdote ;
+- **on retire sa barre à la conserve.** Elle chasserait le navire à la roue, ce
+  qui est exactement ce pour quoi elle est faite et exactement ce qui ruine
+  l'expérience ;
+- **elle se place à l'opposé de l'objectif**, pour qu'une seule vue les tienne
+  tous les deux — et de quel côté est **demandé** plutôt que supposé : la caméra
+  est plantée d'abord, son ancre lue, et la conserve va sur l'autre bord.
+
+Deux pièges dans ce dernier point, et ils se sont présentés l'un après l'autre.
+Écrit à l'envers — « elle se met à bâbord, puisque la caméra fixe se plante à
+tribord » — c'était juste sur le gréement et faux à l'écran, et elle sortait à
+moitié derrière la console de mer. Puis, corrigé, `setMode(3)` appelé pour un
+mode où l'on était déjà rendait la main **sans avoir planté** : l'ancre valait
+encore l'origine, le produit scalaire sortait nul, et la conserve était postée du
+côté de l'objectif — un seul navire à l'écran. On appelle donc `plant()` sans
+détour, et un garde-fou traite « composante par le travers nulle » comme « la
+question n'a pas eu de réponse ».
+
+Elle est une **copie du navire qu'on mène** plutôt qu'un galion écrit en dur :
+deux exemplaires de ce qu'on est en train d'essayer est presque toujours ce
+qu'on voulait dire.
+
 **Débogage.** `Naval.app` expose les instances vivantes (`stage`, `ocean`,
 `foam`, `physics`, `ship`, `cam`, `hud`) depuis la console. `Naval.app.stage.strike()`
 déclenche un éclair à la demande. Plusieurs bugs de ce projet ont été longs à

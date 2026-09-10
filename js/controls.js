@@ -20,6 +20,7 @@ Naval.Controls = class Controls {
     this.onToggleHud = null;      // clear the instruments off the glass
     this.onToggleCargo = null;    // show or hide the stowage plan
     this.onFire = null;           // (side, held) — +1 starboard, -1 port
+    this.onDebug = null;          // show or hide the bench
     this._salvo = false;          // this hold has already loosed its broadside
 
     addEventListener('keydown', e=>{
@@ -36,6 +37,9 @@ Naval.Controls = class Controls {
       if(k==='k' && this.onBlowUp) this.onBlowUp();
       if(k==='h' && this.onToggleHud) this.onToggleHud();
       if(k==='f' && this.onToggleCargo) this.onToggleCargo();
+      /* J, and not D: D is the helm. Picked from what is actually free, and
+         clear of the letters an AZERTY keyboard moves about. */
+      if(k==='j' && this.onDebug) this.onDebug();
       /* G to starboard, shift for the other side: one mnemonic, two batteries.
          A TAP is one gun; HOLDING it is the whole broadside. The two are told
          apart by the browser's own auto-repeat flag rather than by a timer of

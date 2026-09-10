@@ -180,6 +180,14 @@
       <button id="fleetAdd">Mettre à l'eau</button>
     </div>
     <div class="fleetNote" id="fleetNote"></div>
+    <div class="fleetNote" id="dbgToggle">▸ Débogage · <kbd>J</kbd></div>
+    <div id="dbgBox" hidden>
+      <button id="dbgDuel">Duel — deux navires bord à bord</button>
+      <div class="stowFoot">
+        <button id="dbgLess">−</button><b id="dbgSep">90 m</b><button id="dbgMore">+</button>
+        <button id="dbgFix">Réparer</button>
+      </div>
+    </div>
   </div>
 
   <!-- Chart -->
@@ -718,6 +726,89 @@ async function main(){
     return entry;
   }
 
+  /* THE BENCH, in one button.
+
+     Every measurement of the guns in this project began the same way: a second
+     hull of the same class, stopped, parallel, sails handed, a known distance
+     off the beam, and both of them repaired between shots. Setting that up by
+     hand took a dozen lines each time and was wrong about one time in three —
+     the wrong battery, a ship still under way, an auto-helm quietly sailing the
+     target out of the bench.
+
+     Three things make it a bench rather than two ships that happen to be near
+     each other, and all three are easy to forget:
+
+       · BOTH ARE STOPPED and their canvas handed. A drifting target turns a
+         repeatable measurement into an anecdote;
+       · THE CONSORT'S HELM IS TAKEN AWAY. She would otherwise chase the vessel
+         at the wheel, which is exactly what she is built to do and exactly what
+         ruins the experiment;
+       · SHE LIES ON THE FAR SIDE FROM THE LENS, so that one view holds both.
+         Which side that is is ASKED rather than assumed: the camera is planted
+         first, its anchor is read, and she goes on the other beam. Written the
+         other way round — "she lies to port, because the fixed camera stands to
+         starboard" — it was right about the rig and wrong on screen, and she
+         came up half behind the sea console. Reading the answer costs one dot
+         product and cannot be wrong.
+
+     She is a copy of whatever you are sailing rather than a hard-wired galleon:
+     two of the ship you are testing is nearly always what you meant, and it
+     costs nothing to say it that way. */
+  let duelSep = 90;
+  async function duel(){
+    // clear the water first: a bench with yesterday's wrecks in it is not one
+    while(fleet.length > 1) scuttle(fleet.length - 1);
+    const other = await launch(spec);
+    if(!other) return;
+
+    const head = physics.body.quat.clone();
+    const _v = new THREE.Vector3();
+
+    for(const e of fleet){
+      e.body.quat.copy(head);
+      e.body.vel.set(0, 0, 0);
+      e.body.angVel.set(0, 0, 0);
+      e.ctrl.throttle = 0; e.ctrl.rudder = 0; e.ctrl.sailsSet = false;
+      e.physics.salvage();
+      e.ship.restoreMasts();
+    }
+    // the console IS entry 0's control object, so it has to be told as well
+    controls.state.throttle = 0;
+    controls.state.rudder = 0;
+    controls.state.sailsSet = false;
+
+    /* Plant first, then ask where the lens ended up, then put her opposite.
+
+       The plant is called OUTRIGHT and not left to setMode, which was the bug:
+       asked for a mode it was already in, it returned with the anchor still at
+       the origin, the dot product came out nought, and she was posted on the
+       camera's own side — one ship on screen and the bench useless. And a guard
+       under it, because a beam component of nothing means the question was not
+       answered and starboard is the answer that works. */
+    cam.setMode(3);
+    cam.plant();
+    const beam = new THREE.Vector3(1, 0, 0).applyQuaternion(head);
+    const lens = beam.dot(_v.copy(cam.anchor).sub(physics.body.pos));
+    const off = Math.abs(lens) < 1 ? -1 : (lens > 0 ? -1 : 1);
+    other.body.pos.copy(physics.body.pos).addScaledVector(beam, off*duelSep);
+    other.body.pos.y = other.eqY;
+    other.helm = null;                 // she stays where she is put
+
+    /* And open the lens enough to hold them both. A planted camera zooms rather
+       than moves, so the field of view is the only thing there is to give. */
+    stage.camera.fov = Math.max(55, Math.min(75,
+      2*Math.atan(duelSep*0.62/Math.max(1, cam.anchor.distanceTo(physics.body.pos)))*180/Math.PI));
+    stage.camera.updateProjectionMatrix();
+    drawFleet();
+  }
+
+  /* Both of them whole again, which is most of what one does between shots. */
+  function repairAll(){
+    for(const e of fleet){ e.physics.salvage(); e.ship.restoreMasts(); }
+    lost = false; lostMsg.hidden = true;
+    ship.group.visible = true;
+  }
+
   /* Move the helm to another vessel.
 
      The fleet is not reordered for show: entry 0 IS the commanded ship, for the
@@ -776,6 +867,26 @@ async function main(){
     o.value = i; o.textContent = s.name;
     fleetEls.sel.appendChild(o);
   });
+
+  const dbg = {
+    box: document.getElementById('dbgBox'),
+    tog: document.getElementById('dbgToggle'),
+    sep: document.getElementById('dbgSep')
+  };
+  function showDbg(on){
+    dbg.box.hidden = !on;
+    dbg.tog.innerHTML = (on ? '▾' : '▸') + ' Débogage · <kbd>J</kbd>';
+  }
+  dbg.tog.onclick = ()=> showDbg(dbg.box.hidden);
+  document.getElementById('dbgDuel').onclick = ()=> duel();
+  document.getElementById('dbgFix').onclick  = ()=> repairAll();
+  function stepSep(d){
+    duelSep = Math.max(30, Math.min(600, duelSep + d));
+    dbg.sep.textContent = duelSep + ' m';
+  }
+  document.getElementById('dbgLess').onclick = ()=> stepSep(-20);
+  document.getElementById('dbgMore').onclick = ()=> stepSep(+20);
+  controls.onDebug = ()=> showDbg(dbg.box.hidden);
 
   function drawFleet(){
     fleetEls.list.textContent = '';
