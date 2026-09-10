@@ -2309,6 +2309,55 @@ Le débit **s'emballe**, les pompes perdent, et une seule bordée bien placée l
 condamne en un quart d'heure. Une bordée ne coule donc pas un navire d'un coup,
 et c'est juste.
 
+**LES ÉCHARDES**, et c'est la chose que tous ceux qui y étaient ont écrite et
+qu'aucune image n'a jamais montrée : le boulet lui-même tuait très peu de monde.
+Ce qui vidait une batterie, c'était le **bois**. Un boulet à trois cents mètres
+par seconde ne perce pas un trou net dans soixante centimètres de chêne, il fait
+éclater le bordé vers l'intérieur et lance un nuage de poignards de chêne en
+travers du pont. Les journaux de chirurgiens sont pleins de plaies d'échardes et
+presque vides de boulets. Un impact qui ne donnerait qu'une bouffée et un trou
+manquerait tout ce qu'une touche voulait dire.
+
+**C'est le MÊME bois que l'épave d'une explosion** — même géométrie, même
+culbute, même disparition dans la mer, même gerbe à l'entrée dans l'eau —
+**taillé autrement**. Une explosion jette des morceaux de navire : courts,
+épais, lents, cul par-dessus tête. Un boulet jette des éclats : longs, minces et
+très rapides. Toute la différence tient dans les nombres remis à la même
+machinerie, ce qui est l'intérêt d'avoir la machinerie.
+
+**La plupart partent vers l'INTÉRIEUR**, le long du coup, parce que c'est là
+qu'elles vont vraiment — et étant à l'intérieur elles sont cachées par son
+propre bordé, ce qui n'est pas une perte mais la lecture juste : elles sont
+entrées dans elle. Un peu moins de la moitié ressortent par le trou qu'il vient
+de faire, et ce sont celles-là qu'on voit. Elles naissent un peu **en dehors**
+du bordé, faute de quoi celles qui sortent seraient créées dans le maillage
+qu'elles sont censées quitter.
+
+**Et elles sont PÂLES**, ce qui est vrai et règle la seule vraie difficulté à
+les dessiner. Le dehors d'un navire est vieilli et goudronné ; le dedans d'une
+planche ne l'est pas, donc ce qu'un boulet arrache de sa muraille est du chêne
+**cru**, bien plus clair que tout ce qui l'entoure. Des éclats sombres sur une
+coque sombre à une encablure ne sont rien du tout ; du bois frais s'y détache.
+Elles ont donc leur propre matière.
+
+Leur **section** est grossie comme celle du boulet et pour la même raison — à
+cette distance une écharde vraie fait trois pixels — mais leur **vol** est
+honnête. Relevé, bordée de six pièces à 80 m : 16 à 21 échardes par touche, de
+**0,40 à 1,55 m**, lancées de 5 à 19 m/s, **123 en l'air** après la salve.
+
+**Et il a fallu transmettre le point d'impact.** La touche ne rendait qu'une
+*fraction de hauteur*, ce qui suffit à l'envahissement — elle dit où l'**eau**
+entre — mais ne peut pas dire d'où le bois s'envole. Deux questions différentes
+sur le même événement, et chacune veut son propre nombre : `onStrike` rend
+désormais aussi le point monde et la direction du coup.
+
+**Un défaut trouvé par le banc au passage.** Le tir à la roulée était écrit
+« attendre que la volée descende », et un navire immobile par calme plat ne
+satisfait jamais cela : toutes les pièces partaient sur l'expiration du délai de
+deux secondes et demie. On attend tant que la volée **monte** ; parfaitement
+immobile compte comme tirable. Un chef de pièce attend la roulée quand il y a
+une roulée à attendre ; sans elle, il tire.
+
 **Un mât demande TROIS boulets.** Ils étaient épais comme une cuisse aux
 jottereaux et faits pour être canonnés ; le perdre est le prix d'un feu soutenu
 et non d'un coup heureux. Vérifié : trois touches et il part.

@@ -87,9 +87,16 @@ Naval.Guns = class Guns {
     this.onRecoil = null;      // wired by the page, so the hull answers back
     this.onSplash = null;      // ... and so the sea answers back
     /* ... and so the ship she hits does. Called as
-       (entry, 'hull'|'mast', index, localPoint, speed) — the geometry is found
-       here because it is geometry, and what it COSTS her is decided by the
-       page, which is the half that knows about flooding and rigging. */
+       (entry, 'hull'|'mast', index, frac, speed, calibre, world, dir), where
+       `frac` is how far up her depth the hole is and `world`/`dir` are where the
+       ball went in and which way it was going. The geometry is found here
+       because it is geometry; what it COSTS her is decided by the page, which
+       is the half that knows about flooding and rigging.
+
+       The world point was added for the splinters and is worth a word: the
+       fraction alone says where the WATER comes in, which is all the flooding
+       needs, but it cannot say where the timber flies from. Two different
+       questions about the same event, and each wants its own number. */
     this.onStrike = null;
     this._p = new THREE.Vector3();
     this._d = new THREE.Vector3();
@@ -406,8 +413,12 @@ Naval.Guns = class Guns {
             this._mx.set( 1.1, hy + f.userData.height, hz + 1.1);
             const u = Guns._slab(l0, l1, this._mn, this._mx);
             if(u < 0) continue;
-            if(this.onStrike)
-              this.onStrike(e, 'mast', fi, this._l2.copy(l0).lerp(l1, u), b.v.length(), b.k);
+            if(this.onStrike){
+              const w = this._l2.copy(l0).lerp(l1, u)
+                          .applyQuaternion(e.body.quat).add(e.body.pos);
+              this.onStrike(e, 'mast', fi, 0.5, b.v.length(), b.k,
+                            w, this._b.clone().sub(this._a).normalize());
+            }
             dead = true;
             break;
           }
@@ -436,7 +447,11 @@ Naval.Guns = class Guns {
             const hit = this._l2.copy(l0).lerp(l1, u);
             // a fraction of her depth, which means the same in either frame
             frac = (hit.y - this._mn.y)/Math.max(0.5, this._mx.y - this._mn.y);
-            if(this.onStrike) this.onStrike(e, 'hull', ci, frac, b.v.length(), b.k);
+            if(this.onStrike){
+              const w = hit.clone().applyQuaternion(e.body.quat).add(e.body.pos);
+              this.onStrike(e, 'hull', ci, frac, b.v.length(), b.k,
+                            w, this._b.clone().sub(this._a).normalize());
+            }
             dead = true;
             break;
           }
@@ -516,7 +531,13 @@ Naval.Guns = class Guns {
         this._d.set(q.g.side, 0, 0).applyQuaternion(q.body.quat);
         // d/dt of the muzzle's height is (omega x d).y — negative is coming down
         this._a.crossVectors(q.body.angVel, this._d);
-        if(this._a.y > -0.004) continue;        // still rising, or dead still: hold
+        /* Hold only while the muzzle is RISING. Dead still counts as fireable,
+           which sounds obvious and was not what this first said: written as
+           "wait until it is descending", a ship lying quiet in a flat calm
+           never satisfied it and every piece went off on the two-and-a-half
+           second timeout instead. A gun captain waits for the downroll when
+           there is a roll to wait for; without one he simply fires. */
+        if(this._a.y > 0.004) continue;
       }
       this.fire(q.g, q.body, q.spec, q.wind);
       this._queue.splice(i,1);

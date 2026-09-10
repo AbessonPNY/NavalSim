@@ -53,6 +53,12 @@ Naval.Explosion = class Explosion {
     /* Timber. Shared by every splinter, so the page patches it with haze once
        and every piece of every blast breathes the same air. */
     this.woodMat = new THREE.MeshStandardMaterial({ color:0x6b4f31, roughness:0.85 });
+    /* Splinters get their OWN timber, and pale. A ship's outside is weathered
+       and tarred; the inside of a plank is not, so what a ball tears out of her
+       side is RAW oak — much lighter than anything around it. That is true, and
+       it happens to solve the only real difficulty with drawing them: dark
+       slivers against a dark hull at a cable's distance are nothing at all. */
+    this.splinterMat = new THREE.MeshStandardMaterial({ color:0xc9a875, roughness:0.92 });
     /* One plank, reused. Each splinter scales it differently, so a single
        geometry serves them all — there is no reason to build two dozen boxes
        per explosion and throw them away three seconds later. */
@@ -171,6 +177,79 @@ Naval.Explosion = class Explosion {
   rebase(dx, dz){
     for(const p of this.live){ p.p.x -= dx; p.p.z -= dz; p.m.position.copy(p.p); }
     for(const q of this._queue){ q.at.x -= dx; q.at.z -= dz; }
+  }
+
+  /* SPLINTERS, where a ball goes into her side.
+
+     This is the one thing about naval gunnery that everyone who was there wrote
+     down and that no picture of it ever shows: the shot itself killed very few
+     people. What emptied a gundeck was the TIMBER — a ball at three hundred
+     metres a second does not punch a neat hole through two feet of oak, it
+     bursts the planking inboard and drives a cloud of oak daggers across the
+     deck. Surgeons' logs are full of splinter wounds and nearly empty of round
+     shot. An impact that produced a puff and a hole would be missing the whole
+     of what a hit meant.
+
+     They are the same timber as the wreck of an explosion — same geometry, same
+     material, same tumble, same disappearance into the sea — CUT DIFFERENTLY.
+     A blast throws pieces of ship: short, thick, slow, end over end. A ball
+     throws slivers: long, thin, and very fast. That difference is entirely in
+     the numbers handed to the same machinery, which is the point of having the
+     machinery.
+
+     Most of them go INBOARD, along the shot, because that is where they really
+     go — and being inboard they are hidden by her own planking, which is not a
+     loss but the correct reading: they went into her. Rather less than half are
+     thrown back out through the hole she just made, and those are what one
+     sees. Born a little outside the timber, so the ones coming out are not
+     spawned inside the mesh they are supposed to be leaving. */
+  splinters(at, dir, k){
+    const sk = 0.45 + 0.55*Math.max(0.2, k || 1);
+    const n = Math.round(16 + 9*sk);
+    // a frame square to the shot, to spread them in
+    const up = Math.abs(dir.y) > 0.9 ? new THREE.Vector3(1,0,0) : new THREE.Vector3(0,1,0);
+    const sx = new THREE.Vector3().crossVectors(dir, up).normalize();
+    const sy = new THREE.Vector3().crossVectors(dir, sx).normalize();
+    const born = at.clone().addScaledVector(dir, -0.35*sk);
+
+    for(let i=0;i<n;i++){
+      const m = new THREE.Mesh(this.plank, this.splinterMat);
+      /* Long and thin: a splinter is a dagger, not a board. But drawn at life
+         size it is three pixels at the range a gun is fired and simply does not
+         exist — the lantern's lesson again, and the ball's. So it carries the
+         same deliberate lie: its FLIGHT is honest, its section is not. */
+      m.scale.set((0.055 + Math.random()*0.075)*sk,
+                  (0.040 + Math.random()*0.055)*sk,
+                  (0.55  + Math.random()*1.60 )*sk);
+      m.castShadow = false;
+      m.rotation.set(Math.random()*6.28, Math.random()*6.28, Math.random()*6.28);
+      this.group.add(m);
+
+      const a = Math.random()*6.2832, r = Math.random()*0.95;
+      // along the shot for most, back out through the hole for the rest
+      const along = (Math.random() < 0.42 ? -0.55 - Math.random()*0.5
+                                          :  0.35 + Math.random()*0.9);
+      const v = new THREE.Vector3()
+        .addScaledVector(dir, along)
+        .addScaledVector(sx, Math.cos(a)*r)
+        .addScaledVector(sy, Math.sin(a)*r)
+        .normalize()
+        .multiplyScalar((7 + Math.random()*17)*sk);
+      v.y += 1.5 + Math.random()*3.0;          // the burst lifts a little
+
+      this.live.push({
+        m, kind:'wood', t:0, life:1.6 + Math.random()*1.9,
+        p:born.clone().add(new THREE.Vector3((Math.random()-0.5)*0.5*sk,
+                                             (Math.random()-0.5)*0.5*sk,
+                                             (Math.random()-0.5)*0.5*sk)),
+        v,
+        // end over end, and faster than a plank: they are lighter
+        w:new THREE.Vector3((Math.random()-0.5)*26, (Math.random()-0.5)*26,
+                            (Math.random()-0.5)*26),
+        g:true, k:0.25*sk                       // a chip makes a chip's splash
+      });
+    }
+    return n;
   }
 
   /* `ocean` and `t` are optional; given them, the timber knows where the sea

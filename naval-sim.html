@@ -299,7 +299,10 @@ async function main(){
      downflooding all take over without a line written for gunnery; a mast is
      the same fall the magazine causes. Nothing about being shot at is a special
      case — which is the whole reason the two were built first. */
-  guns.onStrike = (e, kind, index, local, speed, k) => {   // local: height fraction
+  guns.onStrike = (e, kind, index, local, speed, k, world, dir) => {
+    /* Timber first, whatever she was hit in: it is the same event seen from
+       outside, and the deck cares about it more than the carpenter does. */
+    if(world && dir) blast.splinters(world, dir, k || 1);
     if(kind === 'mast'){
       /* Masts were TOUGH. A single ball through a lower mast did not bring it
          down — they were a yard thick at the partners and made to be shot at —
@@ -328,6 +331,7 @@ async function main(){
   const blast = new Naval.Explosion(stage.scene, stage);
   // her splinters must breathe the same air as her hull
   Naval.applyHaze(blast.woodMat, ocean.uniforms);
+  Naval.applyHaze(blast.splinterMat, ocean.uniforms);
   Naval.applyHaze(guns.ballMat, ocean.uniforms);
   blast.onSplash = (at, water, speed, jet) => splash.burst(at, water, speed, jet);
 
