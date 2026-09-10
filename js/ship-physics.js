@@ -28,6 +28,13 @@ Naval.ShipPhysics = class ShipPhysics {
     this.spec = spec;
     this.lines = lines;
 
+    /* Ses propres vecteurs, et surtout PAS ceux d'un voisin : le centre de
+       gravite monde avait deja ete alias sur un temporaire dans ce fichier, et
+       cela avait coute un roulis parasite puis une explosion numerique. */
+    this._r2 = new THREE.Vector3();
+    this._nrm = new THREE.Vector3();
+    this._q1 = new THREE.Quaternion();
+
     this.probes = [];
     this.hullVolume = 0;
     this._buildProbes();
@@ -79,6 +86,8 @@ Naval.ShipPhysics = class ShipPhysics {
     this.freeSurfaceRise = 0;              // metres of virtual rise of G
     this.aground = 0;                      // metres her keel is INTO the ground
     this.world = null;                     // set by the page; without it she never touches
+    this.touching = 0;                     // metres her side is INTO another hull
+    this.neighbours = null;                // the other hulls afloat, set by the page
     this.foundered = false;
     this.pumpOn = true;
     /* Pumps are sized so that ONE modest hole is just beatable and two are not
@@ -462,6 +471,108 @@ Naval.ShipPhysics = class ShipPhysics {
     }
   }
 
+  /* BORD À BORD.
+
+     Written as the ground is written, and for the same reason: a stiff spring
+     with heavy damping applied AT the point of contact, so she is shoved,
+     slewed and heeled exactly as the geometry demands. Nothing decides that two
+     ships have touched — the forces do, the same way nothing decides she
+     floats. Give her a rule of her own here and it would disagree with the
+     seabed the first time she was driven onto a shoal alongside another hull.
+
+     The test is on her REAL waterline, not on an ellipse. Her outline is
+     sampled station by station down both sides and each point asked whether it
+     is inside the other's outline — the same halfB() the probe grid and the
+     visible hull are built from, so what shoves her is what one sees touch.
+     The foam's history is the warning here: an ellipse ran up to two metres
+     inside the planking, which is invisible in a foam collar and would be two
+     metres of overlap here.
+
+     It is a PLAN test, with no height to it, and that is deliberate rather than
+     lazy: two hulls that meet are both floating at their own waterline, so the
+     interesting contact is always side to side. A test in three dimensions
+     would cost several times as much to catch a case — one ship riding over
+     another — that this model has no way to produce.
+
+     Both hulls run this against each other, so the pair is pushed apart without
+     anyone arbitrating. Each pays for her own contacts and Newton is satisfied
+     by symmetry rather than by bookkeeping. */
+  _collide(dt, force, torque, cog){
+    this.touching = 0;
+    const others = this.neighbours;
+    if(!others || others.length < 2) return;
+
+    const C = this.C, S = this.spec, b = this.body;
+    // she carries her whole weight at a third of a metre of overlap
+    const kSpring = b.mass*C.G/0.33;
+    const spd = Math.hypot(b.vel.x, b.vel.z);
+    this._hardHit = Math.max(0, (this._hardHit || 0) - dt);
+
+    const NS = 9;                                  // stations down each side
+    for(const o of others){
+      if(!o || o === this || !o.body || !o.lines || o.foundered) continue;
+      const ob = o.body, oS = o.spec;
+
+      /* Wide phase, and it is what makes this cheap: two hulls whose centres
+         are further apart than their two half-lengths cannot be touching. */
+      const dx = ob.pos.x - b.pos.x, dz = ob.pos.z - b.pos.z;
+      const far = (S.L + oS.L)*0.5;
+      if(dx*dx + dz*dz > far*far) continue;
+
+      this._q1.copy(ob.quat).invert();
+
+      for(let i=0;i<NS;i++){
+        const t = (i + 0.5)/NS;                    // 0 at the sternpost, 1 at the stem
+        const zl = (t - 0.5)*S.L, hw = this.lines.halfB(t);
+        if(hw < 0.05) continue;
+
+        for(let sgn=-1; sgn<=1; sgn+=2){
+          this._pw.set(sgn*hw, 0, zl).applyQuaternion(b.quat).add(b.pos);
+
+          // into her frame, where her own outline is a pair of numbers
+          this._r2.copy(this._pw).sub(ob.pos).applyQuaternion(this._q1);
+          const ot = this._r2.z/oS.L + 0.5;
+          if(ot <= 0 || ot >= 1) continue;
+          const ohw = o.lines.halfB(ot);
+          const pen = ohw - Math.abs(this._r2.x);
+          if(pen <= 0) continue;
+
+          this.touching = Math.max(this.touching, pen);
+
+          // out of her side, athwartships, carried back into the world
+          this._nrm.set(Math.sign(this._r2.x) || 1, 0, 0)
+                   .applyQuaternion(ob.quat);
+          this._nrm.y = 0;
+          if(this._nrm.lengthSq() < 1e-6) continue;
+          this._nrm.normalize();
+
+          this._r.copy(this._pw).sub(cog);
+          // the speed of THIS point, so the damping fights the real motion
+          this._tmp.copy(b.angVel).cross(this._r).add(b.vel);
+          const closing = this._tmp.dot(this._nrm);
+
+          const push = kSpring*Math.min(pen, 1.2)/NS - closing*b.mass*1.6/NS;
+          if(push <= 0) continue;
+
+          this._fVec.copy(this._nrm).multiplyScalar(push);
+          force.add(this._fVec);
+          torque.add(this._mom.crossVectors(this._r, this._fVec));
+
+          /* And laid aboard at speed she OPENS, exactly as she does on rock.
+             A hull run into another hull does not bounce, and the hole is where
+             she struck — so ramming becomes a real cause of the flooding that
+             was already written, without a line of its own. */
+          if(spd > 2.2 && this._hardHit <= 0){
+            const comp = Math.min(this.comps.length-1, Math.max(0,
+                           Math.floor(t*this.comps.length)));
+            this.breach(comp, Math.min(0.40, 0.05*(spd - 2.0)), 0.42);
+            this._hardHit = 5;            // pas deux fois dans le meme souffle
+          }
+        }
+      }
+    }
+  }
+
   /* The magazine goes up: her bottom is opened from end to end at once.
 
      Not a special sinking path — the same flooding as any other, with every
@@ -741,6 +852,7 @@ Naval.ShipPhysics = class ShipPhysics {
 
     this._sails(ctrl, ocean, cog, force, torque, fwd, right);
     this._ground(dt, force, torque, cog, ocean);
+    this._collide(dt, force, torque, cog);
 
     // --- integrate linear ---
     b.vel.addScaledVector(force, dt/b.mass);

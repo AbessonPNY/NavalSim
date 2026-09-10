@@ -1001,6 +1001,12 @@ async function main(){
     const dt = Math.min(0.05, (now-last)/1000); last = now;
     t += dt;
 
+    /* Chacun doit savoir qui d'autre est a l'eau pour pouvoir s'y cogner. La
+       liste est donnee a chaque image plutot que retenue, pour la raison qui a
+       deja coute un bug ici : une reference gardee se perime des que la flotte
+       change. */
+    for(const e of fleet) if(e.physics) e.physics.neighbours = fleet.map(x => x.physics);
+
     controls.update(dt);
     /* A mast that is going over takes its canvas with it, and it must do so
        BEFORE she is stepped: read after, she would be driven for one more frame

@@ -754,6 +754,53 @@ secondes, puis 12 t embarquées en deux minutes. La pénétration **oscille entr
 et 0,25 m** au rythme de la houle — elle tape sur le banc, ce que je n'avais pas
 prévu et qui tombe juste.
 
+**BORD À BORD, et c'est l'échouage écrit une seconde fois.** Un ressort raide
+très amorti appliqué **au point de contact**, donc elle est repoussée, embardée
+et couchée exactement comme la géométrie l'impose. Rien ne décide que deux
+navires se sont touchés : les forces le font, comme rien ne décide qu'elle
+flotte. Lui donner une règle à elle aurait garanti qu'elle contredise le fond
+la première fois qu'on la pousse sur un haut-fond à couple d'un autre.
+
+**L'essai porte sur la vraie flottaison, pas sur une ellipse.** Son contour est
+échantillonné station par station des deux bords et chaque point demande s'il
+est dans le contour de l'autre — le même `halfB()` dont sont bâties la grille de
+sondes et la coque visible, donc ce qui la repousse est ce qu'on voit se
+toucher. L'histoire de l'écume est l'avertissement : l'ellipse passait jusqu'à
+deux mètres en dedans du bordé, ce qui est invisible sur un collier d'écume et
+ferait ici deux mètres d'interpénétration.
+
+**C'est un essai en PLAN, sans hauteur**, et c'est réfléchi plutôt que
+paresseux : deux coques qui se rencontrent flottent chacune à sa flottaison,
+donc le contact intéressant est toujours bord contre bord. Un essai en trois
+dimensions coûterait plusieurs fois plus cher pour attraper un cas — un navire
+chevauchant l'autre — que ce modèle ne sait pas produire.
+
+**Les deux le font l'une contre l'autre**, donc la paire s'écarte sans que
+personne n'arbitre : chacune paie ses propres contacts et Newton est satisfait
+par symétrie plutôt que par comptabilité. La liste des voisins est **donnée à
+chaque image** et jamais retenue, pour la raison qui a déjà coûté un bug ici —
+une référence gardée se périme dès que la flotte change.
+
+**Et abordée en vitesse, elle S'OUVRE**, exactement comme sur la roche : une
+coque lancée dans une autre ne rebondit pas, et le trou est là où elle a frappé.
+L'abordage devient donc une vraie cause de l'envahissement déjà écrit, sans une
+ligne à lui. Mesuré, deux galions de 240 t par le travers :
+
+| vitesse au choc | 1,5 m/s | 3,45 | 5,77 |
+|---|---|---|---|
+| pénétration | 0,49 m | 0,77 | 1,13 |
+| gîte maximale | 6° / 7° | 8° / 9° | 11° / 12° |
+| voies ouvertes | **aucune** | 1 de chaque bord | 1 de chaque bord |
+
+Un accostage ne fait donc rien, et c'est voulu — on peut se ranger à couple. Le
+transfert de quantité de mouvement sort tout seul : lancée à 2,18 nds elle tombe
+à 0,67 et l'autre part de zéro à 1,15, puis elles se repoussent jusqu'à onze
+mètres.
+
+Le coût est en N² mais dérisoire, la phase large rejetant tout couple plus
+éloigné que la somme des demi-longueurs : **0,009 ms par paire**, soit 0,25 ms
+à huit coques dans le pire des cas, contre 10,7 ms de solveur.
+
 **Le naufrage n'est pas scripté, c'est du poids mal placé.** Méthode du *poids
 ajouté* : l'eau embarquée est une masse, à l'endroit où elle repose. Rien ne
 décide qu'elle coule — elle sombre quand ce poids dépasse ce que sa carène peut
