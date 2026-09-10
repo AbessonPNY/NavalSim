@@ -2846,6 +2846,25 @@ coques ne coûtent que **9 %** de plus (10,77 contre 11,71 ms). Ce n'est pas le
 sujet. La liste reste non bornée, ce qui n'est pas joli, mais cela ne se paie
 pas.
 
+## À FAIRE — fusionner les voies d'eau d'un même endroit
+
+**Décidé, pas fait, et délibérément remis.** L'artillerie appelle `breach()` à
+chaque touche, donc la liste des voies d'eau grandit sans borne : dix-neuf à
+quarante-quatre par navire après une longue canonnade. Cela contredit la règle
+que le projet s'était donnée pour les avaries — *une voie d'eau s'aggrave, elle
+ne se multiplie pas* — et `worsenBreach()` existe justement pour doubler l'aire
+du même trou plutôt que d'en ouvrir un autre.
+
+Ce n'est PAS un problème de coût : mesuré, cent soixante voies réparties sur
+huit coques ne prennent que 9 % de plus. C'est un problème de **cohérence**, et
+accessoirement de vraisemblance — une coque ne se perce pas en quarante endroits
+distincts, une couture cède et travaille.
+
+Le remède tiendrait en quelques lignes : à la touche, chercher une voie déjà
+ouverte dans le même compartiment et à une hauteur voisine, et l'aggraver au
+lieu d'en pousser une neuve. Reste à décider ce que « voisine » veut dire — sans
+doute une fraction du creux du compartiment.
+
 ## Les quatre caméras
 
 **La vue de poursuite a été retirée**, remplacée par une vue de **proue**
@@ -2888,8 +2907,14 @@ plante à la première image si personne ne l'a fait. Même raison pour
 `setSpec` : un nouveau navire n'est pas là où était l'ancien, la station est
 donc reprise.
 
-**Les touches.** `G` donne la bordée tribord, `⇧G` celle de bâbord —
-un seul moyen mnémotechnique et deux batteries.
+**Les touches.** `G` tire du bord **en batterie**, `⇧G` de l'autre. Le bord
+est choisi dans le panneau de barre et non deviné : la touche seule savait le
+dire, ce qui est un moyen mnémotechnique et non une commande — rien à l'écran ne
+disait de quel côté on allait tirer, et il fallait s'en souvenir au moment où
+l'on a le moins de temps pour ça. Le bord est donc un **état qu'on voit**, comme
+la barre et les écoutes. Et `⇧G` sert « l'autre bord » plutôt que « bâbord » :
+le geste garde son sens quel que soit le bord armé, et l'on peut lâcher une
+bordée du côté opposé sans changer d'ordre.
 
 **`H` fait le vide.** Tout ce qui n'est pas la mer disparaît, message de naufrage
 compris : le but est une image propre, et une demi-interface est pire que

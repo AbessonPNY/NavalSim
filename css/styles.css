@@ -200,6 +200,16 @@
   /* Weight on deck is the one that kills a ship, so it is marked as a warning
      the moment there is any of it there. */
   .stowGrid button.high{background:rgba(255,176,71,.14);border-color:var(--warn);color:var(--warn)}
+  /* Le bord en batterie : deux boutons, dans le panneau de barre. C'est un
+     ORDRE et non un réglage, donc il vit avec la roue et les écoutes. */
+  .gunSide{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}
+  .gunSide button{font-family:var(--disp);font-weight:600;font-size:10.5px;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+    background:var(--panel);border:1px solid var(--edge-soft);border-radius:5px;
+    padding:5px 0;cursor:pointer}
+  .gunSide button:hover{border-color:var(--accent);color:var(--accent)}
+  .gunSide button.on{background:rgba(70,224,208,.14);border-color:var(--accent);color:var(--accent)}
+
   .stowSide{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:8px}
   .stowSide button,.stowFoot button{font-family:var(--disp);font-weight:600;font-size:10px;
     letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:var(--panel);

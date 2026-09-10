@@ -19,7 +19,7 @@ Naval.Controls = class Controls {
     this.onBlowUp = null;         // the powder magazine, for the fun of it
     this.onToggleHud = null;      // clear the instruments off the glass
     this.onToggleCargo = null;    // show or hide the stowage plan
-    this.onFire = null;           // (side, held) — +1 starboard, -1 port
+    this.onFire = null;           // (autreBord, maintenu)
     this.onDebug = null;          // show or hide the bench
     this.onShot = null;           // take the screen
     this._salvo = false;          // this hold has already loosed its broadside
@@ -48,9 +48,11 @@ Naval.Controls = class Controls {
          our own — the first event of a press has `repeat` false, and every one
          after it true — and a latch keeps a long hold from loosing salvo after
          salvo. */
+      /* La touche ne dit plus QUEL bord mais si l'on veut l'AUTRE : le bord en
+         batterie est un état que la page tient et que le HUD montre. */
       if(k==='g' && this.onFire){
-        if(!e.repeat) this.onFire(e.shiftKey ? -1 : 1, false);
-        else if(!this._salvo){ this._salvo = true; this.onFire(e.shiftKey ? -1 : 1, true); }
+        if(!e.repeat) this.onFire(e.shiftKey, false);
+        else if(!this._salvo){ this._salvo = true; this.onFire(e.shiftKey, true); }
       }
     });
     addEventListener('keyup', e=>{

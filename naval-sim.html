@@ -165,7 +165,10 @@
       <div class="telegraph" id="shtTele">— voiles établies —</div>
       <div class="keys"><kbd>Q</kbd><kbd>E</kbd> écoutes · <kbd>T</kbd> au mieux · <kbd>V</kbd> ferler</div>
       <div class="keys"><kbd>B</kbd> voie d&apos;eau · <kbd>P</kbd> pompes · <kbd>R</kbd> réparer · <kbd>K</kbd> sauter</div>
-      <div class="keys"><kbd>G</kbd> un coup · maintenu, la bordée · <kbd>⇧G</kbd> bâbord</div>
+      <div class="gunSide" id="gunSide">
+        <button data-s="-1">Bâbord</button><button data-s="1" class="on">Tribord</button>
+      </div>
+      <div class="keys"><kbd>G</kbd> un coup · maintenu, la bordée · <kbd>⇧G</kbd> l&apos;autre bord</div>
       <div class="keys"><kbd>H</kbd> masquer l&apos;affichage · <kbd>I</kbd> capture d&apos;écran</div>
     </div>
   </div>
@@ -627,9 +630,29 @@ async function main(){
         ship.dropAllMasts();
       };
       // la touche est posée ici, avec les autres : plus haut, controls n'existe pas encore
+      /* LE BORD EN BATTERIE, choisi à la main et non deviné.
+
+         La touche seule savait le dire — G à tribord, ⇧G à bâbord — ce qui est
+         un moyen mnémotechnique et non une commande : rien à l'écran ne disait
+         de quel côté on allait tirer, et il fallait s'en souvenir au moment où
+         l'on a le moins de temps pour ça. Le bord devient donc un ÉTAT qu'on
+         voit, comme la barre et les écoutes, et la touche l'emploie.
+
+         ⇧G reste, et sert désormais « l'autre bord » plutôt que bâbord : le
+         geste garde son sens quel que soit le bord armé, et l'on peut lâcher
+         une bordée du côté opposé sans changer d'ordre. */
+      let gunSide = 1;
+      const gunSideEls = [...document.querySelectorAll('#gunSide button')];
+      function showGunSide(){
+        for(const b of gunSideEls) b.classList.toggle('on', Number(b.dataset.s) === gunSide);
+      }
+      for(const b of gunSideEls) b.onclick = ()=>{ gunSide = Number(b.dataset.s); showGunSide(); };
+      showGunSide();
+
       controls.onShot = ()=> capture.take();
-      controls.onFire = (side, held) => {
+      controls.onFire = (other, held) => {
         if(!ship.guns.length){ hud.flash && hud.flash(); return; }
+        const side = other ? -gunSide : gunSide;      // ⇧ : l'autre bord, une fois
         if(held) guns.broadside(ship.guns, side, physics.body, spec, ocean.windVec);
         else     guns.fireOne(ship.guns, side, physics.body, spec, ocean.windVec);
       };
