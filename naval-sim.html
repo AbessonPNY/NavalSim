@@ -171,6 +171,9 @@
         <div class="mkBtns">
           <button id="mkPow25">Embarquer 25 coups</button><button id="mkPowFull">Faire le plein</button>
         </div>
+        <!-- CE QU'ON SAIT D'AILLEURS : exact, et date. -->
+        <div class="mkNews"><span class="k">Aux autres ports, à la dernière nouvelle</span></div>
+        <div id="mkNewsList"></div>
       </div>
     </div>
   </div>
@@ -303,6 +306,15 @@
         </dl>
       </section>
     </div>
+  </div>
+
+  <!-- UN NAVIRE PARLÉ AU LARGE. Frais, vague, et il ne met pas le navire en
+       panne : on continue sa route pendant qu'on lit, et l'on déroute si l'on
+       veut. C'est tout l'intérêt — le renseignement arrive en chemin, pas au
+       comptoir, donc il oblige à décider avec de l'erre sous la quille. -->
+  <div id="rumour" hidden>
+    <div class="ruHead"><b>Navire parlé</b><button id="ruClose">✕</button></div>
+    <div class="ruBody" id="ruText">—</div>
   </div>
 
   <div id="lost" hidden>
@@ -631,6 +643,25 @@ async function main(){
       el('mkBuy').textContent  = MK.buyPrice(portIci.key, t);
       el('mkSell').textContent = MK.sellPrice(portIci.key, t);
       el('mkPow').textContent  = MK.POUDRE;
+
+      /* CE QU'ON SAIT D'AILLEURS : le prix ferme, et son âge à côté. Un chiffre
+         périmé sans son âge est un mensonge ; avec son âge, c'est un
+         renseignement dont on juge soi-même. Les plus fraîches d'abord — c'est
+         l'ordre dans lequel on leur fait confiance. */
+      const nouv = world.isles.filter(i => i !== portIci)
+        .map(i => MK.news(portIci, i, t))
+        .sort((a, b) => a.lag - b.lag);
+      const list = el('mkNewsList');
+      list.innerHTML = '';
+      for(const n of nouv){
+        const row = document.createElement('div');
+        row.className = 'nwRow';
+        row.innerHTML = '<span class="p"></span><b></b><span class="a"></span>';
+        row.children[0].textContent = n.name;
+        row.children[1].textContent = n.sell;
+        row.children[2].textContent = MK.age(n.lag);
+        list.appendChild(row);
+      }
     }
     el('roEcus').textContent   = purse.ecus;
     el('roPieces').textContent = purse.pieces;
@@ -675,6 +706,52 @@ async function main(){
   document.getElementById('mkSell10').onclick  = ()=> vendreEpices(10);
   document.getElementById('mkPow25').onclick   = ()=> acheterPoudre(25);
   document.getElementById('mkPowFull').onclick = ()=> acheterPoudre(9999);
+
+  /* UN NAVIRE PARLÉ AU LARGE. Frais, vague, et il n'arrive qu'EN MER : c'est la
+     moitié de l'idée. Un renseignement reçu au comptoir se range dans un
+     tableau ; le même reçu en chemin oblige à décider avec de l'erre sous la
+     quille, et dérouter coûte alors quelque chose.
+
+     Le risque, lui, était déjà écrit et n'a rien demandé : les dépressions sont
+     une fonction pure de la position et de l'heure, et couvrent 5,9 % de la mer
+     à tout instant. Changer de cap sur une rumeur, c'est réellement tirer au
+     sort — sans qu'une seule ligne ait eu à le décider.
+
+     Vraie mais sans chiffre. Une rumeur FAUSSE est un autre jeu, celui où l'on
+     doute de ses sources, et il demande qu'on ait d'abord de quoi les
+     recouper. */
+  const ruEl = document.getElementById('rumour');
+  document.getElementById('ruClose').onclick = ()=> { ruEl.hidden = true; };
+  let ruTimer = 120 + Math.random()*180;
+
+  function tickRumour(dt){
+    /* Seulement sous voiles ou à la machine, et loin d'un port : à quai on a le
+       comptoir, qui dit mieux et pour rien. */
+    if(portIci || Math.hypot(physics.body.vel.x, physics.body.vel.z) < 0.7) return;
+    ruTimer -= dt;
+    if(ruTimer > 0) return;
+    ruTimer = 240 + Math.random()*240;          // quatre à huit minutes
+    parler();
+  }
+
+  /* Sorti du compteur pour deux raisons : la console peut l'appeler — ce que
+     `Naval.app` existe pour permettre — et une chose qu'on ne peut éprouver
+     qu'en attendant huit minutes est une chose qu'on n'éprouve pas. */
+  function parler(){
+    const wx = ocean.origin.x + physics.body.pos.x;
+    const wz = ocean.origin.z + physics.body.pos.z;
+    const autres = world.isles.filter(i =>
+      Math.hypot(i.x - wx, i.z - wz) > 2500);   // pas celui qu'on a sous le nez
+    if(!autres.length) return false;
+    const cible = autres[Math.floor(Math.random()*autres.length)];
+    const r = Naval.Market.rumour(cible, ocean.uniforms.uTime.value, Math.random());
+    const el = document.getElementById('ruText');
+    el.textContent = 'Nous avons parlé ' + r.voile + ' venant de ' + r.port
+                   + '. Il dit ' + r.lie + r.mot + ' là-bas.';
+    el.className = 'ruBody' + (r.fort ? ' fort' : r.faible ? ' faible' : '');
+    ruEl.hidden = false;
+    return true;
+  }
 
   function refreshStow(){
     for(const c of stowCells){
@@ -1480,7 +1557,7 @@ async function main(){
                 get physics(){ return physics; }, get ship(){ return ship; },
                 get cam(){ return cam; }, get hud(){ return hud; },
                 world, land, gulls, chart, blast, guns, takeHelm, weather, rain, splash,
-                cordage,
+                cordage, purse, parler,
                 storms, get squall(){ return squall; },
                 get fleet(){ return fleet; } };
 
@@ -1668,6 +1745,7 @@ async function main(){
          une chose qu'on lit avant de cliquer. */
       refreshMarket();
     }
+    tickRumour(dt);
 
     /* Frame rate, and — the useful half — the WORK inside the frame.
 

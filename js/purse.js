@@ -119,5 +119,70 @@ Naval.Market = {
   format(sous){
     const e = Math.floor(sous / this.SOUS_PAR_ECU), p = sous % this.SOUS_PAR_ECU;
     return { ecus:e, pieces:p };
+  },
+
+  /* ------------------------------------------------------------------ */
+  /* CE QU'ON SAIT DES AUTRES PORTS, et c'est le cœur du commerce : savoir où
+     vendre vaut autant que savoir naviguer. Deux sortes de renseignement, et
+     ils ne se ressemblent pas.
+
+     AU COMPTOIR : exact, et VIEUX. Le négociant sait ce qu'on payait au
+     Carénage quand la dernière nouvelle en est partie — un chiffre ferme, mais
+     daté. Le retard n'est pas inventé : c'est la distance divisée par la
+     vitesse d'un navire porteur de nouvelles, parce que l'information voyageait
+     par la mer, à la vitesse de la mer. Le port le plus lointain donne donc la
+     nouvelle la plus alléchante ET la plus périmée, ce qui est la tension
+     entière du métier.
+
+     Et c'est ENCORE une fonction pure : `spice(key, t − distance/vitesse)`.
+     Rien à stocker, rien à tenir à jour, la même chose sur toutes les machines
+     — comme les îles, comme les dépressions, comme le cours lui-même. */
+  NOUVELLE: 2.6,                     // m/s : cinq nœuds, l'allure d'un aviso
+
+  news(from, to, t){
+    const lag = Math.hypot(from.x - to.x, from.z - to.z) / this.NOUVELLE;
+    return { key:to.key, name:to.name, lag,
+             sell:this.sellPrice(to.key, t - lag) };
+  },
+
+  /* L'âge d'une nouvelle, dit comme on le dirait. Un chiffre périmé SANS son
+     âge est un mensonge ; avec son âge, c'est un renseignement dont on juge
+     soi-même. C'est toute la différence, et elle tient en trois mots. */
+  age(lag){
+    const m = Math.round(lag/60);
+    if(m < 60) return 'il y a ' + m + ' min';
+    return 'il y a ' + Math.floor(m/60) + ' h ' + String(m%60).padStart(2,'0');
+  },
+
+  /* EN MER : frais, et VAGUE. On parle un navire, il dit ce qu'il a vu il y a
+     peu — mais un capitaine croisé au large ne récite pas une mercuriale, il
+     dit que ça se paie bien ou que ça ne se paie plus. Pas de chiffre, donc, et
+     c'est délibéré : un chiffre se compare et se calcule, une appréciation se
+     pèse. L'un se met en tableau, l'autre demande de décider.
+
+     Vrai, cependant. Une rumeur fausse est un autre jeu — celui où l'on doute
+     de ses sources — et il demande qu'on ait d'abord de quoi les recouper. */
+  BANDES: [
+    [1.28, 'on y paie des prix d’or'],
+    [1.10, 'les cours y sont hauts'],
+    [0.92, 'les cours y sont ordinaires'],
+    [0.76, 'les cours y sont mous'],
+    [0.00, 'on n’y achète presque plus']
+  ],
+  VOILES: ['un brick', 'une flûte', 'une barque de pêche', 'un aviso',
+           'une caravelle', 'un sloop', 'une galiote'],
+
+  rumour(isl, t, rnd){
+    const r = this.spice(isl.key, t) / this.EPICE;
+    let mot = this.BANDES[this.BANDES.length-1][1];
+    for(const [seuil, texte] of this.BANDES) if(r >= seuil){ mot = texte; break; }
+    const v = this.VOILES[Math.floor(rnd*this.VOILES.length) % this.VOILES.length];
+    /* « Il dit QU'on y paie » mais « il dit QUE les cours sont hauts » : on
+       n'élide que devant une voyelle. La règle vit ici, avec les mots qu'elle
+       gouverne, plutôt que dans la page qui les assemble — sans quoi ajouter
+       une bande demanderait de se souvenir d'aller corriger une phrase
+       ailleurs. */
+    const lie = /^[aeiouyàâéèêëîïôöûù]/i.test(mot) ? 'qu’' : 'que ';
+    return { voile:v, port:isl.name, mot, lie, fort:r >= 1.10, faible:r < 0.92 };
   }
 };

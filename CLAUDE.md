@@ -3411,6 +3411,61 @@ bouton « acheter » échouait systématiquement au premier armement, et un jeu 
 commence par un refus n'explique rien à personne. Portée à 400 écus, de quoi
 charger une quarantaine de tonnes au cours moyen.
 
+## Savoir où vendre
+
+**Deux renseignements, et ils ne se ressemblent pas** — c'est toute la question
+posée par « comment savoir où la marchandise s'échangera au plus haut ».
+
+**AU COMPTOIR : exact, et VIEUX.** Le négociant sait ce qu'on payait ailleurs
+*quand la dernière nouvelle en est partie*. Le retard n'est pas inventé : c'est
+la **distance divisée par la vitesse d'un navire porteur de nouvelles**, parce
+que l'information voyageait par la mer, à la vitesse de la mer. Et c'est encore
+une fonction pure — `spice(key, t − distance/vitesse)` — donc rien à stocker,
+comme les îles, les dépressions et le cours lui-même.
+
+Le port le plus lointain donne la nouvelle la plus alléchante ET la plus
+périmée, et c'est là toute la tension. Relevé depuis Port-Royal :
+
+| | nouvelle | âge | cours réel |
+|---|---|---|---|
+| Le Carénage | 682 | 1 h 33 | 671 |
+| La Tortue | 503 | 2 h 15 | 569 |
+| Saint-Pierre | **546** | 2 h 53 | **375** |
+
+Saint-Pierre annonce 546 et paie 375 : un capitaine qui traverse sur cette
+nouvelle-là se ruine. Les nouvelles sont listées **de la plus fraîche à la plus
+vieille**, qui est l'ordre dans lequel on leur fait confiance.
+
+**Et l'ÂGE est affiché à côté du chiffre.** Un prix périmé sans son âge est un
+mensonge ; avec son âge, c'est un renseignement dont on juge soi-même. Toute la
+différence tient dans trois mots à droite du nombre.
+
+**EN MER : frais, et VAGUE.** On parle un navire, il dit ce qu'il a vu il y a
+peu — mais un capitaine croisé au large ne récite pas une mercuriale, il dit que
+ça se paie bien ou que ça ne se paie plus. Pas de chiffre, donc, et c'est
+délibéré : **un chiffre se compare et se calcule, une appréciation se pèse.**
+L'un se met en tableau, l'autre demande de décider.
+
+Elle n'arrive qu'**en mer et en route** — à quai on a le comptoir, qui dit mieux
+et pour rien — et elle **ne met pas le navire en panne** : on continue sa route
+pendant qu'on lit. C'est la moitié de l'idée. Un renseignement reçu au comptoir
+se range dans un tableau ; le même reçu en chemin oblige à décider avec de
+l'erre sous la quille.
+
+**ET LE RISQUE ÉTAIT DÉJÀ ÉCRIT.** Dérouter sur une rumeur, c'est réellement
+tirer au sort : les dépressions sont une fonction pure de la position et de
+l'heure et couvrent 5,9 % de la mer à tout instant, 28,8 % à portée d'en voir
+une. Pas une ligne n'a eu à le décider — le monde le faisait déjà.
+
+**Vraie, cependant.** Une rumeur FAUSSE est un autre jeu, celui où l'on doute de
+ses sources, et il demande qu'on ait d'abord de quoi les recouper.
+
+**Une faute de français au passage**, et elle vaut d'être notée parce qu'elle
+dit où va une règle : « Il dit qu'les cours y sont mous ». On n'élide que devant
+une voyelle, et la règle vit désormais **avec les mots qu'elle gouverne**, dans
+`rumour()`, plutôt que dans la page qui les assemble — sans quoi ajouter une
+bande demanderait de se souvenir d'aller corriger une phrase ailleurs.
+
 **DEUX DÉFAUTS SIGNALÉS À L'USAGE, et le second était une vraie panne.**
 
 « Je ne vois pas ma bourse. » Elle était au **bas** d'un panneau de six cents
