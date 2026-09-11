@@ -3393,6 +3393,44 @@ bouton « acheter » échouait systématiquement au premier armement, et un jeu 
 commence par un refus n'explique rien à personne. Portée à 400 écus, de quoi
 charger une quarantaine de tonnes au cours moyen.
 
+**DEUX DÉFAUTS SIGNALÉS À L'USAGE, et le second était une vraie panne.**
+
+« Je ne vois pas ma bourse. » Elle était au **bas** d'un panneau de six cents
+pixels : sur une fenêtre courte elle passait sous le bord de l'écran, et un
+compteur qu'il faut aller chercher n'en est pas un. Remontée en tête, juste sous
+le sélecteur, sur une ligne à elle — c'est en outre le chiffre qu'on surveille le
+plus souvent. Et `#instruments` est désormais **borné à la fenêtre** avec un
+défilement, ce qui règle la classe entière de problème pour tout ce qu'on y
+ajoutera plus tard.
+
+« Les épices ne s'ajoutent pas au bateau. » Elles s'ajoutaient parfaitement — le
+déplacement montait de dix tonnes — mais elles étaient chargées au niveau
+**0,12** quand la grille d'arrimage ne dessine que 0,85, 0,50 et **0,18** : aucune
+case ne pouvait donc les montrer. Du fret invisible dans un plan d'arrimage
+n'est pas du fret, c'est une panne. Le niveau est maintenant **lu sur `LEVELS`**
+plutôt que réécrit à côté — une définition, deux usagers, la règle que ce projet
+applique partout ailleurs et que j'avais enfreinte pour un nombre.
+
+**LE QUAI S'EST ÉLARGI ET A PRIS SA PASSERELLE.** Quatre mètres portent un homme
+et sa charge, ce qui suffit à un appontement de service ; un quai où l'on
+embarque du **fret** doit pouvoir porter des fûts posés de front et deux hommes
+qui se croisent en portant la même caisse. Sept mètres, donc — et tout le reste
+a suivi sans qu'on y touche, le poste s'écartant d'autant et les bittes avec,
+la page lisant `jetty.width` au lieu de le réécrire. Vérifié après
+élargissement : six amarres, 0,64 m d'évitage et **zéro talonnage** sur trois
+minutes.
+
+La **passerelle d'embarquement** est ce qui fait d'un appontement un quai de
+commerce : sans elle on voit un navire à côté d'un ponton et rien qui dise par
+où les caisses passent. Une planche en travers avec ses deux lisses, plus
+quelques fûts et caisses sur le quai à côté.
+
+Elle est **posée et non attachée à la coque**, et c'est un renoncement assumé :
+la rattacher demanderait de la redessiner à chaque image pendant que le navire
+évite sur ses amarres, pour une planche qu'on regarde deux secondes en
+chargeant. Elle est donc au poste — du côté où la coque se range, aux sept
+dixièmes du quai, là où un bâtiment de taille ordinaire présente son milieu.
+
 ### Ce qui n'est PAS fait
 
 - **Les améliorations.** Nommées dans la demande, pas spécifiées : quelles

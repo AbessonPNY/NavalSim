@@ -29,6 +29,16 @@
   <div id="instruments" class="panel">
     <div class="title"><b id="shipName">Goélette Archimède</b><span class="dot" id="statusDot"></span></div>
     <select id="shipSel" aria-label="Choisir le navire"></select>
+    <!-- LA BOURSE EN TÊTE, et non plus au bas d’un panneau de six cents pixels :
+         signalée à l’usage — « je ne vois pas ma bourse ». Sur une fenêtre courte
+         elle passait sous le bord de l’écran, et un compteur qu’il faut aller
+         chercher n’en est pas un. C’est en outre le chiffre qu’on surveille le
+         plus souvent, donc sa place est en haut. -->
+    <div class="purse">
+      <div class="pu"><b id="roEcus">0</b><small>écus</small><i id="roPieces">0</i><small>p</small></div>
+      <div class="pu"><b id="roPowder">0</b><small>coups</small></div>
+      <div class="pu"><b id="roSpice">0</b><small>t épices</small></div>
+    </div>
     <div class="hair"></div>
     <div class="readouts">
       <div class="ro"><span class="k">Déplacement</span><span class="v"><span id="roTonnage">0</span><small>t</small></span></div>
@@ -51,13 +61,7 @@
       <div class="ro"><span class="k">Frêt</span><span class="v"><span id="roCargo">0</span><small>t</small></span></div>
       <div class="ro"><span class="k">Capacité</span><span class="v"><span id="roCargoPct">0</span><small>%</small></span></div>
     </div>
-    <div class="hair"></div>
-    <!-- LA BOURSE. Un seul entier de pièces derrière, deux lectures devant. -->
-    <div class="readouts">
-      <div class="ro"><span class="k">Bourse</span><span class="v"><span id="roEcus">0</span><small>écus</small></span></div>
-      <div class="ro"><span class="k">Poudre</span><span class="v"><span id="roPowder">0</span><small>coups</small></span></div>
-    </div>
-    <div class="purseLine"><span id="roPieces">0</span> pièces d’argent · épices <b id="roSpice">0</b> t</div>
+
     <div class="hair"></div>
     <div class="readouts">
       <div class="ro"><span class="k">Eau embarquée</span><span class="v"><span id="roFlood">0</span><small>t</small></span></div>
@@ -601,10 +605,19 @@ async function main(){
   }
 
   /* Où l'on range ce qu'on achète : au fond, au milieu, ce qui est l'arrimage
-     sûr. Le plan reste là pour le déplacer si l'on veut mieux faire. */
+     sûr. Le plan reste là pour le déplacer si l'on veut mieux faire.
+
+     ET SUR UN NIVEAU QUE LE PLAN DESSINE, ce qui a coûté un bug signalé à
+     l'usage : « les épices ne s'ajoutent pas au bateau ». Elles s'ajoutaient
+     parfaitement — le déplacement montait de dix tonnes — mais elles étaient
+     chargées à 0,12 quand la grille ne connaît que 0,85, 0,50 et 0,18, si bien
+     qu'aucune case ne pouvait les montrer. Du fret invisible dans un plan
+     d'arrimage n'est pas du fret, c'est une panne. Le niveau est donc LU sur
+     LEVELS plutôt que réécrit ici : une seule définition, deux usagers. */
+  const NIVEAU_FOND = LEVELS[LEVELS.length - 1].y;
   function chargerEpices(t){
     const mid = Math.floor(Naval.Config.NCOMP/2);
-    physics.loadCargo(mid, 0.12, 0, t, 'epice');
+    physics.loadCargo(mid, NIVEAU_FOND, 0, t, 'epice');
   }
 
   function refreshMarket(){

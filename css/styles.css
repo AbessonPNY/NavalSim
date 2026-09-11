@@ -119,6 +119,13 @@
      the point is a clean picture, and half an interface is worse than all of
      it. The controls keep working — this hides the readouts, it does not put
      the ship in irons. */
+  /* AUCUN PANNEAU NE DOIT POUVOIR SORTIR DE L'ECRAN. Le panneau du navire
+     fait six cents pixels : sur une fenetre courte son bas passait sous le
+     bord, et c'est ainsi que la bourse etait devenue invisible. Une hauteur
+     bornee a la fenetre et un defilement reglent la classe entiere de
+     probleme, pour tout ce qu'on ajoutera plus tard. */
+  #instruments{max-height:calc(100vh - 32px);overflow-y:auto;scrollbar-width:thin}
+
   #app.nohud .panel,
   #app.nohud #fps,
   #app.nohud #hint,
@@ -334,9 +341,17 @@
      La ligne de bourse est volontairement plus discrete que les cadrans
      au-dessus : les ecus sont un chiffre quon surveille, les pieces un reste
      quon lit quand on compte. Meme hierarchie que le fret et sa capacite. */
-  .purseLine{font-family:var(--mono);font-size:10px;color:var(--muted);
-    letter-spacing:.03em;margin-top:5px;text-align:right}
-  .purseLine b{color:var(--ink);font-weight:600}
+  /* La bourse en tete du panneau, et sur une ligne a elle : trois chiffres
+     qu'on lit d'un coup d'oeil et non trois lignes de cadran de plus. */
+  .purse{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;
+    margin-top:8px;padding:7px 9px;border-radius:7px;
+    background:rgba(70,224,208,.06);border:1px solid var(--edge-soft)}
+  .purse .pu{display:flex;align-items:baseline;gap:3px;min-width:0}
+  .purse b{font-family:var(--mono);font-weight:600;font-size:15px;color:var(--accent);
+    font-variant-numeric:tabular-nums;line-height:1}
+  .purse i{font-family:var(--mono);font-style:normal;font-size:11px;color:var(--ink);
+    font-variant-numeric:tabular-nums}
+  .purse small{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.06em}
 
   #market{margin-top:9px}
   .mkHead{display:flex;align-items:baseline;justify-content:space-between;gap:8px}

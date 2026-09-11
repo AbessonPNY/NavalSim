@@ -25,7 +25,14 @@ Naval.Jetty = class Jetty {
   constructor(opts){
     const o = opts || {};
     this.glb = o.glb || 'ships/models/jetty.glb';
-    this.width = o.width || 4.2;             // deck, across
+    /* SEPT MÈTRES ET NON QUATRE, sur demande, et le chiffre suit la fonction :
+       quatre mètres portent un homme et sa charge, ce qui suffit à un
+       appontement de service. Un quai où l'on embarque du FRET doit pouvoir
+       porter des fûts posés de front, un palan, et deux hommes qui se croisent
+       en portant chacun un bout de la même caisse. Tout le reste suit sans
+       qu'on y touche — le poste s'écarte d'autant, les bittes aussi, la page
+       lisant `jetty.width` au lieu de le réécrire. */
+    this.width = o.width || 7.0;             // deck, across
     this.deckY = o.deckY || 1.7;             // above mean sea level
     this.model = null;                       // the supplied one, once it lands
 
@@ -203,6 +210,55 @@ Naval.Jetty = class Jetty {
           g.add(br);
         }
       }
+    }
+
+    /* LA PASSERELLE D'EMBARQUEMENT, et c'est ce qui fait d'un appontement un
+       quai de commerce : sans elle on voit bien un navire à côté d'un ponton,
+       et rien qui dise par où les caisses passent. Une planche posée en
+       travers, du bord du tablier vers l'eau, avec ses deux lisses.
+
+       Elle est POSÉE et non attachée à la coque, et c'est un renoncement
+       assumé : la rattacher demanderait de la redessiner à chaque image
+       pendant que le navire évite sur ses amarres, pour une planche qu'on
+       regarde deux secondes en chargeant. Elle est donc au poste — du côté où
+       la coque se range, aux sept dixièmes du quai, là où un bâtiment de
+       taille ordinaire présente son milieu. */
+    const gLen = 5.4, gAt = len*0.72, gw = 1.7;
+    const gang = new THREE.Group();
+    gang.position.set(gAt, this.deckY + 0.05, hw);
+    gang.rotation.x = 0.22;                  // elle descend vers l'eau
+    const pass = new THREE.Mesh(new THREE.BoxGeometry(gw, 0.14, gLen), this.mats.deck);
+    pass.position.set(0, 0, gLen*0.5);
+    pass.castShadow = true; pass.receiveShadow = true;
+    gang.add(pass);
+    // les lisses : ce sont elles qui la font lire comme une passerelle
+    for(const sx of [-1, 1]){
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, gLen*0.96), this.mats.pile);
+      rail.position.set(sx*gw*0.45, 0.62, gLen*0.5);
+      gang.add(rail);
+      for(let i=0;i<3;i++){
+        const st = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.62, 0.07), this.mats.pile);
+        st.position.set(sx*gw*0.45, 0.31, gLen*(0.18 + i*0.32));
+        gang.add(st);
+      }
+    }
+    g.add(gang);
+
+    /* Et du fret sur le quai, à côté d'elle. Trois fûts et deux caisses ne
+       coûtent rien et disent ce que la passerelle ne peut pas dire seule : que
+       ce quai sert à charger. */
+    const barrel = new THREE.CylinderGeometry(0.42, 0.42, 0.95, 9);
+    const crate  = new THREE.BoxGeometry(1.05, 0.85, 1.05);
+    const quaiFret = [[gAt - 4.2, -1, barrel], [gAt - 5.1, -1, barrel],
+                      [gAt - 4.6, 1, crate],   [gAt - 6.4, -1, crate],
+                      [gAt - 2.6, -1, barrel]];
+    for(const [ax, sx, geo] of quaiFret){
+      const m = new THREE.Mesh(geo, this.mats.bitt);
+      const h = geo === barrel ? 0.475 : 0.425;
+      m.position.set(ax, this.deckY + 0.17 + h, sx*(hw - 1.15));
+      m.rotation.y = Math.random()*1.2;
+      m.castShadow = true; m.receiveShadow = true;
+      g.add(m);
     }
 
     /* Bitts at the head, and they are the point of the whole structure: a
