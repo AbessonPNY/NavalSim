@@ -1050,6 +1050,91 @@ Naval.ShipModel = class ShipModel {
     return true;
   }
 
+  /* ------------------------------------------------------------------ */
+  /* LA TOILE EST LE FUSIBLE DU MÂT.
+
+     Porter de la toile dans un coup de vent coûte d'abord de la toile : une
+     couture lâche, la voile éclate hors de ses ralingues et s'en va. Et c'est
+     une BONNE nouvelle pour le navire, parce qu'une voile qui part emporte avec
+     elle la charge qu'elle mettait dans le mât. Un gréement se sauve en perdant
+     son tissu, exactement comme un circuit se sauve en perdant son fusible.
+
+     Le mât ne se perd donc que si l'on insiste au-delà de ce que la toile
+     elle-même pouvait encaisser — au double de sa résistance, la ferrure part
+     avec le tissu — et il se perd alors par le compteur que les boulets
+     utilisent déjà : trois blessures et il passe par-dessus bord. Rien
+     d'écrit deux fois, et les bouts rompus qui pendent après chaque coup
+     disent qu'on est en train de l'user, comme ils le disaient au canon. */
+  _canvasOf(f){
+    if(f.userData.cloth) return f.userData.cloth;
+    const out = [];
+    f.traverse(o => { if(this.canvases.indexOf(o) >= 0) out.push(o); });
+    f.userData.cloth = out;
+    return out;
+  }
+
+  /* Fait éclater UNE voile, tirée au sort parmi celles qui tiennent encore —
+     pondérée par le tissu, donc un grand mât en perd plus souvent qu'un
+     artimon, sans qu'aucune probabilité ait été écrite par navire. */
+  splitSail(hard){
+    const vivantes = [];
+    for(let i=0;i<this.falls.length;i++){
+      const f = this.falls[i];
+      if(f.userData.fall) continue;                   // celui-là s'en va déjà
+      for(const m of this._canvasOf(f))
+        if(m.userData.split !== true) vivantes.push([i, m]);
+    }
+    if(!vivantes.length) return -1;
+    const [i, mesh] = vivantes[Math.floor(Math.random()*vivantes.length)];
+    mesh.userData.split = true;
+    mesh.visible = false;
+    this.cutRigging(i, 2);
+    if(hard){
+      const f = this.falls[i];
+      f.userData.wounds = (f.userData.wounds || 0) + 1;
+      if(f.userData.wounds >= 3){ this.dropMast(i); return -2 - i; }
+    }
+    return i;
+  }
+
+  /* LE MÂT QUI PORTE LE PLUS, et c'est lui qui casse. Un espar ne se perd pas
+     parce qu'on a compté trois voiles éclatées — ce compteur-là est celui des
+     boulets, et un mât ne porte que deux ou trois voiles, donc il ne pouvait
+     pas l'atteindre. Il se perd parce que ce qui est encore envergué dessus
+     tire plus fort que lui, ce qui se lit directement sur la toile qui lui
+     reste : celui dont le fusible a sauté ne risque plus rien. */
+  heaviestMast(){
+    let best = -1, bestShare = 0;
+    for(let i=0;i<this.falls.length;i++){
+      const f = this.falls[i];
+      if(f.userData.fall || f.userData.mast === null) continue;
+      const c = this._canvasOf(f);
+      if(!c.length) continue;
+      let vives = 0;
+      for(const m of c) if(m.userData.split !== true) vives++;
+      const part = f.userData.share * vives / c.length;
+      if(part > bestShare){ bestShare = part; best = i; }
+    }
+    return { i:best, part: this._shareTot > 0 ? bestShare/this._shareTot : 0 };
+  }
+
+  /* La part de toile encore ENTIÈRE, pondérée par la surface comme standing()
+     l'est par les mâts. Un seul nombre, deux usagers : le solveur le multiplie
+     dans la pression, le modèle cache le tissu correspondant, et l'image ne
+     peut pas diverger de ce qui pousse. */
+  whole(){
+    if(!(this._shareTot > 0)) return 1;
+    let s = 0;
+    for(const f of this.falls){
+      const c = this._canvasOf(f);
+      if(!c.length){ s += f.userData.share; continue; }
+      let vives = 0;
+      for(const m of c) if(m.userData.split !== true) vives++;
+      s += f.userData.share * vives / c.length;
+    }
+    return s/this._shareTot;
+  }
+
   /* Ends shot away, asked for and not yet hung. A count rather than a list of
      which ropes: they are picked at random from the anchors this mast has, so
      no two hits on the same mast look alike and none of it is data. */
@@ -1075,6 +1160,7 @@ Naval.ShipModel = class ShipModel {
        epoch says so once instead of every caller having to remember it. */
     this.rigCuts.length = 0;
     this.rigEpoch++;
+    for(const c of this.canvases) c.userData.split = false;   // et la toile est renvergée
     for(const f of this.falls){
       f.userData.wounds = 0;
       f.userData.fall = null;
@@ -1660,7 +1746,10 @@ Naval.ShipModel = class ShipModel {
        and it threw away the very thing the stowed remnant exists for: a handed
        sail is a fat roll of canvas along its spar, not an absence. Eighty-one
        vertices a sail — there is nothing to save by leaving it out. */
-    for(const c of this.canvases) c.visible = true;
+    /* — sauf celles qui ont éclaté. setTrim repassait ici soixante fois par
+         seconde et remettait tout le monde visible, donc une voile déchirée
+         serait revenue à l'image suivante. */
+    for(const c of this.canvases) c.visible = (c.userData.split !== true);
     for(const rig of this.rigs){
       rig.rotation.y = (rig===this.jibRig ? angle*0.75 : angle);
     }

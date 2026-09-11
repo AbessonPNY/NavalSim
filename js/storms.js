@@ -85,6 +85,39 @@ Naval.Storms = class Storms {
      Two rings of cells are searched rather than one, since a centre now
      wanders by better than a cell — twenty-five hashes a frame, which costs
      nothing and is the price of storms that actually travel. */
+  /* LA PLUS PROCHE, AUSSI LOIN QU'IL FAUT — et `at` ne sait pas répondre à ça.
+     Celui-ci balaie des anneaux de cellules de plus en plus larges jusqu'à
+     trouver, parce qu'on veut pouvoir dire « emmène-moi dans le gros temps »
+     sans savoir s'il y en a un à onze kilomètres ou à cinquante. Il rend le
+     centre en mètres monde VRAIS, comme tout ce que ce fichier manipule.
+
+     Écrit pour l'essai plutôt que pour le jeu : porter de la toile dans un coup
+     de vent coûte maintenant de la toile, et on ne règle pas cela en attendant
+     qu'une dépression veuille bien passer. */
+  nearest(x, z, t, ringsMax, ok){
+    const c = this.cell, i0 = Math.floor(x/c), j0 = Math.floor(z/c);
+    const R = Math.max(1, ringsMax || 12);
+    for(let ring=0; ring<=R; ring++){
+      let best = null, bd = Infinity;
+      for(let i=i0-ring;i<=i0+ring;i++) for(let j=j0-ring;j<=j0+ring;j++){
+        // l'anneau seul : l'intérieur a déjà été vu au tour précédent
+        if(ring > 0 && Math.abs(i-i0) !== ring && Math.abs(j-j0) !== ring) continue;
+        const s = this.cellStorm(i, j, t);
+        if(!s) continue;
+        /* TOUTES NE CONVIENNENT PAS, et le filtre est la façon de le dire sans
+           que ce fichier ait à connaître la terre : un grain est une fonction
+           pure de la position et de l'heure, exactement comme les îles, donc
+           rien ne les empêche de tomber au même endroit. Celui qui cherche sait
+           ce qu'il veut trouver ; la météo n'a pas à le savoir. */
+        if(ok && !ok(s)) continue;
+        const d = Math.hypot(s.x - x, s.z - z);
+        if(d < bd){ bd = d; best = s; }
+      }
+      if(best) return { storm:best, dist:bd };
+    }
+    return null;
+  }
+
   at(x, z, t){
     const c = this.cell;
     const i0 = Math.floor(x/c), j0 = Math.floor(z/c);

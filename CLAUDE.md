@@ -3099,6 +3099,115 @@ deux tombent dans la même fourchette de 200 à 320 m, par calme comme par force
 **Ce qui reste à faire** : le gisement. Les pièces tirent perpendiculairement au
 bord — on choisit le moment et le bord, pas encore la direction.
 
+## Porter de la toile coûte de la toile
+
+**LA VOILE EST LE FUSIBLE DU MÂT**, et c'est la phrase qui porte toute la
+fonctionnalité. Une couture lâche, la voile éclate hors de ses ralingues et s'en
+va — et c'est une BONNE nouvelle pour le navire, parce qu'elle emporte avec elle
+la charge qu'elle mettait dans l'espar. Un gréement se sauve en perdant son
+tissu. Le mât ne se perd que si l'on insiste au-delà de ce que la toile
+elle-même pouvait encaisser.
+
+**LE SEUIL EST UNE MESURE, PAS UN RÉGLAGE.** Relevé sur le galion pirate à
+pleine voilure, bordée au mieux, quarante secondes par état de mer :
+
+| force | 5 | 6 | 7 | 8 | 9 | 11 |
+|---|---|---|---|---|---|---|
+| N/m² | 89 | 154 | **215** | 175 | 437 | 561 |
+
+On ferlait à force 7, et c'est très exactement là que la pression franchit deux
+cents. `CANVAS_STRENGTH` vaut donc **220 N/m²** : le chiffre n'a pas été choisi,
+il a été trouvé, et il tombe où l'histoire le met.
+
+Une **PRESSION** et non une force, ce qui est tout le point : de la toile cède
+au newton par mètre carré. C'est pour cela que **prendre un ris ne protège pas
+ce qui reste dehors** — il réduit la surface exposée, donc le NOMBRE d'occasions
+de déchirer par minute, jamais la tension sur ce qui porte encore. Vérifié à
+force 11 : à pleine voilure la première voile part à 5 s et tout est parti en
+trois minutes ; à 35 % de voilure la première part à 18 s et tout est parti
+quand même. **Seul le ferlage met à l'abri** — à voilure nulle, rien, jamais.
+C'est exactement la décision qu'on voulait rendre.
+
+**Le risque est un TAUX, pas un seuil qui claque.** Même forme que le
+déclencheur de gerbe : un franchissement, puis une probabilité par seconde, et
+le carré de l'excès pour que force 7 pardonne et que force 9 ne pardonne pas.
+Profil de la charge **soutenue**, deux minutes par état :
+
+| force | moyenne | pic | temps au-dessus de 220 | au-dessus de 440 |
+|---|---|---|---|---|
+| 7 | 180 | 249 | **15 %** — les rafales seules | 0 % |
+| 9 | 272 | 487 | **75 %** | 2 % |
+| 11 | 455 | 670 | **100 %** | 54 % |
+
+**Un seul nombre, deux usagers**, comme partout ailleurs ici. `ship.whole()` rend
+la part de toile encore entière, pondérée par la surface exactement comme
+`standing()` l'est par les mâts, et le solveur la multiplie dans la pression
+pendant que le modèle cache le tissu correspondant. Elle sort en outre des DEUX
+côtés du rapport qui donne `sailLoad` — la force tombe avec la voile, et la
+surface qui la porte aussi — de sorte que ce qui reste dehors est sous
+exactement la même pression qu'avant. C'est le fait physique, et c'est ce qui
+fait qu'une voile qui éclate n'en sauve aucune autre.
+
+Piège attrapé au passage : `setTrim` repasse soixante fois par seconde et
+remettait **toute** la toile visible. Une voile déchirée serait revenue à
+l'image suivante.
+
+**L'ESPAR DEMANDE PLUS QUE LA TOILE, et l'avoir écrit autrement a coûté deux
+réglages.** Premier essai, le mât passait par le compteur de blessures des
+boulets — trois et il s'en va. Mathématiquement impossible : un mât ne porte que
+deux ou trois voiles, donc il ne pouvait pas atteindre trois. Relevé, force 11,
+cinq voiles perdues et **zéro mât**.
+
+Deuxième essai, une cause propre au même seuil : le mât partait alors **avant**
+la première déchirure — à trois et six secondes, zéro voile perdue d'abord — et
+un fusible qui saute après le circuit ne sert à rien. Il lui faut donc sa propre
+barre, **plus haute** : 2,6 fois ce que la toile tient, soit 572 N/m², quand une
+force 11 donne 455 de moyenne et 670 de pic. **C'est la rafale qui casse le mât,
+pas le coup de vent**, et le danger suit la toile que CE mât porte encore —
+celui dont le fusible a sauté est hors de cause.
+
+**Piège de banc, et il a failli faire régler de travers.** Lâcher la coque
+immobile dans une force 11 déjà levée donne un coup de charge à 670 N/m² que le
+jeu ne produit jamais : la mer y monte progressivement, le spectre étant tenu en
+retard sur le vent. Le banc honnête fait monter la mer de 5 à 11 en deux
+minutes, et alors l'enchaînement est celui qu'on cherchait :
+
+| essai | 1re voile | mât | voiles perdues d'abord |
+|---|---|---|---|
+| 1 | 100 s | **104 s** | 2 |
+| 2 | 95 s | **99 s** | 1 |
+| 3 | 86 s | — | toute la toile, aucun mât |
+
+**Et `Naval.app.tempete(où)` va chercher le gros temps**, parce qu'on ne règle
+pas cela en attendant qu'une dépression veuille bien passer. Une dépression est
+une fonction pure de la position et de l'heure, donc on n'en fabrique pas : on
+va à elle. `Storms.nearest` balaie des anneaux de cellules de plus en plus
+larges jusqu'à trouver, et le déplacement se fait en coordonnées LOCALES — le
+recentrage de la boucle s'occupe du reste à l'image suivante, ce que l'origine
+flottante rend gratuit. L'argument dit où l'on se pose : **0 le centre, 1 la
+lisière**, où l'intensité est nulle par définition.
+
+**UN CENTRE DE DÉPRESSION N'EST PAS FORCÉMENT DE L'EAU**, et l'avoir supposé a
+coûté un bug signalé à l'usage avec capture à l'appui : la coque arrivait
+**enterrée dans une île**, trente-huit mètres dans le fond, et ce qu'on voyait à
+l'écran était son propre gréement depuis l'intérieur de la colline. C'était
+évident après coup — un grain se hache sur la position exactement comme les
+îles, donc rien ne les empêche de tomber au même endroit, et rien ne les en
+empêchera jamais puisque ni l'un ni l'autre ne consulte l'autre. **C'est au
+transport de chercher de l'eau, pas à la météo de l'éviter.**
+
+Et le remède évident était insuffisant, ce qui est la vraie leçon. Chercher de
+l'eau **dans** le grain choisi ne suffit pas : un grain posé sur une île n'en a
+pas du tout, et la spirale finissait à huit kilomètres de son centre, au calme —
+de la mer sans vent, c'est-à-dire l'inverse de ce qu'on venait chercher. Puis,
+resserrée, elle trouvait le bord : relevé, posée à 2 529 m d'un rayon de 2 873,
+soit **force 0,3**. Il faut donc **choisir la dépression sur ce critère** plutôt
+que de la subir, d'où le filtre que `nearest` accepte désormais — et il exige de
+l'eau dans la **moitié intérieure**, là où le grain vaut encore quelque chose.
+Deux limites, une pour choisir et une pour poser. Vérifié : force **8,9** à un
+mètre du centre, quarante-cinq nœuds, échouage nul.
+
+
 ## Un mât qui tombe
 
 **Deux groupes emboîtés, et l'emboîtement est toute l'astuce.** Un mât s'abat
@@ -3967,6 +4076,58 @@ et mémento compris : le but est une image propre, et une demi-interface est pir
 l'interface entière. Les commandes continuent de répondre — on masque les
 cadrans, on ne met pas le navire en panne. `F` cache le seul plan d'arrimage,
 qui ne sert qu'à quai.
+
+## Une fonte portée dans la page
+
+**Le menu de `F1` prend une anglaise** — Estonia, pour son titre et ses sept
+intitulés de section. Le reste n'y touche pas : ce qu'il y a sous les intitulés
+reste en chasse fixe, parce qu'on cherche une touche **du regard** et qu'une
+cursive ne se balaie pas. La fonte sert de titre, jamais d'étiquette.
+
+**UNE ANGLAISE NE SE CHASSE PAS ET NE SE CAPITALISE PAS**, et c'est le seul
+piège de mise en page. Ses lettres se **lient** : l'interlettrage qui fait
+respirer une étiquette en petites capitales coupe ici chaque liaison, et les
+capitales d'une cursive ne se lient à rien. Les deux réglages qui allaient très
+bien à Rajdhani (`letter-spacing:.18em`, `text-transform:uppercase`) sont donc
+exactement ceux qu'il faut retirer. Elle demande en prime du corps — à 20 px une
+signature n'est qu'un gribouillis — d'où 42 px pour le titre et 22 pour les
+sections.
+
+**EMBARQUER N'ÉTAIT PAS OBLIGATOIRE, et l'avoir cru était une erreur qu'il vaut
+mieux consigner.** J'ai d'abord écrit qu'un `<link>` vers `fonts.googleapis.com`
+aurait cassé chez un hébergeur ordinaire. C'est faux, et la page le prouve
+elle-même : `naval-sim.html` en porte un depuis toujours pour **Rajdhani et IBM
+Plex Mono**. Le garde-fou du build ne refuse que les références **locales** ;
+les distantes sont délibérément laissées tranquilles, comme jsdelivr pour
+`GLTFLoader`. Le contraire aurait tenu en une ligne.
+
+Ce qui défend le choix est autre chose : c'est une fonte de **titre**. Une fonte
+de titre qui arrive en retard se voit sauter sous les yeux, et une qui n'arrive
+pas laisse une cursive système que personne n'a choisie, sur le seul élément
+dessiné pour elle — là où du texte courant en chasse fixe survit très bien à son
+remplaçant. Quatre-vingts kilo-octets une fois, et la question ne se repose
+jamais. **Le prix est une incohérence assumée** : deux fontes distantes, une
+portée, jusqu'au jour où l'on décidera si ce projet dépend du réseau ou non.
+
+**Le build sait désormais porter ce qu'une FEUILLE DE STYLE demande.** C'est le
+chemin de la voile peinte, appliqué au CSS : `inlineCssUrls` réécrit chaque
+`url()` local en `data:` URI, résolu contre le dossier **de la feuille** — ce
+que `url()` veut dire — et le garde-fou de fin refuse maintenant aussi un
+`url()` local survivant. Un `<script src>` manquant se voit tout de suite ; une
+fonte manquante, non : la page se charge sans rien dire et le titre retombe sur
+autre chose.
+
+**Le sous-ensemble LATIN seul**, 80 Ko. Il porte U+0000–00FF, donc tous les
+accents français, plus œ, les guillemets et l'apostrophe typographique. Les
+sous-ensembles *latin-ext* et *vietnamien* que Google sert à côté ne
+serviraient rien ici et coûteraient le double. Vérifié sur le fichier construit :
+les octets embarqués sont **identiques** à ceux du disque, et aucun chemin local
+ne survit.
+
+Estonia est sous **SIL Open Font License 1.1** (Copyright 2010-2021 The Estonia
+Project Authors). Le texte complet est dans `css/fonts/OFL.txt` et **doit
+voyager avec les octets** — c'est la condition de la licence, et embarquer une
+fonte sans sa licence est la manière discrète de ne pas la respecter.
 
 ## Conventions
 

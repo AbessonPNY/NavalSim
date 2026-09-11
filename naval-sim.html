@@ -878,7 +878,12 @@ async function main(){
   const sel = document.getElementById('shipSel');
   specs.forEach((s,i)=>{
     const o = document.createElement('option');
-    o.value = i; o.textContent = s.name + ' · ' + Math.round(s.tonnes) + ' t';
+    /* Une decimale sous la tonne, sinon le premier batiment leger du dossier
+       s annonce a « 0 t » : la bouee en pese 0,4 et l arrondi la faisait
+       disparaître de sa propre etiquette. */
+    const tn = s.tonnes < 10 ? (Math.round(s.tonnes*10)/10).toString().replace('.', ',')
+                             : Math.round(s.tonnes);
+    o.value = i; o.textContent = s.name + ' · ' + tn + ' t';
     sel.appendChild(o);
   });
 
@@ -1566,13 +1571,87 @@ async function main(){
 
   drawFleet();          // after fleetEls exists, not before
 
+  /* EMMÈNE-MOI DANS LE GROS TEMPS. Une dépression est une fonction pure de la
+     position et de l'heure, donc on ne peut pas en fabriquer une : on va la
+     chercher. Le déplacement se fait en coordonnées LOCALES et le recentrage de
+     la boucle s'occupe du reste à l'image suivante — c'est exactement ce que
+     l'origine flottante existe pour rendre gratuit.
+
+     `ou` dit où l'on se pose : 0 le centre, 1 la lisière. Le centre est le plus
+     dur et la lisière laisse le temps de voir venir. */
+  function tempete(ou){
+    const t = ocean.uniforms.uTime.value;
+    const X = physics.body.pos.x + ocean.origin.x;
+    const Z = physics.body.pos.z + ocean.origin.z;
+    /* De l'eau dans CE grain, ou rien : on balaie en spirale depuis le rayon
+       demandé, sans jamais sortir du grain — en sortir donnerait de la mer sans
+       vent, ce qui n'est pas ce qu'on est venu chercher. */
+    const k0 = Math.max(0, Math.min(1, ou == null ? 0 : ou));
+    const a0 = Math.random()*6.2832;
+    /* `limite` dit jusqu ou l on accepte de s ecarter du centre, en fraction du
+       rayon. Deux valeurs, et la distinction compte : pour CHOISIR la
+       depression on exige de l eau dans sa moitie interieure, sinon on retient
+       un grain dont la seule mer est au bord — releve, elle se posait a 2 529 m
+       d un rayon de 2 873 et trouvait force 0,3, c est-a-dire du calme. Pour la
+       POSER, une fois le grain choisi, on s autorise tout son rayon. */
+    function eauDans(s, limite){
+      const lim = limite == null ? 0.95 : limite;
+      for(let pas=0; pas<12; pas++){
+        const d = Math.min(s.r*lim, k0*s.r + pas*Math.max(120, s.r*0.06));
+        for(let n=0; n<24; n++){
+          const ang = a0 + n*6.2832/24;
+          const x = s.x + Math.cos(ang)*d, z = s.z + Math.sin(ang)*d;
+          /* Vingt-cinq mètres sous la quille et pas une côte à six cents : on
+             ne la pose pas au large d'un haut-fond qu'elle touchera au premier
+             creux, la mer étant justement ce qu'on vient chercher. */
+          if(world.heightAt(x, z) < -25 && !world.near(x, z, 600).length) return { x, z };
+        }
+      }
+      return null;
+    }
+    const f = storms.nearest(X, Z, t, 12, s => !!eauDans(s, 0.55));
+    if(!f){ dire('Pas une dépression à portée qui ait de la mer sous elle.'); return null; }
+    /* UN CENTRE DE DÉPRESSION N'EST PAS FORCÉMENT DE L'EAU, et l'avoir supposé
+       a coûté un bug signalé à l'usage : la coque arrivait ENTERRÉE dans une
+       île, trente-huit mètres dans le fond, et ce qu'on voyait à l'écran était
+       son propre gréement depuis l'intérieur de la colline.
+
+       C'était évident après coup, et le remède ne l'était pas : chercher de
+       l'eau dans CE grain ne suffit pas, parce qu'un grain posé sur une île n'en
+       a pas du tout, et l'on finissait alors à huit kilomètres de son centre,
+       au calme. On choisit donc la dépression sur ce critère plutôt que de la
+       subir — d'où le filtre passé à `nearest` ci-dessus. */
+    const s = f.storm;
+    const cible = eauDans(s, 0.95);
+    if(!cible){ dire('Cette dépression est posée sur la terre.'); return null; }
+
+    for(const e of fleet){
+      e.body.pos.x += cible.x - X;
+      e.body.pos.z += cible.z - Z;
+      if(e.ship) e.ship.syncTo(e.body);
+    }
+    physics.castOff && physics.castOff();
+    /* Elle arrive droite et sans erre : un transport n'est pas une route, et si
+       elle traînait un échouage il la suivrait jusque-là. */
+    for(const e of fleet){
+      e.body.vel.set(0, 0, 0); e.body.angVel.set(0, 0, 0);
+      e.body.pos.y = 0;
+    }
+    const q = storms.at(cible.x, cible.z, t);
+    dire('Dépression à ' + (f.dist/1852).toFixed(1) + ' milles — force '
+         + (q ? q.force.toFixed(1) : '?') + ' ici.');
+    return { trouvee_a_milles:+(f.dist/1852).toFixed(1), rayon_m:Math.round(s.r),
+             pic:+s.peak.toFixed(1), force_ici:q ? +q.force.toFixed(1) : 0,
+             sonde_m:Math.round(world.heightAt(cible.x, cible.z)) };
+  }
+
   /* The live instances, reachable from the console. Several bugs in this project
      were slow to pin down purely because nothing was inspectable at runtime. */
   Naval.app = { stage, ocean, foam, controls,
                 get physics(){ return physics; }, get ship(){ return ship; },
                 get cam(){ return cam; }, get hud(){ return hud; },
                 world, land, gulls, chart, blast, guns, takeHelm, weather, rain, splash,
-                cordage, purse, parler,
+                cordage, purse, parler, tempete,
                 storms, get squall(){ return squall; },
                 get fleet(){ return fleet; } };
 
@@ -1645,6 +1724,72 @@ async function main(){
     return warpWant;
   }
 
+  /* ------------------- PORTER DE LA TOILE COÛTE DE LA TOILE -------------------
+
+     Le risque est un TAUX, pas un seuil qui claque : une couture ne lâche pas à
+     un newton près, elle lâche d'autant plus vite qu'on insiste. Même forme que
+     le déclencheur de gerbe — un franchissement, puis une probabilité par
+     seconde — et le carré de l'excès pour que force 7 pardonne et que force 9
+     ne pardonne pas.
+
+     LA SURFACE ÉTABLIE MULTIPLIE LE DANGER, ELLE NE BAISSE PAS LE SEUIL, et
+     c'est toute la physique de la chose : la toile cède à une PRESSION, donc
+     prendre un ris ne soulage pas d'un newton ce qui reste dehors. Ce qu'un ris
+     achète est moins de tissu exposé, donc moins d'occasions par minute. Ferler
+     tout à fait est la seule chose qui mette à l'abri, ce qui est exactement la
+     décision qu'on veut rendre.
+
+     Relevé sur le galion à pleine voilure : force 7 pardonne pendant une
+     demi-heure, force 9 coûte une voile en une vingtaine de secondes, force 11
+     en une dizaine. */
+  const CANVAS = Naval.Config.CANVAS_STRENGTH;
+  const TEAR_RATE = 0.045;                 // par seconde, à deux fois le seuil
+  /* Le mât a sa PROPRE cause, et bien plus rare : au double de ce que la toile
+     tient, ce n'est plus une couture qui lâche mais l'espar qui rend. Il ne
+     passe donc pas par le compteur de blessures des boulets — trois boulets
+     abattent un mât, mais un mât ne porte que deux ou trois voiles, si bien que
+     l'escalade par les déchirures ne pouvait mathématiquement pas y arriver.
+     Le danger suit la toile que CE mât porte encore : celui dont le fusible a
+     sauté est hors de cause, ce qui est exactement l'intérêt d'avoir un
+     fusible. Relevé à force 11 : un mât à la mer toutes les deux minutes
+     environ, et aucun en deçà de force 9. */
+  const MAST_RATE = 1.0;
+  /* ET L ESPAR DEMANDE PLUS QUE LA TOILE, ce qui est tout le sens du fusible.
+     Au meme seuil, meme a cadence reduite, le mat partait AVANT la premiere
+     dechirure — releve, a trois et six secondes, zero voile perdue d abord —
+     et un fusible qui saute apres le circuit ne sert a rien. Il lui faut donc
+     sa propre barre, plus haute : 2,6 fois ce que la toile tient, soit 572
+     N/m2, quand la charge moyenne d une force 11 est de 455 et son pic de 670.
+     C est la rafale qui casse le mat, pas le coup de vent. */
+  const MAST_LOAD = 2.6;                   // en multiples de CANVAS_STRENGTH
+  function tearCanvas(ph, sh, dt, mien){
+    if(!ph || !sh || ph.foundered || ph.setFrac < 0.02) return;
+    const excess = ph.sailLoad/CANVAS - 1;
+    if(excess <= 0) return;
+    if(Math.random() > TEAR_RATE*excess*excess*ph.setFrac*dt) return;
+    /* Au DOUBLE de ce que la toile tient, la ferrure part avec le tissu et le
+       mât prend une blessure — la même que celle des boulets, trois et il s'en
+       va. En deçà, la voile est le fusible et le mât est sauvé par sa perte. */
+    const dur = ph.sailLoad > 2*CANVAS;
+    const r = sh.splitSail(dur);
+    if(r === -1) return;
+    if(!mien) return;                      // une conserve ne commente pas ses avaries
+    dire(r <= -2 ? 'Le mât est parti par-dessus bord !'
+       : dur     ? 'Une voile éclate — le gréement souffre !'
+                 : 'Une voile se déchire dans la rafale !');
+  }
+
+  function strainMast(ph, sh, dt, mien){
+    if(!ph || !sh || ph.foundered || ph.setFrac < 0.02) return;
+    if(ph.sailLoad <= MAST_LOAD*CANVAS) return;    // en deçà, la toile suffit à payer
+    const excess = ph.sailLoad/CANVAS - 1;
+    const m = sh.heaviestMast();
+    if(m.i < 0 || m.part <= 0) return;
+    if(Math.random() > TEAR_RATE*MAST_RATE*excess*excess*ph.setFrac*m.part*dt) return;
+    if(!sh.dropMast(m.i)) return;
+    if(mien) dire('Le mât est parti par-dessus bord !');
+  }
+
   let last = performance.now();
   function frame(now){
     const frameT0 = performance.now();
@@ -1687,9 +1832,12 @@ async function main(){
        by sails that are already in the water. */
     ship.stepRigging(dt);
     physics.standing = ship.standing();
+    physics.whole = ship.whole();
     /* L'horloge avance à CHAQUE sous-pas et non une fois par image : c'est ce
        qui rend la compression possible — voir la note au-dessus de la boucle. */
     for(let i=0;i<SUB;i++) physics.step(h, ocean, controls.state, t0 + (i+1)*h);
+    tearCanvas(physics, ship, dt, true);
+    strainMast(physics, ship, dt, true);
 
     /* Any other vessel in the fleet sails herself. Entry 0 is the one at the
        helm, handled below with the instruments and the cameras; the rest need
@@ -1707,7 +1855,10 @@ async function main(){
       if(e.helm){ e.helm.target = fleet[0].body.pos; e.helm.update(dt, ocean, e.ctrl); }
       e.ship.stepRigging(dt);
       e.physics.standing = e.ship.standing();
+      e.physics.whole = e.ship.whole();
       for(let i=0;i<SUB;i++) e.physics.step(h, ocean, e.ctrl, t0 + (i+1)*h);
+      tearCanvas(e.physics, e.ship, dt, false);
+      strainMast(e.physics, e.ship, dt, false);
       e.afloat = e.physics.afloat;
       e.ship.syncTo(e.physics.body);
       e.ship.setTrim(e.ctrl.sheet, e.physics.tack, e.physics.setFrac,

@@ -26,6 +26,25 @@ Naval.Config = {
      and four was the old cap. */
   MAX_SHIPS: 8,
 
+  /* CE QUE LA TOILE SUPPORTE, en newtons par mètre carré, et c'est une mesure
+     plutôt qu'un réglage. Relevé sur le galion pirate à pleine voilure, bordée
+     au mieux, quarante secondes par état de mer :
+
+       force   5     6     7     8     9    11
+       N/m²    89   154   215   175   437   561
+
+     On ferlait à force 7, et c'est très exactement là que la pression franchit
+     deux cents. Le seuil n'a donc pas été choisi : il a été trouvé, et il tombe
+     où l'histoire le met.
+
+     Une PRESSION et non une force, ce qui est le point : de la toile cède au
+     newton par mètre carré, pas au newton. C'est pour cela que ferler ne
+     protège pas ce qui reste dehors — le ris réduit la surface exposée, donc le
+     NOMBRE d'occasions de déchirer, jamais la tension sur ce qui porte encore.
+     Même famille que les coefficients hydro, qui sont par unité de surface pour
+     servir une goélette de 24 m comme une frégate de 60. */
+  CANVAS_STRENGTH: 220,
+
   /* How far she may stray from local zero before the world is slid back under
      her. Small enough that the Gerstner phase keeps its precision, large enough
      that rebasing is rare — 1500 m is about five minutes at hull speed. */
@@ -49,8 +68,9 @@ Naval.Config = {
      server lists the folder live and the build writes that index, so this is
      reached only on a static host that never got one. It must still match the
      folder: build.js compares the two and says so if they have drifted. */
-  SHIPS: ['ships/barge.json', 'ships/cotre.json', 'ships/frigate.json',
-          'ships/frigate17e.json', 'ships/pirate.json', 'ships/schooner.json'],
+  SHIPS: ['ships/barge.json', 'ships/bouee-canard.json', 'ships/cotre.json',
+          'ships/frigate.json', 'ships/frigate17e.json', 'ships/pirate.json',
+          'ships/schooner.json'],
 
   BEAUFORT: [
     [0,'Calme','0.0'],[1,'Très légère','0.1'],[2,'Belle vaguelette','0.3'],

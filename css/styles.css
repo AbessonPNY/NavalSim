@@ -13,6 +13,41 @@
     --muted:#7d95a6;
     --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
     --disp:"Rajdhani",system-ui,sans-serif;
+    --script:"Estonia",cursive;
+  }
+
+  /* LA SEULE FONTE QUE CE PROJET EMBARQUE, et il faut dire pourquoi, parce que
+     les deux autres ne le sont pas. Rajdhani et IBM Plex Mono arrivent d'un
+     <link> vers fonts.googleapis.com, en tête de naval-sim.html, et cela marche
+     partout : le build ne refuse que les références LOCALES, un hébergeur
+     ordinaire ne bloque rien de distant, et la politique d'un artifact autorise
+     précisément cet hôte. Embarquer n'était donc pas obligatoire — c'est un
+     choix, et le contraire aurait tenu en une ligne.
+
+     Ce qui le défend est que celle-ci est une fonte de TITRE, à 42 px. Une
+     fonte de titre qui arrive en retard se voit sauter sous les yeux, et une
+     qui n'arrive pas laisse une cursive système que personne n'a choisie, sur
+     le seul élément dessiné pour elle — là où du texte courant en chasse fixe
+     survit très bien à son remplaçant. Quatre-vingts kilo-octets, une fois, et
+     la question ne se repose jamais.
+
+     Elle suit alors le chemin de la voile peinte : chemin local ici, réécrit en
+     data: URI par build.js. Le prix est une incohérence assumée — deux fontes
+     distantes, une portée — qu'on lèvera le jour où l'on décidera si ce projet
+     dépend du réseau ou non. Il en dépend déjà pour GLTFLoader.
+
+     Le sous-ensemble LATIN seul, 80 Ko, ce qui suffit à du français : il porte
+     U+0000–00FF donc tous les accents, plus œ, les guillemets et l'apostrophe
+     typographique. Les sous-ensembles latin-ext et vietnamien de Google ne
+     serviraient rien ici et coûteraient le double.
+
+     Estonia est sous licence SIL Open Font 1.1 (Copyright 2010-2021 The
+     Estonia Project Authors) — le texte complet est dans css/fonts/OFL.txt, et
+     il DOIT voyager avec les octets. */
+  @font-face{
+    font-family:"Estonia";
+    font-style:normal; font-weight:400; font-display:swap;
+    src:url("fonts/estonia-latin.woff2") format("woff2");
   }
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -309,8 +344,16 @@
   #keysMenu[hidden]{display:none}
   @keyframes kmIn{from{opacity:0}to{opacity:1}}
   .km-head{display:flex;flex-direction:column;align-items:center;gap:5px}
-  .km-head b{font-family:var(--disp);font-weight:700;font-size:20px;letter-spacing:.18em;
-    color:var(--accent);text-transform:uppercase}
+  /* UNE ANGLAISE NE SE CHASSE PAS ET NE SE CAPITALISE PAS. Ses lettres se
+     LIENT : l'interlettrage qui fait respirer une étiquette en petites
+     capitales coupe ici chaque liaison, et les capitales d'une cursive ne se
+     lient à rien du tout. Les deux réglages qui allaient à Rajdhani sont donc
+     exactement ceux qu'il faut retirer. Elle demande en prime du corps — à
+     20 px une signature n'est qu'un gribouillis — d'où le doublement, qui ne
+     coûte rien sur un titre qu'on lit une fois. */
+  .km-head b{font-family:var(--script);font-weight:400;font-size:42px;
+    letter-spacing:0;text-transform:none;line-height:1;
+    color:var(--accent)}
   .km-head span{font-family:var(--mono);font-size:10.5px;color:var(--muted);letter-spacing:.05em}
   .km-head kbd{font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:3px;
     background:rgba(140,168,182,.16);border:1px solid var(--edge-soft);color:var(--ink)}
@@ -326,8 +369,12 @@
   @media (max-width:820px){ .km-cols{grid-template-columns:repeat(2,minmax(0,1fr))} }
   @media (max-width:520px){ .km-cols{grid-template-columns:minmax(0,1fr)} }
   .km-cols section{padding:2px 0 6px}
-  .km-cols h4{margin:0 0 6px;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
-    color:var(--muted);text-transform:uppercase;font-weight:600}
+  /* Les intitulés de section prennent la même main, en plus petit. Ce qu'il y
+     a DESSOUS reste en chasse fixe : on cherche une touche du regard, et une
+     cursive ne se balaie pas. La fonte sert de titre, jamais d'étiquette. */
+  .km-cols h4{margin:0 0 4px;font-family:var(--script);font-size:22px;
+    letter-spacing:0;text-transform:none;font-weight:400;line-height:1.05;
+    color:var(--accent)}
   /* La touche à gauche et ce qu'elle fait à droite, alignées d'une section à
      l'autre : on cherche une touche du regard, pas une phrase. */
   .km-cols dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;margin:0;align-items:baseline}

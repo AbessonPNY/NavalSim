@@ -1,0 +1,83 @@
+{
+  "id": "bouee-canard",
+  "name": "Bouée canard",
+  "note": "Bouee de chenal a tete de canard. LA FOURCHETTE DE 30-45% D IMMERSION NE S APPLIQUE PAS ICI : elle est ecrite pour des coques de navire, et une bouee a precisement pour raison d etre de se voir de loin. Reglee a 1,6 t elle tenait ses 37% reglementaires et le collier etait a moitie noye, ce qui est une bouee qui coule. A 0,4 t elle porte 68% de sa hauteur hors de l eau, le collier pose sur la surface et la tete bien au clair, pour 0,39 m de tirant. Raide sans lest : 2,12 m de bau pour 2,65 de long donnent assez de stabilite de forme pour 1 a 2 degres de gite de force 4 a force 8. Pas de greement, pas de batterie : les detecteurs ne trouvent rien dans un canard, et c est le comportement voulu.",
+  "hull": {
+    "length": 2.65,
+    "beam": 2.12,
+    "freeboardMid": 0.99,
+    "sheerBow": 0.12,
+    "sheerStern": 0.06,
+    "keelDepth": 0.25,
+    "keelExtra": 0.06,
+    "dragAft": 0.06,
+    "forefootLift": 0.78,
+    "counterLift": 0.42,
+    "waterlinePower": 0.82,
+    "waterlineFull": 0.55,
+    "transomWidth": 0.42,
+    "sectionTuck": 0.38,
+    "sectionPower": 0.72
+  },
+  "displacementTonnes": 0.4,
+  "cog": {
+    "yFracKeel": -0.451,
+    "zFracLength": -0.0708
+  },
+  "hydro": {
+    "resistance": 61,
+    "lateralGrip": 654,
+    "lateralQuad": 131,
+    "heaveDamp": 1100
+  },
+  "engine": {
+    "topSpeed": 1.43,
+    "sternPower": -0.6
+  },
+  "rudder": {
+    "power": 91.5,
+    "maxAngle": 0.61,
+    "postZFrac": -0.46,
+    "postY": -0.07
+  },
+  "rig": {
+    "type": "none",
+    "sailArea": 0,
+    "ceHeight": 1,
+    "ceZ": 0,
+    "maxSheet": 1.48,
+    "belly": 0.18,
+    "masts": [],
+    "jib": null,
+    "bowsprit": null
+  },
+  "deckhouse": {
+    "beamFrac": 0.42,
+    "height": 0.09,
+    "lengthFrac": 0.17,
+    "zFrac": -0.11
+  },
+  "appearance": {
+    "hull": "0xf2c53d",
+    "timber": "0xd98f2b",
+    "spar": "0xb08c5c",
+    "house": "0xf7e3a1",
+    "canvas": "0xf2ebdc"
+  },
+  "camera": {
+    "chaseDist": 4,
+    "chaseHigh": 2,
+    "orbitDist": 5,
+    "helmZFrac": -0.44
+  },
+  "model": {
+    "glb": "ships/models/boueecanard.glb",
+    "lengthAxis": "z",
+    "offset": [
+      0,
+      0,
+      0
+    ],
+    "rotationY": 0
+  }
+}

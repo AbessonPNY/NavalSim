@@ -119,9 +119,42 @@ for (const rel of shipList) {
 const shipBlob = '<script>\nwindow.Naval = window.Naval || {};\n' +
   'Naval.SHIP_DATA = ' + JSON.stringify(shipData, null, 1) + ';\n</scr' + 'ipt>\n';
 
-// 1. local stylesheet → <style>
+/* A STYLESHEET MAY POINT AT FILES OF ITS OWN, and they are blocked exactly as
+   a local <script src> is. Same remedy as the painted sail: the PATH itself is
+   rewritten to a data: URI, so nothing at run time knows the difference between
+   the dev server and the published page — the font face asks for
+   fonts/estonia-latin.woff2 in one and carries its own bytes in the other.
+
+   This is NOT the only way to carry a face — the page already links Rajdhani
+   and IBM Plex Mono straight from fonts.googleapis.com, and remote references
+   are deliberately left alone by the guard below. Carrying the bytes is a
+   choice made for a TITLE face, which is the one place where arriving late or
+   not at all is read as a fault rather than as a substitution.
+
+   Resolved against the STYLESHEET's own directory, which is what url() means. */
+const CSS_MIME = { '.woff2':'font/woff2', '.woff':'font/woff', '.ttf':'font/ttf',
+                   '.otf':'font/otf', '.png':'image/png', '.jpg':'image/jpeg',
+                   '.jpeg':'image/jpeg', '.gif':'image/gif', '.svg':'image/svg+xml' };
+function inlineCssUrls(css, href) {
+  const dir = path.dirname(path.join(ROOT, href));
+  return css.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g, (m, q, ref) => {
+    if (/^(?:data:|https?:|\/\/|#)/.test(ref)) return m;
+    const ext = path.extname(ref).toLowerCase();
+    const mime = CSS_MIME[ext];
+    if (!mime) {
+      throw new Error(href + ' points at ' + ref + ', a type this build cannot carry');
+    }
+    const file = path.join(dir, ref);
+    const bytes = fs.readFileSync(file);
+    console.log('  embedded ' + path.relative(ROOT, file).split(path.sep).join('/') +
+                '  (' + (bytes.length / 1024).toFixed(1) + ' KB)');
+    return 'url(data:' + mime + ';base64,' + bytes.toString('base64') + ')';
+  });
+}
+
+// 1. local stylesheet -> <style>, its own url() carried with it
 html = html.replace(/<link\s+rel="stylesheet"\s+href="((?:css|js)\/[^"]+)"\s*>/g, (m, href) => {
-  const css = fs.readFileSync(path.join(ROOT, href), 'utf8');
+  const css = inlineCssUrls(fs.readFileSync(path.join(ROOT, href), 'utf8'), href);
   inlined.push(href);
   return '<style>\n' + css.trimEnd() + '\n</style>';
 });
@@ -150,7 +183,13 @@ console.log('wrote dist/naval-sim.html  (' + kb(Buffer.byteLength(html)) + ')');
 // A blocked local <script src> is the exact failure this build prevents, so
 // refuse to ship a file that still carries one.
 const leftover = html.match(/<(?:script\s+src|link[^>]*href)="(?!https?:)[^"]+"/g);
-if (leftover) {
-  console.error('ERROR: local references survived the inline step: ' + leftover.join(', '));
+/* Et un url() local SURVIVANT dans la feuille inlinée est exactement la même
+   panne, en plus discret : la page se charge sans rien dire, la fonte ne vient
+   pas, et le titre retombe sur une cursive système que personne n'a choisie.
+   Un <script src> manquant se voit tout de suite ; une fonte manquante, non. */
+const cssLeft = html.match(/url\(\s*['"]?(?!data:|https?:|\/\/|#)[^'")]+\)/g);
+if (leftover || cssLeft) {
+  console.error('ERROR: local references survived the inline step: ' +
+                [].concat(leftover || [], cssLeft || []).join(', '));
   process.exit(1);
 }

@@ -159,6 +159,10 @@ Naval.ShipPhysics = class ShipPhysics {
        CANVAS IN THE AIR, so it is one number multiplied into the pressure,
        exactly as the furling fraction is. */
     this.standing = 1;
+    /* Et la part de toile encore ENTIÈRE, écrite par le modèle de la même
+       façon. Deux faits différents : un mât debout dont la voile a éclaté n'est
+       pas un mât tombé, et seul le second se répare en replantant un espar. */
+    this.whole = 1;
     this.setRate = 1/3.0;      // per second
 
     this.slamRate = 0; this.slamSpeed = 0;
@@ -707,6 +711,7 @@ Naval.ShipPhysics = class ShipPhysics {
     for(const c of this.comps) c.vol = 0;
     this.foundered = false;
     this.standing = 1;                    // and her masts are stepped again
+    this.whole = 1;                       // et sa toile est renvergée
     this._updateMass();
   }
 
@@ -1063,13 +1068,13 @@ Naval.ShipPhysics = class ShipPhysics {
 
     const aoa = beta - ctrl.sheet;
     // nothing left aloft to speak of
-    if(this.setFrac*this.standing < 0.01) return;
+    if(this.setFrac*this.standing*this.whole < 0.01) return;
     if(aoa <= 0.02){ this.luffing = true; return; }          // over-eased, or in irons
 
     const CL = F.KL*Math.sin(2*aoa);
     const CD = F.CD0 + F.KD*Math.sin(aoa)*Math.sin(aoa);
     // area actually spread, which is what the wind has to push against
-    const q  = 0.5*C.RHO_AIR*vApp*vApp*S.sailArea*this.setFrac*this.standing;
+    const q  = 0.5*C.RHO_AIR*vApp*vApp*S.sailArea*this.setFrac*this.standing*this.whole;
 
     this._sailF.copy(this._app).multiplyScalar(CD*q/vApp);   // drag along the wind
     this._lift.set(this._app.z, 0, -this._app.x).normalize();
@@ -1083,7 +1088,12 @@ Naval.ShipPhysics = class ShipPhysics {
     // pressure on the canvas, which is what makes it belly out
     // per unit of canvas SHE STILL HAS, or the sails left standing would go
     // slack merely because a neighbour came down
-    this.sailLoad = this._sailF.length() / (S.sailArea*Math.max(0.05, this.standing));
+    /* La toile partie sort des DEUX côtés du rapport : la force tombe avec
+       elle, et la surface qui la porte aussi. Ce qui reste dehors est donc sous
+       exactement la même pression qu'avant — ce qui est le fait physique, et ce
+       qui fait qu'une voile qui éclate n'en sauve aucune autre. */
+    this.sailLoad = this._sailF.length()
+                  / (S.sailArea*Math.max(0.05, this.standing*this.whole));
   }
 
   /* Let her find her own flotation in FLAT water, so the recorded equilibrium
