@@ -3421,8 +3421,45 @@ plante à la première image si personne ne l'a fait. Même raison pour
 `setSpec` : un nouveau navire n'est pas là où était l'ancien, la station est
 donc reprise.
 
-**Les touches.** `M` largue les amarres, et c'est annoncé sur la console de
-barre — une manœuvre sans touche affichée n'existe pas. `G` tire du bord **en batterie**, `⇧G` de l'autre. Le bord
+**Les touches sont passées dans un MÉMENTO, sur `F1`.** Elles vivaient sous les
+curseurs, en sept rangées de `kbd` empilées dans les colonnes de la console de
+barre : seize touches ne tiennent pas là sans faire du poste de barre un
+pense-bête, et la console avait cessé de montrer ce que le navire fait pour
+montrer ce que le clavier peut. Elles tiennent très bien sur une page qu'on
+appelle et qu'on referme.
+
+Ce qui reste sur la console est ce qu'on **tient à la main** : machine, barre,
+écoutes, et le bord en batterie. Quatre colonnes de même grammaire — un
+intitulé, une valeur, un organe — les canons ayant gagné la leur et annonçant
+« Bâbord » ou « Tribord » comme les trois autres annoncent leurs degrés.
+
+Trois décisions dans ce mémento :
+
+- **il ne met pas le navire en panne.** `pointer-events:none` et rien qui
+  capture le clavier : elle continue sa route pendant qu'on lit ses commandes,
+  ce qui est le comportement juste — vérifié, la machine répond pendant que la
+  page est ouverte ;
+- **`Échap` ne fait que le fermer.** Une touche qui referme ce qui est ouvert et
+  ne fait rien d'autre est la seule qu'on n'ait jamais à apprendre ;
+- **et `F1` est retenu au vol.** Laissé passer, il ouvre l'aide du *navigateur*,
+  ce qui sort du jeu et ne se voit pas venir. `e.key` rend `'F1'`, que le
+  passage en minuscules donne `'f1'` — donc aucune collision avec `'f'`.
+
+**PAS DE `backdrop-filter` SUR UN VOILE PLEIN ÉCRAN**, et cela a coûté un essai
+déroutant. Le mémento était présent — `hidden` à faux, `display:flex`, opacité 1,
+mille deux cent onze pixels de large — et rigoureusement invisible à l'image :
+fond et contenu, tout partait. Un flou de fond étendu à tout l'écran par-dessus
+le canvas WebGL ne se composite pas. Les autres panneaux en portent un sans
+difficulté parce qu'ils couvrent une vignette ; celui-ci couvrait la mer
+entière. Le flou est donc descendu sur la **carte** des commandes, qui est
+petite, et le voile de fond est une couleur franche. Piège de diagnostic au
+passage : l'élément se mesure parfaitement en JavaScript pendant qu'il n'existe
+pas à l'écran, donc la console ne peut pas trancher — il a fallu le repeindre en
+rouge franc pour voir qu'il était bien là.
+
+**`M` largue les amarres**, et c'est annoncé sur la console de barre — une
+manœuvre sans touche affichée n'existe pas. `G` tire du bord **en batterie**,
+`⇧G` de l'autre. Le bord
 est choisi dans le panneau de barre et non deviné : la touche seule savait le
 dire, ce qui est un moyen mnémotechnique et non une commande — rien à l'écran ne
 disait de quel côté on allait tirer, et il fallait s'en souvenir au moment où
@@ -3432,7 +3469,7 @@ le geste garde son sens quel que soit le bord armé, et l'on peut lâcher une
 bordée du côté opposé sans changer d'ordre.
 
 **`H` fait le vide.** Tout ce qui n'est pas la mer disparaît, message de naufrage
-compris : le but est une image propre, et une demi-interface est pire que
+et mémento compris : le but est une image propre, et une demi-interface est pire que
 l'interface entière. Les commandes continuent de répondre — on masque les
 cadrans, on ne met pas le navire en panne. `F` cache le seul plan d'arrimage,
 qui ne sert qu'à quai.

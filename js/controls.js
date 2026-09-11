@@ -21,6 +21,8 @@ Naval.Controls = class Controls {
     this.onToggleCargo = null;    // show or hide the stowage plan
     this.onFire = null;           // (autreBord, maintenu)
     this.onCastOff = null;        // larguer les amarres
+    this.onToggleKeys = null;     // le mémento des commandes
+    this.onCloseKeys = null;      // Échap le referme, et ne fait que ça
     this.onDebug = null;          // show or hide the bench
     this.onShot = null;           // take the screen
     this._salvo = false;          // this hold has already loosed its broadside
@@ -39,6 +41,11 @@ Naval.Controls = class Controls {
       if(k==='m' && this.onCastOff) this.onCastOff();   // M comme amarres
       if(k==='k' && this.onBlowUp) this.onBlowUp();
       if(k==='h' && this.onToggleHud) this.onToggleHud();
+      /* F1 ouvre l'aide du NAVIGATEUR si on le laisse faire, ce qui sort du
+         jeu et ne se voit pas venir. e.key rend 'F1', que le passage en
+         minuscules donne 'f1' — donc aucune collision avec 'f'. */
+      if(k==='f1' && this.onToggleKeys){ this.onToggleKeys(); e.preventDefault(); }
+      if(k==='escape' && this.onCloseKeys) this.onCloseKeys();
       if(k==='f' && this.onToggleCargo) this.onToggleCargo();
       /* J, and not D: D is the helm. Picked from what is actually free, and
          clear of the letters an AZERTY keyboard moves about. */

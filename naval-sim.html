@@ -145,32 +145,30 @@
     <div class="fleetNote">Clic : charger · clic droit : décharger · <kbd>F</kbd> masquer</div>
   </div>
 
-  <!-- Helm -->
+  <!-- Helm : les trois commandes qu'on tient à la main, et le bord en batterie.
+       Tout le reste est passé au mémento de F1 — voir #keysMenu. -->
   <div id="helm" class="panel">
     <div class="helm-col">
       <div class="helm-head"><span class="k">Machine</span><span class="v" id="thrText">STOP</span></div>
       <div class="barmeter center"><i id="thrBar"></i></div>
       <div class="telegraph" id="thrTele">— chadburn au repos —</div>
-      <div class="keys"><kbd>W</kbd><kbd>S</kbd> machine</div>
     </div>
     <div class="helm-col">
       <div class="helm-head"><span class="k">Barre</span><span class="v" id="rudText">0°</span></div>
       <div class="barmeter center"><i id="rudBar"></i></div>
       <div class="telegraph" id="rudTele">— gouvernail droit —</div>
-      <div class="keys"><kbd>A</kbd><kbd>D</kbd> barre · <kbd>Espace</kbd> stop</div>
-      <div class="keys"><kbd>M</kbd> larguer les amarres</div>
     </div>
     <div class="helm-col">
       <div class="helm-head"><span class="k">Écoutes</span><span class="v" id="shtText">40°</span></div>
       <div class="barmeter"><i id="shtBar"></i><i id="shtOpt" class="mark" hidden></i></div>
       <div class="telegraph" id="shtTele">— voiles établies —</div>
-      <div class="keys"><kbd>Q</kbd><kbd>E</kbd> écoutes · <kbd>T</kbd> au mieux · <kbd>V</kbd> ferler</div>
-      <div class="keys"><kbd>B</kbd> voie d&apos;eau · <kbd>P</kbd> pompes · <kbd>R</kbd> réparer · <kbd>K</kbd> sauter</div>
+    </div>
+    <div class="helm-col">
+      <div class="helm-head"><span class="k">Canons</span><span class="v" id="gunText">Tribord</span></div>
       <div class="gunSide" id="gunSide">
         <button data-s="-1">Bâbord</button><button data-s="1" class="on">Tribord</button>
       </div>
-      <div class="keys"><kbd>G</kbd> un coup · maintenu, la bordée · <kbd>⇧G</kbd> l&apos;autre bord</div>
-      <div class="keys"><kbd>H</kbd> masquer l&apos;affichage · <kbd>I</kbd> capture d&apos;écran</div>
+      <div class="telegraph">— <kbd>F1</kbd> commandes —</div>
     </div>
   </div>
 
@@ -201,6 +199,69 @@
     <div class="chartFix" id="chartFix">—</div>
     <div class="chartZoom">
       <button id="chartOut">−</button><button id="chartIn">+</button>
+    </div>
+  </div>
+
+  <!-- LE MÉMENTO. Seize touches ne tiennent pas sous trois curseurs sans faire
+       de la console de barre un pense-bête ; elles tiennent très bien sur une
+       page qu'on ouvre et qu'on referme. -->
+  <div id="keysMenu" hidden>
+    <div class="km-head">
+      <b>Commandes</b>
+      <span><kbd>F1</kbd> ou <kbd>Échap</kbd> pour fermer</span>
+    </div>
+    <div class="km-cols">
+      <section>
+        <h4>Manœuvre</h4>
+        <dl>
+          <dt><kbd>W</kbd><kbd>S</kbd></dt><dd>machine, en avant et en arrière</dd>
+          <dt><kbd>Espace</kbd></dt><dd>stopper la machine</dd>
+          <dt><kbd>A</kbd><kbd>D</kbd></dt><dd>barre à bâbord, à tribord</dd>
+          <dt><kbd>M</kbd></dt><dd>larguer les amarres</dd>
+        </dl>
+      </section>
+      <section>
+        <h4>Voilure</h4>
+        <dl>
+          <dt><kbd>Q</kbd><kbd>E</kbd></dt><dd>choquer, border les écoutes</dd>
+          <dt><kbd>T</kbd></dt><dd>border au mieux du vent</dd>
+          <dt><kbd>V</kbd></dt><dd>établir ou ferler</dd>
+        </dl>
+      </section>
+      <section>
+        <h4>Artillerie</h4>
+        <dl>
+          <dt><kbd>G</kbd></dt><dd>un coup de la pièce suivante</dd>
+          <dt><kbd>G</kbd> tenu</dt><dd>la bordée entière</dd>
+          <dt><kbd>⇧G</kbd></dt><dd>tirer de l’autre bord</dd>
+        </dl>
+      </section>
+      <section>
+        <h4>Avaries</h4>
+        <dl>
+          <dt><kbd>B</kbd></dt><dd>ouvrir une voie d’eau</dd>
+          <dt><kbd>P</kbd></dt><dd>pompes en route ou stoppées</dd>
+          <dt><kbd>R</kbd></dt><dd>réparer et renflouer</dd>
+          <dt><kbd>K</kbd></dt><dd>faire sauter la soute</dd>
+        </dl>
+      </section>
+      <section>
+        <h4>Vues</h4>
+        <dl>
+          <dt><kbd>C</kbd></dt><dd>changer de caméra</dd>
+          <dt><kbd>X</kbd></dt><dd>replanter la caméra ici</dd>
+          <dt>molette</dt><dd>ouvrir ou fermer la focale</dd>
+        </dl>
+      </section>
+      <section>
+        <h4>Affichage</h4>
+        <dl>
+          <dt><kbd>H</kbd></dt><dd>masquer tout l’affichage</dd>
+          <dt><kbd>F</kbd></dt><dd>le plan d’arrimage</dd>
+          <dt><kbd>J</kbd></dt><dd>le banc d’essai</dd>
+          <dt><kbd>I</kbd></dt><dd>capture d’écran</dd>
+        </dl>
+      </section>
     </div>
   </div>
 
@@ -676,8 +737,11 @@ async function main(){
          une bordée du côté opposé sans changer d'ordre. */
       let gunSide = 1;
       const gunSideEls = [...document.querySelectorAll('#gunSide button')];
+      const gunTextEl = document.getElementById('gunText');
       function showGunSide(){
         for(const b of gunSideEls) b.classList.toggle('on', Number(b.dataset.s) === gunSide);
+        // la colonne annonce son bord comme les trois autres annoncent leur valeur
+        if(gunTextEl) gunTextEl.textContent = gunSide > 0 ? 'Tribord' : 'Bâbord';
       }
       for(const b of gunSideEls) b.onclick = ()=>{ gunSide = Number(b.dataset.s); showGunSide(); };
       showGunSide();
@@ -689,6 +753,15 @@ async function main(){
         if(held) guns.broadside(ship.guns, side, physics.body, spec, ocean.windVec);
         else     guns.fireOne(ship.guns, side, physics.body, spec, ocean.windVec);
       };
+      /* LE MÉMENTO, et il ne fait que s'ouvrir et se fermer : seize touches ne
+         tiennent pas sous trois curseurs sans faire de la console de barre un
+         pense-bête, et elles tiennent très bien sur une page qu'on appelle.
+         Échap ne fait que fermer — une touche qui ferme ce qui est ouvert et
+         ne fait rien sinon est la seule qu'on n'ait jamais à apprendre. */
+      const keysMenu = document.getElementById('keysMenu');
+      controls.onToggleKeys = ()=> { keysMenu.hidden = !keysMenu.hidden; };
+      controls.onCloseKeys  = ()=> { keysMenu.hidden = true; };
+
       controls.onCastOff = ()=> {
         const n = physics.castOff();
         if(hud.say) hud.say(n ? 'Amarres larguées' : 'Elle est déjà libre');
