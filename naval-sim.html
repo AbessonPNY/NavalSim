@@ -52,6 +52,13 @@
       <div class="ro"><span class="k">Capacité</span><span class="v"><span id="roCargoPct">0</span><small>%</small></span></div>
     </div>
     <div class="hair"></div>
+    <!-- LA BOURSE. Un seul entier de pièces derrière, deux lectures devant. -->
+    <div class="readouts">
+      <div class="ro"><span class="k">Bourse</span><span class="v"><span id="roEcus">0</span><small>écus</small></span></div>
+      <div class="ro"><span class="k">Poudre</span><span class="v"><span id="roPowder">0</span><small>coups</small></span></div>
+    </div>
+    <div class="purseLine"><span id="roPieces">0</span> pièces d’argent · épices <b id="roSpice">0</b> t</div>
+    <div class="hair"></div>
     <div class="readouts">
       <div class="ro"><span class="k">Eau embarquée</span><span class="v"><span id="roFlood">0</span><small>t</small></span></div>
       <div class="ro"><span class="k">Pompes</span><span class="v" style="font-size:15px"><span id="roPumps">—</span></span></div>
@@ -143,6 +150,25 @@
       <button id="cargoClear">Vider</button>
     </div>
     <div class="fleetNote">Clic : charger · clic droit : décharger · <kbd>F</kbd> masquer</div>
+
+    <!-- LE COMPTOIR. Il n'existe que devant un port : on ne négocie pas au
+         large, et un panneau toujours ouvert ferait croire le contraire. -->
+    <div class="hair"></div>
+    <div id="market">
+      <div class="mkHead"><b id="mkPort">—</b><span id="mkNote">au large</span></div>
+      <div id="mkBody" hidden>
+        <div class="mkRow"><span class="k">Épices, la tonne</span>
+          <span class="v"><span id="mkBuy">—</span> / <span id="mkSell">—</span></span></div>
+        <div class="mkBtns">
+          <button id="mkBuy10">Acheter 10 t</button><button id="mkSell10">Vendre 10 t</button>
+        </div>
+        <div class="mkRow"><span class="k">Poudre, la charge</span>
+          <span class="v"><span id="mkPow">—</span></span></div>
+        <div class="mkBtns">
+          <button id="mkPow25">Embarquer 25 coups</button><button id="mkPowFull">Faire le plein</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Helm : les trois commandes qu'on tient à la main, et le bord en batterie.
@@ -315,6 +341,7 @@
 <script src="js/rain.js"></script>
 <script src="js/splash.js"></script>
 <script src="js/cordage.js"></script>
+<script src="js/purse.js"></script>
 <script src="js/world.js"></script>
 <script src="js/land.js"></script>
 <script src="js/jetty.js"></script>
@@ -440,16 +467,21 @@ async function main(){
   /* La capture s'écrit dans le dossier du projet quand le serveur de dev est
      derrière la page, et retombe sur le navigateur sinon. */
   const capture = new Naval.Capture(stage);
-  {
+  /* UN SEUL CANAL DE MESSAGES, et c'est celui-ci. La capture d'écran l'avait
+     ouvert pour elle seule ; le comptoir a exactement le même besoin — dire une
+     phrase et s'effacer — et lui en écrire un seconde aurait donné deux
+     bandeaux capables de se recouvrir. */
+  const dire = (()=>{
     const note = document.getElementById('shotNote');
     let hide = 0;
-    capture.onDone = m => {
+    return m => {
       note.textContent = m;
       note.classList.add('on');
       clearTimeout(hide);
       hide = setTimeout(()=> note.classList.remove('on'), 2600);
     };
-  }
+  })();
+  capture.onDone = dire;
   const blast = new Naval.Explosion(stage.scene, stage);
   // her splinters must breathe the same air as her hull
   Naval.applyHaze(blast.woodMat, ocean.uniforms);
@@ -535,6 +567,101 @@ async function main(){
       }
     }
   }
+
+  /* LE COMPTOIR.
+
+     La bourse est UN entier de pièces ; les écus sont une manière de le lire.
+     Deux réserves auraient divergé le jour où une transaction franchit la
+     retenue — même règle que la fraction de toile, que la part de gréement
+     debout, et que tout ce qui doit ici être vu et calculé à la fois.
+
+     Les épices sont du VRAI FRET : acheter charge des tonnes dans la cale par
+     `loadCargo`, donc elles enfoncent la coque, changent son assiette et son
+     GM comme n'importe quel poids, et une cargaison mal arrimée se paie sur
+     l'eau avant de se payer au comptoir. Rien n'a eu à être écrit pour ça : la
+     méthode du poids ajouté était là, il a suffi de lui donner un troisième
+     client après l'envahissement et le lest. */
+  const purse = new Naval.Purse(Naval.Market.DEPART);
+  const MK = Naval.Market;
+  let portIci = null;                       // le port devant lequel on se trouve
+
+  /* ON NE NÉGOCIE QU'À QUAI, et « à quai » se mesure plutôt que se décrète :
+     près du musoir et sans erre. Un navire qui passe au large d'un port ne
+     commerce pas avec lui, et un navire lancé à six nœuds ne débarque rien. */
+  function portDevant(){
+    if(!world || !physics) return null;
+    const wx = ocean.origin.x + physics.body.pos.x;
+    const wz = ocean.origin.z + physics.body.pos.z;
+    if(Math.hypot(physics.body.vel.x, physics.body.vel.z) > 0.8) return null;
+    for(const isl of world.isles){
+      const p = isl.port;
+      if(p && Math.hypot(wx - p.hx, wz - p.hz) < 220) return isl;
+    }
+    return null;
+  }
+
+  /* Où l'on range ce qu'on achète : au fond, au milieu, ce qui est l'arrimage
+     sûr. Le plan reste là pour le déplacer si l'on veut mieux faire. */
+  function chargerEpices(t){
+    const mid = Math.floor(Naval.Config.NCOMP/2);
+    physics.loadCargo(mid, 0.12, 0, t, 'epice');
+  }
+
+  function refreshMarket(){
+    const el = id => document.getElementById(id);
+    portIci = portDevant();
+    const t = ocean.uniforms.uTime.value;
+    el('mkPort').textContent = portIci ? portIci.name : '—';
+    el('mkNote').textContent = portIci ? 'comptoir ouvert' : 'au large';
+    el('mkBody').hidden = !portIci;
+    if(portIci){
+      el('mkBuy').textContent  = MK.buyPrice(portIci.key, t);
+      el('mkSell').textContent = MK.sellPrice(portIci.key, t);
+      el('mkPow').textContent  = MK.POUDRE;
+    }
+    el('roEcus').textContent   = purse.ecus;
+    el('roPieces').textContent = purse.pieces;
+    el('roSpice').textContent  = physics.cargoOf('epice').toFixed(1);
+    el('roPowder').textContent = physics.powder;
+  }
+
+  function acheterEpices(t){
+    if(!portIci) return;
+    const prix = MK.buyPrice(portIci.key, ocean.uniforms.uTime.value) * t;
+    if(!purse.take(prix)){ dire('Bourse trop courte'); return; }
+    chargerEpices(t);
+    dire(t + ' t d’épices à ' + prix + ' pièces');
+    refreshStow(); refreshMarket();
+  }
+
+  function vendreEpices(t){
+    if(!portIci) return;
+    /* On ne vend que ce qu'on porte RÉELLEMENT. Jeter sa cargaison par-dessus
+       bord la fait perdre, ce qui est le comportement juste : c'est la cale
+       qui fait foi, pas un compteur tenu à côté d'elle. */
+    const sorti = physics.unloadKind('epice', t);
+    if(sorti < 0.05){ dire('Rien à vendre'); return; }
+    const gain = Math.round(MK.sellPrice(portIci.key, ocean.uniforms.uTime.value) * sorti);
+    purse.add(gain);
+    dire(sorti.toFixed(1) + ' t vendues — ' + gain + ' pièces');
+    refreshStow(); refreshMarket();
+  }
+
+  function acheterPoudre(n){
+    if(!portIci) return;
+    n = Math.min(n, physics.powderMax - physics.powder);
+    if(n <= 0){ dire('Soute pleine'); return; }
+    const prix = MK.POUDRE * n;
+    if(!purse.take(prix)){ dire('Bourse trop courte'); return; }
+    physics.powder += n;
+    dire(n + ' coups embarqués — ' + prix + ' pièces');
+    refreshMarket();
+  }
+
+  document.getElementById('mkBuy10').onclick   = ()=> acheterEpices(10);
+  document.getElementById('mkSell10').onclick  = ()=> vendreEpices(10);
+  document.getElementById('mkPow25').onclick   = ()=> acheterPoudre(25);
+  document.getElementById('mkPowFull').onclick = ()=> acheterPoudre(9999);
 
   function refreshStow(){
     for(const c of stowCells){
@@ -757,11 +884,20 @@ async function main(){
       showGunSide();
 
       controls.onShot = ()=> capture.take();
+      /* LA POUDRE SE CONSOMME, une charge par coup, et c'est ce qui donne un
+         prix à une bordée. Débitée sur ce que les pièces ont RÉELLEMENT tiré —
+         `fireOne` et `broadside` rendent toutes deux leur compte — plutôt que
+         sur ce qu'on leur a demandé : une bordée écourtée faute de gargousse
+         ne doit pas coûter la salve entière. */
       controls.onFire = (other, held) => {
         if(!ship.guns.length){ hud.flash && hud.flash(); return; }
+        if(physics.powder <= 0){ dire('Plus une charge en soute'); return; }
         const side = other ? -gunSide : gunSide;      // ⇧ : l'autre bord, une fois
-        if(held) guns.broadside(ship.guns, side, physics.body, spec, ocean.windVec);
-        else     guns.fireOne(ship.guns, side, physics.body, spec, ocean.windVec);
+        const tires = held
+          ? guns.broadside(ship.guns, side, physics.body, spec, ocean.windVec, physics.powder)
+          : guns.fireOne(ship.guns, side, physics.body, spec, ocean.windVec);
+        physics.powder = Math.max(0, physics.powder - tires);
+        refreshMarket();
       };
       /* LE MÉMENTO, et il ne fait que s'ouvrir et se fermer : seize touches ne
          tiennent pas sous trois curseurs sans faire de la console de barre un
@@ -795,7 +931,7 @@ async function main(){
 
       controls.onCastOff = ()=> {
         const n = physics.castOff();
-        if(hud.say) hud.say(n ? 'Amarres larguées' : 'Elle est déjà libre');
+        dire(n ? 'Amarres larguées' : 'Elle est déjà libre');
       };
       controls.onSalvage  = ()=> {
         physics.salvage();
@@ -997,6 +1133,14 @@ async function main(){
         ligne(-L*0.34, 0, true)
       ];
     }
+
+    /* LA SOUTE SE DIMENSIONNE SUR SA BATTERIE : quarante coups par pièce, ce
+       qui est une action longue et non une escarmouche. Un navire sans canon
+       n'a pas de soute, et n'a donc rien à y mettre. Elle arrive PLEINE au
+       premier armement — on appareille approvisionné — mais ce qu'on brûle
+       ensuite se rachète. */
+    physics.powderMax = ship.guns.length * 40;
+    physics.powder = physics.powderMax;
 
     // a fresh vessel is not the lost one, whatever became of her predecessor
     lost = false;
@@ -1502,7 +1646,15 @@ async function main(){
     cordage.update(dt, fleet, t, stage.camera.position);
     hud.update(dt);
     fleetTick += dt;
-    if(fleetTick > 0.4){ fleetTick = 0; refreshFleetSpeeds(); }
+    if(fleetTick > 0.4){
+      fleetTick = 0;
+      refreshFleetSpeeds();
+      /* Le comptoir se relit au même rythme que la flotte : le cours dérive,
+         et surtout l'ouverture du comptoir dépend de OÙ elle est, ce qui change
+         à chaque instant. Deux fois et demie par seconde suffit largement pour
+         une chose qu'on lit avant de cliquer. */
+      refreshMarket();
+    }
 
     /* Frame rate, and — the useful half — the WORK inside the frame.
 

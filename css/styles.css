@@ -329,6 +329,31 @@
   .km-cols kbd{font-family:var(--mono);font-size:10px;color:var(--ink);background:rgba(140,168,182,.1);
     border:1px solid var(--edge-soft);border-bottom-width:2px;border-radius:5px;padding:2px 6px}
 
+  /* LA BOURSE ET LE COMPTOIR.
+
+     La ligne de bourse est volontairement plus discrete que les cadrans
+     au-dessus : les ecus sont un chiffre quon surveille, les pieces un reste
+     quon lit quand on compte. Meme hierarchie que le fret et sa capacite. */
+  .purseLine{font-family:var(--mono);font-size:10px;color:var(--muted);
+    letter-spacing:.03em;margin-top:5px;text-align:right}
+  .purseLine b{color:var(--ink);font-weight:600}
+
+  #market{margin-top:9px}
+  .mkHead{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .mkHead b{font-family:var(--disp);font-weight:600;font-size:13px;color:var(--accent);letter-spacing:.04em}
+  .mkHead span{font-family:var(--mono);font-size:9.5px;color:var(--muted);
+    letter-spacing:.08em;text-transform:uppercase}
+  .mkRow{display:flex;align-items:baseline;justify-content:space-between;margin-top:7px}
+  .mkRow .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+    color:var(--muted);text-transform:uppercase}
+  .mkRow .v{font-family:var(--mono);font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums}
+  .mkBtns{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:4px}
+  .mkBtns button{font-family:var(--mono);font-size:10px;color:var(--muted);
+    background:var(--panel);border:1px solid var(--edge-soft);border-radius:5px;
+    padding:5px 0;cursor:pointer;letter-spacing:.02em}
+  .mkBtns button:hover{color:var(--accent);border-color:var(--edge)}
+  #mkBody[hidden]{display:none}
+
   /* hint / help toggle */
   /* tucked under the sea-state panel — clear of the helm along the bottom */
   #hint{position:absolute;top:366px;right:16px;z-index:5;

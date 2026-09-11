@@ -74,6 +74,13 @@ Naval.ShipPhysics = class ShipPhysics {
        real hull, measured on the same lines as everything else. */
     this.cargo = [];
     this.cargoTonnes = 0;
+    /* LA SOUTE, en charges — une charge, un coup. Comptée en coups plutôt
+       qu'en barils parce que c'est l'unité dans laquelle la question se pose
+       vraiment : combien de fois puis-je encore tirer. Le poids de la poudre
+       est laissé de côté, une soute pleine pesant quelques tonnes sur un
+       navire qui en déplace des centaines. */
+    this.powder = 0;
+    this.powderMax = 0;          // posé à l'armement, sur le nombre de pièces
     /* NOT initialised here. Her capacity needs the hull volume, which is only
        known once the probes are built — and the probes are built ABOVE this
        block, so a zero written here would quietly overwrite the real figure.
@@ -208,12 +215,21 @@ Naval.ShipPhysics = class ShipPhysics {
   /* Stow, or strike down. `hold` is 0 aft to NCOMP-1 forward, `level` is the
      height in the hold as a fraction of its depth, `side` is -1 to +1 across
      her. Tonnes may be negative, which lands it back on the quay. */
-  loadCargo(hold, level, side, tonnes){
+  /* `kind` distingue le LEST des marchandises, et la distinction porte de
+     l'argent : le plan d'arrimage charge et décharge à volonté, donc si les
+     épices étaient du fret ordinaire on en fabriquerait gratuitement et le
+     commerce ne voudrait plus rien dire. Deux natures dans les mêmes
+     compartiments, la même masse, la même assiette, le même GM — seule la
+     provenance diffère, et c'est la seule chose que la physique n'a pas à
+     savoir. */
+  loadCargo(hold, level, side, tonnes, kind){
+    kind = kind || 'lest';
     const c = this.comps[Math.max(0, Math.min(this.comps.length-1, hold|0))];
     if(!c || c.cap <= 0) return 0;
-    let slot = this.cargo.find(p => p.hold === hold && p.level === level && p.side === side);
+    let slot = this.cargo.find(p => p.hold === hold && p.level === level
+                                 && p.side === side && p.kind === kind);
     if(!slot){
-      slot = { hold, level, side, kg:0, at:new THREE.Vector3() };
+      slot = { hold, level, side, kind, kg:0, at:new THREE.Vector3() };
       /* The place is worked out ONCE and kept. It is fixed in her own frame —
          cargo does not move about the hold as she rolls, which is exactly what
          separates it from the water in her bilges. */
@@ -226,6 +242,29 @@ Naval.ShipPhysics = class ShipPhysics {
     if(slot.kg < 1) this.cargo.splice(this.cargo.indexOf(slot), 1);
     this._updateMass();
     return this.cargoTonnes;
+  }
+
+  // Ce qu'elle porte d'une nature donnée, en tonnes. C'est ce qui est vendable.
+  cargoOf(kind){
+    let kg = 0;
+    for(const p of this.cargo) if(p.kind === kind) kg += p.kg;
+    return kg/1000;
+  }
+
+  /* Débarquer `tonnes` d'une nature, en prenant dans les cales où elle se
+     trouve. On vide le plus chargé d'abord : c'est ce qu'on fait à quai, et
+     cela évite de laisser des fonds de cale partout. */
+  unloadKind(kind, tonnes){
+    let left = tonnes*1000, moved = 0;
+    const mine = this.cargo.filter(p => p.kind === kind).sort((a,b) => b.kg - a.kg);
+    for(const p of mine){
+      if(left <= 0) break;
+      const take = Math.min(p.kg, left);
+      p.kg -= take; left -= take; moved += take;
+      if(p.kg < 1) this.cargo.splice(this.cargo.indexOf(p), 1);
+    }
+    this._updateMass();
+    return moved/1000;
   }
 
   clearCargo(){ this.cargo.length = 0; this._updateMass(); }

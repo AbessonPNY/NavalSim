@@ -209,20 +209,29 @@ Naval.Guns = class Guns {
      his own match; the intervals scatter, and now and then one hangs fire
      altogether and speaks well after its neighbour. That stutter is most of
      what makes a broadside sound crewed, and it costs two lines. */
-  broadside(muzzles, side, body, spec, wind){
+  /* `max` borne la salve à ce que la soute peut payer. Une bordée à court de
+     poudre n'est pas une bordée qui ne part pas : c'est une bordée plus
+     courte, les pièces du bout restant muettes faute de gargousse, ce qui est
+     exactement ce qui arrivait. Absent, toute la batterie parle comme avant. */
+  broadside(muzzles, side, body, spec, wind, max){
     const g = this._battery(muzzles, side);
     if(!g.length) return 0;
+    const fire = max === undefined ? g.length : Math.min(g.length, Math.max(0, max|0));
+    if(!fire) return 0;
     const s = side > 0 ? 1 : 0;
     const start = this._next[s] % g.length;
     let delay = 0;
-    for(let n = 0; n < g.length; n++){
+    for(let n = 0; n < fire; n++){
       this._queue.push({ t:-delay, g:g[(start + n) % g.length], body, spec, wind });
       delay += 0.05 + Math.random()*0.13;
       if(Math.random() < 0.18) delay += 0.12 + Math.random()*0.30;   // one hangs fire
     }
-    // every piece has spoken, so the next tap starts where this salvo did
-    this._next[s] = start;
-    return g.length;
+    /* Toute la batterie a parlé, donc la prochaine pression repart d'où la
+       salve était partie — sauf si elle a été écourtée, auquel cas la suite
+       reprend là où la poudre a manqué. */
+    this._next[s] = (start + fire) % g.length;
+    if(fire === g.length) this._next[s] = start;
+    return fire;
   }
 
   /* One gun. `g` is a muzzle in the HULL's frame, so it is carried round by her

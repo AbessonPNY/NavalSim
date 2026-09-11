@@ -43,6 +43,7 @@ logique est dans `js/`, en classes attachées à un espace de noms global `Naval
 | `helm.js` | la barre des navires qui ne sont pas le vôtre |
 | `guns.js` | la bordée, et surtout sa fumée |
 | `cordage.js` | les bouts rompus qui pendent d'un mât touché |
+| `purse.js` | la bourse, le cours des épices, la poudre |
 
 ## Cahier des charges
 
@@ -3314,6 +3315,97 @@ retomberait dans le scintillement contre lequel tout ce ruban a été écrit.
 **Ce qu'on ne fait pas** : aucune collision cordage/coque ni cordage/vergue. Un
 bout qui traverse un espar ne se remarque pas ; un bout qui ne bouge pas se
 remarque tout de suite.
+
+## La bourse, les épices et la poudre
+
+**Premier morceau de JEU dans un moteur qui n'en avait aucun.** Tout ce qui
+précède décrit un navire ; ceci décrit une raison de le mener quelque part.
+
+**UN SEUL NOMBRE, DEUX LECTURES.** La bourse est un entier de **pièces
+d'argent**, et rien d'autre. Les **écus d'or** sont une manière de le lire, pas
+une seconde réserve : tenir deux compteurs, c'est garantir qu'ils divergeront le
+jour où une transaction franchit la retenue. Même règle que la fraction de toile
+établie et que la part de gréement debout — un nombre, deux usagers. Soixante
+pièces pour un écu, ce qui n'est pas arbitraire : un écu valait trois livres et
+une livre vingt sous.
+
+**LES ÉPICES SONT DU VRAI FRET**, et c'est tout l'intérêt de les avoir posées
+là. Acheter charge des tonnes dans la cale par `loadCargo`, donc elles enfoncent
+la coque, changent son assiette et son GM comme n'importe quel poids — relevé,
+240 t à vide deviennent 250 avec dix tonnes à bord — et une cargaison mal
+arrimée se paie sur l'eau avant de se payer au comptoir. Rien n'a eu à être
+écrit pour ça : la méthode du poids ajouté attendait un troisième client après
+l'envahissement et le lest.
+
+Mais il a fallu donner une **nature** au fret (`kind`), et la distinction porte
+de l'argent : le plan d'arrimage charge et décharge à volonté, donc si les
+épices avaient été du fret ordinaire on en aurait fabriqué gratuitement et le
+commerce n'aurait plus rien voulu dire. Deux natures dans les mêmes
+compartiments, la même masse, la même physique — seule la provenance diffère, et
+c'est la seule chose que le solveur n'a pas à savoir.
+
+**On ne vend que ce qu'on porte réellement** : la vente passe par `unloadKind`,
+donc c'est la cale qui fait foi et non un compteur tenu à côté d'elle. Jeter sa
+cargaison par-dessus bord la fait perdre, ce qui est le comportement juste.
+
+**LE COURS EST UNE FONCTION PURE DU PORT ET DE L'HEURE**, écrit comme les îles
+et comme les dépressions : aucun état, aucun fichier, la même chose sur toutes
+les machines. Et **continu** — un tirage par palier ferait sauter le prix entre
+deux images et l'on apprendrait à attendre devant le comptoir que le chiffre
+change ; on interpole donc entre deux paliers par un smoothstep, même remède que
+la dérive triangulaire des dépressions. Relevé à un instant donné :
+
+| | Port-Royal | Le Carénage | Saint-Pierre | La Tortue |
+|---|---|---|---|---|
+| achat / vente, la tonne | 581 / 457 | 855 / 671 | 477 / 375 | 725 / 569 |
+
+Un rapport de deux entre le port le moins cher et le plus cher : la destination
+vaut d'être choisie, et le mauvais choix n'est pas ruineux.
+
+**Le négociant prend sa marge, et c'est ce qui oblige à naviguer.** On achète
+12 % au-dessus du cours et l'on revend 12 % en dessous, donc acheter et revendre
+sur place **perd** de l'argent — vérifié, 24 000 pièces deviennent 21 520 sur un
+aller-retour immobile. Sans cette marge il suffirait de cliquer deux fois pour
+tondre la différence.
+
+**On ne négocie qu'à quai, et « à quai » se mesure** : moins de 220 m du musoir
+et moins de 0,8 m/s. Un navire qui passe au large ne commerce pas, et un navire
+lancé à six nœuds ne débarque rien.
+
+**LA POUDRE SE CONSOMME, une charge par coup**, et c'est ce qui donne un prix à
+une bordée. La soute se dimensionne sur la batterie — quarante coups par pièce,
+soit 480 sur le galion à douze canons, ce qui est une action longue et non une
+escarmouche. Elle est débitée sur ce que les pièces ont **réellement** tiré et
+non sur ce qu'on leur a demandé : `broadside` accepte désormais un plafond et
+rend son compte, si bien qu'une bordée à court de gargousse est une bordée plus
+**courte** — les pièces du bout restant muettes — et non une bordée qui ne part
+pas. Vérifié : 480 → 479 au coup, → 473 à la bordée de six, et depuis quatre
+charges la salve en tire quatre puis se tait.
+
+**Un seul canal de messages**, celui que la capture d'écran avait ouvert pour
+elle seule : le comptoir a exactement le même besoin — dire une phrase et
+s'effacer — et lui en écrire un second aurait donné deux bandeaux capables de se
+recouvrir.
+
+**Une faute d'échelle rattrapée tôt.** La bourse de départ valait 1 500 pièces,
+vingt-cinq écus, quand dix tonnes d'épices en coûtent quatre-vingt-dix-sept : le
+bouton « acheter » échouait systématiquement au premier armement, et un jeu qui
+commence par un refus n'explique rien à personne. Portée à 400 écus, de quoi
+charger une quarantaine de tonnes au cours moyen.
+
+### Ce qui n'est PAS fait
+
+- **Les améliorations.** Nommées dans la demande, pas spécifiées : quelles
+  améliorations, et sur quoi portent-elles ? La bourse sait déjà débiter, il ne
+  manque que la liste.
+- **Changer de navire remplit la soute.** `commission` arme la coque
+  approvisionnée, ce qui est juste au premier armement et devient un
+  approvisionnement gratuit quand on change de bâtiment au sélecteur. C'est la
+  même liberté que le plan d'arrimage, qui charge des tonnes venues de nulle
+  part : des affordances de bac à sable qu'il faudra trancher le jour où l'on
+  décidera ce que « changer de navire » veut dire dans une partie.
+- **Rien n'est sauvegardé.** La bourse repart à 400 écus à chaque chargement de
+  la page.
 
 ## Combien de coques
 
