@@ -42,14 +42,34 @@ Naval.Sound = class Sound {
        mais au-delà il n'apprend plus rien et ne fait qu'encombrer. */
     this.C = 343;
     this.PORTEE = 2500;
-    /* Où l'on bascule sur l'échantillon lointain. Deux cent soixante mètres,
-       soit un peu au-delà du plein fouet : dedans on est dans la bataille,
-       au-delà on la regarde. */
-    this.LOIN = 260;
+    /* Où l'on bascule sur l'échantillon lointain. QUATRE CENTS MÈTRES, et le
+       chiffre a pu être repoussé parce que le passe-bas ci-dessous porte
+       désormais le dégradé : à la bascule la coupure est déjà tombée à 4,3 kHz,
+       si bien que les deux échantillons se ressemblent assez pour que le
+       passage ne s'entende pas. Sans le filtre il fallait basculer tôt pour que
+       le lointain ne surprenne pas ; avec lui, on peut garder le claquement
+       aussi longtemps qu'il est vrai. */
+    this.LOIN = 400;
     /* La distance de référence de l'atténuation. Une pression acoustique
        décroît en 1/r, donc c'est une division et non une courbe inventée ; le
        plancher évite seulement qu'un coup très proche sature. */
     this.REF = 55;
+    /* L AIR MANGE LES AIGUS, et c est ce qui assourdit un coup bien avant
+       qu il devienne un grondement. L absorption atmospherique croit avec la
+       frequence ET avec la distance, si bien qu un rapport perd son claquement
+       en premier et garde son ventre : a cent metres il est deja legerement
+       mat, a un demi-mille il n a plus d arete du tout.
+
+       Sans cela le passage d un echantillon a l autre etait une BASCULE — meme
+       son en plus faible, puis d un coup un autre son — la ou l oreille attend
+       un degrade. Le filtre porte la continuite ; les deux echantillons ne
+       font plus que marquer les deux bouts.
+
+       Une exponentielle plutot qu une droite, parce que l absorption est
+       exponentielle en distance. ETOUFFE est la distance ou la coupure tombe
+       d un facteur e : a 260 m elle passe de 20 kHz a 7,4. */
+    this.ETOUFFE = 260;
+    this.FC_MIN = 700;             // au-dela, ce n est plus qu un ventre
     this.MAX_VIVANTS = 24;
   }
 
@@ -103,8 +123,11 @@ Naval.Sound = class Sound {
    * On le rend par la vitesse de lecture plutôt que par un second échantillon,
    * ce qui allonge aussi la détente — ce que fait une grosse charge.
    */
-  boom(pos, k, oreille){
+  boom(pos, k, ecoute){
     if(!this.on || !this.ctx) return;
+    /* L'écoute peut être une caméra ou un simple point. La caméra donne en
+       prime son TRAVERS, sans quoi il n'y a pas de relief gauche-droite. */
+    const oreille = ecoute.isCamera ? ecoute.position : ecoute;
     const maintenant = this.ctx.currentTime;
     this.fins = this.fins.filter(t => t > maintenant);
     if(this.fins.length >= this.MAX_VIVANTS) return;
@@ -127,7 +150,37 @@ Naval.Sound = class Sound {
 
     const g = ctx.createGain();
     g.gain.value = Math.min(1, this.REF/Math.max(this.REF, d));
-    src.connect(g); g.connect(this.master);
+
+    /* Le passe-bas de l air. Il rend le « presque etouffe » qu on attend a
+       cent metres sans rien basculer : la meme detonation, privee de son
+       claquement a mesure qu elle vient de loin. */
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = Math.max(this.FC_MIN, 20000*Math.exp(-d/this.ETOUFFE));
+    f.Q.value = 0.7;
+
+    /* LE RELIEF GAUCHE-DROITE, et c'est la même arithmétique que le choix du
+       bord en batterie : le produit scalaire du relèvement par le TRAVERS de la
+       caméra en donne le signe et l'ampleur. Un coup droit devant ou droit
+       derrière tombe à zéro, ce qui est juste — deux oreilles ne distinguent
+       pas non plus l'avant de l'arrière sans tourner la tête.
+
+       Il faut la caméra pour ça, pas seulement sa position : sans son
+       orientation un duel à bâbord et à tribord sonnait rigoureusement au
+       centre, ce qui est le défaut le plus visible quand on regarde un combat
+       de côté. L'amplitude s'arrête à 0,9 — un panoramique à fond colle le son
+       à une enceinte, et rien dans la nature n'est aussi latéral. */
+    let sortie = f;
+    if(ecoute.isCamera && ctx.createStereoPanner){
+      const m = ecoute.matrixWorld.elements;         // colonne 0 = son travers
+      const rx = m[0], rz = m[2];
+      const dx = (pos.x - oreille.x)/Math.max(1e-6, d);
+      const dz = (pos.z - oreille.z)/Math.max(1e-6, d);
+      const pan = ctx.createStereoPanner();
+      pan.pan.value = Math.max(-1, Math.min(1, (dx*rx + dz*rz) * 0.9));
+      f.connect(pan); sortie = pan;
+    }
+    src.connect(f); sortie.connect(g); g.connect(this.master);
 
     // LE RETARD, qui est tout l'intérêt : la distance divisée par la vitesse du son
     const quand = maintenant + d/this.C;

@@ -3321,14 +3321,50 @@ Trois cent quarante-trois mètres par seconde, ce qui n'est pas un réglage :
 c'est la vitesse du son dans l'air à quinze degrés. Relevé sur le programme
 réel, contre un échantillon proche de 5,64 s et un lointain de 3,29 s :
 
-| distance | retard | échantillon | gain |
-|---|---|---|---|
-| 20 m | 0,06 s | proche | 1,00 |
-| 100 m | 0,29 s | proche | 0,55 |
-| 260 m | 0,76 s | proche | 0,21 |
-| **300 m** | 0,87 s | **lointain** | 0,18 |
-| 1 500 m | **4,37 s** | lointain | 0,04 |
-| 3 000 m | — | rejeté, hors de portée |
+| distance | retard | coupure | échantillon | gain |
+|---|---|---|---|---|
+| 20 m | 0,06 s | 18,5 kHz | proche | 1,00 |
+| 100 m | 0,29 s | 13,6 kHz | proche | 0,55 |
+| 200 m | 0,58 s | 9,3 kHz | proche | 0,28 |
+| **400 m** | 1,17 s | 4,3 kHz | **lointain** | 0,14 |
+| 800 m | 2,33 s | 922 Hz | lointain | 0,07 |
+| 1 500 m | **4,37 s** | 700 Hz (plancher) | lointain | 0,04 |
+| 3 000 m | — | — | rejeté, hors de portée | — |
+
+**L'AIR MANGE LES AIGUS, et c'est cela qui « étouffe » un coup bien avant qu'il
+devienne un grondement.** Signalé à l'usage : « à cent mètres le son ne devrait-il
+pas être presque étouffé ? ». La mesure disait non — à cent mètres c'était
+l'échantillon proche à 60 % du volume, et physiquement c'est juste, cent mètres
+étant à bout portant. Mais l'intuition attrapait quelque chose de réel que le
+code ignorait : l'absorption atmosphérique croît avec la fréquence **et** avec la
+distance, si bien qu'un rapport perd son claquement en premier et garde son
+ventre.
+
+Un passe-bas dont la coupure décroît en exponentielle — `20000·e^(−d/260)`,
+plancher à 700 Hz — le rend sans rien basculer. Et il **a permis de repousser le
+seuil de l'échantillon lointain de 260 à 400 m** : à la bascule la coupure est
+déjà tombée à 4,3 kHz, donc les deux échantillons se ressemblent assez pour que
+le passage ne s'entende pas. Sans le filtre il fallait basculer tôt pour que le
+lointain ne surprenne pas ; avec lui, on garde le claquement aussi longtemps
+qu'il est vrai.
+
+**LE RELIEF GAUCHE-DROITE EST LA MÊME ARITHMÉTIQUE QUE LE CHOIX DU BORD EN
+BATTERIE** : le produit scalaire du relèvement par le **travers de la caméra**
+en donne le signe et l'ampleur. Il faut la caméra entière et pas seulement sa
+position — sans son orientation, un duel à bâbord et à tribord sonnait
+rigoureusement au centre, ce qui est le défaut le plus visible quand on regarde
+un combat de côté. Un coup droit devant ou droit derrière tombe à zéro, ce qui
+est juste : deux oreilles ne distinguent pas l'avant de l'arrière sans tourner
+la tête. Relevé : **−0,90 · 0,00 · +0,90** à gauche, devant, à droite.
+L'amplitude s'arrête à 0,9 — un panoramique à fond colle le son à une enceinte,
+et rien dans la nature n'est aussi latéral.
+
+**Et l'oreille est la CAMÉRA, ce qui se mesure.** Duel de deux galions à cent
+mètres l'un de l'autre, joueur posé à dix mètres du milieu : l'écoute se trouve
+en fait à **51 m**, la vue fixe se plantant sur sa hanche. Les coups arrivent
+alors de 20 à 100 m — 0,06 s contre 0,29, et deux coupures différentes — si bien
+que les deux bordées ne se confondent pas. À deux cents mètres, l'oreille est à
+176 et tout se resserre : 0,54 s de retard moyen, 9,8 kHz, gain 0,30.
 
 **L'OREILLE EST À LA CAMÉRA**, pas sur la coque : on entend d'où l'on regarde.
 La vue fixe plantée à deux cents mètres retarde donc **votre propre** bordée,

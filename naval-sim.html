@@ -1698,7 +1698,9 @@ async function main(){
 
   guns.onBang = (p, k, tireur) => {
     if(!sonPret || !sound.ctx) return;
-    sound.boom(p, k, stage.camera.position);
+    /* La caméra entière et non sa seule position : c'est son travers qui donne
+       le relief gauche-droite. */
+    sound.boom(p, k, stage.camera);
   };
 
   /* ------------------------ QUI SE BAT, ET POURQUOI ------------------------
