@@ -71,6 +71,11 @@ Naval.Sound = class Sound {
     this.ETOUFFE = 260;
     this.FC_MIN = 700;             // au-dela, ce n est plus qu un ventre
     this.MAX_VIVANTS = 24;
+    /* Le canal d ambiance : une seule musique a la fois, et bien EN DESSOUS
+       des bruitages. Une nappe qui couvre une bordee a cesse d etre une
+       ambiance pour devenir un probleme. */
+    this.amb = null;
+    this.VOL_AMB = 0.34;
   }
 
   /* Un navigateur ne fait aucun bruit tant que l'utilisateur n'a rien touché,
@@ -220,4 +225,72 @@ Naval.Sound = class Sound {
                 aigu * (1.15 - 0.30*k) * (1 + (Math.random() - 0.5)*0.10),
                 0.85 * fort);
   }
+  /* ------------------------------------------------------------------ */
+  /* LA MUSIQUE EST UN FLUX, PAS UN TAMPON, et ce n'est pas un détail de
+     plomberie : c'est ce qui sépare une ambiance d'un bruitage.
+
+     Un échantillon de canon dure cinq secondes, se décode une fois et se rejoue
+     cent fois depuis la mémoire. Une ambiance dure une heure. Passée par
+     `decodeAudioData` elle deviendrait du PCM flottant non compressé —
+     44 100 × 2 canaux × 4 octets × 3 800 secondes, soit près de SEPT CENTS
+     mégaoctets de mémoire pour soixante-douze sur le disque. Un élément
+     <audio> la lit au fil de l'eau et n'en garde rien.
+
+     Elle ne passe donc PAS non plus par `_jouer` : le retard, l'absorption de
+     l'air et le relief gauche-droite sont des propriétés d'un son qui vient
+     d'un ENDROIT. Une musique ne vient de nulle part — elle est dans la tête du
+     commandant, pas sur l'eau — et lui appliquer la distance n'aurait aucun
+     sens.
+
+     ET ELLE NE PEUT PAS ÊTRE EMBARQUÉE. Soixante-douze mégaoctets font
+     quatre-vingt-seize en base64, six fois le plafond d'un artifact. La page
+     autonome n'aura donc pas de musique à moins qu'on ne pose le fichier à côté
+     d'elle : c'est le premier asset de ce projet qui ne tienne pas dans la
+     règle du fichier unique, et il faut le savoir plutôt que le découvrir. Un
+     chargement qui échoue ne dit rien et n'interrompt rien. */
+  ambiance(src, fondu){
+    const ctx = this.wake();
+    if(!ctx) return;
+    const t = ctx.currentTime, f = fondu == null ? 2.5 : fondu;
+
+    /* Ce qui joue s'en va en douceur et se tait POUR DE BON. Un élément laissé
+       en lecture à volume nul continue de décoder, de tenir le réseau et de
+       compter dans les limites du navigateur. */
+    const vieux = this.amb;
+    if(vieux){
+      vieux.gain.gain.cancelScheduledValues(t);
+      vieux.gain.gain.setValueAtTime(vieux.gain.gain.value, t);
+      vieux.gain.gain.linearRampToValueAtTime(0, t + f);
+      setTimeout(()=>{ try{ vieux.el.pause(); vieux.el.src = ''; }catch(e){} },
+                 (f + 0.2)*1000);
+    }
+    this.amb = null;
+    if(!src) return;
+
+    /* Les noms d'échantillons sont choisis par nous ; celui d'une musique est
+       choisi par celui qui l'a déposée, espaces et perluètes compris. */
+    const el = new Audio();
+    el.src = encodeURI(src);
+    el.loop = true;
+    el.preload = 'auto';
+    el.crossOrigin = 'anonymous';
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(this.VOL_AMB, t + f);
+
+    let node;
+    try{ node = ctx.createMediaElementSource(el); }
+    catch(e){ return; }
+    node.connect(g); g.connect(this.master);
+
+    this.amb = { el, node, gain:g, src };
+    /* Une lecture refusée n'est pas une panne : le navigateur peut encore
+       attendre un geste, et le prochain appel repartira. */
+    const p = el.play();
+    if(p && p.catch) p.catch(()=>{});
+  }
+
+  /* Ce qui joue, ou null. Pour que l'appelant n'ait pas à s'en souvenir. */
+  ambianceEnCours(){ return this.amb ? this.amb.src : null; }
 };

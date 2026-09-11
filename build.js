@@ -122,18 +122,34 @@ for (const rel of shipList) {
    redemander au réseau — même chemin que les .glb et la voile peinte. */
 const SOUND_DIR = path.join(ROOT, 'medias', 'sound');
 const soundData = {};
-const SOUND_KEYS = { 'cannon_fire_001.wav':'pres', 'cannon_far_away.wav':'loin',
-                     'wood_crash_001.wav':'bois1', 'wood_crash_002.wav':'bois2' };
+/* LA CLÉ EST UN NOM, PAS UN FICHIER, et le build choisit l'extension. Les
+   échantillons sont arrivés en .wav puis ont été remplacés par des .ogg dix
+   fois plus légers — 228 Ko contre 2,27 Mo — et sans cela l'échange demandait
+   de retoucher le build ET la page. Le format d'un asset n'est pas une
+   information que le jeu ait à porter.
+
+   L'ordre de préférence est celui du poids à qualité égale. Un .wav qui traîne
+   à côté d'un .ogg est du poids mort, et le build le DIT plutôt que de le
+   laisser grossir le dépôt en silence. */
+const SOUND_KEYS = { 'cannon_fire_001':'pres', 'cannon_far_away':'loin',
+                     'wood_crash_001':'bois1', 'wood_crash_002':'bois2' };
+const SOUND_EXT = ['.ogg', '.mp3', '.m4a', '.wav'];
+const SOUND_MIME = { '.ogg':'audio/ogg', '.mp3':'audio/mpeg',
+                     '.m4a':'audio/mp4', '.wav':'audio/wav' };
 if (fs.existsSync(SOUND_DIR)) {
-  for (const f of fs.readdirSync(SOUND_DIR)) {
-    const cle = SOUND_KEYS[f];
-    if (!cle) continue;
+  const present = new Set(fs.readdirSync(SOUND_DIR));
+  for (const [nom, cle] of Object.entries(SOUND_KEYS)) {
+    const ext = SOUND_EXT.find(e => present.has(nom + e));
+    if (!ext) { console.log('  WARNING: aucun echantillon pour ' + nom); continue; }
+    const f = nom + ext;
     const bytes = fs.readFileSync(path.join(SOUND_DIR, f));
-    const mime = f.endsWith('.wav') ? 'audio/wav'
-               : f.endsWith('.ogg') ? 'audio/ogg' : 'audio/mpeg';
-    soundData[cle] = 'data:' + mime + ';base64,' + bytes.toString('base64');
+    soundData[cle] = 'data:' + SOUND_MIME[ext] + ';base64,' + bytes.toString('base64');
     inlined.push('medias/sound/' + f);
     console.log('  embedded medias/sound/' + f + '  (' + (bytes.length/1024).toFixed(0) + ' KB)');
+    for (const autre of SOUND_EXT) {
+      if (autre !== ext && present.has(nom + autre))
+        console.log('    (medias/sound/' + nom + autre + ' n\'est plus utilise)');
+    }
   }
 }
 const soundBlob = '<script>\nwindow.Naval = window.Naval || {};\n' +

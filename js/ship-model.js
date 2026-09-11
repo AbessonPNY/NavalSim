@@ -1553,9 +1553,27 @@ Naval.ShipModel = class ShipModel {
      piece far higher than it is thick standing on the centreline; on a
      procedural vessel, simply her tallest mast. */
   _buildFlag(){
-    if(this.flag){ this.group.remove(this.flag.pivot); this.flag = null; }
+    /* De son parent, quel qu'il soit : il pend désormais DANS son mât, donc
+       this.group n'est plus forcément celui qui le tient. */
+    if(this.flag){
+      const p = this.flag.pivot;
+      if(p.parent) p.parent.remove(p);
+      this.flag = null;
+    }
     const spec = this.spec;
-    let topY, z;
+    /* IL PEND DANS SON MÂT, PAS SUR LE NAVIRE, et l'avoir accroché au groupe de
+       la coque a coûté un bug signalé à l'usage : « le drapeau ne disparaît pas
+       quand le mât est tombé, il ne le suit pas ». Il restait en l'air, seul, à
+       l'endroit exact où la pomme se trouvait — ce qui est pire que pas de
+       pavillon du tout.
+
+       C'est la même raison qui met les vergues et la toile dans la chute plutôt
+       que dans le navire : tout ce qui appartient à ce mât doit passer
+       par-dessus bord ENSEMBLE. Un pavillon est frappé à une drisse, et une
+       drisse est tournée au mât. Il suit donc sa chute, sa roulée et son
+       enfoncement sans une ligne pour le lui dire, et une réparation le rend
+       avec l'espar puisqu'il en est un enfant. */
+    let topY, z, parent = this.group;
 
     if(this.modelRoot){
       /* ON DEMANDE AUX MÂTS DÉJÀ TROUVÉS, plutôt que de les chercher une
@@ -1586,10 +1604,13 @@ Naval.ShipModel = class ShipModel {
         if(!mat || f.userData.height > mat.userData.height) mat = f;
       }
       if(mat){
-        /* L'origine de la chute est au PIED — c'est là-dessus que les haubans
-           sont posés à 0,78 de la hauteur — donc la pomme est à la somme. */
-        topY = mat.position.y + mat.userData.height;
-        z = mat.position.z;
+        /* Dans le repère de la CHUTE, dont l'origine est au pied : la pomme est
+           donc simplement à sa hauteur, et sur son axe. C'est aussi ce qui rend
+           inutile de le recentrer, de le faire tomber ou de le détruire — il
+           est porté par ce qui tombe. */
+        parent = mat;
+        topY = mat.userData.height;
+        z = 0;
       }else{
         const parts = this._modelParts();
         let best = null;
@@ -1636,7 +1657,7 @@ Naval.ShipModel = class ShipModel {
     const pivot = new THREE.Group();
     pivot.position.set(0, topY - hoist*0.18, z);
     pivot.add(new THREE.Mesh(g, this.mats.flag));
-    this.group.add(pivot);
+    parent.add(pivot);
     this.flag = { pivot, mesh:pivot.children[0], hoist, fly,
                   base:Float32Array.from(pos), u:Float32Array.from(us), v:Float32Array.from(vs) };
   }

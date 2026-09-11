@@ -1438,6 +1438,23 @@ l'invariant du plan de formes unique existe pour empêcher. La règle de forme
 reste, mais en **repli** : un navire sans mât gréé n'a pas de drisse, ce qui est
 le comportement voulu. Vérifié : tête de mort à la pomme, 21,4 m.
 
+**ET IL PEND DANS SON MÂT, PAS SUR LE NAVIRE** — ce qui fut la seconde moitié
+du même bug, signalée dès que la première fut corrigée : « le drapeau ne
+disparaît pas quand le mât est tombé, il ne le suit pas ». Il restait en l'air,
+seul, à l'endroit exact où la pomme se trouvait, ce qui est pire que pas de
+pavillon du tout.
+
+C'est la raison même qui met les vergues et la toile dans la chute plutôt que
+dans le navire : **tout ce qui appartient à ce mât doit passer par-dessus bord
+ENSEMBLE**. Un pavillon est frappé à une drisse, et une drisse est tournée au
+mât. Accroché au groupe de la coque il fallait le faire tomber, le recentrer et
+le détruire à la main, c'est-à-dire réécrire trois fois ce que le graphe fait
+gratuitement ; accroché à la chute il ne demande rien. Une réparation le rend
+avec l'espar, puisqu'il en est un enfant.
+
+Relevé, mât abattu à la main : 21,3 m et l'axe à zéro ; 14,2 m et douze mètres
+de côté à deux secondes ; sous l'eau à quatre ; **parti avec sa chute à six**.
+
 
 Il porte sur le vent **apparent**, comme tout ce qui flotte depuis un pont en
 mouvement, et son lacet se déduit directement de ce que le solveur connaît déjà :
@@ -3382,10 +3399,9 @@ voyagent en base64 dans `Naval.SOUND_DATA` et `sound.js` les décode **à la
 main** — un `fetch()` sur une URI `data:` serait une requête, et le but est de
 n'en faire aucune. Même chemin que les `.glb` et la voile peinte.
 
-**Le prix est en mégaoctets, et il faut le dire** : deux WAV de 44,1 kHz stéréo
-font 1,5 Mo, soit 2 Mo de base64, et la page construite passe de **3,11 à
-5,17 Mo**. Elle tient largement sous la limite d'un artifact, mais un `.ogg` ou
-un `.mp3` ferait la même chose pour un dixième.
+**Le prix a d'abord été en mégaoctets** : deux WAV de 44,1 kHz stéréo font
+1,5 Mo, soit 2 Mo de base64. Passés en `.ogg`, les quatre échantillons pèsent
+**228 Ko** — voir plus bas.
 
 **LE BOIS QUI CASSE PART DE LA CIBLE, PAS DU CANON**, et c'est tout ce qui rend
 une touche lisible à l'oreille : on entend la pièce, puis — s'il y a de la
@@ -3413,8 +3429,19 @@ la **vitesse restante** qui la donne : un boulet arrivé à bout de course cogne
 moins fort. Et un mât n'est pas une muraille — même bois, plus léger et plus
 sec, donc le même échantillon monté d'un ton plutôt qu'un troisième fichier.
 
-**Le poids est assumé** : quatre WAV portent la page construite à **6,1 Mo**.
-Décision prise en connaissance de cause, le chargement étant lissé.
+**LA CLÉ EST UN NOM, PAS UN FICHIER**, et le build choisit l'extension. Les
+échantillons sont arrivés en `.wav` puis ont été remplacés par des `.ogg` **dix
+fois plus légers** — 228 Ko contre 2,27 Mo, la page construite passant de 6,08
+à **3,43 Mo**. Sans cette indirection, l'échange demandait de retoucher le build
+**et** la page : le format d'un asset n'est pas une information que le jeu ait à
+porter. L'ordre de préférence est celui du poids à qualité égale (`.ogg`,
+`.mp3`, `.m4a`, `.wav`), et un fichier qui en ombre un autre est **annoncé**
+plutôt que laissé grossir le dépôt en silence.
+
+Une réserve à connaître avant de publier : l'Ogg Vorbis n'a été accepté par
+Safari que tardivement. Un chargement qui échoue n'interrompt jamais rien — le
+`catch` est là pour ça — mais la page serait alors muette sur ces machines. Du
+`.mp3` à côté suffirait, le build prenant le premier qu'il trouve.
 
 **Un navigateur ne fait aucun bruit avant le premier geste de l'utilisateur**, et
 c'est une règle qu'on ne contourne pas : on l'attend. Le premier clic ou la
@@ -3439,6 +3466,62 @@ une liste d'**instants de fin**, purgée contre l'horloge, qui ne peut pas
 dériver. Vérifié : quarante coups d'affilée plafonnent à 24, et sept secondes
 plus tard il n'en reste qu'un.
 
+
+
+## La musique, qui est un flux et non un tampon
+
+**ET CE N'EST PAS UN DÉTAIL DE PLOMBERIE : c'est ce qui sépare une ambiance d'un
+bruitage.** Un échantillon de canon dure cinq secondes, se décode une fois et se
+rejoue cent fois depuis la mémoire. Une ambiance dure huit minutes. Passée par
+`decodeAudioData` elle deviendrait du PCM flottant non compressé — 44 100 × 2
+canaux × 4 octets par seconde — soit **quatre-vingt-dix mégaoctets de mémoire
+vive pour dix sur le disque**, et près de sept cents pour l'heure que faisait la
+première version du fichier. Un élément `<audio>` la lit au fil de l'eau et n'en
+garde rien.
+
+Elle ne passe donc **pas** non plus par `_jouer` : le retard, l'absorption de
+l'air et le relief gauche-droite sont des propriétés d'un son qui vient d'un
+**endroit**. Une musique ne vient de nulle part — elle est dans la tête du
+commandant, pas sur l'eau.
+
+**ET ELLE NE PEUT PAS ÊTRE EMBARQUÉE**, ce qui est une première dans ce projet.
+Les deux pistes font 12,1 Mo, soit **16,2 Mo en base64** — au-delà du plafond
+d'un artifact *avant même* de compter les 3,4 Mo de la page. C'est le premier
+asset qui ne tienne pas dans la règle du fichier unique : la page autonome sera
+donc muette de musique à moins qu'on ne pose les fichiers à côté d'elle. Un
+chargement qui échoue ne dit rien et n'interrompt rien.
+
+**DEUX SEUILS ET NON UN**, et c'est toute la différence entre une bascule et un
+clignotement : on passe à l'action quand la voile noire est à **douze cents
+mètres**, on n'en ressort qu'au-delà de **dix-huit cents**, et il faut quinze
+secondes de calme pour se rasseoir. Un seuil unique ferait battre la musique à
+chaque lame dès qu'un pirate croise à la distance juste — même hystérésis que la
+ligne de bord de la barre automatique, et pour la même raison.
+
+**LE SILENCE SE LIT SUR LA MONTRE, PAS SUR LES IMAGES**, et l'avoir écrit
+autrement a coûté un essai. Cumuler le pas d'image paraît naturel et ne l'est
+pas : ce pas est **plafonné à cinquante millisecondes** pour protéger le solveur
+d'une saccade, si bien que sur un volet à deux images par seconde le compteur
+n'avançait que d'un dixième de seconde par seconde réelle — vingt-trois secondes
+de calme pour deux comptées, et la musique n'est jamais revenue. Le même défaut
+frapperait n'importe quelle machine dès qu'elle rame, c'est-à-dire exactement
+quand une bataille a lieu. La montre plutôt que l'horloge du **jeu**, aussi :
+sous compression ×16 une accalmie de quinze secondes passerait en moins d'une.
+
+Relevé : Vivaldi au départ ; voile noire à 900 m, l'action prend la main ;
+pirate repoussé à 2 607 m, vingt secondes plus tard Vivaldi revient à plein
+volume.
+
+**La clé est un nom, pas un fichier**, et le build choisit l'extension par ordre
+de poids (`.ogg`, `.mp3`, `.m4a`, `.wav`). Les bruitages sont arrivés en `.wav`
+puis ont été remplacés par des `.ogg` **dix fois plus légers** — 228 Ko contre
+2,27 Mo, la page passant de 6,08 à **3,43 Mo**. Sans cette indirection l'échange
+demandait de retoucher le build *et* la page. Un fichier qui en ombre un autre
+est **annoncé** plutôt que laissé grossir le dépôt en silence.
+
+Une réserve avant de publier : l'Ogg Vorbis n'a été accepté par Safari que
+tardivement. Poser un `.mp3` à côté suffirait, le build prenant le premier qu'il
+trouve.
 
 ## Un mât qui tombe
 

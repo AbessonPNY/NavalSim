@@ -1694,15 +1694,70 @@ async function main(){
     sonPret = true;
     try{
       await Promise.all([
-        sound.load('pres', 'medias/sound/cannon_fire_001.wav'),
-        sound.load('loin', 'medias/sound/cannon_far_away.wav'),
-        sound.load('bois1', 'medias/sound/wood_crash_001.wav'),
-        sound.load('bois2', 'medias/sound/wood_crash_002.wav')
+        sound.load('pres',  'medias/sound/cannon_fire_001.ogg'),
+        sound.load('loin',  'medias/sound/cannon_far_away.ogg'),
+        sound.load('bois1', 'medias/sound/wood_crash_001.ogg'),
+        sound.load('bois2', 'medias/sound/wood_crash_002.ogg')
       ]);
     }catch(err){ /* un son manquant n'interrompt jamais la simulation */ }
   }
   for(const ev of ['pointerdown', 'keydown'])
     addEventListener(ev, reveillerLeSon, { once:true, capture:true });
+
+  /* L AMBIANCE DE NAVIGATION, et elle se tait quand on se bat.
+
+     Elle ne peut pas etre embarquee — soixante-douze megaoctets contre un
+     plafond de seize — donc la page autonome sera muette de musique a moins
+     qu on ne pose le fichier a cote d elle. C est le premier asset de ce projet
+     qui ne tienne pas dans la regle du fichier unique.
+
+     LE SILENCE SE LIT SUR LA MONTRE, PAS SUR LES IMAGES, et l avoir ecrit
+     autrement a coute un essai : cumuler le pas d image parait naturel et ne
+     l est pas, ce pas etant PLAFONNE a cinquante millisecondes pour proteger
+     le solveur d une saccade. Sur un volet a deux images par seconde le
+     compteur n avancait donc que d un dixieme de seconde par seconde reelle,
+     et la musique n est jamais revenue — vingt-trois secondes de calme pour
+     deux comptees. Le meme defaut frapperait n importe quelle machine des
+     qu elle rame, c est-a-dire exactement quand une bataille a lieu.
+
+     Et la montre plutot que l horloge du JEU, aussi : sous compression x16 une
+     accalmie de douze secondes passerait en moins d une seconde. Une oreille
+     vit en temps reel quoi que fasse le navire. */
+  const AMB_NAV    = 'medias/sound/Vivaldi for Focus & Energy  Fireplace Classical Music.ogg';
+  const AMB_ACTION = 'medias/sound/Musique Action Epique - Musique avec Tension   Musique Libre de Droit.ogg';
+  /* DEUX SEUILS ET NON UN, et c'est toute la difference entre une bascule et un
+     clignotement : on passe a l'action quand la voile noire est a douze cents
+     metres, on n'en ressort qu'au-dela de dix-huit cents. Un seul seuil ferait
+     battre la musique a chaque lame des qu'elle croise a la distance juste.
+     Meme hysterese que la ligne de bord de la barre automatique, et pour la
+     meme raison. */
+  const EN_VUE = 1200, LACHEE = 1800;
+  const OUBLI = 15;                      // secondes reelles avant de se rasseoir
+  let ambVoulue, dernierDanger = -1e9;
+
+  function dangerLePlusProche(){
+    const b = physics.body.pos;
+    let d = Infinity;
+    for(const e of fleet){
+      if(e === fleet[0] || !e.hostile) continue;
+      if(!e.physics || e.physics.foundered || e.afloat === 0) continue;
+      d = Math.min(d, e.body.pos.distanceTo(b));
+    }
+    return d;
+  }
+
+  function reglerAmbiance(){
+    if(!sonPret || !sound.ctx) return;
+    const seuil = ambVoulue === AMB_ACTION ? LACHEE : EN_VUE;
+    /* Une voile noire en vue, ou du fer en l'air — l'un ou l'autre suffit.
+       Le second compte parce qu'un combat reste un combat meme si l'adversaire
+       n'arborait rien : c'est vous qui l'avez ouvert. */
+    if(dangerLePlusProche() < seuil || guns.shot.length || guns._queue.length)
+      dernierDanger = performance.now();
+    const chaud = (performance.now() - dernierDanger)/1000 < OUBLI;
+    const veut = chaud ? AMB_ACTION : AMB_NAV;
+    if(veut !== ambVoulue){ ambVoulue = veut; sound.ambiance(veut); }
+  }
 
   guns.onBang = (p, k, tireur) => {
     if(!sonPret || !sound.ctx) return;
@@ -1971,6 +2026,7 @@ async function main(){
     for(let i=0;i<SUB;i++) physics.step(h, ocean, controls.state, t0 + (i+1)*h);
     tearCanvas(physics, ship, dt, true);
     strainMast(physics, ship, dt, true);
+    reglerAmbiance();
 
     /* Any other vessel in the fleet sails herself. Entry 0 is the one at the
        helm, handled below with the instruments and the cameras; the rest need
