@@ -1558,17 +1558,51 @@ Naval.ShipModel = class ShipModel {
     let topY, z;
 
     if(this.modelRoot){
-      const parts = this._modelParts();
-      let best = null;
-      for(const p of parts){
-        const thick = Math.max(p.size.x, p.size.z);
-        if(p.size.y < 3*thick || p.size.y < 0.15*spec.L) continue;   // not a mast
-        if(Math.abs(p.mid.x) > 0.08*spec.B) continue;                // off the centreline
-        if(!best || p.box.max.y > best.box.max.y) best = p;
+      /* ON DEMANDE AUX MÂTS DÉJÀ TROUVÉS, plutôt que de les chercher une
+         seconde fois — et c'est une correction d'ORDRE autant que de style.
+
+         `_rigModel` tourne avant celui-ci et REPARENTE le fût dans son groupe
+         de chute, pour que tout ce qui appartient au mât passe par-dessus bord
+         ensemble. `_modelParts` ne le voit donc plus, et un navire dont le
+         seul fût propre a été pris par le gréement n'avait pas de drisse :
+         relevé sur le galion pirate, trois mâts trouvés dont un avec son fût de
+         19,3 m, et ZÉRO candidat pour le pavillon. Ses autres pièces sont des
+         mâts fondus avec leurs vergues — 0,5 × 17,2 × 21,6 m — que la règle de
+         forme refuse à juste titre, et c'est bien elle qui a raison.
+
+         Signalé à l'usage : « le galion pirate n'a plus son drapeau ». Il ne
+         l'avait jamais eu, en réalité, depuis que le gréement lui prend son
+         mât.
+
+         Le chercheur de mâts a déjà répondu à la question, et il est le seul à
+         pouvoir y répondre puisque c'est lui qui a déplacé la pièce. Poser la
+         question deux fois, c'était se donner deux réponses à tenir en accord —
+         la faute que l'invariant du plan de formes unique existe pour empêcher.
+         La règle de forme reste, mais en repli : un navire sans mât gréé n'a
+         pas de drisse, ce qui est le comportement voulu. */
+      let mat = null;
+      for(const f of this.falls){
+        if(!f.userData.mast) continue;
+        if(!mat || f.userData.height > mat.userData.height) mat = f;
       }
-      for(const p of parts) p.geom.dispose();
-      if(!best) return;
-      topY = best.box.max.y; z = best.mid.z;
+      if(mat){
+        /* L'origine de la chute est au PIED — c'est là-dessus que les haubans
+           sont posés à 0,78 de la hauteur — donc la pomme est à la somme. */
+        topY = mat.position.y + mat.userData.height;
+        z = mat.position.z;
+      }else{
+        const parts = this._modelParts();
+        let best = null;
+        for(const p of parts){
+          const thick = Math.max(p.size.x, p.size.z);
+          if(p.size.y < 3*thick || p.size.y < 0.15*spec.L) continue;   // not a mast
+          if(Math.abs(p.mid.x) > 0.08*spec.B) continue;                // off the centreline
+          if(!best || p.box.max.y > best.box.max.y) best = p;
+        }
+        for(const p of parts) p.geom.dispose();
+        if(!best) return;
+        topY = best.box.max.y; z = best.mid.z;
+      }
     }else{
       let m = null;
       for(const k of spec.masts) if(!m || k.height > m.height) m = k;

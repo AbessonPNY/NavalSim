@@ -116,6 +116,28 @@ for (const rel of shipList) {
   shipData[rel] = spec;
   inlined.push(rel);
 }
+/* LES SONS, portés dans la page comme tout le reste. Un fetch() local est
+   bloqué par la politique de sécurité, donc les octets voyagent en base64 dans
+   Naval.SOUND_DATA et sound.js les décode à la main plutôt que de les
+   redemander au réseau — même chemin que les .glb et la voile peinte. */
+const SOUND_DIR = path.join(ROOT, 'medias', 'sound');
+const soundData = {};
+const SOUND_KEYS = { 'cannon_fire_001.wav':'pres', 'cannon_far_away.wav':'loin' };
+if (fs.existsSync(SOUND_DIR)) {
+  for (const f of fs.readdirSync(SOUND_DIR)) {
+    const cle = SOUND_KEYS[f];
+    if (!cle) continue;
+    const bytes = fs.readFileSync(path.join(SOUND_DIR, f));
+    const mime = f.endsWith('.wav') ? 'audio/wav'
+               : f.endsWith('.ogg') ? 'audio/ogg' : 'audio/mpeg';
+    soundData[cle] = 'data:' + mime + ';base64,' + bytes.toString('base64');
+    inlined.push('medias/sound/' + f);
+    console.log('  embedded medias/sound/' + f + '  (' + (bytes.length/1024).toFixed(0) + ' KB)');
+  }
+}
+const soundBlob = '<script>\nwindow.Naval = window.Naval || {};\n' +
+  'Naval.SOUND_DATA = ' + JSON.stringify(soundData) + ';\n</scr' + 'ipt>\n';
+
 const shipBlob = '<script>\nwindow.Naval = window.Naval || {};\n' +
   'Naval.SHIP_DATA = ' + JSON.stringify(shipData, null, 1) + ';\n</scr' + 'ipt>\n';
 
@@ -169,7 +191,7 @@ html = html.replace(/<script\s+src="([^"]+)"\s*><\/script>/g, (m, src) => {
   inlined.push(src);
   const tag = '<script>\n' + js.trimEnd() + '\n</script>';
   // the ship data must exist before ShipSpec is asked for it
-  return src.endsWith('config.js') ? tag + '\n' + shipBlob : tag;
+  return src.endsWith('config.js') ? tag + '\n' + shipBlob + soundBlob : tag;
 });
 
 fs.mkdirSync(OUT_DIR, { recursive: true });

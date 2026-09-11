@@ -351,6 +351,7 @@
   }
 }
 </script>
+<script src="js/sound.js"></script>
 <script src="js/config.js"></script>
 <script src="js/ship-spec.js"></script>
 <script src="js/hull-lines.js"></script>
@@ -438,8 +439,10 @@ async function main(){
      It is deliberately NOT scaled up to be felt. A broadside heeling a ship
      over is one of the most repeated things about the age of sail and it is
      very nearly a myth — the arithmetic is worth letting speak. */
-  guns.onRecoil = (g, out, impulse) => {
-    const b = physics.body;
+  guns.onRecoil = (g, out, impulse, tireur) => {
+    /* Au navire QUI A TIRÉ. Écrit sur physics.body, ce qui était juste tant que
+       seul le joueur avait des pièces, et faux depuis qu'une conserve en a. */
+    const b = tireur || physics.body;
     const dir = out.clone().multiplyScalar(-impulse);          // back through the trunnions
     b.vel.addScaledVector(dir, 1/b.mass);
     // and about her centre of gravity, which is what actually tips her
@@ -457,7 +460,12 @@ async function main(){
      downflooding all take over without a line written for gunnery; a mast is
      the same fall the magazine causes. Nothing about being shot at is a special
      case — which is the whole reason the two were built first. */
-  guns.onStrike = (e, kind, index, local, speed, k, world, dir) => {
+  /* Et QUI a tiré, ce qui n'avait jamais eu à voyager jusqu'ici : un boulet
+     savait d'où il venait (b.from) et personne ne le lui demandait. C'est ce
+     seul renseignement qui permet à un navire de savoir contre qui se retourner,
+     et donc à une conserve pacifique de cesser de l'être. */
+  guns.onStrike = (e, kind, index, local, speed, k, tireur, world, dir) => {
+    provoquer(e, tireur);
     /* Timber first, whatever she was hit in: it is the same event seen from
        outside, and the deck cares about it more than the carpenter does. */
     if(world && dir) blast.splinters(world, dir, k || 1);
@@ -1348,8 +1356,23 @@ async function main(){
                     physics.body.pos.z + Math.cos(ang)*reach);
     ph.body.quat.copy(physics.body.quat);          // heading with the flagship
 
+    /* ET SA SOUTE EST PLEINE. Le remplissage vivait dans commission(), donc
+       une conserve naissait greee de douze pieces et a sec de poudre — et un
+       pirate hostile sans une charge n est qu un navire qui vous suit. Meme
+       regle que pour le joueur, quarante coups par piece, et zero pour qui n a
+       pas de batterie. */
+    ph.powderMax = (sh.guns || []).length * 40;
+    ph.powder = ph.powderMax;
+
+    /* Le pavillon noir décide, et la distance de garde suit : une barre réglée
+       à une longueur et demie amène à quarante mètres, ce qui est un abordage
+       et non un duel. Un navire qui vient canonner se tient au plein fouet. */
+    const hostile = !!(sp.appearance && sp.appearance.ensign === 'jolly');
+    if(hostile) helm.standoff = Math.max(helm.standoff, 185);
+
     const entry = { body:ph.body, spec:sp, lines:ln, physics:ph, ship:sh, ctrl:ct,
-                    helm, afloat:1, eqY:eq, profile: sh.hullProfile(64, -eq) };
+                    helm, hostile, provoquePar:null, rearme:0,
+                    afloat:1, eqY:eq, profile: sh.hullProfile(64, -eq) };
     fleet.push(entry);
     refitProfiles();
     return entry;
@@ -1648,13 +1671,110 @@ async function main(){
              sonde_m:Math.round(world.heightAt(cible.x, cible.z)) };
   }
 
+  /* ------------------------------- LE BRUIT -------------------------------
+
+     Un navigateur ne fait aucun son avant que l'utilisateur ait touché quelque
+     chose, et c'est une règle qu'on ne contourne pas : on l'attend. Le premier
+     geste, quel qu'il soit, réveille le contexte et charge les deux
+     échantillons — après quoi plus personne n'y pense.
+
+     L'oreille est la CAMÉRA et non la coque : on entend d'où l'on regarde, si
+     bien que la vue fixe plantée à deux cents mètres retarde votre propre
+     bordée. C'est ce qui se passerait. */
+  const sound = new Naval.Sound();
+  let sonPret = false;
+  async function reveillerLeSon(){
+    if(sonPret) return;
+    sonPret = true;
+    try{
+      await Promise.all([
+        sound.load('pres', 'medias/sound/cannon_fire_001.wav'),
+        sound.load('loin', 'medias/sound/cannon_far_away.wav')
+      ]);
+    }catch(err){ /* un son manquant n'interrompt jamais la simulation */ }
+  }
+  for(const ev of ['pointerdown', 'keydown'])
+    addEventListener(ev, reveillerLeSon, { once:true, capture:true });
+
+  guns.onBang = (p, k, tireur) => {
+    if(!sonPret || !sound.ctx) return;
+    sound.boom(p, k, stage.camera.position);
+  };
+
+  /* ------------------------ QUI SE BAT, ET POURQUOI ------------------------
+
+     LE PAVILLON NOIR EST UNE DÉCLARATION, PAS UNE DÉCORATION. Un navire est
+     hostile parce qu'il arbore la tête de mort, et non parce qu'une fiche porte
+     un drapeau booléen quelque part : c'était précisément ce qu'un jolly roger
+     voulait dire, et le lire plutôt que le redire évite d'avoir deux vérités à
+     tenir en accord. Hisser la tête de mort sur n'importe quelle fiche suffit
+     donc à en faire un ennemi, ce qui est le bon contrat.
+
+     TOUS LES AUTRES SONT PACIFIQUES JUSQU'À CE QU'ON LES TOUCHE. Le boulet
+     porte déjà le corps qui l'a lâché, donc la riposte n'a rien à deviner : la
+     victime se retourne contre celui-là, quel qu'il soit — le joueur, un pirate
+     ou une autre conserve. Personne n'arbitre les camps, ils se forment. */
+  const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3();
+  const _haut = new THREE.Vector3(0, 1, 0);
+
+  function provoquer(e, tireur){
+    if(!e || !tireur || e.body === tireur) return;
+    if(e === fleet[0]) return;                  // le joueur décide lui-même
+    e.provoquePar = tireur;
+  }
+  function ennemiDe(e){
+    if(e.hostile && fleet[0] && fleet[0].physics && !fleet[0].physics.foundered)
+      return fleet[0].body;                     // elle est venue pour ça
+    if(e.provoquePar){
+      for(const o of fleet)
+        if(o.body === e.provoquePar) return o.physics && !o.physics.foundered ? o.body : null;
+      e.provoquePar = null;                     // il a quitté la scène
+    }
+    return null;
+  }
+
+  /* SERVIR LES PIÈCES. Tout existait sauf la décision : guns.targets vaut la
+     flotte entière, donc un boulet cherche déjà n'importe quelle coque, et
+     broadside prend son navire en paramètre — rien n'y supposait le joueur.
+
+     Le bord est choisi sur le relèvement et non deviné : tribord est étrave ×
+     haut, et le produit scalaire en donne le signe. Elle ne tire que lorsque la
+     cible relève franchement par le travers, parce qu'une pièce pointe en
+     travers et qu'il n'y a pas de gisement dans ce modèle — c'est la même
+     limite que pour le joueur, et elle fait manœuvrer au lieu de mitrailler.
+
+     Trois cent quarante mètres, parce que c'est là que s'arrête le plein
+     fouet : au-delà le boulet tombe de plusieurs mètres et la bordée serait du
+     bruit. Et un rechargement long et irrégulier — une pièce servie à la main
+     met des minutes, on en prend une fraction pour que ce soit jouable. */
+  function servirLesPieces(e, dt){
+    if(!e.physics || !e.ship || e.physics.foundered) return;
+    const bouches = e.ship.guns;
+    if(!bouches || !bouches.length || !(e.physics.powder > 0)) return;
+    e.rearme = Math.max(0, (e.rearme || 0) - dt);
+    const cible = ennemiDe(e);
+    if(!cible || e.rearme > 0) return;
+
+    _v1.copy(cible.pos).sub(e.body.pos); _v1.y = 0;
+    const portee = _v1.length();
+    if(portee > 340 || portee < 12) return;
+    _v2.set(0, 0, 1).applyQuaternion(e.body.quat);
+    _v3.crossVectors(_v2, _haut);                       // tribord vrai
+    _v1.normalize();
+    const travers = _v1.dot(_v3);
+    if(Math.abs(travers) < 0.62) return;                // elle n'a pas le bord
+    const n = guns.broadside(bouches, travers > 0 ? 1 : -1, e.body, e.spec,
+                             ocean.windVec, e.physics.powder);
+    if(n > 0){ e.physics.powder -= n; e.rearme = 20 + Math.random()*16; }
+  }
+
   /* The live instances, reachable from the console. Several bugs in this project
      were slow to pin down purely because nothing was inspectable at runtime. */
   Naval.app = { stage, ocean, foam, controls,
                 get physics(){ return physics; }, get ship(){ return ship; },
                 get cam(){ return cam; }, get hud(){ return hud; },
                 world, land, gulls, chart, blast, guns, takeHelm, weather, rain, splash,
-                cordage, purse, parler, tempete,
+                cordage, purse, parler, tempete, sound,
                 storms, get squall(){ return squall; },
                 get fleet(){ return fleet; } };
 
@@ -1855,7 +1975,15 @@ async function main(){
       /* Her controls are passed in rather than remembered: taking the helm
          swaps the control objects between entries, and a helm holding the one
          it was built with would go on writing into the console you are using. */
-      if(e.helm){ e.helm.target = fleet[0].body.pos; e.helm.update(dt, ocean, e.ctrl); }
+      /* Elle chasse celui qu'elle combat, et le vaisseau amiral à défaut —
+         ce qui redonne exactement l'ancien comportement à une conserve que
+         personne n'a provoquée et qui ne porte pas la tête de mort. */
+      if(e.helm){
+        const foe = ennemiDe(e);
+        e.helm.target = (foe || fleet[0].body).pos;
+        e.helm.update(dt, ocean, e.ctrl);
+      }
+      servirLesPieces(e, dt);
       e.ship.stepRigging(dt);
       e.physics.standing = e.ship.standing();
       e.physics.whole = e.ship.whole();

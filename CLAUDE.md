@@ -43,6 +43,7 @@ logique est dans `js/`, en classes attachées à un espace de noms global `Naval
 | `helm.js` | la barre des navires qui ne sont pas le vôtre |
 | `guns.js` | la bordée, et surtout sa fumée |
 | `cordage.js` | les bouts rompus qui pendent d'un mât touché |
+| `sound.js` | le bruit des pièces, et le temps qu'il met à venir |
 | `purse.js` | la bourse, le cours des épices, la poudre |
 
 ## Cahier des charges
@@ -1416,6 +1417,27 @@ coordonnées de texture** : ses `u` et `v` étaient calculés pour l'ondulation 
 jetés. Et l'émissif qui empêche un pavillon blanc de virer au gris contre un
 ciel clair rendrait un pavillon noir **anthracite** — un pavillon sale et non un
 pavillon sinistre : le motif apporte donc le sien, bien plus faible.
+
+**ET LE PAVILLON DEMANDE SON MÂT AU GRÉEMENT, au lieu de le chercher une
+seconde fois.** Signalé à l'usage — « le galion pirate n'a plus son drapeau » —
+et il ne l'avait en réalité jamais eu depuis que le gréement lui prend son mât.
+
+C'est une dépendance d'**ordre**. `_rigModel` tourne avant `_buildFlag` et
+**reparente** le fût dans son groupe de chute, pour que tout ce qui appartient à
+ce mât passe par-dessus bord ensemble. `_modelParts` ne le voit donc plus, et la
+règle de forme du pavillon ne trouve plus rien. Relevé sur le galion pirate :
+**trois mâts trouvés** dont un avec son fût de 19,3 m, et **zéro candidat** pour
+le pavillon. Ses autres pièces sont des mâts fondus avec leurs vergues — 0,5 ×
+17,2 × 21,6 m — que la règle refuse à juste titre, et c'est bien elle qui a
+raison.
+
+Le chercheur de mâts a déjà répondu à la question, et il est le **seul** à
+pouvoir y répondre puisque c'est lui qui a déplacé la pièce. La poser deux fois,
+c'était se donner deux réponses à tenir en accord — exactement la faute que
+l'invariant du plan de formes unique existe pour empêcher. La règle de forme
+reste, mais en **repli** : un navire sans mât gréé n'a pas de drisse, ce qui est
+le comportement voulu. Vérifié : tête de mort à la pomme, 21,4 m.
+
 
 Il porte sur le vent **apparent**, comme tout ce qui flotte depuis un pont en
 mouvement, et son lacet se déduit directement de ce que le solveur connaît déjà :
@@ -3229,6 +3251,128 @@ que de la subir, d'où le filtre que `nearest` accepte désormais — et il exig
 l'eau dans la **moitié intérieure**, là où le grain vaut encore quelque chose.
 Deux limites, une pour choisir et une pour poser. Vérifié : force **8,9** à un
 mètre du centre, quarante-cinq nœuds, échouage nul.
+
+
+## Une conserve qui tire
+
+**IL NE MANQUAIT QUE LA DÉCISION.** `guns.targets` valait déjà la flotte
+entière, donc un boulet cherchait n'importe quelle coque ; `broadside` prend son
+navire en paramètre, donc rien n'y supposait le joueur ; et la barre automatique
+vise déjà la **rive** de sa distance de garde et referme par la tangente, ce qui
+*est* une position de combat. Personne ne disait jamais à une conserve de faire
+feu, et c'est tout ce qui a dû s'écrire.
+
+**LE PAVILLON NOIR EST UNE DÉCLARATION, PAS UNE DÉCORATION.** Un navire est
+hostile parce qu'il arbore la tête de mort — `appearance.ensign === 'jolly'` —
+et non parce qu'une fiche porterait un drapeau booléen à côté. C'était
+précisément ce qu'un jolly roger voulait dire, et le **lire** plutôt que le
+redire évite d'avoir deux vérités à tenir en accord. Hisser la tête de mort sur
+n'importe quelle fiche suffit donc à en faire un ennemi, ce qui est le bon
+contrat : rien par navire, comme le reste du gréement.
+
+**TOUS LES AUTRES SONT PACIFIQUES JUSQU'À CE QU'ON LES TOUCHE**, et la riposte
+n'a rien à deviner : le boulet portait déjà le corps qui l'a lâché (`b.from`), et
+personne ne le lui demandait. C'est le seul renseignement qui ait dû voyager
+jusqu'à `onStrike`. La victime se retourne contre celui-là, quel qu'il soit — le
+joueur, un pirate, ou une autre conserve. **Personne n'arbitre les camps, ils se
+forment.**
+
+**Le bord est CHOISI sur le relèvement, pas deviné** : tribord vrai est
+`étrave × haut`, et le produit scalaire en donne le signe. Elle ne parle que
+lorsque la cible relève franchement par le travers — à moins de 0,62 du travers
+elle se tait — parce qu'une pièce pointe en travers et qu'il n'y a pas de
+gisement dans ce modèle. C'est exactement la limite du joueur, et elle oblige à
+manœuvrer au lieu de mitrailler. Trois cent quarante mètres de portée, parce que
+c'est là que s'arrête le plein fouet.
+
+**Deux choses vivaient ailleurs et ont dû suivre**, et chacune rendait la
+fonctionnalité muette :
+
+- **la distance de garde**. Réglée à une longueur et demie, elle amène à
+  quarante mètres — un abordage, pas un duel. Un hostile se tient à 185 m, dans
+  la fourchette du plein fouet ;
+- **la soute**. Le remplissage vivait dans `commission()`, le chemin du joueur,
+  si bien qu'une conserve naissait **gréée de douze pièces et à sec de poudre**
+  — et un pirate hostile sans une charge n'est qu'un navire qui vous suit.
+
+**Et rien de ce qui ARRIVE n'a été écrit pour l'occasion**, ce qui est le point :
+le boulet d'une conserve ouvre la même voie d'eau que la touche `B`, blesse un
+mât par le même compteur que celui du joueur, et Torricelli prend le relais.
+Relevé, deux galions par le travers à 150 m :
+
+| | |
+|---|---|
+| pirate hostile, trois bordées | 18 coups, **3 voies d'eau** et **1 mât blessé** chez le joueur |
+| conserve pacifique canonnée | 42 voies, puis **elle riposte** — 480 charges tombées à 474 |
+| sa barre | vise désormais son agresseur et non plus le vaisseau amiral |
+
+
+## Le bruit, et surtout le temps qu'il met à venir
+
+**LE SON MET UNE SECONDE ET DEMIE À FAIRE CINQ CENTS MÈTRES**, et c'est cela —
+bien plus que le timbre — qui fait lire un canon comme lointain. On voit la
+flamme, on compte, puis on entend ; chacun l'a fait sous un orage, et c'est
+pourquoi l'oreille sait d'emblée à quelle distance le coup est parti. Un
+échantillon sourd joué à l'instant du flash sonne comme un canon **en sourdine**
+; le même joué une seconde plus tard sonne comme un canon **loin**. Le retard
+est une division, et il est l'essentiel de l'effet.
+
+Trois cent quarante-trois mètres par seconde, ce qui n'est pas un réglage :
+c'est la vitesse du son dans l'air à quinze degrés. Relevé sur le programme
+réel, contre un échantillon proche de 5,64 s et un lointain de 3,29 s :
+
+| distance | retard | échantillon | gain |
+|---|---|---|---|
+| 20 m | 0,06 s | proche | 1,00 |
+| 100 m | 0,29 s | proche | 0,55 |
+| 260 m | 0,76 s | proche | 0,21 |
+| **300 m** | 0,87 s | **lointain** | 0,18 |
+| 1 500 m | **4,37 s** | lointain | 0,04 |
+| 3 000 m | — | rejeté, hors de portée |
+
+**L'OREILLE EST À LA CAMÉRA**, pas sur la coque : on entend d'où l'on regarde.
+La vue fixe plantée à deux cents mètres retarde donc **votre propre** bordée,
+ce qui est exactement ce qui se passerait.
+
+**L'atténuation est une division, pas une courbe inventée** — une pression
+acoustique décroît en 1/r — et le calibre que `guns.js` calcule déjà sert la
+hauteur : une grosse pièce sonne plus grave, rendu par la vitesse de lecture
+plutôt que par un troisième échantillon, ce qui allonge du même coup la détente.
+Plus quelques pour cent de variation par coup, la même irrégularité que la
+charge dosée à la main.
+
+**Rien n'est chargé depuis un fichier dans la page publiée.** Les octets
+voyagent en base64 dans `Naval.SOUND_DATA` et `sound.js` les décode **à la
+main** — un `fetch()` sur une URI `data:` serait une requête, et le but est de
+n'en faire aucune. Même chemin que les `.glb` et la voile peinte.
+
+**Le prix est en mégaoctets, et il faut le dire** : deux WAV de 44,1 kHz stéréo
+font 1,5 Mo, soit 2 Mo de base64, et la page construite passe de **3,11 à
+5,17 Mo**. Elle tient largement sous la limite d'un artifact, mais un `.ogg` ou
+un `.mp3` ferait la même chose pour un dixième.
+
+**Un navigateur ne fait aucun bruit avant le premier geste de l'utilisateur**, et
+c'est une règle qu'on ne contourne pas : on l'attend. Le premier clic ou la
+première touche réveille le contexte et charge les deux échantillons, après quoi
+personne n'y pense plus.
+
+**DEUX BUGS TROUVÉS EN ÉCRIVANT CELUI-CI, et le premier était grave.**
+
+`onRecoil` ne disait pas **de qui** était la pièce, et la page appliquait le
+recul à `physics.body` — le vôtre. C'était juste tant que seul le joueur avait
+des canons, et c'est devenu faux le jour même où les conserves ont eu le droit
+de tirer : **une bordée pirate secouait votre coque.** Le corps qui tire voyage
+donc désormais avec le coup. Le son a en outre gagné son propre rappel
+(`onBang`) plutôt que de se greffer sur celui-là : ce qu'une pièce fait à la
+coque et ce qu'elle fait à l'air sont deux événements, et les confondre ne
+marchait que par accident.
+
+Et le compteur de sources **fuyait** : incrémenté au départ, décrémenté sur
+`onended`, il ne redescendait jamais d'une source qui n'avait pas démarré — et à
+vingt-quatre fuites le son se taisait pour de bon, sans rien dire. Remplacé par
+une liste d'**instants de fin**, purgée contre l'horloge, qui ne peut pas
+dériver. Vérifié : quarante coups d'affilée plafonnent à 24, et sept secondes
+plus tard il n'en reste qu'un.
 
 
 ## Un mât qui tombe

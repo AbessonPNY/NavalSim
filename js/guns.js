@@ -87,6 +87,10 @@ Naval.Guns = class Guns {
     this._next = [0, 0];
     this.targets = [];         // fleet entries a ball may find, set by the page
     this.onRecoil = null;      // wired by the page, so the hull answers back
+    /* Le COUP, qui n'est pas le recul : l'un est ce que la pièce fait à la
+       coque, l'autre ce qu'elle fait à l'air. Les confondre marchait tant que
+       seul le joueur tirait. */
+    this.onBang = null;
     this.onSplash = null;      // ... and so the sea answers back
     /* ... and so the ship she hits does. Called as
        (entry, 'hull'|'mast', index, frac, speed, calibre, world, dir), where
@@ -443,7 +447,12 @@ Naval.Guns = class Guns {
     lp.t = 0;
     lp.L.intensity = lp.peak;
 
-    if(this.onRecoil) this.onRecoil(g, out, 3000*k*k);
+    /* ET LE CORPS QUI TIRE VOYAGE AVEC, ce qui n'était pas le cas et devenait
+       un vrai bug dès que les conserves ont eu le droit de faire feu : la page
+       appliquait le recul à physics.body — le vôtre — quel que soit le navire
+       dont la pièce avait parlé. Une bordée pirate secouait votre coque. */
+    if(this.onRecoil) this.onRecoil(g, out, 3000*k*k, body);
+    if(this.onBang) this.onBang(this._p, k, body);
   }
 
   /* Where a segment first enters a box, as a fraction of itself, or -1.
@@ -515,7 +524,7 @@ Naval.Guns = class Guns {
             if(this.onStrike){
               const w = this._l2.copy(l0).lerp(l1, u)
                           .applyQuaternion(e.body.quat).add(e.body.pos);
-              this.onStrike(e, 'mast', fi, 0.5, b.v.length(), b.k,
+              this.onStrike(e, 'mast', fi, 0.5, b.v.length(), b.k, b.from,
                             w, this._b.clone().sub(this._a).normalize());
             }
             dead = true;
@@ -548,7 +557,7 @@ Naval.Guns = class Guns {
             frac = (hit.y - this._mn.y)/Math.max(0.5, this._mx.y - this._mn.y);
             if(this.onStrike){
               const w = hit.clone().applyQuaternion(e.body.quat).add(e.body.pos);
-              this.onStrike(e, 'hull', ci, frac, b.v.length(), b.k,
+              this.onStrike(e, 'hull', ci, frac, b.v.length(), b.k, b.from,
                             w, this._b.clone().sub(this._a).normalize());
             }
             dead = true;

@@ -12,3 +12,9 @@
 *.mp4  binary
 *.woff  binary
 *.woff2 binary
+
+# Les sons aussi. Le fichier le dit plus haut : text=auto les detecterait
+# probablement, et on ne parie pas la-dessus sur du binaire.
+*.wav  binary
+*.mp3  binary
+*.ogg  binary
