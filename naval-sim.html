@@ -466,6 +466,12 @@ async function main(){
      et donc à une conserve pacifique de cesser de l'être. */
   guns.onStrike = (e, kind, index, local, speed, k, tireur, world, dir) => {
     provoquer(e, tireur);
+    /* LE BOIS QUI CASSE, à la distance de la CIBLE et non du canon — c'est ce
+       qui rend la chose lisible : on entend d'abord la pièce, puis, s'il y a de
+       la distance, le coup dans la muraille. Les deux voyagent à la même
+       vitesse depuis deux endroits différents, et l'arithmétique fait le reste
+       sans qu'on ait à l'orchestrer. */
+    if(sonPret && sound.ctx && world) sound.crash(world, k || 1, speed, kind, stage.camera);
     /* Timber first, whatever she was hit in: it is the same event seen from
        outside, and the deck cares about it more than the carpenter does. */
     if(world && dir) blast.splinters(world, dir, k || 1);
@@ -1689,7 +1695,9 @@ async function main(){
     try{
       await Promise.all([
         sound.load('pres', 'medias/sound/cannon_fire_001.wav'),
-        sound.load('loin', 'medias/sound/cannon_far_away.wav')
+        sound.load('loin', 'medias/sound/cannon_far_away.wav'),
+        sound.load('bois1', 'medias/sound/wood_crash_001.wav'),
+        sound.load('bois2', 'medias/sound/wood_crash_002.wav')
       ]);
     }catch(err){ /* un son manquant n'interrompt jamais la simulation */ }
   }

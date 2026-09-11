@@ -3387,6 +3387,35 @@ font 1,5 Mo, soit 2 Mo de base64, et la page construite passe de **3,11 à
 5,17 Mo**. Elle tient largement sous la limite d'un artifact, mais un `.ogg` ou
 un `.mp3` ferait la même chose pour un dixième.
 
+**LE BOIS QUI CASSE PART DE LA CIBLE, PAS DU CANON**, et c'est tout ce qui rend
+une touche lisible à l'oreille : on entend la pièce, puis — s'il y a de la
+distance — le coup dans la muraille. Les deux voyagent à la même vitesse depuis
+deux endroits différents, donc **personne n'a eu à orchestrer** l'écart. Relevé,
+cible par le travers à 160 m, oreille à 47 m de ses propres pièces :
+
+| | le départ | l'impact |
+|---|---|---|
+| distance à l'oreille | 47 m | **159 m** |
+| retard | 0,14 s | **0,47 s** |
+| coupure | 16,7 kHz | **10,8 kHz** |
+
+**TOUT CE QUI SONNE PASSE PAR LE MÊME `_jouer`**, et c'est la seule raison pour
+laquelle cela marche sans une ligne de plus : le retard, l'absorption de l'air,
+le relief gauche-droite et l'atténuation sont des propriétés de la **distance**,
+pas du coup de canon. Les réécrire pour le bois, c'était se donner deux
+acoustiques à tenir en accord. L'appelant ne choisit que ce qui lui appartient —
+quel échantillon, à quelle hauteur, avec quelle force il a frappé.
+
+**Deux échantillons tirés au sort**, parce qu'un seul se reconnaît à la troisième
+touche et cesse d'être un choc pour devenir un bruitage — même raison que les
+intervalles irréguliers de la bordée. La force du choc porte le volume, et c'est
+la **vitesse restante** qui la donne : un boulet arrivé à bout de course cogne
+moins fort. Et un mât n'est pas une muraille — même bois, plus léger et plus
+sec, donc le même échantillon monté d'un ton plutôt qu'un troisième fichier.
+
+**Le poids est assumé** : quatre WAV portent la page construite à **6,1 Mo**.
+Décision prise en connaissance de cause, le chargement étant lissé.
+
 **Un navigateur ne fait aucun bruit avant le premier geste de l'utilisateur**, et
 c'est une règle qu'on ne contourne pas : on l'attend. Le premier clic ou la
 première touche réveille le contexte et charge les deux échantillons, après quoi

@@ -122,7 +122,8 @@ for (const rel of shipList) {
    redemander au réseau — même chemin que les .glb et la voile peinte. */
 const SOUND_DIR = path.join(ROOT, 'medias', 'sound');
 const soundData = {};
-const SOUND_KEYS = { 'cannon_fire_001.wav':'pres', 'cannon_far_away.wav':'loin' };
+const SOUND_KEYS = { 'cannon_fire_001.wav':'pres', 'cannon_far_away.wav':'loin',
+                     'wood_crash_001.wav':'bois1', 'wood_crash_002.wav':'bois2' };
 if (fs.existsSync(SOUND_DIR)) {
   for (const f of fs.readdirSync(SOUND_DIR)) {
     const cle = SOUND_KEYS[f];

@@ -116,44 +116,38 @@ Naval.Sound = class Sound {
     return this.buf[cle];
   }
 
-  /* UN COUP DE CANON, entendu d'où l'on regarde.
-   *
-   * `k` est le calibre relatif que guns.js calcule déjà (spec.L/60) : une
-   * caronade n'est pas un trente-deux, et une grosse pièce sonne plus GRAVE.
-   * On le rend par la vitesse de lecture plutôt que par un second échantillon,
-   * ce qui allonge aussi la détente — ce que fait une grosse charge.
-   */
-  boom(pos, k, ecoute){
-    if(!this.on || !this.ctx) return;
-    /* L'écoute peut être une caméra ou un simple point. La caméra donne en
-       prime son TRAVERS, sans quoi il n'y a pas de relief gauche-droite. */
+  /* ------------------------------------------------------------------ */
+  /* TOUT CE QUI SONNE PASSE PAR ICI, et c'est la seule raison pour laquelle un
+     impact à quatre cents mètres est en retard et mat sans qu'une ligne le
+     redise : le retard, l'absorption de l'air, le relief gauche-droite et
+     l'atténuation sont des propriétés de la DISTANCE, pas du coup de canon.
+     Les écrire une seconde fois pour le bois qui casse, c'était se donner deux
+     acoustiques à tenir en accord — la faute que ce projet passe son temps à
+     éviter ailleurs.
+
+     L'appelant ne choisit que ce qui lui appartient : quel échantillon, à
+     quelle hauteur, et avec quelle force il a frappé. */
+  _jouer(b, pos, ecoute, rate, vol){
+    if(!this.on || !this.ctx || !b) return;
+    const ctx = this.ctx;
     const oreille = ecoute.isCamera ? ecoute.position : ecoute;
-    const maintenant = this.ctx.currentTime;
+
+    const maintenant = ctx.currentTime;
     this.fins = this.fins.filter(t => t > maintenant);
     if(this.fins.length >= this.MAX_VIVANTS) return;
-    const pres = this.buf.pres, loin = this.buf.loin;
-    if(!pres && !loin) return;
 
     const d = pos.distanceTo(oreille);
     if(d > this.PORTEE) return;
 
-    const b = (d > this.LOIN ? (loin || pres) : (pres || loin));
-    const ctx = this.ctx;
     const src = ctx.createBufferSource();
     src.buffer = b;
-
-    /* Grave pour une grosse pièce, et jamais deux fois le même coup : la
-       charge était dosée à la main, ce que guns.js éparpille déjà sur la
-       portée. La même irrégularité, à l'oreille. */
-    src.playbackRate.value = Math.max(0.7, Math.min(1.35,
-      (1.15 - 0.30*k) * (1 + (Math.random() - 0.5)*0.06)));
+    src.playbackRate.value = Math.max(0.6, Math.min(1.6, rate));
 
     const g = ctx.createGain();
-    g.gain.value = Math.min(1, this.REF/Math.max(this.REF, d));
+    g.gain.value = Math.min(1, vol * this.REF/Math.max(this.REF, d));
 
-    /* Le passe-bas de l air. Il rend le « presque etouffe » qu on attend a
-       cent metres sans rien basculer : la meme detonation, privee de son
-       claquement a mesure qu elle vient de loin. */
+    /* Le passe-bas de l'air : la même détonation, privée de son claquement à
+       mesure qu'elle vient de loin. */
     const f = ctx.createBiquadFilter();
     f.type = 'lowpass';
     f.frequency.value = Math.max(this.FC_MIN, 20000*Math.exp(-d/this.ETOUFFE));
@@ -163,21 +157,15 @@ Naval.Sound = class Sound {
        bord en batterie : le produit scalaire du relèvement par le TRAVERS de la
        caméra en donne le signe et l'ampleur. Un coup droit devant ou droit
        derrière tombe à zéro, ce qui est juste — deux oreilles ne distinguent
-       pas non plus l'avant de l'arrière sans tourner la tête.
-
-       Il faut la caméra pour ça, pas seulement sa position : sans son
-       orientation un duel à bâbord et à tribord sonnait rigoureusement au
-       centre, ce qui est le défaut le plus visible quand on regarde un combat
-       de côté. L'amplitude s'arrête à 0,9 — un panoramique à fond colle le son
-       à une enceinte, et rien dans la nature n'est aussi latéral. */
+       pas non plus l'avant de l'arrière sans tourner la tête. L'amplitude
+       s'arrête à 0,9 : un panoramique à fond colle le son à une enceinte. */
     let sortie = f;
     if(ecoute.isCamera && ctx.createStereoPanner){
       const m = ecoute.matrixWorld.elements;         // colonne 0 = son travers
-      const rx = m[0], rz = m[2];
       const dx = (pos.x - oreille.x)/Math.max(1e-6, d);
       const dz = (pos.z - oreille.z)/Math.max(1e-6, d);
       const pan = ctx.createStereoPanner();
-      pan.pan.value = Math.max(-1, Math.min(1, (dx*rx + dz*rz) * 0.9));
+      pan.pan.value = Math.max(-1, Math.min(1, (dx*m[0] + dz*m[2]) * 0.9));
       f.connect(pan); sortie = pan;
     }
     src.connect(f); sortie.connect(g); g.connect(this.master);
@@ -186,5 +174,50 @@ Naval.Sound = class Sound {
     const quand = maintenant + d/this.C;
     this.fins.push(quand + b.duration/src.playbackRate.value);
     src.start(quand);
+  }
+
+  /* UN COUP DE CANON, entendu d'où l'on regarde.
+   *
+   * `k` est le calibre relatif que guns.js calcule déjà (spec.L/60) : une
+   * caronade n'est pas un trente-deux, et une grosse pièce sonne plus GRAVE.
+   * On le rend par la vitesse de lecture plutôt que par un troisième
+   * échantillon, ce qui allonge du même coup la détente.
+   */
+  boom(pos, k, ecoute){
+    const oreille = ecoute.isCamera ? ecoute.position : ecoute;
+    const d = pos.distanceTo(oreille);
+    const b = d > this.LOIN ? (this.buf.loin || this.buf.pres)
+                            : (this.buf.pres || this.buf.loin);
+    /* Jamais deux fois le même coup : la charge était dosée à la main, ce que
+       guns.js éparpille déjà sur la portée. La même irrégularité, à l'oreille. */
+    this._jouer(b, pos, ecoute,
+                (1.15 - 0.30*k) * (1 + (Math.random() - 0.5)*0.06), 1);
+  }
+
+  /* LE BOIS QUI CASSE, là où le boulet a porté — et donc à la distance de la
+   * CIBLE, pas du canon. C'est ce qui rend la chose lisible : on entend d'abord
+   * la pièce, puis, un instant plus tard s'il y a de la distance, le coup dans
+   * la muraille. Les deux voyagent à la même vitesse depuis deux endroits
+   * différents, et l'arithmétique s'en occupe toute seule.
+   *
+   * DEUX ÉCHANTILLONS TIRÉS AU SORT, parce qu'un seul se reconnaît à la
+   * troisième touche et cesse d'être un choc pour devenir un bruitage. Même
+   * raison que les intervalles irréguliers de la bordée.
+   *
+   * ET UN MÂT N'EST PAS UNE MURAILLE : c'est le même bois, plus léger et plus
+   * sec, donc le même échantillon monté d'un ton. Un troisième fichier dirait
+   * mieux, mais deux suffisent à ce que l'oreille sépare les deux événements.
+   */
+  crash(pos, k, vitesse, quoi, ecoute){
+    const b = Math.random() < 0.5 ? (this.buf.bois1 || this.buf.bois2)
+                                  : (this.buf.bois2 || this.buf.bois1);
+    /* La force du choc porte le volume, et c'est la vitesse restante qui la
+       donne : un boulet arrivé à bout de course cogne moins fort. Trois cents
+       mètres par seconde est le plein fouet de ce modèle. */
+    const fort = Math.max(0.3, Math.min(1, (vitesse || 200)/300));
+    const aigu = quoi === 'mast' ? 1.18 : 1.0;
+    this._jouer(b, pos, ecoute,
+                aigu * (1.15 - 0.30*k) * (1 + (Math.random() - 0.5)*0.10),
+                0.85 * fort);
   }
 };
