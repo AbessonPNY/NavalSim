@@ -17,3 +17,13 @@ npm-debug.log*
 
 # Captures d'écran, produites par la touche I
 captures/
+
+# --- portage Godot ---
+godot/.godot/
+godot/.mono/
+godot/bin/
+**/bin/
+**/obj/
+# releves de parite : regeneres par `node tools/parity-*.js`
+core/parity.json
+core/parity-ocean.json

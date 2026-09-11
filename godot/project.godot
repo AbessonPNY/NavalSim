@@ -1,0 +1,17 @@
+; Projet Godot de NavalSim. Le code de jeu vit dans godot/scripts ; tout ce qui
+; est arithmetique pure vit dans core/NavalSim.Core, qui ne reference PAS Godot
+; et se teste donc sans lancer le moteur.
+
+config_version=5
+
+[application]
+config/name="NavalSim"
+config/description="Simulation navale - portage Godot"
+run/main_scene="res://scenes/sea.tscn"
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+
+[dotnet]
+project/assembly_name="NavalSim"
+
+[rendering]
+renderer/rendering_method="forward_plus"

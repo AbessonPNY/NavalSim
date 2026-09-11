@@ -1,0 +1,13 @@
+<Project Sdk="Godot.NET.Sdk/4.7.2">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Le noyau numerique, sans dependance a Godot : c'est ce qui le rend
+         testable par `dotnet` seul, et accelere SIMD. -->
+    <ProjectReference Include="..\core\NavalSim.Core\NavalSim.Core.csproj" />
+  </ItemGroup>
+</Project>
