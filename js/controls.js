@@ -46,26 +46,44 @@ Naval.Controls = class Controls {
          jeu et ne se voit pas venir. e.key rend 'F1', que le passage en
          minuscules donne 'f1' — donc aucune collision avec 'f'. */
       if(k==='f1' && this.onToggleKeys){ this.onToggleKeys(); e.preventDefault(); }
-      /* Les touches de fonction escamotent un panneau chacune, et toutes
-         doivent être retenues au vol — bien plus que F1. F5 recharge la page :
-         laissée passer, la touche « état de la mer » relance la simulation et
-         jette la partie, ce qui est la pire manière de découvrir qu'on a
-         oublié un preventDefault. F3 ouvre la recherche du navigateur.
+      /* LA RANGÉE DE CHIFFRES ESCAMOTE UN PANNEAU CHACUNE, et elle a remplacé
+         les touches de fonction pour une raison qu'elles ne pouvaient pas
+         régler : F6 porte le focus sur la barre d'outils du navigateur, et
+         cette décision est prise dans son châssis AVANT que l'événement ne
+         descende dans le document. preventDefault ne retient que ce qui
+         atteint la page, donc il n'y avait rien à faire — la carte ne
+         basculait pas et un bandeau s'affichait en haut. F3 est la recherche,
+         F5 le rechargement : bloquables, mais il fallait y penser à chaque
+         fois. Un chiffre n'est réservé par aucun navigateur, et la question
+         entière disparaît.
 
-         MAIS F6 EST D'UNE AUTRE ESPÈCE, et c'est la leçon : preventDefault ne
-         peut retenir que ce qui atteint la page. F6 déplace le focus vers la
-         barre d'outils du navigateur, décision prise dans son châssis AVANT
-         que l'événement ne descende — signalé à l'usage, la carte ne
-         basculait pas et un bandeau s'affichait en haut. Le volet de
-         prévisualisation, lui, la laisse passer sans broncher, donc rien ici
-         ne pouvait le montrer : c'est un cas où la mesure locale dit oui et où
-         le vrai navigateur dit non. Il est donc SAUTÉ, et le trou dans la
-         série est l'information.
+         SUR e.code ET NON SUR e.key, ce qui est tout l'intérêt ici. Sur un
+         clavier AZERTY la rangée du haut ne donne pas des chiffres sans Maj :
+         elle donne & é " ' ( — donc `e.key === '1'` obligerait un utilisateur
+         français à presser Maj pour ranger un panneau, sur un jeu dont toute
+         l'interface est en français. `e.code` désigne la touche PHYSIQUE et
+         vaut Digit1 quelle que soit la disposition. Le pavé numérique est
+         accepté aussi, faute de raison de le refuser.
+
+         Avec un REPLI sur e.key quand e.code est vide, ce qui n'est pas de la
+         superstition : le volet d'automatisation de ce projet envoie ses
+         touches sans code du tout, et il existe des claviers logiciels et des
+         pilotages à distance qui font pareil. Un vrai clavier le remplit
+         toujours, donc le repli ne sert que le cas dégradé — où il faudra Maj
+         sur AZERTY, ce qui reste mieux que rien.
+
+         Pas de preventDefault : un chiffre n'a aucun comportement par défaut
+         sur une page. En revanche on se retire quand la frappe va dans un
+         champ — la liste des navires se cherche au clavier, et lui voler ses
+         chiffres serait un défaut ajouté par le remède.
 
          Le numéro est passé tel quel : quel panneau porte quel numéro est une
          affaire de balisage, donc cela se décide dans la page et pas ici. */
-      const fn = /^f([2-7])$/.exec(k);
-      if(fn && this.onTogglePanel){ this.onTogglePanel(+fn[1]); e.preventDefault(); }
+      const tag = (e.target && e.target.tagName) || '';
+      const saisie = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
+      const dg = /^(?:Digit|Numpad)([1-5])$/.exec(e.code || '');
+      const num = dg ? +dg[1] : (!e.code && /^[1-5]$/.test(k) ? +k : 0);
+      if(num && !saisie && this.onTogglePanel) this.onTogglePanel(num);
       if(k==='escape' && this.onCloseKeys) this.onCloseKeys();
       if(k==='f' && this.onToggleCargo) this.onToggleCargo();
       /* J, and not D: D is the helm. Picked from what is actually free, and

@@ -3445,56 +3445,49 @@ Trois décisions dans ce mémento :
   ce qui sort du jeu et ne se voit pas venir. `e.key` rend `'F1'`, que le
   passage en minuscules donne `'f1'` — donc aucune collision avec `'f'`.
 
-**`F2` à `F7` RANGENT UN PANNEAU CHACUN** — le navire, l'assiette, le compas,
-l'état de la mer, et la carte sur `F7`. `H` fait le vide d'un coup, ce qui sert à prendre
-une image propre ; ceci sert à autre chose, se débarrasser de ce dont on n'a pas
-besoin en gardant le reste, qui est le geste ordinaire et non l'exception.
+**LA RANGÉE DE CHIFFRES RANGE UN PANNEAU CHACUNE** — `1` le navire, `2`
+l'assiette, `3` le compas, `4` l'état de la mer, `5` la carte. `H` fait le vide
+d'un coup, ce qui sert à prendre une image propre ; ceci sert à autre chose, se
+débarrasser de ce dont on n'a pas besoin en gardant le reste, qui est le geste
+ordinaire et non l'exception.
 
 Une **bascule** et non une fermeture : une touche qui n'ouvre pas ce qu'elle
 ferme oblige à apprendre un second geste pour défaire le premier, et il n'y en a
 pas. Les deux états sont **indépendants** — `H` pose un voile par-dessus tout,
 `.off` est ce que le navigateur a rangé — si bien que masquer puis rendre
-l'affichage ne ressuscite pas un panneau qu'on avait fermé. Vérifié aux cinq.
+l'affichage ne ressuscite pas un panneau qu'on avait fermé.
 
-**Et toutes doivent être retenues au vol, bien plus que `F1`.** `F5` recharge la
-page : laissée passer, la touche « état de la mer » relance la simulation et
-jette la partie, ce qui est la pire façon de découvrir qu'on a oublié un
-`preventDefault`. `F3` ouvre la recherche du navigateur. Vérifié avec un témoin
-posé sur `window` : il survit à `F5`.
+**Elles ont remplacé les touches de fonction, et c'est `F6` qui a tranché.**
+Celle-ci porte le focus sur la barre d'outils du navigateur, décision prise dans
+son châssis **avant** que l'événement ne descende dans le document :
+`preventDefault` ne retient que ce qui ATTEINT la page, donc il n'y avait rien à
+faire — la carte ne basculait pas et un bandeau s'affichait en haut. `F3` est la
+recherche et `F5` le rechargement : bloquables, mais il fallait y penser à
+chaque fois, et `F5` laissée passer aurait relancé la simulation et jeté la
+partie. Un chiffre n'est réservé par aucun navigateur et la question entière
+disparaît.
 
-**MAIS `F6` EST D'UNE AUTRE ESPÈCE, et c'est la vraie leçon : `preventDefault`
-ne peut retenir que ce qui ATTEINT la page.** `F6` porte le focus sur la barre
-d'outils du navigateur, et cette décision est prise dans son châssis avant que
-l'événement ne descende dans le document. Aucun code de la page n'y peut rien.
-Signalé à l'usage — la carte ne basculait pas et un bandeau s'affichait en haut.
+**SUR `e.code` ET NON SUR `e.key`, ce qui est tout l'intérêt ici.** Sur un
+clavier **AZERTY** la rangée du haut ne donne pas de chiffres sans `Maj` : elle
+donne **& é " ' (**. Un test sur `e.key === '1'` obligerait donc un utilisateur
+français à presser `Maj` pour ranger un panneau, dans un jeu dont toute
+l'interface est en français. `e.code` désigne la touche **physique** et vaut
+`Digit1` quelle que soit la disposition. Vérifié en simulant les deux : les
+valeurs AZERTY `& é " ' (` basculent les cinq panneaux, la valeur QWERTY `3`
+aussi, et le pavé numérique également.
 
-Le **six est donc sauté**, et le trou dans la série est l'information : la carte
-est sur `F7`. Le dire vaut mieux que de laisser croire à un oubli.
+Avec un **repli sur `e.key` quand `e.code` est vide**, et ce n'est pas de la
+superstition : le volet d'automatisation de ce projet envoie ses touches **sans
+`code` du tout** — mesuré, `code: ""` — si bien que le premier essai marchait
+en événements fabriqués et échouait sous une vraie frappe. Un clavier physique
+le remplit toujours ; le repli ne sert que le cas dégradé, où il faudra `Maj`
+sur AZERTY, ce qui vaut mieux que rien. Deuxième fois que ce volet dit oui là où
+le vrai navigateur dit non — à ranger avec `F6` et avec le compteur d'images.
 
-**Et le volet de prévisualisation ne pouvait pas le montrer.** Sondé en capture,
-il laisse passer `F6` comme n'importe quelle autre touche, et la carte y
-basculait parfaitement. C'est donc un cas où la mesure locale dit oui et où le
-vrai navigateur dit non — à ranger avec le compteur d'images, qui mesure
-l'horloge du volet et non la simulation. Un volet embarqué n'a pas de barre
-d'outils à qui donner le focus ; il ne réserve donc rien. Il faut se rabattre
-sur ce que les navigateurs réservent en principe, et `F7` n'en est pas — sauf
-sous Firefox, où elle propose le curseur de navigation.
-
-Le numéro est passé tel quel de `controls.js` à la page — quel panneau porte
-quel numéro est une affaire de balisage, donc cela se décide là où le balisage
-vit.
-
-**PAS DE `backdrop-filter` SUR UN VOILE PLEIN ÉCRAN**, et cela a coûté un essai
-déroutant. Le mémento était présent — `hidden` à faux, `display:flex`, opacité 1,
-mille deux cent onze pixels de large — et rigoureusement invisible à l'image :
-fond et contenu, tout partait. Un flou de fond étendu à tout l'écran par-dessus
-le canvas WebGL ne se composite pas. Les autres panneaux en portent un sans
-difficulté parce qu'ils couvrent une vignette ; celui-ci couvrait la mer
-entière. Le flou est donc descendu sur la **carte** des commandes, qui est
-petite, et le voile de fond est une couleur franche. Piège de diagnostic au
-passage : l'élément se mesure parfaitement en JavaScript pendant qu'il n'existe
-pas à l'écran, donc la console ne peut pas trancher — il a fallu le repeindre en
-rouge franc pour voir qu'il était bien là.
+Et la frappe est **ignorée dans un champ** : la liste des navires se cherche au
+clavier, et lui voler ses chiffres aurait été un défaut ajouté par le remède.
+Pas de `preventDefault` en revanche — un chiffre n'a aucun comportement par
+défaut sur une page.
 
 **`M` largue les amarres**, et c'est annoncé sur la console de barre — une
 manœuvre sans touche affichée n'existe pas. `G` tire du bord **en batterie**,

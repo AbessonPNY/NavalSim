@@ -265,11 +265,11 @@
       <section>
         <h4>Ranger un panneau</h4>
         <dl>
-          <dt><kbd>F2</kbd></dt><dd>le navire</dd>
-          <dt><kbd>F3</kbd></dt><dd>assiette et roulis</dd>
-          <dt><kbd>F4</kbd></dt><dd>le compas</dd>
-          <dt><kbd>F5</kbd></dt><dd>l’état de la mer</dd>
-          <dt><kbd>F7</kbd></dt><dd>la carte</dd>
+          <dt><kbd>1</kbd></dt><dd>le navire</dd>
+          <dt><kbd>2</kbd></dt><dd>assiette et roulis</dd>
+          <dt><kbd>3</kbd></dt><dd>le compas</dd>
+          <dt><kbd>4</kbd></dt><dd>l’état de la mer</dd>
+          <dt><kbd>5</kbd></dt><dd>la carte</dd>
         </dl>
       </section>
     </div>
@@ -782,13 +782,12 @@ async function main(){
          premier, et il n'y en a pas. Et chaque panneau garde son propre état à
          travers `H`, qui ne fait que poser un voile par-dessus : masquer tout
          puis tout rendre ne ressuscite pas un panneau qu'on avait rangé. */
-      /* Six est SAUTÉ : le navigateur s'en sert pour porter le focus sur sa
-         propre barre d'outils, et il le fait dans son châssis, avant que la
-         page ne voie quoi que ce soit — aucun preventDefault n'atteint ça. Le
-         trou dans la série est donc voulu, et le dire vaut mieux que de
-         laisser croire à un oubli. */
-      const PANELS = { 2:'instruments', 3:'attitude', 4:'compass',
-                       5:'sea', 7:'chartPanel' };
+      /* La rangée de chiffres, dans l'ordre où les panneaux se lisent : le
+         navire, ce qu'il fait, où il regarde, le temps qu'il fait, où il est.
+         Plus de trou dans la série — c'est ce que les touches de fonction
+         coûtaient, F6 appartenant au navigateur. */
+      const PANELS = { 1:'instruments', 2:'attitude', 3:'compass',
+                       4:'sea', 5:'chartPanel' };
       controls.onTogglePanel = n => {
         const el = document.getElementById(PANELS[n]);
         if(el) el.classList.toggle('off');
