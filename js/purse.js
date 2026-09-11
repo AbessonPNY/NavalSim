@@ -83,7 +83,21 @@ Naval.Market = {
     return ((s ^ (s >>> 16)) >>> 0) / 4294967296;
   },
 
-  PALIER: 900,                       // un quart d'heure de jeu par palier
+  /* UN COURS DOIT TENIR LE TEMPS D'UNE TRAVERSÉE, sans quoi le commerce est du
+     bruit et non une décision. À neuf cents secondes — un quart d'heure — il
+     tournait SIX FOIS pendant un passage : relevé sur Port-Royal → Le Carénage,
+     7,8 milles et 93 minutes à cinq nœuds, le cours de vente faisait 671, 607,
+     379, 577, 730, 488 puis 368. On appareillait pour 671 et l'on trouvait 368.
+     Aucune information, si parfaite fût-elle, n'aurait rattrapé ça : le défaut
+     n'était pas de ne pas savoir, c'était que rien ne valait d'être su.
+
+     Trois heures : un passage en couvre moins de la moitié, donc le cours
+     qu'on a vu garde son sens à l'arrivée, et il faut plusieurs traversées
+     pour qu'une route cesse d'être bonne. C'est la même échelle que la météo
+     automatique, dont le SYSTÈME tourne en une dizaine de minutes quand ses
+     rafales tournent en vingt secondes — ce qui compte n'est jamais la valeur
+     du pas mais son rapport à la durée de ce qu'on entreprend. */
+  PALIER: 10800,
 
   /* Le cours des épices à ce port, en pièces la tonne. */
   spice(key, t){

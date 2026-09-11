@@ -3362,6 +3362,24 @@ la dérive triangulaire des dépressions. Relevé à un instant donné :
 Un rapport de deux entre le port le moins cher et le plus cher : la destination
 vaut d'être choisie, et le mauvais choix n'est pas ruineux.
 
+**UN COURS DOIT TENIR LE TEMPS D'UNE TRAVERSÉE**, et le premier palier se
+trompait d'un ordre de grandeur. À un quart d'heure, il tournait **six fois**
+pendant un passage : relevé sur Port-Royal → Le Carénage, 7,8 milles et 93
+minutes à cinq nœuds, le cours de vente faisait 671 · 607 · 379 · 577 · 730 ·
+488 · **368**. On appareillait pour 671 et l'on trouvait 368.
+
+Le défaut n'était donc pas de ne pas savoir où vendre : aucune information, si
+parfaite fût-elle, n'aurait rattrapé ça. **Rien ne valait d'être su.** À trois
+heures de palier, un passage en couvre 0,52 et le même trajet donne 671 · 670 ·
+663 · 653 · **642** — quatre pour cent de dérive au lieu de quarante-cinq. Le
+cours qu'on a vu garde son sens à l'arrivée, et il faut plusieurs traversées
+pour qu'une route cesse d'être bonne.
+
+C'est la même leçon que la météo automatique, dont le *système* tourne en une
+dizaine de minutes quand ses rafales tournent en vingt secondes : ce qui compte
+n'est jamais la valeur du pas, c'est son rapport à la durée de ce qu'on
+entreprend.
+
 **Le négociant prend sa marge, et c'est ce qui oblige à naviguer.** On achète
 12 % au-dessus du cours et l'on revend 12 % en dessous, donc acheter et revendre
 sur place **perd** de l'argent — vérifié, 24 000 pièces deviennent 21 520 sur un
