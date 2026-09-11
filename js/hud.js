@@ -195,12 +195,16 @@ Naval.HUD = class HUD {
     const C = this.C, e = this.el, p = this.physics, b = p.body, ctrl = this.ctrl;
 
     this._e.setFromQuaternion(b.quat, 'YXZ');
-    /* Compass heading straight off the bow vector: +z is north, +x is east, so
-       a turn to starboard raises the reading. (Taking it from the Euler angle
+    /* Compass heading straight off the bow vector: +z is north and -x is EAST,
+       so a turn to starboard raises the reading. East is not free to choose:
+       starboard is -x (see ship-physics), and a bearing must grow as she turns
+       that way, which pins east to -x as surely as it pins north to +z.
+       Written with east at +x, the compass and the chart agreed with each
+       other and mirrored the world both were describing. (Taking it from the Euler angle
        got the sign wrong, and silently cancelled an error in the old rudder
        model — the two faults hid each other.) */
     this._hdg.set(0,0,1).applyQuaternion(b.quat);
-    const headingDeg = ((Math.atan2(this._hdg.x, this._hdg.z)*180/Math.PI)%360+360)%360;
+    const headingDeg = ((Math.atan2(-this._hdg.x, this._hdg.z)*180/Math.PI)%360+360)%360;
     const roll = this._e.z*180/Math.PI;
     const pitch = this._e.x*180/Math.PI;
 

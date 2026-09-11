@@ -110,11 +110,11 @@ Naval.AutoHelm = class AutoHelm {
     if(!this.target || ph.foundered){ c.rudder = 0; return; }
 
     this._fwd.set(0,0,1).applyQuaternion(b.quat);
-    const heading = Math.atan2(this._fwd.x, this._fwd.z);
+    const heading = Math.atan2(-this._fwd.x, this._fwd.z);
 
     this._to.copy(this.target).sub(b.pos); this._to.y = 0;
     const range = this._to.length();
-    let bearing = Math.atan2(this._to.x, this._to.z);
+    let bearing = Math.atan2(-this._to.x, this._to.z);
 
     /* Aim at the RIM of her standoff rather than at the ship. Once inside it
        she is steered along the tangent, which turns a collision course into a

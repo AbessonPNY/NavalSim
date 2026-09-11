@@ -44,6 +44,29 @@ Naval.ARCHIPELAGO = [
     r:2600, h:240, lobes:3, phase:3.7,  rough:0.60 }
 ];
 
+/* THE MAP SCALE MOVES THE ISLANDS APART, IT NEVER RESIZES THEM.
+
+   Distance and size are two different questions and only one of them is a
+   matter of taste. A shelf is 240 m, a berth wants 9 m of water, a mole is
+   18 m thick and a jetty is 86 m long: those are dimensions of SHIPS, and a
+   world that shrank them would put a quarter of an island under its own
+   harbour and bring back the wading-depth fault this file was written to
+   cure. Distance, on the other hand, is nothing but how long a passage takes,
+   so it is the one number a player may honestly be given.
+
+   THE FACTOR HAS A FLOOR, AND IT IS THE GEOMETRY THAT SETS IT. Leave the
+   islands their size and they eventually touch: Port-Royal and Le Carénage
+   have 5 957 m of water between their shores, so below about 0.69 they merge
+   into one island shaped like a figure of eight. Asked for a third, the
+   honest answer was 0.70 — and `_check` below says so out loud rather than
+   letting two coastlines quietly grow together.
+
+   Note the shore is NOT the nominal radius: `_shore` modulates it by a few
+   harmonics of the bearing, so real coastlines run 14 to 22 % wider than
+   `r`. Measuring the floor against `r` would have promised a channel that
+   is not there. */
+Naval.MAP_SCALE = 0.70;
+
 Naval.World = class World {
   constructor(){
     /* How far the bottom keeps falling away beyond the shore line, in METRES
@@ -56,8 +79,52 @@ Naval.World = class World {
     this.shelf = 240;
     this.deep = 70;              // how deep it is once past the shelf
 
-    this.isles = Naval.ARCHIPELAGO.map(t => Object.assign({}, t));
+    const k = this.mapScale = Naval.MAP_SCALE || 1;
+    this.isles = Naval.ARCHIPELAGO.map(t =>
+      Object.assign({}, t, { x: t.x*k, z: t.z*k }));
+
+    /* Real outer shore, sampled rather than assumed — see the note above. It
+       is wanted by the floor check, and by the chart, which has to know how
+       far out to let itself zoom. */
+    for(const isl of this.isles){
+      let m = 0;
+      for(let i=0;i<360;i++) m = Math.max(m, this._shore(isl, i*Math.PI/180));
+      isl.rShore = m;
+    }
     for(const isl of this.isles) isl.port = this._port(isl);
+    this._measure();
+  }
+
+  /* The longest leg, and how far the chart must reach to hold the whole
+     archipelago. Both are DERIVED: anything tuned against the size of the
+     world — the price step, the chart's zoom stop — has to follow the factor
+     or it means something different at every scale. */
+  _measure(){
+    const I = this.isles;
+    let cx = 0, cz = 0;
+    for(const a of I){ cx += a.x/I.length; cz += a.z/I.length; }
+
+    this.longestLeg = 0;
+    let worst = null;
+    for(let i=0;i<I.length;i++) for(let j=i+1;j<I.length;j++){
+      const d = Math.hypot(I[i].x-I[j].x, I[i].z-I[j].z);
+      if(d > this.longestLeg) this.longestLeg = d;
+      const gap = d - I[i].rShore - I[j].rShore;
+      if(!worst || gap < worst.gap) worst = { gap, a:I[i].name, b:I[j].name };
+    }
+    this.closest = worst;
+
+    this.extent = 0;
+    for(const a of I)
+      this.extent = Math.max(this.extent, Math.hypot(a.x-cx, a.z-cz) + a.rShore);
+
+    /* Two shores closer than a cable is not a strait, it is a modelling
+       accident — and one that reads as a single misshapen island rather than
+       as an error. Say it. */
+    if(worst.gap < 185)
+      console.warn("Naval.MAP_SCALE " + this.mapScale.toFixed(2) + " : "
+        + worst.a + " et " + worst.b + " ne sont plus qu’à "
+        + Math.round(worst.gap) + " m l’une de l’autre.");
   }
 
   byKey(key){ return this.isles.find(i => i.key === key) || null; }
@@ -282,7 +349,7 @@ Naval.Geo = {
   fix(x, z){
     const lat = this.LAT0 + z/(this.M_PER_MIN*60);
     const c = Math.max(0.02, Math.cos(lat*Math.PI/180));
-    return { lat, lon: this.LON0 + x/(this.M_PER_MIN*60*c) };
+    return { lat, lon: this.LON0 - x/(this.M_PER_MIN*60*c) };
   },
 
   // degrees and decimal minutes, as a chart and a log book are written

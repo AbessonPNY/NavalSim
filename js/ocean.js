@@ -925,7 +925,7 @@ Naval.Ocean = class Ocean {
     const s = Math.max(0, force);
     // true wind from the Beaufort number: v ≈ 0.836·B^1.5 m/s
     this.windSpeed = 0.836*Math.pow(s,1.5) + 0.8;
-    this.windVec.set(-Math.sin(wr)*this.windSpeed, 0, -Math.cos(wr)*this.windSpeed);
+    this.windVec.set(Math.sin(wr)*this.windSpeed, 0, -Math.cos(wr)*this.windSpeed);
     this.syncWind();
   }
 

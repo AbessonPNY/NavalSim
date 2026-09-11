@@ -40,6 +40,24 @@ Naval.Controls = class Controls {
       if(k==='p' && this.onPumps) this.onPumps();
       if(k==='r' && this.onSalvage) this.onSalvage();
       if(k==='m' && this.onCastOff) this.onCastOff();   // M comme amarres
+      /* PRESSER LE TEMPS : + et −, et surtout PAS une lettre.
+
+         Le clavier est plein — w s a d tiennent la machine et la barre, q e les
+         écoutes, et le reste de l'alphabet est pris par les commandes du bord.
+         Écrite d'abord sur A, cette touche volait la barre à bâbord, et de la
+         pire manière : A est une touche TENUE, donc keydown se répète, et tenir
+         son gouvernail faisait monter la compression jusqu'à ×64 toute seule.
+
+         Un signe plutôt qu'une initiale règle en prime la question des
+         dispositions : « accélérer » ne commence pas par la même lettre dans
+         deux langues, alors que + et − se lisent sans notice. On accepte « = »
+         avec « + », le premier étant à portée sans majuscule sur les deux
+         claviers. Et le drapeau de répétition est refusé : un cran par appui,
+         comme pour la bordée. */
+      if(!e.repeat && this.onWarp){
+        if(k==='+' || k==='=') this.onWarp(1);
+        if(k==='-')            this.onWarp(-1);
+      }
       if(k==='k' && this.onBlowUp) this.onBlowUp();
       if(k==='h' && this.onToggleHud) this.onToggleHud();
       /* F1 ouvre l'aide du NAVIGATEUR si on le laisse faire, ce qui sort du

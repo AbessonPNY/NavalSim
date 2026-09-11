@@ -1293,7 +1293,7 @@ Naval.ShipModel = class ShipModel {
       const tips = [];
       for(let i=0;i<pos.count;i++){
         const x = pos.getX(i);
-        if(x*side > 0.05) tips.push({ z:pos.getZ(i), y:pos.getY(i), x:x });
+        if(x*side < -0.05) tips.push({ z:pos.getZ(i), y:pos.getY(i), x:x });
       }
       if(!tips.length) continue;
 
@@ -1307,7 +1307,7 @@ Naval.ShipModel = class ShipModel {
         // the muzzle is where this gun reaches furthest outboard, and the
         // barrel's own axis is the middle of its ring
         let z=0, y=0, best=run[0];
-        for(const t of run){ z+=t.z; y+=t.y; if(t.x*side > best.x*side) best = t; }
+        for(const t of run){ z+=t.z; y+=t.y; if(t.x*side < best.x*side) best = t; }
         this.guns.push({ side,
           p: new THREE.Vector3(best.x, y/run.length, z/run.length) });
       };
@@ -1529,7 +1529,7 @@ Naval.ShipModel = class ShipModel {
   setFlag(beta, tack, vApp, t){
     const f = this.flag;
     if(!f) return;
-    f.pivot.rotation.y = Math.atan2(-tack*Math.sin(beta), -Math.cos(beta));
+    f.pivot.rotation.y = Math.atan2(tack*Math.sin(beta), -Math.cos(beta));
 
     const drive = Math.min(1, vApp/8);
     const attr = f.mesh.geometry.attributes.position, arr = attr.array;
@@ -1651,7 +1651,7 @@ Naval.ShipModel = class ShipModel {
   setTrim(sheet, tack, set, luffing, t, load){
     if(!this.rigs.length) return;          // no canvas to trim
     const shake = luffing ? Math.sin(t*11)*0.10 : 0;
-    const angle = tack * sheet + shake;
+    const angle = -tack * sheet + shake;
     /* Furling takes in the cloth, not the spars — a vessel under bare poles
        still has her yards crossed and her boom shipped. It matters twice over
        for an imported model, whose own yards now hang in these pivots: hiding

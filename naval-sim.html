@@ -203,6 +203,13 @@
       </div>
       <div class="telegraph">— <kbd>F1</kbd> commandes —</div>
     </div>
+    <div class="helm-col">
+      <div class="helm-head"><span class="k">Temps</span><span class="v" id="warpText">réel</span></div>
+      <div class="gunSide" id="warpPick">
+        <button data-w="1" class="on">×1</button><button data-w="4">×4</button><button data-w="16">×16</button><button data-w="64">×64</button>
+      </div>
+      <div class="telegraph" id="warpTele">— <kbd>+</kbd> presser le temps —</div>
+    </div>
   </div>
 
   <!-- Fleet -->
@@ -251,6 +258,7 @@
           <dt><kbd>Espace</kbd></dt><dd>stopper la machine</dd>
           <dt><kbd>A</kbd><kbd>D</kbd></dt><dd>barre à bâbord, à tribord</dd>
           <dt><kbd>M</kbd></dt><dd>larguer les amarres</dd>
+          <dt><kbd>+</kbd> · <kbd>−</kbd></dt><dd>presser le temps, le rendre</dd>
         </dl>
       </section>
       <section>
@@ -388,6 +396,10 @@ async function main(){
   /* The world she sails in, and the land drawn out of it. The land breathes the
      same air as everything else, so each new island is hazed as it appears. */
   const world = new Naval.World();
+  /* Le cours suit l'échelle de la carte. Trois heures était juste pour CET
+     archipel et ne veut rien dire en soi : ce qui compte est le rapport du
+     palier à la durée d'une traversée, et rapprocher les îles le change. */
+  Naval.Market.tune(world.longestLeg);
   /* Sans cela l'abri du havre n'existe qu'à l'œil : c'est cet échantillonneur
      que la grille de sondes lit, et la coque continuerait de rouler dans un
      bassin que le shader dessine plat. */
@@ -507,6 +519,9 @@ async function main(){
 
   const chart = new Naval.Chart(document.getElementById("chart"), world,
     { fix:document.getElementById("chartFix"), scale:document.getElementById("chartScale") });
+  /* La butée de zoom sort du monde : il faut pouvoir tenir tout l'archipel
+     dans le cercle, et pas beaucoup plus — au-delà on ne cadre que de l'eau. */
+  chart.maxScale = Math.max(6, Math.ceil(1.35*world.extent/1852));
   document.getElementById("chartIn") .addEventListener("click", ()=> chart.zoom(1/1.6));
   document.getElementById("chartOut").addEventListener("click", ()=> chart.zoom(1.6));
   const foam     = new Naval.FoamField(stage.renderer, ocean.uniforms);
@@ -1561,11 +1576,104 @@ async function main(){
                 storms, get squall(){ return squall; },
                 get fleet(){ return fleet; } };
 
+  /* ------------------------- PRESSER LE TEMPS -------------------------
+
+     Une traversée fait une à deux heures à cinq nœuds, et le solveur tournait
+     en temps RÉEL : une bordée entre deux ports était donc deux heures de
+     quart à regarder la même mer. Le soleil, lui, courait déjà soixante fois
+     plus vite que la coque, ce que personne n'avait remarqué parce que c'est
+     joli. Une seule horloge, et qu'on puisse la presser.
+
+     CE QUI LIMITE EST LE SOUS-PAS, ET RIEN D'AUTRE — une fois l'horloge
+     avancée à chaque sous-pas. La boucle ne l'avançait qu'une fois par image,
+     si bien que les quatre sous-pas échantillonnaient tous la MÊME mer : à ×64
+     la houle restait gelée une seconde entière, et l'erreur venait de là et
+     non du pas d'intégration. Relevé, écart de cap sur vingt secondes contre
+     une référence au 1/960 :
+
+       ×64, SUB 8, horloge par image  → 3,5°   (sous-pas 1/7,5 s)
+       ×32, SUB 4, horloge par image  → 3,5°   (sous-pas 1/7,5 s)
+
+     Les deux à l'identique pour des compressions du simple au double : c'est
+     le sous-pas qui gouverne. D'où la règle, énoncée plutôt que réglée — UN
+     SOUS-PAS NE DÉPASSE JAMAIS 1/15 s — et le compte en découle :
+
+       ×1   SUB 4    0,86 ms   0,0°       ×16  SUB 4    0,86 ms   0,9°
+       ×32  SUB 8    1,79 ms   1,9°       ×64  SUB 16   3,56 ms   1,0°
+
+     Autrement dit ×16 est GRATUIT : c'est le sous-pas d'aujourd'hui, et le
+     coût par image ne bouge pas. Au-delà on paie linéairement, ce qui borne la
+     compression par le nombre de coques plutôt que par la physique.
+
+     RIEN N'EXPLOSE, ce qui a été cherché et pas supposé : à ×16 la grosse mer
+     donne 7,8° de gîte contre 8,9 à ×1, un haut-fond à 8,7 nœuds l'arrête
+     toujours, et les amarres tiennent son poste à 0,22 m d'évitage à toutes
+     les compressions — identique au centimètre. Le seul vrai écart est que
+     l'échouage s'ADOUCIT (1,9 nœud résiduel contre 0,9) : sous-intégré, le
+     ressort du fond la freine moins. Raison de plus pour rendre la main avant
+     d'y arriver, ce que les garde-fous font.
+
+     ELLE SE REND TOUTE SEULE. Presser le temps n'a de sens qu'en traversée :
+     dès qu'il se passe quelque chose — la terre à moins de quinze cents
+     mètres, une amarre frappée, un boulet en l'air, une voie d'eau, une rumeur
+     à décider — le facteur retombe à un sans qu'on ait à y penser. Même idée
+     que le voile de la touche H : on ne met pas le navire en panne, on lui
+     rend l'attention au moment où elle sert. */
+  const WARPS = [1, 2, 4, 8, 16, 32, 64];
+  let warpWant = 1, warpShown = -1;
+  const warpTextEl = document.getElementById('warpText');
+  const warpTeleEl = document.getElementById('warpTele');
+  const warpPickEl = document.getElementById('warpPick');
+  const warpRumour = document.getElementById('rumour');
+  warpPickEl.addEventListener('click', ev => {
+    const bt = ev.target.closest('button');
+    if(bt) warpWant = +bt.dataset.w;
+  });
+  controls.onWarp = d => {
+    const i = Math.max(0, WARPS.indexOf(warpWant));
+    warpWant = WARPS[Math.max(0, Math.min(WARPS.length - 1, i + d))];
+  };
+  function warpAllowed(){
+    if(warpWant === 1) return 1;
+    const p = physics, b = p.body;
+    if(p.moorings && p.moorings.length) return 1;                    // à quai
+    if(p.foundered || (p.breaches && p.breaches.length)) return 1;   // avarie
+    if(guns.shot.length || guns._queue.length) return 1;             // on tire
+    if(warpRumour && !warpRumour.hidden) return 1;                   // à décider
+    if(world.near(b.pos.x + ocean.origin.x,
+                  b.pos.z + ocean.origin.z, 1500).length) return 1;  // terre
+    return warpWant;
+  }
+
   let last = performance.now();
   function frame(now){
     const frameT0 = performance.now();
-    const dt = Math.min(0.05, (now-last)/1000); last = now;
-    t += dt;
+    /* Le plafond porte sur l'image RÉELLE — c'est le garde-fou contre un volet
+       qui a calé — et la compression multiplie après lui, sans quoi elle serait
+       silencieusement écrêtée dès ×2. */
+    const raw = Math.min(0.05, (now-last)/1000); last = now;
+    const warp = warpAllowed();
+    const dt = raw * warp;
+    /* Le compte de sous-pas est DÉRIVÉ de la règle énoncée plus haut plutôt
+       qu'écrit : un sous-pas ne dépasse jamais 1/15 s. À ×1 cela redonne
+       exactement les quatre d'avant. */
+    const SUB = Math.max(4, Math.ceil(dt*15));
+    const t0 = t, h = dt/SUB;
+    t = t0 + dt;
+
+    /* Le repère surveille le facteur OBTENU et celui DEMANDÉ : sans le
+       second, une demande refusée ne rafraîchissait rien et la ligne
+       continuait d’inviter à presser un temps qu’elle venait de rendre. */
+    if(warp*1000 + warpWant !== warpShown){
+      warpShown = warp*1000 + warpWant;
+      warpTextEl.textContent = warp === 1 ? 'réel' : '×' + warp;
+      warpTeleEl.innerHTML = warp !== warpWant ? '— la main rendue —'
+        : warp === 1 ? '— <kbd>+</kbd> presser le temps —'
+        : '— une heure en ' + (60/warp < 10 ? (60/warp).toFixed(1).replace('.', ',')
+                                            : Math.round(60/warp)) + ' min —';
+      for(const bt of warpPickEl.querySelectorAll('button'))
+        bt.classList.toggle('on', +bt.dataset.w === warpWant);
+    }
 
     /* Chacun doit savoir qui d'autre est a l'eau pour pouvoir s'y cogner. La
        liste est donnee a chaque image plutot que retenue, pour la raison qui a
@@ -1579,8 +1687,9 @@ async function main(){
        by sails that are already in the water. */
     ship.stepRigging(dt);
     physics.standing = ship.standing();
-    const SUB = 4;                       // fixed substeps keep the solver stable
-    for(let i=0;i<SUB;i++) physics.step(dt/SUB, ocean, controls.state, t);
+    /* L'horloge avance à CHAQUE sous-pas et non une fois par image : c'est ce
+       qui rend la compression possible — voir la note au-dessus de la boucle. */
+    for(let i=0;i<SUB;i++) physics.step(h, ocean, controls.state, t0 + (i+1)*h);
 
     /* Any other vessel in the fleet sails herself. Entry 0 is the one at the
        helm, handled below with the instruments and the cameras; the rest need
@@ -1598,7 +1707,7 @@ async function main(){
       if(e.helm){ e.helm.target = fleet[0].body.pos; e.helm.update(dt, ocean, e.ctrl); }
       e.ship.stepRigging(dt);
       e.physics.standing = e.ship.standing();
-      for(let i=0;i<SUB;i++) e.physics.step(dt/SUB, ocean, e.ctrl, t);
+      for(let i=0;i<SUB;i++) e.physics.step(h, ocean, e.ctrl, t0 + (i+1)*h);
       e.afloat = e.physics.afloat;
       e.ship.syncTo(e.physics.body);
       e.ship.setTrim(e.ctrl.sheet, e.physics.tack, e.physics.setFrac,
@@ -1683,7 +1792,7 @@ async function main(){
       for(const e of fleet) chartFleet.push({
         x: ocean.origin.x + e.body.pos.x, z: ocean.origin.z + e.body.pos.z });
       chartHdg.set(0,0,1).applyQuaternion(physics.body.quat);
-      chart.draw(worldPos, Math.atan2(chartHdg.x, chartHdg.z), chartFleet,
+      chart.draw(worldPos, Math.atan2(-chartHdg.x, chartHdg.z), chartFleet,
                  squall ? { x:squall.storm.x, z:squall.storm.z, r:squall.storm.r } : null);
     }
 

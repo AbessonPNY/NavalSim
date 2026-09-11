@@ -233,7 +233,7 @@ Naval.ShipPhysics = class ShipPhysics {
       /* The place is worked out ONCE and kept. It is fixed in her own frame —
          cargo does not move about the hold as she rolls, which is exactly what
          separates it from the water in her bilges. */
-      slot.at.set(side*0.55*c.halfB,
+      slot.at.set(-side*0.55*c.halfB,
                   c.keelY + level*(c.deckY - c.keelY),
                   c.mid.z);
       this.cargo.push(slot);
@@ -749,8 +749,20 @@ Naval.ShipPhysics = class ShipPhysics {
     const fwd=this._fwd, right=this._right, up=this._up;
     const force=this._force, torque=this._torque;
 
+    /* STARBOARD IS LOCAL -X, AND IT IS NOT A CHOICE.
+
+       three.js is right-handed, so with the stem along +z and the mast along
+       +y the vector to her right hand is fwd x up = z x y = -x. Written as +x
+       — as it was — every use of this axis meant the opposite of its name:
+       helm to starboard swung her bow to port, and the battery marked
+       "Tribord" fired out of her larboard side. The rudder came right free
+       with the sign, having always been correct RELATIVE to this vector.
+
+       The three other users take it by dot-then-rebuild (leeway, the lateral
+       resistance, the slam bearing), so they are invariant under the flip; the
+       sails read `tack` off it, which at last means the board it names. */
     fwd.set(0,0,1).applyQuaternion(b.quat);
-    right.set(1,0,0).applyQuaternion(b.quat);
+    right.set(-1,0,0).applyQuaternion(b.quat);
     up.set(0,1,0).applyQuaternion(b.quat);
 
     // Water in and out FIRST: it sets the mass and the centre of gravity that

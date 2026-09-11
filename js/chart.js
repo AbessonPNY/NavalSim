@@ -19,6 +19,11 @@ Naval.Chart = class Chart {
     this.els = els || {};
 
     this.scale = 1.6;            // nautical miles from centre to edge
+    /* How far out she may be zoomed. DERIVED from the world rather than
+       written here: at a smaller map scale a stop of 24 miles shows mostly
+       empty sea, and at a larger one it cannot hold the archipelago at all.
+       The caller sets it from world.extent. */
+    this.maxScale = 24;
     this.track = [];             // her wake, in world metres
     this.trackEvery = 60;        // metres between marks
     this.trackMax = 900;
@@ -51,7 +56,7 @@ Naval.Chart = class Chart {
     }
   }
 
-  zoom(f){ this.scale = Math.max(0.25, Math.min(24, this.scale*f)); }
+  zoom(f){ this.scale = Math.max(0.25, Math.min(this.maxScale, this.scale*f)); }
 
   /* `fleet` entries carry world positions computed by the caller: the chart
      must not guess at the origin convention on its own. */
@@ -60,7 +65,10 @@ Naval.Chart = class Chart {
     const R = Math.min(W, H)/2;
     const M = this.scale*1852;                 // metres from centre to edge
     const k = R/M;                             // pixels per metre
-    const px = (x, z) => [W/2 + (x-centre.x)*k, H/2 - (z-centre.z)*k];
+    /* North up, east to the RIGHT — and east is -x, which is why the x term is
+       subtracted. With it added, an island on her starboard bow was drawn on
+       the port bow: the chart was a mirror of the sea it plotted. */
+    const px = (x, z) => [W/2 - (x-centre.x)*k, H/2 - (z-centre.z)*k];
 
     ctx.clearRect(0, 0, W, H);
     ctx.save();
@@ -70,7 +78,7 @@ Naval.Chart = class Chart {
     ctx.fillRect(0, 0, W, H);
 
     // --- the graticule, at a spacing that keeps four or five lines in view ---
-    const steps = [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10];
+    const steps = [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 20, 30, 60];
     let minutes = steps[steps.length-1];
     for(const s of steps){ if(this.scale*2/s <= 6){ minutes = s; break; } }
     const gm = minutes*1852;

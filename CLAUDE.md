@@ -452,6 +452,60 @@ faisant route avant, au lieu de la faire tourner autour de son milieu.
 sur Euler donnait un signe inverse, qui annulait exactement une erreur de sens
 du gouvernail : les deux fautes se masquaient mutuellement.
 
+**TRIBORD EST LE −X LOCAL, ET L'EST EST LE −X DU MONDE. Ce n'est pas une
+convention, c'est une conséquence, et l'avoir écrite à l'envers a fait vivre
+deux fautes qui se masquaient — exactement la famille ci-dessus, retrouvée sur
+un autre axe.**
+
+three.js est **direct**. Avec l'étrave sur +z et le mât sur +y, la main droite
+d'un homme de barre pointe vers `étrave × haut` = ẑ × ŷ = **−x̂**. Il n'y a rien
+à choisir là-dedans, c'est du produit vectoriel. Or tout le projet appelait
+« tribord » le +x.
+
+Et l'est suit, par un second raisonnement qui ne laisse pas plus de liberté :
+un relèvement doit **croître** quand elle abat sur tribord. Elle tourne alors
+vers −x, donc le cap ne monte que si l'est est en −x. Le nord en +z force
+l'est en −x aussi sûrement que la main droite force le tribord. Autrement dit
+le repère géographique du jeu était **le miroir** de celui de ses coques.
+
+**Les deux fautes s'annulaient dans les instruments, et seulement là.** Barre à
+tribord, l'étrave partait vers +x — son bâbord — mais le compas, qui croyait
++x à l'est, lisait un cap qui monte, et la carte traçait un sillage tournant à
+droite. Aiguille et carte étaient donc d'accord entre elles et **fausses
+ensemble**. Ne dépassaient de ce mensonge que les deux choses qui parlent au
+monde plutôt qu'à l'instrument : la vue en 3-D, où elle abattait visiblement à
+gauche, et les canons, où la batterie marquée « Tribord » crachait par l'autre
+muraille. C'est exactement ce qui a été signalé à l'usage — « bâbord est à
+gauche et tribord à droite, les canons et la navigation font l'inverse » — et
+la carte paraissait « en miroir » parce qu'une île relevée à tribord s'y
+dessinait à bâbord.
+
+Corriger les canons seuls aurait été le piège : une bordée juste sur une coque
+qui tourne encore du mauvais côté, sous une carte encore retournée. **Les deux
+signes se corrigent ensemble ou pas du tout.**
+
+Le remède tient en un vecteur et une poignée de conséquences :
+
+- `right.set(-1,0,0)` dans le solveur, et **le gouvernail est revenu juste tout
+  seul**, ayant toujours été correct *relativement* à cet axe. Trois des quatre
+  autres usagers — dérive, résistance latérale, relèvement de la gerbe —
+  projettent sur cet axe puis reconstruisent dessus : ils sont **invariants** au
+  retournement, et c'est ce qui a rendu l'opération sûre. Le quatrième, `tack`,
+  désigne enfin l'amure qu'il nomme ;
+- l'est à −x dans le compas, la carte, la barre automatique, le point en
+  latitude et longitude, le vent et le **soleil** — qui se lève désormais où la
+  carte dit qu'est l'est ;
+- `side = +1` veut dire tribord partout : la lecture des batteries prend les
+  pièces en x négatif, le boulet part vers `−side`, et l'arrimage met à tribord
+  ce qu'on lui dit d'y mettre.
+
+Relevé après coup, à pas fixe : barre à tribord, cap **000 → 023** avec
+l'étrave partie vers −x ; bordée « Tribord » lancée sur −x ; les six pièces
+marquées tribord du galion pirate toutes en x négatif ; un point relevé à
+tribord tracé **à droite** sur la carte ; soleil au relèvement 090 en −x ;
+pavillon qui fait suivre le vent. Et le poste tenu, 0,67 m d'évitage pour
+**zéro** talonnage sur quatre minutes — l'amarrage ne lisait pas cet axe.
+
 **Ne jamais réutiliser un vecteur temporaire pour une valeur vivante.** Le centre
 de gravité monde a son propre vecteur (`_cog`) : il avait été aliasé sur `_tmp`,
 écrasé dès la première sonde, ce qui faussait tous les bras de levier et
@@ -3518,6 +3572,100 @@ dixièmes du quai, là où un bâtiment de taille ordinaire présente son milieu
 - **Rien n'est sauvegardé.** La bourse repart à 400 écus à chaque chargement de
   la page.
 
+## L'échelle de la carte
+
+**LA DISTANCE EST RÉGLABLE, LA TAILLE NE L'EST PAS**, et ce n'est pas une demi-
+mesure : ce sont deux questions différentes et une seule est affaire de goût. Le
+plateau fait 240 m, un poste demande 9 m d'eau, le môle est épais de 18 et le
+ponton long de 86 — ce sont des cotes de **navire**. Un monde qui les réduirait
+mettrait un cinquième d'île sous son propre port et ramènerait la faute des
+hauts-fonds que ce fichier a été écrit pour guérir. La distance, elle, n'est rien
+d'autre que la durée d'une traversée : c'est le seul nombre qu'on puisse
+honnêtement donner à régler.
+
+`Naval.MAP_SCALE` multiplie donc les `x` et `z` des quatre entrées, et rien
+d'autre. Huit nombres.
+
+**LE FACTEUR A UN PLANCHER, ET C'EST LA GÉOMÉTRIE QUI LE POSE.** Laissez aux
+îles leur taille et elles finissent par se toucher. Demandé à un tiers, la
+réponse honnête était 0,70 :
+
+| paire | eau entre les rivages | facteur minimal |
+|---|---|---|
+| **Port-Royal – Le Carénage** | 5 957 m | **0,69** |
+| Le Carénage – Saint-Pierre | 5 674 m | 0,69 |
+| Le Carénage – La Tortue | 9 084 m | 0,52 |
+| Port-Royal – Saint-Pierre | 17 974 m | 0,39 |
+
+À 0,333, Port-Royal et Le Carénage se chevaucheraient de **plus de trois
+kilomètres** : une seule île en forme de huit.
+
+**Et le rivage n'est PAS le rayon nominal.** `_shore` le module par quelques
+harmoniques du relèvement, si bien que les côtes réelles débordent `r` de **14 à
+22 %** — Port-Royal fait 4 853 m au plus large pour 4 200 annoncés. Mesurer le
+plancher sur `r` aurait promis une passe qui n'existe pas. Le rivage réel est
+donc échantillonné au démarrage (`isl.rShore`, 360 relèvements par île, une fois
+pour toutes), et `_measure()` **avertit en clair** si deux côtes tombent à moins
+d'une encablure : deux rivages qui se rejoignent ne se lisent pas comme une
+erreur, ils se lisent comme une île mal fichue.
+
+Relevé à 0,70, les six bordées :
+
+| | milles | à 5 nœuds | passe entre les côtes |
+|---|---|---|---|
+| Le Carénage – Saint-Pierre | 5,1 | **1 h 01** | 1 636 m |
+| Port-Royal – Le Carénage | 5,5 | 1 h 06 | **1 607 m** |
+| Le Carénage – La Tortue | 6,0 | 1 h 12 | 4 302 m |
+| Port-Royal – La Tortue | 8,0 | 1 h 36 | 6 744 m |
+| Saint-Pierre – La Tortue | 9,8 | 1 h 58 | 10 905 m |
+| Port-Royal – Saint-Pierre | 10,2 | **2 h 02** | 9 897 m |
+
+Contre 1 h 28 à 2 h 54 auparavant. La passe la plus étroite garde 1 607 m, dont
+1 127 d'eau franche une fois ôtés les deux plateaux : un vrai détroit, pas un
+canal.
+
+**CE QUI EST RÉGLÉ SUR LA TAILLE DU MONDE DOIT SUIVRE LE FACTEUR**, sinon un bug
+déjà corrigé revient par la porte de derrière. Deux choses en dépendent, et une
+troisième — c'est la plus jolie — n'en dépend pas et il ne faut surtout pas y
+toucher :
+
+- **le palier du cours est DÉRIVÉ** (`Market.tune`), la plus longue bordée
+  divisée par cinq nœuds. Trois heures était juste pour cet archipel-là et ne
+  veut rien dire en soi : toute la leçon du commerce est que ce qui compte est
+  le **rapport** du palier à la durée d'un passage. Écrit en dur, il aurait
+  ramené le 671-devenu-368 dès qu'on éloigne les îles. Vérifié : 2 h 04 au lieu
+  de 3 h, et la plus courte traversée couvre **0,50** de palier — exactement le
+  0,52 sur lequel le réglage avait été mesuré bon ;
+- **la butée de zoom de la carte** sort de `world.extent`. À 24 milles sur un
+  monde rapproché on ne cadre que de l'eau, et sur un monde élargi on ne tient
+  plus l'archipel. Elle vaut 11 milles à 0,70, et les quatre îles tiennent dans
+  le cercle ;
+- **la vitesse de l'aviso ne bouge PAS.** `NOUVELLE` vaut 2,6 m/s parce qu'un
+  navire va à cinq nœuds, et le retard d'une nouvelle est distance/vitesse :
+  il suit donc le facteur tout seul. Le palier le suivant aussi, le rapport
+  retard/palier — qui **est** la qualité du renseignement — reste invariant sans
+  qu'une ligne s'en occupe. Relevé : Le Carénage à 0,53 de palier, La Tortue à
+  0,78, Saint-Pierre à 0,99. Une vraie vitesse reste une vraie vitesse, et c'est
+  ce qui fait qu'elle traverse les échelles.
+
+Le poste, lui, n'a rien vu passer : six amarres, 1,48 m de tirant, **zéro
+talonnage**. `settle()` repose toujours la coque au zéro local et le port est lu
+sur l'île, donc déplacer l'île déplace le poste avec elle.
+
+**Ce que cela ne donne PAS, et il faut le dire.** Ce n'est pas un mode arcade :
+les traversées passent de 1 h 28 – 2 h 54 à 1 h 01 – 2 h 02, soit trente pour
+cent, pas un tiers. Descendre plus bas demande de rétrécir les îles, ce que la
+première section refuse.
+
+**Il existe une autre voie, et elle coûte la chaîne.** Le plancher n'est imposé
+que par les deux paires les plus serrées ; les lointaines ont du mou à revendre
+(Port-Royal – Saint-Pierre tiendrait à 0,39). Re-répartir les quatre îles en
+**grappe compacte** plutôt qu'en chaîne mettrait les six bordées entre 4,5 et
+5,6 milles — **une heure partout**, sans qu'aucune île perde un mètre. Le prix
+est la « chaîne nord-sud avec une île au large dans l'est » tirée des Îles du
+Vent : une chaîne de quatre a forcément une grande diagonale, et c'est elle
+qu'on paie. Décision de forme, pas de technique ; pas prise.
+
 ## Combien de coques
 
 **Huit, et c'est mesuré et non ressenti.** `MAX_SHIPS` n'est pas un nombre libre :
@@ -3581,6 +3729,117 @@ Le remède tiendrait en quelques lignes : à la touche, chercher une voie déjà
 ouverte dans le même compartiment et à une hauteur voisine, et l'aggraver au
 lieu d'en pousser une neuve. Reste à décider ce que « voisine » veut dire — sans
 doute une fraction du creux du compartiment.
+
+## Presser le temps
+
+**Une traversée fait une à deux heures à cinq nœuds, et le solveur tournait en
+temps RÉEL.** Une bordée entre deux ports était donc deux heures de quart à
+regarder la même mer. Le soleil, lui, courait déjà **soixante fois** plus vite
+que la coque — une minute réelle pour une heure de ciel — et personne ne l'avait
+relevé parce que c'est joli. Il y avait deux horloges ; il en faut une, et qu'on
+puisse la presser.
+
+**CE QUI LIMITE EST LE SOUS-PAS, ET RIEN D'AUTRE** — mais il a fallu une mesure
+pour le découvrir, parce que ce n'était pas vrai au départ. La boucle n'avançait
+`t` **qu'une fois par image**, si bien que les quatre sous-pas échantillonnaient
+tous la **même** mer : à ×64 la houle restait gelée une seconde entière, et
+l'erreur venait de là et non du pas d'intégration. La signature était nette —
+deux réglages de compression du simple au double, au même sous-pas, donnaient
+**exactement le même écart** :
+
+| | sous-pas | écart de cap |
+|---|---|---|
+| ×32, SUB 4, `t` par image | 1/7,5 s | **3,5°** |
+| ×64, SUB 8, `t` par image | 1/7,5 s | **3,5°** |
+
+Une fois `t` avancé à chaque sous-pas, il ne reste qu'un paramètre. D'où la
+règle, **énoncée plutôt que réglée** : *un sous-pas ne dépasse jamais 1/15 s*,
+et le compte en découle (`SUB = max(4, ⌈dt·15⌉)`), ce qui redonne exactement
+les quatre d'avant à ×1. Relevé sur vingt secondes contre une référence au
+1/960 :
+
+| | SUB | ms/image | écart | cap |
+|---|---|---|---|---|
+| ×1 | 4 | 0,86 | — | — |
+| **×16** | **4** | **0,86** | 0,16 m | **0,9°** |
+| ×32 | 8 | 1,79 | 0,31 m | 1,9° |
+| ×64 | 16 | 3,56 | 0,31 m | 1,0° |
+
+**×16 est donc GRATUIT** : c'est le sous-pas d'aujourd'hui, et le coût par image
+ne bouge pas d'un dixième de milliseconde. Au-delà on paie linéairement, ce qui
+borne la compression par le **nombre de coques** plutôt que par la physique.
+
+**RIEN N'EXPLOSE, et cela a été cherché plutôt que supposé.** Les trois ressorts
+raides du projet — échouage, abordage, amarres — étaient les suspects :
+
+| à ×16 contre ×1 | |
+|---|---|
+| force 9, eau libre | 7,8° de gîte contre 8,9 |
+| haut-fond à 8,7 nds | elle s'arrête toujours |
+| au poste, 90 s | **0,22 m d'évitage, identique au centimètre** |
+
+Les amarres ne bougent pas d'un centimètre à toutes les compressions, ce qui
+s'explique après coup : le bassin est abrité à 0,35 m de creux, donc le ressort
+n'a rien à amortir. Le seul vrai écart est que l'échouage **s'adoucit** — 1,9
+nœud résiduel contre 0,9 : sous-intégré, le fond la freine moins. Raison de plus
+pour rendre la main avant d'y arriver.
+
+**ELLE SE REND TOUTE SEULE, et c'est la moitié de la fonctionnalité.** Presser le
+temps n'a de sens qu'en traversée : dès qu'il se passe quelque chose, le facteur
+retombe à un sans qu'on ait à y penser. Même idée que le voile de `H` — on ne
+met pas le navire en panne, on lui rend l'attention au moment où elle sert.
+Vérifié un par un :
+
+| état | facteur |
+|---|---|
+| à quai, ×16 demandé | **réel**, « la main rendue » |
+| pièce attendant sa roulée · boulet en vol | **réel** |
+| le coup passé | ×16 |
+| terre à 900 m · à 3 000 m | **réel** · ×16 |
+| voie d'eau ouverte · réparée | **réel** · ×16 |
+
+La rumeur s'est signalée d'elle-même pendant les essais : le facteur est retombé
+sans qu'on ait rien demandé, parce qu'une nouvelle venait d'arriver. C'est
+exactement le cas pour lequel la fenêtre existe — *elle laisse au commandant la
+possibilité de changer de cap* — et une décision prise à seize fois la vitesse
+n'en serait pas une.
+
+**Deux choses ailleurs ont dû suivre**, et les oublier aurait fait une panne
+silencieuse de chacune :
+
+- **le plafond d'image** (`Math.min(0.05, …)`) porte sur l'image RÉELLE, et la
+  compression multiplie **après** lui. Écrit dans l'autre ordre, elle aurait été
+  écrêtée dès ×2 sans un mot ;
+- **le rattrapage des cordages** était plafonné à cinq sous-pas de 1/120 s, soit
+  1/24 s de mer par image. À ×16 une image en porte un quart de seconde : les
+  bouts rompus auraient pendu au **sixième** du roulis qui les jette — du
+  ralenti accroché à un navire qui n'y est pas. Le plafond suit donc l'image, et
+  s'arrête à un tiers de seconde : au-delà le gréement devient approximatif
+  plutôt que cher, ce qui est le bon arbitrage pour du cordage que personne
+  n'étudie à soixante fois la vitesse.
+
+**Relevé à l'horloge murale**, ce qui est la seule vérification qui compte :
+2,9 secondes réelles pour **47 secondes** de simulation, soit un rapport de
+**16,0**. La barre de commande porte une cinquième colonne, de la même grammaire
+que les quatre autres — un intitulé, une valeur, un organe — et **`+` presse le
+temps, `−` le rend**.
+
+**Et surtout PAS une lettre**, ce qui fut la première écriture et un vrai défaut
+signalé à l'usage. Le clavier est plein : `w s a d` tiennent la machine et la
+barre, `q e` les écoutes, et le reste de l'alphabet est pris. Posée sur `A`,
+la commande volait la **barre à bâbord** — et de la pire manière, `A` étant une
+touche TENUE dont le `keydown` se répète : tenir son gouvernail faisait monter la
+compression jusqu’à ×64 toute seule. Un signe plutôt qu’une initiale règle en
+prime la question des dispositions — « accélérer » ne commence pas par la même
+lettre dans deux langues, quand `+` et `−` se lisent sans notice. Le drapeau de
+répétition est refusé, un cran par appui, comme pour la bordée.
+
+**Ce qui n'est PAS fait.** Le soleil lit le même `dt`, donc il se comprime avec
+le reste et le rapport de soixante entre les deux horloges est **inchangé** :
+la compression le réduit, elle ne le corrige pas. Les deux ne coïncideraient
+qu'à ×60 avec le défilement du jour à ×1 — ce qui est désormais **atteignable**
+(SUB 15, 3,4 ms la coque) et ferait une journée de vingt-quatre minutes de jeu
+pour un ciel enfin d'accord avec la coque. Décision non prise.
 
 ## Les quatre caméras
 

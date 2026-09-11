@@ -274,9 +274,9 @@ Naval.Guns = class Guns {
        put it in the water at 45. One side at the moon and the other into her
        own side. Every ship that ever fought under sail carried that heel; what
        they did about it was aim. */
-    this._d.set(g.side, 0, 0).applyQuaternion(body.quat);
+    this._d.set(-g.side, 0, 0).applyQuaternion(body.quat);
     this._d.y = 0;                       // her bearing, taken flat
-    if(this._d.lengthSq() < 1e-6) this._d.set(g.side, 0, 0);
+    if(this._d.lengthSq() < 1e-6) this._d.set(-g.side, 0, 0);
     this._d.normalize();
     this._d.y = elev;                    // and then the quoin, against the sea
     this._d.normalize();
@@ -628,7 +628,7 @@ Naval.Guns = class Guns {
       q.t += dt;
       if(q.t < 0) continue;
       if(q.t < 2.5){
-        this._d.set(q.g.side, 0, 0).applyQuaternion(q.body.quat);
+        this._d.set(-q.g.side, 0, 0).applyQuaternion(q.body.quat);
         // d/dt of the muzzle's height is (omega x d).y — negative is coming down
         this._a.crossVectors(q.body.angVel, this._d);
         /* Hold only while the muzzle is RISING. Dead still counts as fireable,

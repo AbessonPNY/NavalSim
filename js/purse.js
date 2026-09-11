@@ -99,6 +99,26 @@ Naval.Market = {
      du pas mais son rapport à la durée de ce qu'on entreprend. */
   PALIER: 10800,
 
+  /* Five knots, in metres per second: the pace a passage is reckoned at. */
+  ALLURE: 2.572,
+
+  /* AND THE STEP IS TUNED TO THE WORLD, NOT WRITTEN FOR ONE.
+
+     Three hours was right for THIS archipelago and means nothing on its own —
+     the whole lesson above is that what counts is the ratio of the step to
+     the length of a passage. Move the islands and a hard-coded 10 800 would
+     bring the measured fault straight back: at five times the distance the
+     price would turn over two and a half times per crossing, which is exactly
+     the 671-becomes-368 that made trading noise instead of a decision.
+
+     The longest leg divided by five knots keeps that ratio exactly where it
+     was measured good: the shortest passage covers about half a step, the
+     longest about one. */
+  tune(longestLegM){
+    this.PALIER = Math.max(600, Math.round(longestLegM / this.ALLURE));
+    return this.PALIER;
+  },
+
   /* Le cours des épices à ce port, en pièces la tonne. */
   spice(key, t){
     const T = this.PALIER, n = Math.floor(t/T), u = t/T - n;

@@ -264,7 +264,16 @@ Naval.Cordage = class Cordage {
        not try to catch up in a single frame and fire the whole fleet's rigging
        into the sky. */
     const H = 1/120;
-    this._acc = Math.min(this._acc + Math.max(0, dt), 5*H);
+    /* AND THE CEILING FOLLOWS THE FRAME, because time compression made a flat
+       one honest only at ordinary speed. At sixteen times, a frame legitimately
+       carries a quarter of a second of sea, and five substeps of 1/120 would
+       have run a shroud at a sixth of the roll that is throwing it — slow
+       motion hanging off a ship that is not in it. It stops at a third of a
+       second all the same: past that the rigging goes approximate rather than
+       expensive, which is the right trade for cordage nobody is studying at
+       sixty times speed, and it is still the stall guard the flat ceiling was. */
+    const ceiling = Math.min(Math.max(5*H, dt), 1/3);
+    this._acc = Math.min(this._acc + Math.max(0, dt), ceiling);
 
     const P = this.P;
     const wind = this.ocean ? this.ocean.windVec : null;

@@ -112,7 +112,7 @@ Naval.Storms = class Storms {
     const tx = -nz*s.spin, tz = nx*s.spin;
     const wx = tx*0.88 - nx*0.34, wz = tz*0.88 - nz*0.34;
     // the bearing it blows FROM, as a seaman states it and as ocean.setWind wants
-    const windDeg = (Math.atan2(-wx, -wz)*180/Math.PI + 360) % 360;
+    const windDeg = (Math.atan2(wx, -wz)*180/Math.PI + 360) % 360;
 
     return {
       storm:s, dist:d, inten,

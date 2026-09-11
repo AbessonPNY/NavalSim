@@ -516,7 +516,7 @@ Naval.Stage = class Stage {
     this.sunElev = elevDeg;
     this.sunBearing = bearingDeg;
     const e = elevDeg*Math.PI/180, b = bearingDeg*Math.PI/180;
-    this.sunDir.set(Math.sin(b)*Math.cos(e), Math.sin(e), Math.cos(b)*Math.cos(e)).normalize();
+    this.sunDir.set(-Math.sin(b)*Math.cos(e), Math.sin(e), Math.cos(b)*Math.cos(e)).normalize();
     this.sun.position.copy(this.sunDir).multiplyScalar(200);
 
     // low sun reddens and dims; the sky's haze warms with it
