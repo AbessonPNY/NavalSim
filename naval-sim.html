@@ -262,6 +262,16 @@
           <dt><kbd>I</kbd></dt><dd>capture d’écran</dd>
         </dl>
       </section>
+      <section>
+        <h4>Ranger un panneau</h4>
+        <dl>
+          <dt><kbd>F2</kbd></dt><dd>le navire</dd>
+          <dt><kbd>F3</kbd></dt><dd>assiette et roulis</dd>
+          <dt><kbd>F4</kbd></dt><dd>le compas</dd>
+          <dt><kbd>F5</kbd></dt><dd>l’état de la mer</dd>
+          <dt><kbd>F6</kbd></dt><dd>la carte</dd>
+        </dl>
+      </section>
     </div>
   </div>
 
@@ -761,6 +771,23 @@ async function main(){
       const keysMenu = document.getElementById('keysMenu');
       controls.onToggleKeys = ()=> { keysMenu.hidden = !keysMenu.hidden; };
       controls.onCloseKeys  = ()=> { keysMenu.hidden = true; };
+
+      /* CHAQUE PANNEAU SUR SA TOUCHE, de F2 à F6. `H` fait le vide d'un coup,
+         ce qui sert à prendre une image propre ; ceci sert à autre chose — se
+         débarrasser de ce dont on n'a pas besoin en gardant le reste, ce qui
+         est le geste ordinaire et non l'exception.
+
+         Une BASCULE et non une fermeture : une touche qui n'ouvre pas ce
+         qu'elle ferme demande d'apprendre un second geste pour défaire le
+         premier, et il n'y en a pas. Et chaque panneau garde son propre état à
+         travers `H`, qui ne fait que poser un voile par-dessus : masquer tout
+         puis tout rendre ne ressuscite pas un panneau qu'on avait rangé. */
+      const PANELS = { 2:'instruments', 3:'attitude', 4:'compass',
+                       5:'sea', 6:'chartPanel' };
+      controls.onTogglePanel = n => {
+        const el = document.getElementById(PANELS[n]);
+        if(el) el.classList.toggle('off');
+      };
 
       controls.onCastOff = ()=> {
         const n = physics.castOff();

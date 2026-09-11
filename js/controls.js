@@ -23,6 +23,7 @@ Naval.Controls = class Controls {
     this.onCastOff = null;        // larguer les amarres
     this.onToggleKeys = null;     // le mémento des commandes
     this.onCloseKeys = null;      // Échap le referme, et ne fait que ça
+    this.onTogglePanel = null;    // (2 à 6) escamoter un panneau
     this.onDebug = null;          // show or hide the bench
     this.onShot = null;           // take the screen
     this._salvo = false;          // this hold has already loosed its broadside
@@ -45,6 +46,16 @@ Naval.Controls = class Controls {
          jeu et ne se voit pas venir. e.key rend 'F1', que le passage en
          minuscules donne 'f1' — donc aucune collision avec 'f'. */
       if(k==='f1' && this.onToggleKeys){ this.onToggleKeys(); e.preventDefault(); }
+      /* F2 à F6 escamotent un panneau chacun, et TOUTES doivent être retenues
+         au vol — bien plus que F1. F5 recharge la page : laissée passer, la
+         touche « état de la mer » relance la simulation et jette la partie,
+         ce qui est la pire manière de découvrir qu'on a oublié un
+         preventDefault. F3 ouvre la recherche du navigateur, F6 lui donne la
+         barre d'adresse. Le numéro est passé tel quel : quel panneau porte
+         quel numéro est une affaire de balisage, donc cela se décide dans la
+         page et pas ici. */
+      const fn = /^f([2-6])$/.exec(k);
+      if(fn && this.onTogglePanel){ this.onTogglePanel(+fn[1]); e.preventDefault(); }
       if(k==='escape' && this.onCloseKeys) this.onCloseKeys();
       if(k==='f' && this.onToggleCargo) this.onToggleCargo();
       /* J, and not D: D is the helm. Picked from what is actually free, and

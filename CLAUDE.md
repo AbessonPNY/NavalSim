@@ -3445,6 +3445,27 @@ Trois décisions dans ce mémento :
   ce qui sort du jeu et ne se voit pas venir. `e.key` rend `'F1'`, que le
   passage en minuscules donne `'f1'` — donc aucune collision avec `'f'`.
 
+**`F2` à `F6` RANGENT UN PANNEAU CHACUN** — le navire, l'assiette, le compas,
+l'état de la mer, la carte. `H` fait le vide d'un coup, ce qui sert à prendre
+une image propre ; ceci sert à autre chose, se débarrasser de ce dont on n'a pas
+besoin en gardant le reste, qui est le geste ordinaire et non l'exception.
+
+Une **bascule** et non une fermeture : une touche qui n'ouvre pas ce qu'elle
+ferme oblige à apprendre un second geste pour défaire le premier, et il n'y en a
+pas. Les deux états sont **indépendants** — `H` pose un voile par-dessus tout,
+`.off` est ce que le navigateur a rangé — si bien que masquer puis rendre
+l'affichage ne ressuscite pas un panneau qu'on avait fermé. Vérifié aux cinq.
+
+**Et TOUTES doivent être retenues au vol, bien plus que `F1`.** `F5` recharge la
+page : laissée passer, la touche « état de la mer » relance la simulation et
+jette la partie, ce qui est la pire façon de découvrir qu'on a oublié un
+`preventDefault`. `F3` ouvre la recherche du navigateur et `F6` lui donne sa
+barre d'adresse. Vérifié avec un témoin posé sur `window` : il survit à `F5`.
+
+Le numéro est passé tel quel de `controls.js` à la page — quel panneau porte
+quel numéro est une affaire de balisage, donc cela se décide là où le balisage
+vit.
+
 **PAS DE `backdrop-filter` SUR UN VOILE PLEIN ÉCRAN**, et cela a coûté un essai
 déroutant. Le mémento était présent — `hidden` à faux, `display:flex`, opacité 1,
 mille deux cent onze pixels de large — et rigoureusement invisible à l'image :

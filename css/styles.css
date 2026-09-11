@@ -124,6 +124,12 @@
   #app.nohud #hint,
   #app.nohud #lost,
   #app.nohud #keysMenu{display:none}
+
+  /* Et chaque panneau peut se ranger tout seul, de F2 a F6. Deux etats
+     independants : `H` pose un voile sur tout, `.off` est ce que le
+     navigateur a decide de ne plus voir. Rendre le premier ne defait donc pas
+     le second, ce qui est ce qu on attend d un rangement. */
+  .panel.off{display:none}
   .beaufort{display:flex;align-items:baseline;gap:8px;margin-top:4px}
   .beaufort .bn{font-family:var(--mono);font-weight:600;font-size:26px;color:var(--accent);line-height:1;font-variant-numeric:tabular-nums}
   .beaufort .bd{font-family:var(--mono);font-size:10.5px;color:var(--muted);letter-spacing:.02em}
