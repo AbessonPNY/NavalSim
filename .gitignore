@@ -24,6 +24,7 @@ godot/.mono/
 godot/bin/
 **/bin/
 **/obj/
-# releves de parite : regeneres par `node tools/parity-*.js`
-core/parity.json
-core/parity-ocean.json
+# Relevés de parité, régénérés par `node tools/parity-*.js`.
+# Un MOTIF et non trois noms : chaque nouveau banc en dépose un de plus, et
+# nommer les fichiers un par un garantit d en oublier un.
+core/parity*.json

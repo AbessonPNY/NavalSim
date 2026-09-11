@@ -183,4 +183,17 @@ Console.WriteLine(seaFailures == 0
     ? "PARITE TENUE -- le C# et le JS voient la meme mer."
     : $"{seaFailures} DIVERGENCE(S) sur la mer.");
 
-return failures == 0 && seaFailures == 0 ? 0 : 1;
+Console.WriteLine();
+string physDump = Path.GetFullPath(Path.Combine(root, "..", "..", "..", "..", "parity-physics.json"));
+int physFailures = NavalSim.Parity.PhysicsParity.Run(physDump, shipsDir);
+
+Console.WriteLine();
+string settleDump = Path.GetFullPath(Path.Combine(root, "..", "..", "..", "..", "parity-settle.json"));
+physFailures += NavalSim.Parity.PhysicsParity.RunSettle(settleDump, shipsDir);
+
+Console.WriteLine();
+Console.WriteLine(physFailures == 0
+    ? "PARITE TENUE -- le C# et le JS integrent la meme coque."
+    : $"{physFailures} DIVERGENCE(S) sur le solveur.");
+
+return failures == 0 && seaFailures == 0 && physFailures == 0 ? 0 : 1;

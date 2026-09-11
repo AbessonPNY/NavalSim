@@ -7,7 +7,7 @@ config_version=5
 [application]
 config/name="NavalSim"
 config/description="Simulation navale - portage Godot"
-run/main_scene="res://scenes/sea.tscn"
+run/main_scene="res://scenes/ship.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 
 [dotnet]
