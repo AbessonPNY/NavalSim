@@ -3445,8 +3445,8 @@ Trois décisions dans ce mémento :
   ce qui sort du jeu et ne se voit pas venir. `e.key` rend `'F1'`, que le
   passage en minuscules donne `'f1'` — donc aucune collision avec `'f'`.
 
-**`F2` à `F6` RANGENT UN PANNEAU CHACUN** — le navire, l'assiette, le compas,
-l'état de la mer, la carte. `H` fait le vide d'un coup, ce qui sert à prendre
+**`F2` à `F7` RANGENT UN PANNEAU CHACUN** — le navire, l'assiette, le compas,
+l'état de la mer, et la carte sur `F7`. `H` fait le vide d'un coup, ce qui sert à prendre
 une image propre ; ceci sert à autre chose, se débarrasser de ce dont on n'a pas
 besoin en gardant le reste, qui est le geste ordinaire et non l'exception.
 
@@ -3456,11 +3456,29 @@ pas. Les deux états sont **indépendants** — `H` pose un voile par-dessus tou
 `.off` est ce que le navigateur a rangé — si bien que masquer puis rendre
 l'affichage ne ressuscite pas un panneau qu'on avait fermé. Vérifié aux cinq.
 
-**Et TOUTES doivent être retenues au vol, bien plus que `F1`.** `F5` recharge la
+**Et toutes doivent être retenues au vol, bien plus que `F1`.** `F5` recharge la
 page : laissée passer, la touche « état de la mer » relance la simulation et
 jette la partie, ce qui est la pire façon de découvrir qu'on a oublié un
-`preventDefault`. `F3` ouvre la recherche du navigateur et `F6` lui donne sa
-barre d'adresse. Vérifié avec un témoin posé sur `window` : il survit à `F5`.
+`preventDefault`. `F3` ouvre la recherche du navigateur. Vérifié avec un témoin
+posé sur `window` : il survit à `F5`.
+
+**MAIS `F6` EST D'UNE AUTRE ESPÈCE, et c'est la vraie leçon : `preventDefault`
+ne peut retenir que ce qui ATTEINT la page.** `F6` porte le focus sur la barre
+d'outils du navigateur, et cette décision est prise dans son châssis avant que
+l'événement ne descende dans le document. Aucun code de la page n'y peut rien.
+Signalé à l'usage — la carte ne basculait pas et un bandeau s'affichait en haut.
+
+Le **six est donc sauté**, et le trou dans la série est l'information : la carte
+est sur `F7`. Le dire vaut mieux que de laisser croire à un oubli.
+
+**Et le volet de prévisualisation ne pouvait pas le montrer.** Sondé en capture,
+il laisse passer `F6` comme n'importe quelle autre touche, et la carte y
+basculait parfaitement. C'est donc un cas où la mesure locale dit oui et où le
+vrai navigateur dit non — à ranger avec le compteur d'images, qui mesure
+l'horloge du volet et non la simulation. Un volet embarqué n'a pas de barre
+d'outils à qui donner le focus ; il ne réserve donc rien. Il faut se rabattre
+sur ce que les navigateurs réservent en principe, et `F7` n'en est pas — sauf
+sous Firefox, où elle propose le curseur de navigation.
 
 Le numéro est passé tel quel de `controls.js` à la page — quel panneau porte
 quel numéro est une affaire de balisage, donc cela se décide là où le balisage

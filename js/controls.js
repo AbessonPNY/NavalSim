@@ -46,15 +46,25 @@ Naval.Controls = class Controls {
          jeu et ne se voit pas venir. e.key rend 'F1', que le passage en
          minuscules donne 'f1' — donc aucune collision avec 'f'. */
       if(k==='f1' && this.onToggleKeys){ this.onToggleKeys(); e.preventDefault(); }
-      /* F2 à F6 escamotent un panneau chacun, et TOUTES doivent être retenues
-         au vol — bien plus que F1. F5 recharge la page : laissée passer, la
-         touche « état de la mer » relance la simulation et jette la partie,
-         ce qui est la pire manière de découvrir qu'on a oublié un
-         preventDefault. F3 ouvre la recherche du navigateur, F6 lui donne la
-         barre d'adresse. Le numéro est passé tel quel : quel panneau porte
-         quel numéro est une affaire de balisage, donc cela se décide dans la
-         page et pas ici. */
-      const fn = /^f([2-6])$/.exec(k);
+      /* Les touches de fonction escamotent un panneau chacune, et toutes
+         doivent être retenues au vol — bien plus que F1. F5 recharge la page :
+         laissée passer, la touche « état de la mer » relance la simulation et
+         jette la partie, ce qui est la pire manière de découvrir qu'on a
+         oublié un preventDefault. F3 ouvre la recherche du navigateur.
+
+         MAIS F6 EST D'UNE AUTRE ESPÈCE, et c'est la leçon : preventDefault ne
+         peut retenir que ce qui atteint la page. F6 déplace le focus vers la
+         barre d'outils du navigateur, décision prise dans son châssis AVANT
+         que l'événement ne descende — signalé à l'usage, la carte ne
+         basculait pas et un bandeau s'affichait en haut. Le volet de
+         prévisualisation, lui, la laisse passer sans broncher, donc rien ici
+         ne pouvait le montrer : c'est un cas où la mesure locale dit oui et où
+         le vrai navigateur dit non. Il est donc SAUTÉ, et le trou dans la
+         série est l'information.
+
+         Le numéro est passé tel quel : quel panneau porte quel numéro est une
+         affaire de balisage, donc cela se décide dans la page et pas ici. */
+      const fn = /^f([2-7])$/.exec(k);
       if(fn && this.onTogglePanel){ this.onTogglePanel(+fn[1]); e.preventDefault(); }
       if(k==='escape' && this.onCloseKeys) this.onCloseKeys();
       if(k==='f' && this.onToggleCargo) this.onToggleCargo();
