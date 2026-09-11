@@ -15,3 +15,26 @@ project/assembly_name="NavalSim"
 
 [rendering]
 renderer/rendering_method="forward_plus"
+
+[rendering]
+
+; ANTICRÉNELAGE, et ce n'est pas du confort dans ce projet.
+;
+; Trois choses ici sont des pièges d'aliasing connus, tous consignés : les
+; étoiles plus étroites qu'un pixel, les rides de la mer contre la taille de
+; maille, et les cordages — dont le projet dit qu'un `THREE.Line` fait un pixel
+; de large et scintille à toute distance qui vaille. La réponse GÉOMÉTRIQUE est
+; d'être plus large que le pas d'échantillonnage ; celle-ci est l'autre moitié.
+;
+; MSAA 4x prend les bords de géométrie : les mâts, la silhouette de coque, et
+; les rubans de cordage quand ils arriveront. FXAA prend ce que MSAA ne voit pas,
+; c'est-à-dire le scintillement né DANS le fragment — le spéculaire de la mer et
+; les crêtes d'écume. Les deux sont complémentaires et ne se remplacent pas.
+;
+; TAA est laissé ÉTEINT : c'est le vrai remède au scintillement spéculaire, mais
+; il travaille en réutilisant l'image précédente, et une mer qui défile sous une
+; caméra qui suit le navire est exactement le cas où cela traîne. À rallumer si
+; le scintillement gêne plus que le fantôme.
+anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/screen_space_aa=1
+anti_aliasing/quality/use_taa=false

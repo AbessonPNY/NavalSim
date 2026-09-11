@@ -16,12 +16,24 @@ namespace NavalSim;
 public partial class ShipDemo : Node3D
 {
     OceanNode _sea = null!;
+    SkyNode _sky = null!;
     ShipNode _ship = null!;
     Camera3D _cam = null!;
     Label _info = null!;
 
     double _t;
-    double _force = 4, _windDeg = 210;
+    double _force = 4, _windDeg = 210, _cloud = 0.12;
+    /// <summary>
+    /// LE CREUX, et il manquait — ce qui a coute une fausse piste entiere.
+    ///
+    /// C est un multiplicateur de la hauteur significative au-dela de la table
+    /// Beaufort, et la console d origine le laisse aller de 0,4 a 2,6 pour 1,35
+    /// par defaut. Je l avais laisse a sa valeur par defaut sans jamais
+    /// l exposer, si bien qu on comparait une tempete a une AUTRE tempete :
+    /// releve, force 9,9 passe de 13,5 m de Hs a 26,6 entre 1,35 et 2,6, et la
+    /// coque de « 6 a 66 % d immersion » a « 0 a 100 ».
+    /// </summary>
+    double _swell = 1.35;
     float _orbit = 0.9f, _pitch = 0.16f, _dist = 55f;
     bool _dragging, _follow = true;
     double _hudAcc;
@@ -55,18 +67,12 @@ public partial class ShipDemo : Node3D
 
     void BuildScene()
     {
-        var env = new Godot.Environment
-        {
-            BackgroundMode = Godot.Environment.BGMode.Sky,
-            Sky = new Sky { SkyMaterial = new ProceduralSkyMaterial() },
-            AmbientLightSource = Godot.Environment.AmbientSource.Sky,
-            TonemapMode = Godot.Environment.ToneMapper.Aces
-        };
-        AddChild(new WorldEnvironment { Environment = env });
-
-        var sun = new DirectionalLight3D { LightEnergy = 1.15f, ShadowEnabled = true };
-        sun.RotationDegrees = new Vector3(-34, 122, 0);
-        AddChild(sun);
+        /* LE CIEL EST UN NŒUD, et il porte tout : le dôme, le soleil, l'ambiante,
+           la brume, le gros temps et les éclairs. La scène ne pose plus de
+           lumière à la main — c'est ce qui garantit que le ciel qu'on voit, celui
+           que la mer réfléchit et celui qui éclaire le pont sont le même. */
+        _sky = new SkyNode();
+        AddChild(_sky);
 
         _cam = new Camera3D { Current = true, Fov = 55, Far = 9000 };
         AddChild(_cam);
@@ -152,6 +158,21 @@ public partial class ShipDemo : Node3D
 
         UpdateCamera(frame);
         _sea.UpdateFrom(_cam.GlobalPosition, _t);
+
+        /* LE MÊME CIEL PARTOUT, une fois par image. La mer le réfléchit, la
+           coque respire sa brume, le dôme le dessine — et c est SkyNode qui
+           écrit les trois, faute de quoi ils dériveraient en silence. */
+        _sky.UpdateWeather(frame, _force);
+        _sky.PushTo(_sea.Material);
+        _sky.SetCloud(_sea.Material, _cloud, _t);
+        foreach (var m in _ship.Hazed) _sky.PushTo(m);
+        _sea.Material?.SetShaderParameter("u_ripple",
+            (float)Math.Min(2.6, 0.40 + _sea.Core.WindSpeed * 0.105));
+        var wv = _sea.Core.WindVec;
+        double ws = Math.Sqrt(wv.X * wv.X + wv.Z * wv.Z);
+        if (ws > 1e-4)
+            _sea.Material?.SetShaderParameter("u_wind",
+                new Vector2((float)(wv.X / ws), (float)(wv.Z / ws)));
 
         _hudAcc += frame;
         if (_hudAcc > 0.15) { _hudAcc = 0; UpdateInfo(); }
@@ -256,7 +277,7 @@ public partial class ShipDemo : Node3D
             $"vent       {_windDeg,6:F0}°      force     {_force:F1} · {Config.Beaufort[bf].Name}\n" +
             $"\n" +
             $"W S machine   A D barre   Q E écoutes   V voiles\n" +
-            $"↑↓ force   ←→ vent   N navire   F suivre   Échap quitter";
+            $"↑↓ force   ←→ vent   PgUp/PgDn creux   N navire   F suivre";
     }
 
     public override void _UnhandledInput(InputEvent e)
@@ -279,6 +300,11 @@ public partial class ShipDemo : Node3D
                 case Key.Down: _force = Math.Max(0, _force - 0.5); Restate(); break;
                 case Key.Left: _windDeg = (_windDeg - 15 + 360) % 360; Restate(); break;
                 case Key.Right: _windDeg = (_windDeg + 15) % 360; Restate(); break;
+                // Page Haut / Page Bas : ces deux-la portent le meme nom et occupent
+                // la meme place sur toute disposition, ce qui evite la question
+                // AZERTY entierement.
+                case Key.Pageup: _swell = Math.Min(2.6, _swell + 0.15); Restate(); break;
+                case Key.Pagedown: _swell = Math.Max(0.4, _swell - 0.15); Restate(); break;
                 case Key.V: _ship.Ctrl.SailsSet = !_ship.Ctrl.SailsSet; break;
                 case Key.N: Launch(_index + 1); break;
                 case Key.F: _follow = !_follow; break;
@@ -306,6 +332,7 @@ public partial class ShipDemo : Node3D
     void Restate()
     {
         _sea.Core.Time = _t;
+        _sea.Core.Swell = _swell;
         _sea.Core.SetSeaState(_force, _windDeg);
         UpdateInfo();
     }
@@ -326,6 +353,7 @@ public partial class ShipDemo : Node3D
                 // simulation ne montre qu une voilure a moitie etablie
                 case "--after": _captureIn = args[i + 1].ToInt(); break;
                 case "--force": _force = args[i + 1].ToFloat(); Restate(); break;
+                case "--swell": _swell = args[i + 1].ToFloat(); Restate(); break;
                 case "--pitch": _pitch = args[i + 1].ToFloat(); break;
                 case "--dist": _dist = args[i + 1].ToFloat(); break;
                 case "--orbit": _orbit = args[i + 1].ToFloat(); break;

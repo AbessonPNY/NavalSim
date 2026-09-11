@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Collections.Generic;
 using NavalSim.Core;
 
 namespace NavalSim;
@@ -27,6 +28,23 @@ public partial class ShipNode : Node3D
     MeshInstance3D _hull = null!;
     Node3D _rig = null!;
 
+    /// <summary>
+    /// Les matériaux qui doivent respirer le même air que la mer. Rendus à
+    /// l'appelant pour que <see cref="SkyNode.PushTo"/> leur pousse la brume et le
+    /// gros temps — un navire qui resterait net contre une mer délavée ferait
+    /// s'effondrer l'illusion.
+    /// </summary>
+    public readonly List<ShaderMaterial> Hazed = new();
+
+    ShaderMaterial MakeHullMaterial(Color albedo, float roughness)
+    {
+        var m = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull.gdshader") };
+        m.SetShaderParameter("u_albedo", albedo);
+        m.SetShaderParameter("u_roughness", roughness);
+        Hazed.Add(m);
+        return m;
+    }
+
     public void Build(ShipSpec spec)
     {
         Spec = spec;
@@ -36,14 +54,9 @@ public partial class ShipNode : Node3D
         _hull = new MeshInstance3D
         {
             Mesh = ToArrayMesh(Lines.BuildGeometry()),
-            MaterialOverride = new StandardMaterial3D
-            {
-                AlbedoColor = new Color(0.22f, 0.26f, 0.31f),
-                Roughness = 0.72f,
-                // la coque est une nappe fermée par deux culs : on voit son
-                // intérieur quand elle gîte, donc on dessine les deux faces
-                CullMode = BaseMaterial3D.CullModeEnum.Disabled
-            }
+            // la coque est une nappe fermée par deux culs : on voit son intérieur
+            // quand elle gîte, donc le shader dessine les deux faces
+            MaterialOverride = MakeHullMaterial(new Color(0.22f, 0.26f, 0.31f), 0.72f)
         };
         AddChild(_hull);
 
@@ -65,11 +78,7 @@ public partial class ShipNode : Node3D
         _rig = new Node3D();
         AddChild(_rig);
 
-        var timber = new StandardMaterial3D
-        {
-            AlbedoColor = new Color(0.69f, 0.55f, 0.36f),
-            Roughness = 0.85f
-        };
+        var timber = MakeHullMaterial(new Color(0.69f, 0.55f, 0.36f), 0.85f);
 
         foreach (var m in Spec.Masts)
         {

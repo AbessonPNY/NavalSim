@@ -57,7 +57,7 @@ public partial class SeaDemo : Node3D
         var env = new Godot.Environment
         {
             BackgroundMode = Godot.Environment.BGMode.Sky,
-            Sky = new Sky { SkyMaterial = new ProceduralSkyMaterial() },
+            Sky = new Godot.Sky { SkyMaterial = new ProceduralSkyMaterial() },
             AmbientLightSource = Godot.Environment.AmbientSource.Sky,
             TonemapMode = Godot.Environment.ToneMapper.Aces,
             SsrEnabled = false

@@ -20,6 +20,9 @@ public partial class OceanNode : Node3D
     MeshInstance3D _plane = null!;
     ShaderMaterial _mat = null!;
 
+    /// <summary>Le materiau de la mer, pour que SkyNode y ecrive le meme ciel.</summary>
+    public ShaderMaterial? Material => _mat;
+
     // les réserves d'uniformes, écrites sur place : reconstruire ces tableaux
     // soixante fois par seconde ferait mille objets éphémères par seconde, donc
     // des pauses de ramasse-miettes — et une pause de ramasse-miettes EST une
@@ -89,6 +92,7 @@ public partial class OceanNode : Node3D
         _mat.SetShaderParameter("u_centre", centre);
         _mat.SetShaderParameter("u_time", (float)t);
         _mat.SetShaderParameter("u_sharp", (float)Core.Sharp);
+        _mat.SetShaderParameter("u_amp_max", (float)Core.AmpMax);
 
         for (int i = 0; i < Config.NWaves; i++)
         {
