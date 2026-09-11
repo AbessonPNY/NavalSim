@@ -133,6 +133,21 @@
   #sea .row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:9px 0}
   #sea .row .name{font-family:var(--mono);font-size:11px;color:var(--ink);letter-spacing:.04em}
   #sea .row .num{font-family:var(--mono);font-size:11px;color:var(--accent);font-variant-numeric:tabular-nums}
+  /* QUI COMMANDE LA MER, quand ce n'est plus la console.
+
+     Le curseur est RÉÉCRIT par la boucle tant qu'un autre décide, si bien qu'on
+     le pousse et qu'il revient tout seul — ce qui se lit comme une panne alors
+     que c'est la règle : une dépression ne négocie pas. Signalé à l'usage sous
+     la forme « avant je ne pouvais pas forcer la houle », ce qui est exactement
+     la question qu'une console doit répondre sans qu'on la pose.
+
+     La ligne le dit donc, plutôt que de le laisser deviner. Sur la ligne
+     elle-même et pas ailleurs : c'est CE réglage qui a perdu la main, et une
+     alerte posée en haut du panneau n'aurait pas dit lequel. */
+  #sea .row .who{margin-left:6px;color:var(--muted);letter-spacing:.06em}
+  #sea .row .who[hidden]{display:none}
+  #sea .row.forced .name{color:var(--accent)}
+  #sea .row.forced .who{color:var(--accent)}
   input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:3px;border-radius:3px;
     background:rgba(140,168,182,.22);outline:none;margin:7px 0 2px}
   input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;

@@ -676,6 +676,29 @@ conduire tout seul. Ce dernier existe parce qu'un spectre
 six harmoniques alignées, à hauteur égale : les crêtes ne se superposent plus.
 Au-delà de ~1,6 un navire peut réellement chavirer, ce qui est voulu.
 
+**ET LA LIGNE DIT QUI COMMANDE LA MER**, ce qui manquait et s'est signalé à
+l'usage sous la forme la plus révélatrice qui soit : « avant je ne pouvais pas
+forcer la force de la houle, maintenant je peux — c'est normal ? ».
+
+La règle était juste et invisible. Trois prétendants, et la précédence est
+**dépression > météo automatique > console** : prendre un curseur en main met la
+météo au repos sur-le-champ, mais une dépression ne négocie pas et l'emporte sur
+les deux — seulement **vers le haut**, `squall.force > tgtF`, elle n'empêche
+jamais de monter la houle, elle empêche de la baisser sous ce qu'elle impose.
+
+Le symptôme n'était donc pas un refus mais une **réécriture** : tant qu'un autre
+décide, la boucle repose la valeur dans le curseur cinq fois par seconde. On le
+pousse, il revient tout seul, et cela se lit comme une panne alors que c'est la
+règle. La météo automatique annonçait déjà son état sur son bouton ; la
+dépression n'avait rien pour elle — et c'est justement celle qui surprend,
+puisqu'elle arrive sans qu'on l'ait demandée et repart de même.
+
+La ligne porte donc son maître, à l'accent : « Force de la houle · **dépression** »
+ou « · **météo auto** ». Sur CETTE ligne et pas ailleurs, parce que c'est ce
+réglage-là qui a perdu la main et qu'une alerte posée en haut du panneau
+n'aurait pas dit lequel. Vérifié sur les quatre états — console seule, météo en
+route, météo rendue, et au cœur d'un grain de force 8,9 avec le curseur à 4.
+
 **Gréer un modèle importé.** Un `.glb` arrive avec une coque et des espars nus,
 mais quasiment jamais de voiles — la Roter Löwe n'en a aucune, et ses nœuds
 portent les noms Blender par défaut (`Cylinder.004`…), donc rien à quoi les
