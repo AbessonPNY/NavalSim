@@ -3704,6 +3704,62 @@ bouteille à flot en trois secondes, une marque sur la carte, les trois contenus
 lus, une cargaison posée par 0,7 m de fond au sud-ouest du Carénage, et 3 t
 d'épices hissées à bord.
 
+## Voile en vue
+
+**UNE MER OÙ L'ON NE CROISE PERSONNE N'EST PAS UNE ROUTE**, et la flotte savait
+déjà porter huit coques : il ne manquait que quelqu'un pour les mettre à l'eau au
+large. Toutes les six à douze minutes de jeu, un navire tiré au sort parmi les
+fiches de `ships/` est lancé par le même `launch()` que le panneau Flotte, **en
+eau profonde** (plus de 25 m de fond, aucune île à moins de 800 m) et à quatre ou
+cinq kilomètres — au-delà de ce que la brume laisse voir, pour qu'il **vienne**
+de l'horizon au lieu d'apparaître. Pas plus de deux à la fois, jamais à quai, et
+retiré au-delà de neuf kilomètres ou une fois coulé et laissé à trois : une
+rencontre qu'on a laissée derrière n'occupe pas une place de la flotte pour
+toujours. La compression du temps est refusée tant qu'une rencontre vivante est à
+moins de 2 500 m, pour la raison de toutes les autres : ce qui approche mérite
+qu'on le regarde.
+
+**Un sur quatre est un pirate, et il NE HISSE PAS SES COULEURS** tant qu'on ne
+l'a pas vu. Il est lancé déguisé (`e.deguise`) : pavillon masqué, pacifique, cap
+sur le joueur. Le pavillon noir est une déclaration — c'est ainsi qu'est lue
+l'hostilité — donc le masquer, c'est littéralement ne rien déclarer, et le
+système de combat n'a rien eu à apprendre. **Remarqué, il hisse**, devient
+hostile, prend sa distance de garde et passe en chasse, et la phrase change :
+« Voile en vue ! Elle hisse le pavillon noir ! » au lieu du nom d'un marchand.
+Les autres font route vers un port, la tête du ponton en coordonnées vraies
+posée sur leur entrée (`e.route`) et relue en local par la barre.
+
+**Remarquer est une question d'ŒIL, et il y en a deux** : à moins de 600 m quoi
+qu'on fasse, ou **à la lunette**, jusqu'à sept kilomètres, s'il est dans le
+disque — son centre, pris à un tiers de sa longueur au-dessus de l'eau, projeté
+dans les huit dixièmes intérieurs du rayon de l'oculaire. Aller le chercher du
+regard est donc un vrai geste de jeu : on voit le pirate avant qu'il se sache vu,
+et qu'il hisse quand on le lorgne est exactement le moment qu'on voulait.
+
+**Le piège : la lunette tourne la caméra APRÈS la dernière image.** `aim()` fait
+un `lookAt`, mais `camera.project` lit `matrixWorldInverse`, que seul le rendu
+reconstruit. Projeté avant lui, le navire était cherché là où l'objectif pointait
+à l'image précédente : vrai au banc, qui appelait `updateMatrixWorld()` de
+lui-même, et jamais dans la boucle — un pirate au centre du disque à 4 147 m
+n'a pas été remarqué en quinze secondes. Le test reconstruit la matrice avant de
+projeter. Relevé ensuite : pirate déguisé à 4 011 m, pavillon masqué ; remarqué à
+500 m dans la même image ; à la lunette, **remarqué à 4 745 m au premier contrôle**,
+pavillon hissé.
+
+**Les réglages vivent dans `settings.json`**, à la racine — le premier fichier de
+réglages de **jeu** et non de navire ou d'objet : intervalle, nombre simultané,
+distances d'apparition et de retrait, part de pirates, distance et champ de la
+lunette, et les fiches à exclure (`bouee-canard`). Les distances sont en mètres
+et les durées en secondes de jeu, que la compression accélère. Servi en
+développement, embarqué par le build en `Naval.SETTINGS`, et fusionné champ par
+champ sur des valeurs par défaut écrites dans la page : un fichier absent ne
+change rien. `Naval.app.voileAuHasard()` en force une.
+
+Ce qui n'est pas fait : un marchand suit une droite vers la tête du ponton et
+peut talonner sur le plateau s'il y arrive — il n'accoste ni ne mouille ; et
+aucune rencontre n'est **parlée** automatiquement, la rumeur restant ce qu'elle
+était.
+
 ## Le bruit, et surtout le temps qu'il met à venir
 
 **LE SON MET UNE SECONDE ET DEMIE À FAIRE CINQ CENTS MÈTRES**, et c'est cela —

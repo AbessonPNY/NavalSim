@@ -1675,6 +1675,138 @@ async function main(){
     refitProfiles();
   }
 
+  /* ------------------------------ VOILE EN VUE ! ------------------------------
+
+     LA MER N'EST PLUS VIDE. De temps en temps, en mer, une voile tirée au sort
+     parmi les fiches paraît à quatre ou cinq kilomètres — dans la brume, à
+     l'horizon, et non à côté de soi. Un marchand fait route vers un port et
+     ignore le joueur ; un PIRATE arrive DÉGUISÉ : pas de pavillon, pas un coup,
+     il se rapproche comme n'importe quelle voile. Il n'arbore la tête de mort
+     qu'au moment où on le REMARQUE — et c'est tout le jeu : le guetter à la
+     lunette de loin, ou le découvrir à six cents mètres quand il est trop tard
+     pour fuir.
+
+     Remarquer, c'est l'avoir dans le champ de la lunette, à portée d'y voir
+     quelque chose, ou le laisser venir sous la distance où l'œil nu ne peut plus
+     le manquer. Les réglages sont dans settings.json : fréquence, distances,
+     part de pirates, portée de la lunette. Une voile qui s'éloigne au-delà de
+     neuf kilomètres est retirée, pour tenir le compte de coques et le budget. */
+  const REGLAGES = { encounters: {
+    enabled:true, intervalMin:360, intervalMax:720, maxAtOnce:2, spawnMin:4000, spawnMax:5000,
+    despawn:9000, pirateChance:0.25, noticeDistance:600, spyglassRange:7000, spyglassField:0.8,
+    exclude:['bouee-canard'] } };
+  (async ()=>{
+    let s = Naval.SETTINGS;
+    if(!s){ try{ const r = await fetch('settings.json', { cache:'no-cache' }); if(r.ok) s = await r.json(); }catch(e){} }
+    if(s) for(const k of Object.keys(REGLAGES)) if(s[k]) Object.assign(REGLAGES[k], s[k]);
+  })();
+
+  let prochaineVoile = null, voileEnRoute = false;
+  const _cible = new THREE.Vector3();
+
+  function vueALaLunette(e){
+    const R = REGLAGES.encounters;
+    if(!spyglass || !spyglass.on) return false;
+    const cam = stage.camera;
+    if(e.body.pos.distanceTo(cam.position) > R.spyglassRange) return false;
+    /* The glass has just turned the camera, but its matrix is only rebuilt at
+       the render: projected before it, the ship is looked for where the lens
+       pointed LAST frame — which, the frame the glass goes to the eye, is not
+       at her at all. */
+    cam.updateMatrixWorld();
+    _cible.copy(e.body.pos); _cible.y += e.spec.L*0.3;
+    _cible.project(cam);
+    if(_cible.z > 1 || _cible.z < -1) return false;          // derrière l'objectif
+    const asp = canvas.clientWidth/Math.max(1, canvas.clientHeight);
+    const r = Math.hypot(_cible.x*asp*0.5, _cible.y*0.5)/0.42;   // en rayons de l'oculaire
+    return r < R.spyglassField;
+  }
+
+  function remarquer(e){
+    e.remarque = true;
+    if(e.deguise){
+      /* LE PAVILLON MONTE. Il était là depuis le début — la fiche le dit — et
+         il était seulement amené : on le hisse, et le navire devient ce qu'il
+         était. */
+      e.deguise = false;
+      if(e.ship.flag) e.ship.flag.pivot.visible = true;
+      e.hostile = true;
+      e.helm.standoff = Math.max(e.helm.standoff, 185);
+      e.pirate = { phase:'chasse', cible:null, ignore:new Map(), tenu:0, fuite:null, fuiteJusque:0, garde:e.helm.standoff };
+      e.route = null;
+      dire('Voile en vue ! Elle hisse le pavillon noir !');
+    }else{
+      dire('Voile en vue : ' + (e.spec.name || 'un navire'));
+    }
+  }
+
+  async function voileAuHasard(){
+    const R = REGLAGES.encounters;
+    const ok = specs.filter(s => !R.exclude.includes(s.id));
+    const pirates = ok.filter(s => s.appearance && s.appearance.ensign === 'jolly');
+    const marchands = ok.filter(s => !(s.appearance && s.appearance.ensign === 'jolly'));
+    const pool = (pirates.length && Math.random() < R.pirateChance) ? pirates : marchands;
+    if(!pool.length) return;
+    const sp = pool[Math.floor(Math.random()*pool.length)];
+
+    // de l'eau franche, loin de toute terre, à la bonne distance
+    const o = ocean.origin, b = physics.body.pos;
+    let at = null;
+    for(let k = 0; k < 40 && !at; k++){
+      const a = Math.random()*Math.PI*2, d = R.spawnMin + Math.random()*(R.spawnMax - R.spawnMin);
+      const lx = b.x + Math.sin(a)*d, lz = b.z + Math.cos(a)*d;
+      if(world.heightAt(lx + o.x, lz + o.z) < -25 && !world.near(lx + o.x, lz + o.z, 800).length) at = { lx, lz };
+    }
+    if(!at) return;
+
+    const e = await launch(sp);
+    if(!e) return;
+    e.rencontre = true;
+    e.remarque = false;
+    const pirate = !!e.hostile;
+    let versX, versZ;
+    if(pirate){
+      // déguisé : pavillon amené, pacifique en apparence, et il vient vers vous
+      e.deguise = true; e.hostile = false; e.pirate = null;
+      if(e.ship.flag) e.ship.flag.pivot.visible = false;
+      versX = b.x; versZ = b.z;
+    }else{
+      // un marchand va quelque part : un port qui n'est pas celui d'à côté
+      const ports = world.isles.filter(i => i.port);
+      const p = ports[Math.floor(Math.random()*ports.length)];
+      e.route = { x:p.port.hx, z:p.port.hz, local:new THREE.Vector3() };
+      versX = p.port.hx - o.x; versZ = p.port.hz - o.z;
+    }
+    e.body.pos.set(at.lx, e.eqY, at.lz);
+    e.body.quat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(versX - at.lx, versZ - at.lz));
+    e.ship.syncTo(e.body);
+    drawFleet();
+  }
+
+  function tickRencontres(dt){
+    const R = REGLAGES.encounters;
+    if(!R.enabled || !physics) return;
+    if(prochaineVoile === null) prochaineVoile = t + R.intervalMin + Math.random()*(R.intervalMax - R.intervalMin);
+    const b = physics.body.pos;
+
+    for(let i = fleet.length - 1; i >= 1; i--){
+      const e = fleet[i];
+      if(!e.rencontre) continue;
+      const d = Math.hypot(e.body.pos.x - b.x, e.body.pos.z - b.z);
+      // retirée au-delà de l'horizon utile, ou une fois coulée et hors de vue
+      if(d > R.despawn || (e.physics.foundered && d > 3000)){ scuttle(i); drawFleet(); continue; }
+      if(!e.remarque && !e.physics.foundered && (d < R.noticeDistance || vueALaLunette(e))) remarquer(e);
+    }
+
+    if(portIci || voileEnRoute || t < prochaineVoile) return;
+    prochaineVoile = t + R.intervalMin + Math.random()*(R.intervalMax - R.intervalMin);
+    if(fleet.filter(e => e.rencontre).length >= R.maxAtOnce) return;
+    if(fleet.length >= Naval.Config.MAX_SHIPS) return;
+    voileEnRoute = true;
+    voileAuHasard().catch(err => console.warn('[rencontre] ' + (err && err.message || err)))
+                   .finally(() => { voileEnRoute = false; });
+  }
+
   const fleetEls = {
     list: document.getElementById('fleetList'),
     sel:  document.getElementById('fleetSel'),
@@ -2117,6 +2249,7 @@ async function main(){
                 get cam(){ return cam; }, get hud(){ return hud; },
                 world, land, gulls, chart, blast, guns, takeHelm, weather, rain, splash,
                 cordage, purse, parler, tempete, sound, wreckAir, anchors, flotsam,
+                voileAuHasard, vueALaLunette, reglages: REGLAGES,
                 get spyglass(){ return spyglass; },
                 storms, get squall(){ return squall; },
                 get fleet(){ return fleet; } };
@@ -2185,6 +2318,9 @@ async function main(){
     if(p.foundered || (p.breaches && p.breaches.length)) return 1;   // avarie
     if(guns.shot.length || guns._queue.length) return 1;             // on tire
     if(warpRumour && !warpRumour.hidden) return 1;                   // à décider
+    // une voile de rencontre à moins de 2,5 km : c'est le moment de veiller
+    for(const e of fleet) if(e.rencontre && !e.physics.foundered
+      && Math.hypot(e.body.pos.x - b.pos.x, e.body.pos.z - b.pos.z) < 2500) return 1;
     if(world.near(b.pos.x + ocean.origin.x,
                   b.pos.z + ocean.origin.z, 1500).length) return 1;  // terre
     return warpWant;
@@ -2326,7 +2462,14 @@ async function main(){
         if(e.pirate) piloterPirate(e, dt);
         else {
           const foe = ennemiDe(e);
-          e.helm.target = (foe || fleet[0].body).pos;
+          if(!foe && e.route){
+            // un marchand qui fait route : son port, en local, relu à chaque image
+            e.route.local.set(e.route.x - ocean.origin.x, 0, e.route.z - ocean.origin.z);
+            e.helm.standoff = 0;
+            e.helm.target = e.route.local;
+          }else{
+            e.helm.target = (foe || fleet[0].body).pos;
+          }
         }
         e.helm.update(dt, ocean, e.ctrl);
       }
@@ -2493,6 +2636,7 @@ async function main(){
       refreshMarket();
     }
     tickRumour(dt);
+    tickRencontres(dt);
 
     /* Frame rate, and — the useful half — the WORK inside the frame.
 

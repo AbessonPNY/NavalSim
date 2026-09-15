@@ -214,9 +214,18 @@ if (fs.existsSync(PROPS)) {
   inlined.push('props/Props.json');
 }
 
+/* LES RÉGLAGES DE JEU (settings.json), portés dans la page tels quels. */
+let settingsData = null;
+const SETTINGS = path.join(ROOT, 'settings.json');
+if (fs.existsSync(SETTINGS)) {
+  settingsData = JSON.parse(fs.readFileSync(SETTINGS, 'utf8'));
+  inlined.push('settings.json');
+}
+
 const shipBlob = '<script>\nwindow.Naval = window.Naval || {};\n' +
   'Naval.SHIP_DATA = ' + JSON.stringify(shipData, null, 1) + ';\n' +
   (propsData ? 'Naval.PROPS_DATA = ' + JSON.stringify(propsData) + ';\n' : '') +
+  (settingsData ? 'Naval.SETTINGS = ' + JSON.stringify(settingsData) + ';\n' : '') +
   '</scr' + 'ipt>\n';
 
 /* A STYLESHEET MAY POINT AT FILES OF ITS OWN, and they are blocked exactly as
