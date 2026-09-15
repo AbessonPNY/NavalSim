@@ -1701,6 +1701,24 @@ async function main(){
     if(s) for(const k of Object.keys(REGLAGES)) if(s[k]) Object.assign(REGLAGES[k], s[k]);
   })();
 
+  /* LES PAVILLONS (ships/textures/flags/flags.json) : chaque voile croisée en
+     arbore un, tiré au poids, et c'est lui qui dit qui elle est — « C'est un
+     navire hollandais ! ». Un pirate aussi, et c'est un pavillon d'EMPRUNT :
+     il le porte tant qu'on ne l'a pas remarqué, puis l'amène pour le sien. */
+  let PAVILLONS = [];
+  const pavillonsPrets = (async ()=>{
+    let f = Naval.FLAGS_DATA;
+    if(!f){ try{ const r = await fetch('ships/textures/flags/flags.json', { cache:'no-cache' }); if(r.ok) f = await r.json(); }catch(e){} }
+    PAVILLONS = (f && Array.isArray(f.flags)) ? f.flags.filter(x => x && x.image) : [];
+  })();
+  function tirerPavillon(){
+    const l = PAVILLONS.filter(x => !x.pirate);
+    const tot = l.reduce((s, x) => s + (x.poids ?? 1), 0);
+    let r = Math.random()*tot;
+    for(const x of l){ r -= (x.poids ?? 1); if(r <= 0) return x; }
+    return l[l.length - 1] || null;
+  }
+
   let prochaineVoile = null, voileEnRoute = false;
   const _cible = new THREE.Vector3();
 
@@ -1724,19 +1742,27 @@ async function main(){
 
   function remarquer(e){
     e.remarque = true;
+    const qui = e.pavillon && e.pavillon.nationalite
+      ? "C'est un navire " + e.pavillon.nationalite
+      : 'Un navire sans pavillon';
     if(e.deguise){
-      /* LE PAVILLON MONTE. Il était là depuis le début — la fiche le dit — et
-         il était seulement amené : on le hisse, et le navire devient ce qu'il
-         était. */
+      /* LE PAVILLON NOIR MONTE. Le sien — celui de la fiche, sinon celui que
+         flags.json désigne pour les pirates — à la place de celui d'emprunt,
+         et le navire devient ce qu'il était. */
       e.deguise = false;
-      if(e.ship.flag) e.ship.flag.pivot.visible = true;
+      const noir = PAVILLONS.find(x => x.pirate);
+      if(e.ship.flag){
+        e.ship.setEnsignMap((e.spec.appearance && e.spec.appearance.ensignMap) || (noir && noir.image) || null);
+        e.ship.flag.pivot.visible = true;
+      }
+      e.pavillon = noir || null;
       e.hostile = true;
       e.helm.standoff = Math.max(e.helm.standoff, 185);
       e.pirate = { phase:'chasse', cible:null, ignore:new Map(), tenu:0, fuite:null, fuiteJusque:0, garde:e.helm.standoff };
       e.route = null;
-      dire('Voile en vue ! Elle hisse le pavillon noir !');
+      dire('Voile en vue ! ' + qui + '… non ! Elle amène ses couleurs et hisse le pavillon noir !');
     }else{
-      dire('Voile en vue : ' + (e.spec.name || 'un navire'));
+      dire('Voile en vue ! ' + qui + ' !');
     }
   }
 
@@ -1759,16 +1785,22 @@ async function main(){
     }
     if(!at) return;
 
+    await pavillonsPrets;
     const e = await launch(sp);
     if(!e) return;
     e.rencontre = true;
     e.remarque = false;
     const pirate = !!e.hostile;
+    // un pavillon national pour tous — d'emprunt pour le pirate
+    e.pavillon = tirerPavillon();
+    if(e.ship.flag){
+      if(e.pavillon) e.ship.setEnsignMap(e.pavillon.image);
+      else if(pirate) e.ship.flag.pivot.visible = false;   // rien à emprunter : couleurs amenées
+    }
     let versX, versZ;
     if(pirate){
-      // déguisé : pavillon amené, pacifique en apparence, et il vient vers vous
+      // déguisé : pacifique en apparence, et il vient vers vous
       e.deguise = true; e.hostile = false; e.pirate = null;
-      if(e.ship.flag) e.ship.flag.pivot.visible = false;
       versX = b.x; versZ = b.z;
     }else{
       // un marchand va quelque part : un port qui n'est pas celui d'à côté

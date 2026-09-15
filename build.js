@@ -222,10 +222,37 @@ if (fs.existsSync(SETTINGS)) {
   inlined.push('settings.json');
 }
 
+/* LES PAVILLONS (ships/textures/flags/flags.json) : la liste telle quelle, chaque
+   image remplacée par ses octets, comme le pavillon peint d'une fiche. */
+let flagsData = null;
+const FLAGS = path.join(ROOT, 'ships', 'textures', 'flags', 'flags.json');
+if (fs.existsSync(FLAGS)) {
+  flagsData = JSON.parse(fs.readFileSync(FLAGS, 'utf8'));
+  const list = Array.isArray(flagsData.flags) ? flagsData.flags : [];
+  flagsData.flags = list.filter(f => {
+    if (!f || !f.image || /^data:/.test(f.image)) return !!(f && f.image);
+    const p = path.join(ROOT, f.image);
+    const mime = { '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg',
+                   '.webp':'image/webp' }[path.extname(f.image).toLowerCase()];
+    if (!mime || !fs.existsSync(p)) {
+      console.warn('  WARNING: pavillon ' + (f.id || '?') + ' : ' + f.image +
+                   (mime ? ' is missing' : " n'est pas une image embarquable") + ' — ignoré');
+      return false;
+    }
+    const bytes = fs.readFileSync(p);
+    f.image = 'data:' + mime + ';base64,' + bytes.toString('base64');
+    console.log('  embedded ' + path.relative(ROOT, p).replace(/\\/g, '/') + '  (pavillon ' +
+                (f.id || '?') + ', ' + (bytes.length/1024).toFixed(1) + ' KB)');
+    return true;
+  });
+  inlined.push('ships/textures/flags/flags.json');
+}
+
 const shipBlob = '<script>\nwindow.Naval = window.Naval || {};\n' +
   'Naval.SHIP_DATA = ' + JSON.stringify(shipData, null, 1) + ';\n' +
   (propsData ? 'Naval.PROPS_DATA = ' + JSON.stringify(propsData) + ';\n' : '') +
   (settingsData ? 'Naval.SETTINGS = ' + JSON.stringify(settingsData) + ';\n' : '') +
+  (flagsData ? 'Naval.FLAGS_DATA = ' + JSON.stringify(flagsData) + ';\n' : '') +
   '</scr' + 'ipt>\n';
 
 /* A STYLESHEET MAY POINT AT FILES OF ITS OWN, and they are blocked exactly as

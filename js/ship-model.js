@@ -1952,6 +1952,8 @@ Naval.ShipModel = class ShipModel {
     const m = this.mats.flag;
     m.map = src ? Naval.sailTexture(src, 'pavillon') : Naval.jollyTexture();
     m.color.set(0xffffff);                 // the image carries its own colours
+    // and the faint lift of a painted flag, not the white one's: that would wash the colours grey
+    m.emissive.set(0x2a2a2e); m.emissiveIntensity = 0.10;
     m.needsUpdate = true;
   }
 

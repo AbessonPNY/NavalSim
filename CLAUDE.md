@@ -3746,6 +3746,20 @@ projeter. Relevé ensuite : pirate déguisé à 4 011 m, pavillon masqué ; rema
 500 m dans la même image ; à la lunette, **remarqué à 4 745 m au premier contrôle**,
 pavillon hissé.
 
+**Chaque voile croisée arbore un pavillon**, tiré au `poids` dans
+`ships/textures/flags/flags.json` — image, pays, `nationalite` insérée telle quelle
+dans « Voile en vue ! C'est un navire hollandais ! ». Il est porté sur **son**
+entrée (`e.pavillon`) et posé sur son matériau par `setEnsignMap`, qui reprend
+aussi l'émissif faible d'un pavillon peint : celui d'un pavillon blanc délave les
+couleurs. **Le pirate aussi en porte un, d'emprunt** — c'est ce que faisaient les
+vrais — et le masquer ne se fait plus que faute de pavillon à emprunter.
+Remarqué, il amène ces couleurs pour les siennes : `ensignMap` de sa fiche, sinon
+l'entrée `pirate: true` du fichier. Hostilité toujours lue sur `ensign` de la
+fiche, jamais sur l'image. Le build embarque la liste en `Naval.FLAGS_DATA`,
+chaque image devenue ses octets, et ignore en le disant une image absente.
+Relevé : marchand et pirate sous pavillon hollandais, le pirate remarqué à 400 m
+passe au jolly roger et hostile.
+
 **Les réglages vivent dans `settings.json`**, à la racine — le premier fichier de
 réglages de **jeu** et non de navire ou d'objet : intervalle, nombre simultané,
 distances d'apparition et de retrait, part de pirates, distance et champ de la

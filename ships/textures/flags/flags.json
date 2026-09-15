@@ -1,0 +1,26 @@
+{
+  "note": "Pavillons que peut arborer un navire croisé en mer. image : chemin depuis la racine du jeu. nationalite : inséré tel quel dans « C'est un navire … ! ». poids : fréquence relative du tirage (1 par défaut). pirate : true pour le pavillon que hisse un pirate démasqué, jamais tiré pour un marchand.",
+  "flags": [
+    {
+      "id": "france",
+      "image": "ships/textures/flags/flag_marchand_france.jpg",
+      "pays": "France",
+      "nationalite": "français",
+      "poids": 1
+    },
+    {
+      "id": "hollande",
+      "image": "ships/textures/flags/flag_marchand_hollande.jpg",
+      "pays": "Provinces-Unies",
+      "nationalite": "hollandais",
+      "poids": 1
+    },
+    {
+      "id": "jolly-roger",
+      "image": "ships/textures/flags/jolly_roger_1690.jpg",
+      "pays": null,
+      "nationalite": "pirate",
+      "pirate": true
+    }
+  ]
+}
