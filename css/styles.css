@@ -274,6 +274,7 @@
     padding:5px 0;cursor:pointer}
   .gunSide button:hover{border-color:var(--accent);color:var(--accent)}
   .gunSide button.on{background:rgba(70,224,208,.14);border-color:var(--accent);color:var(--accent)}
+  .gunSide button.silenced{color:var(--crit);border-color:rgba(255,92,92,.45);text-decoration:line-through}
   .gunSide button:disabled{opacity:.3;cursor:default;border-color:transparent;color:var(--muted)}
 
   .stowSide{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:8px}

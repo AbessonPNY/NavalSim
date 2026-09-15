@@ -509,6 +509,19 @@ async function main(){
        before the fix, five holes sank a 240-tonne ship in four minutes where
        six took a quarter of an hour to condemn one of 2 000. */
     e.physics.breach(index, 0.10*(k||1)*(k||1), Math.max(0, Math.min(1, local)));
+
+    /* Et le coup démonte les pièces qui étaient derrière le bordé. Le joueur
+       est prévenu, et la console relue : un bord qui se tait doit se voir sur
+       le bouton qu'on s'apprêtait à presser. */
+    const demontees = e.ship && e.ship.woundGuns ? e.ship.woundGuns(world, k) : [];
+    if(demontees.length && e === fleet[0]){
+      const nom = { '1':'tribord', '-1':'bâbord', '2':'en poupe', '-2':'en proue' };
+      const s = demontees[0].side, c = e.ship.gunCount(s);
+      dire((demontees.length > 1 ? demontees.length + ' pièces démontées ' : 'Pièce démontée ')
+           + (Math.abs(s) === 2 ? nom[s] : 'à ' + nom[s])
+           + (c.ok ? ' · ' + c.ok + '/' + c.all + ' en état' : ' · plus une pièce en état'));
+      refreshGuns();
+    }
   };
 
   /* La capture s'écrit dans le dossier du projet quand le serveur de dev est
@@ -1027,12 +1040,16 @@ async function main(){
       function showGunSide(){
         if(!hasGroup(gunSide) && hasGroup(1)) gunSide = 1;
         for(const b of gunSideEls){
-          const s = Number(b.dataset.s);
+          const s = Number(b.dataset.s), c = ship.gunCount ? ship.gunCount(s) : {ok:0, all:0};
           b.classList.toggle('on', s === gunSide);
-          b.disabled = !hasGroup(s);
+          b.disabled = !c.all;                        // ce navire n'a pas ce groupe
+          b.classList.toggle('silenced', c.all > 0 && c.ok === 0);   // il l'avait
         }
-        // la colonne annonce son groupe comme les trois autres annoncent leur valeur
-        if(gunTextEl) gunTextEl.textContent = GUN_NAMES[gunSide];
+        /* La colonne annonce son groupe, et ce qu'il en reste dès qu'il en manque :
+           « Tribord 4/6 ». Un compte plein ne se lit pas, il encombrerait. */
+        const c = ship.gunCount ? ship.gunCount(gunSide) : {ok:0, all:0};
+        if(gunTextEl) gunTextEl.textContent = GUN_NAMES[gunSide]
+          + (c.all && c.ok < c.all ? ' ' + c.ok + '/' + c.all : '');
       }
       for(const b of gunSideEls) b.onclick = ()=>{ gunSide = Number(b.dataset.s); showGunSide(); };
       refreshGuns = showGunSide;
@@ -1058,6 +1075,7 @@ async function main(){
         if(physics.powder <= 0){ dire('Plus une charge en soute'); return; }
         const side = other ? -gunSide : gunSide;      // ⇧ : l'autre bord, une fois
         if(!hasGroup(side)){ dire('Aucune pièce en ' + GUN_NAMES[side].toLowerCase()); return; }
+        if(!ship.gunCount(side).ok){ dire('Plus une pièce en état · ' + GUN_NAMES[side].toLowerCase()); return; }
         const tires = held
           ? guns.broadside(ship.guns, side, physics.body, spec, ocean.windVec, physics.powder)
           : guns.fireOne(ship.guns, side, physics.body, spec, ocean.windVec);
@@ -1106,6 +1124,7 @@ async function main(){
       controls.onSalvage  = ()=> {
         physics.salvage();
         ship.restoreMasts();
+        refreshGuns();                        // ses pièces sont remontées avec le reste
         if(!lost) return;
         const b = physics.body;
         b.pos.y = hud.eqY; b.vel.set(0,0,0); b.angVel.set(0,0,0); b.quat.identity();
@@ -1507,6 +1526,7 @@ async function main(){
   /* Both of them whole again, which is most of what one does between shots. */
   function repairAll(){
     for(const e of fleet){ e.physics.salvage(); e.ship.restoreMasts(); }
+    refreshGuns();
     lost = false; lostMsg.hidden = true;
     ship.group.visible = true;
   }

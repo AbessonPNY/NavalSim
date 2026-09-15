@@ -3022,6 +3022,23 @@ lit le tangage pour un tube dans l'axe exactement comme la gîte pour un tube en
 travers. Toutes les matières « canon » sont lues, plus seulement le premier
 maillage trouvé.
 
+**UN BOULET DANS SON BORDÉ EST UN BOULET DANS SA BATTERIE** (`woundGuns`). Ce qui
+traverse la muraille à hauteur d'une pièce brise son affût, rompt sa brague ou
+tue ses servants, et c'est ainsi qu'un navire se retrouvait avec tout un bord
+réduit au silence pendant que l'autre tirait encore. Chaque pièce prend des
+dégâts selon sa distance au point d'impact, dans une travée de huit centièmes de
+la longueur, et selon le calibre du boulet ; elle est démontée à un. Un boulet de
+sa taille en plein sabord fait 0,8 — il en faut deux au même endroit, ou une pièce
+plus lourde ; un coup à une travée ne fait rien. Les dégâts **s'accumulent**, donc
+un bord percé encore et encore perd ses pièces une à une. Une pièce démontée sort
+simplement de `_battery` : les bordées raccourcissent sans qu'aucun appelant ne le
+sache, la barre automatique des conserves comprise. La console affiche
+« Tribord 5/6 », barre en rouge un groupe réduit au silence, et la réparation
+(`restoreMasts`, déjà appelée par les trois chemins de réparation) remonte tout.
+Relevé : 0,8 puis 1,6 sur la pièce touchée, 0 sur ses voisines, bordée suivante à
+cinq pièces. Pas de rendu : la batterie est un seul maillage, une pièce ne peut
+pas y être cachée seule.
+
 **Une pression, un coup ; la touche maintenue, la bordée.** Un appui fait parler
 une seule pièce, et la batterie se descend d'avant en arrière appui par appui —
 ce qui donne quelque chose à faire entre deux salves et correspond à la manière

@@ -181,7 +181,8 @@ Naval.Guns = class Guns {
 
   _battery(muzzles, side){
     const out = [];
-    for(const g of muzzles) if(g.side === side) out.push(g);
+    // a dismounted piece is simply not in the battery any more
+    for(const g of muzzles) if(g.side === side && !g.out) out.push(g);
     return out;
   }
 

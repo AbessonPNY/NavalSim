@@ -1182,9 +1182,51 @@ Naval.ShipModel = class ShipModel {
     return n;
   }
 
+  /* A BALL IN HER SIDE IS A BALL IN HER GUNDECK. Whatever comes through the
+     planking abreast of a gun smashes its carriage, splits its breeching or
+     kills its crew, and the piece is out of the fight — which is how a ship
+     came to have a whole side silenced while the other was still firing.
+
+     Each piece takes damage by its distance from the hit, inside a bay of
+     eight hundredths of her length (a gundeck's pieces stand about that far
+     apart), and by the calibre of the ball that did it. It is out at one: a
+     ball of her own size squarely on the port does 0,8, so it takes two in the
+     same place, or one heavier gun; a near miss a bay away does nothing. The
+     damage ACCUMULATES, so a side that is hulled again and again loses its
+     guns one by one rather than all at once or never.
+
+     `world` is where the ball struck. Returns the pieces just put out. */
+  woundGuns(world, k){
+    const out = [];
+    if(!world || !this.guns || !this.guns.length) return out;
+    this._gq = this._gq || new THREE.Quaternion();
+    this._gl = this._gl || new THREE.Vector3();
+    const loc = this._gl.copy(world).sub(this.group.position)
+                        .applyQuaternion(this._gq.copy(this.group.quaternion).invert());
+    const R = Math.max(1.5, 0.08*this.spec.L);
+    const blow = 1.6*Math.min(2, k || 1);
+    for(const g of this.guns){
+      if(g.out) continue;
+      const d = loc.distanceTo(g.p);
+      if(d >= R) continue;
+      g.damage = (g.damage || 0) + (1 - d/R)*blow;
+      if(g.damage >= 1){ g.out = true; out.push(g); }
+    }
+    return out;
+  }
+
+  // how many pieces of a group are still fit to fire, and how many she has
+  gunCount(side){
+    let ok = 0, all = 0;
+    for(const g of this.guns) if(g.side === side){ all++; if(!g.out) ok++; }
+    return { ok, all };
+  }
+
   restoreMasts(){
     /* A refit re-reeves her rigging, so every end already hanging is void. The
        epoch says so once instead of every caller having to remember it. */
+    // and remounts her guns: the same refit, and the same three callers
+    for(const g of this.guns || []){ g.out = false; g.damage = 0; }
     this.rigCuts.length = 0;
     this.rigEpoch++;
     for(const c of this.canvases) c.userData.split = false;   // et la toile est renvergée
