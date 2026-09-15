@@ -111,12 +111,12 @@ Naval.jollyTexture = function(){
    whole cloth, head to foot and leech to leech — not a bolt of material to be
    tiled, and a repeat wrap would smear the outermost row of pixels round to
    the far side the moment a coordinate landed a hair outside. */
-Naval.sailTexture = function(src){
+Naval.sailTexture = function(src, what){
   Naval._sailTex = Naval._sailTex || {};
   if(Naval._sailTex[src]) return Naval._sailTex[src];
   const t = new THREE.TextureLoader().load(src, undefined, undefined,
-    () => console.warn('[voile] texture introuvable : ' + src +
-                       ' — la toile reste unie'));
+    () => console.warn('[' + (what || 'voile') + '] texture introuvable : ' + src +
+                       (what ? '' : ' — la toile reste unie')));
   t.colorSpace = THREE.SRGBColorSpace;      // it is artwork, not data
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
   t.anisotropy = 4;                          // she is seen at a glancing angle
@@ -174,9 +174,14 @@ Naval.ShipModel = class ShipModel {
          hence the emissive lift. A BLACK flag wants the opposite: lift it the
          same way and it comes out charcoal, which is a dirty flag and not a
          sinister one. So the device brings its own, much smaller. */
-      flag: (A && A.ensign === 'jolly')
+      /* A PAINTED ensign when the sheet names one (`appearance.ensignMap`), the
+         drawn death's head otherwise. The IMAGE is what flies; whether she is
+         hostile is still read from `ensign` alone, so a sheet can change the
+         picture without changing sides, and vice versa. */
+      flag: (A && (A.ensign === 'jolly' || A.ensignMap))
         ? new THREE.MeshStandardMaterial({
-            map:Naval.jollyTexture(), roughness:0.92, side:THREE.DoubleSide,
+            map: A.ensignMap ? Naval.sailTexture(A.ensignMap, 'pavillon') : Naval.jollyTexture(),
+            roughness:0.92, side:THREE.DoubleSide,
             emissive:0x2a2a2e, emissiveIntensity:0.10 })
         : new THREE.MeshStandardMaterial({
             color:(A && A.ensign) ? parseInt(A.ensign) : 0xf6f4ef,
@@ -202,8 +207,19 @@ Naval.ShipModel = class ShipModel {
       uScar:{ value: Array.from({ length:Naval.SCAR_MAX }, () => new THREE.Vector4()) },
       uScarCount:{ value:0 },
       uScarInv:{ value:new THREE.Matrix4() },   // world → her frame, refreshed in syncTo
-      uScarK:{ value:Math.max(0.5, spec.L/30) }  // a wound scales with the ship that takes it
+      uScarK:{ value:Math.max(0.5, spec.L/30) },  // a wound scales with the ship that takes it
+      // painted impacts, when her sheet names them: one atlas, a row per variant, a column per stage
+      uScarTex:{ value:null },
+      uScarGrid:{ value:new THREE.Vector2(1, 1) },  // stages across, variants down
+      uScarMaps:{ value:0 }                         // 0 until the images are in: drawn strokes meanwhile
     };
+    const maps = spec.appearance && spec.appearance.impactMaps;
+    if(maps && maps.length){
+      const atlas = Naval.impactAtlas(maps);
+      this._scarU.uScarTex.value = atlas.tex;
+      this._scarU.uScarGrid.value.set(atlas.stages, atlas.variants);
+      atlas.ready.then(ok => { if(ok) this._scarU.uScarMaps.value = 1; });
+    }
     this.shell = null;                       // the side a shot has to get through
     this._shareTot = 0;                      // canvas those masts carry between them
     this.canvases = [];                      // the cloth alone — furling hides only this
@@ -1928,14 +1944,29 @@ Naval.ShipModel = class ShipModel {
     }
   }
 
-  /* A HIT LEAVES A MARK, AND A SECOND HIT IN THE SAME PLACE MAKES IT WORSE.
-     One ball scorches the planking and starts it; the same bay hulled again
-     splinters it open to the raw oak; a third leaves a black hole. So a hit
-     close to an existing scar deepens that scar instead of starting another —
-     the same rule as a breach that works rather than multiplies — and what the
-     eye reads, from a cable off, is where she has been fought hardest.
+  /* Hoist another ensign while she is at sea: an image path (or a data: URI),
+     or nothing for the drawn death's head. The picture only — whether she is
+     hostile stays with `appearance.ensign`. In the published page a path must
+     have been carried in by the build, which embeds only what the sheets name. */
+  setEnsignMap(src){
+    const m = this.mats.flag;
+    m.map = src ? Naval.sailTexture(src, 'pavillon') : Naval.jollyTexture();
+    m.color.set(0xffffff);                 // the image carries its own colours
+    m.needsUpdate = true;
+  }
 
-     Strength goes with the calibre that did it, and is capped at four: beyond
+  /* A HIT LEAVES A MARK, AND A SECOND HIT IN THE SAME PLACE MAKES IT WORSE.
+     A hit close to an existing scar deepens that scar instead of starting
+     another — the same rule as a breach that works rather than multiplies —
+     and what the eye reads, from a cable off, is where she has been fought
+     hardest. And NOTHING shows for the first two: a single ball through oak is
+     a hole the size of a fist, invisible at the range she is looked at. The
+     mark comes in from the third, darkens with each one after, opens to raw oak
+     past the fifth and only a bay hulled eight times over shows a hole. The
+     first cut marked every hit at once, black from the first shot, and read as
+     paint thrown at her — signalled from a capture.
+
+     Strength goes with the calibre that did it, and is capped at ten: beyond
      that there is no more ship there to look worse. The list holds twenty-four;
      when it is full the lightest mark gives way, a scorch mattering less than
      a hole. */
@@ -1951,7 +1982,7 @@ Naval.ShipModel = class ShipModel {
     for(const s of this.scars){ const d = s.p.distanceTo(loc); if(d < bd){ bd = d; best = s; } }
     if(best && bd < merge){
       best.p.lerp(loc, 1/(best.w + 1));
-      best.w = Math.min(4, best.w + add);
+      best.w = Math.min(10, best.w + add);
     }else if(this.scars.length < Naval.SCAR_MAX){
       this.scars.push({ p:loc.clone(), w:add });
     }else{
@@ -2099,6 +2130,59 @@ Naval.normalFromHeight = function(src, strength, channel){
 /* How many separate wounds one hull can show at once. */
 Naval.SCAR_MAX = 24;
 
+/* PAINTED IMPACTS, gathered into ONE texture.
+
+   The sheet gives a list of variants, each a list of stages from a light graze
+   to a torn-open wound (`appearance.impactMaps`). GLSL ES 1.0 cannot index an
+   array of samplers, so they are laid out on a canvas, a row per variant and a
+   column per stage, and the shader picks its cell by arithmetic — the same way
+   the hull profiles share one texture a row per ship. Built once per list and
+   shared by every hull that names it.
+
+   Straight alpha, sRGB: they are artwork. Not flipped, so row 0 is the top of
+   the canvas and the shader turns each cell upright itself. Until every image
+   is in, `ready` is pending and the hulls keep their drawn strokes. */
+Naval.impactAtlas = function(list){
+  Naval._impactAtlas = Naval._impactAtlas || {};
+  const key = JSON.stringify(list);
+  if(Naval._impactAtlas[key]) return Naval._impactAtlas[key];
+  const variants = list.length;
+  const stages = Math.max(...list.map(v => v.length));
+  const CELL = 512;
+  const cv = document.createElement('canvas');
+  cv.width = CELL*stages; cv.height = CELL*variants;
+  const tex = new THREE.CanvasTexture(cv);
+  tex.flipY = false;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  const load = src => new Promise(res => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = () => { console.warn('[impacts] image introuvable : ' + String(src).slice(0, 80)); res(null); };
+    im.src = src;
+  });
+  const ready = Promise.all(list.map((v, vi) => Promise.all(v.map((src, si) =>
+    load(src).then(im => ({ im, vi, si }))))))
+    .then(rows => {
+      const g = cv.getContext('2d');
+      let n = 0;
+      for(const row of rows) for(const c of row){
+        if(!c.im) continue;
+        g.drawImage(c.im, c.si*CELL, c.vi*CELL, CELL, CELL);
+        n++;
+      }
+      /* A variant with fewer stages than the others repeats its last one, so
+         a shallow list never shows an empty cell at the deep end. */
+      list.forEach((v, vi) => {
+        for(let si = v.length; si < stages; si++)
+          g.drawImage(cv, (v.length - 1)*CELL, vi*CELL, CELL, CELL, si*CELL, vi*CELL, CELL, CELL);
+      });
+      tex.needsUpdate = true;
+      return n > 0;
+    });
+  return (Naval._impactAtlas[key] = { tex, stages, variants, ready });
+};
+
 /* THE WOUNDS, laid over her own materials rather than painted into a texture.
 
    Painting into her UVs would need a UV at the point of impact — a ray cast
@@ -2107,12 +2191,19 @@ Naval.SCAR_MAX = 24;
    near it is to one: the model's own texture stays untouched, and any hull,
    modelled or built, takes them the same way.
 
-   Three layers, one per degree of harm, all ragged at the rim with noise so a
-   wound is never a disc: CHARRED planking from the first hit, a ring of pale
-   RAW OAK splintered open once it has been hit again, and a black HOLE at the
-   heart of a bay hulled three times over. Colours go into the diffuse term and
-   so are LIT — a scorch in the sun is not the same black as a scorch at night,
-   the lesson of the foam and the smoke. And the burnt wood goes matte.
+   GOUGES, NOT STAINS. A ball glancing along oak does not scorch it, it rips
+   the weathered face off in long pale tears that run WITH the grain — and a
+   round dark patch with a ring of flecks round it read as paint thrown at her,
+   which is how the first cut was judged, with a photomontage of what was wanted
+   instead. So each scar draws a handful of thin strokes of raw wood across the
+   planking: mostly along the hull, each a few degrees off the last, jagged
+   along its length and tapering at both ends, with a faint dark lip where the
+   groove shades. More strokes, and longer, the more often the bay was hit.
+
+   The strokes are laid in the plane of the side they are on — along and up the
+   side for a scar on the flank, across and up for one on the transom — which
+   is read off the scar's own position in her frame. The colour goes into the
+   diffuse term, so it is LIT: fresh oak in the sun, a pale thread at night.
 
    Chained like every other patch, with its own cache key, and before the haze. */
 Naval.applyScars = function(mat, u){
@@ -2127,43 +2218,84 @@ Naval.applyScars = function(mat, u){
     shader.uniforms.uScarCount = u.uScarCount;
     shader.uniforms.uScarInv = u.uScarInv;
     shader.uniforms.uScarK = u.uScarK;
+    shader.uniforms.uScarTex = u.uScarTex;
+    shader.uniforms.uScarGrid = u.uScarGrid;
+    shader.uniforms.uScarMaps = u.uScarMaps;
     shader.vertexShader = 'uniform mat4 uScarInv;\nvarying vec3 vScarP;\n'
       + shader.vertexShader.replace('#include <project_vertex>',
           '#include <project_vertex>\n  vScarP = (uScarInv * modelMatrix * vec4(transformed, 1.0)).xyz;');
     shader.fragmentShader =
         '#define NSCAR ' + Naval.SCAR_MAX + '\n'
       + 'uniform vec4 uScar[NSCAR];\nuniform int uScarCount;\nuniform float uScarK;\nvarying vec3 vScarP;\n'
+      + 'uniform sampler2D uScarTex;\nuniform vec2 uScarGrid;\nuniform float uScarMaps;\n'
       + 'float scarHash(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719)))*43758.5453); }\n'
-      + 'float scarNoise(vec3 p){ vec3 i = floor(p), f = fract(p); f = f*f*(3.0 - 2.0*f);\n'
-      + '  return mix(mix(mix(scarHash(i), scarHash(i + vec3(1.0,0.0,0.0)), f.x),\n'
-      + '                 mix(scarHash(i + vec3(0.0,1.0,0.0)), scarHash(i + vec3(1.0,1.0,0.0)), f.x), f.y),\n'
-      + '             mix(mix(scarHash(i + vec3(0.0,0.0,1.0)), scarHash(i + vec3(1.0,0.0,1.0)), f.x),\n'
-      + '                 mix(scarHash(i + vec3(0.0,1.0,1.0)), scarHash(i + vec3(1.0,1.0,1.0)), f.x), f.y), f.z); }\n'
-      + 'float gScarBurn = 0.0;\n'
       + shader.fragmentShader
-        .replace('#include <map_fragment>',
-          '#include <map_fragment>\n'
-        + '{ float gRaw = 0.0, gHole = 0.0;\n'
-        + '  float n = scarNoise(vScarP*3.1)*0.6 + scarNoise(vScarP*9.3)*0.4;\n'
-        + '  for(int i = 0; i < NSCAR; i++){\n'
-        + '    if(i < uScarCount){\n'
-        + '      float s = uScar[i].w;\n'
-        + '      float R = (0.45 + 0.35*s)*uScarK;\n'
-        + '      float d = distance(vScarP, uScar[i].xyz)/R + (n - 0.5)*0.45;\n'
-        + '      if(d < 1.0){\n'
-        + '        gScarBurn = max(gScarBurn, (1.0 - smoothstep(0.35, 1.0, d))*min(1.0, 0.35 + 0.3*s));\n'
-        + '        float ring = smoothstep(0.25, 0.55, d)*(1.0 - smoothstep(0.55, 0.9, d));\n'
-        + '        gRaw = max(gRaw, ring*step(0.62, scarNoise(vScarP*14.0))*min(1.0, s*0.5));\n'
-        + '        gHole = max(gHole, (1.0 - smoothstep(0.12, 0.22, d))*step(2.5, s));\n'
-        + '      }\n'
-        + '    }\n'
-        + '  }\n'
-        + '  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.028, 0.020, 0.014), gScarBurn*0.85);\n'
-        + '  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.30, 0.18), gRaw);\n'
-        + '  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.004), gHole);\n'
-        + '}')
-        .replace('#include <roughnessmap_fragment>',
-          '#include <roughnessmap_fragment>\n  roughnessFactor = mix(roughnessFactor, 1.0, gScarBurn);');
+        .replace('#include <map_fragment>', [
+          '#include <map_fragment>',
+          '{ float gRaw = 0.0, gLip = 0.0;',
+          '  for(int i = 0; i < NSCAR; i++){',
+          '    if(i < uScarCount){',
+          // nothing to see for the first two balls in a bay: 0 up to the second hit, 1 by the eighth
+          '      float e = clamp((uScar[i].w - 2.0)/6.0, 0.0, 1.0);',
+          '      vec3 c = uScar[i].xyz;',
+          '      float R = (0.45 + 0.75*e)*uScarK;',
+          // the side it is on: the flank runs along z, the transom across x
+          '      bool flank = abs(c.x) > 0.18*(abs(c.z) + 1.0);',
+          '      vec2 q = flank ? vec2(vScarP.z - c.z, vScarP.y - c.y) : vec2(vScarP.x - c.x, vScarP.y - c.y);',
+          '      float sw = uScar[i].w;',
+          /* PAINTED: one variant per scar, a few degrees off the grain, its own
+             size and handedness, all from hashes of where it is — so it is the
+             same mark every frame. Stage 1 at the third ball, stage 2 by the
+             fifth, stage 3 by the seventh, cross-faded in between. */
+          '      if(uScarMaps > 0.5 && sw > 2.0){',
+          '        float h1 = scarHash(c*1.7 + vec3(1.0)), h2 = scarHash(c*2.9 + vec3(2.0)), h3 = scarHash(c*3.7 + vec3(3.0));',
+          '        float S = (1.1 + 0.5*h1)*uScarK;',
+          '        float ang = (h2 - 0.5)*0.45;',
+          '        vec2 dir = vec2(cos(ang), sin(ang)), nrm = vec2(-dir.y, dir.x);',
+          '        vec2 uv = vec2(dot(q, dir), dot(q, nrm))/S + 0.5;',
+          '        if(h3 > 0.5) uv.x = 1.0 - uv.x;',
+          '        if(uv.x > 0.0 && uv.x < 1.0 && uv.y > 0.0 && uv.y < 1.0){',
+          '          float variant = floor(h1*uScarGrid.y*0.999);',
+          '          float st = clamp((sw - 3.0)/2.0, 0.0, uScarGrid.x - 1.0);',
+          '          float s0 = floor(st), s1 = min(s0 + 1.0, uScarGrid.x - 1.0), tt = st - s0;',
+          '          vec2 cell = 1.0/uScarGrid;',
+          // upright in its cell, and kept two texels off the cell border
+          '          vec2 inset = vec2(uv.x, 1.0 - uv.y)*(1.0 - 4.0/512.0) + 2.0/512.0;',
+          '          vec4 T = mix(texture2D(uScarTex, (vec2(s0, variant) + inset)*cell),',
+          '                       texture2D(uScarTex, (vec2(s1, variant) + inset)*cell), tt);',
+          '          diffuseColor.rgb = mix(diffuseColor.rgb, T.rgb, T.a*clamp(sw - 2.0, 0.0, 1.0));',
+          '        }',
+          '      }',
+          '      if(uScarMaps < 0.5 && e > 0.0 && distance(vScarP, c) < R){',
+          '        float strokes = 1.0 + floor(e*4.0);',
+          '        for(int j = 0; j < 5; j++){',
+          '          if(float(j) < strokes){',
+          '            float fj = float(j);',
+          '            float h1 = scarHash(c*1.7 + vec3(fj*13.1, fj*7.3, 1.0));',
+          '            float h2 = scarHash(c*2.3 + vec3(fj*5.9, 3.0, fj*11.7));',
+          '            float h3 = scarHash(c*3.1 + vec3(2.0, fj*17.3, fj*3.7));',
+          '            float ang = (h1 - 0.5)*0.7;',                     // mostly with the grain
+          '            vec2 dir = vec2(cos(ang), sin(ang));',
+          '            vec2 nrm = vec2(-dir.y, dir.x);',
+          '            vec2 o = nrm*(h2 - 0.5)*0.55*R + dir*(h3 - 0.5)*0.4*R;',
+          '            float len = (0.45 + 0.45*h3)*R;',
+          '            float u = dot(q - o, dir);',
+          '            float v = dot(q - o, nrm) + 0.018*uScarK*sin(u*23.0/uScarK + h2*6.28);',   // a torn, jagged line
+          '            float t = abs(u)/len;',
+          '            if(t < 1.0){',
+          '              float w = 0.04*uScarK*(1.0 - t*t)*(0.7 + 0.6*h1);',    // tapering at both ends; wider than true so it holds a pixel
+          '              float a = min(1.0, 0.45 + e);',
+          '              gRaw = max(gRaw, (1.0 - smoothstep(0.35*w, w, abs(v)))*a);',
+          '              gLip = max(gLip, (1.0 - smoothstep(w, 2.6*w, abs(v)))*a*0.35);',
+          '            }',
+          '          }',
+          '        }',
+          '      }',
+          '    }',
+          '  }',
+          '  diffuseColor.rgb *= 1.0 - gLip;',                              // the groove's shadow
+          '  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.46, 0.34, 0.21), gRaw);',   // fresh oak
+          '}'].join('\n'));
   };
   mat.needsUpdate = true;
 };

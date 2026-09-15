@@ -101,7 +101,14 @@
     "timber": "0x6f5334",
     "spar": "0xa8875a",
     "house": "0xc9bda4",
-    "canvas": "0xece4d2"
+    "canvas": "0xece4d2",
+    "impactMaps": [
+      [
+        "ships/textures/impacts/impact_001_stage_1.png",
+        "ships/textures/impacts/impact_001_stage_2.png",
+        "ships/textures/impacts/impact_001_stage_3.png"
+      ]
+    ]
   },
   "camera": {
     "chaseDist": 46,

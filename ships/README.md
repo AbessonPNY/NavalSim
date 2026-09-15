@@ -162,6 +162,43 @@ préceintes et le fil du bois, au-delà le bordé paraît sculpté. Blanc = en
 relief. À ne pas mettre sur une rugosité peinte en aplats, dont chaque bord
 deviendrait une arête.
 
+### Pavillon
+
+```json
+"appearance": { "ensign": "jolly", "ensignMap": "ships/textures/jolly_roger_1690.jpg" }
+```
+
+- `ensign` décide du **camp** : `"jolly"` rend le navire hostile (pirate) ; une
+  couleur (`"0xb22222"`) donne un pavillon uni et pacifique.
+- `ensignMap` décide de l'**image** qui flotte (png, jpg ou webp). Absente, un
+  pavillon `"jolly"` porte la tête de mort dessinée par le code. Les deux sont
+  indépendants : on peut changer l'image sans changer de camp.
+
+Le build embarque l'image dans la page publiée, comme les voiles peintes. En
+cours de partie, `Naval.app.ship.setEnsignMap(chemin)` (ou celui d'une conserve)
+hisse une autre image — dans la page publiée, seulement une image déjà nommée par
+une fiche, puisque le build n'embarque que celles-là.
+
+### Marques d'impact
+
+```json
+"appearance": {
+  "impactMaps": [
+    [ "ships/textures/impacts/impact_001_stage_1.png",
+      "ships/textures/impacts/impact_001_stage_2.png",
+      "ships/textures/impacts/impact_001_stage_3.png" ]
+  ]
+}
+```
+
+Une liste de **variantes**, chacune une liste de **stades** du plus léger au plus
+profond. PNG carré (512 × 512), fond **transparent**, fusion normale, griffure
+centrée et **horizontale** (le fil du bois), avec une marge vide jusqu'au bord.
+Chaque impact tire une variante au hasard, un angle, une taille et un sens ;
+rien n'apparaît avant le troisième coup au même endroit, puis stade 1, 2, 3 au
+fil des coups. Une variante plus courte que les autres répète son dernier stade.
+Sans cette clé, la coque garde des griffures calculées.
+
 `node tools/make-glb.js ships/models/exemple.glb` produit un .glb minimal valide,
 utile comme gabarit.
 

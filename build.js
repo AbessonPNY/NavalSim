@@ -113,6 +113,44 @@ for (const rel of shipList) {
                 (bytes.length/1024).toFixed(1) + ' KB)');
   }
 
+  /* Et le PAVILLON peint, par le même chemin : c'est le chemin lui-même qui
+     devient les octets, et le jeu ne sait pas lequel des deux il a reçu. */
+  const ens = spec.appearance && spec.appearance.ensignMap;
+  if (ens && !/^data:/.test(ens)) {
+    const p = path.join(ROOT, ens);
+    const mime = { '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg',
+                   '.webp':'image/webp' }[path.extname(ens).toLowerCase()];
+    if (!mime) {
+      console.warn('  WARNING: ' + spec.id + ' pavillon : ' + ens + " n'est pas une image embarquable (png, jpg, webp)");
+    } else if (!fs.existsSync(p)) {
+      console.warn('  WARNING: ' + ens + ' is missing — ' + spec.id + ' gardera la tête de mort dessinée');
+      delete spec.appearance.ensignMap;
+    } else {
+      const bytes = fs.readFileSync(p);
+      spec.appearance.ensignMap = 'data:' + mime + ';base64,' + bytes.toString('base64');
+      console.log('  embedded ' + ens + '  (pavillon, ' + (bytes.length/1024).toFixed(1) + ' KB)');
+    }
+  }
+
+  /* Les IMPACTS peints, une liste de variantes à plusieurs stades : chaque
+     chemin devient ses octets, à sa place dans la liste. Les mêmes images
+     nommées par deux fiches sont embarquées deux fois — quelques dizaines de
+     kilo-octets, contre une table de dédoublonnage à tenir. */
+  const imp = spec.appearance && spec.appearance.impactMaps;
+  if (Array.isArray(imp)) imp.forEach((variant, vi) => variant.forEach((src, si) => {
+    if (/^data:/.test(src)) return;
+    const p = path.join(ROOT, src);
+    const mime = { '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg',
+                   '.webp':'image/webp' }[path.extname(src).toLowerCase()];
+    if (!mime || !fs.existsSync(p)) {
+      console.warn('  WARNING: ' + spec.id + ' impact ' + src + (mime ? ' is missing' : " n'est pas une image embarquable"));
+      return;
+    }
+    const bytes = fs.readFileSync(p);
+    variant[si] = 'data:' + mime + ';base64,' + bytes.toString('base64');
+    console.log('  embedded ' + src + '  (impact ' + (vi+1) + '·' + (si+1) + ', ' + (bytes.length/1024).toFixed(1) + ' KB)');
+  }));
+
   shipData[rel] = spec;
   inlined.push(rel);
 }

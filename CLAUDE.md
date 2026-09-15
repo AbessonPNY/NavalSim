@@ -3045,7 +3045,7 @@ pas y être cachée seule.
 propres matériaux, si bien que deux navires du même combat portent chacun leurs
 blessures. Un coup à moins d'une travée d'une marque la creuse au lieu d'en
 ouvrir une autre, la même règle qu'une voie d'eau qui travaille plutôt que de se
-multiplier ; la force suit le calibre et plafonne à quatre ; liste pleine, la
+multiplier ; la force suit le calibre et plafonne à dix ; liste pleine, la
 marque la plus légère cède la place.
 
 **Pas une texture peinte, une liste de points.** Peindre dans les UV demanderait
@@ -3053,17 +3053,54 @@ une coordonnée de texture au point d'impact, donc un lancer de rayon sur le
 maillage à chaque touche, et une coque procédurale n'a pas d'UV du tout. Chaque
 fragment demande plutôt à quelle distance il est d'une marque : la texture du
 modèle reste intacte, et toute coque — modélisée ou construite — les prend de la
-même façon. Trois couches, une par degré, au bord déchiré par du bruit pour
-qu'aucune ne soit un disque : **brûlé** dès le premier coup, un anneau de
-**chêne cru** éclaté au deuxième, un **trou** noir au cœur au troisième. Les
+même façon.
+
+**DES GRIFFURES, PAS DES TACHES**, demandé sur un photomontage après un deuxième
+jet encore en taches brûlées cerclées d'un semis d'éclats, qui se lisait comme de
+la peinture jetée sur la coque. Un boulet qui ripe sur du chêne ne le brûle pas :
+il arrache la face patinée en longues déchirures claires qui courent **avec le
+fil**. Chaque marque dessine donc quelques traits fins de bois cru, surtout le
+long du bordé, chacun dévié de quelques degrés, dentelé sur sa longueur, effilé
+aux deux bouts, avec une lèvre sombre là où le sillon fait ombre — plus nombreux
+et plus longs à mesure que la travée est retouchée, jusqu'à cinq. Tracés dans le
+plan du bord qui les porte, lu sur la position de la marque : le long et en
+hauteur sur un flanc, en travers et en hauteur sur le tableau. Larges de huit
+centimètres, plus qu'une vraie entaille, pour tenir un pixel à la distance d'où
+on la regarde.
+
+**RIEN NE SE VOIT AUX DEUX PREMIERS COUPS**, et c'est la correction d'un premier
+jet signalé à l'usage, capture à l'appui : brûlure quasi noire dès le premier
+boulet, trou au troisième, et la coque avait l'air barbouillée plutôt que
+canonnée. Un boulet dans du chêne fait un trou gros comme le poing, invisible à
+la distance d'où on la regarde. La visibilité suit donc `(force − 2)/6` : nulle
+jusqu'au deuxième coup, pleine au huitième. Relevé à 14 m, coups au même sabord,
+griffures : **0** pixel au 2e coup, **399** au 3e, 1 095 au 5e, 2 848 au 8e, dont
+neuf sur dix plus clairs — contre 22 238 dès le troisième au premier jet.
+
+**ET ELLES SONT PEINTES QUAND LA FICHE LE DIT** (`appearance.impactMaps`), les
+griffures calculées restant le repli : « trop uniformes », et c'était juste — un
+motif tiré de quelques hachages se reconnaît à la troisième marque. La fiche
+donne une liste de **variantes**, chacune une liste de **stades** de gravité ;
+PNG à fond transparent, fusion normale, la griffure horizontale avec le fil.
+
+**Une seule texture**, une ligne par variante et une colonne par stade, assemblée
+sur un canvas au chargement : GLSL ES 1.0 ne sait pas indexer un tableau de
+samplers, et la cellule se choisit donc par arithmétique, comme la ligne de
+profil de chaque coque. Chaque marque tire sa variante, un angle de quelques
+degrés, sa taille et son sens de hachages de sa propre position — donc la même
+marque à chaque image — et se colle dans le plan de son bord, sans UV. Stade 1
+au troisième boulet, fondu vers le 2 au cinquième, 3 au septième. Tant que les
+images ne sont pas chargées, `uScarMaps` vaut zéro et les griffures calculées
+tiennent la place. Le build embarque chaque chemin, deux fiches nommant la même
+image la portant deux fois : quelques centaines de kilo-octets contre une table
+de dédoublonnage. Relevé avec `impact_001` en trois stades : **0 · 379 · 610 ·
+1 326** pixels aux 2e, 3e, 5e et 7e coups, planche de 1 536 × 512. Les
 couleurs vont dans le diffus et sont donc **éclairées** — une brûlure au soleil
 n'est pas le noir d'une brûlure de nuit, la leçon de l'écume et de la fumée — et
 le bois brûlé devient mat. Greffe chaînée avec sa propre clé de cache, **avant**
 la brume, et jamais sur la toile. Le repère du navire est recomposé depuis le
 corps dans `syncTo`, la matrice du groupe étant celle de l'image précédente ; la
-réparation efface tout. Relevé sur la Roter Löwe, trois coups au même sabord et
-un sur l'autre bord : **deux** marques de force 3 et 1, et vue à 14 m **22 238
-pixels** changés, 14 008 assombris et 8 230 éclaircis. Limite : la touche est
+réparation efface tout. Limite : la touche est
 posée sur la boîte du bordé et non sur le maillage, donc près des extrémités, où
 la coque rentre, la marque peut tomber un peu à côté.
 
