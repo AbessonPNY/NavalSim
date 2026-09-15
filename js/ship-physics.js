@@ -99,6 +99,9 @@ Naval.ShipPhysics = class ShipPhysics {
        costs a length test a frame and nothing else. */
     this.moorings = [];
     this.foundered = false;
+    this.trappedAir = 0;                   // m³, what is left to burp up once she is under
+    this._trapFilled = false;
+    this._trapAt = new THREE.Vector3();
     this.pumpOn = true;
     /* Pumps are sized so that ONE modest hole is just beatable and two are not
        — that is the whole tension, and it has to be measured rather than
@@ -281,7 +284,9 @@ Naval.ShipPhysics = class ShipPhysics {
     this.comps = [];
     for(let i=0;i<n;i++) this.comps.push({
       vol:0, cap:0, mid:new THREE.Vector3(),
-      halfB:0, deckY:-Infinity, keelY:Infinity
+      halfB:0, deckY:-Infinity, keelY:Infinity,
+      // air driven out UNDER water since last read, and where it left her
+      air:0, vent:new THREE.Vector3(), over:0
     });
     for(const pr of this.probes){
       const i = Math.min(n-1, Math.max(0,
@@ -323,21 +328,43 @@ Naval.ShipPhysics = class ShipPhysics {
     if(!this.breaches.length && this.floodVol <= 1e-6) return;
     const before = this.floodVol;
 
+    /* EVERY CUBIC METRE THAT COMES IN PUTS ONE OUT, and that is the whole of
+       the air that boils up over a wreck: it is not an effect laid on a sinking,
+       it is the flooding read from the other side. But it only bubbles if the
+       way out is UNDER water. A hull holed low with her deck still dry breathes
+       out through her hatches into the air, and nothing shows on the sea.
+
+       So each compartment's top is sampled first — the same sample the
+       downflooding below always took, merely taken earlier, so the solver's
+       numbers do not move — and whatever is admitted while it is drowned is
+       credited as air leaving at that point. Bookkeeping only: nothing here is
+       read back by the physics. */
+    for(const c of this.comps){
+      if(c.vol >= c.cap){ c.over = 0; continue; }
+      this._pw.set(0, c.deckY, c.mid.z).applyQuaternion(b.quat).add(b.pos);
+      c.over = ocean.sample(this._pw.x, this._pw.z, t) - this._pw.y;
+      if(c.over > 0) c.vent.copy(this._pw);
+    }
+
     for(const br of this.breaches){
       const c = this.comps[br.comp];
       if(c.vol >= c.cap) continue;
       this._pw.set(0, br.y, br.z).applyQuaternion(b.quat).add(b.pos);
       const head = ocean.sample(this._pw.x, this._pw.z, t) - this._pw.y;
       if(head <= 0) continue;
+      const was = c.vol;
       c.vol = Math.min(c.cap, c.vol + 0.62*br.area*Math.sqrt(2*C.G*head)*dt);
+      if(c.over > 0) c.air += c.vol - was;
     }
 
     for(const c of this.comps){
       if(c.vol >= c.cap) continue;
       // deck edge under: she is taking it green, through every opening at once
-      this._pw.set(0, c.deckY, c.mid.z).applyQuaternion(b.quat).add(b.pos);
-      const over = ocean.sample(this._pw.x, this._pw.z, t) - this._pw.y;
-      if(over > 0) c.vol = Math.min(c.cap, c.vol + 0.25*c.halfB*Math.sqrt(2*C.G*over)*dt);
+      if(c.over > 0){
+        const was = c.vol;
+        c.vol = Math.min(c.cap, c.vol + 0.25*c.halfB*Math.sqrt(2*C.G*c.over)*dt);
+        c.air += c.vol - was;
+      }
     }
 
     if(this.pumpOn){
@@ -708,8 +735,9 @@ Naval.ShipPhysics = class ShipPhysics {
   /* Pump her dry and plug every hole — what "réparer" means from the console. */
   salvage(){
     this.breaches.length = 0;
-    for(const c of this.comps) c.vol = 0;
+    for(const c of this.comps){ c.vol = 0; c.air = 0; }
     this.foundered = false;
+    this.trappedAir = 0; this._trapFilled = false;
     this.standing = 1;                    // and her masts are stepped again
     this.whole = 1;                       // et sa toile est renvergée
     this._updateMass();
@@ -952,6 +980,35 @@ Naval.ShipPhysics = class ShipPhysics {
        boarding wave puts the deck under for a second on any hard day. */
     this._underFor = this.submergedFrac > 0.95 ? (this._underFor||0) + dt : 0;
     if(this._underFor > 3) this.foundered = true;
+
+    /* AND SHE GOES ON BREATHING OUT ON THE WAY DOWN. The compartments are
+       filled up to their own highest probe, and once all five are full the
+       flooding has nothing left to admit — so the bubbling would stop dead the
+       moment she was under, which is exactly backwards: a wreck burps for
+       minutes. What the compartments do not describe is the air under the deck
+       beams, in the castles and the lockers, which works loose as she goes.
+
+       A pocket, then, released on an exponential while her highest point is
+       drowned. The EIGHT PER CENT of her hull volume and the twenty seconds are
+       CHOSEN, not measured — there is nothing in this model to measure them
+       against — and they are said so here rather than left to pass for physics. */
+    if(this.foundered && !this._trapFilled){
+      this._trapFilled = true;
+      this.trappedAir = 0.08*this.hullVolume;
+    }
+    if(this.trappedAir > 1e-4){
+      let top = null, topY = -Infinity;
+      for(const c of this.comps){
+        this._pw.set(0, c.deckY, c.mid.z).applyQuaternion(b.quat).add(b.pos);
+        if(this._pw.y > topY){ topY = this._pw.y; top = c; this._trapAt.copy(this._pw); }
+      }
+      if(top && ocean.sample(this._trapAt.x, this._trapAt.z, t) > topY){
+        const out = this.trappedAir*(1 - Math.exp(-dt/20));
+        this.trappedAir -= out;
+        top.air += out;
+        top.vent.copy(this._trapAt);
+      }
+    }
 
     const inWater = submergedVol > 0 ? 1 : 0;
     const vFwd = b.vel.dot(fwd);

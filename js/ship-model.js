@@ -1925,6 +1925,16 @@ Naval.normalFromHeight = function(src, strength, channel){
   t.channel = src.channel;
   t.anisotropy = src.anisotropy;
   t.colorSpace = THREE.NoColorSpace;     // directions, not colours
+  /* The canvas is only a way to get the pixels to the GPU. Kept, it would hold
+     another twelve megabytes for the life of the ship, for nothing: three
+     uploads once and never reads the image again unless someone bumps the
+     texture's version, which nothing here does. So once the upload has
+     happened, the backing store is shrunk away and the reference dropped. */
+  t.onUpdate = () => {
+    t.onUpdate = null;
+    c.width = c.height = 0;
+    t.image = null;
+  };
   t.needsUpdate = true;
   return t;
 };

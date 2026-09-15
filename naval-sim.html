@@ -292,6 +292,7 @@
           <dt><kbd>C</kbd></dt><dd>changer de caméra</dd>
           <dt><kbd>X</kbd></dt><dd>replanter la caméra ici</dd>
           <dt>molette</dt><dd>ouvrir ou fermer la focale</dd>
+          <dt><kbd>L</kbd></dt><dd>la lunette · molette ×10 à ×100</dd>
         </dl>
       </section>
       <section>
@@ -365,6 +366,7 @@
 <script src="js/helm.js"></script>
 <script src="js/rain.js"></script>
 <script src="js/splash.js"></script>
+<script src="js/wreck-air.js"></script>
 <script src="js/cordage.js"></script>
 <script src="js/purse.js"></script>
 <script src="js/world.js"></script>
@@ -375,6 +377,7 @@
 <script src="js/explosion.js"></script>
 <script src="js/guns.js"></script>
 <script src="js/capture.js"></script>
+<script src="js/spyglass.js"></script>
 <script src="js/ship-model.js"></script>
 <script src="js/ship-physics.js"></script>
 <script src="js/controls.js"></script>
@@ -550,6 +553,9 @@ async function main(){
   const rain = new Naval.Rain(stage.scene);
   const splash = new Naval.Splash(stage.scene, stage);
   guns.onSplash = (at, water, speed, jet) => splash.burst(at, water, speed, jet);
+  /* L'air qui remonte d'une épave : il est lu sur l'envahissement que le
+     solveur calcule déjà, et rendu par la gerbe et le champ d'écume. */
+  const wreckAir = new Naval.WreckAir(splash, foam);
 
   /* Les bouts rompus qui pendent d'un mât touché. Une seule réserve pour toute
      la flotte et un seul appel de dessin : les navires DEMANDENT leurs bouts,
@@ -904,7 +910,7 @@ async function main(){
     sel.appendChild(o);
   });
 
-  let spec, lines, ship, physics, cam, hud, t = 0, trimPending = false, lost = false;
+  let spec, lines, ship, physics, cam, hud, spyglass, t = 0, trimPending = false, lost = false;
   let startHeading = 0, startPort = null, mooringsPending = false, atBerth = false;
   let berthOff = 0;
   const berthAt = new THREE.Vector3();
@@ -1011,6 +1017,15 @@ async function main(){
       showGunSide();
 
       controls.onShot = ()=> capture.take();
+      /* LA LUNETTE. Elle prend la position de la caméra en cours et lui vole
+         sa visée, sa focale, le glisser et la molette tant qu'elle est à l'œil.
+         La capture la redessine avant de lire, sans quoi l'image sortirait
+         sans oculaire. */
+      spyglass = new Naval.Spyglass(stage, canvas, cam);
+      spyglass.onChange = (on, power) =>
+        dire(on ? 'Lunette ×' + Math.round(power) : 'Lunette rangée');
+      controls.onSpyglass = ()=> spyglass.toggle();
+      capture.post = ()=> spyglass.render();
       /* LA POUDRE SE CONSOMME, une charge par coup, et c'est ce qui donne un
          prix à une bordée. Débitée sur ce que les pièces ont RÉELLEMENT tiré —
          `fireOne` et `broadside` rendent toutes deux leur compte — plutôt que
@@ -1584,8 +1599,13 @@ async function main(){
     const rows = fleetEls.list.children;
     for(let i=0;i<rows.length && i<fleet.length;i++){
       const sp = rows[i].querySelector('.sp');
-      if(sp) sp.textContent =
-        Math.round(Math.hypot(fleet[i].body.vel.x, fleet[i].body.vel.z)*1.94384) + ' nds';
+      if(!sp) continue;
+      /* Une épave n'a pas de vitesse, elle a un sort : « 0 nds » sur une coque
+         qui descend se lirait comme un navire en panne qu'on peut encore mener. */
+      const coule = !!(fleet[i].physics && fleet[i].physics.foundered);
+      sp.classList.toggle('sunk', coule);
+      sp.textContent = coule ? 'coulé'
+        : Math.round(Math.hypot(fleet[i].body.vel.x, fleet[i].body.vel.z)*1.94384) + ' nds';
     }
   }
 
@@ -1839,7 +1859,8 @@ async function main(){
                 get physics(){ return physics; }, get ship(){ return ship; },
                 get cam(){ return cam; }, get hud(){ return hud; },
                 world, land, gulls, chart, blast, guns, takeHelm, weather, rain, splash,
-                cordage, purse, parler, tempete, sound,
+                cordage, purse, parler, tempete, sound, wreckAir,
+                get spyglass(){ return spyglass; },
                 storms, get squall(){ return squall; },
                 get fleet(){ return fleet; } };
 
@@ -2094,6 +2115,7 @@ async function main(){
       foam.rebase(dx, dz);
       cam.rebase(dx, dz);
       splash.rebase(dx, dz);
+      wreckAir.rebase(dx, dz);
       blast.rebase(dx, dz);
       guns.rebase(dx, dz);
       cordage.rebase(dx, dz);
@@ -2146,6 +2168,7 @@ async function main(){
 
     stage.aimSun(physics.body.pos);       // the shadow box travels with her
     cam.update(dt, physics.body, ocean, t);
+    spyglass.aim(dt);                       // after the rig: its position, the glass's aim
     fleet[0].afloat = physics.afloat;
     ocean.trackShips(fleet);
     stage.renderer.getDrawingBufferSize(ocean.uniforms.uShipRes.value);
@@ -2189,6 +2212,8 @@ async function main(){
     // every hull afloat is something a ball may find, her own excepted
     guns.targets = fleet;
     guns.update(dt, ocean.windVec, ocean, t);
+    // before splash.update, which draws what it throws, and before foam.update, which lays its boils
+    wreckAir.update(dt, fleet, ocean, t);
     splash.update(dt);
     cordage.update(dt, fleet, t, stage.camera.position);
     hud.update(dt);
@@ -2339,6 +2364,7 @@ async function main(){
     ocean.renderReflection(stage.renderer, stage.scene, stage.camera);
     rain.group.visible = wasRaining;
     stage.render();
+    spyglass.render();                      // the eyepiece, over the finished picture
     requestAnimationFrame(frame);
   }
 

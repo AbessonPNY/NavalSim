@@ -20,6 +20,7 @@ Naval.Capture = class Capture {
   constructor(stage){
     this.stage = stage;
     this.onDone = null;      // wired by the page, to say where it went
+    this.post = null;        // a pass drawn after the scene, redrawn before the grab
     this.busy = false;
   }
 
@@ -49,6 +50,8 @@ Naval.Capture = class Capture {
       }
 
       this.stage.render();
+      // whatever is drawn OVER the scene — the spyglass — must be in the grab too
+      if(this.post) this.post();
       const url = cv.toDataURL('image/png');
 
       /* The dev server writes into the project. Tried first because it is the

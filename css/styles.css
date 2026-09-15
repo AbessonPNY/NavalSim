@@ -289,6 +289,7 @@
   .fleetRow{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px}
   .fleetRow .nm{flex:1;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .fleetRow .sp{color:var(--muted);font-variant-numeric:tabular-nums}
+  .fleetRow .sp.sunk{color:var(--crit)}
   .fleetRow.helm .nm{color:var(--accent)}
   .fleetRow button{background:none;border:0;color:var(--muted);cursor:pointer;
     font-family:var(--mono);font-size:12px;line-height:1;padding:2px 4px;border-radius:3px}

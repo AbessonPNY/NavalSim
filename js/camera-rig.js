@@ -28,6 +28,7 @@ Naval.CameraRig = class CameraRig {
     this.btn = btn;
     this.note = note;
     this.mode = 0;
+    this.held = false;           // true while the spyglass has the drag and the wheel
     this.setSpec(spec);
 
     this.orbitYaw = 2.4; this.orbitPitch = 0.32; this.orbitDist = this.cam.orbitDist;
@@ -49,7 +50,8 @@ Naval.CameraRig = class CameraRig {
     canvas.addEventListener('pointerdown', e=>{ dragging=true; px=e.clientX; py=e.clientY; });
     addEventListener('pointerup', ()=> dragging=false);
     addEventListener('pointermove', e=>{
-      if(!dragging) return;
+      // the spyglass is at the eye: the drag is its own, not the camera's
+      if(!dragging || this.held) return;
       const dx=e.clientX-px, dy=e.clientY-py;
       if(this.mode===0 || this.mode===3){    // train a planted camera by hand
         this.fixedYaw -= dx*0.004;
@@ -64,7 +66,8 @@ Naval.CameraRig = class CameraRig {
       px=e.clientX; py=e.clientY;
     });
     canvas.addEventListener('wheel', e=>{
-      if(this.mode !== 1){                   // zoom the lens, keeping the camera put
+      if(this.held) return;
+      if(this.mode !== 1){                  // zoom the lens, keeping the camera put
         camera.fov = Math.max(12, Math.min(75, camera.fov + e.deltaY*0.02));
         camera.updateProjectionMatrix();
       }else{

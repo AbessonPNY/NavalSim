@@ -108,6 +108,7 @@ Naval.Controls = class Controls {
          clear of the letters an AZERTY keyboard moves about. */
       if(k==='j' && this.onDebug) this.onDebug();
       if(k==='i' && this.onShot) this.onShot();       // I comme image
+      if(k==='l' && !e.repeat && this.onSpyglass) this.onSpyglass();   // L comme lunette
       /* G to starboard, shift for the other side: one mnemonic, two batteries.
          A TAP is one gun; HOLDING it is the whole broadside. The two are told
          apart by the browser's own auto-repeat flag rather than by a timer of

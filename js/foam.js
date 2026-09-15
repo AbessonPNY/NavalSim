@@ -69,11 +69,14 @@ Naval.FoamField = class FoamField {
       uHullEnds: oceanUniforms.uHullEnds,
       uShipSpeed: oceanUniforms.uShipSpeed,
       uShipAfloat: oceanUniforms.uShipAfloat,
+      // where air is breaking the surface: x, z (local), radius, strength
+      uBoil:{value:Array.from({length:FoamField.NBOIL}, () => new THREE.Vector4())},
+      uBoilCount:{value:0},
     };
 
     this.mat = new THREE.ShaderMaterial({
       uniforms:this.uniforms,
-      defines:{NW:C.NWAVES_FOAM, NSHIP:C.MAX_SHIPS},
+      defines:{NW:C.NWAVES_FOAM, NSHIP:C.MAX_SHIPS, NBOIL:FoamField.NBOIL},
       vertexShader:`
         varying vec2 vUv;
         void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
@@ -83,8 +86,17 @@ Naval.FoamField = class FoamField {
         uniform vec2 uOffsetUV, uOrigin;
         uniform float uDecay, uSize, uTexel, uTime, uSeed;
         uniform vec4 uWaveA[NW]; uniform vec2 uWaveB[NW]; uniform float uWavePhase[NW];
+        uniform vec4 uBoil[NBOIL]; uniform int uBoilCount;
         varying vec2 vUv;
         ${Naval.HULL_GLSL}
+
+        float boilHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7)))*43758.5453); }
+        float boilNoise(vec2 p){
+          vec2 i = floor(p), f = fract(p);
+          f = f*f*(3.0 - 2.0*f);
+          return mix(mix(boilHash(i), boilHash(i + vec2(1.0,0.0)), f.x),
+                     mix(boilHash(i + vec2(0.0,1.0)), boilHash(i + vec2(1.0,1.0)), f.x), f.y);
+        }
 
         void main(){
           vec2 wpos = uOrigin + vUv*uSize;      // world XZ of this texel
@@ -146,8 +158,30 @@ Naval.FoamField = class FoamField {
           hull = max(hull, max(band * (0.06 + 1.0*way), wing*0.85) * uShipAfloat[i]);
           }}
 
+          /* --- and where air from a wreck is breaking the surface ---
+             Not a disc: a boil is a patch of heaving cells, water shouldered
+             aside by each slug of air as it arrives. Two octaves of noise
+             drifting against each other give it cells that churn in place,
+             and the rim is ragged because the noise eats into it. What stays
+             behind is carried and faded by the field like any other foam, so
+             the remous lingers where she went down after the air has stopped. */
+          float boil = 0.0;
+          for(int i=0;i<NBOIL;i++){
+          if(i < uBoilCount){
+            vec2 rel = wpos - uBoil[i].xy;
+            float d = length(rel)/uBoil[i].z;
+            if(d < 1.0){
+              float n = 0.65*boilNoise(wpos*0.55 + vec2(uTime*0.35, -uTime*0.21))
+                      + 0.35*boilNoise(wpos*1.40 - vec2(uTime*0.60,  uTime*0.47));
+              // a solid heart where the air breaks, torn into cells toward the rim
+              float body = 1.0 - smoothstep(0.25, 1.0, d + (n - 0.5)*0.55);
+              float cells = mix(1.0, smoothstep(0.28, 0.58, n), smoothstep(0.15, 0.75, d));
+              boil = max(boil, uBoil[i].w * body * cells);
+            }
+          }}
+
           // deposit, never accumulate past saturation
-          gl_FragColor = vec4(clamp(max(prev, max(breaking, hull)), 0.0, 1.0), 0.0, 0.0, 1.0);
+          gl_FragColor = vec4(clamp(max(prev, max(max(breaking, hull), boil)), 0.0, 1.0), 0.0, 0.0, 1.0);
         }`
     });
 
@@ -157,6 +191,15 @@ Naval.FoamField = class FoamField {
   }
 
   get texture(){ return this.targets[this.cur].texture; }
+
+  /* The boils to lay down this frame, strongest first, in the local frame.
+     Sixteen is a budget per frame, not a limit on the sea: the field keeps what
+     was laid, so a boil left out for a frame is not missed. */
+  setBoils(list){
+    const u = this.uniforms.uBoil.value, n = Math.min(list.length, FoamField.NBOIL);
+    for(let i = 0; i < n; i++) u[i].set(list[i].x, list[i].z, list[i].r, list[i].w);
+    this.uniforms.uBoilCount.value = n;
+  }
 
   /* The world slid under us. The field is anchored in world space, so its
      anchors move with it — and both of them must, or the next frame's resample
@@ -203,6 +246,8 @@ Naval.FoamField = class FoamField {
 
     this.cur = 1 - this.cur;
   }
+
+  static get NBOIL(){ return 16; }
 
   dispose(){
     this.targets.forEach(t => t.dispose());

@@ -28,6 +28,8 @@ logique est dans `js/`, en classes attachées à un espace de noms global `Naval
 | `config.js` | constantes du monde (ρ, g, grille de sondes, liste de repli des navires) |
 | `weather.js` · `storms.js` | le vent qui se conduit seul · les dépressions, qui ont un lieu |
 | `rain.js` · `splash.js` | le rideau de pluie · l’eau jetée par ce qui tombe dedans |
+| `wreck-air.js` | l’air qui remonte d’une épave, et le temps qu’il met à venir |
+| `spyglass.js` | la lunette : une focale étroite, puis un verre qui a vu la mer |
 | `ship-spec.js` | lit une fiche JSON et en **dérive** tout ce que le solveur consomme |
 | `hull-lines.js` | le plan de formes, en fonctions pures |
 | `stage.js` | renderer, scène, lumière, ciel |
@@ -1346,6 +1348,82 @@ le champ d'écume. Sans lui, un anneau d'écume reste à la surface au-dessus d'
 épave, avec rien dessous — et le champ étant persistant, il y traînerait encore
 une trentaine de secondes.
 
+**L'AIR QUI REMONTE D'UNE ÉPAVE N'EST PAS UN EFFET POSÉ SUR LE NAUFRAGE, c'est
+l'envahissement lu de l'autre côté** (`wreck-air.js`). Chaque mètre cube qui
+entre en chasse un d'air, et le solveur savait déjà combien entre et où. Il le
+crédite désormais au compartiment (`c.air`) — **à condition que la sortie soit
+sous l'eau** : une coque percée bas dont le pont est encore sec expire par ses
+écoutilles, dans l'air, et rien ne se voit sur la mer. Pure comptabilité, rien
+n'est relu par la physique, et l'échantillon du sommet de compartiment est
+celui que l'envahissement par le pont prenait déjà, simplement pris plus tôt.
+
+**Et il met le temps de remonter**, ce qui est l'essentiel — la même idée que le
+son d'un canon. Une poche monte à la vitesse de sa propre taille, la calotte
+sphérique de Davies-Taylor, `U ≈ 0,71·√(g·r)` : un mètre cube fait deux mètres
+par seconde, donc depuis une épave posée par soixante-six mètres il arrive
+**quarante secondes** après être parti. Relevé sur le pirate sabordé en eau
+profonde, poche piégée alors à 5 % : premières gerbes à 3 s, coulé à 9,6 s,
+**dernières à 140 s** — le
+bouillonnement dure deux minutes après qu'elle a disparu, et s'éteint au lieu de
+s'arrêter. Le panache s'élargit en montant (`0,4 + 0,12·profondeur`), si bien
+qu'un bouillon au-dessus d'une épave profonde est large et lent.
+
+L'air sort **par bouffées** et non en filet, la taille suivant le débit : une
+cale qui embarque en grand crache de grosses poches plusieurs fois par seconde,
+les dernières poches d'une épave remontent une à une, à des secondes d'écart.
+Ce qui arrive passe par deux machineries existantes — une gerbe basse dans
+`splash.js`, et un **bouillon** dans le champ d'écume persistant, qui est ce qui
+reste : cœur plein, bord déchiré en cellules par deux octaves de bruit qui
+dérivent l'une contre l'autre, et le champ le porte et l'efface comme toute
+écume. Il n'a rien à voir avec la houle, donc aucune parité à tenir entre les
+trois calculateurs.
+
+**Une poche piégée, et ses chiffres sont CHOISIS.** Les compartiments se
+remplissent jusqu'à leur plus haute sonde ; une fois pleins, l'envahissement n'a
+plus rien à admettre et le bouillonnement s'arrêterait net à l'instant où elle
+passe sous l'eau — exactement à l'envers. Ce que les compartiments ne décrivent
+pas est l'air sous les barrots, dans les châteaux et les coffres. Huit pour cent
+du volume de coque, rendus sur vingt secondes tant que son point le plus haut
+est noyé : rien dans ce modèle ne permet de les mesurer, et c'est écrit sur place.
+
+**Le bouillon caché par son propre bordé, et c'est la mesure qui l'a trouvé.**
+Posé à l'aplomb de la sortie, sur l'axe du pont, il était invisible pendant toute
+la descente : le pirate était immergé à 98 % pour le solveur, seize bouillons en
+place au-dessus de son pont, et pas un ne se voyait — son modèle se tient trois
+mètres plus haut que ses lignes de solveur, l'écart déjà consigné pour le
+boulet. Une part des bouffées est donc portée **à sa flottaison, par le travers
+de la sortie** — l'air sort aussi par les sabords et la lisse — et cette part
+s'éteint quand la profondeur dépasse son creux et que le panache se referme sur
+elle.
+
+Coût : **0,002 ms** de processeur par image ; la passe d'écume, synchronisée par
+une lecture de pixel, 0,87 ms sans bouillon contre 1,28 avec seize grands
+bouillons, dans un bruit de 0,5 à 1,8 — et seulement pendant un naufrage. Le
+champ ne couvre que 620 m autour du navire commandé : une conserve qui sombre
+plus loin gerbe, mais ne laisse pas de remous.
+
+**LE DERNIER SOUPIR, demandé comme du théâtre, et il a une vraie cause** — seule
+raison pour laquelle il a le droit d'être là. L'air des châteaux et de sous le
+pont supérieur n'a nulle part où aller tant qu'un bout en reste hors de l'eau ;
+à l'instant où le plus haut est noyé, tout part d'un coup. Ce n'est donc pas une
+gerbe posée par-dessus : c'est **la poche piégée**, dont six dixièmes partent en
+un souffle au lieu de s'égoutter, à l'endroit qui a sombré en dernier. Une
+grande gerbe puis deux plus petites le long de sa longueur, à 0,2 et 0,45 s :
+une seule se lit comme une chose qui crève la surface, l'échelonnement comme un
+navire qui lâche tout. Tirées avec le facteur `jet` de `splash.js`, celui du cas
+étroit et violent.
+
+**Lu sur la coque VISIBLE, pas sur celle du solveur**, pour la raison du
+paragraphe précédent : `ship.shell` est le propre bordé du modèle découpé dans les
+compartiments, et il part quand tous ses sommets sont à trente centimètres sous
+la mer. Une coque procédurale n'en a pas, et là les compartiments du solveur
+SONT ce qui est dessiné. Relevé sur le pirate sabordé : coulé à 9,6 s, **dernier
+soupir à 10,5 s**, 32 m³ d'un coup, 831 gouttes en l'air la demi-seconde
+suivante.
+
+**Le panneau Flotte dit « coulé »** à la place de « 0 nds » : une épave n'a pas
+de vitesse, elle a un sort.
+
 **Une voie d'eau s'aggrave, elle ne se multiplie pas.** `worsenBreach()` double
 l'aire du même trou à chaque appel et le laisse gagner les compartiments voisins
 une fois passée une largeur de bordé, plutôt que d'ouvrir des trous indépendants :
@@ -1618,7 +1696,13 @@ presque pas de pente dans ce sens ; la vue de dessus le tranche (0,49 contre
 0,29). Réglé à 16 : à 6 rien ne se voyait, même rasant.
 
 Coût : **63 ms** au chargement pour 2048 × 1536, et une texture de plus en
-mémoire vidéo. La vraie facture est ailleurs : l'exportateur réécrit la
+mémoire vidéo (16 Mo avec ses mipmaps). **Rien par image** : coque plein écran,
+1,94 ms sans contre 1,97 avec au meilleur essai, dans un bruit de 1,9 à 3,6.
+Le canvas de travail, lui, gardait 12 Mo côté navigateur pour rien : il est
+vidé dans `onUpdate`, c'est-à-dire **après** l'envoi — three ne relit jamais
+l'image tant que personne ne relève la version de la texture. Vérifié : image à
+`null`, texture toujours liée, relief toujours dessiné, et une carte neuve
+refaite puis libérée à chaque changement de navire. La vraie facture est ailleurs : l'exportateur réécrit la
 rugosité en **PNG de 1,15 Mo**, et la page construite passe de 3,4 à 5,2 Mo.
 
 **Le compas : c'est la CARTE qui tourne.** La ligne de foi reste en haut et la
@@ -4336,6 +4420,51 @@ appel — le constructeur appelle donc `setMode(0)` pour de bon, et `update`
 plante à la première image si personne ne l'a fait. Même raison pour
 `setSpec` : un nouveau navire n'est pas là où était l'ancien, la station est
 donc reprise.
+
+**LA LUNETTE, sur `L`, est deux choses faites à deux endroits** (`spyglass.js`).
+Le **grossissement** est celui de la caméra : le monde est rendu par le même
+renderer à travers une focale cent fois plus étroite, avec toutes ses passes —
+mer, reflet, ombres, coque vue à travers l'eau. Rien n'est agrandi après coup,
+donc une coque à deux milles est dessinée avec le détail qu'elle a. Le **verre**
+est une passe posée sur l'image finie : l'écran est recopié dans une texture
+(`copyFramebufferToTexture`) et redessiné à travers l'oculaire. Le barillet ne
+peut pas vivre dans la scène — il plie l'image, et seul ce qui tient l'image
+peut la plier.
+
+**La règle du grossissement est énoncée, pas réglée.** Le disque occupe 84 % de
+la hauteur ; l'écran fait 55° à l'œil nu, donc le disque en couvre 46°. À ×M il
+doit tenir 46°/M du monde réel : la focale verticale vaut **55°/M**, soit 0,55° à
+×100. La molette est le tube, de ×10 à ×100, et le glisser vise avec une
+sensibilité divisée d'autant ; la caméra en cours garde sa position mais lui cède
+la visée, la focale, le glisser et la molette (`rig.held`). Une main ne tient pas
+une lunette immobile : trois sinus de quelques centièmes de degré, rien à l'œil
+nu, une respiration visible à ×100.
+
+**Le barillet est dans la FORME de la courbe, pas dans sa portée.** Écrit
+`p·(1 + k·r²)`, il allait chercher l'image au-delà du cadre en haut et en bas du
+disque, qui revenaient noirs ; divisé par `1 + k`, le bord retombe sur le bord et
+il ne reste que ce qui fait un barillet — le milieu tenu grand, le bord tassé.
+Trois `k` légèrement différents par canal donnent les franges d'un objectif à
+lentille unique, et le bord se ramollit, le champ étant courbe.
+
+**Le verre abîmé est dessiné une fois, et ne passe PAS par un canvas pour finir.**
+Quatre calques dans quatre canaux, chacun lu autrement : les rayures (tournantes
+de polissage et franches) accrochent la lumière qui traverse et disparaissent donc
+la nuit, la trace de pouce blanchit et éteint le contraste, la poussière ombre, et
+la fêlure partie d'un éclat du bord brille **et décale l'image** de part et d'autre
+de sa ligne — c'est ce qui la lit comme du verre cassé plutôt que comme un cheveu
+sur l'objectif. Assemblés en `DataTexture` et non sur un canvas : un canvas stocke
+ses pixels prémultipliés, et la fêlure vit dans l'alpha comme une donnée — partout
+où le verre est intact, c'est-à-dire presque partout, les trois autres canaux
+seraient revenus à zéro.
+
+**Deux pièges de banc, qui ont fait croire à une panne.** Visée sur une île à
+13 km, la lunette montrait un disque bleu uni : ce n'était pas la copie, c'était
+**la brume**, réglée pour huit kilomètres — une lunette ne perce pas l'air, et
+l'image sans oculaire était tout aussi unie. Puis un disque beige uni : l'œil posé
+pour l'essai était **dans la colline**. Vérifier la scène sans la passe avant de
+soupçonner la passe. Et la capture d'écran redessine la lunette avant de lire
+(`capture.post`), sans quoi l'image sortirait sans oculaire.
 
 **Les touches sont passées dans un MÉMENTO, sur `F1`.** Elles vivaient sous les
 curseurs, en sept rangées de `kbd` empilées dans les colonnes de la console de
