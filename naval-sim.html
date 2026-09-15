@@ -1695,7 +1695,10 @@ async function main(){
     enabled:true, intervalMin:360, intervalMax:720, maxAtOnce:2, spawnMin:4000, spawnMax:5000,
     despawn:9000, pirateChance:0.25, noticeDistance:600, spyglassRange:7000, spyglassField:0.8,
     landDistance:2500, spawnFromLand:1500, clearWater:400,
-    exclude:['bouee-canard'] } };
+    exclude:['bouee-canard'] },
+    // ce qu'un naufrage laisse : une bouteille une fois sur N (0 = jamais)
+    wreck: { bottleOneIn:6 } };
+  flotsam.bottleOneIn = () => REGLAGES.wreck.bottleOneIn;
   (async ()=>{
     let s = Naval.SETTINGS;
     if(!s){ try{ const r = await fetch('settings.json', { cache:'no-cache' }); if(r.ok) s = await r.json(); }catch(e){} }

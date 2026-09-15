@@ -2,7 +2,7 @@
   "note": "Objets du monde qui ne sont pas des navires. scale : taille (1 = taille dessinee). glb : chemin d'un modele (null = dessine par le code), oriente par rotation en degres [x, y, z]. draft : enfoncement en metres. life : duree a flot en secondes.",
   "wreck": {
     "debrisMin": 1,
-    "debrisMax": 2
+    "debrisMax": 6
   },
   "plank": {
     "name": "Planche",
@@ -27,13 +27,20 @@
     "rotation": [0, 0, 0],
     "draft": 0.05,
     "life": 1800,
-    "chance": 0.35,
     "pickupRadius": 10,
-    "pickupSpeed": 1.03
+    "pickupSpeed": 1.03,
+    "halo": {
+      "enabled": true,
+      "radius": 1.1,
+      "color": "#a8ecff",
+      "intensity": 1.0,
+      "mark": 0.032,
+      "markFrom": 60
+    }
   },
   "cargo": {
     "name": "Cargaison échouée",
-    "scale": 1.0,
+    "scale": 2.0,
     "glb": null,
     "rotation": [0, 0, 0],
     "claimRadius": 180,

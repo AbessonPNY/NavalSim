@@ -3654,7 +3654,7 @@ naufrage est lu sur `physics.foundered`, pour chaque coque de la flotte et une
 seule fois (`WeakMap`) — rien n'a eu à prévenir le module. Planches et tonneaux
 sont du **décor**, et c'est voulu : ils marquent l'endroit, et une mer avec un
 tonneau dessus se lit comme un lieu où il s'est passé quelque chose. La bouteille,
-un naufrage sur trois, est la seule chose qu'on repêche — et le navire qu'on
+un naufrage sur six, est la seule chose qu'on repêche — et le navire qu'on
 commande n'en jette pas, une bouteille étant le dernier geste de quelqu'un.
 
 Ils **remontent** de l'épave, flottent sur la hauteur de la houle et s'inclinent
@@ -3665,6 +3665,19 @@ l'origine à chaque image, comme la terre : rien à décaler au recentrage. La
 bouteille est dessinée trois fois nature, un vrai flacon étant un point à une
 longueur de coque, et **portée sur la carte** (`chart.marks`) d'un point cerclé :
 sans quoi on ne la retrouverait jamais dans la houle.
+
+**ET ELLE EST DANS UNE BULLE**, demandé sur une image parce qu'on la perdait dans la
+houle : une sphère de savon plutôt qu'une lumière — presque rien de face, claire au
+bord (Fresnel), la dérive arc-en-ciel d'un film mince, un reflet du soleil et
+quelques étincelles qui courent dessus. Ajoutée à l'image sans écrire de
+profondeur, donc elle ne cache ni la bouteille ni ce qui est derrière, mais testée
+en profondeur, donc la mer la coupe à la flottaison ; `clipping:true`, la leçon du
+câble d'ancre. Elle **émet** — seule chose ici qui doive luire, et la nuit est
+justement quand il faut encore la trouver. Au-delà de `markFrom` (60 m) une lueur
+tenue à quelques pixels quelle que soit la distance prend le relais, la lueur
+lointaine de la lanterne. Réglages dans `bottle.halo` de `Props.json`, taille en
+mètres quelle que soit l'échelle de la bouteille. Relevé : à 8 m, 3,7 % de l'image
+éclairée, +32 en moyenne et +188 au bord ; à 300 m, la marque seule.
 
 **On la repêche en passant** : à moins de dix mètres et de deux nœuds. Ce qu'elle
 contient se tire **à l'ouverture** et non au naufrage — ce qu'on lit dépend de qui
@@ -3688,8 +3701,11 @@ déjà, et « de Le Carénage » — `deNom` et `aNom` contractent l'article.
 **Leurs réglages vivent dans `props/Props.json`**, un bloc par objet : `scale`,
 `glb` (null = dessiné par le code) et `rotation` pour orienter un modèle,
 `draft` (enfoncement en mètres, non mis à l'échelle), `life`, et pour la bouteille
-et la cargaison leurs probabilité, rayon et vitesse de repêchage ; `wreck` borne
-le nombre de débris. Le fichier l'emporte champ par champ sur
+et la cargaison leurs rayon et vitesse de repêchage ; `wreck` borne le nombre de
+débris. **La fréquence de la bouteille n'y est plus** : c'est une règle de jeu et
+non une propriété de l'objet, donc elle vit dans `settings.json`
+(`wreck.bottleOneIn`, 6 — une fois sur six, 0 pour jamais), que la page passe au
+module (`flotsam.bottleOneIn`). Relevé sur 1 200 naufrages : 16,5 %. Le fichier l'emporte champ par champ sur
 `Naval.PROPS_DEFAULTS`, qui porte les mêmes valeurs — un fichier absent ou à moitié
 écrit ne change rien. Servi par le serveur de développement, embarqué par le build
 en `Naval.PROPS_DATA` avec les octets de tout `.glb` nommé, exactement comme une

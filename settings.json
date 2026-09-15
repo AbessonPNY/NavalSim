@@ -16,5 +16,8 @@
     "spawnFromLand": 1500,
     "clearWater": 400,
     "exclude": ["bouee-canard"]
+  },
+  "wreck": {
+    "bottleOneIn": 6
   }
 }

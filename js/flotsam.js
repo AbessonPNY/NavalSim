@@ -27,7 +27,8 @@ Naval.PROPS_DEFAULTS = {
   plank:  { name:'Planche', scale:1, glb:null, rotation:[0,0,0], draft:0.02, life:900 },
   barrel: { name:'Tonneau', scale:1, glb:null, rotation:[0,0,0], draft:0.12, life:900 },
   bottle: { name:'Bouteille', scale:3, glb:null, rotation:[0,0,0], draft:0.05, life:1800,
-            chance:0.35, pickupRadius:10, pickupSpeed:1.03 },
+            pickupRadius:10, pickupSpeed:1.03,
+            halo:{ enabled:true, radius:1.1, color:'#a8ecff', intensity:1.0, mark:0.032, markFrom:60 } },
   cargo:  { name:'Cargaison échouée', scale:1, glb:null, rotation:[0,0,0], claimRadius:180, claimSpeed:1.0 }
 };
 
@@ -64,7 +65,12 @@ Naval.Flotsam = class Flotsam {
       try{ const r = await fetch('props/Props.json', { cache:'no-cache' }); if(r.ok) data = await r.json(); }
       catch(e){ /* no file, no server: the defaults stand */ }
     }
-    if(data) for(const k of Object.keys(this.def)) if(data[k]) Object.assign(this.def[k], data[k]);
+    if(data) for(const k of Object.keys(this.def)) if(data[k]){
+      const halo = this.def[k].halo;
+      Object.assign(this.def[k], data[k]);
+      // the halo is a block of its own: a file naming one field keeps the others
+      if(halo) this.def[k].halo = Object.assign({}, halo, data[k].halo || {});
+    }
     for(const kind of ['plank', 'barrel', 'bottle', 'cargo']){
       const d = this.def[kind];
       if(!d.glb && !d.glbBase64) continue;
@@ -95,8 +101,91 @@ Naval.Flotsam = class Flotsam {
     inner.rotation.set(r[0]*D, r[1]*D, r[2]*D);
     outer.add(inner);
     outer.scale.setScalar(d.scale || 1);
+    if(d.halo && d.halo.enabled){
+      const h = this._halo(d.halo);
+      h.scale.setScalar(1/(d.scale || 1));   // the halo is sized in metres, whatever the prop's scale
+      outer.add(h);
+      outer.userData.halo = h;
+    }
     this.scene.add(outer);
     return outer;
+  }
+
+  /* A LITTLE MAGIC AROUND THE BOTTLE, asked for because it was hard to find in
+     the swell. A soap bubble rather than a light: a sphere that is nearly
+     nothing face-on and bright at its rim (Fresnel), with the rainbow drift of a
+     thin film, a glint of the sun and a few sparkles crawling over it. Added
+     over the scene and writing no depth, so it never hides what is inside or
+     behind it; depth-tested, so the sea cuts it at the waterline. It gives light
+     rather than returning it — it is the one thing here that is meant to glow,
+     and at night that is exactly when it must still be found.
+
+     And a MARK for far off: the bubble is a metre, a speck at two cables, so a
+     soft glow held at a few pixels whatever the distance — the lantern's far
+     light — comes in past `markFrom` metres and is gone close to. */
+  _halo(H){
+    if(!this._haloMat){
+      const u = this.ocean && this.ocean.uniforms;
+      this._haloU = {
+        uTime:{ value:0 },
+        uColor:{ value:new THREE.Color(H.color) },
+        uIntensity:{ value:H.intensity },
+        uSun: u && u.uSun ? u.uSun : { value:new THREE.Vector3(0, 1, 0) }
+      };
+      this._haloMat = new THREE.ShaderMaterial({
+        uniforms:this._haloU, transparent:true, depthWrite:false, side:THREE.DoubleSide,
+        blending:THREE.AdditiveBlending, clipping:true,
+        vertexShader:`
+          #include <clipping_planes_pars_vertex>
+          varying vec3 vN; varying vec3 vW;
+          void main(){
+            vec4 w = modelMatrix*vec4(position, 1.0);
+            vW = w.xyz;
+            vN = normalize(mat3(modelMatrix)*normal);
+            vec4 mvPosition = viewMatrix*w;
+            gl_Position = projectionMatrix*mvPosition;
+            #include <clipping_planes_vertex>
+          }`,
+        fragmentShader:`
+          #include <clipping_planes_pars_fragment>
+          uniform float uTime, uIntensity; uniform vec3 uColor, uSun;
+          varying vec3 vN; varying vec3 vW;
+          void main(){
+            #include <clipping_planes_fragment>
+            vec3 V = normalize(cameraPosition - vW);
+            vec3 N = normalize(vN);
+            float front = gl_FrontFacing ? 1.0 : 0.35;     // the far wall, seen through the near one
+            float edge = 1.0 - abs(dot(N, V));
+            float rim = pow(edge, 2.6);
+            // thin film: the hue walks with the angle and, slowly, with time
+            vec3 film = 0.5 + 0.5*cos(6.2832*(vec3(0.0, 0.33, 0.67) + edge*1.4 + uTime*0.04));
+            vec3 col = mix(uColor, film, 0.35);
+            float pulse = 0.85 + 0.15*sin(uTime*1.7);
+            // a glint of the sun and a window-light, on the near wall only
+            vec3 R = reflect(-V, N);
+            float glint = gl_FrontFacing ? pow(max(dot(R, normalize(uSun)), 0.0), 80.0)*1.6
+                                         + pow(max(dot(N, normalize(vec3(-0.45, 0.8, 0.4))), 0.0), 40.0)*0.25*(1.0 - edge) : 0.0;
+            // sparkles crawling over the skin
+            float sp = sin(vW.x*6.1 + uTime*1.3)*sin(vW.y*7.3 - uTime*1.1)*sin(vW.z*6.7 + uTime*0.9);
+            float spark = pow(max(sp, 0.0), 14.0)*1.4;
+            vec3 c = col*(rim*1.25*pulse + 0.035)*front + vec3(glint) + uColor*spark*front;
+            gl_FragColor = vec4(c*uIntensity, 1.0);
+          }`
+      });
+    }
+    const g = new THREE.Group();
+    const bubble = new THREE.Mesh(new THREE.SphereGeometry(H.radius, 28, 18), this._haloMat);
+    bubble.position.y = H.radius*0.3;          // riding mostly above the water, as a bubble would
+    bubble.renderOrder = 5;
+    g.add(bubble);
+    const mark = new THREE.Sprite(new THREE.SpriteMaterial({
+      map:Naval.glowTexture(), color:new THREE.Color(H.color), transparent:true, opacity:0,
+      blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:false, fog:false }));
+    mark.scale.setScalar(H.mark);
+    mark.position.y = H.radius*0.5;
+    g.add(mark);
+    g.userData = { mark, markFrom:H.markFrom };
+    return g;
   }
 
   _draw(kind){
@@ -147,7 +236,9 @@ Naval.Flotsam = class Flotsam {
       this._float(kind, wx + (Math.random() - 0.5)*16, wz + (Math.random() - 0.5)*16, this.def[kind].life, null);
     }
     // a bottle is somebody's last act, so the ship at the helm does not throw one
-    if(e.player !== true && Math.random() < this.def.bottle.chance){
+    // how often is a GAME rule, not a property of the object: the page answers it from settings.json
+    const oneIn = this.bottleOneIn ? this.bottleOneIn() : 6;
+    if(e.player !== true && oneIn > 0 && Math.random()*oneIn < 1){
       this._float('bottle', wx + (Math.random() - 0.5)*10, wz + (Math.random() - 0.5)*10, this.def.bottle.life,
                   { from:e, t, name:e.spec && e.spec.name, origine:e.origine || null });
     }
@@ -194,6 +285,7 @@ Naval.Flotsam = class Flotsam {
 
   update(dt, fleet, t, player){
     if(dt <= 0) return;
+    if(this._haloU) this._haloU.uTime.value += dt;
     for(const e of fleet){
       const ph = e.physics;
       if(ph && ph.foundered && !this._seen.get(ph)){
@@ -244,6 +336,16 @@ Naval.Flotsam = class Flotsam {
       this._qy.setFromAxisAngle(this._up, it.yaw);
       it.mesh.quaternion.copy(this._qt).multiply(this._qy);
       it.mesh.position.set(lx, it.y, lz);
+
+      const halo = it.mesh.userData.halo;
+      if(halo){
+        // the far mark comes in with distance, and fades with the bottle when it sinks
+        const cam = this.stage && this.stage.camera;
+        const d = cam ? cam.position.distanceTo(it.mesh.position) : 0;
+        const far = Math.min(1, Math.max(0, (d - halo.userData.markFrom)/halo.userData.markFrom));
+        halo.userData.mark.material.opacity = 0.9*far*(1 - sinking);
+        halo.children[0].visible = sinking < 0.9;
+      }
 
       const B = this.def.bottle;
       if(it.kind === 'bottle' && pb && pv < B.pickupSpeed && Math.hypot(it.x - px, it.z - pz) < B.pickupRadius){
