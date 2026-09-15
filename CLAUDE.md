@@ -31,6 +31,7 @@ logique est dans `js/`, en classes attachées à un espace de noms global `Naval
 | `wreck-air.js` | l’air qui remonte d’une épave, et le temps qu’il met à venir |
 | `spyglass.js` | la lunette : une focale étroite, puis un verre qui a vu la mer |
 | `anchor.js` | mouiller et lever l’ancre : la chute, le câble, le cabestan |
+| `flotsam.js` | ce qui remonte d’un naufrage, la bouteille, la cargaison échouée |
 | `ship-spec.js` | lit une fiche JSON et en **dérive** tout ce que le solveur consomme |
 | `hull-lines.js` | le plan de formes, en fonctions pures |
 | `stage.js` | renderer, scène, lumière, ciel |
@@ -3645,6 +3646,49 @@ Le point de fuite est **local** et glisse donc au recentrage, avec le reste. La
 barre n'a pas eu à changer : elle vise un point et contourne une distance de
 garde, et le pirate lui donne l'un et l'autre selon son humeur — 185 m en chasse,
 zéro pour aborder ou fuir.
+
+## Ce qui remonte d'un naufrage
+
+**UNE OU DEUX PLANCHES, UN TONNEAU, ET PARFOIS UNE BOUTEILLE** (`flotsam.js`). Le
+naufrage est lu sur `physics.foundered`, pour chaque coque de la flotte et une
+seule fois (`WeakMap`) — rien n'a eu à prévenir le module. Planches et tonneaux
+sont du **décor**, et c'est voulu : ils marquent l'endroit, et une mer avec un
+tonneau dessus se lit comme un lieu où il s'est passé quelque chose. La bouteille,
+un naufrage sur trois, est la seule chose qu'on repêche — et le navire qu'on
+commande n'en jette pas, une bouteille étant le dernier geste de quelqu'un.
+
+Ils **remontent** de l'épave, flottent sur la hauteur de la houle et s'inclinent
+sur sa pente (trois échantillons par objet, sans le solveur), **dérivent** à
+quelques centièmes du vent, et **s'enfoncent** en fin de vie — quinze minutes,
+trente pour la bouteille. Tenus en **mètres monde vrais** et posés contre
+l'origine à chaque image, comme la terre : rien à décaler au recentrage. La
+bouteille est dessinée trois fois nature, un vrai flacon étant un point à une
+longueur de coque, et **portée sur la carte** (`chart.marks`) d'un point cerclé :
+sans quoi on ne la retrouverait jamais dans la houle.
+
+**On la repêche en passant** : à moins de dix mètres et de deux nœuds. Ce qu'elle
+contient se tire **à l'ouverture** et non au naufrage — ce qu'on lit dépend de qui
+la trouve, pas de qui l'a jetée — et le module ne le sait pas, la page en décide :
+
+- un **journal de bord**, le nom du navire et deux lignes du capitaine, sans effet ;
+- le **cours de son port d'origine**, exact et **daté du naufrage** — le port le
+  plus proche de sa mise à l'eau, retenu sur son entrée (`origine`) ;
+- une **carte** menant à une **cargaison échouée** sur les hauts-fonds d'une île,
+  hors du relèvement de son port, là où le fond remonte à environ un mètre : une
+  caisse et un tonneau, le dessus hors de l'eau, et une croix sur la carte. Le
+  navire ne peut pas y aller sans talonner, donc on la prend en **s'arrêtant à
+  moins de 180 m** — on envoie le canot. Elle rapporte trois à huit tonnes
+  d'épices ou un coffre de 150 à 500 écus.
+
+L'encart est celui de la rumeur, titre changé : il ne met pas le navire en panne
+et suspend la compression du temps tant qu'il est ouvert. Deux fautes de français
+au passage, la règle vivant avec les noms : « il y a il y a », `age()` le disant
+déjà, et « de Le Carénage » — `deNom` et `aNom` contractent l'article.
+
+Relevé, goélette sabordée d'office avec bouteille forcée : un tonneau et la
+bouteille à flot en trois secondes, une marque sur la carte, les trois contenus
+lus, une cargaison posée par 0,7 m de fond au sud-ouest du Carénage, et 3 t
+d'épices hissées à bord.
 
 ## Le bruit, et surtout le temps qu'il met à venir
 

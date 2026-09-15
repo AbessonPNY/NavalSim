@@ -102,6 +102,9 @@
     "spar": "0xa8875a",
     "house": "0xc9bda4",
     "canvas": "0xece4d2",
+	 "canvasMap": {
+      "square": "ships/textures/toile-carree.jpg"
+    },
     "impactMaps": [
       [
         "ships/textures/impacts/impact_001_stage_1.png",

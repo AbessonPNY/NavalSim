@@ -56,6 +56,8 @@ Naval.Chart = class Chart {
     }
   }
 
+  marks = null;       // () => [{x, z, kind}] — set by whoever keeps things worth marking
+
   zoom(f){ this.scale = Math.max(0.25, Math.min(this.maxScale, this.scale*f)); }
 
   /* `fleet` entries carry world positions computed by the caller: the chart
@@ -136,6 +138,27 @@ Naval.Chart = class Chart {
         const h = px(isl.port.hx, isl.port.hz);
         ctx.strokeStyle = '#e8ddc2'; ctx.lineWidth = 1.2;
         ctx.beginPath(); ctx.arc(h[0], h[1], 2.6, 0, 6.2832); ctx.stroke();
+      }
+    }
+
+    /* --- what is worth steering for: a bottle adrift, a cargo on the shallows ---
+       Handed over by whoever keeps them (`this.marks`), in true metres. A
+       bottle is a pale ringed dot, because one only knows roughly where it
+       floats; a cargo is an X, because somebody wrote it down. */
+    const marks = this.marks ? this.marks() : [];
+    for(const m of marks){
+      const q = px(m.x, m.z);
+      if(m.kind === 'cargo'){
+        ctx.strokeStyle = '#f2b23a'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(q[0]-4, q[1]-4); ctx.lineTo(q[0]+4, q[1]+4);
+        ctx.moveTo(q[0]+4, q[1]-4); ctx.lineTo(q[0]-4, q[1]+4);
+        ctx.stroke();
+      }else{
+        ctx.fillStyle = '#d8f0ea';
+        ctx.beginPath(); ctx.arc(q[0], q[1], 2, 0, 6.2832); ctx.fill();
+        ctx.strokeStyle = 'rgba(216,240,234,.55)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(q[0], q[1], 5, 0, 6.2832); ctx.stroke();
       }
     }
 

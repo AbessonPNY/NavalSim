@@ -370,6 +370,7 @@
 <script src="js/wreck-air.js"></script>
 <script src="js/cordage.js"></script>
 <script src="js/anchor.js"></script>
+<script src="js/flotsam.js"></script>
 <script src="js/purse.js"></script>
 <script src="js/world.js"></script>
 <script src="js/land.js"></script>
@@ -583,6 +584,11 @@ async function main(){
      dont la bitte peut glisser ; tout le reste — la chute, la gerbe, le câble
      qui file, le cabestan — vit là et le solveur n'en sait rien. */
   const anchors = new Naval.Anchors(stage.scene, stage, ocean, world, splash, cordage);
+  /* Ce qui remonte d'un naufrage — planches et tonneaux pour le décor, parfois
+     une bouteille — et les cargaisons échouées qu'une carte peut indiquer. Le
+     module fait flotter et repêche ; ce que dit une bouteille se décide ici. */
+  const flotsam = new Naval.Flotsam(stage.scene, stage, ocean, world);
+  chart.marks = ()=> flotsam.marks();
 
   /* What a hull throws when she comes down. The solver hands over cubic metres
      a SECOND of water driven down, so a sixth of a second of it is about what
@@ -794,7 +800,84 @@ async function main(){
   /* Sorti du compteur pour deux raisons : la console peut l'appeler — ce que
      `Naval.app` existe pour permettre — et une chose qu'on ne peut éprouver
      qu'en attendant huit minutes est une chose qu'on n'éprouve pas. */
+  /* LE MÊME ENCART POUR TOUT CE QU'ON LIT EN MER : un navire parlé ou une
+     bouteille repêchée. Il ne met pas le navire en panne, et il rend la main à
+     la compression du temps tant qu'il est ouvert — c'est un moment à décider. */
+  function montrerEncart(titre, texte){
+    ruEl.querySelector('.ruHead b').textContent = titre;
+    const el = document.getElementById('ruText');
+    el.textContent = texte;
+    el.className = 'ruBody';
+    ruEl.hidden = false;
+  }
+
+  /* ------------------------------- LA BOUTEILLE -------------------------------
+     Trois choses peuvent y être, tirées au sort à l'ouverture et non au
+     naufrage : ce qu'on lit dépend de qui la trouve et quand, pas de qui l'a
+     jetée. Le journal ne rapporte rien et raconte ; le cours est exact et daté
+     du naufrage ; la carte mène à une cargaison posée sur un haut-fond, qui,
+     elle, rapporte. */
+  const JOURNAL = [
+    ['Vent tombé au matin, la mer reste grosse.', 'L’équipage murmure, l’eau monte à la cale.'],
+    ['Aperçu une voile noire au vent à nous.', 'Nous forçons de toile, mais elle gagne.'],
+    ['Deux voies d’eau à l’avant, les pompes ne suffisent plus.', 'Que Dieu garde ceux qui liront ceci.'],
+    ['Le second est mort ce midi d’un éclat de chêne.', 'Nous tenons encore le cap sur le port.'],
+    ['La poudre est mouillée, les pièces se taisent.', 'Je jette ce journal à la mer avant la fin.']
+  ];
+  const DIRECTIONS = ['au nord', 'au nord-est', 'à l’est', 'au sud-est', 'au sud', 'au sud-ouest', 'à l’ouest', 'au nord-ouest'];
+  /* « de Le Carénage » et « à Le Carénage » ne se disent pas : l'article se
+     contracte avec la préposition. La règle vit avec les noms qu'elle gouverne,
+     comme l'élision de la rumeur. */
+  const deNom = n => /^Le /.test(n) ? 'du ' + n.slice(3) : /^Les /.test(n) ? 'des ' + n.slice(4) : 'de ' + n;
+  const aNom  = n => /^Le /.test(n) ? 'au ' + n.slice(3) : /^Les /.test(n) ? 'aux ' + n.slice(4) : 'à ' + n;
+
+  flotsam.onBottle = (it, epave) => {
+    const d = it.data || {}, nom = d.name || 'un navire inconnu';
+    const tirage = Math.random();
+    if(tirage < 1/3){
+      const j = JOURNAL[Math.floor(Math.random()*JOURNAL.length)];
+      montrerEncart('Bouteille à la mer', 'Journal de bord de ' + nom + ' — « ' + j[0] + ' ' + j[1] + ' »');
+      return;
+    }
+    if(tirage < 2/3){
+      let isl = world.isles.find(i => i.key === d.origine);
+      if(!isl){
+        let bd = Infinity;
+        for(const i of world.isles){ const dd = Math.hypot(i.x - it.x, i.z - it.z); if(dd < bd){ bd = dd; isl = i; } }
+      }
+      const tw = d.t != null ? d.t : ocean.uniforms.uTime.value;
+      montrerEncart('Bouteille à la mer', 'Carnet de ' + nom + ' : ' + aNom(isl.name)
+        + ', l’épice se payait ' + MK.buyPrice(isl.key, tw) + ' la tonne et se revendait '
+        + MK.sellPrice(isl.key, tw) + ' — relevé ' + MK.age(Math.max(0, ocean.uniforms.uTime.value - tw)) + '.');
+      return;
+    }
+    // la carte : une cargaison posée sur les hauts-fonds d'une île
+    const iles = world.isles.slice().sort(() => Math.random() - 0.5);
+    let c = null;
+    for(const isl of iles){ c = flotsam.strand(isl); if(c) break; }
+    if(!c){ montrerEncart('Bouteille à la mer', 'Une carte délavée, illisible.'); return; }
+    const ang = Math.atan2(-(c.x - c.isl.x), c.z - c.isl.z);          // l'est est le −x
+    const dir = DIRECTIONS[Math.round(((ang*180/Math.PI + 360) % 360)/45) % 8];
+    montrerEncart('Bouteille à la mer', 'Une carte griffonnée par l’équipage de ' + nom
+      + ' : une cargaison échouée sur les hauts-fonds ' + dir + ' ' + deNom(c.isl.name)
+      + '. Portée d’une croix sur votre carte.');
+  };
+
+  flotsam.onCargo = it => {
+    if(Math.random() < 0.5){
+      const t = 3 + Math.floor(Math.random()*6);
+      chargerEpices(t);
+      dire('Cargaison récupérée : ' + t + ' t d’épices hissées à bord');
+    }else{
+      const ecus = 150 + Math.floor(Math.random()*350);
+      purse.add(ecus*MK.SOUS_PAR_ECU);
+      dire('Cargaison récupérée : un coffre de ' + ecus + ' écus');
+    }
+    refreshMarket();
+  };
+
   function parler(){
+    ruEl.querySelector('.ruHead b').textContent = 'Navire parlé';
     const wx = ocean.origin.x + physics.body.pos.x;
     const wz = ocean.origin.z + physics.body.pos.z;
     const autres = world.isles.filter(i =>
@@ -1414,6 +1497,13 @@ async function main(){
     const ph = new Naval.ShipPhysics(sp, ln);
     ph.world = world;
     wireSplash(ph);                       // every hull throws water, not only ours
+    /* Son port d'origine : le plus proche de l'endroit où elle est mise à l'eau.
+       C'est ce que sa bouteille dira des cours, si elle en jette une. */
+    let origine = null, dOrig = Infinity;
+    for(const isl of world.isles){
+      const dd = Math.hypot(isl.x - (ocean.origin.x + physics.body.pos.x), isl.z - (ocean.origin.z + physics.body.pos.z));
+      if(dd < dOrig){ dOrig = dd; origine = isl.key; }
+    }
     const ct = { throttle:0, rudder:0, sheet:sp.maxSheet*0.5, sailsSet:true };
     // she sails herself: nobody else is going to steer her
     const helm = new Naval.AutoHelm(ph, ct);
@@ -1443,7 +1533,7 @@ async function main(){
     if(hostile) helm.standoff = Math.max(helm.standoff, 185);
 
     const entry = { body:ph.body, spec:sp, lines:ln, physics:ph, ship:sh, ctrl:ct,
-                    helm, hostile, provoquePar:null, rearme:0,
+                    helm, hostile, provoquePar:null, rearme:0, origine,
                     // son humeur de pirate, sur SON entrée et nulle part ailleurs
                     pirate: hostile ? { phase:'chasse', cible:null, ignore:new Map(),
                                         tenu:0, fuite:null, fuiteJusque:0, garde:helm.standoff } : null,
@@ -2025,7 +2115,7 @@ async function main(){
                 get physics(){ return physics; }, get ship(){ return ship; },
                 get cam(){ return cam; }, get hud(){ return hud; },
                 world, land, gulls, chart, blast, guns, takeHelm, weather, rain, splash,
-                cordage, purse, parler, tempete, sound, wreckAir, anchors,
+                cordage, purse, parler, tempete, sound, wreckAir, anchors, flotsam,
                 get spyglass(){ return spyglass; },
                 storms, get squall(){ return squall; },
                 get fleet(){ return fleet; } };
@@ -2387,6 +2477,7 @@ async function main(){
     // before splash.update, which draws what it throws, and before foam.update, which lays its boils
     wreckAir.update(dt, fleet, ocean, t);
     anchors.update(dt, fleet, t);
+    flotsam.update(dt, fleet, t, fleet[0]);
     splash.update(dt);
     cordage.update(dt, fleet, t, stage.camera.position);
     hud.update(dt);
