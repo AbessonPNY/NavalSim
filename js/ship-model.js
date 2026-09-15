@@ -194,6 +194,16 @@ Naval.ShipModel = class ShipModel {
     this.rigCuts = [];                       // ends asked for and not yet hung
     this.rigEpoch = 0;                       // a refit voids every end already out
     this.guns = [];                          // where her muzzles poke out, if any
+    /* Where she has been hit, in HER frame, and how badly. Hers alone: the
+       uniforms below are handed to her own materials only, so two ships in the
+       same fight each show their own wounds. */
+    this.scars = [];
+    this._scarU = {
+      uScar:{ value: Array.from({ length:Naval.SCAR_MAX }, () => new THREE.Vector4()) },
+      uScarCount:{ value:0 },
+      uScarInv:{ value:new THREE.Matrix4() },   // world → her frame, refreshed in syncTo
+      uScarK:{ value:Math.max(0.5, spec.L/30) }  // a wound scales with the ship that takes it
+    };
     this.shell = null;                       // the side a shot has to get through
     this._shareTot = 0;                      // canvas those masts carry between them
     this.canvases = [];                      // the cloth alone — furling hides only this
@@ -1227,6 +1237,8 @@ Naval.ShipModel = class ShipModel {
        epoch says so once instead of every caller having to remember it. */
     // and remounts her guns: the same refit, and the same three callers
     for(const g of this.guns || []){ g.out = false; g.damage = 0; }
+    // and new planking: a refit leaves no scars
+    this.scars.length = 0; this._scarU.uScarCount.value = 0;
     this.rigCuts.length = 0;
     this.rigEpoch++;
     for(const c of this.canvases) c.userData.split = false;   // et la toile est renvergée
@@ -1571,6 +1583,8 @@ Naval.ShipModel = class ShipModel {
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       for(const m of mats){
         if(aoUniforms) Naval.applyShipAO(m, aoUniforms);
+        // scars on her timber, never on her canvas — and before the haze, which is the air in front
+        if(!m.userData.sailLit && obj !== this.wake) Naval.applyScars(m, this._scarU);
         Naval.applyHaze(m, oceanUniforms);
       }
     };
@@ -1907,6 +1921,54 @@ Naval.ShipModel = class ShipModel {
   syncTo(body){
     this.group.position.copy(body.pos);
     this.group.quaternion.copy(body.quat);
+    // her frame for the scars, from the body itself: the group's matrix is last frame's
+    if(this.scars.length){
+      this._one = this._one || new THREE.Vector3(1, 1, 1);
+      this._scarU.uScarInv.value.compose(body.pos, body.quat, this._one).invert();
+    }
+  }
+
+  /* A HIT LEAVES A MARK, AND A SECOND HIT IN THE SAME PLACE MAKES IT WORSE.
+     One ball scorches the planking and starts it; the same bay hulled again
+     splinters it open to the raw oak; a third leaves a black hole. So a hit
+     close to an existing scar deepens that scar instead of starting another —
+     the same rule as a breach that works rather than multiplies — and what the
+     eye reads, from a cable off, is where she has been fought hardest.
+
+     Strength goes with the calibre that did it, and is capped at four: beyond
+     that there is no more ship there to look worse. The list holds twenty-four;
+     when it is full the lightest mark gives way, a scorch mattering less than
+     a hole. */
+  scar(world, k){
+    if(!world) return;
+    this._gq = this._gq || new THREE.Quaternion();
+    this._gl = this._gl || new THREE.Vector3();
+    const loc = this._gl.copy(world).sub(this.group.position)
+                        .applyQuaternion(this._gq.copy(this.group.quaternion).invert());
+    const add = Math.min(2, Math.max(0.6, (k || 0.5)*2));
+    const merge = 1.1*this._scarU.uScarK.value;
+    let best = null, bd = Infinity;
+    for(const s of this.scars){ const d = s.p.distanceTo(loc); if(d < bd){ bd = d; best = s; } }
+    if(best && bd < merge){
+      best.p.lerp(loc, 1/(best.w + 1));
+      best.w = Math.min(4, best.w + add);
+    }else if(this.scars.length < Naval.SCAR_MAX){
+      this.scars.push({ p:loc.clone(), w:add });
+    }else{
+      let weak = this.scars[0];
+      for(const s of this.scars) if(s.w < weak.w) weak = s;
+      weak.p.copy(loc); weak.w = add;
+    }
+    this._uploadScars();
+  }
+
+  _uploadScars(){
+    const U = this._scarU, n = Math.min(this.scars.length, Naval.SCAR_MAX);
+    for(let i=0;i<n;i++){ const s = this.scars[i]; U.uScar.value[i].set(s.p.x, s.p.y, s.p.z, s.w); }
+    U.uScarCount.value = n;
+    this._one = this._one || new THREE.Vector3(1, 1, 1);
+    this.group.updateMatrix();
+    U.uScarInv.value.copy(this.group.matrix).invert();
   }
 
   /* `set` is the fraction spread, which the solver carries. It used to be the
@@ -2032,6 +2094,78 @@ Naval.normalFromHeight = function(src, strength, channel){
   };
   t.needsUpdate = true;
   return t;
+};
+
+/* How many separate wounds one hull can show at once. */
+Naval.SCAR_MAX = 24;
+
+/* THE WOUNDS, laid over her own materials rather than painted into a texture.
+
+   Painting into her UVs would need a UV at the point of impact — a ray cast
+   against the mesh at every hit — and a procedural hull has no UVs at all. So
+   the scars are a short list of points in HER frame, and each fragment asks how
+   near it is to one: the model's own texture stays untouched, and any hull,
+   modelled or built, takes them the same way.
+
+   Three layers, one per degree of harm, all ragged at the rim with noise so a
+   wound is never a disc: CHARRED planking from the first hit, a ring of pale
+   RAW OAK splintered open once it has been hit again, and a black HOLE at the
+   heart of a bay hulled three times over. Colours go into the diffuse term and
+   so are LIT — a scorch in the sun is not the same black as a scorch at night,
+   the lesson of the foam and the smoke. And the burnt wood goes matte.
+
+   Chained like every other patch, with its own cache key, and before the haze. */
+Naval.applyScars = function(mat, u){
+  if(!mat || mat.userData.scars || !mat.isMeshStandardMaterial) return;
+  mat.userData.scars = true;
+  const prevKey = mat.customProgramCacheKey.bind(mat);
+  mat.customProgramCacheKey = () => prevKey() + '|scars';
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (shader, renderer)=>{
+    if(prev) prev(shader, renderer);
+    shader.uniforms.uScar = u.uScar;
+    shader.uniforms.uScarCount = u.uScarCount;
+    shader.uniforms.uScarInv = u.uScarInv;
+    shader.uniforms.uScarK = u.uScarK;
+    shader.vertexShader = 'uniform mat4 uScarInv;\nvarying vec3 vScarP;\n'
+      + shader.vertexShader.replace('#include <project_vertex>',
+          '#include <project_vertex>\n  vScarP = (uScarInv * modelMatrix * vec4(transformed, 1.0)).xyz;');
+    shader.fragmentShader =
+        '#define NSCAR ' + Naval.SCAR_MAX + '\n'
+      + 'uniform vec4 uScar[NSCAR];\nuniform int uScarCount;\nuniform float uScarK;\nvarying vec3 vScarP;\n'
+      + 'float scarHash(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719)))*43758.5453); }\n'
+      + 'float scarNoise(vec3 p){ vec3 i = floor(p), f = fract(p); f = f*f*(3.0 - 2.0*f);\n'
+      + '  return mix(mix(mix(scarHash(i), scarHash(i + vec3(1.0,0.0,0.0)), f.x),\n'
+      + '                 mix(scarHash(i + vec3(0.0,1.0,0.0)), scarHash(i + vec3(1.0,1.0,0.0)), f.x), f.y),\n'
+      + '             mix(mix(scarHash(i + vec3(0.0,0.0,1.0)), scarHash(i + vec3(1.0,0.0,1.0)), f.x),\n'
+      + '                 mix(scarHash(i + vec3(0.0,1.0,1.0)), scarHash(i + vec3(1.0,1.0,1.0)), f.x), f.y), f.z); }\n'
+      + 'float gScarBurn = 0.0;\n'
+      + shader.fragmentShader
+        .replace('#include <map_fragment>',
+          '#include <map_fragment>\n'
+        + '{ float gRaw = 0.0, gHole = 0.0;\n'
+        + '  float n = scarNoise(vScarP*3.1)*0.6 + scarNoise(vScarP*9.3)*0.4;\n'
+        + '  for(int i = 0; i < NSCAR; i++){\n'
+        + '    if(i < uScarCount){\n'
+        + '      float s = uScar[i].w;\n'
+        + '      float R = (0.45 + 0.35*s)*uScarK;\n'
+        + '      float d = distance(vScarP, uScar[i].xyz)/R + (n - 0.5)*0.45;\n'
+        + '      if(d < 1.0){\n'
+        + '        gScarBurn = max(gScarBurn, (1.0 - smoothstep(0.35, 1.0, d))*min(1.0, 0.35 + 0.3*s));\n'
+        + '        float ring = smoothstep(0.25, 0.55, d)*(1.0 - smoothstep(0.55, 0.9, d));\n'
+        + '        gRaw = max(gRaw, ring*step(0.62, scarNoise(vScarP*14.0))*min(1.0, s*0.5));\n'
+        + '        gHole = max(gHole, (1.0 - smoothstep(0.12, 0.22, d))*step(2.5, s));\n'
+        + '      }\n'
+        + '    }\n'
+        + '  }\n'
+        + '  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.028, 0.020, 0.014), gScarBurn*0.85);\n'
+        + '  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.30, 0.18), gRaw);\n'
+        + '  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.004), gHole);\n'
+        + '}')
+        .replace('#include <roughnessmap_fragment>',
+          '#include <roughnessmap_fragment>\n  roughnessFactor = mix(roughnessFactor, 1.0, gScarBurn);');
+  };
+  mat.needsUpdate = true;
 };
 
 Naval.loadGLTFLoader = async function(){

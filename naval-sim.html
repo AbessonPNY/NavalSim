@@ -510,6 +510,9 @@ async function main(){
        six took a quarter of an hour to condemn one of 2 000. */
     e.physics.breach(index, 0.10*(k||1)*(k||1), Math.max(0, Math.min(1, local)));
 
+    // la marque dans le bordé, qui s'aggrave si l'on retape au même endroit
+    if(e.ship && e.ship.scar) e.ship.scar(world, k);
+
     /* Et le coup démonte les pièces qui étaient derrière le bordé. Le joueur
        est prévenu, et la console relue : un bord qui se tait doit se voir sur
        le bouton qu'on s'apprêtait à presser. */
