@@ -1441,6 +1441,9 @@ async function main(){
 
     const entry = { body:ph.body, spec:sp, lines:ln, physics:ph, ship:sh, ctrl:ct,
                     helm, hostile, provoquePar:null, rearme:0,
+                    // son humeur de pirate, sur SON entrée et nulle part ailleurs
+                    pirate: hostile ? { phase:'chasse', cible:null, ignore:new Map(),
+                                        tenu:0, fuite:null, fuiteJusque:0, garde:helm.standoff } : null,
                     afloat:1, eqY:eq, profile: sh.hullProfile(64, -eq) };
     fleet.push(entry);
     refitProfiles();
@@ -1857,14 +1860,125 @@ async function main(){
     e.provoquePar = tireur;
   }
   function ennemiDe(e){
-    if(e.hostile && fleet[0] && fleet[0].physics && !fleet[0].physics.foundered)
-      return fleet[0].body;                     // elle est venue pour ça
+    /* Le pirate ne tire que pendant la CHASSE : une fois décidé à aborder, il
+       se tait — ses propres boulets frapperaient la coque qu'il vient piller. */
+    if(e.hostile){
+      const P = e.pirate;
+      if(!P) return fleet[0] && fleet[0].physics && !fleet[0].physics.foundered ? fleet[0].body : null;
+      return P.phase === 'chasse' && P.cible ? P.cible : null;
+    }
     if(e.provoquePar){
       for(const o of fleet)
         if(o.body === e.provoquePar) return o.physics && !o.physics.foundered ? o.body : null;
       e.provoquePar = null;                     // il a quitté la scène
     }
     return null;
+  }
+
+  /* ------------------------ LE PIRATE CHASSE, PUIS ABORDE ------------------------
+
+     IL NE COULE PAS CE QU'IL VEUT PILLER. Un pirate ne gagne rien à envoyer une
+     prise par le fond : il la canonne jusqu'à ce qu'elle ne puisse plus ni fuir
+     ni se défendre, puis il vient à couple. Quatre temps, portés par son entrée :
+
+     · CHASSE — la proie non pirate la plus proche, à 185 m, au plein fouet ;
+     · ABORDAGE — dès qu'elle est ABÎMÉE il cesse le feu et vient par l'arrière,
+       dans son sillage d'abord puis à couple par la hanche. C'est le seul
+       secteur où une bordée ne porte pas : une pièce pointe en travers, et il
+       n'y a que des pièces de retraite — quand elle en a — pour tirer dans l'axe ;
+     · PILLAGE — tenu cinq secondes bord à bord et presque à la même vitesse ;
+     · FUITE — il s'éloigne trois minutes et laisse sa victime un quart d'heure.
+
+     « Abîmée » se lit sur ce qui existe déjà, sans compteur à part : de l'eau
+     embarquée, un mât perdu, un quart de ses pièces démontées, ou quatre voies
+     d'eau. Personne n'arbitre : ce sont les dégâts réels qui décident. */
+  function abimee(o){
+    const p = o.physics, sh = o.ship;
+    if(!p) return false;
+    let out = 0, all = 0;
+    for(const g of (sh && sh.guns) || []){ all++; if(g.out) out++; }
+    return p.floodVol > 0.06*p.hullVolume
+        || (p.standing != null && p.standing < 0.9)
+        || (all > 0 && out/all >= 0.25)
+        || (p.breaches && p.breaches.length >= 4);
+  }
+  const _f = new THREE.Vector3(), _s = new THREE.Vector3(), _pt = new THREE.Vector3();
+
+  function piloterPirate(e, dt){
+    const P = e.pirate, h = e.helm, b = e.body;
+    const joueur = fleet[0];
+
+    // la proie : garder celle qu'on a, sinon la plus proche qu'on n'a pas déjà pillée
+    let proie = P.cible ? fleet.find(o => o.body === P.cible) : null;
+    if(proie && (!proie.physics || proie.physics.foundered)){ proie = null; }
+    if(P.phase !== 'fuite' && !proie){
+      P.cible = null; P.phase = 'chasse';
+      let bd = 4000;
+      for(const o of fleet){
+        if(o === e || o.hostile || !o.physics || o.physics.foundered) continue;
+        if((P.ignore.get(o.body) || 0) > t) continue;
+        const d = Math.hypot(o.body.pos.x - b.pos.x, o.body.pos.z - b.pos.z);
+        if(d < bd){ bd = d; proie = o; }
+      }
+      if(proie) P.cible = proie.body;
+    }
+
+    if(P.phase === 'fuite'){
+      h.standoff = 0;
+      h.target = P.fuite;
+      if(t > P.fuiteJusque){ P.phase = 'chasse'; P.cible = null; }
+      return;
+    }
+    if(!proie){ h.standoff = P.garde; h.target = joueur.body.pos; return; }
+
+    const pb = proie.body;
+    const d = Math.hypot(pb.pos.x - b.pos.x, pb.pos.z - b.pos.z);
+
+    if(P.phase === 'chasse'){
+      h.standoff = P.garde;
+      h.target = pb.pos;
+      if(abimee(proie)){
+        P.phase = 'abordage'; P.tenu = 0;
+        if(proie === joueur) dire('Le pirate cesse le feu — il vient vous aborder par l’arrière');
+      }
+      return;
+    }
+
+    // ABORDAGE : dans son sillage, puis à couple par la hanche
+    h.standoff = 0;
+    _f.set(0, 0, 1).applyQuaternion(pb.quat); _f.y = 0; _f.normalize();
+    _s.set(-_f.z, 0, _f.x);
+    const Lp = proie.spec.L, Le = e.spec.L, Bp = proie.spec.B, Be = e.spec.B;
+    const cote = ((b.pos.x - pb.pos.x)*_s.x + (b.pos.z - pb.pos.z)*_s.z) >= 0 ? 1 : -1;
+    if(d > (Lp + Le)*0.5 + 20){
+      _pt.copy(pb.pos).addScaledVector(_f, -(Lp*0.5 + Le*0.5 + 12));
+    }else{
+      _pt.copy(pb.pos).addScaledVector(_f, -Lp*0.2).addScaledVector(_s, cote*(Bp*0.5 + Be*0.5 + 1.5));
+    }
+    h.target = _pt;
+
+    const vrel = Math.hypot(b.vel.x - pb.vel.x, b.vel.z - pb.vel.z);
+    if(d < (Lp + Le)*0.45 && vrel < 2.5) P.tenu += dt; else P.tenu = Math.max(0, P.tenu - dt*0.5);
+    if(d > 1500){ P.phase = 'chasse'; return; }            // elle lui a échappé
+    if(P.tenu < 5) return;
+
+    // PILLAGE
+    if(proie === joueur){
+      const sous = Math.floor(purse.sous*0.5);
+      purse.take(sous);
+      const tonnes = physics.unloadKind('epice', 1e6) || 0;
+      dire('Abordés ! Le pirate emporte ' + Math.floor(sous/Naval.Market.SOUS_PAR_ECU) + ' écus'
+           + (tonnes > 0.05 ? ' et ' + tonnes.toFixed(1) + ' t d’épices' : ''));
+      refreshMarket();
+    }else if(joueur && Math.hypot(pb.pos.x - joueur.body.pos.x, pb.pos.z - joueur.body.pos.z) < 3000){
+      dire('Le pirate aborde et pille ' + (proie.spec.name || 'un navire'));
+    }
+    P.ignore.set(pb, t + 900);
+    P.phase = 'fuite';
+    P.fuiteJusque = t + 180;
+    const ax = b.pos.x - pb.pos.x, az = b.pos.z - pb.pos.z, al = Math.hypot(ax, az) || 1;
+    P.fuite = new THREE.Vector3(b.pos.x + ax/al*3000, 0, b.pos.z + az/al*3000);
+    P.cible = null;
   }
 
   /* SERVIR LES PIÈCES. Tout existait sauf la décision : guns.targets vaut la
@@ -2115,8 +2229,11 @@ async function main(){
          ce qui redonne exactement l'ancien comportement à une conserve que
          personne n'a provoquée et qui ne porte pas la tête de mort. */
       if(e.helm){
-        const foe = ennemiDe(e);
-        e.helm.target = (foe || fleet[0].body).pos;
+        if(e.pirate) piloterPirate(e, dt);
+        else {
+          const foe = ennemiDe(e);
+          e.helm.target = (foe || fleet[0].body).pos;
+        }
         e.helm.update(dt, ocean, e.ctrl);
       }
       servirLesPieces(e, dt);
@@ -2166,6 +2283,8 @@ async function main(){
       splash.rebase(dx, dz);
       wreckAir.rebase(dx, dz);
       anchors.rebase(dx, dz);
+      // le cap de fuite d'un pirate est un point local : il glisse avec le monde
+      for(const e of fleet) if(e.pirate && e.pirate.fuite){ e.pirate.fuite.x -= dx; e.pirate.fuite.z -= dz; }
       blast.rebase(dx, dz);
       guns.rebase(dx, dz);
       cordage.rebase(dx, dz);

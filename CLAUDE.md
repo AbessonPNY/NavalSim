@@ -3552,6 +3552,35 @@ Relevé, deux galions par le travers à 150 m :
 | sa barre | vise désormais son agresseur et non plus le vaisseau amiral |
 
 
+**LE PIRATE NE COULE PAS CE QU'IL VEUT PILLER** (`piloterPirate`). Un pirate ne
+gagne rien à envoyer une prise par le fond : il la canonne jusqu'à ce qu'elle ne
+puisse plus fuir ni se défendre, puis il vient à couple. Quatre temps, portés par
+**son** entrée de flotte (`e.pirate`) et nulle part ailleurs :
+
+- **chasse** — la proie non pirate la plus proche, à moins de quatre kilomètres,
+  qu'il n'a pas pillée dans le quart d'heure : le joueur **ou n'importe quelle
+  conserve**. Il la canonne à 185 m ;
+- **abordage** — dès qu'elle est **abîmée** il cesse le feu (ses propres boulets
+  frapperaient la coque qu'il vient vider) et vient par l'arrière : dans son
+  sillage d'abord, puis à couple par la hanche. C'est le seul secteur où une
+  bordée ne porte pas, une pièce pointant en travers — seules des pièces de
+  retraite peuvent l'y chercher, et c'est ce qui leur donne leur raison d'être ;
+- **pillage** — tenu cinq secondes à moins de 0,45 de la somme des longueurs et
+  à moins de 2,5 m/s d'écart de vitesse. Sur le joueur : la moitié de la bourse
+  et toutes les épices, par `unloadKind` — la cale fait foi. Sur une conserve à
+  portée de vue, un message ;
+- **fuite** — trois minutes à l'opposé de sa victime, qu'il ignore quinze.
+
+**« Abîmée » se lit sur ce qui existe déjà**, sans compteur de points de vie à
+côté : plus de 6 % du volume de coque embarqué, un mât perdu, un quart des pièces
+démontées, ou quatre voies d'eau. Ce sont les dégâts réels qui décident, et une
+proie qui lui échappe au-delà de 1 500 m le renvoie à la chasse.
+
+Le point de fuite est **local** et glisse donc au recentrage, avec le reste. La
+barre n'a pas eu à changer : elle vise un point et contourne une distance de
+garde, et le pirate lui donne l'un et l'autre selon son humeur — 185 m en chasse,
+zéro pour aborder ou fuir.
+
 ## Le bruit, et surtout le temps qu'il met à venir
 
 **LE SON MET UNE SECONDE ET DEMIE À FAIRE CINQ CENTS MÈTRES**, et c'est cela —
