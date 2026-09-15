@@ -140,6 +140,28 @@ JSON : on ne peut pas déduire un volume de carène fiable d'un maillage
 quelconque sans une voxelisation coûteuse. Si le modèle ne charge pas, la coque
 procédurale est conservée et un avertissement est écrit en console.
 
+### Rugosité et relief
+
+Les matériaux du .glb sont gardés tels quels : couleur, **rugosité**
+(`metallicRoughnessTexture`, canal vert) et **carte normale** s'affichent sans
+rien déclarer — à condition d'être sortis à l'export. Blender ne garde que ce
+qui est branché directement sur le Principled BSDF ; un nœud *Bump*, un *Invert*
+ou un *ColorRamp* intercalé fait disparaître l'image sans message.
+
+glTF n'a pas de carte de relief en niveaux de gris. Si la même image sert de
+rugosité **et** de relief, déclarez-le :
+
+```json
+"model": { "glb": "...", "relief": 16 }
+```
+
+La carte normale est alors **tirée de la rugosité** au chargement (dérivée de
+Sobel, ~60 ms pour 2048 px), pour chaque matériau qui a une rugosité et pas de
+carte normale. Le nombre est un gain de pente : 6 ne se voit pas, 16 marque les
+préceintes et le fil du bois, au-delà le bordé paraît sculpté. Blanc = en
+relief. À ne pas mettre sur une rugosité peinte en aplats, dont chaque bord
+deviendrait une arête.
+
 `node tools/make-glb.js ships/models/exemple.glb` produit un .glb minimal valide,
 utile comme gabarit.
 

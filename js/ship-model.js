@@ -735,6 +735,8 @@ Naval.ShipModel = class ShipModel {
       const off = m.offset || [0,0,0];
       obj.position.set(off[0], off[1], off[2]);
 
+      this._reliefFromRoughness(obj, m.relief);
+
       this.group.remove(this.procedural);
       this.group.add(obj);
       this.modelRoot = obj;
@@ -752,6 +754,31 @@ Naval.ShipModel = class ShipModel {
                    ' — keeping the procedural hull. ' + (err && err.message || err));
       return false;
     }
+  }
+
+  /* Give every material that carries a roughness map but no normal map the
+     relief painted into that same greyscale. Opt-in per sheet (`model.relief`,
+     a slope gain): a roughness map painted as flat zones rather than as a
+     height would come out as ridges along every zone border. A material that
+     already has a real normal map is left alone. */
+  _reliefFromRoughness(root, strength){
+    if(!(strength > 0)) return;
+    const made = new Map();                 // one normal map per source texture
+    root.traverse(o => {
+      if(!o.isMesh) return;
+      for(const mat of [].concat(o.material)){
+        if(!mat || !mat.roughnessMap || mat.normalMap) continue;
+        let n = made.get(mat.roughnessMap);
+        if(n === undefined){
+          n = Naval.normalFromHeight(mat.roughnessMap, strength, 1);  // glTF roughness is green
+          made.set(mat.roughnessMap, n);
+        }
+        if(!n) continue;
+        mat.normalMap = n;
+        mat.normalScale.set(1, -1);        // no tangents: GLTFLoader's own sign
+        mat.needsUpdate = true;
+      }
+    });
   }
 
   /* The scale that brings the model's HULL to her stated length.
@@ -1836,6 +1863,70 @@ Naval.base64ToArrayBuffer = function(b64){
   const bytes = new Uint8Array(bin.length);
   for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
   return bytes.buffer;
+};
+
+/* A tangent-space normal map, derived from a greyscale height read in one
+   channel of an existing texture.
+
+   glTF has no bump map: an image plugged into Blender's Bump node — or a
+   greyscale plugged into Normal Map — is dropped by the exporter without a
+   word. What does survive is the roughness, packed into the green channel of
+   metallicRoughnessTexture. When a modeller paints ONE greyscale for both
+   jobs, the relief is therefore still in the file; it only has to be read
+   back out as slopes.
+
+   Sobel on the height, then n = (-k·dh/du, -k·dh/dv, 1). Rows run DOWN the
+   image while v runs up, hence +dh/dy for the green channel: this is the
+   OpenGL convention a glTF normal map uses. The texture keeps the source's
+   flipY (false for glTF), and the caller must negate normalScale.y exactly as
+   GLTFLoader does for a model without tangents — three then builds the frame
+   from screen-space derivatives of the UVs.
+
+   Computed once per texture, on the CPU, rather than as a bump map in the
+   shader: a bump map differentiates the height per pixel quad, which
+   shimmers on a moving hull, while a normal map gets mipmapped like any
+   other image. */
+Naval.normalFromHeight = function(src, strength, channel){
+  const img = src && src.image;
+  const W = img && (img.width || img.videoWidth), H = img && (img.height || img.videoHeight);
+  if(!W || !H) return null;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d', { willReadFrequently:true });
+  g.drawImage(img, 0, 0);
+  const px = g.getImageData(0, 0, W, H);
+  const d = px.data, ch = channel == null ? 1 : channel;
+
+  const h = new Float32Array(W*H);
+  for(let i = 0; i < W*H; i++) h[i] = d[i*4 + ch]/255;
+
+  // Sobel's weights sum to 8 per side; k/8 keeps `strength` a plain slope gain
+  const k = strength/8;
+  for(let y = 0; y < H; y++){
+    const ym = (y > 0 ? y-1 : y)*W, y0 = y*W, yp = (y < H-1 ? y+1 : y)*W;
+    for(let x = 0; x < W; x++){
+      const xm = x > 0 ? x-1 : x, xp = x < W-1 ? x+1 : x;
+      const dx = (h[ym+xp] + 2*h[y0+xp] + h[yp+xp]) - (h[ym+xm] + 2*h[y0+xm] + h[yp+xm]);
+      const dy = (h[yp+xm] + 2*h[yp+x] + h[yp+xp]) - (h[ym+xm] + 2*h[ym+x] + h[ym+xp]);
+      const nx = -dx*k, ny = dy*k;
+      const inv = 1/Math.sqrt(nx*nx + ny*ny + 1);
+      const o = (y0 + x)*4;
+      d[o]   = (nx*inv*0.5 + 0.5)*255;
+      d[o+1] = (ny*inv*0.5 + 0.5)*255;
+      d[o+2] = (inv*0.5 + 0.5)*255;
+      d[o+3] = 255;
+    }
+  }
+  g.putImageData(px, 0, 0);
+
+  const t = new THREE.CanvasTexture(c);
+  t.flipY = src.flipY;
+  t.wrapS = src.wrapS; t.wrapT = src.wrapT;
+  t.channel = src.channel;
+  t.anisotropy = src.anisotropy;
+  t.colorSpace = THREE.NoColorSpace;     // directions, not colours
+  t.needsUpdate = true;
+  return t;
 };
 
 Naval.loadGLTFLoader = async function(){

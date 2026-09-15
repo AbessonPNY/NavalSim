@@ -92,7 +92,7 @@
   },
   "deckhouse": {
     "beamFrac": 0.34,
-    "height": 2.35,
+    "height": 8.35,
     "lengthFrac": 0.14,
     "zFrac": -0.3
   },
@@ -118,6 +118,7 @@
       0,
       0
     ],
-    "rotationY": 0
+    "rotationY": 0,
+    "relief": 16
   }
 }

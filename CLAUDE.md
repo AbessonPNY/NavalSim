@@ -1591,6 +1591,36 @@ en fichier image séparé ne marchera jamais — la politique de sécurité bloq
 `fetch` d'un fichier local, et le build n'embarque que les `.glb`. `normalMap`,
 `roughnessMap` et `metalnessMap` passent par le même chemin.
 
+**Le relief se tire de la rugosité, parce que glTF n'a pas de bump.** Demandé
+comme « refaire le shader pour qu'il prenne la normal map » — or le shader
+n'y était pour rien : les matériaux du `.glb` sont des `MeshStandardMaterial`
+qui lisent déjà carte normale et rugosité, et les greffes du projet (brume,
+occlusion) n'y touchent pas. Ce qui manquait était **dans le fichier** : relevé
+sur les cinq modèles, aucune `normalTexture`, et pour la Roter Löwe une seule
+image de couleur. Une image en niveaux de gris branchée en relief dans Blender
+est jetée par l'exportateur sans un mot ; seule sa moitié rugosité survit, dans
+le canal vert.
+
+`model.relief` la relit donc comme une hauteur : Sobel sur le processeur, une
+fois par texture, rendu en carte normale **tangentielle** plutôt qu'en
+`bumpMap`. Un bump différencie la hauteur par bloc de pixels dans le shader et
+fourmille sur une coque qui bouge ; une carte normale se mipmappe comme toute
+image. Pas de tangentes dans ces modèles, donc three bâtit le repère sur les
+dérivées d'UV, et `normalScale.y` est **négatif** exactement comme GLTFLoader le
+pose dans ce cas.
+
+**Le signe a été mesuré, pas raisonné.** Rendu contre le `bumpMap` de three —
+dont la convention, blanc en relief, est connue — sur trois vues, corrélation
+de l'écart d'éclairage : `(1,−1)` gagne partout (0,27 · 0,49 · 0,50), et
+retourner l'axe v fait passer au négatif (−0,16 · −0,37). L'axe u discrimine
+mal de flanc (0,27 contre 0,26) parce que le bordé court à l'horizontale et n'a
+presque pas de pente dans ce sens ; la vue de dessus le tranche (0,49 contre
+0,29). Réglé à 16 : à 6 rien ne se voyait, même rasant.
+
+Coût : **63 ms** au chargement pour 2048 × 1536, et une texture de plus en
+mémoire vidéo. La vraie facture est ailleurs : l'exportateur réécrit la
+rugosité en **PNG de 1,15 Mo**, et la page construite passe de 3,4 à 5,2 Mo.
+
 **Le compas : c'est la CARTE qui tourne.** La ligne de foi reste en haut et la
 rose pivote de `−cap` dessous, comme dans un habitacle — on lit ce qui passe
 sous la marque. Faire tourner le navire au-dessus d'une rose fixe donnerait une
