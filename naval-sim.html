@@ -588,6 +588,7 @@ async function main(){
      une bouteille — et les cargaisons échouées qu'une carte peut indiquer. Le
      module fait flotter et repêche ; ce que dit une bouteille se décide ici. */
   const flotsam = new Naval.Flotsam(stage.scene, stage, ocean, world);
+  flotsam.configure();                     // props/Props.json : tailles, réglages, modèles
   chart.marks = ()=> flotsam.marks();
 
   /* What a hull throws when she comes down. The solver hands over cubic metres

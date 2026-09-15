@@ -19,6 +19,18 @@
  */
 window.Naval = window.Naval || {};
 
+/* What each prop is, when props/Props.json has not said otherwise — the same
+   figures the file ships with, so a missing or half-written file changes
+   nothing. The file wins field by field. */
+Naval.PROPS_DEFAULTS = {
+  wreck:  { debrisMin:1, debrisMax:2 },
+  plank:  { name:'Planche', scale:1, glb:null, rotation:[0,0,0], draft:0.02, life:900 },
+  barrel: { name:'Tonneau', scale:1, glb:null, rotation:[0,0,0], draft:0.12, life:900 },
+  bottle: { name:'Bouteille', scale:3, glb:null, rotation:[0,0,0], draft:0.05, life:1800,
+            chance:0.35, pickupRadius:10, pickupSpeed:1.03 },
+  cargo:  { name:'Cargaison échouée', scale:1, glb:null, rotation:[0,0,0], claimRadius:180, claimSpeed:1.0 }
+};
+
 Naval.Flotsam = class Flotsam {
   constructor(scene, stage, ocean, world){
     this.scene = scene; this.stage = stage; this.ocean = ocean; this.world = world;
@@ -26,7 +38,8 @@ Naval.Flotsam = class Flotsam {
     this._seen = new WeakMap();        // hulls whose sinking has already given up its wreckage
     this.onBottle = null;              // (item, wreckEntry) — the page opens it
     this.onCargo = null;               // (item) — the page pays it out
-    this.bottleChance = 0.35;
+    this.def = JSON.parse(JSON.stringify(Naval.PROPS_DEFAULTS));
+    this._tpl = {};                    // a loaded .glb per kind, cloned for each one afloat
     this._q = new THREE.Quaternion(); this._n = new THREE.Vector3(); this._up = new THREE.Vector3(0, 1, 0);
     this._qy = new THREE.Quaternion(); this._qt = new THREE.Quaternion();
 
@@ -40,7 +53,53 @@ Naval.Flotsam = class Flotsam {
     };
   }
 
+  /* Read props/Props.json — carried in the page as Naval.PROPS_DATA by the
+     build, fetched from the dev server otherwise — and load any model it names.
+     Asynchronous and forgiving: until it answers, and for any kind whose model
+     will not load, the prop is drawn here as before. Something already afloat
+     keeps the look it was born with. */
+  async configure(){
+    let data = Naval.PROPS_DATA;
+    if(!data){
+      try{ const r = await fetch('props/Props.json', { cache:'no-cache' }); if(r.ok) data = await r.json(); }
+      catch(e){ /* no file, no server: the defaults stand */ }
+    }
+    if(data) for(const k of Object.keys(this.def)) if(data[k]) Object.assign(this.def[k], data[k]);
+    for(const kind of ['plank', 'barrel', 'bottle', 'cargo']){
+      const d = this.def[kind];
+      if(!d.glb && !d.glbBase64) continue;
+      try{
+        const loader = new (await Naval.loadGLTFLoader())();
+        const gltf = d.glbBase64
+          ? await new Promise((ok, no) => loader.parse(Naval.base64ToArrayBuffer(d.glbBase64), '', ok, no))
+          : await loader.loadAsync(d.glb);
+        const tpl = gltf.scene;
+        tpl.traverse(o => {
+          if(!o.isMesh) return;
+          o.castShadow = true;
+          for(const m of [].concat(o.material)) if(this.ocean) Naval.applyHaze(m, this.ocean.uniforms);
+        });
+        this._tpl[kind] = tpl;
+      }catch(err){
+        console.warn('[props] ' + kind + ' : modèle ' + (d.glb || 'embarqué') + ' illisible — dessiné par le code. ' + (err && err.message || err));
+      }
+    }
+  }
+
+  /* One prop's scene object: its model if the file named one and it loaded,
+     the drawing below otherwise — scaled and turned as the file says. */
   _mesh(kind){
+    const d = this.def[kind] || {}, outer = new THREE.Group();
+    const inner = this._tpl[kind] ? this._tpl[kind].clone(true) : this._draw(kind);
+    const r = d.rotation || [0, 0, 0], D = Math.PI/180;
+    inner.rotation.set(r[0]*D, r[1]*D, r[2]*D);
+    outer.add(inner);
+    outer.scale.setScalar(d.scale || 1);
+    this.scene.add(outer);
+    return outer;
+  }
+
+  _draw(kind){
     const g = new THREE.Group(), M = this.mats;
     const add = (geo, mat, x, y, z, rx, ry, rz) => {
       const m = new THREE.Mesh(geo, mat);
@@ -59,9 +118,10 @@ Naval.Flotsam = class Flotsam {
       add(new THREE.LatheGeometry(pts, 14), M.wood, 0, 0, 0, 0, 0, Math.PI/2);   // lying on its side
       for(const x of [-0.30, 0.30]) add(new THREE.TorusGeometry(0.335, 0.022, 5, 16), M.hoop, x, 0, 0, 0, Math.PI/2, 0);
     }else if(kind === 'bottle'){
-      /* Drawn at three times its size, and on purpose: a real bottle is a
-         speck a ship's length off. Same argument as the cannonball. */
-      const s = 3;
+      /* Drawn at its TRUE size here; Props.json enlarges it three times, and on
+         purpose — a real bottle is a speck a ship's length off. Same argument
+         as the cannonball. */
+      const s = 1;
       add(new THREE.CylinderGeometry(0.055*s, 0.06*s, 0.22*s, 10), M.glass);
       add(new THREE.CylinderGeometry(0.02*s, 0.045*s, 0.09*s, 8), M.glass, 0, 0.155*s, 0);
       add(new THREE.CylinderGeometry(0.022*s, 0.02*s, 0.04*s, 6), M.cork, 0, 0.215*s, 0);
@@ -73,7 +133,6 @@ Naval.Flotsam = class Flotsam {
       add(new THREE.BoxGeometry(1.56, 0.08, 1.16), M.raw, 0, -0.3, 0, 0, 0.2, 0.08);
       add(new THREE.CylinderGeometry(0.34, 0.34, 0.9, 12), M.wood, 1.3, -0.1, 0.6, 0.3, 0, 0.2);
     }
-    this.scene.add(g);
     return g;
   }
 
@@ -81,21 +140,23 @@ Naval.Flotsam = class Flotsam {
   _wreck(e, t){
     const b = e.body, o = this.ocean.origin;
     const wx = b.pos.x + o.x, wz = b.pos.z + o.z;
-    const n = 1 + (Math.random() < 0.5 ? 1 : 0);
+    const W = this.def.wreck;
+    const n = W.debrisMin + Math.floor(Math.random()*(W.debrisMax - W.debrisMin + 1));
     for(let i = 0; i < n; i++){
       const kind = Math.random() < 0.6 ? 'plank' : 'barrel';
-      this._float(kind, wx + (Math.random() - 0.5)*16, wz + (Math.random() - 0.5)*16, 900, null);
+      this._float(kind, wx + (Math.random() - 0.5)*16, wz + (Math.random() - 0.5)*16, this.def[kind].life, null);
     }
     // a bottle is somebody's last act, so the ship at the helm does not throw one
-    if(e.player !== true && Math.random() < this.bottleChance){
-      this._float('bottle', wx + (Math.random() - 0.5)*10, wz + (Math.random() - 0.5)*10, 1800,
+    if(e.player !== true && Math.random() < this.def.bottle.chance){
+      this._float('bottle', wx + (Math.random() - 0.5)*10, wz + (Math.random() - 0.5)*10, this.def.bottle.life,
                   { from:e, t, name:e.spec && e.spec.name, origine:e.origine || null });
     }
   }
 
   _float(kind, x, z, life, data){
-    const it = { kind, x, z, y:-2, yaw:Math.random()*Math.PI*2, age:0, life, data,
-                 draft: kind === 'barrel' ? 0.12 : kind === 'bottle' ? 0.05 : 0.02,
+    const it = { kind, x, z, y:-2, yaw:Math.random()*Math.PI*2, age:0,
+                 life: life != null ? life : this.def[kind].life, data,
+                 draft: this.def[kind].draft,
                  mesh:this._mesh(kind), rise:true };
     this.items.push(it);
     return it;
@@ -155,7 +216,8 @@ Naval.Flotsam = class Flotsam {
       if(it.kind === 'cargo'){
         it.mesh.position.set(lx, it.y, lz);
         it.mesh.rotation.y = it.yaw;
-        if(pb && pv < 1.0 && Math.hypot(it.x - px, it.z - pz) < 180){
+        const C = this.def.cargo;
+        if(pb && pv < C.claimSpeed && Math.hypot(it.x - px, it.z - pz) < C.claimRadius){
           this.remove(it);
           if(this.onCargo) this.onCargo(it);
         }
@@ -183,7 +245,8 @@ Naval.Flotsam = class Flotsam {
       it.mesh.quaternion.copy(this._qt).multiply(this._qy);
       it.mesh.position.set(lx, it.y, lz);
 
-      if(it.kind === 'bottle' && pb && pv < 1.03 && Math.hypot(it.x - px, it.z - pz) < 10){
+      const B = this.def.bottle;
+      if(it.kind === 'bottle' && pb && pv < B.pickupSpeed && Math.hypot(it.x - px, it.z - pz) < B.pickupRadius){
         this.remove(it);
         if(this.onBottle) this.onBottle(it, it.data && it.data.from);
       }

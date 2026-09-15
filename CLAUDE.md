@@ -3685,6 +3685,20 @@ et suspend la compression du temps tant qu'il est ouvert. Deux fautes de frança
 au passage, la règle vivant avec les noms : « il y a il y a », `age()` le disant
 déjà, et « de Le Carénage » — `deNom` et `aNom` contractent l'article.
 
+**Leurs réglages vivent dans `props/Props.json`**, un bloc par objet : `scale`,
+`glb` (null = dessiné par le code) et `rotation` pour orienter un modèle,
+`draft` (enfoncement en mètres, non mis à l'échelle), `life`, et pour la bouteille
+et la cargaison leurs probabilité, rayon et vitesse de repêchage ; `wreck` borne
+le nombre de débris. Le fichier l'emporte champ par champ sur
+`Naval.PROPS_DEFAULTS`, qui porte les mêmes valeurs — un fichier absent ou à moitié
+écrit ne change rien. Servi par le serveur de développement, embarqué par le build
+en `Naval.PROPS_DATA` avec les octets de tout `.glb` nommé, exactement comme une
+fiche de navire. Un modèle est chargé une fois par sorte et **cloné** pour chaque
+objet à flot, ses matières prenant la brume ; tant qu'il n'est pas là, ou s'il est
+illisible, l'objet est dessiné par le code. La bouteille est désormais dessinée à
+sa vraie taille et agrandie par le fichier (`scale: 3`), ce qui la rend réglable
+comme le reste.
+
 Relevé, goélette sabordée d'office avec bouteille forcée : un tonneau et la
 bouteille à flot en trois secondes, une marque sur la carte, les trois contenus
 lus, une cargaison posée par 0,7 m de fond au sud-ouest du Carénage, et 3 t

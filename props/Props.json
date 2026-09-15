@@ -1,0 +1,42 @@
+{
+  "note": "Objets du monde qui ne sont pas des navires. scale : taille (1 = taille dessinee). glb : chemin d'un modele (null = dessine par le code), oriente par rotation en degres [x, y, z]. draft : enfoncement en metres. life : duree a flot en secondes.",
+  "wreck": {
+    "debrisMin": 1,
+    "debrisMax": 2
+  },
+  "plank": {
+    "name": "Planche",
+    "scale": 1.0,
+    "glb": null,
+    "rotation": [0, 0, 0],
+    "draft": 0.02,
+    "life": 900
+  },
+  "barrel": {
+    "name": "Tonneau",
+    "scale": 1.0,
+    "glb": null,
+    "rotation": [0, 0, 0],
+    "draft": 0.12,
+    "life": 900
+  },
+  "bottle": {
+    "name": "Bouteille",
+    "scale": 3.0,
+    "glb": null,
+    "rotation": [0, 0, 0],
+    "draft": 0.05,
+    "life": 1800,
+    "chance": 0.35,
+    "pickupRadius": 10,
+    "pickupSpeed": 1.03
+  },
+  "cargo": {
+    "name": "Cargaison échouée",
+    "scale": 1.0,
+    "glb": null,
+    "rotation": [0, 0, 0],
+    "claimRadius": 180,
+    "claimSpeed": 1.0
+  }
+}

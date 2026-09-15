@@ -193,8 +193,31 @@ if (fs.existsSync(SOUND_DIR)) {
 const soundBlob = '<script>\nwindow.Naval = window.Naval || {};\n' +
   'Naval.SOUND_DATA = ' + JSON.stringify(soundData) + ';\n</scr' + 'ipt>\n';
 
+/* LES OBJETS DU MONDE (props/Props.json) : leurs tailles et réglages, et les
+   octets de tout .glb qu'ils nomment, par le même chemin que les navires. Sans
+   fichier, le jeu garde ses valeurs par défaut et dessine tout lui-même. */
+let propsData = null;
+const PROPS = path.join(ROOT, 'props', 'Props.json');
+if (fs.existsSync(PROPS)) {
+  propsData = JSON.parse(fs.readFileSync(PROPS, 'utf8'));
+  for (const [kind, d] of Object.entries(propsData)) {
+    if (!d || typeof d !== 'object' || !d.glb) continue;
+    const p = path.join(ROOT, d.glb);
+    if (fs.existsSync(p)) {
+      const bytes = fs.readFileSync(p);
+      d.glbBase64 = bytes.toString('base64');
+      console.log('  embedded ' + d.glb + '  (objet ' + kind + ', ' + (bytes.length/1024).toFixed(1) + ' KB)');
+    } else {
+      console.warn('  WARNING: ' + d.glb + ' is missing — ' + kind + ' sera dessiné par le code');
+    }
+  }
+  inlined.push('props/Props.json');
+}
+
 const shipBlob = '<script>\nwindow.Naval = window.Naval || {};\n' +
-  'Naval.SHIP_DATA = ' + JSON.stringify(shipData, null, 1) + ';\n</scr' + 'ipt>\n';
+  'Naval.SHIP_DATA = ' + JSON.stringify(shipData, null, 1) + ';\n' +
+  (propsData ? 'Naval.PROPS_DATA = ' + JSON.stringify(propsData) + ';\n' : '') +
+  '</scr' + 'ipt>\n';
 
 /* A STYLESHEET MAY POINT AT FILES OF ITS OWN, and they are blocked exactly as
    a local <script src> is. Same remedy as the painted sail: the PATH itself is
