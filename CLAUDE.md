@@ -3719,6 +3719,21 @@ toujours. La compression du temps est refusée tant qu'une rencontre vivante est
 moins de 2 500 m, pour la raison de toutes les autres : ce qui approche mérite
 qu'on le regarde.
 
+**AU LARGE, ET AVEC DE L'EAU JUSQU'À OÙ ELLE VA** — signalé à l'usage : rester au
+port faisait paraître des voiles, dont certaines sur l'île. Deux fautes. La garde
+était `portIci`, qui dit « comptoir ouvert » et non « près de la terre ». Et l'eau
+franche n'était exigée qu'au point de naissance : un pirate né derrière l'île du
+port montait droit sur le joueur à quai, c'est-à-dire droit sur la plage, la
+barre visant un point sans contourner la terre. Désormais rien ne paraît à moins
+de `landDistance` (2 500 m) d'une côte, la naissance est à `spawnFromLand`
+(1 500 m) de toute côte, et la **droite jusqu'au but** est sondée tous les 150 m à
+plus de `clearWater` (400 m) du rivage (`World.shoreDistance`, le même `_shore` que
+le terrain) : le joueur pour un pirate, pour un marchand un port dont la route est
+claire hors les 1 500 derniers mètres, sinon un point du large à 15 km. Relevé à
+quai : aucun pirate possible, marchands nés à 3,0–3,8 km de la terre, route à plus
+de 900 m des côtes. Reste qu'un pirate en chasse vise le joueur où qu'il aille : si
+l'on passe derrière une île, il talonne.
+
 **Un sur quatre est un pirate, et il NE HISSE PAS SES COULEURS** tant qu'on ne
 l'a pas vu. Il est lancé déguisé (`e.deguise`) : pavillon masqué, pacifique, cap
 sur le joueur. Le pavillon noir est une déclaration — c'est ainsi qu'est lue

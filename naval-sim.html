@@ -1694,6 +1694,7 @@ async function main(){
   const REGLAGES = { encounters: {
     enabled:true, intervalMin:360, intervalMax:720, maxAtOnce:2, spawnMin:4000, spawnMax:5000,
     despawn:9000, pirateChance:0.25, noticeDistance:600, spyglassRange:7000, spyglassField:0.8,
+    landDistance:2500, spawnFromLand:1500, clearWater:400,
     exclude:['bouee-canard'] } };
   (async ()=>{
     let s = Naval.SETTINGS;
@@ -1766,6 +1767,19 @@ async function main(){
     }
   }
 
+  /* De l'eau tout du long, en mètres monde vrais : un sondage tous les 150 m,
+     chacun à plus de `clearWater` d'une côte — au-delà du plateau, où elle
+     talonnerait. Les `finExclue` derniers mètres ne sont pas sondés. */
+  function eauLibre(ax, az, bx, bz, finExclue){
+    const L = Math.hypot(bx - ax, bz - az), marge = REGLAGES.encounters.clearWater;
+    const n = Math.ceil(Math.max(0, L - finExclue)/150);
+    for(let i = 1; i <= n; i++){
+      const u = Math.min(i*150, L - finExclue)/L;
+      if(world.shoreDistance(ax + (bx - ax)*u, az + (bz - az)*u) < marge) return false;
+    }
+    return true;
+  }
+
   async function voileAuHasard(){
     const R = REGLAGES.encounters;
     const ok = specs.filter(s => !R.exclude.includes(s.id));
@@ -1775,13 +1789,35 @@ async function main(){
     if(!pool.length) return;
     const sp = pool[Math.floor(Math.random()*pool.length)];
 
-    // de l'eau franche, loin de toute terre, à la bonne distance
+    /* EN MER, ET AVEC DE L'EAU JUSQU'À OÙ ELLE VA. Loin de toute côte, et la
+       droite qu'elle va suivre ne doit pas traverser une île : la barre vise un
+       point, elle ne contourne pas la terre. Née derrière l'île du port, un
+       pirate montait droit sur la plage pour rejoindre le joueur à quai. Le but
+       est le joueur pour un pirate, pour un marchand un port dont la route est
+       claire — la fin de l'approche exceptée, un port étant par définition au
+       bord de la terre — sinon un point du large. */
     const o = ocean.origin, b = physics.body.pos;
-    let at = null;
-    for(let k = 0; k < 40 && !at; k++){
+    const pirateTire = pool === pirates && pirates.length > 0;
+    const ports = world.isles.filter(i => i.port);
+    let at = null, but = null;
+    for(let k = 0; k < 60 && !at; k++){
       const a = Math.random()*Math.PI*2, d = R.spawnMin + Math.random()*(R.spawnMax - R.spawnMin);
       const lx = b.x + Math.sin(a)*d, lz = b.z + Math.cos(a)*d;
-      if(world.heightAt(lx + o.x, lz + o.z) < -25 && !world.near(lx + o.x, lz + o.z, 800).length) at = { lx, lz };
+      const wx = lx + o.x, wz = lz + o.z;
+      if(world.shoreDistance(wx, wz) < R.spawnFromLand) continue;
+      if(pirateTire){
+        if(eauLibre(wx, wz, b.x + o.x, b.z + o.z, 0)) { at = { lx, lz }; but = { x:b.x + o.x, z:b.z + o.z }; }
+        continue;
+      }
+      const libres = ports.filter(p => eauLibre(wx, wz, p.port.hx, p.port.hz, 1500));
+      if(libres.length){
+        const p = libres[Math.floor(Math.random()*libres.length)];
+        at = { lx, lz }; but = { x:p.port.hx, z:p.port.hz };
+        continue;
+      }
+      const c = Math.random()*Math.PI*2;
+      const fx = wx + Math.sin(c)*15000, fz = wz + Math.cos(c)*15000;
+      if(eauLibre(wx, wz, fx, fz, 0)){ at = { lx, lz }; but = { x:fx, z:fz }; }
     }
     if(!at) return;
 
@@ -1801,14 +1837,11 @@ async function main(){
     if(pirate){
       // déguisé : pacifique en apparence, et il vient vers vous
       e.deguise = true; e.hostile = false; e.pirate = null;
-      versX = b.x; versZ = b.z;
     }else{
-      // un marchand va quelque part : un port qui n'est pas celui d'à côté
-      const ports = world.isles.filter(i => i.port);
-      const p = ports[Math.floor(Math.random()*ports.length)];
-      e.route = { x:p.port.hx, z:p.port.hz, local:new THREE.Vector3() };
-      versX = p.port.hx - o.x; versZ = p.port.hz - o.z;
+      // un marchand va quelque part : le but choisi plus haut, en eau claire
+      e.route = { x:but.x, z:but.z, local:new THREE.Vector3() };
     }
+    versX = but.x - o.x; versZ = but.z - o.z;
     e.body.pos.set(at.lx, e.eqY, at.lz);
     e.body.quat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(versX - at.lx, versZ - at.lz));
     e.ship.syncTo(e.body);
@@ -1831,6 +1864,10 @@ async function main(){
     }
 
     if(portIci || voileEnRoute || t < prochaineVoile) return;
+    /* Rien ne paraît tant qu'on est près de la terre — au port, au mouillage ou
+       dans une passe : on croise des voiles au large. La pendule attend, et la
+       première voile vient peu après avoir gagné la mer. */
+    if(world.shoreDistance(b.x + ocean.origin.x, b.z + ocean.origin.z) < R.landDistance) return;
     prochaineVoile = t + R.intervalMin + Math.random()*(R.intervalMax - R.intervalMin);
     if(fleet.filter(e => e.rencontre).length >= R.maxAtOnce) return;
     if(fleet.length >= Naval.Config.MAX_SHIPS) return;

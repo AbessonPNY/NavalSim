@@ -106,7 +106,7 @@
       "square": "ships/textures/toile-carree.jpg"
     },
     "ensign": "jolly",
-    "ensignMap": "ships/textures/jolly_roger_1690.jpg",
+    "ensignMap": "ships/textures/flags/jolly_roger_1690.jpg",
     "impactMaps": [
       [
         "ships/textures/impacts/impact_001_stage_1.png",

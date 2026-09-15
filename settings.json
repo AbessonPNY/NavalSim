@@ -12,6 +12,9 @@
     "noticeDistance": 600,
     "spyglassRange": 7000,
     "spyglassField": 0.8,
+    "landDistance": 2500,
+    "spawnFromLand": 1500,
+    "clearWater": 400,
     "exclude": ["bouee-canard"]
   }
 }

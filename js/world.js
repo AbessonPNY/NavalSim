@@ -245,6 +245,18 @@ Naval.World = class World {
     return this._mole(x, z, this._islandHeight(x, z));
   }
 
+  /* Metres from a world point to the nearest shore line, negative ashore — the
+     same `_shore` the terrain is cut on, so "at sea" means what the eye sees. */
+  shoreDistance(x, z){
+    let best = Infinity;
+    for(const isl of this.isles){
+      const dx = x - isl.x, dz = z - isl.z;
+      const d = Math.hypot(dx, dz) - this._shore(isl, Math.atan2(dz, dx));
+      if(d < best) best = d;
+    }
+    return best;
+  }
+
   /* The island alone, harbour works excluded — what the terrain mesh is built
      on, and what the mole is measured against so it is not drawn buried in a
      hillside. */

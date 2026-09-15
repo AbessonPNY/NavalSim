@@ -165,7 +165,7 @@ deviendrait une arête.
 ### Pavillon
 
 ```json
-"appearance": { "ensign": "jolly", "ensignMap": "ships/textures/jolly_roger_1690.jpg" }
+"appearance": { "ensign": "jolly", "ensignMap": "ships/textures/flags/jolly_roger_1690.jpg" }
 ```
 
 - `ensign` décide du **camp** : `"jolly"` rend le navire hostile (pirate) ; une
