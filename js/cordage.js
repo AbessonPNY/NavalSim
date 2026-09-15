@@ -116,10 +116,17 @@ Naval.Cordage = class Cordage {
       uHorizon:u ? u.uHorizon: {value:new THREE.Color(0xd2e3ec)}
     };
 
+    /* CLIPPING, DECLARED. The sea's mirror keeps only what is above the water
+       by a renderer clipping plane, and a ShaderMaterial obeys that plane only
+       if it says so and carries three's clipping chunks. This one did not, so
+       whatever rope was UNDER water went into the mirror whole — invisible on a
+       cut end that hangs at the surface, and a long wavy ghost on the sea the
+       day an anchor cable ran down seventy metres of it. */
     this.mat = new THREE.ShaderMaterial({
       uniforms:this.uniforms,
-      transparent:true, depthWrite:false, side:THREE.DoubleSide,
+      transparent:true, depthWrite:false, side:THREE.DoubleSide, clipping:true,
       vertexShader:
+        '#include <clipping_planes_pars_vertex>\n' +
         'attribute vec3 tang;\n' +
         'attribute float side;\n' +
         'attribute float fade;\n' +
@@ -141,13 +148,16 @@ Naval.Cordage = class Cordage {
         '  float mpp = max(0.001, -mv.z) * uPxScale;\n' +
         '  float w2 = max(uWidth*0.5, uMinPx*0.5*mpp);\n' +
         '  mv.xyz += dir * w2 * side;\n' +
+        '  vec4 mvPosition = mv;                /* the name the clipping chunk reads */\n' +
+        '#include <clipping_planes_vertex>\n' +
         '  gl_Position = projectionMatrix * mv;\n' +
         '}',
-      fragmentShader: Naval.HAZE_GLSL + '\n' +
+      fragmentShader: '#include <clipping_planes_pars_fragment>\n' + Naval.HAZE_GLSL + '\n' +
         'uniform vec3 uColor, uHorizon, uCam;\n' +
         'varying float vFade;\n' +
         'varying vec3 vW;\n' +
         'void main(){\n' +
+        '#include <clipping_planes_fragment>\n' +
         '  float h = hazeAlong(uCam, vW);\n' +
         '  gl_FragColor = vec4(mix(uColor, uHorizon, h), vFade);\n' +
         '}'

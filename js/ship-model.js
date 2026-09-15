@@ -1383,54 +1383,107 @@ Naval.ShipModel = class ShipModel {
      bow and stern, so the after guns sit inboard of the midship ones and fell
      outside the window. Six guns found where there are twelve, all of them
      forward — and the ship's own shape was the reason. */
+  /* THE BATTERY, and not only the broadside.
+
+     A piece is read off the model by the WAY ITS BARREL LIES, which is the one
+     thing a gun cannot hide. The broadside guns lie athwartships; a stern chaser
+     run out through the transom, or a bow chaser through the head, lies fore
+     and aft. So `side` is no longer a sign but a GROUP:
+
+         +1 tribord    −1 bâbord    +2 poupe    −2 proue
+
+     chosen so that "the other one" is still the negative — ⇧G turns starboard
+     into larboard and the stern chasers into the bow chasers, one rule for both.
+
+     This used to sort vertices to one side of the centreline and group them by
+     their gap along the hull, which knew nothing of direction: the two stern
+     pieces added to the Roter Löwe, at ±1 m either side of her sternpost, were
+     filed one into each broadside and would have fired out of her quarters.
+     They are now clustered in three dimensions first, and each cluster is asked
+     which way it is long. Measured on her model: twelve pieces 0,42 long across
+     and 0,22 along, two at the transom 0,17 across and 0,32 along.
+
+     And every mesh carrying a gun material is read, not the first found: a
+     modeller adding chasers is as likely to make them a separate object as to
+     weld them into the battery.
+
+     A piece carries its CALIBRE, relative to the broadside's: a chaser is a
+     smaller gun, so its ball, flash, smoke and hole all come down with it
+     through the one `k` that guns.js already scales them by. */
   _findGuns(){
     this.guns = [];
     if(!this.modelRoot) return;             // a procedural hull carries no battery
 
-    let batt = null;
-    this.modelRoot.traverse(o => {
-      if(batt || !o.isMesh || !o.geometry) return;
-      const mats = Array.isArray(o.material) ? o.material : [o.material];
-      for(const m of mats) if(m && /canon|cannon|gun/i.test(m.name || '')) batt = o;
-    });
-    if(!batt) return;
-
     this.group.updateWorldMatrix(true, true);
     const toLocal = new THREE.Matrix4().copy(this.group.matrixWorld).invert();
-    batt.updateWorldMatrix(true, false);
-    const g = batt.geometry.clone();
-    g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(toLocal, batt.matrixWorld));
-    const pos = g.attributes.position;
-
-    for(const side of [-1, 1]){
-      const tips = [];
+    const m4 = new THREE.Matrix4(), v = new THREE.Vector3();
+    /* Touching cells join, so two vertices up to about twice this apart are one
+       piece. Wide enough that a barrel modelled as two bare rings is not cut in
+       two at its middle; narrow against the two or three metres between pieces. */
+    const cell = 0.45, grid = new Map();
+    this.modelRoot.traverse(o => {
+      if(!o.isMesh || !o.geometry) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      if(!mats.some(m => m && /canon|cannon|gun/i.test(m.name || ''))) return;
+      o.updateWorldMatrix(true, false);
+      m4.multiplyMatrices(toLocal, o.matrixWorld);
+      const pos = o.geometry.attributes.position;
       for(let i=0;i<pos.count;i++){
-        const x = pos.getX(i);
-        if(x*side < -0.05) tips.push({ z:pos.getZ(i), y:pos.getY(i), x:x });
+        v.fromBufferAttribute(pos, i).applyMatrix4(m4);
+        const key = Math.floor(v.x/cell) + ',' + Math.floor(v.y/cell) + ',' + Math.floor(v.z/cell);
+        let c = grid.get(key); if(!c){ c = []; grid.set(key, c); }
+        c.push(v.x, v.y, v.z);
       }
-      if(!tips.length) continue;
+    });
+    if(!grid.size) return;
 
-      /* Grouped by the gap in z, exactly as the yards are sorted onto masts:
-         a barrel's own ring is a few tenths of a metre deep and the guns stand
-         a couple of metres apart, so one threshold separates them and no count
-         has to be assumed. */
-      tips.sort((a,b) => a.z - b.z);
-      let run = [tips[0]];
-      const flush = () => {
-        // the muzzle is where this gun reaches furthest outboard, and the
-        // barrel's own axis is the middle of its ring
-        let z=0, y=0, best=run[0];
-        for(const t of run){ z+=t.z; y+=t.y; if(t.x*side < best.x*side) best = t; }
-        this.guns.push({ side,
-          p: new THREE.Vector3(best.x, y/run.length, z/run.length) });
-      };
-      for(let i=1;i<tips.length;i++){
-        if(tips[i].z - tips[i-1].z > 0.60){ flush(); run = []; }
-        run.push(tips[i]);
+    // flood the occupied cells: touching cells are one piece, a gap is the next
+    const seen = new Set(), pieces = [];
+    for(const start of grid.keys()){
+      if(seen.has(start)) continue;
+      seen.add(start);
+      const stack = [start], pts = [];
+      while(stack.length){
+        const k = stack.pop(), c = grid.get(k);
+        for(let i=0;i<c.length;i++) pts.push(c[i]);
+        const [x, y, z] = k.split(',').map(Number);
+        for(let dx=-1;dx<=1;dx++) for(let dy=-1;dy<=1;dy++) for(let dz=-1;dz<=1;dz++){
+          const n = (x+dx) + ',' + (y+dy) + ',' + (z+dz);
+          if(grid.has(n) && !seen.has(n)){ seen.add(n); stack.push(n); }
+        }
       }
-      flush();
+      const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+      for(let i=0;i<pts.length;i+=3) for(let a=0;a<3;a++){
+        if(pts[i+a] < lo[a]) lo[a] = pts[i+a];
+        if(pts[i+a] > hi[a]) hi[a] = pts[i+a];
+      }
+      pieces.push({ pts, lo, hi,
+        ex:hi[0]-lo[0], ey:hi[1]-lo[1], ez:hi[2]-lo[2],
+        cx:(lo[0]+hi[0])/2, cy:(lo[1]+hi[1])/2, cz:(lo[2]+hi[2])/2 });
     }
-    g.dispose();
+
+    // the broadside's bore sets the scale a chaser is measured against
+    const bores = pieces.filter(p => p.ex >= p.ez).map(p => Math.max(p.ey, p.ez)).sort((a,b) => a-b);
+    const ref = bores.length ? bores[bores.length >> 1] : 0;
+
+    for(const p of pieces){
+      const across = p.ex >= p.ez;
+      const bore = across ? Math.max(p.ey, p.ez) : Math.max(p.ey, p.ex);
+      const cal = ref > 0 ? Math.max(0.5, Math.min(1.5, bore/ref)) : 1;
+      let side, dir, muzzle;
+      if(across){
+        side = p.cx < 0 ? 1 : -1;                     // starboard is −x
+        // the muzzle is where it reaches furthest outboard, on the barrel's axis
+        muzzle = new THREE.Vector3(side > 0 ? p.lo[0] : p.hi[0], p.cy, p.cz);
+        dir = new THREE.Vector3(-side, 0, 0);
+      }else{
+        const fore = p.cz > 0;
+        side = fore ? -2 : 2;
+        muzzle = new THREE.Vector3(p.cx, p.cy, fore ? p.hi[2] : p.lo[2]);
+        dir = new THREE.Vector3(0, 0, fore ? 1 : -1);
+      }
+      this.guns.push({ side, p:muzzle, dir, cal, chase: !across && cal < 0.9 });
+    }
     this.guns.sort((a,b) => b.p.z - a.p.z);      // forward gun first, as they fire
   }
 

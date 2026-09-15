@@ -200,6 +200,7 @@
       <div class="helm-head"><span class="k">Canons</span><span class="v" id="gunText">Tribord</span></div>
       <div class="gunSide" id="gunSide">
         <button data-s="-1">Bâbord</button><button data-s="1" class="on">Tribord</button>
+        <button data-s="-2">Proue</button><button data-s="2">Poupe</button>
       </div>
       <div class="telegraph">— <kbd>F1</kbd> commandes —</div>
     </div>
@@ -257,7 +258,7 @@
           <dt><kbd>W</kbd><kbd>S</kbd></dt><dd>machine, en avant et en arrière</dd>
           <dt><kbd>Espace</kbd></dt><dd>stopper la machine</dd>
           <dt><kbd>A</kbd><kbd>D</kbd></dt><dd>barre à bâbord, à tribord</dd>
-          <dt><kbd>M</kbd></dt><dd>larguer les amarres</dd>
+          <dt><kbd>M</kbd></dt><dd>larguer les amarres · mouiller ou lever l’ancre</dd>
           <dt><kbd>+</kbd> · <kbd>−</kbd></dt><dd>presser le temps, le rendre</dd>
         </dl>
       </section>
@@ -368,6 +369,7 @@
 <script src="js/splash.js"></script>
 <script src="js/wreck-air.js"></script>
 <script src="js/cordage.js"></script>
+<script src="js/anchor.js"></script>
 <script src="js/purse.js"></script>
 <script src="js/world.js"></script>
 <script src="js/land.js"></script>
@@ -561,6 +563,10 @@ async function main(){
      la flotte et un seul appel de dessin : les navires DEMANDENT leurs bouts,
      ils ne les tiennent pas — voir `rigCuts` sur le modèle. */
   const cordage = new Naval.Cordage(stage.scene, stage, ocean);
+  /* L'ancre et son câble. Au fond, c'est une amarre de plus dans `moorings`,
+     dont la bitte peut glisser ; tout le reste — la chute, la gerbe, le câble
+     qui file, le cabestan — vit là et le solveur n'en sait rien. */
+  const anchors = new Naval.Anchors(stage.scene, stage, ocean, world, splash, cordage);
 
   /* What a hull throws when she comes down. The solver hands over cubic metres
      a SECOND of water driven down, so a sixth of a second of it is about what
@@ -911,6 +917,7 @@ async function main(){
   });
 
   let spec, lines, ship, physics, cam, hud, spyglass, t = 0, trimPending = false, lost = false;
+  let refreshGuns = ()=>{};                // la console de tir, relue à chaque navire
   let startHeading = 0, startPort = null, mooringsPending = false, atBerth = false;
   let berthOff = 0;
   const berthAt = new THREE.Vector3();
@@ -1005,15 +1012,30 @@ async function main(){
          ⇧G reste, et sert désormais « l'autre bord » plutôt que bâbord : le
          geste garde son sens quel que soit le bord armé, et l'on peut lâcher
          une bordée du côté opposé sans changer d'ordre. */
+      /* QUATRE GROUPES ET NON PLUS DEUX BORDS : tribord +1, bâbord −1, poupe +2,
+         proue −2, tels que ship-model les lit sur le sens des tubes. Choisis pour
+         que « l'autre » reste le négatif, si bien que ⇧G sert bâbord depuis
+         tribord et la proue depuis la poupe sans une ligne de plus. Une bordée
+         ne sert que son groupe : les pièces de retraite ne partent jamais avec
+         le travers. Un groupe que ce navire n'a pas est grisé plutôt que caché —
+         la console garde sa forme d'un navire à l'autre. */
       let gunSide = 1;
+      const GUN_NAMES = { '1':'Tribord', '-1':'Bâbord', '2':'Poupe', '-2':'Proue' };
       const gunSideEls = [...document.querySelectorAll('#gunSide button')];
       const gunTextEl = document.getElementById('gunText');
+      const hasGroup = s => ship.guns.some(g => g.side === s);
       function showGunSide(){
-        for(const b of gunSideEls) b.classList.toggle('on', Number(b.dataset.s) === gunSide);
-        // la colonne annonce son bord comme les trois autres annoncent leur valeur
-        if(gunTextEl) gunTextEl.textContent = gunSide > 0 ? 'Tribord' : 'Bâbord';
+        if(!hasGroup(gunSide) && hasGroup(1)) gunSide = 1;
+        for(const b of gunSideEls){
+          const s = Number(b.dataset.s);
+          b.classList.toggle('on', s === gunSide);
+          b.disabled = !hasGroup(s);
+        }
+        // la colonne annonce son groupe comme les trois autres annoncent leur valeur
+        if(gunTextEl) gunTextEl.textContent = GUN_NAMES[gunSide];
       }
       for(const b of gunSideEls) b.onclick = ()=>{ gunSide = Number(b.dataset.s); showGunSide(); };
+      refreshGuns = showGunSide;
       showGunSide();
 
       controls.onShot = ()=> capture.take();
@@ -1035,6 +1057,7 @@ async function main(){
         if(!ship.guns.length){ hud.flash && hud.flash(); return; }
         if(physics.powder <= 0){ dire('Plus une charge en soute'); return; }
         const side = other ? -gunSide : gunSide;      // ⇧ : l'autre bord, une fois
+        if(!hasGroup(side)){ dire('Aucune pièce en ' + GUN_NAMES[side].toLowerCase()); return; }
         const tires = held
           ? guns.broadside(ship.guns, side, physics.body, spec, ocean.windVec, physics.powder)
           : guns.fireOne(ship.guns, side, physics.body, spec, ocean.windVec);
@@ -1071,9 +1094,14 @@ async function main(){
         if(el) el.classList.toggle('off');
       };
 
+      /* M TIENT TOUT LE MOUILLAGE : à quai il largue les amarres, libre il
+         mouille l'ancre, ancre dehors il la fait lever. Une seule touche pour ce
+         qui retient un navire au même endroit, et l'ordre dans lequel on s'en
+         sert est justement l'ordre dans lequel on appareille. */
       controls.onCastOff = ()=> {
         const n = physics.castOff();
-        dire(n ? 'Amarres larguées' : 'Elle est déjà libre');
+        if(n){ dire('Amarres larguées'); return; }
+        dire(anchors.toggle(fleet[0]));
       };
       controls.onSalvage  = ()=> {
         physics.salvage();
@@ -1282,6 +1310,7 @@ async function main(){
        premier armement — on appareille approvisionné — mais ce qu'on brûle
        ensuite se rachète. */
     physics.powderMax = ship.guns.length * 40;
+    refreshGuns();
     physics.powder = physics.powderMax;
 
     // a fresh vessel is not the lost one, whatever became of her predecessor
@@ -1859,7 +1888,7 @@ async function main(){
                 get physics(){ return physics; }, get ship(){ return ship; },
                 get cam(){ return cam; }, get hud(){ return hud; },
                 world, land, gulls, chart, blast, guns, takeHelm, weather, rain, splash,
-                cordage, purse, parler, tempete, sound, wreckAir,
+                cordage, purse, parler, tempete, sound, wreckAir, anchors,
                 get spyglass(){ return spyglass; },
                 storms, get squall(){ return squall; },
                 get fleet(){ return fleet; } };
@@ -2116,6 +2145,7 @@ async function main(){
       cam.rebase(dx, dz);
       splash.rebase(dx, dz);
       wreckAir.rebase(dx, dz);
+      anchors.rebase(dx, dz);
       blast.rebase(dx, dz);
       guns.rebase(dx, dz);
       cordage.rebase(dx, dz);
@@ -2214,6 +2244,7 @@ async function main(){
     guns.update(dt, ocean.windVec, ocean, t);
     // before splash.update, which draws what it throws, and before foam.update, which lays its boils
     wreckAir.update(dt, fleet, ocean, t);
+    anchors.update(dt, fleet, t);
     splash.update(dt);
     cordage.update(dt, fleet, t, stage.camera.position);
     hud.update(dt);

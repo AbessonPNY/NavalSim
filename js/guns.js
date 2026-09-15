@@ -84,7 +84,7 @@ Naval.Guns = class Guns {
     this._queue = [];
     this.shot = [];            // round shot in the air
     // which gun speaks next, one cursor per side: [babord, tribord]
-    this._next = [0, 0];
+    this._next = {};             // per group: tribord, bâbord, poupe, proue
     this.targets = [];         // fleet entries a ball may find, set by the page
     this.onRecoil = null;      // wired by the page, so the hull answers back
     /* Le COUP, qui n'est pas le recul : l'un est ce que la pièce fait à la
@@ -192,8 +192,8 @@ Naval.Guns = class Guns {
   fireOne(muzzles, side, body, spec, wind){
     const g = this._battery(muzzles, side);
     if(!g.length) return 0;
-    const s = side > 0 ? 1 : 0;
-    const i = this._next[s] % g.length;
+    const s = side;
+    const i = (this._next[s] || 0) % g.length;
     this._next[s] = (i + 1) % g.length;
     this._queue.push({ t:0, g:g[i], body, spec, wind });
     return 1;
@@ -222,8 +222,8 @@ Naval.Guns = class Guns {
     if(!g.length) return 0;
     const fire = max === undefined ? g.length : Math.min(g.length, Math.max(0, max|0));
     if(!fire) return 0;
-    const s = side > 0 ? 1 : 0;
-    const start = this._next[s] % g.length;
+    const s = side;
+    const start = (this._next[s] || 0) % g.length;
     let delay = 0;
     for(let n = 0; n < fire; n++){
       this._queue.push({ t:-delay, g:g[(start + n) % g.length], body, spec, wind });
@@ -241,7 +241,8 @@ Naval.Guns = class Guns {
   /* One gun. `g` is a muzzle in the HULL's frame, so it is carried round by her
      heel and her heading before anything is drawn in the world. */
   fire(g, body, spec, wind){
-    const k = Math.max(0.35, spec.L/60);       // a carronade is not a 32-pounder
+    // a carronade is not a 32-pounder, and a chaser is not a broadside gun
+    const k = Math.max(0.35, spec.L/60) * (g.cal || 1);
     const smoke = Naval.powderTexture(), glow = Naval.glowTexture();
 
 
@@ -278,9 +279,11 @@ Naval.Guns = class Guns {
        put it in the water at 45. One side at the moon and the other into her
        own side. Every ship that ever fought under sail carried that heel; what
        they did about it was aim. */
-    this._d.set(-g.side, 0, 0).applyQuaternion(body.quat);
+    // along its own barrel: athwartships for the broadside, fore and aft for a chaser
+    if(g.dir) this._d.copy(g.dir); else this._d.set(-g.side, 0, 0);
+    this._d.applyQuaternion(body.quat);
     this._d.y = 0;                       // her bearing, taken flat
-    if(this._d.lengthSq() < 1e-6) this._d.set(-g.side, 0, 0);
+    if(this._d.lengthSq() < 1e-6){ if(g.dir) this._d.copy(g.dir); else this._d.set(-g.side, 0, 0); }
     this._d.normalize();
     this._d.y = elev;                    // and then the quoin, against the sea
     this._d.normalize();
@@ -637,7 +640,11 @@ Naval.Guns = class Guns {
       q.t += dt;
       if(q.t < 0) continue;
       if(q.t < 2.5){
-        this._d.set(-q.g.side, 0, 0).applyQuaternion(q.body.quat);
+        /* Along the barrel, whichever way it lies. The rule does not change for
+           a chaser: what lifts a fore-and-aft gun is her PITCH, and (ω × d).y
+           reads that exactly as it reads heel for a broadside gun. */
+        if(q.g.dir) this._d.copy(q.g.dir); else this._d.set(-q.g.side, 0, 0);
+        this._d.applyQuaternion(q.body.quat);
         // d/dt of the muzzle's height is (omega x d).y — negative is coming down
         this._a.crossVectors(q.body.angVel, this._d);
         /* Hold only while the muzzle is RISING. Dead still counts as fireable,

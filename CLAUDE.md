@@ -30,6 +30,7 @@ logique est dans `js/`, en classes attachées à un espace de noms global `Naval
 | `rain.js` · `splash.js` | le rideau de pluie · l’eau jetée par ce qui tombe dedans |
 | `wreck-air.js` | l’air qui remonte d’une épave, et le temps qu’il met à venir |
 | `spyglass.js` | la lunette : une focale étroite, puis un verre qui a vu la mer |
+| `anchor.js` | mouiller et lever l’ancre : la chute, le câble, le cabestan |
 | `ship-spec.js` | lit une fiche JSON et en **dérive** tout ce que le solveur consomme |
 | `hull-lines.js` | le plan de formes, en fonctions pures |
 | `stage.js` | renderer, scène, lumière, ciel |
@@ -407,6 +408,81 @@ que fait une coque à quai — mais dans une baie ouverte cela lui faisait prome
 ses extrémités jusqu'à toucher. Quinze centimètres, donc : on prend le boulon en
 attendant que le port soit abrité, auquel cas c'est ce chiffre-là qu'il faudra
 rendre.
+
+## Mouiller
+
+**UNE ANCRE AU FOND EST UNE AMARRE DONT LA BITTE PEUT BOUGER** (`anchor.js`).
+Le quai tient déjà un navire par un ressort qui tire et ne pousse jamais, frappé
+sur un point en mètres monde vrais ; être à l'ancre, c'est la même ligne frappée
+sur un point du fond, avec deux différences que `_moor` porte désormais par ligne :
+un long câble est un ressort plus **souple** qu'une aussière (`stretch`, il doit
+soulever sa propre chute avant de raidir), et son bout **cède** quand on le tire
+plus fort que l'ancre ne résiste (`hold`) — le point d'ancrage glisse alors sur le
+fond vers le navire, de ce que le plafond a refusé d'allongement. Aucune règle
+« l'ancre chasse » : le même ressort, avec son bout libre de céder. Tout le reste
+— la chute depuis le bossoir, la gerbe, la descente, le câble qui file, le
+cabestan — vit dans le module et le solveur n'en sait rien.
+
+**La tenue est énoncée, pas réglée.** Une ancre de bossoir pesait environ quatre
+millièmes du déplacement — une tonne pour un galion de 240 t, quatre pour un
+vaisseau de ligne, ce qu'ils portaient — et tient à peu près huit fois son poids
+**si elle travaille à plat**. Elle ne le fait qu'avec de la **touée** : le câble
+doit tirer le long du fond et non vers le haut, donc la tenue tombe quand la
+longueur filée se rapproche de la profondeur. L'équipage file trois fois et demie
+le fond s'il l'a. Relevé :
+
+| | fond | câble | touée | tenue |
+|---|---|---|---|---|
+| chaland au port | 9 m | 31 m | 3,4 | 41 kN |
+| pirate au large | 70 m | **180 m, tout** | 2,6 | 30 kN |
+
+Au large la mer fait soixante-dix mètres partout et le câble s'arrête à six
+longueurs de coque : on mouille, mais on tient mal. Force 4 à sec de toile, elle
+évite de 11 m sur son mou et le câble ne raidit jamais — le fardage de ce solveur
+est faible ; voiles établies, il raidit à la tenue, l'ancre chasse et le navire la
+traîne à 1,6 m/s. C'est la vraie raison pour laquelle on mouillait en rade et non
+en pleine mer, et elle sort de l'arithmétique.
+
+**Relevé de la chute**, pirate par 70 m : gerbe à 0,87 s, trois mètres par seconde
+dans l'eau, **au fond à 23,5 s**. Levée : le cabestan reprend 1,2 m/s et la hale
+vers son ancre par le même ressort raccourci, l'ancre dérape à 87 s, bossée à
+150 s. « L'ancre chasse » est tu pendant qu'on vire — le cabestan tire au-delà de
+la tenue exprès.
+
+**LE BOSSOIR EST EN DEHORS DU BORDÉ, et l'avoir écrit en dedans a tout caché.**
+Posé à la moitié du bau, l'ancre était mouillée DANS la coque et tombait sans
+qu'on la voie à travers son propre fond : les chiffres étaient justes et il n'y
+avait rien à l'écran. Il est pris sur le bordé du modèle (`ship.shell`), sur
+l'avant, à tribord, à l'extérieur de la plus grande demi-largeur.
+
+**Le câble est une chaîne de Verlet épinglée aux deux bouts** — bossoir et
+organeau — lourde dans l'air, presque sans poids et très freinée dans l'eau, et
+jamais sous le fond, pris en droite entre le fond sous elle et le fond sous
+l'ancre, échantillonnés deux fois par seconde. Il est dessiné avec **le même
+shader de ruban que les bouts rompus** et ses propres uniformes de largeur — une
+définition de ce qu'est un cordage, et un câble de 18 cm n'est pas un bras. Ancre
+et câble sont aussi sur `SHIP_LAYER`, pour que la passe qui montre une coque à
+travers l'eau montre l'ancre qui descend.
+
+**UN SHADERMATERIAL N'OBÉIT AU PLAN DE COUPE QUE S'IL LE DÉCLARE**, et le câble
+l'a révélé : signalé à l'usage, une longue ligne sombre ondulait sur la mer au
+large de l'étrave. Le miroir de la mer ne garde que ce qui est au-dessus de
+l'eau par un plan de coupe du renderer ; les matériaux standard le respectent
+d'eux-mêmes, un `ShaderMaterial` seulement avec `clipping:true` et les morceaux
+`clipping_planes_*` de three. Le ruban des cordages n'avait ni l'un ni l'autre,
+donc ce qui en était sous l'eau passait tout entier dans le reflet, déformé par
+la houle — invisible sur un bout rompu qui pend à la surface, flagrant sur un
+câble qui descend de soixante-dix mètres. Corrigé dans le shader commun, ce qui
+règle les deux. **Vérifié à l'usage et non au banc** : trois essais synthétiques
+(câble réel, câble enfoncé, bout posé à deux mètres sous la surface) n'ont pas
+reproduit le fantôme, avec ou sans la coupe. Tout autre `ShaderMaterial` qu'on
+posera au-dessus et au-dessous de l'eau a le même piège.
+
+**`M` tient tout le mouillage** : à quai il largue les amarres — et elles seules,
+`castOff` gardant la ligne d'ancre — libre il mouille, ancre dehors il la fait
+lever. Ce qui manque : la compression du temps reste refusée tant qu'une ligne est
+dehors, le test « à quai » ne distinguant pas encore une ancre d'un quai, et les
+conserves ne mouillent pas.
 
 ## Invariants à ne pas casser
 
@@ -2924,6 +3000,27 @@ des pièces du milieu et tombaient hors de la fenêtre. **Six pièces trouvées 
 où il y en a douze**, toutes sur l'avant — et c'est la forme même du navire qui
 en était la cause. Corrigé, la lecture donne les douze, et l'on voit la muraille
 rentrer : x passe de 7,54 à 6,72 m et y monte de 5,95 à 6,68 avec la tonture.
+
+**LA BATTERIE SE LIT AU SENS DES TUBES, et elle a quatre groupes et non deux
+bords** : tribord `+1`, bâbord `−1`, poupe `+2`, proue `−2`, choisis pour que
+« l'autre » reste le négatif — `⇧G` sert bâbord depuis tribord et la proue depuis
+la poupe par la même règle. L'ancienne lecture rangeait les sommets d'un côté de
+l'axe et les groupait par écart le long de la coque : elle ignorait la direction,
+et les deux pièces de retraite ajoutées au tableau de la Roter Löwe, à un mètre de
+part et d'autre de l'étambot, seraient parties chacune dans une bordée et auraient
+tiré par la hanche. Les sommets sont désormais regroupés en pièces dans les trois
+dimensions (maille de 0,45 m, assez large pour qu'un tube fait de deux anneaux nus
+ne soit pas coupé en deux), puis chaque pièce dit dans quel sens elle est longue :
+en travers, un bord ; dans l'axe, poupe ou proue selon sa position. Relevé : la
+Roter Löwe 6 · 6 · **2 en poupe**, le pirate 6 · 6 inchangé.
+
+Chaque pièce porte son **calibre**, rapporté à celui de la bordée — 0,73 pour les
+pièces de retraite — et il entre dans le seul `k` par lequel `guns.js` dimensionne
+déjà boulet, flamme, fumée et trou. Une bordée ne sert que son groupe : la retraite
+ne part jamais avec le travers. Le tir à la roulée n'a rien eu à changer : `(ω × d).y`
+lit le tangage pour un tube dans l'axe exactement comme la gîte pour un tube en
+travers. Toutes les matières « canon » sont lues, plus seulement le premier
+maillage trouvé.
 
 **Une pression, un coup ; la touche maintenue, la bordée.** Un appui fait parler
 une seule pièce, et la batterie se descend d'avant en arrière appui par appui —

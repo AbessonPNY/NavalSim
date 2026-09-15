@@ -672,6 +672,7 @@ Naval.ShipPhysics = class ShipPhysics {
     const kLine = b.mass*C.G/0.8;
 
     for(const m of M){
+      m.dragging = false;
       this._pw.set(m.lx, m.ly, m.lz).applyQuaternion(b.quat).add(b.pos);  // the fairlead
       this._nrm.set(m.wx - ox - this._pw.x,
                     (m.wy || 0)    - this._pw.y,
@@ -698,7 +699,12 @@ Naval.ShipPhysics = class ShipPhysics {
          d up to len, so the stretch simply changes sign — and so does the sense
          in which "closing" is the motion the damping should fight. */
       const sgn = m.push ? -1 : 1;
-      let pull = sgn*(kLine*(d - m.len)) - sgn*closing*b.mass*0.9;
+      /* A long cable is a softer spring than a short line: the pull has to lift
+         its own sag off the bottom before it comes taut, so it snubs gently.
+         `stretch` is the metres at which it takes her weight — absent, the
+         berth's eighty centimetres. */
+      const k = m.stretch ? b.mass*C.G/m.stretch : kLine;
+      let pull = sgn*(k*(d - m.len)) - sgn*closing*b.mass*0.9;
       if(pull <= 0) continue;
       pull *= sgn;
       /* Capped at a weight and a half. A rope parts, and even before it parts
@@ -707,14 +713,33 @@ Naval.ShipPhysics = class ShipPhysics {
          the sky. */
       pull = sgn*Math.min(Math.abs(pull), b.mass*C.G*1.5);
 
+      /* AN ANCHOR DOES NOT HOLD, IT RESISTS — and past what it can resist it
+         DRAGS. The bollard of a berth is fixed; a hook in the sand is not. So
+         the pull is capped at the holding, and whatever stretch the cap refuses
+         is paid by the anchor itself sliding along the bottom toward her. Not a
+         rule about dragging: the same spring, with its far end allowed to give. */
+      if(m.hold && pull > m.hold){
+        const give = (pull - m.hold)/k;
+        const hx = this._nrm.x, hz = this._nrm.z, hl = Math.hypot(hx, hz) || 1;
+        m.wx -= hx/hl*give; m.wz -= hz/hl*give;       // _nrm points fairlead → anchor
+        pull = m.hold;
+        m.dragging = true;
+      }
+      m.tension = pull;
+
       this._fVec.copy(this._nrm).multiplyScalar(pull);
       force.add(this._fVec);
       torque.add(this._mom.crossVectors(this._r, this._fVec));
     }
   }
 
-  // Cast off: she is her own again.
-  castOff(){ const n = this.moorings.length; this.moorings.length = 0; return n; }
+  /* Cast off: she is her own again — from the pier. Her anchor is not a
+     mooring line and is not let go with them; it has its own way up. */
+  castOff(){
+    const n = this.moorings.length;
+    this.moorings = this.moorings.filter(m => m.anchor);
+    return n - this.moorings.length;
+  }
 
   /* The magazine goes up: her bottom is opened from end to end at once.
 
