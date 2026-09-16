@@ -43,7 +43,8 @@
     "scale": 2.0,
     "glb": null,
     "rotation": [0, 0, 0],
-    "claimRadius": 180,
-    "claimSpeed": 1.0
+    "claimRadius": 15,
+    "claimSpeed": 1.0,
+    "needsBoat": true
   }
 }

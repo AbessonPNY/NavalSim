@@ -259,6 +259,8 @@
           <dt><kbd>Espace</kbd></dt><dd>stopper la machine</dd>
           <dt><kbd>A</kbd><kbd>D</kbd></dt><dd>barre à bâbord, à tribord</dd>
           <dt><kbd>M</kbd></dt><dd>larguer les amarres · mouiller ou lever l’ancre</dd>
+          <dt><kbd>N</kbd></dt><dd>mettre la chaloupe à l’eau · la hisser le long du bord</dd>
+          <dt><kbd>Q</kbd><kbd>E</kbd> · <kbd>A</kbd><kbd>D</kbd></dt><dd>en chaloupe : nager, scier à bâbord, à tribord · <kbd>W</kbd><kbd>S</kbd> les deux bords</dd>
           <dt><kbd>+</kbd> · <kbd>−</kbd></dt><dd>presser le temps, le rendre</dd>
         </dl>
       </section>
@@ -290,7 +292,7 @@
       <section>
         <h4>Vues</h4>
         <dl>
-          <dt><kbd>C</kbd></dt><dd>changer de caméra</dd>
+          <dt><kbd>C</kbd></dt><dd>changer de caméra · passe aussi par les vues à bord du navire</dd>
           <dt><kbd>X</kbd></dt><dd>replanter la caméra ici</dd>
           <dt>molette</dt><dd>ouvrir ou fermer la focale</dd>
           <dt><kbd>L</kbd></dt><dd>la lunette · molette ×10 à ×100</dd>
@@ -380,6 +382,7 @@
 <script src="js/explosion.js"></script>
 <script src="js/guns.js"></script>
 <script src="js/capture.js"></script>
+<script src="js/bloom.js"></script>
 <script src="js/spyglass.js"></script>
 <script src="js/ship-model.js"></script>
 <script src="js/ship-physics.js"></script>
@@ -588,6 +591,9 @@ async function main(){
      une bouteille — et les cargaisons échouées qu'une carte peut indiquer. Le
      module fait flotter et repêche ; ce que dit une bouteille se décide ici. */
   const flotsam = new Naval.Flotsam(stage.scene, stage, ocean, world);
+  /* La lueur des lumières trop vives, posée sur l'image finie. Elle ne coûte
+     rien le jour : voir bloom.js. */
+  const bloom = new Naval.Bloom(stage);
   flotsam.configure();                     // props/Props.json : tailles, réglages, modèles
   chart.marks = ()=> flotsam.marks();
 
@@ -861,14 +867,18 @@ async function main(){
     const dir = DIRECTIONS[Math.round(((ang*180/Math.PI + 360) % 360)/45) % 8];
     montrerEncart('Bouteille à la mer', 'Une carte griffonnée par l’équipage de ' + nom
       + ' : une cargaison échouée sur les hauts-fonds ' + dir + ' ' + deNom(c.isl.name)
-      + '. Portée d’une croix sur votre carte.');
+      + '. Portée d’une croix sur votre carte — trop peu d’eau pour un navire, il faudra y aller en chaloupe.');
   };
 
   flotsam.onCargo = it => {
     if(Math.random() < 0.5){
       const t = 3 + Math.floor(Math.random()*6);
-      chargerEpices(t);
-      dire('Cargaison récupérée : ' + t + ' t d’épices hissées à bord');
+      /* Dans la cale du NAVIRE, pas dans la chaloupe : huit tonnes dans une
+         embarcation qui en déplace deux, et c'est elle qui coulait. Les allers
+         et retours sont sous-entendus. */
+      const mere = fleet[0].mere && fleet.includes(fleet[0].mere) ? fleet[0].mere.physics : physics;
+      mere.loadCargo(Math.floor(Naval.Config.NCOMP/2), NIVEAU_FOND, 0, t, 'epice');
+      dire('Cargaison récupérée : ' + t + ' t d’épices portées dans la cale');
     }else{
       const ecus = 150 + Math.floor(Math.random()*350);
       purse.add(ecus*MK.SOUS_PAR_ECU);
@@ -1151,7 +1161,8 @@ async function main(){
       spyglass.onChange = (on, power) =>
         dire(on ? 'Lunette ×' + Math.round(power) : 'Lunette rangée');
       controls.onSpyglass = ()=> spyglass.toggle();
-      capture.post = ()=> spyglass.render();
+      // la capture redessine la scène : elle doit repasser par les deux couches
+      capture.post = ()=> { bloom.render(); spyglass.render(); };
       /* LA POUDRE SE CONSOMME, une charge par coup, et c'est ce qui donne un
          prix à une bordée. Débitée sur ce que les pièces ont RÉELLEMENT tiré —
          `fireOne` et `broadside` rendent toutes deux leur compte — plutôt que
@@ -1208,6 +1219,7 @@ async function main(){
         if(n){ dire('Amarres larguées'); return; }
         dire(anchors.toggle(fleet[0]));
       };
+      controls.onBoat = async ()=> dire(await manoeuvreChaloupe());
       controls.onSalvage  = ()=> {
         physics.salvage();
         ship.restoreMasts();
@@ -1463,6 +1475,7 @@ async function main(){
   }
 
   await commission(0);
+  bloom.prime();          // ses shaders compilés ici, et non à la tombée de la nuit
 
   sel.addEventListener('change', async ()=>{
     sel.disabled = true;
@@ -1675,6 +1688,86 @@ async function main(){
     refitProfiles();
   }
 
+  /* ------------------------------ LA CHALOUPE ------------------------------
+
+     UNE CHALOUPE EST UN NAVIRE, et c'est tout ce qui la rend facile. Sa fiche
+     est une fiche comme les autres (ships/chaloupe.json), le navire qui la porte
+     la nomme (`"boat": "chaloupe"`), elle est mise à l'eau par le même `launch`
+     que les conserves et on en prend la barre par le même échange que le bouton
+     ⚓ du panneau Flotte. Rien de ce qui la fait flotter, talonner ou ramasser
+     une bouteille n'a été écrit pour elle — seulement les avirons.
+
+     Le navire mère MOUILLE : toile ferlée, machine stoppée, et l'ancre tombe s'il
+     n'est ni à quai ni déjà à l'ancre. Il reste là où on l'a laissé, et l'on
+     revient le long de son bord pour hisser la chaloupe (N encore), ce qui rend
+     la barre du navire. L'ancre, elle, reste au fond : on appareille avec M. */
+  let chaloupeEnCours = false;
+  async function manoeuvreChaloupe(){
+    const e0 = fleet[0];
+    const erre = Math.hypot(e0.body.vel.x, e0.body.vel.z);
+
+    if(e0.mere){
+      const m = e0.mere, i = fleet.indexOf(m);
+      if(i < 1 || m.physics.foundered) return 'Plus de navire où hisser la chaloupe';
+      const d = Math.hypot(e0.body.pos.x - m.body.pos.x, e0.body.pos.z - m.body.pos.z);
+      if(d > m.spec.L*0.55 + m.spec.B + 6) return 'Trop loin du navire pour crocher les palans';
+      if(erre > 1.2) return 'Trop d’erre pour crocher les palans';
+      takeHelm(i);
+      scuttle(fleet.indexOf(e0));
+      m.chaloupe = null;
+      if(m.helmRepos){ m.helm = m.helmRepos; m.helmRepos = null; }
+      drawFleet();
+      return 'Chaloupe hissée à bord' + (anchors.state(m) !== 'stowed' ? ' · M pour lever l’ancre' : '');
+    }
+
+    if(!spec.boat) return 'Ce navire ne porte pas de chaloupe';
+    if(e0.chaloupe && fleet.includes(e0.chaloupe)) return 'La chaloupe est déjà à l’eau';
+    if(erre > 1.5) return 'Trop d’erre pour mettre la chaloupe à l’eau';
+    if(fleet.length >= Naval.Config.MAX_SHIPS) return 'Plus de place à flot pour la chaloupe';
+    const sp = specs.find(s => s.id === spec.boat);
+    if(!sp) return 'Chaloupe introuvable : ' + spec.boat;
+    if(chaloupeEnCours) return 'On affale déjà la chaloupe';
+    chaloupeEnCours = true;
+    try{
+      const b = await launch(sp);
+      if(!b) return 'Plus de place à flot pour la chaloupe';
+      b.helm = null;                                  // c'est vous qui la menez
+      b.mere = e0; e0.chaloupe = b;
+      /* Par le travers BÂBORD, au pied de sa muraille : l'ancre pend au bossoir
+         de tribord, et la chaloupe ne doit pas tomber dessus. À quai, le bord
+         du LARGE : celui qui est le plus loin de ses bittes, sans quoi on
+         l'affalait sur le ponton. */
+      const bord = sg => new THREE.Vector3(sg*(e0.spec.B*0.5 + sp.B*0.5 + 1.5), 0, -e0.spec.L*0.08)
+        .applyQuaternion(e0.body.quat);
+      let off = bord(1);
+      const M = e0.physics.moorings;
+      if(M.length){
+        const o = ocean.origin, loin = v => Math.min(...M.map(l =>
+          Math.hypot(e0.body.pos.x + v.x + o.x - l.wx, e0.body.pos.z + v.z + o.z - l.wz)));
+        const autre = bord(-1);
+        if(loin(autre) > loin(off)) off = autre;
+      }
+      b.body.pos.set(e0.body.pos.x + off.x, b.eqY, e0.body.pos.z + off.z);
+      b.body.quat.copy(e0.body.quat);
+      b.body.vel.set(e0.body.vel.x, 0, e0.body.vel.z);
+      b.ship.syncTo(b.body);
+
+      const aQuai = e0.physics.moorings.length > 0;
+      const mouille = !aQuai && anchors.state(e0) === 'stowed';
+      if(mouille) anchors.toggle(e0);
+      takeHelm(fleet.indexOf(b));
+      /* Celui qu'on quitte ne garde pas ses ordres : il attend. Et sa barre de
+         réserve est mise au repos — laissée là, elle chassait le navire à la
+         barre, c'est-à-dire la chaloupe, ancre ou pas. */
+      e0.helmRepos = e0.helm; e0.helm = null;
+      e0.ctrl.sailsSet = false; e0.ctrl.throttle = 0; e0.ctrl.rudder = 0;
+      return 'Chaloupe à l’eau' + (mouille ? ', le navire mouille' : '')
+           + ' · Q E nager, A D scier, W S les deux bords';
+    }finally{
+      chaloupeEnCours = false;
+    }
+  }
+
   /* ------------------------------ VOILE EN VUE ! ------------------------------
 
      LA MER N'EST PLUS VIDE. De temps en temps, en mer, une voile tirée au sort
@@ -1695,7 +1788,7 @@ async function main(){
     enabled:true, intervalMin:360, intervalMax:720, maxAtOnce:2, spawnMin:4000, spawnMax:5000,
     despawn:9000, pirateChance:0.25, noticeDistance:600, spyglassRange:7000, spyglassField:0.8,
     landDistance:2500, spawnFromLand:1500, clearWater:400,
-    exclude:['bouee-canard'] },
+    exclude:['bouee-canard', 'chaloupe'] },
     // ce qu'un naufrage laisse : une bouteille une fois sur N (0 = jamais)
     wreck: { bottleOneIn:6 } };
   flotsam.bottleOneIn = () => REGLAGES.wreck.bottleOneIn;
@@ -1703,6 +1796,9 @@ async function main(){
     let s = Naval.SETTINGS;
     if(!s){ try{ const r = await fetch('settings.json', { cache:'no-cache' }); if(r.ok) s = await r.json(); }catch(e){} }
     if(s) for(const k of Object.keys(REGLAGES)) if(s[k]) Object.assign(REGLAGES[k], s[k]);
+    // les feux de nuit vivent dans le module, qui les lit à chaque image
+    if(s && s.night) Object.assign(Naval.NIGHT, s.night);
+    if(s && s.bloom) bloom.configure(s.bloom);
   })();
 
   /* LES PAVILLONS (ships/textures/flags/flags.json) : chaque voile croisée en
@@ -2321,6 +2417,7 @@ async function main(){
                 get cam(){ return cam; }, get hud(){ return hud; },
                 world, land, gulls, chart, blast, guns, takeHelm, weather, rain, splash,
                 cordage, purse, parler, tempete, sound, wreckAir, anchors, flotsam,
+                bloom,
                 voileAuHasard, vueALaLunette, reglages: REGLAGES,
                 get spyglass(){ return spyglass; },
                 storms, get squall(){ return squall; },
@@ -2554,6 +2651,7 @@ async function main(){
       strainMast(e.physics, e.ship, dt, false);
       e.afloat = e.physics.afloat;
       e.ship.syncTo(e.physics.body);
+      e.ship.setOars(e.physics, dt);
       e.ship.setTrim(e.ctrl.sheet, e.physics.tack, e.physics.setFrac,
                      e.physics.luffing, t, e.physics.sailLoad);
       e.ship.setFlag(e.physics.appWindAngle, e.physics.tack, e.physics.appWindSpeed, t);
@@ -2566,6 +2664,7 @@ async function main(){
     }
 
     ship.syncTo(physics.body);
+    ship.setOars(physics, dt);
     ship.setTrim(controls.state.sheet, physics.tack,
                  physics.setFrac, physics.luffing, t, physics.sailLoad);
     ship.setFlag(physics.appWindAngle, physics.tack, physics.appWindSpeed, t);
@@ -2845,6 +2944,7 @@ async function main(){
     ocean.renderReflection(stage.renderer, stage.scene, stage.camera);
     rain.group.visible = wasRaining;
     stage.render();
+    bloom.render();                          // ce qui déborde des lumières, la nuit
     spyglass.render();                      // the eyepiece, over the finished picture
     requestAnimationFrame(frame);
   }

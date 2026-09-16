@@ -145,6 +145,21 @@ Naval.glowTexture = function(){
   return tex;
 };
 
+/* LES NOMS QUI DISENT « CECI ÉCLAIRE » : vitrage, fanal, lampe. Servent deux
+   fois — à allumer la nuit, et à REFUSER ces pièces au gréement : une vergue
+   est en bois, jamais en verre. Une seule définition, deux usagers. */
+Naval.GLOW_NAMES = /fenetre|fen\u00eatre|window|vitre|hublot|glass|verre|lamp|lanterne|lantern|glow/i;
+
+/* LA NUIT TOMBE D'UN COUP SUR LES FEUX, et c'est ce que fait un équipage :
+   on allume les fanaux quand il fait nuit et on les souffle à l'aube, on ne les
+   baisse pas pendant une heure de crépuscule. `night` du stage monte de 0 au
+   coucher à 1 dix degrés plus bas ; on allume au-dessus de `lightAt` et l'on
+   éteint sous `snuffAt`, plus bas, ce qui est la même hystérésis que la ligne
+   de bord de la barre automatique : sans elle, un soleil qui hésite au seuil
+   ferait clignoter tout le bord. `glow` est la force de l'émissive, que
+   `model.nightGlow` d'une fiche multiplie encore. Réglable dans settings.json. */
+Naval.NIGHT = { glow: 2.6, lightAt: 0.35, snuffAt: 0.25 };
+
 Naval.ShipModel = class ShipModel {
   constructor(scene, spec, lines){
     this.spec = spec;
@@ -225,6 +240,7 @@ Naval.ShipModel = class ShipModel {
     this.canvases = [];                      // the cloth alone — furling hides only this
 
     this._buildHull();
+    this._buildOars();
     this._buildRig();
     this._buildFlag();
     this._buildLantern();
@@ -261,6 +277,64 @@ Naval.ShipModel = class ShipModel {
     b.rotation.x = Math.PI/2 - bs.steeve;
     b.position.set(0, L.deckY(1)+0.55*(spec.L/24), spec.L/2 + bs.length*0.42);
     this.procedural.add(b);
+  }
+
+  /* THE OARS of a pulling boat: a loom and a blade per thole, pivoting on the
+     gunwale. Nothing here pulls — the solver does, at the tholes, and `setOars`
+     only reads its stroke phase — so what the eye sees swing is what moves her. */
+  _buildOars(){
+    const spec = this.spec, O = spec.oars;
+    this.oars = null;
+    if(!O) return;
+    const L = this.lines, len = O.length, list = [];
+    const loomGeo = new THREE.CylinderGeometry(0.03, 0.04, len, 8);
+    loomGeo.rotateZ(Math.PI/2);                        // along x, the way it is shipped
+    const bladeGeo = new THREE.BoxGeometry(0.8, 0.022, 0.16);
+    for(let i = 0; i < O.pairs; i++){
+      const z = spec.L*(O.pairs > 1 ? 0.12 - 0.26*i/(O.pairs - 1) : 0);
+      const t = z/spec.L + 0.5;
+      for(const s of [0, 1]){
+        const sg = s === 0 ? 1 : -1;                  // larboard +x, starboard −x
+        const pivot = new THREE.Group();
+        pivot.position.set(sg*L.halfB(t)*0.97, L.deckY(t) + 0.30*(spec.L/24), z);
+        const loom = new THREE.Mesh(loomGeo, this.mats.spar);
+        loom.position.x = sg*0.2*len;                 // a third inboard of the thole, two outboard
+        loom.castShadow = true;
+        const blade = new THREE.Mesh(bladeGeo, this.mats.spar);
+        blade.position.x = sg*(0.7*len - 0.4);
+        blade.castShadow = true;
+        pivot.add(loom, blade);
+        this.procedural.add(pivot);
+        list.push({ pivot, blade, s, sg, th:0, dip:0.14, feather:0 });
+      }
+    }
+    this.oars = list;
+  }
+
+  /* Swing the looms in time with the solver's stroke: blade forward and SQUARED
+     at the catch, drawn aft through the water, then feathered and carried
+     forward clear of it. Backing water runs the same stroke the other way.
+     Left alone, the oars are held level, out of the water. */
+  setOars(ph, dt){
+    if(!this.oars || !ph || !ph.oar) return;
+    const k = Math.min(1, dt*14);
+    for(const o of this.oars){
+      const inp = ph.oar.inp[o.s], u = ph.oar.ph[o.s];
+      let th = 0, dip = 0.14, feather = 0;
+      if(inp){
+        const dir = inp > 0 ? 1 : -1;
+        if(u < 0.45){
+          const e = (1 - Math.cos(Math.PI*u/0.45))/2;
+          th = dir*(-0.55 + 1.1*e); dip = -0.17; feather = Math.PI/2;
+        }else{
+          const e = (1 - Math.cos(Math.PI*(u - 0.45)/0.55))/2;
+          th = dir*(0.55 - 1.1*e); dip = 0.08 + 0.07*Math.sin(Math.PI*(u - 0.45)/0.55);
+        }
+      }
+      o.th += (th - o.th)*k; o.dip += (dip - o.dip)*k; o.feather += (feather - o.feather)*k;
+      o.pivot.rotation.set(0, o.sg*o.th, o.sg*o.dip);
+      o.blade.rotation.x = o.feather;
+    }
   }
 
   _buildRig(){
@@ -774,6 +848,7 @@ Naval.ShipModel = class ShipModel {
       this._hullShell();
       this._buildFlag();
       this._buildLantern();
+      this._findNightGlow();
       return true;
     }catch(err){
       console.warn('[' + this.spec.id + '] could not load ' + (m.glb || 'embedded model') +
@@ -905,12 +980,27 @@ Naval.ShipModel = class ShipModel {
     if(!(spec.sailArea > 0)) return;         // she is not meant to carry canvas
 
     const parts = this._modelParts();
-    const yards = parts.filter(p => {
+
+    /* CE QUI N'EST PAS DU BOIS N'EST PAS UN ESPAR, et cela s'est signalé à
+       l'usage : une fenêtre ajoutée au château arrière — 4,2 m de large pour
+       0,44 d'épaisseur, posée en travers et sur l'axe — passe toutes les
+       épreuves de forme d'une vergue. Elle se faisait donc reparenter dans un
+       mât, et partait brasser derrière la poupe à chaque changement d'écoute.
+       La forme ne peut pas trancher ce cas ; la MATIÈRE, oui : une vergue est en
+       bois, le vitrage et les fanaux n'en sont pas. Et une fiche peut nommer en
+       clair ce qu'elle veut tenir hors du gréement (`model.rigIgnore`). */
+    const ignore = (this.spec.model && this.spec.model.rigIgnore) || [];
+    const bois = p => {
+      if([].concat(p.mesh.material).some(m => m && Naval.GLOW_NAMES.test(m.name || ''))) return false;
+      const n = (p.mesh.name || '').toLowerCase();
+      return !ignore.some(s => n.includes(String(s).toLowerCase()));
+    };
+    const formeVergue = p => {
       const across = p.size.x, thick = Math.max(p.size.y, p.size.z);
       return across > 4*thick                    // long and thin, and thin the long way
           && across > 0.25*spec.B                // a spar, not a bit of deck gear
           && Math.abs(p.mid.x) < 0.15*across;    // squarely across the centreline
-    });
+    };
     /* And the MASTS, by the same shape test stood on end: tall, thin BOTH
        ways, and on the centreline. Thin both ways is what does the work — it
        throws out anything welded to its neighbours, which is the usual state of
@@ -918,12 +1008,19 @@ Naval.ShipModel = class ShipModel {
        On the pirate, one spar of 1,1 x 38,7 x 1,1 m comes through clean while a
        second of 0,9 x 34,4 x 43,1 is two or three masts fused into one mesh and
        is rightly refused: nothing could drop one of those without the others. */
-    const poles = parts.filter(p => {
+    const formeMat = p => {
       const tall = p.size.y, thick = Math.max(p.size.x, p.size.z);
       return tall > 4*thick
           && tall > 0.20*spec.L
           && Math.abs(p.mid.x) < 0.12*spec.B;
-    });
+    };
+    const yards = parts.filter(p => formeVergue(p) && bois(p));
+    const poles = parts.filter(p => formeMat(p) && bois(p));
+    const refuses = parts.filter(p => !bois(p) && (formeVergue(p) || formeMat(p)));
+    if(refuses.length)
+      console.warn('[' + spec.id + '] pièces de la forme d\'un espar tenues hors du gréement ' +
+                   '(vitrage, fanal ou model.rigIgnore) : ' +
+                   refuses.map(p => p.mesh.name || '?').join(', '));
     const deckAt = this._deckProfile(parts);
     for(const p of parts) p.geom.dispose();      // measurements taken; buffers freed
 
@@ -1849,10 +1946,16 @@ Naval.ShipModel = class ShipModel {
      The texture is drawn on a canvas rather than loaded: the published page
      cannot fetch a local image, and a radial gradient is three lines. */
   _buildLantern(){
-    if(this.lantern){ this.group.remove(this.lantern.group); this.lantern = null; }
+    for(const L of this.lanternList || []) this.group.remove(L.group);
+    this.lanternList = [];
     const spec = this.spec;
-    let y, z;
 
+    /* Où est le pont à cette station, lu sur le modèle quand il y en a un, et
+       pris au MAXIMUM sur une tranche plutôt qu'en un point : un couronnement
+       sculpté se lit en dents de scie — 18,4 puis 12,4 puis 5,3 m d'une station
+       à l'autre sur la Roter Löwe — et une station seule avait déjà fait tomber
+       le feu cinq mètres sous sa lisse, à l'intérieur de son propre château. */
+    let deckNear, zAft;
     if(this.modelRoot){
       const parts = this._modelParts();
       const deckAt = this._deckProfile(parts);
@@ -1861,41 +1964,52 @@ Naval.ShipModel = class ShipModel {
         const v = p.size.x*p.size.y*p.size.z;
         if(v > best){ best = v; hull = p; }
       }
-      /* Right aft on the taffrail, +z being the bow — and the height taken as
-         the HIGHEST point over the after stretch, not the deck at one station.
-
-         A carved stern reads back as a saw: on the Roter Löwe the profile runs
-         18.4, then 12.4, then 5.3 metres from one station to the next, the bins
-         straddling her galleries and her open rails. Sampling a single station
-         dropped the lantern into a trough five metres below her taffrail and a
-         little too far forward — she carried it inside her own stern castle. */
-      const zA = hull.box.min.z, span = hull.box.max.z - zA;
-      z = zA + span*0.02;
-      y = -Infinity;
-      for(let f=0; f<=0.07; f+=0.01) y = Math.max(y, deckAt(zA + span*f));
-      y += 0.10*spec.L/6;
+      const z0 = hull.box.min.z, z1 = hull.box.max.z, span = z1 - z0;
+      zAft = z0 + span*0.02;                    // tout à l'arrière, +z étant l'étrave
+      deckNear = z => {
+        let y = -Infinity;
+        for(let f = -0.03; f <= 0.031; f += 0.01)
+          y = Math.max(y, deckAt(Math.min(z1, Math.max(z0, z + span*f))));
+        return y;
+      };
       for(const p of parts) p.geom.dispose();
     }else{
-      z = -spec.L*0.45;
-      y = this.lines.deckY(0.05) + 0.10*spec.L/6;
+      zAft = -spec.L*0.45;
+      deckNear = z => this.lines.deckY(Math.min(1, Math.max(0, z/spec.L + 0.5)));
     }
 
-    const tex = Naval.glowTexture();
-    const group = new THREE.Group();
-    group.position.set(0, y, z);
+    /* Une liste VIDE veut dire aucun feu, et pas le feu par défaut : une fiche
+       qui déclare ses lanternes dit tout ce qu'elle porte, y compris rien. */
+    const list = spec.lanterns || [{ z:zAft }];
+    for(const l of list){
+      const x = l.x != null ? l.x : (l.xFrac || 0)*spec.B;
+      const z = l.z != null ? l.z : (l.zFrac != null ? l.zFrac*spec.L : zAft);
+      const y = l.y != null ? l.y : deckNear(z) + 0.10*spec.L/6 + (l.above || 0);
+      this.lanternList.push(this._lanternAt(x, y, z, l));
+    }
+    this.lantern = this.lanternList[0] || null;
+  }
 
-    const k = spec.L/24;
+  /* Un feu : sa lueur de près, sa marque de loin, et sa lampe. */
+  _lanternAt(x, y, z, l){
+    const spec = this.spec, tex = Naval.glowTexture();
+    const group = new THREE.Group();
+    group.position.set(x, y, z);
+
+    const k = spec.L/24 * ((l && l.size != null) ? l.size : 1);
+    const col = (l && l.color != null)
+      ? (typeof l.color === 'string' ? parseInt(l.color) : l.color) : 0xffcf7a;
     const mk = (size, atten, op) => {
       const m = new THREE.Sprite(new THREE.SpriteMaterial({
-        map:tex, color:0xffcf7a, transparent:true, opacity:op,
+        map:tex, color:col, transparent:true, opacity:op,
         blending:THREE.AdditiveBlending, depthWrite:false,
         sizeAttenuation:atten, fog:false }));
       m.scale.setScalar(size);
       group.add(m);
       return m;
     };
-    const halo = mk(3.4*k, true, 0.85);       // the lamp, in metres
-    const mark = mk(0.030, false, 0.95);      // the position mark, in screen size
+    const halo = mk(3.4*k, true, 0.85);       // la lampe, en mètres
+    const mark = mk(0.030, false, 0.95);      // le repère de position, en pixels
 
     /* A real flame, not a bulb: she is lit by a wick in a horn lantern, so she
        breathes. Cheap, and it is what stops the mark reading as a HUD marker. */
@@ -1903,23 +2017,91 @@ Naval.ShipModel = class ShipModel {
     group.add(light);
 
     this.group.add(group);
-    this.lantern = { group, halo, mark, light, k, seed: Math.random()*100 };
+    return { group, halo, mark, light, k, seed: Math.random()*100 };
+  }
+
+  /* LES FENÊTRES S'ALLUMENT AVEC LES FEUX, et rien n'est peint deux fois pour
+     ça : une matière du .glb qui porte une carte ÉMISSIVE — ce qu'un nœud
+     Émission de Blender exporte en glTF — est une matière qui a une part
+     lumineuse, et c'est exactement ce qu'on veut allumer à la nuit tombée. Le
+     jour son intensité est à zéro : une vitre au soleil ne luit pas, elle
+     reflète.
+
+     Le repli est le contrat des canons, un mot dans un nom de matière : une
+     matière nommée « fenetre », « window », « lampe »... reçoit une émissive
+     chaude sans qu'aucune image n'ait à être peinte. Une fiche règle la force
+     par model.nightGlow (1 par défaut, 0 pour ne rien allumer). */
+  _findNightGlow(){
+    this.nightMats = [];
+    if(!this.modelRoot) return;
+    const g = this.spec.model && this.spec.model.nightGlow;
+    const gain = (g != null) ? g : 1;
+    if(!(gain > 0)) return;
+    const named = Naval.GLOW_NAMES;
+    const seen = new Set();
+    this.modelRoot.traverse(o => {
+      if(!o.isMesh) return;
+      for(const mat of [].concat(o.material)){
+        if(!mat || seen.has(mat)) continue;
+        const byName = named.test(mat.name || '');
+        if(!mat.emissiveMap && !byName) continue;
+        seen.add(mat);
+        /* Une carte émissive est MULTIPLIÉE par la couleur émissive, que
+           l'exportateur laisse noire quand le facteur est nul : sans ce blanc,
+           la carte est là et ne donne rien. */
+        if(mat.emissive && mat.emissive.getHex() === 0x000000)
+          mat.emissive.setHex(mat.emissiveMap ? 0xffffff : 0xffb765);
+        const base = (mat.emissiveIntensity != null && mat.emissiveIntensity > 0)
+          ? mat.emissiveIntensity : 1;
+        this.nightMats.push({ mat, base: base*gain });
+        mat.emissiveIntensity = 0;
+        mat.needsUpdate = true;
+      }
+    });
   }
 
   /* Lit only when it is dark enough to want her. `night` comes from the stage,
      so lantern, sky and the sun's own colour all turn together. */
   setLantern(night, t){
-    const L = this.lantern;
-    if(!L) return;
     const on = Math.max(0, Math.min(1, night));
-    L.group.visible = on > 0.01;
-    if(!L.group.visible) return;
-    // two slow beats out of phase read as a flame; one alone reads as a pulse
-    const flick = 0.86 + 0.14*Math.sin(t*7.3 + L.seed)
-                       + 0.06*Math.sin(t*17.1 + L.seed*1.7);
-    L.halo.material.opacity = 0.85*on*flick;
-    L.mark.material.opacity = 0.95*on*flick;
-    L.light.intensity = 2.6*on*flick;
+    /* ALLUMÉ OU ÉTEINT, jamais à mi-feu : les fenêtres s'allument au crépuscule
+       et sont soufflées à l'aube, d'un coup. Deux seuils, sinon un soleil qui
+       hésite à la limite ferait battre tout le bord. */
+    const N = Naval.NIGHT;
+    if(on >= N.lightAt) this._lit = true;
+    else if(on <= N.snuffAt) this._lit = false;
+    if(this.nightMats)
+      for(const n of this.nightMats) n.mat.emissiveIntensity = this._lit ? n.base*N.glow : 0;
+    for(const L of this.lanternList || []){
+      /* ON NE MASQUE PLUS LE GROUPE, et c'est un vrai défaut corrigé : il porte
+         une LAMPE, et three compile ses programmes contre le nombre de lumières
+         qu'il VOIT. Masquer le fanal le jour puis le rendre à la nuit changeait
+         donc ce compte, et toute la scène était recompilée sur place —
+         mesuré : 49 programmes le jour, 63 à la première image de nuit, et
+         cette image-là durait 106 ms au lieu de 5. Un à-coup à chaque
+         crépuscule, signalé à l'usage.
+
+         On commute donc par l'INTENSITÉ et par l'opacité, la lampe restant dans
+         la scène et visible à zéro candela — exactement la réserve de lampes
+         des bouches à feu, pour exactement la même raison. */
+      /* Et les sprites eux-mêmes restent VISIBLES, à opacité nulle : cachés le
+         jour, leurs deux programmes se compilaient à la première image de nuit
+         — trois de moins que la lampe, mais au même instant, donc dans le même
+         à-coup. Deux quadrilatères transparents par feu ne coûtent rien ; une
+         compilation au crépuscule, si. */
+      const lit = on > 0.01;
+      if(!lit){
+        L.light.intensity = 0;
+        L.halo.material.opacity = L.mark.material.opacity = 0;
+        continue;
+      }
+      // two slow beats out of phase read as a flame; one alone reads as a pulse
+      const flick = 0.86 + 0.14*Math.sin(t*7.3 + L.seed)
+                         + 0.06*Math.sin(t*17.1 + L.seed*1.7);
+      L.halo.material.opacity = 0.85*on*flick;
+      L.mark.material.opacity = 0.95*on*flick;
+      L.light.intensity = 2.6*on*flick;
+    }
   }
 
   /* Put her into the lighting: her own shadows, and the layer that the

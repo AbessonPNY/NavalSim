@@ -15,7 +15,20 @@
     "landDistance": 2500,
     "spawnFromLand": 1500,
     "clearWater": 400,
-    "exclude": ["bouee-canard"]
+    "exclude": ["bouee-canard", "chaloupe"]
+  },
+  "night": {
+    "glow": 2.6,
+    "lightAt": 0.35,
+    "snuffAt": 0.25
+  },
+  "bloom": {
+    "enabled": true,
+    "strength": 0.9,
+    "threshold": 0.72,
+    "radius": 1.7,
+    "scale": 0.25,
+    "nightOnly": true
   },
   "wreck": {
     "bottleOneIn": 6

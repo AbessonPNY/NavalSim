@@ -26,6 +26,8 @@
 
   "displacementTonnes": 2000,
 
+  "boat": "chaloupe",
+
   "cog": { "yFracKeel": -0.43, "zFracLength": -0.055 },
 
   "hydro": {

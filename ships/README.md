@@ -51,6 +51,91 @@ directement la course du chadburn vers l'arrière : à `-0.5`, le télégraphe n
 descend pas sous −50 %. Compter −0,5 pour un grand bâtiment, −0,7 pour un
 chaland qui manœuvre au port.
 
+## Avirons et chaloupe
+
+Une embarcation menée à l'aviron déclare un bloc `oars` :
+
+```json
+"oars": { "pairs": 2, "period": 2.2, "length": 3.4 }
+```
+
+`pairs` est le nombre de paires d'avirons dessinées, `period` la durée d'un coup
+de nage en secondes, `length` la longueur d'un aviron. La **poussée reste celle de
+`engine.topSpeed`**, dépensée par à-coups : la pale est dans l'eau pendant 45 % du
+coup, et scier rend `sternPower` de la poussée. Elle s'applique **aux pales**,
+à 60 % d'un aviron au-delà du plat-bord, ce qui fait tourner l'embarcation quand
+un seul bord nage. Pas de gouvernail : `rudder.power` à 0.
+
+Un navire qui porte une chaloupe la **nomme** par l'`id` de sa fiche :
+`"boat": "chaloupe"`. Touche `N` pour l'affaler ou la hisser. Voir
+`chaloupe.json` : 7 m, 3 t, `hydro.resistance` à 200 et non 61 — une petite coque
+traîne plus par unité de section, et à 61 la poussée qui en découle ne faisait
+que 194 N, quand quatre nageurs en tirent plutôt 600.
+
+## Lanternes
+
+Une fiche déclare les feux qu'elle porte et où ils pendent :
+
+```json
+"lanterns": [
+  { "x": 0, "zFrac": -0.41, "size": 1.2 },
+  { "xFrac":  0.30, "zFrac": -0.40 },
+  { "xFrac": -0.30, "zFrac": -0.40 }
+]
+```
+
+| champ | ce qu'il dit |
+|---|---|
+| `x` · `z` | la place en **mètres** dans le repère du navire (+z l'étrave, +x bâbord) |
+| `xFrac` · `zFrac` | la même place en **fractions** du bau et de la longueur — suit la taille du navire |
+| `y` | la hauteur en mètres ; **absent**, le feu se pose sur le pont à cette station, lu sur le modèle |
+| `above` | de combien le relever au-dessus de ce pont |
+| `size` | 1 par défaut, la taille de la lueur |
+| `color` | `"0xffcf7a"` par défaut, la couleur de la flamme |
+
+Pas de champ `lanterns` : un seul feu au couronnement, placé automatiquement,
+comme avant. Une **liste vide** (`"lanterns": []`) : aucun feu.
+
+## Fenêtres allumées la nuit
+
+glTF n'a pas de « texture de nuit », et il n'en a pas besoin : il a une **carte
+émissive**. Dans Blender, branchez une image où seules les fenêtres sont claires
+sur l'entrée **Émission** du matériau ; l'exportateur la porte en
+`emissiveTexture` dans le `.glb`. Le jeu la trouve seul et ne règle qu'une
+chose, l'intensité : **zéro le jour**, pleine la nuit, sur la même bascule que
+les feux et le ciel. Rien à déclarer dans la fiche.
+
+Sans image, il reste le repli par **nom de matière** : une matière nommée
+`fenetre`, `window`, `vitre`, `glass`, `hublot`, `lamp`, `lanterne`… reçoit une
+émissive chaude la nuit. C'est ce qui allume la Roter Löwe, dont le modèle porte
+une matière `glass`.
+
+`model.nightGlow` règle la force (1 par défaut, 0 pour ne rien allumer).
+
+Trois réglages de jeu, dans `settings.json` :
+
+```json
+"night": { "glow": 2.6, "lightAt": 0.35, "snuffAt": 0.25 }
+```
+
+`glow` est la force de l'émissive (que `model.nightGlow` d'une fiche multiplie
+encore), `lightAt` et `snuffAt` les deux seuils d'allumage et d'extinction, sur
+une échelle où 0 est le coucher du soleil et 1 dix degrés plus bas. Les fenêtres
+s'allument **d'un coup** et sont soufflées de même : deux seuils plutôt qu'un
+pour qu'un soleil qui hésite à la limite ne fasse pas battre le bord.
+
+**Attention à ce que le gréement pourrait prendre pour une vergue.** Une pièce
+longue, mince et posée en travers de l'axe est lue comme un espar : une fenêtre
+à plat dans le château arrière l'a été, et partait brasser derrière la poupe.
+Les matières de vitrage et de fanal (la liste ci-dessus) sont donc refusées au
+gréement, et une fiche peut en écarter d'autres par leur nom de maillage :
+
+```json
+"model": { "glb": "ships/models/…", "rigIgnore": ["Plane_5", "vitrail"] }
+```
+
+La console nomme ce qui a été écarté à chaque chargement.
+
 ## Le tonnage est l'entrée
 
 `displacementTonnes` fixe la masse. La fraction de volume immergé en découle.
@@ -123,6 +208,43 @@ vous vous retrouvez en tête de mât.
 
 Si le champ est absent, la valeur historique `freeboardMid + 2,1 × (L/24)` est
 appliquée — les anciennes fiches continuent donc de fonctionner.
+
+### Vues à bord
+
+`camera.decks` liste les points de vue **depuis le navire lui-même**, autant qu'on
+veut. Le bouton caméra (ou `C`) les parcourt dans l'ordre, entre Orbite et Fixe.
+
+```json
+"decks": [
+  { "name": "Passerelle", "x": 0, "y": 9.43, "zFrac": -0.4, "yaw": 0, "pitch": 0, "fov": 55 },
+  { "name": "Chambre du capitaine", "x": 0, "y": 5.0, "zFrac": -0.33,
+    "yaw": 180, "pitch": -4, "fov": 72, "near": 0.08 }
+]
+```
+
+| champ | unité | effet |
+|---|---|---|
+| `name` | texte | ce qu'affiche le bouton caméra |
+| `x` · `z` | mètres, repère du navire | position de l'œil (+z l'étrave, +x bâbord) |
+| `xFrac` · `zFrac` | fractions du bau et de la longueur | la même, qui suit la taille du navire |
+| `y` | **mètres au-dessus de la flottaison** | hauteur de l'œil ; absente, la règle historique |
+| `yaw` | degrés | où l'on regarde : 0 l'étrave, 180 la poupe, 90 bâbord, −90 tribord |
+| `pitch` | degrés | positif vers le haut |
+| `fov` | degrés | focale verticale (55 par défaut) |
+| `near` | mètres | plan de coupe proche (0,7 par défaut) |
+
+Le glisser regarde autour **à partir** de ce regard, la molette zoome, et la
+vue gîte avec le pont. **Pour un intérieur, baissez `near`** : à 0,7 m, une
+cloison à portée de main est coupée net. Elle est rendue en sortant de la vue.
+
+Deux conseils pour la chambre du capitaine dans Blender : les murs doivent
+avoir leurs **faces tournées vers l'intérieur** (ou le matériau en *Backface
+Culling* désactivé, que glTF exporte en `doubleSided`), sinon on voit la mer au
+travers ; et une vitre qui porte une matière `glass` ou `fenetre` s'allume la
+nuit sans rien de plus.
+
+Sans `decks`, la fiche garde l'ancienne passerelle, tirée de `helmHeight` et
+`helmZFrac` ci-dessous.
 
 ## Modèles .glb
 

@@ -21,6 +21,7 @@ Naval.Controls = class Controls {
     this.onToggleCargo = null;    // show or hide the stowage plan
     this.onFire = null;           // (autreBord, maintenu)
     this.onCastOff = null;        // larguer les amarres
+    this.onBoat = null;           // mettre la chaloupe à l'eau, ou la hisser
     this.onToggleKeys = null;     // le mémento des commandes
     this.onCloseKeys = null;      // Échap le referme, et ne fait que ça
     this.onTogglePanel = null;    // (2 à 6) escamoter un panneau
@@ -40,6 +41,7 @@ Naval.Controls = class Controls {
       if(k==='p' && this.onPumps) this.onPumps();
       if(k==='r' && this.onSalvage) this.onSalvage();
       if(k==='m' && this.onCastOff) this.onCastOff();   // M comme amarres
+      if(k==='n' && !e.repeat && this.onBoat) this.onBoat();   // N comme nage : la chaloupe à l'eau, ou à bord
       /* PRESSER LE TEMPS : + et −, et surtout PAS une lettre.
 
          Le clavier est plein — w s a d tiennent la machine et la barre, q e les
@@ -133,6 +135,20 @@ Naval.Controls = class Controls {
     const k = this.keys, s = this.state;
     const tStep = 0.9*dt, rStep = 1.8*dt, sStep = 0.7*dt;
 
+    /* À L'AVIRON, chaque bord nage pour lui-même : Q nage à bâbord et A y scie,
+       E nage à tribord et D y scie ; W nage des deux bords, S scie des deux.
+       Les lettres de gauche pour le bord de gauche, ce qui tient sur QWERTY
+       comme sur AZERTY. Pas de barre : on tourne en nageant d'un seul bord.
+       Tant qu'on tient la touche on nage, lâchée les avirons se lèvent. */
+    if(this.rowing){
+      const both = (k['w']||k['arrowup']) ? 1 : (k['s']||k['arrowdown']) ? -1 : 0;
+      s.oarL = k['q'] ? 1 : k['a'] ? -1 : both;
+      s.oarR = k['e'] ? 1 : k['d'] ? -1 : both;
+      s.throttle = 0; s.rudder = 0;
+      return;
+    }
+    s.oarL = s.oarR = 0;
+
     if(k['w']||k['arrowup'])   s.throttle = Math.min(1, s.throttle + tStep);
     if(k['s']||k['arrowdown']) s.throttle = Math.max(this.sternMax, s.throttle - tStep);
 
@@ -147,6 +163,7 @@ Naval.Controls = class Controls {
 
   // A square-rigger cannot brace round as far as a boomed gaff sail can swing.
   setSpec(spec){
+    this.rowing = !!spec.oars;
     this.maxSheet = spec.maxSheet;
     this.state.sheet = Math.min(this.state.sheet, spec.maxSheet);
     /* The telegraph cannot be rung further astern than she can actually push.

@@ -2,7 +2,10 @@
 
    0 Proue      — planted ahead on her course; she comes on, and passes
    1 Orbite     — free orbit about the hull
-   2 Passerelle — at the wheel; aims in ship-local coords so the view heels with the deck
+   2 À bord     — the ship's own vantage points, read from her sheet
+                  (`camera.decks`): the wheel, the captain's cabin... The
+                  camera button steps through them before moving on. Aims in
+                  ship-local coords, so the view heels with the deck.
    3 Fixe       — planted off her quarter; she draws away and out of shot
 
    Proue replaced a chase camera that trailed astern, lagging and falling back
@@ -29,6 +32,9 @@ Naval.CameraRig = class CameraRig {
     this.note = note;
     this.mode = 0;
     this.held = false;           // true while the spyglass has the drag and the wheel
+    this._near0 = camera.near;   // what every outside view wants; a cabin wants less
+    this._fov0 = 55;
+    this.deck = 0;               // which of her own vantage points, in mode 2
     this.setSpec(spec);
 
     this.orbitYaw = 2.4; this.orbitPitch = 0.32; this.orbitDist = this.cam.orbitDist;
@@ -44,6 +50,7 @@ Naval.CameraRig = class CameraRig {
     this.pos = new THREE.Vector3(0,16,44);
     this.tgt = new THREE.Vector3();
     this._aR = new THREE.Vector3(); this._aF = new THREE.Vector3();
+    this._eye = new THREE.Vector3();   // its own: plant() owns _aR
     this._desired = new THREE.Vector3();
 
     let dragging=false, px=0, py=0;
@@ -102,9 +109,61 @@ Naval.CameraRig = class CameraRig {
     this.bowHigh = (this.cam.bowHigh != null) ? this.cam.bowHigh : this.cam.chaseHigh*0.55;
     // a new vessel is not where the old one was: take the station again
     this._planted = false;
+
+    /* SES PROPRES POINTS DE VUE, dans SA fiche : la passerelle, la chambre du
+       capitaine, ce que le modéliste a prévu de montrer. Chaque entrée donne
+       l'œil dans le repère du navire — x/z en mètres ou xFrac/zFrac, y en
+       mètres au-dessus de la flottaison — puis où il regarde (yaw en degrés,
+       0 vers l'étrave, 180 vers la poupe, 90 à bâbord ; pitch en degrés), sa
+       focale et son plan proche. Une fiche muette garde l'ancienne passerelle,
+       tirée de helmZFrac et helmHeight, pour que rien ne casse. */
+    const d = this.cam.decks;
+    this.decks = (Array.isArray(d) && d.length)
+      ? d.map(v => Object.assign({}, v))
+      : [{ name:'Passerelle', x:0, y:this.cam.helmHeight, zFrac:this.cam.helmZFrac }];
+    if(this.deck >= this.decks.length) this.deck = 0;
+    if(this.mode === 2) this._enterDeck();
   }
 
-  cycle(){ this.setMode(this.mode + 1); }
+  /* L'œil d'une vue à bord, dans le repère du navire. */
+  _deckEye(v, out){
+    const spec = this.spec, k = this.scale;
+    const x = v.x != null ? v.x : (v.xFrac || 0)*spec.B;
+    const z = v.z != null ? v.z : (v.zFrac != null ? v.zFrac : (this.cam.helmZFrac || -0.4))*spec.L;
+    // hauteur au-dessus de la flottaison ; absente, l'ancienne règle de la passerelle
+    const y = v.y != null ? v.y : spec.deckMid + 2.1*k;
+    return out.set(x, y, z);
+  }
+
+  /* Entrer dans une vue à bord : regard remis droit devant ELLE, sa focale,
+     et son plan proche. Un intérieur en demande un bien plus court que la mer :
+     à 0,7 m, la cloison à portée de main serait coupée net. */
+  _enterDeck(){
+    const v = this.decks[this.deck];
+    this.bridgeYaw = 0; this.bridgePitch = 0;
+    this._setLens(v.fov != null ? v.fov : this._fov0, v.near != null ? v.near : this._near0);
+  }
+
+  _setLens(fov, near){
+    const c = this.camera;
+    if(c.fov === fov && c.near === near) return;
+    c.fov = fov; c.near = near;
+    c.updateProjectionMatrix();
+  }
+
+  _name(){
+    return this.mode === 2 ? (this.decks[this.deck].name || 'À bord') : this.C.CAM_NAMES[this.mode];
+  }
+
+  cycle(){
+    if(this.mode === 2 && this.deck < this.decks.length - 1){
+      this.deck++;
+      this._enterDeck();
+      this._say();
+      return;
+    }
+    this.setMode(this.mode + 1);
+  }
 
   /* Go to a named camera rather than stepping to the next one. Losing a ship
      switches to the fixed view, and that must not depend on which camera the
@@ -112,15 +171,23 @@ Naval.CameraRig = class CameraRig {
   setMode(m, aimY){
     const n = this.C.CAM_NAMES.length;
     this.mode = ((m % n) + n) % n;
+    const was2 = this._inDeck;
+    this._inDeck = (this.mode === 2);
     if(this.mode===0 || this.mode===3) this.plant(aimY);
-    else if(this.mode===2){ this.bridgeYaw=0; this.bridgePitch=0; }
+    else if(this.mode===2){ if(!was2) this.deck = 0; this._enterDeck(); }
+    // quitter un intérieur rend l'objectif du dehors, plan proche compris
+    if(was2 && this.mode !== 2) this._setLens(this._fov0, this._near0);
     /* Only the orbit has no zoom of its own, so only the orbit gets the lens
        put back. It used to be "the first two modes", which was true when the
        first of them was a chase camera and is not now. */
     if(this.mode===1 && this.camera.fov!==55){
       this.camera.fov=55; this.camera.updateProjectionMatrix();
     }
-    if(this.btn) this.btn.textContent = 'Caméra : ' + this.C.CAM_NAMES[this.mode];
+    this._say();
+  }
+
+  _say(){
+    if(this.btn) this.btn.textContent = 'Caméra : ' + this._name();
     if(this.note){
       this.note.hidden = (this.mode===1);  // respond at once, not on the next HUD tick
       this.note.textContent = (this.mode===0 || this.mode===3)
@@ -196,14 +263,12 @@ Naval.CameraRig = class CameraRig {
       /* Eye height comes from the spec, in metres above the design waterline —
          the way you would actually state it. Specs written before the field
          existed fall back to the old hardcoded rule, so none of them break. */
-      const eyeY = (this.cam.helmHeight != null)
-                 ? this.cam.helmHeight
-                 : spec.deckMid + 2.1*k;
-      const eye = new THREE.Vector3(0, eyeY, spec.L*this.cam.helmZFrac)
-                    .applyQuaternion(body.quat).add(body.pos);
+      const v = this.decks[this.deck], D = Math.PI/180;
+      const eye = this._deckEye(v, this._eye).applyQuaternion(body.quat).add(body.pos);
       desired.copy(eye);
-      const cp = Math.cos(this.bridgePitch);
-      this.tgt.set(Math.sin(this.bridgeYaw)*cp, Math.sin(this.bridgePitch), Math.cos(this.bridgeYaw)*cp)
+      const yaw = (v.yaw || 0)*D + this.bridgeYaw, pitch = (v.pitch || 0)*D + this.bridgePitch;
+      const cp = Math.cos(pitch);
+      this.tgt.set(Math.sin(yaw)*cp, Math.sin(pitch), Math.cos(yaw)*cp)
               .applyQuaternion(body.quat).multiplyScalar(120*k).add(eye);
     }else{                                 // a planted vantage — Proue or Fixe
       desired.copy(this.anchor);
@@ -224,6 +289,15 @@ Naval.CameraRig = class CameraRig {
     this.pos.lerp(desired, Math.min(1, lerp));
     this.camera.position.copy(this.pos);
     this.camera.lookAt(this.tgt);
+
+    /* La mer reconstruit la profondeur de la coque vue à travers l'eau avec le
+       plan proche et le plan lointain ; elle les avait lus une fois pour
+       toutes. Une vue d'intérieur change le premier : sans ceci, l'épaisseur
+       d'eau serait fausse d'un facteur sept dès qu'on entre dans la chambre. */
+    const u = ocean && ocean.uniforms;
+    if(u && u.uNear && (u.uNear.value !== this.camera.near || u.uFar.value !== this.camera.far)){
+      u.uNear.value = this.camera.near; u.uFar.value = this.camera.far;
+    }
   }
 
   /* How far she has run from the planted viewpoint (shown on the button).
@@ -231,7 +305,7 @@ Naval.CameraRig = class CameraRig {
      on, which is the more useful of the two readings. */
   refreshLabel(body){
     if((this.mode===0 || this.mode===3) && this.btn){
-      this.btn.textContent = 'Caméra : ' + this.C.CAM_NAMES[this.mode] + ' · '
+      this.btn.textContent = 'Caméra : ' + this._name() + ' · '
                            + Math.round(body.pos.distanceTo(this.anchor)) + ' m';
     }
   }

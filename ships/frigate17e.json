@@ -20,6 +20,7 @@
     "sectionPower": 0.6
   },
   "displacementTonnes": 240,
+  "boat": "chaloupe",
   "cog": {
     "yFracKeel": -0.43,
     "zFracLength": -0.055
@@ -90,6 +91,9 @@
       "steeve": 0.22
     }
   },
+  "lanterns": [
+    { "x": 0, "zFrac": -0.448 }
+  ],
   "deckhouse": {
     "beamFrac": 0.34,
     "height": 8.35,
@@ -117,8 +121,10 @@
     "chaseDist": 46,
     "chaseHigh": 16,
     "orbitDist": 57.5,
-    "helmZFrac": -0.4,
-    "helmHeight": 9.43
+    "decks": [
+      { "name": "Passerelle", "x": 0, "y": 8, "zFrac": -0.4, "yaw": 0, "pitch": 0, "fov": 35 },
+      { "name": "Chambre du capitaine", "x": 0, "y": 4.0, "zFrac": -0.33, "yaw": 180, "pitch": -4, "fov": 50, "near": 0.08 }
+    ]
   },
   "model": {
     "glb": "ships/models/fregate17e.glb",

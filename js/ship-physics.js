@@ -1061,6 +1061,39 @@ Naval.ShipPhysics = class ShipPhysics {
     this._arm.set(0, S.rudderY, S.rudderZ).applyQuaternion(b.quat).add(b.pos).sub(cog);
     torque.add(this._mom.crossVectors(this._arm, this._fVec));
 
+    /* --- oars ---
+       PULLED, one side at a time. Each bank's pull is applied AT ITS BLADES,
+       not at the tholes: the oarsman on his loom and the loom on its thole are
+       forces INSIDE the boat-and-oars system, and the only outside push is the
+       water on the blade, two thirds of an oar out from the gunwale. Taken at
+       the thole the lever was a third of the truth, and a boat pivoting on her
+       oars turned a degree a second. Rowing one side alone turns her with no
+       rule written for it — a boat without a rudder is steered exactly so. The stroke is a
+       pulse, not a push: blade in the water for the first 45 % of the cycle,
+       a half-sine of force, nothing on the recovery. Sized so the mean of both
+       banks pulling is the engine's thrust, so `topSpeed` is still her speed;
+       backing water (−1) gives `sternPower` of it. The phase is HERS and the
+       model reads it to swing the looms in time with the pull. */
+    if(S.oars){
+      const O = this.oar || (this.oar = { ph:[0, 0], inp:[0, 0] });
+      const amp = S.maxThrust*Math.PI/(4*0.45);
+      for(let s = 0; s < 2; s++){
+        const inp = s === 0 ? (ctrl.oarL || 0) : (ctrl.oarR || 0);
+        O.inp[s] = inp;
+        if(!inp) continue;
+        O.ph[s] = (O.ph[s] + dt/S.oars.period) % 1;
+        const u = O.ph[s];
+        if(u >= 0.45) continue;
+        const f = amp*Math.sin(Math.PI*u/0.45)*(inp > 0 ? 1 : S.sternPower)*Math.abs(inp)*inWater;
+        this._fVec.copy(fwd).multiplyScalar(f);
+        force.add(this._fVec);
+        // larboard is +x in her frame, starboard −x (the handedness invariant)
+        const out = S.B*0.5 + 0.6*S.oars.length;
+        this._arm.set(s === 0 ? out : -out, 0, 0).applyQuaternion(b.quat).add(b.pos).sub(cog);
+        torque.add(this._mom.crossVectors(this._arm, this._fVec));
+      }
+    }
+
     this._sails(ctrl, ocean, cog, force, torque, fwd, right);
     this._ground(dt, force, torque, cog, ocean);
     this._collide(dt, force, torque, cog);

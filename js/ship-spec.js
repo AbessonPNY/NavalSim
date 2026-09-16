@@ -60,6 +60,28 @@ Naval.ShipSpec = class ShipSpec {
     const sp = json.engine.sternPower;
     this.sternPower = Math.max(-1, Math.min(0, sp != null ? sp : -0.6));
 
+    /* OARS, for a boat that is pulled rather than sailed or driven. The stroke
+       rate is stated; the pull is not — it is the engine's thrust, spent in
+       pulses, so `engine.topSpeed` stays the one figure that says how fast she
+       goes and one set of numbers still serves every hull. */
+    this.oars = json.oars ? {
+      pairs: json.oars.pairs || 2,
+      period: json.oars.period || 2.2,
+      length: json.oars.length || 1.7*json.hull.beam
+    } : null;
+    /* LES FEUX DE POUPE : où ils pendent et combien il y en a. Une fiche en
+       nomme autant qu'elle en porte — un galion en montrait souvent trois au
+       couronnement — et chacun donne sa place dans SON repère : `x`/`z` en
+       mètres, ou `xFrac`/`zFrac` en fractions du bau et de la longueur, ce qui
+       suit le navire quelle que soit sa taille. `y` absent veut dire « sur le
+       pont à cette station », lu sur le modèle lui-même. Rien de déclaré rend
+       l'ancien comportement : un seul feu au couronnement. */
+    this.lanterns = Array.isArray(json.lanterns)
+      ? json.lanterns.map(l => Object.assign({}, l)) : null;
+
+    // the ship that carries a boat names it: the id of another sheet
+    this.boat = json.boat || null;
+
     // rudder
     this.rudderK = json.rudder.power * lateralArea;
     this.rudderMax = json.rudder.maxAngle;

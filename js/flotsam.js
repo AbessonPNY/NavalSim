@@ -29,7 +29,7 @@ Naval.PROPS_DEFAULTS = {
   bottle: { name:'Bouteille', scale:3, glb:null, rotation:[0,0,0], draft:0.05, life:1800,
             pickupRadius:10, pickupSpeed:1.03,
             halo:{ enabled:true, radius:1.1, color:'#a8ecff', intensity:1.0, mark:0.032, markFrom:60 } },
-  cargo:  { name:'Cargaison échouée', scale:1, glb:null, rotation:[0,0,0], claimRadius:180, claimSpeed:1.0 }
+  cargo:  { name:'Cargaison échouée', scale:1, glb:null, rotation:[0,0,0], claimRadius:15, claimSpeed:1.0, needsBoat:true }
 };
 
 Naval.Flotsam = class Flotsam {
@@ -309,7 +309,9 @@ Naval.Flotsam = class Flotsam {
         it.mesh.position.set(lx, it.y, lz);
         it.mesh.rotation.y = it.yaw;
         const C = this.def.cargo;
-        if(pb && pv < C.claimSpeed && Math.hypot(it.x - px, it.z - pz) < C.claimRadius){
+        // on n'y va qu'en chaloupe : un navire ne passe pas là où elle est posée
+        const bateau = !C.needsBoat || !!(player && player.spec && player.spec.oars);
+        if(pb && bateau && pv < C.claimSpeed && Math.hypot(it.x - px, it.z - pz) < C.claimRadius){
           this.remove(it);
           if(this.onCargo) this.onCargo(it);
         }
