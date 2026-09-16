@@ -5055,6 +5055,80 @@ navire immobile (`restoreMasts()`) ; l'éclair dure 0,25 s (0,38 d'abord, jugé 
 `age` pour le photographier ; le navire actif au démarrage est le chaland, au
 port.
 
+## Le kraken en .glb, la foudre dessinée, le safran
+
+**Un modèle pour le kraken, et le bras reste calculé.** Arnaud veut texturer
+le monstre et lui ajouter des ventouses. Le chemin du bras (arche, étreinte,
+tours autour du mât) est calculé à chaque image ; plutôt que de demander une
+armature et des animations, le `.glb` fournit un bras **modelé droit** (`bras…`,
+debout sur +Z dans Blender) et le jeu le **courbe** : un sommet à la hauteur y
+va au point du chemin à la fraction y/longueur, son x le long de N, son z le
+long de N×T — T×N aurait inversé la chiralité et retourné les faces — et ses
+normales tournent avec le repère. Le repère part de `n0`, le côté tourné vers
+ce que le bras tient (vers le navire en étreinte, vers l'avant de l'arche en
+rôdant) ; le transport parallèle le garde de ce côté à chaque courbe, d'où la
+règle **ventouses sur +X**. Tout le reste du fichier est le corps. Modèle de
+départ : `tools/kraken-glb.js` (le kraken dessiné, avec normales et UV, trois
+matières). Le build l'embarque depuis `settings.json` → `storm.kraken.glb`.
+Rayon de touche du corps : 0,32 × sa plus grande dimension horizontale (0,45
+donnait 7,6 m pour les 5,5 du dessin). Doc : `creatures/README.md`.
+
+**La foudre est un dessin.** Trois tubes (bruit, marche aléatoire, zigzag)
+lisaient tous comme un faisceau. Sur le croquis d'Arnaud : grands zigzags
+horizontaux qui descendent par crochets, avec des fourches. L'éclair est donc
+peint sur un canevas (halo violet, cœur blanc), tendu sur une bande qui tourne
+sa face vers la caméra autour de l'axe nuage → tête de mât : dans la scène,
+testé en profondeur, dans les captures. 0,25 s de vie, à la demande d'Arnaud
+(« il doit disparaître juste après avoir frappé »). Une fois vu un grand
+rectangle blanc à la place du trait, jamais reproduit ensuite, même éclat du
+ciel au maximum.
+
+**Le safran tourne avec la barre.** Aucun navire n'en avait. Un objet
+`gouvernail` d'un `.glb` est ferré sur son bord avant ; sinon une planche est
+dessinée à l'étambot **à la flottaison** : sur la Roter Löwe à −10,3 m, quand le
+tableau est à −12,3 — la voûte surplombe. Angle = barre × `maxAngle`, du signe
+du solveur (barre positive : arrière du safran vers tribord). Pas de safran pour
+`rudder.power` 0 (chaloupe). Mis à jour avec la toile, donc pas pour une coque
+perdue dans la brume.
+
+**La roue suit la barre.** Arnaud a ajouté au `.glb` de la Roter Löwe une
+`barre` — un cylindre aplati, donc une roue d'axe longitudinal — et un
+`rudder`. La roue tourne autour de l'axe où la pièce est la plus mince dans son
+propre repère, 3 tours de chaque côté (1,25 d'abord : « la barre doit faire
+plusieurs tours sur elle-même pour un gouvernail complet ») ; vérifié : barre à tribord, le haut de
+la roue part à tribord, la roue reste dans son plan. **Le premier `rudder` exporté était
+un nœud vide** (corrigé ensuite par Arnaud : maillage de 5,9 m de haut, ferré
+vers z = −9) (ni maillage, ni enfant, ni transformation) : pris tel quel il
+aurait été ferré et tourné sans rien montrer, et le safran dessiné retiré pour
+lui. Un nom n'est donc retenu que s'il porte un maillage ; sinon la console le
+dit et le dessin reste.
+
+**Le safran a son rythme.** Demandé : « le gouvernail doit mettre plus longtemps
+à se déplacer, surtout sur les gros navires ». Le solveur tient `rudderPos`, qui
+rejoint `ctrl.rudder` en `rudder.hardOver` secondes de la barre droite à la
+butée (défaut 3·√(L/24)), sous-pas par sous-pas ; la force de gouvernail vient
+de cette position, et le safran comme la roue la dessinent. L'ordre (HUD,
+clavier, barre des autres navires) reste instantané ; c'est l'exécution qui
+traîne. Le pilote automatique voit donc un retard de plus dans sa boucle. La console « Barre »
+montre la position réelle (barre et degrés, depuis `maxAngle` et non plus 35°
+en dur) et l'ordre en repère tant que le safran ne l'a pas rejoint — « on vient à
+tribord… 35° ».
+
+**Le kraken choisit sa proie** (« il peut s'en prendre à d'autres navires dans la
+même zone »). Chaque coque de la flotte tient son propre temps passé au cœur
+d'une dépression (`lingered`, par entrée) ; le kraken monte à côté de celle
+qui s'y est attardée le plus longtemps, et c'est désormais la **victime** —
+son solveur, son modèle — qu'il suit, tient et déchire, qui que ce soit qu'on
+commande. Prendre la barre d'un autre navire ne le fait plus plonger. Il plonge
+si la victime quitte la flotte ou sombre (`alive`). Les messages passent par
+des événements ; la page nomme le navire quand ce n'est pas le vôtre, et se tait
+au-delà de 3 km. Presser le temps n'est refusé que si la victime est à moins de
+3 km. Relevé : pirate seul au cœur → proie pirate ; les deux, le joueur depuis
+plus longtemps → proie le joueur ; pirate tenu (6 bras, 0 sur le chaland),
+retiré de la flotte → plongée, prises lâchées.
+
+**Arnaud valide lui-même le rendu** : plus de captures de ma part.
+
 ## À FAIRE — fusionner les voies d'eau d'un même endroit
 
 **Décidé, pas fait, et délibérément remis.** L'artillerie appelle `breach()` à

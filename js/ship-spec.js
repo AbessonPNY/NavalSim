@@ -91,6 +91,12 @@ Naval.ShipSpec = class ShipSpec {
     this.rudderMax = json.rudder.maxAngle;
     this.rudderZ = json.rudder.postZFrac * this.L;
     this.rudderY = json.rudder.postY;
+    /* Seconds from amidships to hard over. A rudder is hauled round by tackle
+       and men, and a big one takes its time: by default it grows as the root
+       of her length — 3.4 s for 30 m, 4.7 s for 60 m. rudder.hardOver says it
+       outright. */
+    this.rudderTime = json.rudder.hardOver != null
+      ? json.rudder.hardOver : 3*Math.sqrt(this.L/24);
 
     // rig
     const r = json.rig;

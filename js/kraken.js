@@ -42,7 +42,8 @@ Naval.KRAKEN = {
   gripBrake: 0.25,        // per arm, per second: what it takes off her way (six hold a galleon to ~2 kn)
   damageEvery: 9,         // seconds between an arm tearing something
   hp: 14,                 // shot it takes (a full-size ball is ~1, the mantle counts double)
-  cooldown: 900           // seconds before another may come
+  cooldown: 900,          // seconds before another may come
+  glb: null               // a model to wear instead of the drawn one (see tools/kraken-glb.js)
 };
 
 (function(){
@@ -56,21 +57,25 @@ Naval.Kraken = class Kraken {
     this.group = new THREE.Group();
     this.group.visible = false;
     scene.add(this.group);
+    this._oceanU = oceanUniforms;
+    this.bodyR = 5.5;                    // what a ball has to come within, for the mantle
 
     // wet, dark, and lit like everything else that reflects
     this.mat = new THREE.MeshStandardMaterial({ color:0x4a1b24, roughness:0.34, metalness:0.04 });
     if(oceanUniforms) Naval.applyHaze(this.mat, oceanUniforms);
 
     this.head = new THREE.Group();
+    this.drawn = new THREE.Group();      // the body the code draws, until a model replaces it
+    this.head.add(this.drawn);
     const mantle = new THREE.Mesh(new THREE.SphereGeometry(1, 22, 14), this.mat);
     mantle.scale.set(5.5, 3.4, 8.5);
-    this.head.add(mantle);
+    this.drawn.add(mantle);
     // the eyes GLOW a little — the one thing on it that does not follow the light
     const eyeMat = new THREE.MeshBasicMaterial({ color:0xd9b44a, fog:false });
     for(const sx of [-1, 1]){
       const e = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), eyeMat);
       e.position.set(sx*3.4, 1.1, 5.9);
-      this.head.add(e);
+      this.drawn.add(e);
     }
     this.group.add(this.head);
 
@@ -99,12 +104,19 @@ Naval.Kraken = class Kraken {
       idx.push(a, c, b,  b, c, d);
     }
     g.setIndex(idx);
-    const mesh = new THREE.Mesh(g, this.mat);
-    mesh.frustumCulled = false;       // rebuilt every frame; its bounds would lag
+    const tube = new THREE.Mesh(g, this.mat);
+    tube.frustumCulled = false;       // rebuilt every frame; its bounds would lag
+    const mesh = new THREE.Group();
+    mesh.add(tube);
     mesh.visible = false;
     this.group.add(mesh);
     return {
-      i, mesh, g, pos,
+      i, mesh, tube, g, pos,
+      // the frame of each ring, T N B, kept for a modelled arm to be bent along
+      F: new Float32Array(RINGS*9),
+      // which way the inside of the arm faces at its root: where the suckers go
+      n0: new THREE.Vector3(0, 1, 0),
+      parts: null, tmpl: null,
       C: Array.from({ length:RINGS }, () => new THREE.Vector3()),
       on:false, grow:0, want:0, wait:0, seed:Math.random()*100,
       rad: 0.85 + Math.random()*0.25,
@@ -115,20 +127,29 @@ Naval.Kraken = class Kraken {
     };
   }
 
-  /* A tube along the centreline, parallel-transported so it never twists. */
+  /* A tube along the centreline, parallel-transported so it never twists — or,
+     when a model is worn, the model's arm bent along the same frames. The
+     frame starts from `n0`, the side facing what the arm holds, and parallel
+     transport keeps it facing there round every bend: that is what keeps a
+     modeller's suckers on the inside of the curl. */
   _writeArm(a){
-    const C = a.C, P = a.pos;
-    _N.set(0, 1, 0);
+    const C = a.C, P = a.pos, F = a.F;
+    _N.copy(a.n0);
     for(let r=0;r<RINGS;r++){
       const p0 = C[Math.max(0, r-1)], p1 = C[Math.min(RINGS-1, r+1)];
       _T.subVectors(p1, p0);
       if(_T.lengthSq() < 1e-8) _T.set(0, 1, 0); else _T.normalize();
       if(r === 0){
-        _N.set(0, 1, 0);
-        if(Math.abs(_T.y) > 0.9) _N.set(1, 0, 0);
+        _N.copy(a.n0);
+        if(Math.abs(_N.dot(_T)) > 0.95) _N.set(_T.z, 0, -_T.x);
       }
       _N.addScaledVector(_T, -_N.dot(_T)).normalize();
       _B.crossVectors(_T, _N);
+      const o = r*9;
+      F[o] = _T.x; F[o+1] = _T.y; F[o+2] = _T.z;
+      F[o+3] = _N.x; F[o+4] = _N.y; F[o+5] = _N.z;
+      F[o+6] = _B.x; F[o+7] = _B.y; F[o+8] = _B.z;
+      if(a.parts) continue;
       const u = r/(RINGS - 1);
       const rad = a.rad*(1 - 0.93*Math.pow(u, 0.85));
       for(let s=0;s<SIDES;s++){
@@ -139,14 +160,126 @@ Naval.Kraken = class Kraken {
         P[k+2] = C[r].z + _N.z*cs + _B.z*sn;
       }
     }
+    if(a.parts){ this._bend(a); return; }
     a.g.attributes.position.needsUpdate = true;
     a.g.computeVertexNormals();
+  }
+
+  /* The modelled arm, bent. A vertex at height y up the straight arm goes to
+     the centreline at that fraction of its length; its x goes along N (the
+     inside) and its z along N×T, which keeps the model's handedness — T×N
+     would mirror it and turn every face inside out. Normals turn with the
+     frame. Past either end, the overhang is carried on along the tangent. */
+  _bend(a){
+    const F = a.F, C = a.C, t = a.tmpl, R = RINGS - 1, k = a.rad/0.95;
+    for(const p of a.parts){
+      const src = p.base, nsrc = p.nbase;
+      const dst = p.g.attributes.position.array, nd = p.g.attributes.normal.array;
+      for(let v=0; v<src.length; v+=3){
+        const x = src[v], y = src[v+1] - t.y0, z = src[v+2];
+        let s = y/t.len; s = s < 0 ? 0 : s > 1 ? 1 : s;
+        const ex = (y - s*t.len)*k;
+        const fr = s*R, i0 = Math.min(R - 1, Math.floor(fr)), u = fr - i0, i1 = i0 + 1;
+        const o0 = i0*9, o1 = i1*9, c0 = C[i0], c1 = C[i1];
+        const Tx = F[o0]   + (F[o1]   - F[o0])*u, Ty = F[o0+1] + (F[o1+1] - F[o0+1])*u, Tz = F[o0+2] + (F[o1+2] - F[o0+2])*u;
+        const Nx = F[o0+3] + (F[o1+3] - F[o0+3])*u, Ny = F[o0+4] + (F[o1+4] - F[o0+4])*u, Nz = F[o0+5] + (F[o1+5] - F[o0+5])*u;
+        // N × T, the right-handed third axis
+        const Mx = Ny*Tz - Nz*Ty, My = Nz*Tx - Nx*Tz, Mz = Nx*Ty - Ny*Tx;
+        const xs = x*k, zs = z*k;
+        dst[v]   = c0.x + (c1.x - c0.x)*u + Nx*xs + Mx*zs + Tx*ex;
+        dst[v+1] = c0.y + (c1.y - c0.y)*u + Ny*xs + My*zs + Ty*ex;
+        dst[v+2] = c0.z + (c1.z - c0.z)*u + Nz*xs + Mz*zs + Tz*ex;
+        if(nsrc){
+          const nx = nsrc[v], ny = nsrc[v+1], nz = nsrc[v+2];
+          nd[v]   = Nx*nx + Tx*ny + Mx*nz;
+          nd[v+1] = Ny*nx + Ty*ny + My*nz;
+          nd[v+2] = Nz*nx + Tz*ny + Mz*nz;
+        }
+      }
+      p.g.attributes.position.needsUpdate = true;
+      if(nsrc) p.g.attributes.normal.needsUpdate = true;
+    }
+  }
+
+  /* WEAR A MODEL. Read by name: every node called bras… is an arm, modelled
+     straight up +Y (Blender +Z) from its root; everything else is the body,
+     centred, facing +Z (Blender -Y). Several arms are dealt out in turn. Any
+     failure leaves the drawn kraken in place. */
+  async loadModel(cfg){
+    if(!cfg || (!cfg.glb && !cfg.glbBase64)) return false;
+    try{
+      const loader = new (await Naval.loadGLTFLoader())();
+      const gltf = cfg.glbBase64
+        ? await new Promise((ok, no) => loader.parse(Naval.base64ToArrayBuffer(cfg.glbBase64), '', ok, no))
+        : await loader.loadAsync(cfg.glb);
+      const root = gltf.scene;
+      root.updateMatrixWorld(true);
+      const body = new THREE.Group(), arms = new Map();
+      const hazed = new Set();
+      root.traverse(o => {
+        if(!o.isMesh) return;
+        let armRoot = null;
+        for(let p = o; p && p !== root; p = p.parent) if(/^bras/i.test(p.name)) armRoot = p;
+        const g = o.geometry.clone();
+        g.applyMatrix4(o.matrixWorld);
+        if(!g.attributes.normal) g.computeVertexNormals();
+        for(const m of [].concat(o.material)){
+          if(m && !hazed.has(m) && this._oceanU){ hazed.add(m); Naval.applyHaze(m, this._oceanU); }
+        }
+        if(armRoot){
+          if(!arms.has(armRoot)) arms.set(armRoot, []);
+          arms.get(armRoot).push({ g, material:o.material });
+        }else body.add(new THREE.Mesh(g, o.material));
+      });
+
+      if(body.children.length){
+        this.head.remove(this.drawn);
+        if(this.worn) this.head.remove(this.worn);
+        this.worn = body;
+        this.head.add(body);
+        const box = new THREE.Box3().setFromObject(body), sz = box.getSize(new THREE.Vector3());
+        this.bodyR = Math.max(2, 0.32*Math.max(sz.x, sz.z));   // the drawn one: 5.5 for 17 m
+      }
+      const tmpls = [];
+      for(const parts of arms.values()){
+        let y0 = Infinity, y1 = -Infinity;
+        for(const p of parts){
+          const a = p.g.attributes.position.array;
+          for(let i=1;i<a.length;i+=3){ if(a[i] < y0) y0 = a[i]; if(a[i] > y1) y1 = a[i]; }
+        }
+        if(y1 - y0 > 0.1) tmpls.push({ parts, y0, len:y1 - y0 });
+      }
+      if(tmpls.length){
+        this.arms.forEach((a, i) => {
+          if(a.parts) for(const p of a.parts){ a.mesh.remove(p.m); p.g.dispose(); }
+          const t = tmpls[i % tmpls.length];
+          a.tmpl = t;
+          a.parts = t.parts.map(p => {
+            const g = p.g.clone();
+            const m = new THREE.Mesh(g, p.material);
+            m.frustumCulled = false;
+            a.mesh.add(m);
+            return { m, g,
+                     base: Float32Array.from(p.g.attributes.position.array),
+                     nbase: p.g.attributes.normal ? Float32Array.from(p.g.attributes.normal.array) : null };
+          });
+          a.tube.visible = false;
+        });
+      }
+      console.log('[kraken] modèle chargé : corps ' + body.children.length + ' pièce(s), '
+                  + tmpls.length + ' bras');
+      return true;
+    }catch(err){
+      console.warn('[kraken] modèle illisible, le kraken reste dessiné : ' + (err && err.message || err));
+      return false;
+    }
   }
 
   /* An arch rolling out of the sea beside the mantle, and back under. */
   _lurkLine(a, t, ocean){
     const e = Math.pow(Math.max(0, Math.sin(t*0.33 + a.seed)), 0.7);
     const ca = Math.cos(a.ang), sa = Math.sin(a.ang);
+    a.n0.set(ca, 0, sa);                 // the underside of the arch faces along it
     const x0 = this.pos.x + ca*5, z0 = this.pos.z + sa*5;
     const span = 13, H = 7.5;
     for(let r=0;r<RINGS;r++){
@@ -170,6 +303,7 @@ Naval.Kraken = class Kraken {
     const up = _u.set(0, 1, 0).applyQuaternion(q);
     // outward from her centreline, on the anchor's side
     const out = this._out.set(a.anchor.side, 0, 0).applyQuaternion(q);
+    a.n0.copy(out).negate();             // the inside faces her
     const fwd = this._fwd.set(0, 0, 1).applyQuaternion(q);
     const axis = a.anchor.mast ? up : fwd;
     const cr = a.anchor.mast ? 0.75 : 0.55;
@@ -202,33 +336,62 @@ Naval.Kraken = class Kraken {
 
   /* ----------------------------------------------------------- behaviour */
 
-  /* ctx: { physics, ship, ocean, inten, t, say(msg), splash(pos, water, speed, jet),
-            growl(pos), onMast(fallIndex), onSail() } — refreshed by the page. */
+  /* ANY VESSEL IN THE DEPRESSION MAY BE ITS PREY, not only the one at the
+     helm. Each keeps her own time spent in the heart of it; the first to have
+     lingered long enough is the one it comes up beside, and from then on the
+     VICTIM — her physics, her model — is what it watches, holds and tears,
+     whoever is steering what.
+
+     ctx, refreshed by the page each frame:
+       list     [{ entry, inten }] every hull in a depression, with how deep
+       player   the entry at the helm (the default prey of summon())
+       alive(e) is she still in the fleet and afloat
+       ocean, t
+       event(kind, entry)   appear · approach · grip · beaten · flee · storm
+       splash(pos, water, speed, jet), growl(pos)
+       onMast(entry, fallIndex), onSail(entry) */
   update(dt, ctx){
     const K = Naval.KRAKEN;
     this.ctx = ctx;
     this.cool = Math.max(0, this.cool - dt);
-    const ph = ctx.physics, b = ph.body;
-    // the helm moved to another hull: it lets the old one go and sounds
-    if(this.ph && this.ph !== ph && this.state !== 'absent' && this.state !== 'dive') this._dive('storm');
+    this.lingered = this.lingered || new Map();
+
+    if(this.state === 'absent'){
+      if(!K.enabled || this.cool > 0){ this.lingered.clear(); return; }
+      const seen = new Set();
+      let ripe = null;
+      for(const it of ctx.list){
+        const e = it.entry;
+        if(!e.physics || e.physics.foundered) continue;
+        let tm = this.lingered.get(e) || 0;
+        tm = it.inten > K.minInten ? tm + dt : Math.max(0, tm - 2*dt);
+        this.lingered.set(e, tm);
+        seen.add(e);
+        if(tm > K.appearAfter && (!ripe || tm > this.lingered.get(ripe))) ripe = e;
+      }
+      // a hull that has left every depression, or the fleet, forgets
+      for(const e of [...this.lingered.keys()]) if(!seen.has(e)) this.lingered.delete(e);
+      if(ripe && Math.random() < K.appearPerMinute*dt/60) this.summon(false, ripe);
+      if(this.state === 'absent') return;
+    }
+
+    const v = this.victim;
+    // she is gone — sunk, taken off the chart, or left behind by the fleet
+    if(this.state !== 'dive' && (!v || !ctx.alive(v))){ this._dive('storm'); }
+    let inten = 0;
+    for(const it of ctx.list) if(it.entry === v){ inten = it.inten; break; }
+    const b = this.ph.body;
     const kn = Math.hypot(b.vel.x, b.vel.z)*1.944;
 
     switch(this.state){
-      case 'absent':
-        if(!K.enabled || this.cool > 0 || ph.foundered){ this.stormTime = 0; return; }
-        if(ctx.inten > K.minInten) this.stormTime += dt;
-        else this.stormTime = Math.max(0, this.stormTime - 2*dt);
-        if(this.stormTime > K.appearAfter && Math.random() < K.appearPerMinute*dt/60) this.summon();
-        if(this.state === 'absent') return;
-        break;
 
       case 'lurk':
         this.stateT += dt;
-        if(ctx.inten < K.minInten*0.5){ this._dive('storm'); break; }
+        if(inten < K.minInten*0.5){ this._dive('storm'); break; }
         if(kn > K.fleeKnots) this.dist += K.retreatRate*dt;
         else if(this.stateT > K.lingerBefore){
           this.dist -= (K.approachRate + K.approachGrow*(this.stateT - K.lingerBefore))*dt;
-          if(!this.warned){ this.warned = true; ctx.say('Le kraken se rapproche !'); }
+          if(!this.warned){ this.warned = true; ctx.event('approach', v); }
         }
         if(this.dist > K.giveUpAt){ this._dive('flee'); break; }
         this.bearing += dt*0.025;
@@ -237,7 +400,7 @@ Naval.Kraken = class Kraken {
 
       case 'grip':
         this.stateT += dt;
-        if(ctx.inten < K.minInten*0.5 || ph.foundered){ this._dive('storm'); break; }
+        if(inten < K.minInten*0.5 || this.ph.foundered){ this._dive('storm'); break; }
         this.dmgT += dt;
         if(this.dmgT > K.damageEvery){ this.dmgT = 0; this._tear(); }
         break;
@@ -256,12 +419,16 @@ Naval.Kraken = class Kraken {
   }
 
   /* It shows itself — at a distance, on her beam or thereabouts. Callable by
-     hand for testing: summon(true) brings it straight alongside. */
-  summon(close){
+     hand for testing: summon(true) brings it straight alongside; the second
+     argument names the prey (a fleet entry), the helm's vessel by default. */
+  summon(close, entry){
     const K = Naval.KRAKEN, c = this.ctx;
     if(!c || this.state !== 'absent' && this.state !== 'dive') return false;
+    const v = entry || c.player;
+    if(!v || !v.physics || !v.ship) return false;
     this._releaseAll();
-    this.ph = c.physics; this.ship = c.ship;
+    this.victim = v;
+    this.ph = v.physics; this.ship = v.ship;
     this.state = 'lurk'; this.stateT = 0; this.warned = false;
     this.hp = K.hp; this.hits = 0;
     this.roll = Math.random()*Math.PI*2;     // when its back comes up, this time
@@ -276,7 +443,7 @@ Naval.Kraken = class Kraken {
       a.ang = this.bearing + Math.PI + (i - (n - 1)/2)*0.9;
       a.grow = 0; a.want = 0;
     });
-    c.say('Quelque chose d’énorme remue sous la houle…');
+    c.event('appear', v);
     c.growl(this.pos);
     if(close) this._grip();
     return true;
@@ -315,7 +482,7 @@ Naval.Kraken = class Kraken {
       a.base.set(_v.x, -7, _v.z);
     });
     this.dist = K.gripAt;
-    c.say('Le kraken enlace le navire !');
+    c.event('grip', this.victim);
     c.growl(this.pos);
   }
 
@@ -364,8 +531,8 @@ Naval.Kraken = class Kraken {
     if(!holding.length) return;
     const a = holding[Math.floor(Math.random()*holding.length)];
     const f = a.anchor.fall >= 0 ? this.ship.falls[a.anchor.fall] : null;
-    if(a.anchor.mast && f && !f.userData.fall) this.ctx.onMast(a.anchor.fall);
-    else this.ctx.onSail();
+    if(a.anchor.mast && f && !f.userData.fall) this.ctx.onMast(this.victim, a.anchor.fall);
+    else this.ctx.onSail(this.victim);
     this.ctx.splash(this._w2(a), 6, 5, 1.2);
   }
 
@@ -381,9 +548,7 @@ Naval.Kraken = class Kraken {
     for(const a of this.arms) a.want = 0;
     this.cool = Naval.KRAKEN.cooldown;
     this.stormTime = 0;
-    c.say(why === 'beaten' ? 'Touché ! Le kraken lâche prise et sombre dans les profondeurs.'
-        : why === 'flee'   ? 'Le kraken renonce : vous l’avez distancé.'
-        :                    'Le kraken regagne les profondeurs.');
+    c.event(why, this.victim);
   }
 
   /* ------------------------------------------------------------- posing */
@@ -489,7 +654,7 @@ Naval.Kraken = class Kraken {
       const u = segSphere(p0, p1, c, r);
       if(u >= 0 && u < bu){ bu = u; best = { part, arm }; }
     };
-    test(this.pos, 5.5, 'body', null);
+    test(this.pos, this.bodyR, 'body', null);
     for(const a of this.arms){
       if(!a.on || !a.mesh.visible) continue;
       for(let r=0;r<RINGS;r+=3) test(a.C[r], a.rad*(1 - 0.9*r/RINGS) + 0.6, 'arm', a);

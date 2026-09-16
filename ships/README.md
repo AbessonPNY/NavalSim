@@ -145,6 +145,30 @@ gréement, et une fiche peut en écarter d'autres par leur nom de maillage :
 
 La console nomme ce qui a été écarté à chaque chargement.
 
+## Gouvernail
+
+Le safran tourne avec la barre (`rudder.maxAngle` à fond), **à son rythme** :
+`rudder.hardOver` est le nombre de secondes pour aller de la barre droite à la
+barre à fond (par défaut 3 × √(longueur/24) : 3,4 s pour 30 m, 4,7 s pour 60 m).
+C'est cette position réelle qui fait tourner le navire, pas l'ordre donné — un
+gros navire répond donc tard — et c'est elle que suivent le safran et la roue. Dans un `.glb`, un
+objet nommé **`gouvernail`** (ou `rudder`, `safran`) est pivoté autour de son
+**bord avant** — là où il est ferré sur l'étambot — et autour de l'axe vertical
+du navire. Sans lui, le jeu dessine une planche sur l'étambot, à l'endroit où
+la coque finit sous la flottaison (sous la voûte, pas au tableau).
+`"model": { "rudder": false }` n'en dessine aucun ; une embarcation sans
+gouvernail (`rudder.power` à 0) n'en a pas.
+
+**La barre à roue** : un objet nommé **`barre`** (ou `wheel`, `helm`) tourne autour
+de son **axe le plus court** dans son propre repère — celui d'un disque, donc
+celui d'un cylindre de Blender aplati — de `model.wheelTurns` tours de chaque
+côté (3 par défaut : six tours d'une butée à l'autre). Barre à
+tribord : le haut de la roue part vers tribord. Si votre roue tourne à
+l'envers, donnez un `wheelTurns` négatif.
+
+Un objet de ce nom **sans maillage** (un nœud vide à l'export) est ignoré, et la
+console le signale : le safran dessiné reste alors en place.
+
 ## Le tonnage est l'entrée
 
 `displacementTonnes` fixe la masse. La fraction de volume immergé en découle.

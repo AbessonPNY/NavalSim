@@ -99,6 +99,11 @@ Naval.ShipPhysics = class ShipPhysics {
     /* Her lines to the shore. Empty at sea, which is the usual case, so this
        costs a length test a frame and nothing else. */
     this.moorings = [];
+    /* Where the rudder actually IS, -1 to 1, which is not where the helm has
+       been put: it follows at spec.rudderTime from amidships to hard over. The
+       force is taken from this, so a big ship answers late as well as looking
+       it; the model's blade and wheel are drawn from it too. */
+    this.rudderPos = 0;
     /* Held by something that is not a berth — a kraken's arms. The same springs
        as the moorings, in their own list, because the page reads "has lines
        out" as "alongside", and a monster is not a quay. */
@@ -1112,7 +1117,9 @@ Naval.ShipPhysics = class ShipPhysics {
        a point forward of amidships (roughly a quarter of her length abaft the
        stem), the way a vessel making headway really behaves. It reverses
        correctly under sternway too. */
-    const delta = ctrl.rudder * S.rudderMax;
+    const rStep = dt/Math.max(0.05, S.rudderTime);
+    this.rudderPos += Math.max(-rStep, Math.min(rStep, (ctrl.rudder || 0) - this.rudderPos));
+    const delta = this.rudderPos * S.rudderMax;
     const rudderF = -S.rudderK * vFwd*Math.abs(vFwd) * Math.sin(delta) * inWater;
     this._fVec.copy(right).multiplyScalar(rudderF);
     force.add(this._fVec);
@@ -1283,6 +1290,7 @@ Naval.ShipPhysics = class ShipPhysics {
   settle(ocean, ctrl){
     // she is about to be put somewhere: no cell crossing counts as a splash
     this._slamWarm = 3;
+    this.rudderPos = 0;
     const sea = ocean.seaState, deg = ocean.windDeg;
     ocean.setSeaState(0, 0);
     this.body.pos.set(0, 0.4, 0);

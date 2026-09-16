@@ -263,6 +263,7 @@ Naval.ShipModel = class ShipModel {
     this._buildRig();
     this._buildFlags();
     this._buildLantern();
+    this._buildRudder();
     this._buildWake(scene);
     this._fwd = new THREE.Vector3();
   }
@@ -867,6 +868,7 @@ Naval.ShipModel = class ShipModel {
       this._hullShell();
       this._buildFlags();
       this._buildLantern();
+      this._buildRudder();
       this._findNightGlow();
       return true;
     }catch(err){
@@ -2089,6 +2091,144 @@ Naval.ShipModel = class ShipModel {
   _applyNation(){
     for(const f of this.flags || [])
       if(f.byNation) f.mesh.material = this._nationMat(f.nationKey);
+  }
+
+  /* THE RUDDER, which turns with the helm. On a model, a piece named
+     gouvernail (or rudder, safran) is hung on a pintle at its FORWARD edge —
+     that is where a rudder is hinged to the sternpost — and swung about it.
+     Without one, a blade is drawn on the sternpost: found at the waterline on
+     the model's hull, the last station aft that is under water, since a
+     galleon's counter overhangs it by metres. `model.rudder: false` draws
+     none; a boat steered by her oars (rudder.power 0) has none either.
+
+     Its angle is the one the solver steers with, ctrl.rudder × maxAngle, and
+     the sign is the solver's: a positive helm pushes her stern to port and her
+     bow to starboard, so the blade's after edge goes to starboard (−x). */
+  _buildRudder(){
+    if(this.rudder){
+      const r = this.rudder;
+      if(r.userData.drawn){
+        if(r.parent) r.parent.remove(r);
+        r.children[0].geometry.dispose();
+      }
+      this.rudder = null;
+    }
+    const spec = this.spec, raw = spec.raw || {};
+    if(!(spec.rudderK > 0)) return;
+
+    this._findWheel();
+    if(this.modelRoot){
+      /* Only a piece that HAS something in it: an empty node of that name —
+         which is what an object exported without its mesh becomes — would
+         have been hinged and swung with nothing to show, and the drawn blade
+         left out for it. */
+      const found = this._named(/^(gouvernail|rudder|safran)/i);
+      if(found){
+        const parent = found.parent;
+        parent.updateWorldMatrix(true, true);
+        const box = new THREE.Box3().setFromObject(found);
+        // the hinge, in the parent's frame: centred, at the forward (+z) edge
+        const toParent = new THREE.Matrix4().copy(parent.matrixWorld).invert();
+        const a = new THREE.Vector3((box.min.x + box.max.x)/2, (box.min.y + box.max.y)/2, box.max.z).applyMatrix4(toParent);
+        const pivot = new THREE.Group();
+        pivot.position.copy(a);
+        parent.add(pivot);
+        pivot.updateWorldMatrix(true, false);
+        pivot.attach(found);
+        this.rudder = pivot;
+        return;
+      }
+      if(raw.model && raw.model.rudder === false) return;
+    }
+
+    // --- drawn: a plank on the sternpost ---
+    const sc = spec.L/24;
+    const bottom = -(spec.hull.keelDepth + spec.hull.keelExtra)*0.92;
+    const top = spec.deckMid + 0.3*sc;
+    let zPost = -spec.L/2;
+    if(this.modelRoot){
+      const parts = this._modelParts();
+      let hull = parts[0], best = -1;
+      for(const p of parts){
+        const v = p.size.x*p.size.y*p.size.z;
+        if(v > best){ best = v; hull = p; }
+      }
+      // the aftmost point of the hull between the keel and just above the water
+      let zMin = Infinity;
+      const pa = hull.geom.attributes.position;
+      for(let i=0;i<pa.count;i++){
+        const y = pa.getY(i);
+        if(y > bottom && y < 0.3*sc && pa.getZ(i) < zMin) zMin = pa.getZ(i);
+      }
+      if(isFinite(zMin)) zPost = zMin;
+      for(const p of parts) p.geom.dispose();
+    }
+    const chord = 0.045*spec.L, thick = 0.16*sc;
+    const g = new THREE.BoxGeometry(thick, top - bottom, chord);
+    // hinged at its forward edge, which sits on the post
+    g.translate(0, (top + bottom)/2, -chord/2);
+    const blade = new THREE.Mesh(g, this.mats.timber);
+    const pivot = new THREE.Group();
+    pivot.position.set(0, 0, zPost);
+    pivot.add(blade);
+    pivot.userData.drawn = true;
+    this.group.add(pivot);
+    this.rudder = pivot;
+  }
+
+  /* The first node of the model whose name matches and which carries a mesh,
+     itself or below it. A match with nothing in it is reported, once. */
+  _named(re){
+    let hit = null, empty = null;
+    this.modelRoot.traverse(o => {
+      if(hit || !re.test(o.name || '')) return;
+      let mesh = false;
+      o.traverse(c => { if(c.isMesh) mesh = true; });
+      if(mesh) hit = o; else if(!empty) empty = o;
+    });
+    if(!hit && empty)
+      console.warn('[' + this.spec.id + '] « ' + empty.name + ' » est vide dans le .glb (aucun maillage exporté) — ignoré');
+    return hit;
+  }
+
+  /* THE WHEEL, a piece named barre (or wheel, helm). It turns about its own
+     axle, taken as the axis along which the piece is THINNEST in its own
+     frame — a wheel is a disc — and it turns a great deal more than the
+     rudder does: model.wheelTurns each way (3 by default), six whole turns
+     from hard over to hard over, as a big ship's wheel takes. Helm to starboard turns the
+     top of the wheel to starboard. */
+  _findWheel(){
+    this.wheel = null;
+    if(!this.modelRoot) return;
+    const o = this._named(/^(barre|wheel|helm)/i);
+    if(!o) return;
+    const box = new THREE.Box3();
+    o.traverse(c => {
+      if(!c.isMesh) return;
+      c.geometry.computeBoundingBox();
+      const b = c.geometry.boundingBox.clone();
+      if(c !== o){
+        c.updateMatrix();
+        b.applyMatrix4(new THREE.Matrix4().copy(c.matrix));
+      }
+      box.union(b);
+    });
+    const sz = box.getSize(new THREE.Vector3());
+    const axis = sz.x <= sz.y && sz.x <= sz.z ? new THREE.Vector3(1, 0, 0)
+               : sz.y <= sz.z ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(0, 0, 1);
+    const raw = this.spec.raw || {};
+    const turns = raw.model && raw.model.wheelTurns != null ? raw.model.wheelTurns : 3;
+    this.wheel = { obj:o, q0:o.quaternion.clone(), axis, turns, q:new THREE.Quaternion() };
+  }
+
+  setRudder(helm){
+    const h = helm || 0;
+    if(this.rudder) this.rudder.rotation.y = h*this.spec.rudderMax;
+    const w = this.wheel;
+    if(w){
+      w.q.setFromAxisAngle(w.axis, h*w.turns*Math.PI*2);
+      w.obj.quaternion.copy(w.q0).multiply(w.q);
+    }
   }
 
   /* Her mastheads, in her own frame, with the fall that carries each one (-1

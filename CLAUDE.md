@@ -50,7 +50,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `world.js` · `land.js` | l'archipel et ses ports · le maillage des îles |
 | `jetty.js` | le ponton d'un port |
 | `chart.js` | la carte marine |
-| `ship-model.js` | coque, gréement, voiles, lanternes, fenêtres de nuit, avirons, .glb |
+| `ship-model.js` | coque, gréement, voiles, pavillons, lanternes, safran, fenêtres de nuit, avirons, .glb |
 | `ship-physics.js` | sondes, corps rigide 6 ddl, gouvernail, voiles, avirons |
 | `controls.js` · `camera-rig.js` · `hud.js` | barre, caméras (vues à bord dans la fiche), instruments |
 | `helm.js` | la barre des navires qui ne sont pas le vôtre |
@@ -63,7 +63,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 
 Réglages de jeu : `settings.json` (rencontres, nuit, bloom, naufrage, tempête : foudre et kraken).
 Objets flottants : `props/Props.json`. Pavillons : `ships/textures/flags/flags.json`.
-Fiches navires : `ships/*.json`, format dans `ships/README.md`.
+Fiches navires : `ships/*.json`, format dans `ships/README.md`. Kraken en `.glb` : `creatures/README.md`.
 
 ## Règles à ne jamais casser
 

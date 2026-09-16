@@ -19,7 +19,7 @@ Naval.HUD = class HUD {
       heave:el('roHeave'), submerged:el('roSubmerged'), gm:el('roGM'),
       roll:el('roRoll'), pitch:el('roPitch'), horizon:el('hzGroup'),
       thrText:el('thrText'), thrBar:el('thrBar'), thrTele:el('thrTele'),
-      rudText:el('rudText'), rudBar:el('rudBar'), rudTele:el('rudTele'),
+      rudText:el('rudText'), rudBar:el('rudBar'), rudTele:el('rudTele'), rudOrd:el('rudOrd'),
       shtText:el('shtText'), shtBar:el('shtBar'), shtTele:el('shtTele'),
       shtOpt:el('shtOpt'),
       flood:el('roFlood'), pumps:el('roPumps'),
@@ -263,12 +263,24 @@ Naval.HUD = class HUD {
         : ctrl.throttle < -0.33*astern ? 'en arrière demie'
                                        : 'en arrière lente';
 
-    // --- helm ---
-    const rd = Math.round(ctrl.rudder*35);
+    /* --- helm ---
+       The bar is where the rudder IS, which on a big ship lags the order by
+       seconds (rudder.hardOver); the order is the mark, shown while the blade
+       is still on its way to it — the same mark the sheets use for their best
+       trim. Degrees from the sheet's own maxAngle. */
+    const pos = p.rudderPos != null ? p.rudderPos : ctrl.rudder;
+    const ord = ctrl.rudder || 0;
+    const deg = S.rudderMax*180/Math.PI;
+    const rd = Math.round(pos*deg), od = Math.round(ord*deg);
     e.rudText.textContent = rd+'°';
-    e.rudBar.style.left = ctrl.rudder>=0 ? '50%' : (50+ctrl.rudder*50)+'%';
-    e.rudBar.style.width = Math.abs(ctrl.rudder)*50+'%';
-    e.rudTele.textContent = rd===0 ? '— gouvernail droit —'
+    e.rudBar.style.left = pos>=0 ? '50%' : (50+pos*50)+'%';
+    e.rudBar.style.width = Math.abs(pos)*50+'%';
+    const moving = Math.abs(ord - pos) > 0.02;
+    e.rudOrd.hidden = !moving;
+    if(moving) e.rudOrd.style.left = (50 + ord*50)+'%';
+    e.rudTele.textContent = moving
+        ? (ord > pos ? '— on vient à tribord… ' : '— on vient à bâbord… ') + Math.abs(od) + '° —'
+        : rd===0 ? '— gouvernail droit —'
         : (rd>0 ? 'la barre à tribord' : 'la barre à bâbord');
 
     // --- wind & sails ---

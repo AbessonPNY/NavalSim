@@ -189,7 +189,7 @@
     </div>
     <div class="helm-col">
       <div class="helm-head"><span class="k">Barre</span><span class="v" id="rudText">0°</span></div>
-      <div class="barmeter center"><i id="rudBar"></i></div>
+      <div class="barmeter center"><i id="rudBar"></i><i id="rudOrd" class="mark" hidden></i></div>
       <div class="telegraph" id="rudTele">— gouvernail droit —</div>
     </div>
     <div class="helm-col">
@@ -592,7 +592,7 @@ async function main(){
      dépressions. Aucun des deux n'est un navire : ils n'occupent pas de place
      dans la flotte ni dans la texture de profils. Le kraken tient le navire par
      des amarres (ShipPhysics.grips) et se laisse toucher au canon. */
-  const lightning = new Naval.Lightning(stage.scene);
+  const lightning = new Naval.Lightning(stage.scene, stage.camera);
   const kraken = new Naval.Kraken(stage.scene, ocean.uniforms);
   guns.creatures = [kraken];
   guns.onCreature = (c, hit, speed, k, tireur) => {
@@ -601,18 +601,38 @@ async function main(){
     c.wound(hit, k || 1);
   };
   const orage = [];                           // { entry, inten } — relu à chaque image
+  /* CE QUE LE KRAKEN FAIT, DIT À QUI COMMANDE. Il peut s'en prendre à
+     n'importe quel navire du grain : quand c'est le vôtre, la phrase est la
+     vôtre ; quand c'est un autre, elle le nomme — et seulement s'il est assez
+     près pour qu'on le voie, à moins de trois kilomètres. */
+  const KRAKEN_DIT = {
+    appear:   ['Quelque chose d\u2019énorme remue sous la houle\u2026',
+               'Quelque chose d\u2019énorme remue sous la houle, près du {n}\u2026'],
+    approach: ['Le kraken se rapproche !', 'Le kraken se rapproche du {n} !'],
+    grip:     ['Le kraken enlace le navire !', 'Le kraken enlace le {n} !'],
+    beaten:   ['Touché ! Le kraken lâche prise et sombre dans les profondeurs.',
+               'Le kraken lâche le {n} et sombre dans les profondeurs.'],
+    flee:     ['Le kraken renonce : vous l\u2019avez distancé.', 'Le {n} a distancé le kraken.'],
+    storm:    ['Le kraken regagne les profondeurs.', 'Le kraken regagne les profondeurs.'],
+    mastTorn: ['Le kraken arrache un mât !', 'Le kraken arrache un mât du {n} !'],
+    mastHurt: ['Le kraken tord un mât dans son étreinte !', 'Le kraken tord un mât du {n} !'],
+    sail:     ['Un bras du kraken déchire une voile !', 'Le kraken déchire une voile du {n} !']
+  };
+  function krakenDit(kind, e){
+    const t = KRAKEN_DIT[kind];
+    if(!t || !e) return;
+    if(e === fleet[0]){ dire(t[0]); return; }
+    if(!e.body || e.body.pos.distanceTo(physics.body.pos) > 3000) return;
+    dire(t[1].replace('{n}', (e.spec && e.spec.name) || 'navire'));
+  }
   const krakenCtx = {
-    physics:null, ship:null, ocean, inten:0, t:0,
-    say: m => dire(m),
+    list: null, player: null, ocean, t: 0,
+    alive: e => fleet.indexOf(e) >= 0 && !!e.physics && !e.physics.foundered,
+    event: krakenDit,
     splash: (p, w, s, j) => splash.burst(p, w, s, j),
     growl: p => { if(sonPret && sound.ctx) sound.grondement(p, stage.camera); },
-    onMast: i => {
-      const r = blesserMat(fleet[0], i, 1);
-      dire(r ? 'Le kraken arrache un mât !' : 'Le kraken tord un mât dans son étreinte !');
-    },
-    onSail: () => {
-      if(fleet[0].ship.splitSail(false) >= 0) dire('Un bras du kraken déchire une voile !');
-    }
+    onMast: (e, i) => krakenDit(blesserMat(e, i, 1) ? 'mastTorn' : 'mastHurt', e),
+    onSail: e => { if(e.ship.splitSail(false) >= 0) krakenDit('sail', e); }
   };
 
   /* La foudre tombe sur la plus haute tête de mât encore debout. Ce qu'elle
@@ -1895,6 +1915,7 @@ async function main(){
     if(s && s.storm){
       if(s.storm.lightning) Object.assign(Naval.LIGHTNING, s.storm.lightning);
       if(s.storm.kraken) Object.assign(Naval.KRAKEN, s.storm.kraken);
+      kraken.loadModel(Naval.KRAKEN);
     }
   })();
 
@@ -2604,7 +2625,8 @@ async function main(){
     if(p.foundered || (p.breaches && p.breaches.length)) return 1;   // avarie
     if(guns.shot.length || guns._queue.length) return 1;             // on tire
     if(warpRumour && !warpRumour.hidden) return 1;                   // à décider
-    if(kraken.state !== 'absent') return 1;                          // il rôde
+    if(kraken.state !== 'absent' && kraken.victim && kraken.victim.body       // il rôde, près
+       && kraken.victim.body.pos.distanceTo(b.pos) < 3000) return 1;
     // une voile de rencontre à moins de 2,5 km : c'est le moment de veiller
     for(const e of fleet) if(e.rencontre && !e.physics.foundered
       && Math.hypot(e.body.pos.x - b.pos.x, e.body.pos.z - b.pos.z) < 2500) return 1;
@@ -2796,6 +2818,7 @@ async function main(){
       e.ship.setOars(e.physics, dt);
       // la toile et le pavillon se déforment à chaque image : rien à calculer pour qui ne les voit pas
       if(!e.ship._hazed){
+        e.ship.setRudder(e.physics.rudderPos);
         e.ship.setTrim(e.ctrl.sheet, e.physics.tack, e.physics.setFrac,
                        e.physics.luffing, t, e.physics.sailLoad);
         e.ship.setFlag(e.physics.appWindAngle, e.physics.tack, e.physics.appWindSpeed, t);
@@ -2810,6 +2833,7 @@ async function main(){
 
     ship.syncTo(physics.body);
     ship.setOars(physics, dt);
+    ship.setRudder(physics.rudderPos);
     ship.setTrim(controls.state.sheet, physics.tack,
                  physics.setFrac, physics.luffing, t, physics.sailLoad);
     ship.setFlag(physics.appWindAngle, physics.tack, physics.appWindSpeed, t);
@@ -2877,9 +2901,7 @@ async function main(){
        the answer: the sea state below, and the chart just after. */
     squall = storms.at(worldPos.x, worldPos.z, t);
 
-    krakenCtx.physics = physics; krakenCtx.ship = ship;
-    krakenCtx.inten = squall ? squall.inten : 0; krakenCtx.t = t;
-    kraken.update(dt, krakenCtx);
+    // every hull in a depression, and how deep: the kraken's prey and the lightning's
     orage.length = 0;
     for(const e of fleet){
       if(!e.ship || !e.physics) continue;
@@ -2887,6 +2909,8 @@ async function main(){
         : storms.at(ocean.origin.x + e.body.pos.x, ocean.origin.z + e.body.pos.z, t);
       if(q) orage.push({ entry:e, inten:q.inten });
     }
+    krakenCtx.list = orage; krakenCtx.player = fleet[0]; krakenCtx.t = t;
+    kraken.update(dt, krakenCtx);
     lightning.update(dt, orage, foudroyer);
     chart.note(worldPos.x, worldPos.z);
     chartTick += dt;

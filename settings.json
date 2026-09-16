@@ -61,7 +61,8 @@
       "gripBrake": 0.25,
       "damageEvery": 9,
       "hp": 14,
-      "cooldown": 900
+      "cooldown": 900,
+      "glb": "creatures/kraken.glb"
     }
   },
   "wreck": {
