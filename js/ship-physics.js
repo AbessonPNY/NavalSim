@@ -37,6 +37,7 @@ Naval.ShipPhysics = class ShipPhysics {
 
     this.probes = [];
     this.hullVolume = 0;
+    this.lod = 0;
     this._buildProbes();
     spec.checkFlotation(this.hullVolume, C.RHO);
     this._buildCompartments();
@@ -208,7 +209,7 @@ Naval.ShipPhysics = class ShipPhysics {
     // scratch vectors — allocated once, never reused across a live value
     this._fwd=new THREE.Vector3(); this._right=new THREE.Vector3(); this._up=new THREE.Vector3();
     this._pw=new THREE.Vector3(); this._r=new THREE.Vector3(); this._tmp=new THREE.Vector3();
-    this._cog=new THREE.Vector3(); this._tmp2=new THREE.Vector3(); this._norm=new THREE.Vector3();
+    this._cog=new THREE.Vector3(); this._tmp2=new THREE.Vector3(); this._grad=new THREE.Vector3();
     this._torque=new THREE.Vector3(); this._force=new THREE.Vector3();
     this._qc=new THREE.Quaternion();
     this._app=new THREE.Vector3(); this._lift=new THREE.Vector3(); this._sailF=new THREE.Vector3();
@@ -778,6 +779,10 @@ Naval.ShipPhysics = class ShipPhysics {
     const L = spec.L, B = spec.B, D = spec.D;
     const nz = C.PN_Z, nx = C.PN_X, ny = C.PN_Y;
     this.probes = []; this.hullVolume = 0;
+    /* The columns of the grid — one per (x, z) that holds any probe. A distant
+       hull reads the sea once per column instead of once per probe: see lod. */
+    this.cols = [];
+    const colOf = new Map();
     const cellVol = (L/nz)*(B/nx)*(D/ny);
     const gridBase = -(spec.hull.keelDepth + spec.hull.keelExtra);
     this.probeH = D / ny;                   // smoothing scale for partial immersion
@@ -795,11 +800,16 @@ Naval.ShipPhysics = class ShipPhysics {
         for(let ix=0;ix<nx;ix++){
           const x = -B/2 + ((ix+0.5)/nx)*B;
           if(Math.abs(x) > beam) continue;
-          this.probes.push({local:new THREE.Vector3(x,y,z), vol:cellVol, frac:0});
+          const key = iz*nx + ix;
+          if(!colOf.has(key)){ colOf.set(key, this.cols.length); this.cols.push({x, z}); }
+          this.probes.push({local:new THREE.Vector3(x,y,z), vol:cellVol, frac:0,
+                            col:colOf.get(key)});
           this.hullVolume += cellVol;
         }
       }
     }
+    // per column: sea height, foot x, foot z, slope x, slope z
+    this._colH = new Float64Array(5*this.cols.length);
   }
 
   step(dt, ocean, ctrl, t){
@@ -838,6 +848,37 @@ Naval.ShipPhysics = class ShipPhysics {
     // world CoG — its own vector, because _tmp is reused inside the probe loop
     const cog = this._cog.copy(b.com).applyQuaternion(b.quat).add(b.pos);
 
+    /* LOD: A HULL FAR OFF READS THE SEA PER COLUMN, NOT PER PROBE. The sea
+       sample is the whole cost of the solver — ten waves, a power each, for
+       every probe on every substep — and the probes of one column stand on
+       nearly the same patch of water. One sample per column, taken where the
+       column crosses her waterline plane, serves the whole column — WITH THE
+       SLOPE there, each probe reading the height off that tangent plane at its
+       own position.
+
+       The slope is not a refinement. Without it every probe of a column read
+       the sea straight above the column's foot, which is harmless upright and
+       wrong heeled: at 28° a keel cell stands two or three metres to leeward
+       of it. Measured on the Roter Löwe in force 8, 90 s: roll RMS 4.4° exact,
+       3.5° flat per column — a fifth of her roll gone. The single substep, by
+       comparison, cost her 3 %.
+
+       The grid itself is NOT coarsened, and that is the point: volumes,
+       centroids and the partial-fill law are the very same, so she floats at
+       the very same marks and trim and nothing jumps when she crosses the
+       boundary. Set by the page each frame, like the controls; 0 is exact. */
+    const far = this.lod > 0;
+    if(far){
+      for(let c=0;c<this.cols.length;c++){
+        const col = this.cols[c];
+        this._pw.set(col.x, 0, col.z).applyQuaternion(b.quat).add(b.pos);
+        const k = 5*c, H = this._colH;
+        H[k] = ocean.sample(this._pw.x, this._pw.z, t, null, this._grad);
+        H[k+1] = this._pw.x; H[k+2] = this._pw.z;
+        H[k+3] = this._grad.x; H[k+4] = this._grad.z;
+      }
+    }
+
     // --- buoyancy + vertical damping over the submerged probes ---
     let submergedVol = 0, lowestY = Infinity;
     let slamW = 0, slamV = 0, slamP = 0;
@@ -846,7 +887,12 @@ Naval.ShipPhysics = class ShipPhysics {
       const pr = this.probes[i];
       this._pw.copy(pr.local).applyQuaternion(b.quat).add(b.pos);
       if(this._pw.y < lowestY) lowestY = this._pw.y;
-      const depth = ocean.sample(this._pw.x, this._pw.z, t, this._norm) - this._pw.y;
+      let sea;
+      if(far){
+        const k = 5*pr.col, H = this._colH;
+        sea = H[k] + H[k+3]*(this._pw.x - H[k+1]) + H[k+4]*(this._pw.z - H[k+2]);
+      }else sea = ocean.sample(this._pw.x, this._pw.z, t);
+      const depth = sea - this._pw.y;
 
       /* How full this cell is, and how fast that is CHANGING. The rate is the
          whole of the splash detector, and it is a different question from the

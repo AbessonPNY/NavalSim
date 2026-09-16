@@ -1034,6 +1034,7 @@ async function main(){
   const UP = new THREE.Vector3(0, 1, 0);
   const lostMsg = document.getElementById("lost");
   const lostBox = new THREE.Box3();
+  const hazeTop = new THREE.Vector3();
   const worldPos = new THREE.Vector3(), chartHdg = new THREE.Vector3();
   const chartFleet = [];
   let chartTick = 0;
@@ -2614,9 +2615,30 @@ async function main(){
     /* Any other vessel in the fleet sails herself. Entry 0 is the one at the
        helm, handled below with the instruments and the cameras; the rest need
        only be stepped and shown, and they carry their own controls. */
+    /* LOD DE SIMULATION pour les coques lointaines : la houle lue par colonne
+       de sondes (voir ShipPhysics) et UN sous-pas par image au lieu de quatre —
+       la règle du 1/15 s tient toujours, c'est elle qui fixe le compte. Posé à
+       chaque image, comme les commandes : prendre la barre d'une coque
+       lointaine la rend exacte dès l'image suivante. */
+    physics.lod = 0;
+    ship.setHazed(false);
+    const SUB_FAR = Math.max(1, Math.ceil(dt*15)), hFar = dt/SUB_FAR;
+    const C_ = Naval.Config, flag = fleet[0].body.pos;
     for(let k=1;k<fleet.length;k++){
       const e = fleet[k];
       if(!e.physics || !e.ship) continue;
+      const dFlag = e.physics.body.pos.distanceTo(flag);
+      /* PERDUE DANS LA BRUME : la même loi que le shader, lue au sommet de sa
+         mâture, décide si elle est encore dessinée. Par beau temps cela tombe
+         vers 5,5 km, par force 8 sous le mille. Une coque qu'on ne voit pas
+         est aussi simulée au rabais, même en deçà de LOD_FAR — le rabais est
+         à 1 % près exact, et rien ne se joue à l'œil. */
+      hazeTop.copy(e.physics.body.pos); hazeTop.y += e.ship.tallY();
+      const seen = Naval.hazeTransmit(stage.camera.position, hazeTop, ocean.uniforms);
+      e.ship.setHazed(e.ship._hazed ? seen < C_.HAZE_SHOW : seen < C_.HAZE_HIDE);
+      const lodFar = dFlag > C_.LOD_FAR ? 1 : dFlag < C_.LOD_NEAR ? 0 : e.lodFar;
+      e.lodFar = lodFar;
+      e.physics.lod = (lodFar || e.ship._hazed) ? 1 : 0;
       /* She sails herself: the helm writes a rudder and a sheet into her own
          controls, exactly as a hand would, and the solver knows no difference.
          The chase is always the vessel at the wheel — entry 0 — read fresh
@@ -2646,15 +2668,21 @@ async function main(){
       e.ship.stepRigging(dt);
       e.physics.standing = e.ship.standing();
       e.physics.whole = e.ship.whole();
-      for(let i=0;i<SUB;i++) e.physics.step(h, ocean, e.ctrl, t0 + (i+1)*h);
+      if(e.physics.lod > 0)
+        for(let i=0;i<SUB_FAR;i++) e.physics.step(hFar, ocean, e.ctrl, t0 + (i+1)*hFar);
+      else
+        for(let i=0;i<SUB;i++) e.physics.step(h, ocean, e.ctrl, t0 + (i+1)*h);
       tearCanvas(e.physics, e.ship, dt, false);
       strainMast(e.physics, e.ship, dt, false);
       e.afloat = e.physics.afloat;
       e.ship.syncTo(e.physics.body);
       e.ship.setOars(e.physics, dt);
-      e.ship.setTrim(e.ctrl.sheet, e.physics.tack, e.physics.setFrac,
-                     e.physics.luffing, t, e.physics.sailLoad);
-      e.ship.setFlag(e.physics.appWindAngle, e.physics.tack, e.physics.appWindSpeed, t);
+      // la toile et le pavillon se déforment à chaque image : rien à calculer pour qui ne les voit pas
+      if(!e.ship._hazed){
+        e.ship.setTrim(e.ctrl.sheet, e.physics.tack, e.physics.setFrac,
+                       e.physics.luffing, t, e.physics.sailLoad);
+        e.ship.setFlag(e.physics.appWindAngle, e.physics.tack, e.physics.appWindSpeed, t);
+      }
       e.ship.setLantern(stage.night, t);
     }
 

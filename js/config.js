@@ -13,6 +13,15 @@ Naval.Config = {
   // ---- buoyancy probe grid (cells across the hull envelope) ----
   PN_Z: 11, PN_X: 7, PN_Y: 7,
 
+  /* A hull this far from the one at the helm is simulated cheaply (see
+     ShipPhysics.lod). Two radii, so one sailing along the boundary does not
+     flip every frame. Metres, from entry 0. */
+  LOD_FAR: 1500, LOD_NEAR: 1200,
+  /* A hull whose masthead keeps less than HAZE_HIDE of its contrast through
+     the haze is not drawn; she comes back above HAZE_SHOW. One per cent of a
+     dark hull against a bright horizon is about two levels out of 255. */
+  HAZE_HIDE: 0.01, HAZE_SHOW: 0.02,
+
   /* How many hulls the sea and the foam can carry at once.
 
      Not a free number: it sizes the uniform ARRAYS both shaders index, the

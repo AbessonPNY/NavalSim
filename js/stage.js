@@ -289,6 +289,22 @@ Naval.HAZE_GLSL = `
     return 1.0 - exp(-uHaze * abs(depth));
   }`;
 
+/* The same law on the CPU, for deciding what the haze has already hidden. It
+   has to stay the twin of hazeAlong above — same depth integral, same
+   uniforms read — or a hull would be dropped while the shader still showed a
+   trace of her. Returns the fraction of her own light that still arrives. */
+Naval.hazeTransmit = function(from, to, u){
+  const dx = to.x - from.x, dy0 = to.y - from.y, dz = to.z - from.z;
+  const dist = Math.hypot(dx, dy0, dz);
+  if(dist < 0.001) return 1;
+  const H = u.uHazeH.value;
+  const y0 = Math.max(from.y, 0), y1 = Math.max(to.y, 0), dy = y1 - y0;
+  const depth = Math.abs(dy) < 0.01
+    ? Math.exp(-y0/H)*dist
+    : dist*(H/dy)*(Math.exp(-y0/H) - Math.exp(-y1/H));
+  return Math.exp(-u.uHaze.value*Math.abs(depth));
+};
+
 /* Patch any standard material so it breathes the same air as the sea.
    Three's own FogExp2 falls off with the SQUARE of distance while ours is
    Beer-Lambert in the traversed depth, so the two can never agree at more than

@@ -92,6 +92,11 @@ Une fiche déclare les feux qu'elle porte et où ils pendent :
 | `above` | de combien le relever au-dessus de ce pont |
 | `size` | 1 par défaut, la taille de la lueur |
 | `color` | `"0xffcf7a"` par défaut, la couleur de la flamme |
+| `kind` | `"candle"` : une bougie — bâton de cire sous la flamme, pas de repère visible de loin, flamme plus vive. `y` est alors la hauteur de la flamme |
+
+Une bougie brûle dans la chambre du capitaine de la Roter Löwe
+(`frigate17e.json`) : `size` 0,1, `y` à hauteur de table, sous la vue « Chambre du
+capitaine ».
 
 Pas de champ `lanterns` : un seul feu au couronnement, placé automatiquement,
 comme avant. Une **liste vide** (`"lanterns": []`) : aucun feu.

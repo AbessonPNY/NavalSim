@@ -4777,6 +4777,92 @@ coques ne coûtent que **9 %** de plus (10,77 contre 11,71 ms). Ce n'est pas le
 sujet. La liste reste non bornée, ce qui n'est pas joli, mais cela ne se paie
 pas.
 
+## Les coques lointaines
+
+**Un LOD de SIMULATION, pas de géométrie**, parce que c'est là qu'est le coût :
+le solveur fait 1,5 à 1,8 ms par coque, le rendu de huit coques 3,56 ms en
+tout. Et dans le solveur, c'est la lecture de la houle — dix vagues, une
+puissance chacune, pour chaque sonde à chaque sous-pas — qui pèse.
+
+Au-delà de `LOD_FAR` (1500 m) du navire commandé, et jusqu'à ce qu'elle
+revienne sous `LOD_NEAR` (1200 m), une coque :
+
+1. **lit la mer une fois par COLONNE de sondes** (63 pour la Roter Löwe au lieu
+   de 315 sondes, 67 au lieu de 374 pour le chaland), à l'endroit où la colonne
+   traverse son plan de flottaison, **avec la pente** ; chaque sonde lit sa
+   hauteur d'eau sur ce plan tangent, à sa propre position ;
+2. **fait un seul sous-pas par image** au lieu de quatre (la règle du 1/15 s
+   fixe toujours le compte en temps pressé).
+
+La grille n'est PAS allégée : mêmes volumes, même loi de remplissage, donc
+même flottaison et même assiette — rien ne saute à la bascule. `lod` est posé
+par la page à chaque image, comme les commandes.
+
+Mesuré, solveur seul, pas fixe, médiane de six lots entrelacés :
+
+| coque | exact (4 sous-pas) | colonnes, 4 sous-pas | LOD complet |
+|---|---|---|---|
+| chaland | 1,80 ms | 0,41 | **0,099** |
+| Roter Löwe | 1,53 ms | 0,36 | **0,092** |
+
+Dix-sept à dix-huit fois moins. Deux voiles au large coûtaient environ 3,3 ms,
+elles en coûtent 0,2.
+
+**La pente n'est pas un raffinement, et la première version l'a montré.** Sans
+elle chaque sonde lisait la mer à l'aplomb du pied de sa colonne : juste à
+l'endroit, faux gîté — à 28° une sonde de quille est deux ou trois mètres sous
+le vent. Roter Löwe, force 8, largue, 90 s :
+
+| | roulis RMS | pilonnement RMS | tangage RMS |
+|---|---|---|---|
+| exact | 4,42° | 1,85 m | 4,35° |
+| colonnes à plat | 3,53 (−20 %) | 1,80 | 4,19 |
+| exact, 1 sous-pas | 4,30 (−3 %) | 1,80 | 4,17 |
+
+Avec la pente (autre tirage de mer) : exact 3,572° / 1,272 m / 3,592°,
+colonnes 3,573 / 1,273 / 3,594, et 10 cm d'écart de route après 90 s à
+12 nœuds. Le sous-pas unique reste dans 1,5 % et 3 m sur 550. En force 5 et au
+chaland au moteur en force 7, les deux versions se confondent.
+
+`ocean.sample()` rend désormais la pente sur demande (5ᵉ argument) : la
+normale ne la rend pas, son y ayant pris le terme de raideur de Gerstner avant
+d'être normalisé. Au passage, le solveur calculait une normale à chaque sonde
+que personne ne lisait ; elle n'est plus demandée.
+
+**Pièges de ce banc.** Le navire de départ est le chaland (`sailArea` 0) et il
+est au port, où `shelter()` ramène la houle à 15 % : les premiers essais « en
+force 7 et 9 » ne voyaient qu'une mer de port, et une coque « sous voiles » qui
+ne bougeait pas. Bancs au large (6000, 0), fond à −70 m, fiche relue par
+`new Naval.ShipSpec(json)`. La boucle du volet était gelée : la bascule en jeu
+n'a pas été observée, seulement le solveur piloté à la main.
+
+### Ce que la brume a déjà caché
+
+Remarque d'Arnaud : avec la brume, on ne les voit pas de si loin. Juste — la
+loi du shader, lue de 10 m vers un sommet à 25 m, laisse ce contraste :
+
+| | 1 km | 2 km | 4 km | 5,5 km | 7 km |
+|---|---|---|---|---|---|
+| force 3 | 47 % | 22 % | 4,9 % | 1,6 % | 0,5 % |
+| force 6 | 27 % | 7,5 % | 0,6 % | 0,1 % | — |
+| force 8 | 0,4 % | — | — | — | — |
+
+Les voiles naissent à 4–9 km : par beau temps la moitié y est invisible, par
+gros temps toutes. Donc `Naval.hazeTransmit()` — la jumelle CPU de
+`hazeAlong`, qui lit les mêmes uniformes — est évaluée au sommet de la mâture
+(`ship.tallY()`) : sous `HAZE_HIDE` (1 %) la coque n'est plus dessinée, au-dessus
+de `HAZE_SHOW` (2 %) elle revient. Une coque cachée n'anime plus ses voiles ni
+son pavillon, et passe en LOD de simulation même en deçà de `LOD_FAR`.
+
+**Par les calques, pas par `visible`** : `visible` porte déjà la voile
+éclatée, le mât tombé, les couleurs amenées. `setHazed()` met le masque de
+calques des maillages à zéro (ni rendu, ni ombre, ni SSAO) et le rend ensuite.
+**Les lanternes sont sautées entières** : une lumière que le rendu ne voit plus
+recompile la scène, et un feu est justement ce qui perce la brume la nuit.
+
+Le gain de rendu n'est pas mesuré (boucle du volet gelée) ; le journal
+« Combien de coques » donne l'ordre de grandeur, 3,56 ms pour huit coques.
+
 ## À FAIRE — fusionner les voies d'eau d'un même endroit
 
 **Décidé, pas fait, et délibérément remis.** L'artillerie appelle `breach()` à

@@ -2011,13 +2011,27 @@ Naval.ShipModel = class ShipModel {
     const halo = mk(3.4*k, true, 0.85);       // la lampe, en mètres
     const mark = mk(0.030, false, 0.95);      // le repère de position, en pixels
 
+    /* UNE BOUGIE n'est pas un feu de position : on ne la voit pas à deux
+       milles, donc pas de repère de loin — l'opacité reste à zéro et le sprite
+       dans la scène, pour la même raison que la lampe (pas de recompilation).
+       Et une flamme seule en l'air ne se lit pas : il lui faut son bâton de
+       cire, posé SOUS la flamme, dont y est la hauteur. */
+    const candle = !!(l && l.kind === 'candle');
+    if(candle){
+      const wax = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.022, 0.025, 0.14, 10),
+        new THREE.MeshStandardMaterial({ color:0xefe6cf, roughness:0.7 }));
+      wax.position.y = -0.085;
+      group.add(wax);
+    }
+
     /* A real flame, not a bulb: she is lit by a wick in a horn lantern, so she
        breathes. Cheap, and it is what stops the mark reading as a HUD marker. */
     const light = new THREE.PointLight(0xffb765, 0, 26*k, 2);
     group.add(light);
 
     this.group.add(group);
-    return { group, halo, mark, light, k, seed: Math.random()*100 };
+    return { group, halo, mark, light, k, candle, seed: Math.random()*100 };
   }
 
   /* LES FENÊTRES S'ALLUMENT AVEC LES FEUX, et rien n'est peint deux fois pour
@@ -2060,6 +2074,43 @@ Naval.ShipModel = class ShipModel {
     });
   }
 
+  /* LOST IN THE HAZE: not drawn at all — hull, rig, shadow, occlusion — and
+     it is done on the LAYERS, not on `visible`, for two reasons. `visible`
+     already means something on her parts (a split sail, a mast gone by the
+     board, colours struck) and toggling it here would undo those. And her
+     lanterns must stay exactly as they are: a light the renderer stops seeing
+     recompiles the whole scene, and a lamp is the one thing the eye does pick
+     out through the murk. So the lantern groups are skipped whole. */
+  setHazed(hidden){
+    if(this._hazed === hidden) return;
+    this._hazed = hidden;
+    const keep = new Set((this.lanternList || []).map(L => L.group));
+    const walk = o => {
+      if(keep.has(o)) return;
+      if(o.isMesh || o.isLine || o.isPoints){
+        if(hidden){ o.userData.hazeMask = o.layers.mask; o.layers.mask = 0; }
+        else if(o.userData.hazeMask != null){
+          o.layers.mask = o.userData.hazeMask; o.userData.hazeMask = null;
+        }
+      }
+      for(const c of o.children) walk(c);
+    };
+    walk(this.group);
+  }
+
+  /* Her highest point above her origin, measured once — what the haze test
+     looks at, since the rig stands in thinner air than the hull and is the
+     last of her to go. */
+  tallY(){
+    // measured again once a .glb has come in: the drawn stand-in is shorter
+    if(this._tallY == null || this._tallOf !== this.modelRoot){
+      this._tallOf = this.modelRoot;
+      this._tallY = new THREE.Box3().setFromObject(this.group).max.y
+                  - this.group.position.y;
+    }
+    return this._tallY;
+  }
+
   /* Lit only when it is dark enough to want her. `night` comes from the stage,
      so lantern, sky and the sun's own colour all turn together. */
   setLantern(night, t){
@@ -2096,10 +2147,12 @@ Naval.ShipModel = class ShipModel {
         continue;
       }
       // two slow beats out of phase read as a flame; one alone reads as a pulse
-      const flick = 0.86 + 0.14*Math.sin(t*7.3 + L.seed)
-                         + 0.06*Math.sin(t*17.1 + L.seed*1.7);
+      const flick = L.candle
+        // a bare wick in cabin draughts: quicker and less even than a horn lantern
+        ? 0.80 + 0.12*Math.sin(t*9.7 + L.seed) + 0.08*Math.sin(t*23.3 + L.seed*1.3)
+        : 0.86 + 0.14*Math.sin(t*7.3 + L.seed) + 0.06*Math.sin(t*17.1 + L.seed*1.7);
       L.halo.material.opacity = 0.85*on*flick;
-      L.mark.material.opacity = 0.95*on*flick;
+      L.mark.material.opacity = L.candle ? 0 : 0.95*on*flick;
       L.light.intensity = 2.6*on*flick;
     }
   }

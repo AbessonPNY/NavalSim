@@ -984,7 +984,10 @@ Naval.Ocean = class Ocean {
      not heave a hundred-tonne hull — it breaks against her and averages out
      along her length. The swell the vessel visibly sits on is the swell the
      solver feels, which is the part of the invariant that matters. */
-  sample(x, z, t, outNormal){
+  /* outGrad, when given, receives the slope of this very height field —
+     x = ∂y/∂x, z = ∂y/∂z — which the normal cannot give back once its y has
+     taken the Gerstner steepness term and been normalised. */
+  sample(x, z, t, outNormal, outGrad){
     let y = 0, nx = 0, nz = 0, ny = 0;
     const src = this.cpuWaves || this.waves;
     /* LE TROISIÈME CALCULATEUR, et celui qui compte le plus : c'est cette
@@ -1011,6 +1014,7 @@ Naval.Ocean = class Ocean {
       ny -= w.Q  * WA * sn;
     }
     if(outNormal) outNormal.set(nx, 1.0 - ny, nz).normalize();
+    if(outGrad) outGrad.set(-nx, 0, -nz);
     return y;
   }
 

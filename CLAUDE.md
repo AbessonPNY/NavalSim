@@ -158,7 +158,9 @@ La musique n'est pas embarquée (trop lourde). `node build.js` écrit
 
 ## En suspens
 
-- LOD des navires éloignés (mesurer d'abord).
+- LOD des navires éloignés : simulation (`LOD_FAR`) et masquage par la brume
+  (`HAZE_HIDE`) faits, journal « Les coques lointaines » ; le gain de rendu
+  reste à mesurer sur une boucle qui tourne.
 - Relief (normal map) : interrupteur et intensité dans `settings.json`.
 - Fusionner les voies d'eau d'un même endroit (voir le journal).
 - Chaloupe : console de barre encore celle d'un navire, pas de `.glb`.
