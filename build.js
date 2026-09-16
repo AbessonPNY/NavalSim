@@ -137,7 +137,7 @@ for (const rel of shipList) {
      couleurs du navire plutôt que de laisser un chemin local dans la page. */
   for (const fl of (Array.isArray(spec.flags) ? spec.flags : [])) {
     const img = fl.image;
-    if (!img || /^data:/.test(img)) continue;
+    if (!img || /^nation(:|$)/.test(img) || /^data:/.test(img)) continue;
     const p = path.join(ROOT, img);
     const mime = { '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg',
                    '.webp':'image/webp' }[path.extname(img).toLowerCase()];
@@ -264,6 +264,25 @@ if (fs.existsSync(FLAGS)) {
     f.image = 'data:' + mime + ';base64,' + bytes.toString('base64');
     console.log('  embedded ' + path.relative(ROOT, p).replace(/\\/g, '/') + '  (pavillon ' +
                 (f.id || '?') + ', ' + (bytes.length/1024).toFixed(1) + ' KB)');
+    /* Et les images par COUPE (`"streamer": "…"`…) : toute autre clé qui nomme
+       une image. Une absente est retirée, et la flamme prend les couleurs. */
+    for (const k of Object.keys(f)) {
+      const v = f[k];
+      if (k === 'image' || typeof v !== 'string' || /^data:/.test(v)) continue;
+      const km = { '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg',
+                   '.webp':'image/webp' }[path.extname(v).toLowerCase()];
+      if (!km) continue;
+      const kp = path.join(ROOT, v);
+      if (!fs.existsSync(kp)) {
+        console.warn('  WARNING: pavillon ' + (f.id || '?') + ' ' + k + ' : ' + v + ' is missing — couleurs du navire');
+        delete f[k];
+        continue;
+      }
+      const kb = fs.readFileSync(kp);
+      f[k] = 'data:' + km + ';base64,' + kb.toString('base64');
+      console.log('  embedded ' + v + '  (pavillon ' + (f.id || '?') + ' · ' + k + ', ' +
+                  (kb.length/1024).toFixed(1) + ' KB)');
+    }
     return true;
   });
   inlined.push('ships/textures/flags/flags.json');

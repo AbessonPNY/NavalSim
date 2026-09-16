@@ -4978,6 +4978,17 @@ AVANT `commission()` : le premier appel précède de loin le chargement de la li
 et un `let` plus bas aurait levé une erreur de zone morte. Purement visuel : les
 pirates n'en tiennent pas compte.
 
+**La flamme suit la nation, pas le navire.** Une `image` dans la fiche attachait
+les armes à la coque : la Roter Löwe sous pavillon français gardait une flamme
+castillane. Décidé avec Arnaud : c'est flags.json qui dit, par nation et par
+coupe (`"streamer": "…"`), et la fiche ne dit que `"image": "nation"`.
+`setEnsignMap(src, nation)` retient l'entrée et réaffecte la matière de ces
+pavillons ; `resetEnsign()` l'oublie. Le build embarque toute clé d'une entrée
+qui nomme une image, et retire celles qui manquent.
+Puis `"nation:<clé>"` : le pavillon de poupe est un `rect` comme ceux des têtes
+de mât, et la clé de coupe les aurait confondus — les armes de Colomb au
+couronnement, les couleurs en tête de mât.
+
 ## À FAIRE — fusionner les voies d'eau d'un même endroit
 
 **Décidé, pas fait, et délibérément remis.** L'artillerie appelle `breach()` à

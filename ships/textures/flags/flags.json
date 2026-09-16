@@ -1,5 +1,5 @@
 {
-  "note": "Pavillons que peut arborer un navire croisé en mer. image : chemin depuis la racine du jeu. nationalite : inséré tel quel dans « C'est un navire … ! ». poids : fréquence relative du tirage (1 par défaut). pirate : true pour le pavillon que hisse un pirate démasqué, jamais tiré pour un marchand.",
+  "note": "Pavillons que peut arborer un navire croisé en mer. image : chemin depuis la racine du jeu. nationalite : inséré tel quel dans « C'est un navire … ! ». poids : fréquence relative du tirage (1 par défaut). pirate : true pour le pavillon que hisse un pirate démasqué, jamais tiré pour un marchand. streamer / pennant / swallowtail / rect : image propre à cette coupe, prise par les pavillons de fiche déclarés « image: nation » (gabarits dans gabarits/). Toute autre clé nommant une image (ex. poupe) sert aux pavillons « image: nation:poupe ».",
   "flags": [
     {
       "id": "france",
@@ -20,6 +20,7 @@
       "image": "ships/textures/flags/flag_marchand_spanish.jpg",
       "pays": "Espagne",
       "nationalite": "espagnol",
+	  "streamer": "ships/textures/flags/streamer_spanish.jpg",
       "poids": 1
     },
     {

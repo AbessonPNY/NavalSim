@@ -1041,7 +1041,7 @@ async function main(){
     const e = fleet[0];
     if(!e || !e.ship) return;
     const p = nations.find(x => x.id === nationVoulue) || null;
-    if(p) e.ship.setEnsignMap(p.image);
+    if(p) e.ship.setEnsignMap(p.image, p);
     else e.ship.resetEnsign();
     e.ship.showColours(true);
     e.pavillon = p;
@@ -1895,7 +1895,7 @@ async function main(){
       e.deguise = false;
       const noir = PAVILLONS.find(x => x.pirate);
       if(e.ship.flag){
-        e.ship.setEnsignMap((e.spec.appearance && e.spec.appearance.ensignMap) || (noir && noir.image) || null);
+        e.ship.setEnsignMap((e.spec.appearance && e.spec.appearance.ensignMap) || (noir && noir.image) || null, noir);
         e.ship.showColours(true);
       }
       e.pavillon = noir || null;
@@ -1972,7 +1972,7 @@ async function main(){
     // un pavillon national pour tous — d'emprunt pour le pirate
     e.pavillon = tirerPavillon();
     if(e.ship.flag){
-      if(e.pavillon) e.ship.setEnsignMap(e.pavillon.image);
+      if(e.pavillon) e.ship.setEnsignMap(e.pavillon.image, e.pavillon);
       else if(pirate) e.ship.showColours(false);   // rien à emprunter : couleurs amenées
     }
     let versX, versZ;

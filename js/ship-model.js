@@ -2008,7 +2008,13 @@ Naval.ShipModel = class ShipModel {
      by the notch rather than squeezed into it. */
   _flagAt(parent, x, topY, z, l, tilt){
     const spec = this.spec;
-    const shape = Naval.FLAG_SHAPES[l.shape] || Naval.FLAG_SHAPES.rect;
+    const shapeName = Naval.FLAG_SHAPES[l.shape] ? l.shape : 'rect';
+    const shape = Naval.FLAG_SHAPES[shapeName];
+    /* "nation" looks the image up under the name of the cut; "nation:poupe"
+       under a key of the sheet's choosing — so the ensign at the taffrail can
+       fly a nation's arms while her mastheads fly its plain colours. */
+    const byNation = typeof l.image === 'string' && /^nation(:|$)/.test(l.image);
+    const nationKey = byNation ? (l.image.slice(7) || shapeName) : null;
     const len = l.length != null ? l.length : shape.length;
     const hoist = 0.045*spec.L*(l.size != null ? l.size : 1), fly = hoist*len;
     const nu = Math.min(48, Math.round(14*Math.max(1, len/1.6))), nv = 6;
@@ -2041,9 +2047,11 @@ Naval.ShipModel = class ShipModel {
     parent.add(mount);
     const pivot = new THREE.Group();
     pivot.position.set(0, -hoist*0.18, 0);
-    pivot.add(new THREE.Mesh(g, l.image ? this._flagMat(l.image) : this.mats.flag));
+    pivot.add(new THREE.Mesh(g, byNation ? this._nationMat(nationKey)
+                              : l.image ? this._flagMat(l.image) : this.mats.flag));
     mount.add(pivot);
     return { mount, pivot, mesh:pivot.children[0], hoist, fly, wave: 7.0*len/1.6,
+             shape:shapeName, byNation, nationKey,
              seed: Math.random()*6.28,
              base:Float32Array.from(pos), u:Float32Array.from(us), v:Float32Array.from(vs) };
   }
@@ -2066,6 +2074,21 @@ Naval.ShipModel = class ShipModel {
     }
     this._flagMats[src] = m;
     return m;
+  }
+
+  /* A flag that FOLLOWS THE NATION (`"image": "nation"` in the sheet) flies the
+     image flags.json gives that nation for its cut — `"streamer": "…"` — or
+     under the key it names (`"nation:poupe"` → `"poupe": "…"`), and the
+     ship's own colours when the nation has none. Read again whenever she
+     changes colours, and when a model arriving late rebuilds her flags. */
+  _nationMat(key){
+    const src = this._nation && this._nation[key];
+    return src ? this._flagMat(src) : this.mats.flag;
+  }
+
+  _applyNation(){
+    for(const f of this.flags || [])
+      if(f.byNation) f.mesh.material = this._nationMat(f.nationKey);
   }
 
   /* Colours struck or flying — every flag she carries, together. */
@@ -2426,11 +2449,14 @@ Naval.ShipModel = class ShipModel {
   }
 
   /* Hoist another ensign while she is at sea: an image path (or a data: URI),
-     or nothing for the drawn death's head. The picture only — whether she is
+     or nothing for the drawn death's head. `nation`, the flags.json entry it
+     comes from, gives the flags that follow the nation their own images. The picture only — whether she is
      hostile stays with `appearance.ensign`. In the published page a path must
      have been carried in by the build, which embeds only what the sheets name. */
-  setEnsignMap(src){
+  setEnsignMap(src, nation){
     const m = this.mats.flag;
+    this._nation = nation || null;
+    this._applyNation();
     // what the sheet flew, kept once so the colours can be given back
     if(!this._ensign0) this._ensign0 = { map:m.map, color:m.color.getHex(),
       emissive:m.emissive.getHex(), ei:m.emissiveIntensity };
@@ -2444,6 +2470,8 @@ Naval.ShipModel = class ShipModel {
   /* Back to the colours her sheet gave her. */
   resetEnsign(){
     const o = this._ensign0, m = this.mats.flag;
+    this._nation = null;
+    this._applyNation();
     if(!o) return;
     m.map = o.map; m.color.setHex(o.color);
     m.emissive.setHex(o.emissive); m.emissiveIntensity = o.ei;

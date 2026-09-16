@@ -331,7 +331,7 @@ poupe, flamme en tête d'artimon, pavillon de beaupré.
 | `size` | 1 par défaut ; le guindant vaut 4,5 % de la longueur du navire |
 | `shape` | `rect` (défaut), `swallowtail` (à queue d'aronde), `pennant` (triangle), `streamer` (flamme longue et effilée, pointe fendue) |
 | `length` | le battant rapporté au guindant ; défaut selon la forme (1,6 · 1,7 · 3 · 5) |
-| `image` | ses propres armes (png, jpg, webp), peintes sur un rectangle : la forme les rogne. Absente, il prend les couleurs du navire |
+| `image` | ses propres armes (png, jpg, webp), peintes sur un rectangle : la forme les rogne. `"nation"` : l'image que `flags.json` donne à la nation hissée pour cette coupe. Absente, il prend les couleurs du navire |
 | `x` · `z` · `zFrac` · `y` | pour une hampe, sa place si l'automatique ne convient pas ; `y` est le pied |
 | `above` | relever le pavillon (ou le pied de la hampe) |
 | `staff` · `rake` | longueur de la hampe et son inclinaison vers l'extérieur, en radians (0,3 à la poupe, 0,1 à la proue) |
@@ -347,6 +347,21 @@ la texture (guindant à gauche, haut en haut). Ce qui sort du contour rouge est
 coupé en jeu ; à gauche du trait bleu, la pleine hauteur, où mettre les armes.
 Les formes sont lues dans `Naval.FLAG_SHAPES` : un gabarit ne peut pas
 contredire le pavillon.
+
+**Une flamme par nation.** Dans `ships/textures/flags/flags.json`, une nation
+peut donner une image par coupe, sous le nom de la forme :
+
+```json
+{ "id": "espagne", "image": "ships/textures/flags/flag_marchand_spanish.jpg",
+  "streamer": "ships/textures/flags/flamme_espagne.png", … }
+```
+
+Un pavillon de fiche déclaré `"image": "nation"` prend alors l'image de la
+nation hissée pour sa coupe — votre choix dans le menu, le pavillon tiré d'une
+rencontre, le pavillon noir d'un pirate démasqué. `"image": "nation:poupe"` la
+cherche sous la clé `poupe` : le pavillon de poupe porte ainsi ses propres armes
+(celles de Colomb pour l'Espagne) quand les têtes de mât gardent les couleurs.
+Une nation sans image sous cette clé : les couleurs du navire.
 
 Ceux qui n'ont pas d'`image` changent tous ensemble quand le navire change de
 couleurs (pavillon d'emprunt, pavillon noir) ; une flamme armoriée garde les
