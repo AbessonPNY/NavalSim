@@ -29,6 +29,7 @@
   <div id="instruments" class="panel">
     <div class="title"><b id="shipName">Goélette Archimède</b><span class="dot" id="statusDot"></span></div>
     <select id="shipSel" aria-label="Choisir le navire"></select>
+    <select id="nationSel" aria-label="Choisir son pavillon"></select>
     <!-- LA BOURSE EN TÊTE, et non plus au bas d’un panneau de six cents pixels :
          signalée à l’usage — « je ne vois pas ma bourse ». Sur une fenêtre courte
          elle passait sous le bord de l’écran, et un compteur qu’il faut aller
@@ -1026,6 +1027,26 @@ async function main(){
     sel.appendChild(o);
   });
 
+  /* VOTRE PAVILLON. Choisi dans le panneau, tiré de flags.json comme celui des
+     voiles croisées, et hissé sur le navire à la barre — à la mise en service et
+     à chaque prise de barre, puisque les couleurs sont celles de qui commande.
+     Vide : celles de la fiche. Retenu dans ce navigateur seulement ; c'est une
+     commodité, pas un état de partie. Déclaré ICI, avant le premier
+     commission(), qui le lit : la liste des pavillons se charge plus bas. */
+  const nationSel = document.getElementById('nationSel');
+  let nations = [];
+  let nationVoulue = '';
+  try{ nationVoulue = localStorage.getItem('naval.nation') || ''; }catch(e){}
+  function hisserNation(){
+    const e = fleet[0];
+    if(!e || !e.ship) return;
+    const p = nations.find(x => x.id === nationVoulue) || null;
+    if(p) e.ship.setEnsignMap(p.image);
+    else e.ship.resetEnsign();
+    e.ship.showColours(true);
+    e.pavillon = p;
+  }
+
   let spec, lines, ship, physics, cam, hud, spyglass, t = 0, trimPending = false, lost = false;
   let refreshGuns = ()=>{};                // la console de tir, relue à chaque navire
   let startHeading = 0, startPort = null, mooringsPending = false, atBerth = false;
@@ -1281,6 +1302,7 @@ async function main(){
                  helm: new Naval.AutoHelm(physics, controls.state),
                  profile: ship.hullProfile(64, -hud.eqY) });
     ocean.setHullProfile(0, fleet[0].profile);
+    hisserNation();
     hud.refreshSea();
     /* Hand her over ready to sail. The sheets are trimmed on the first frame
        rather than here, because the trim depends on the apparent wind, and the
@@ -1676,6 +1698,7 @@ async function main(){
     cam.setSpec(spec);
     if(sel) sel.value = String(Math.max(0, specs.indexOf(spec)));
 
+    hisserNation();
     // she is a different ship: whatever became of the last one is not her state
     lost = false;
     lostMsg.hidden = true;
@@ -1811,7 +1834,26 @@ async function main(){
     let f = Naval.FLAGS_DATA;
     if(!f){ try{ const r = await fetch('ships/textures/flags/flags.json', { cache:'no-cache' }); if(r.ok) f = await r.json(); }catch(e){} }
     PAVILLONS = (f && Array.isArray(f.flags)) ? f.flags.filter(x => x && x.image) : [];
+    nations = PAVILLONS;
+    const vide = document.createElement('option');
+    vide.value = ''; vide.textContent = 'Pavillon de la fiche';
+    nationSel.appendChild(vide);
+    for(const p of PAVILLONS){
+      const o = document.createElement('option');
+      o.value = p.id;
+      o.textContent = p.pirate ? 'Pavillon noir' : 'Pavillon · ' + (p.pays || p.id);
+      nationSel.appendChild(o);
+    }
+    if(!PAVILLONS.some(p => p.id === nationVoulue)) nationVoulue = '';
+    nationSel.value = nationVoulue;
+    hisserNation();
   })();
+  nationSel.addEventListener('change', ()=>{
+    nationVoulue = nationSel.value;
+    try{ localStorage.setItem('naval.nation', nationVoulue); }catch(e){}
+    hisserNation();
+    nationSel.blur();          // the keys go back to the helm
+  });
   function tirerPavillon(){
     const l = PAVILLONS.filter(x => !x.pirate);
     const tot = l.reduce((s, x) => s + (x.poids ?? 1), 0);
@@ -1854,7 +1896,7 @@ async function main(){
       const noir = PAVILLONS.find(x => x.pirate);
       if(e.ship.flag){
         e.ship.setEnsignMap((e.spec.appearance && e.spec.appearance.ensignMap) || (noir && noir.image) || null);
-        e.ship.flag.pivot.visible = true;
+        e.ship.showColours(true);
       }
       e.pavillon = noir || null;
       e.hostile = true;
@@ -1931,7 +1973,7 @@ async function main(){
     e.pavillon = tirerPavillon();
     if(e.ship.flag){
       if(e.pavillon) e.ship.setEnsignMap(e.pavillon.image);
-      else if(pirate) e.ship.flag.pivot.visible = false;   // rien à emprunter : couleurs amenées
+      else if(pirate) e.ship.showColours(false);   // rien à emprunter : couleurs amenées
     }
     let versX, versZ;
     if(pirate){

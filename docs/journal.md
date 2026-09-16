@@ -4880,6 +4880,104 @@ Réglages dans `settings.json`. Force 3, repère / taille :
 La brume agit dès le départ (moitié de l'éclat à 1,5 km par beau temps) :
 c'est elle, et non le seuil, qui dit combien une lumière perce.
 
+## Les vergues ne sautent plus d'un bord à l'autre
+
+Signalé à l'usage : les mâts « sautent de droite à gauche selon le vent ».
+`setTrim` écrivait `−tack·sheet` droit dans les pivots, et `tack` est le signe
+nu du vent apparent en travers : il bascule dès que ce vent passe par l'arrière
+(ou l'avant). Au vent arrière, une embardée d'un degré suffit, et tout le
+gréement passait d'un bord à l'autre en une image — deux fois l'angle d'écoute,
+jusqu'à 2,6 rad.
+
+**Rien dans la physique ne lit ce signe** (la portance s'oriente sur l'étrave ;
+le pavillon est continu à β = π ; le HUD n'en fait qu'un libellé), donc le
+remède est dans le modèle, sur son instance :
+
+- l'amure **montrée** ne change qu'après `BRACE_HOLD` (1,5 s) de vent tenu sur
+  l'autre bord ;
+- les vergues tournent à `BRACE_RATE` au plus (0,8 rad/s de temps de jeu, un
+  peu plus que Q/E à 0,7), **en douceur aux deux bouts** : elles prennent de
+  l'erre à `BRACE_ACCEL` (1 rad/s²) et sont freinées juste à temps, la vitesse
+  permise étant √(2·a·écart). Écrit contre l'écart et non comme une courbe
+  minutée, si bien qu'une écoute réglée pendant le mouvement est suivie ;
+- le pas est pris sur l'horloge passée à `setTrim`, borné à 0,25 s : un saut
+  d'horloge (mise à l'eau, compression) ne fait pas pivoter tout d'un coup.
+
+Vérifié sur un gréement factice : une amure qui bat toutes les 0,7 s pendant
+4 s ne bouge rien ; une amure qui passe et tient : 1,5 s d'attente, puis
++1,3 → −1,3 rad en 4,0 s, adouci aux deux bouts, sans dépasser, 0,013 rad au
+plus par image ; le foc aux trois quarts. Q/E tenu une seconde : 0,25 rad de
+retard au plus, rattrapé 0,7 s après le relâchement. Le frisson du faseyement
+(±0,1 rad) s'ajoute après le lissage, il n'est pas amorti.
+
+## Plusieurs pavillons, et leur coupe
+
+Demandé sur photo d'un galion espagnol : grand pavillon sur une hampe à la
+poupe, flamme en tête d'artimon, pavillon au bout du beaupré ; puis une flamme
+à queue fendue (armoiries au guindant, longue pointe effilée).
+
+**`flags` dans la fiche, rien de déclaré = l'ancien pavillon unique** en tête
+du plus grand mât. `this.flag` reste l'alias du premier ; la page ne touche
+plus `flag.pivot.visible` mais `showColours()`, qui amène ou hisse tout.
+
+**La coupe se pose sur la grille que l'ondulation travaille déjà** (`u` le
+long du battant, `v` le long du guindant) : une *réduction* de hauteur vers le
+bout, autour du milieu du guindant, et une *entaille* qui ramène le bord libre
+en V. `Naval.FLAG_SHAPES` en donne quatre : `rect`, `swallowtail`, `pennant`,
+`streamer`. Les coordonnées de texture suivent la coupe : une image peinte sur
+un rectangle est rognée par l'entaille, pas écrasée dedans. Une longue flamme
+porte plus d'ondes (fréquence ∝ longueur) et plus de colonnes (jusqu'à 48).
+
+**Les couleurs du navire sont partagées, les armes propres ne le sont pas** :
+un pavillon sans `image` prend `mats.flag` (changé d'un coup par le pavillon
+d'emprunt ou le pavillon noir) ; une `image` a sa matière, bâtie comme une
+voile peinte et raccordée au ciel à la main pour la même raison. Le build
+embarque chaque `flags[].image` et retire celles qui manquent.
+
+**Le chercheur de mâts ne suffisait pas**, et c'est la vraie leçon. Il répond à
+« quels mâts portent des vergues » : sur la Roter Löwe il trouvait le fût du
+grand mât, une misaine sans fût propre, et la vergue de civadière au bout du
+beaupré (1,1 m de haut) — **pas d'artimon**, qui ne porte pas de vergue carrée,
+et dont le fût est fondu avec celui de misaine dans `Cylinder001`. Et le
+beaupré « de la fiche » (7,75 m depuis l'étrave) mettait le pavillon trois
+mètres devant l'espar dessiné, la coque du modèle portant déjà la guibre.
+
+`_sparScan()` lit donc les espars **tels que dessinés** : les pièces fines près
+de l'axe et hautes de plus de 0,3 L, rangées par stations de 0,06 L ; une suite
+de stations qui dépasse 0,35 L est un mât, coiffé à son plus haut sommet (un mât
+quêté s'étale sur plusieurs stations et reste un) ; les fûts déjà pris par le
+gréement sont rajoutés depuis leurs chutes. Le beaupré est la pièce fine qui
+va le plus loin devant. Relevé sur la Roter Löwe : artimon (−6,9 ; 13,9),
+grand mât (0,4 ; 18,3), misaine (11,4 ; 15,2), bout de beaupré (20,2 ; 6,1).
+Un pavillon de mât pend dans la chute la plus proche (à 0,06 L près) et tombe
+avec elle ; sinon dans la coque. Les hampes n'appartiennent à aucun mât.
+
+`_deckStations()` est devenu la définition unique du pont aux extrémités,
+partagée par le fanal et les hampes.
+
+**Le guindant suit la hampe.** Première version : pavillon accroché droit au
+bout d'une hampe quêtée de 0,3 rad — il flottait à côté de son propre bois
+(capture). Chaque pavillon pend maintenant dans une *monture* inclinée comme ce
+qui le porte, et tourne au vent autour de cet axe. `tilt` (tête vers l'arrière
+si positif) remplace l'inclinaison par défaut, et en donne une à un pavillon de
+tête de mât.
+
+**L'image est coupée, pas écrasée.** Les coordonnées de texture suivaient `v`
+sur toute la hauteur alors que la forme se rétrécissait : les armes se
+tassaient vers la pointe, et aucun gabarit n'aurait dit vrai. Elles suivent
+maintenant la hauteur réelle (`0,5 + (v − 0,5)·w`), si bien que ce qui est peint
+à une hauteur donnée flotte à cette hauteur. `tools/flag-template.js` écrit un
+gabarit PNG + SVG par forme, lu dans `Naval.FLAG_SHAPES`.
+
+**Le pavillon du joueur.** Un menu sous le choix du navire, rempli depuis
+flags.json, hisse la nation choisie sur l'entrée 0 — à la mise en service et à
+chaque prise de barre, les couleurs étant celles de qui commande. « Pavillon de
+la fiche » rend l'original (`resetEnsign()`, gardé au premier changement). Le
+choix vit dans `localStorage` (commodité, sous try/catch). L'état est déclaré
+AVANT `commission()` : le premier appel précède de loin le chargement de la liste,
+et un `let` plus bas aurait levé une erreur de zone morte. Purement visuel : les
+pirates n'en tiennent pas compte.
+
 ## À FAIRE — fusionner les voies d'eau d'un même endroit
 
 **Décidé, pas fait, et délibérément remis.** L'artillerie appelle `breach()` à

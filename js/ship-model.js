@@ -161,6 +161,24 @@ Naval.GLOW_NAMES = /fenetre|fen\u00eatre|window|vitre|hublot|glass|verre|lamp|la
 Naval.NIGHT = { glow: 2.6, lightAt: 0.35, snuffAt: 0.25,
                 farFrom: 1500, farFade: 1.5, farMinSize: 0.35 };
 
+/* How fast the yards come round, and how long the wind must hold on the other
+   side before they are. A little faster than Q/E ease a sheet (0.7 rad/s), so
+   the yards never lag the hand that trims them for long; a full swing across
+   takes some four seconds, eased at both ends. */
+Naval.BRACE_RATE = 0.8;      // rad per second
+Naval.BRACE_HOLD = 1.5;      // seconds
+Naval.BRACE_ACCEL = 1.0;     // rad per second², both to gather way and to check it
+
+/* The cut of a flag, as the grid sees it: `taper` is how far along the fly it
+   keeps its full depth, `tip` the depth left at the end, `notch` how deep the
+   fork is cut back into the fly, `length` the fly over the hoist. */
+Naval.FLAG_SHAPES = {
+  rect:        { taper:0,    tip:1,    notch:0,    length:1.6 },
+  swallowtail: { taper:0,    tip:1,    notch:0.28, length:1.7 },
+  pennant:     { taper:0,    tip:0.06, notch:0,    length:3.0 },
+  streamer:    { taper:0.22, tip:0.14, notch:0.10, length:5.0 }
+};
+
 Naval.ShipModel = class ShipModel {
   constructor(scene, spec, lines){
     this.spec = spec;
@@ -243,7 +261,7 @@ Naval.ShipModel = class ShipModel {
     this._buildHull();
     this._buildOars();
     this._buildRig();
-    this._buildFlag();
+    this._buildFlags();
     this._buildLantern();
     this._buildWake(scene);
     this._fwd = new THREE.Vector3();
@@ -847,7 +865,7 @@ Naval.ShipModel = class ShipModel {
       this._rigModel();
       this._findGuns();
       this._hullShell();
-      this._buildFlag();
+      this._buildFlags();
       this._buildLantern();
       this._findNightGlow();
       return true;
@@ -1802,27 +1820,78 @@ Naval.ShipModel = class ShipModel {
      The masthead is found as the yards were, by shape: on a model, the tallest
      piece far higher than it is thick standing on the centreline; on a
      procedural vessel, simply her tallest mast. */
-  _buildFlag(){
+  _buildFlags(){
     /* De son parent, quel qu'il soit : il pend désormais DANS son mât, donc
        this.group n'est plus forcément celui qui le tient. */
-    if(this.flag){
-      const p = this.flag.pivot;
-      if(p.parent) p.parent.remove(p);
-      this.flag = null;
+    for(const f of this.flags || []){
+      if(f.mount.parent) f.mount.parent.remove(f.mount);
+      f.mesh.geometry.dispose();
+      if(f.staff){
+        if(f.staff.parent) f.staff.parent.remove(f.staff);
+        f.staff.geometry.dispose();
+      }
     }
+    this.flags = [];
+    this.flag = null;
     const spec = this.spec;
-    /* IL PEND DANS SON MÂT, PAS SUR LE NAVIRE, et l'avoir accroché au groupe de
-       la coque a coûté un bug signalé à l'usage : « le drapeau ne disparaît pas
-       quand le mât est tombé, il ne le suit pas ». Il restait en l'air, seul, à
-       l'endroit exact où la pomme se trouvait — ce qui est pire que pas de
-       pavillon du tout.
 
-       C'est la même raison qui met les vergues et la toile dans la chute plutôt
-       que dans le navire : tout ce qui appartient à ce mât doit passer
-       par-dessus bord ENSEMBLE. Un pavillon est frappé à une drisse, et une
-       drisse est tournée au mât. Il suit donc sa chute, sa roulée et son
-       enfoncement sans une ligne pour le lui dire, et une réparation le rend
-       avec l'espar puisqu'il en est un enfant. */
+    /* PLUSIEURS COULEURS, SI LA FICHE LES DÉCLARE — un galion porte son grand
+       pavillon sur une hampe au couronnement, une flamme en tête d'artimon et
+       une autre au bout du beaupré. Rien de déclaré rend l'ancien usage : un
+       seul, en tête du plus grand mât.
+
+       Ceux qui ne nomment pas d'image partagent LA matière du navire, puisqu'il
+       n'a qu'une nationalité : hisser le pavillon noir les change tous. Une
+       flamme qui porte ses propres armes garde les siennes. */
+    const list = spec.flags;
+    if(!list){
+      const head = this._mastHead(null);
+      if(head) this.flags.push(this._flagAt(head.parent, 0, head.topY, head.z, {}));
+      this.flag = this.flags[0] || null;
+      return;
+    }
+    let st = null;
+    for(const l of list){
+      if(l.at === 'stern' || l.at === 'bow'){
+        st = st || this._deckStations();
+        this.flags.push(this._staffFlag(l, st));
+      }else if(l.mast != null){
+        const head = this._mastHead(l.mast);
+        if(head) this.flags.push(this._flagAt(head.parent, 0, head.topY + (l.above || 0), head.z, l));
+      }
+    }
+    this.flag = this.flags[0] || null;
+  }
+
+  /* The head of a mast, in the frame of whatever carries it. `index` counts
+     from the bow — 0 the foremast — and a negative one from the stern, so -1
+     is always the mizzen whatever she carries forward of it; null asks for the
+     tallest, which is where a lone ensign has always flown. */
+  _mastHead(index){
+    const spec = this.spec;
+    if(index != null){
+      const nth = (arr, zOf) => {
+        const sorted = arr.slice().sort((a, b) => zOf(b) - zOf(a));   // bow first, +z being the stem
+        return sorted[index < 0 ? sorted.length + index : index] || null;
+      };
+      if(this.modelRoot){
+        const top = nth(this._sparScan().tops, x => x.z);
+        if(!top) return null;
+        /* Hung in the fall of that mast when the rig found one there, so it
+           goes over the side with it; otherwise from the hull, a mast the rig
+           could not take being a mast that cannot come down either. */
+        let fall = null, near = 0.06*spec.L;
+        for(const fl of this.falls){
+          const d = Math.abs(fl.position.z - top.z);
+          if(d < near){ near = d; fall = fl; }
+        }
+        return fall
+          ? { parent:fall, topY:top.y - fall.position.y, z:top.z - fall.position.z }
+          : { parent:this.group, topY:top.y, z:top.z };
+      }
+      const m = nth(spec.masts, x => x.z);
+      return m ? { parent:this.group, topY:spec.deckMid + m.height, z:m.z } : null;
+    }
     let topY, z, parent = this.group;
 
     if(this.modelRoot){
@@ -1871,23 +1940,89 @@ Naval.ShipModel = class ShipModel {
           if(!best || p.box.max.y > best.box.max.y) best = p;
         }
         for(const p of parts) p.geom.dispose();
-        if(!best) return;
+        if(!best) return null;
         topY = best.box.max.y; z = best.mid.z;
       }
     }else{
       let m = null;
       for(const k of spec.masts) if(!m || k.height > m.height) m = k;
-      if(!m) return;                       // a vessel under power alone flies none
+      if(!m) return null;                  // a vessel under power alone flies none
       topY = spec.deckMid + m.height; z = m.z;
     }
 
-    const hoist = 0.045*spec.L, fly = hoist*1.6;
-    const nu = 14, nv = 6;                 // fine along the fly, where it ripples
-    const pos = [], us = [], vs = [], idx = [];
+    return { parent, topY, z };
+  }
+
+  /* A flag on a staff of its own — the ensign at the taffrail, the jack at the
+     end of the bowsprit. The staff is drawn, and the flag's hoist lies ALONG it:
+     hung upright at the truck of a raked staff, it stood off in the air beside
+     its own pole — signalled from a capture. Neither belongs to a mast, so a
+     dismasting leaves them flying. */
+  _staffFlag(l, st){
+    const spec = this.spec, sc = spec.L/24, stern = l.at === 'stern';
+    const hoist = 0.045*spec.L*(l.size != null ? l.size : 1);
+    let z = l.z != null ? l.z : l.zFrac != null ? l.zFrac*spec.L : (stern ? st.zAft : st.zFore);
+    let y = l.y != null ? l.y : st.deckNear(z);
+    const x = l.x != null ? l.x : (l.xFrac || 0)*spec.B;
+    /* The jack is stepped on the bowsprit, not on the deck: out along the spar
+       by most of its length and up by its steeve, unless the sheet says where. */
+    const bs = spec.rig && spec.rig.bowsprit;
+    const sprit = !stern && this.modelRoot ? this._sparScan().sprit : null;
+    if(sprit && l.z == null && l.zFrac == null){
+      // on a model, the end of the spar as drawn
+      z = sprit.z;
+      if(l.y == null) y = sprit.y;
+    }else if(!stern && bs && l.z == null && l.zFrac == null){
+      const out = bs.length*0.85;
+      z = st.zFore + out*Math.cos(bs.steeve);
+      if(l.y == null) y = st.deckNear(st.zFore) + 0.55*sc + out*Math.sin(bs.steeve);
+    }
+    y += (l.above || 0);
+    const h = l.staff != null ? l.staff : Math.max((stern ? 0.12 : 0.08)*spec.L, hoist*1.5);
+    const rake = l.rake != null ? l.rake : (stern ? 0.3 : 0.1);
+    const lean = stern ? -1 : 1;             // the head leans outboard
+    const g = new THREE.CylinderGeometry(0.035*sc, 0.06*sc, h, 6);
+    g.translate(0, h/2, 0);
+    const staff = new THREE.Mesh(g, this.mats.spar);
+    staff.position.set(x, y, z);
+    staff.rotation.x = lean*rake;            // a +x turn carries +y toward +z
+    this.group.add(staff);
+    const f = this._flagAt(this.group, x, y + h*Math.cos(rake), z + lean*h*Math.sin(rake), l,
+                           -lean*rake);
+    f.staff = staff;
+    return f;
+  }
+
+  /* One flag, its hoist at (x, topY, z) in `parent`, cut to its shape.
+
+     It hangs in a MOUNT tilted like whatever it is bent to — `tilt` radians,
+     positive with the head leaning aft — and swings to the wind about that
+     axis, as bunting does about its staff. The sheet's `tilt` overrides the
+     staff's own rake, and gives a masthead flag one too.
+
+     The shape is laid on the same grid the ripple works on, so nothing about
+     the waving has to know it: `u` runs out along the fly, `v` down the hoist.
+     A TAPER narrows the depth toward the fly about the middle of the hoist; a
+     NOTCH pulls the fly edge back into a V, which forks the tail. The texture
+     coordinates follow the cut, so a device painted on a rectangle is trimmed
+     by the notch rather than squeezed into it. */
+  _flagAt(parent, x, topY, z, l, tilt){
+    const spec = this.spec;
+    const shape = Naval.FLAG_SHAPES[l.shape] || Naval.FLAG_SHAPES.rect;
+    const len = l.length != null ? l.length : shape.length;
+    const hoist = 0.045*spec.L*(l.size != null ? l.size : 1), fly = hoist*len;
+    const nu = Math.min(48, Math.round(14*Math.max(1, len/1.6))), nv = 6;
+    const pos = [], us = [], vs = [], uvs = [], idx = [];
     for(let j=0;j<=nv;j++) for(let i=0;i<=nu;i++){
-      const u = i/nu, v = j/nv;
-      pos.push(0, -v*hoist, u*fly);        // hoist at u=0, streaming down +z
+      const v = j/nv;
+      const u = Math.min(i/nu, 1 - shape.notch*(1 - Math.abs(2*v - 1)));
+      const w = u <= shape.taper ? 1
+              : 1 - (1 - shape.tip)*(u - shape.taper)/(1 - shape.taper);
+      pos.push(0, -hoist*(0.5 + (v - 0.5)*w), u*fly);   // hoist at u=0, streaming down +z
       us.push(u); vs.push(v);
+      // the image is CUT by the taper, not squeezed into it: what is painted on a
+      // template at a given height is what flies there. v flipped: built downward.
+      uvs.push(u, 1 - (0.5 + (v - 0.5)*w));
     }
     for(let j=0;j<nv;j++) for(let i=0;i<nu;i++){
       const k = j*(nu+1)+i;
@@ -1895,44 +2030,162 @@ Naval.ShipModel = class ShipModel {
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    /* Texture coordinates, which it never had — the u and v were worked out
-       for the ripple and then thrown away. v is flipped because the flag is
-       built downward from its hoist while an image is read from the top. */
-    const uvs = [];
-    for(let k=0;k<us.length;k++) uvs.push(us[k], 1 - vs[k]);
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     g.setIndex(idx);
     g.computeVertexNormals();
 
+    const mount = new THREE.Group();
+    mount.position.set(x, topY, z);
+    const lean = l.tilt != null ? l.tilt : (tilt || 0);
+    mount.rotation.x = -lean;                // a +x turn carries the head toward +z, the bow
+    parent.add(mount);
     const pivot = new THREE.Group();
-    pivot.position.set(0, topY - hoist*0.18, z);
-    pivot.add(new THREE.Mesh(g, this.mats.flag));
-    parent.add(pivot);
-    this.flag = { pivot, mesh:pivot.children[0], hoist, fly,
-                  base:Float32Array.from(pos), u:Float32Array.from(us), v:Float32Array.from(vs) };
+    pivot.position.set(0, -hoist*0.18, 0);
+    pivot.add(new THREE.Mesh(g, l.image ? this._flagMat(l.image) : this.mats.flag));
+    mount.add(pivot);
+    return { mount, pivot, mesh:pivot.children[0], hoist, fly, wave: 7.0*len/1.6,
+             seed: Math.random()*6.28,
+             base:Float32Array.from(pos), u:Float32Array.from(us), v:Float32Array.from(vs) };
   }
 
-  /* Stream it. The fly points dead downwind, so the pivot's yaw comes straight
+  /* A flag with arms of its own. Built like a painted sail, and told about the
+     sky by hand for the same reason: applySailLight is called on named
+     materials, and one made after she is at sea would otherwise never learn. */
+  _flagMat(src){
+    this._flagMats = this._flagMats || {};
+    if(this._flagMats[src]) return this._flagMats[src];
+    const m = new THREE.MeshStandardMaterial({
+      map: Naval.sailTexture(src, 'pavillon'),
+      roughness:0.92, side:THREE.DoubleSide,
+      emissive:0x2a2a2e, emissiveIntensity:0.10 });
+    (this._sailMats = this._sailMats || []).push(m);
+    if(this._skyU){
+      Naval.applySailLight(m, this._skyU);
+      if(this._aoU) Naval.applyShipAO(m, this._aoU);
+      Naval.applyHaze(m, this._skyU);
+    }
+    this._flagMats[src] = m;
+    return m;
+  }
+
+  /* Colours struck or flying — every flag she carries, together. */
+  showColours(on){
+    for(const f of this.flags || []) f.pivot.visible = on;
+  }
+
+  /* THE MASTHEADS AND THE END OF THE BOWSPRIT, READ OFF THE SPARS AS DRAWN.
+
+     The rig finder answers "which masts carry yards", which is not the same
+     question: on the Roter Löwe it found the mainmast's own pole, a foremast
+     with no pole of its own, and the spritsail yard — and no mizzen at all,
+     hers carrying no square yard. Her fore and mizzen masts are one mesh, and
+     her bowsprit ends three metres short of where the sheet's length put it.
+
+     So: every THIN piece standing near the centreline and tall enough to be a
+     mast is binned along her length, and a run of stations rising above a
+     third of her length is one mast, topped at its highest vertex — a raked
+     mast spreads over several bins and is still one. The poles the rig has
+     already taken are no longer in the model and are added back from their
+     falls. The bowsprit is the thin piece that reaches furthest forward.
+     Measured once per model. */
+  _sparScan(){
+    if(this._spars && this._spars.of === this.modelRoot) return this._spars;
+    const spec = this.spec, bin = 0.06*spec.L, minTop = 0.35*spec.L;
+    const parts = this._modelParts();
+    const cols = new Map();
+    let sprit = null;
+    for(const p of parts){
+      if(p.size.x > 0.08*spec.B || Math.abs(p.mid.x) > 0.08*spec.B) continue;
+      const a = p.geom.attributes.position;
+      const tall = p.size.y > 0.3*spec.L;
+      for(let i=0;i<a.count;i++){
+        const y = a.getY(i), z = a.getZ(i);
+        if(!sprit || z > sprit.z) sprit = { z, y };
+        if(!tall || y < minTop) continue;
+        const k = Math.round(z/bin), c = cols.get(k);
+        if(!c || y > c.y) cols.set(k, { k, y, z });
+      }
+    }
+    for(const p of parts) p.geom.dispose();
+    // adjacent stations are one mast
+    const tops = [];
+    for(const c of [...cols.values()].sort((a, b) => a.k - b.k)){
+      const last = tops[tops.length - 1];
+      if(last && c.k - last.k <= 1){
+        if(c.y > last.y){ last.y = c.y; last.z = c.z; }
+        last.k = c.k;
+      }else tops.push({ k:c.k, y:c.y, z:c.z });
+    }
+    for(const fl of this.falls){
+      if(!fl.userData.mast) continue;
+      const z = fl.position.z, y = fl.position.y + fl.userData.height;
+      const dup = tops.find(t => Math.abs(t.z - z) < 0.06*spec.L);
+      if(dup){ if(y > dup.y){ dup.y = y; dup.z = z; } }
+      else tops.push({ y, z });
+    }
+    this._spars = { of:this.modelRoot, tops, sprit };
+    return this._spars;
+  }
+
+  /* Where her deck is at a station, and where her ends are — read off the
+     model when there is one. Shared by the lanterns and the staffs, which both
+     stand on the rail at her extremities. */
+  _deckStations(){
+    const spec = this.spec;
+    /* Où est le pont à cette station, lu sur le modèle quand il y en a un, et
+       pris au MAXIMUM sur une tranche plutôt qu'en un point : un couronnement
+       sculpté se lit en dents de scie — 18,4 puis 12,4 puis 5,3 m d'une station
+       à l'autre sur la Roter Löwe — et une station seule avait déjà fait tomber
+       le feu cinq mètres sous sa lisse, à l'intérieur de son propre château. */
+    let deckNear, zAft, zFore;
+    if(this.modelRoot){
+      const parts = this._modelParts();
+      const deckAt = this._deckProfile(parts);
+      let hull = parts[0], best = -1;
+      for(const p of parts){
+        const v = p.size.x*p.size.y*p.size.z;
+        if(v > best){ best = v; hull = p; }
+      }
+      const z0 = hull.box.min.z, z1 = hull.box.max.z, span = z1 - z0;
+      zAft = z0 + span*0.02;                    // tout à l'arrière, +z étant l'étrave
+      zFore = z1 - span*0.02;
+      deckNear = z => {
+        let y = -Infinity;
+        for(let f = -0.03; f <= 0.031; f += 0.01)
+          y = Math.max(y, deckAt(Math.min(z1, Math.max(z0, z + span*f))));
+        return y;
+      };
+      for(const p of parts) p.geom.dispose();
+    }else{
+      zAft = -spec.L*0.45;
+      zFore = spec.L*0.48;
+      deckNear = z => this.lines.deckY(Math.min(1, Math.max(0, z/spec.L + 0.5)));
+    }
+    return { zAft, zFore, deckNear };
+  }
+
+  /* Stream them. The fly points dead downwind, so the pivot's yaw comes straight
      from the apparent wind the solver already knows: its bearing off the bow and
      which tack she is on. Falling light, the ensign stops rippling and hangs —
      it loses its length as it droops, which is what tells you at a glance that
-     the breeze has gone, before any instrument does. */
+     the breeze has gone, before any instrument does. Each flag keeps its own
+     phase, or three would ripple as one; a long streamer carries more waves. */
   setFlag(beta, tack, vApp, t){
-    const f = this.flag;
-    if(!f) return;
-    f.pivot.rotation.y = Math.atan2(tack*Math.sin(beta), -Math.cos(beta));
-
+    const yaw = Math.atan2(tack*Math.sin(beta), -Math.cos(beta));
     const drive = Math.min(1, vApp/8);
-    const attr = f.mesh.geometry.attributes.position, arr = attr.array;
-    for(let k=0;k<f.u.length;k++){
-      const i3 = k*3, u = f.u[k];
-      // the ripple starts at nothing on the halyard and builds toward the fly
-      arr[i3]   = Math.sin(u*7.0 - t*6.5 + f.v[k]*1.2) * f.hoist*0.42 * drive * Math.pow(u, 1.3);
-      arr[i3+1] = f.base[i3+1] - (1-drive)*u*u*f.fly*0.55;
-      arr[i3+2] = f.base[i3+2] * (0.80 + 0.20*drive);
+    for(const f of this.flags || []){
+      f.pivot.rotation.y = yaw;
+      const attr = f.mesh.geometry.attributes.position, arr = attr.array;
+      for(let k=0;k<f.u.length;k++){
+        const i3 = k*3, u = f.u[k];
+        // the ripple starts at nothing on the halyard and builds toward the fly
+        arr[i3]   = Math.sin(u*f.wave - t*6.5 + f.v[k]*1.2 + f.seed) * f.hoist*0.42 * drive * Math.pow(u, 1.3);
+        arr[i3+1] = f.base[i3+1] - (1-drive)*u*u*f.fly*0.55;
+        arr[i3+2] = f.base[i3+2] * (0.80 + 0.20*drive);
+      }
+      attr.needsUpdate = true;
+      f.mesh.geometry.computeVertexNormals();
     }
-    attr.needsUpdate = true;
-    f.mesh.geometry.computeVertexNormals();
   }
 
   /* The poop lantern, and how she is found at night.
@@ -1951,33 +2204,7 @@ Naval.ShipModel = class ShipModel {
     this.lanternList = [];
     const spec = this.spec;
 
-    /* Où est le pont à cette station, lu sur le modèle quand il y en a un, et
-       pris au MAXIMUM sur une tranche plutôt qu'en un point : un couronnement
-       sculpté se lit en dents de scie — 18,4 puis 12,4 puis 5,3 m d'une station
-       à l'autre sur la Roter Löwe — et une station seule avait déjà fait tomber
-       le feu cinq mètres sous sa lisse, à l'intérieur de son propre château. */
-    let deckNear, zAft;
-    if(this.modelRoot){
-      const parts = this._modelParts();
-      const deckAt = this._deckProfile(parts);
-      let hull = parts[0], best = -1;
-      for(const p of parts){
-        const v = p.size.x*p.size.y*p.size.z;
-        if(v > best){ best = v; hull = p; }
-      }
-      const z0 = hull.box.min.z, z1 = hull.box.max.z, span = z1 - z0;
-      zAft = z0 + span*0.02;                    // tout à l'arrière, +z étant l'étrave
-      deckNear = z => {
-        let y = -Infinity;
-        for(let f = -0.03; f <= 0.031; f += 0.01)
-          y = Math.max(y, deckAt(Math.min(z1, Math.max(z0, z + span*f))));
-        return y;
-      };
-      for(const p of parts) p.geom.dispose();
-    }else{
-      zAft = -spec.L*0.45;
-      deckNear = z => this.lines.deckY(Math.min(1, Math.max(0, z/spec.L + 0.5)));
-    }
+    const { zAft, deckNear } = this._deckStations();
 
     /* Une liste VIDE veut dire aucun feu, et pas le feu par défaut : une fiche
        qui déclare ses lanternes dit tout ce qu'elle porte, y compris rien. */
@@ -2204,10 +2431,22 @@ Naval.ShipModel = class ShipModel {
      have been carried in by the build, which embeds only what the sheets name. */
   setEnsignMap(src){
     const m = this.mats.flag;
+    // what the sheet flew, kept once so the colours can be given back
+    if(!this._ensign0) this._ensign0 = { map:m.map, color:m.color.getHex(),
+      emissive:m.emissive.getHex(), ei:m.emissiveIntensity };
     m.map = src ? Naval.sailTexture(src, 'pavillon') : Naval.jollyTexture();
     m.color.set(0xffffff);                 // the image carries its own colours
     // and the faint lift of a painted flag, not the white one's: that would wash the colours grey
     m.emissive.set(0x2a2a2e); m.emissiveIntensity = 0.10;
+    m.needsUpdate = true;
+  }
+
+  /* Back to the colours her sheet gave her. */
+  resetEnsign(){
+    const o = this._ensign0, m = this.mats.flag;
+    if(!o) return;
+    m.map = o.map; m.color.setHex(o.color);
+    m.emissive.setHex(o.emissive); m.emissiveIntensity = o.ei;
     m.needsUpdate = true;
   }
 
@@ -2263,7 +2502,37 @@ Naval.ShipModel = class ShipModel {
   setTrim(sheet, tack, set, luffing, t, load){
     if(!this.rigs.length) return;          // no canvas to trim
     const shake = luffing ? Math.sin(t*11)*0.10 : 0;
-    const angle = -tack * sheet + shake;
+    /* THE YARDS ARE HAULED ROUND, THEY DO NOT JUMP. The solver's tack is the
+       bare sign of the wind across her, and it flips the instant the apparent
+       wind crosses dead astern — which, running, a yaw of a degree does every
+       few seconds. Written straight into the pivots it swung the whole rig
+       from one board to the other in a frame, twice the sheet angle at once.
+       Nothing in the physics reads that sign (lift is oriented off the stem),
+       so the cure lives here: the board SHOWN changes only once the wind has
+       stayed on the other side for BRACE_HOLD seconds, and the braces then
+       come round at BRACE_RATE radians a second of game time. */
+    const dt = Math.max(0, Math.min(0.25, t - (this._trimT != null ? this._trimT : t)));
+    this._trimT = t;
+    if(this._tackShown == null){ this._tackShown = tack; this._brace = -tack*sheet; }
+    if(tack !== this._tackShown){
+      this._tackHeld = (this._tackHeld || 0) + dt;
+      if(this._tackHeld >= Naval.BRACE_HOLD){ this._tackShown = tack; this._tackHeld = 0; }
+    }else this._tackHeld = 0;
+    /* Eased in and out: the braces gather way at BRACE_ACCEL and are checked
+       just soon enough to stop on the mark — the speed allowed is the one from
+       which that deceleration still stops within the angle left, √(2·a·err).
+       Written against the error rather than as a timed curve, so a sheet
+       trimmed while the yards are still swinging is simply followed. */
+    const want = -this._tackShown * sheet;
+    const err = want - this._brace;
+    const A = Naval.BRACE_ACCEL;
+    const vWant = Math.sign(err)*Math.min(Naval.BRACE_RATE, Math.sqrt(2*A*Math.abs(err)));
+    const dv = A*dt;
+    this._braceV = (this._braceV || 0) + Math.max(-dv, Math.min(dv, vWant - (this._braceV || 0)));
+    this._brace += this._braceV*dt;
+    // never through the mark: a step that crosses it lands on it, at rest
+    if((want - this._brace)*err <= 0){ this._brace = want; this._braceV = 0; }
+    const angle = this._brace + shake;
     /* Furling takes in the cloth, not the spars — a vessel under bare poles
        still has her yards crossed and her boom shipped. It matters twice over
        for an imported model, whose own yards now hang in these pivots: hiding

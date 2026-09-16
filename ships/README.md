@@ -310,6 +310,48 @@ cours de partie, `Naval.app.ship.setEnsignMap(chemin)` (ou celui d'une conserve)
 hisse une autre image — dans la page publiée, seulement une image déjà nommée par
 une fiche, puisque le build n'embarque que celles-là.
 
+### Plusieurs pavillons
+
+Sans champ `flags`, un seul pavillon, en tête du plus grand mât. Une fiche peut
+déclarer ce qu'elle arbore et où — ici un galion espagnol : grand pavillon à la
+poupe, flamme en tête d'artimon, pavillon de beaupré.
+
+```json
+"flags": [
+  { "at": "stern", "size": 1.6 },
+  { "mast": -1, "shape": "streamer", "size": 0.8, "image": "ships/textures/flags/flamme.png" },
+  { "at": "bow", "size": 0.6 }
+]
+```
+
+| champ | ce qu'il dit |
+|---|---|
+| `at` | `"stern"` : sur une hampe au couronnement ; `"bow"` : sur une hampe au bout du beaupré |
+| `mast` | en tête d'un mât, compté depuis l'avant (0 = misaine) ; négatif depuis l'arrière (-1 = artimon) |
+| `size` | 1 par défaut ; le guindant vaut 4,5 % de la longueur du navire |
+| `shape` | `rect` (défaut), `swallowtail` (à queue d'aronde), `pennant` (triangle), `streamer` (flamme longue et effilée, pointe fendue) |
+| `length` | le battant rapporté au guindant ; défaut selon la forme (1,6 · 1,7 · 3 · 5) |
+| `image` | ses propres armes (png, jpg, webp), peintes sur un rectangle : la forme les rogne. Absente, il prend les couleurs du navire |
+| `x` · `z` · `zFrac` · `y` | pour une hampe, sa place si l'automatique ne convient pas ; `y` est le pied |
+| `above` | relever le pavillon (ou le pied de la hampe) |
+| `staff` · `rake` | longueur de la hampe et son inclinaison vers l'extérieur, en radians (0,3 à la poupe, 0,1 à la proue) |
+| `tilt` | inclinaison du guindant, en radians, tête vers l'arrière si positive. Par défaut celle de la hampe (le pavillon est frappé le long) ; 0 en tête de mât. Le pavillon tourne au vent autour de cet axe |
+
+Les têtes de mât et le bout du beaupré sont **lus sur le modèle**, pièce fine par
+pièce fine : un mât sans vergue carrée, ou fondu avec un autre, est trouvé quand
+même. Un pavillon de mât tombe avec son mât ; ceux des hampes restent.
+
+**Gabarits pour peindre une image** : `node tools/flag-template.js` écrit
+`ships/textures/flags/gabarits/gabarit-<forme>.png` et `.svg`, à la taille de
+la texture (guindant à gauche, haut en haut). Ce qui sort du contour rouge est
+coupé en jeu ; à gauche du trait bleu, la pleine hauteur, où mettre les armes.
+Les formes sont lues dans `Naval.FLAG_SHAPES` : un gabarit ne peut pas
+contredire le pavillon.
+
+Ceux qui n'ont pas d'`image` changent tous ensemble quand le navire change de
+couleurs (pavillon d'emprunt, pavillon noir) ; une flamme armoriée garde les
+siennes. Le build embarque chaque `image`.
+
 ### Marques d'impact
 
 ```json

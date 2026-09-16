@@ -193,12 +193,13 @@
   .beaufort .bd{font-family:var(--mono);font-size:10.5px;color:var(--muted);letter-spacing:.02em}
 
   /* Helm (bottom-center) */
-  #shipSel{width:100%;margin-top:8px;font-family:var(--mono);font-size:11px;
+  #shipSel,#nationSel{width:100%;margin-top:8px;font-family:var(--mono);font-size:11px;
     color:var(--accent);background:rgba(70,224,208,.08);
     border:1px solid var(--edge);border-radius:7px;padding:6px 8px;cursor:pointer;
     outline:none;-webkit-appearance:none;appearance:none}
-  #shipSel:focus-visible{box-shadow:0 0 0 2px rgba(70,224,208,.35)}
-  #shipSel option{background:var(--panel-solid);color:var(--ink)}
+  #nationSel{margin-top:5px}
+  #shipSel:focus-visible,#nationSel:focus-visible{box-shadow:0 0 0 2px rgba(70,224,208,.35)}
+  #shipSel option,#nationSel option{background:var(--panel-solid);color:var(--ink)}
   .allure{display:flex;align-items:baseline;justify-content:space-between;margin-top:9px}
   .allure .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
   .allure b{font-family:var(--disp);font-weight:600;font-size:15px;color:var(--accent);letter-spacing:.03em}

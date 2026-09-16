@@ -78,6 +78,10 @@ Naval.ShipSpec = class ShipSpec {
        l'ancien comportement : un seul feu au couronnement. */
     this.lanterns = Array.isArray(json.lanterns)
       ? json.lanterns.map(l => Object.assign({}, l)) : null;
+    /* The colours she flies, and where: see ships/README.md. Nothing declared
+       keeps the one ensign at her tallest masthead. */
+    this.flags = Array.isArray(json.flags)
+      ? json.flags.map(l => Object.assign({}, l)) : null;
 
     // the ship that carries a boat names it: the id of another sheet
     this.boat = json.boat || null;

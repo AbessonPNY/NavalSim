@@ -95,6 +95,12 @@
     { "x": 0, "zFrac": -0.448 },
     { "kind": "candle", "x": 1.25, "y": 4.0, "zFrac": -0.30, "size": 0.1, "color": "0xffb24a" }
   ],
+  "flags": [
+    { "at": "stern", "size": 1.6 },
+    { "mast": 1 },
+    { "mast": -1, "shape": "streamer", "size": 0.8 },
+    { "at": "bow", "size": 0.6 }
+  ],
   "deckhouse": {
     "beamFrac": 0.34,
     "height": 8.35,

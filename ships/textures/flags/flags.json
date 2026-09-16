@@ -15,6 +15,13 @@
       "nationalite": "hollandais",
       "poids": 1
     },
+	{
+      "id": "espagne",
+      "image": "ships/textures/flags/flag_marchand_spanish.jpg",
+      "pays": "Espagne",
+      "nationalite": "espagnol",
+      "poids": 1
+    },
     {
       "id": "jolly-roger",
       "image": "ships/textures/flags/jolly_roger_1690.jpg",
@@ -24,3 +31,6 @@
     }
   ]
 }
+
+
+

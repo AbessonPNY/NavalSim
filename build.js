@@ -132,6 +132,27 @@ for (const rel of shipList) {
     }
   }
 
+  /* Et les flammes qui portent leurs propres armes (`flags[].image`), par le
+     même chemin. Une image introuvable est retirée : la flamme prend alors les
+     couleurs du navire plutôt que de laisser un chemin local dans la page. */
+  for (const fl of (Array.isArray(spec.flags) ? spec.flags : [])) {
+    const img = fl.image;
+    if (!img || /^data:/.test(img)) continue;
+    const p = path.join(ROOT, img);
+    const mime = { '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg',
+                   '.webp':'image/webp' }[path.extname(img).toLowerCase()];
+    if (!mime || !fs.existsSync(p)) {
+      console.warn('  WARNING: ' + spec.id + ' flamme : ' + img +
+                   (mime ? ' is missing' : " n'est pas une image embarquable (png, jpg, webp)") +
+                   ' — elle prendra les couleurs du navire');
+      delete fl.image;
+      continue;
+    }
+    const bytes = fs.readFileSync(p);
+    fl.image = 'data:' + mime + ';base64,' + bytes.toString('base64');
+    console.log('  embedded ' + img + '  (flamme, ' + (bytes.length/1024).toFixed(1) + ' KB)');
+  }
+
   /* Les IMPACTS peints, une liste de variantes à plusieurs stades : chaque
      chemin devient ses octets, à sa place dans la liste. Les mêmes images
      nommées par deux fiches sont embarquées deux fois — quelques dizaines de
