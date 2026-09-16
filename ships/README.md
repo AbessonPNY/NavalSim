@@ -123,6 +123,10 @@ Trois réglages de jeu, dans `settings.json` :
 "night": { "glow": 2.6, "lightAt": 0.35, "snuffAt": 0.25 }
 ```
 
+`farFrom`, `farFade` et `farMinSize` règlent l'effacement des feux au loin :
+au-delà de `farFrom` mètres, l'éclat du repère tombe en `(farFrom/d)^farFade` et
+sa taille en racine, jamais sous `farMinSize` ; la brume l'atténue aussi.
+
 `glow` est la force de l'émissive (que `model.nightGlow` d'une fiche multiplie
 encore), `lightAt` et `snuffAt` les deux seuils d'allumage et d'extinction, sur
 une échelle où 0 est le coucher du soleil et 1 dix degrés plus bas. Les fenêtres

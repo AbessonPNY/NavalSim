@@ -4863,6 +4863,23 @@ recompile la scène, et un feu est justement ce qui perce la brume la nuit.
 Le gain de rendu n'est pas mesuré (boucle du volet gelée) ; le journal
 « Combien de coques » donne l'ordre de grandeur, 3,56 ms pour huit coques.
 
+### Le fanal au loin
+
+Capture d'Arnaud, de nuit : deux voiles au loin lues comme deux réverbères.
+Le repère de position du fanal est à taille d'**écran** fixe — voulu, sans lui
+un feu disparaît — mais son éclat l'était aussi, et le bloom l'élargissait.
+`setLantern(night, t, camPos, hazeU)` : au-delà de `night.farFrom` (1500 m)
+l'éclat tombe en (farFrom/d)^`farFade` (1,5), la taille en racine, jamais sous
+`farMinSize` (0,35) ; la brume le multiplie par la racine de sa transmission.
+Réglages dans `settings.json`. Force 3, repère / taille :
+
+| 100 m | 1,5 km | 2 km | 3 km | 5 km |
+|---|---|---|---|---|
+| 0,68 / 1 | 0,38 / 1 | 0,20 / 0,81 | 0,07 / 0,59 | 0,015 / 0,41 |
+
+La brume agit dès le départ (moitié de l'éclat à 1,5 km par beau temps) :
+c'est elle, et non le seuil, qui dit combien une lumière perce.
+
 ## À FAIRE — fusionner les voies d'eau d'un même endroit
 
 **Décidé, pas fait, et délibérément remis.** L'artillerie appelle `breach()` à

@@ -158,7 +158,8 @@ Naval.GLOW_NAMES = /fenetre|fen\u00eatre|window|vitre|hublot|glass|verre|lamp|la
    de bord de la barre automatique : sans elle, un soleil qui hésite au seuil
    ferait clignoter tout le bord. `glow` est la force de l'émissive, que
    `model.nightGlow` d'une fiche multiplie encore. Réglable dans settings.json. */
-Naval.NIGHT = { glow: 2.6, lightAt: 0.35, snuffAt: 0.25 };
+Naval.NIGHT = { glow: 2.6, lightAt: 0.35, snuffAt: 0.25,
+                farFrom: 1500, farFade: 1.5, farMinSize: 0.35 };
 
 Naval.ShipModel = class ShipModel {
   constructor(scene, spec, lines){
@@ -2113,7 +2114,7 @@ Naval.ShipModel = class ShipModel {
 
   /* Lit only when it is dark enough to want her. `night` comes from the stage,
      so lantern, sky and the sun's own colour all turn together. */
-  setLantern(night, t){
+  setLantern(night, t, camPos, hazeU){
     const on = Math.max(0, Math.min(1, night));
     /* ALLUMÉ OU ÉTEINT, jamais à mi-feu : les fenêtres s'allument au crépuscule
        et sont soufflées à l'aube, d'un coup. Deux seuils, sinon un soleil qui
@@ -2123,6 +2124,23 @@ Naval.ShipModel = class ShipModel {
     else if(on <= N.snuffAt) this._lit = false;
     if(this.nightMats)
       for(const n of this.nightMats) n.mat.emissiveIntensity = this._lit ? n.base*N.glow : 0;
+    /* AU LOIN, LE FEU S'EFFACE. Le repère de position est à taille d'ÉCRAN
+       fixe, et c'est voulu — sans lui un fanal disparaît à deux milles — mais
+       il avait aussi un éclat fixe : à 1,5 km comme à 5 le même disque, que le
+       bloom élargissait encore, et une voile au loin se lisait comme un
+       réverbère. Passé farFrom, l'éclat tombe en (farFrom/d)^farFade et la
+       taille comme sa racine, jamais sous farMinSize ; la brume l'éteint à
+       son tour, en racine de ce qu'elle laisse passer, une lumière perçant
+       mieux la brume qu'une coque. */
+    let far = 1, farSize = 1;
+    if(camPos){
+      const d = this.group.position.distanceTo(camPos);
+      if(d > N.farFrom){
+        far = Math.pow(N.farFrom/d, N.farFade);
+        farSize = Math.max(N.farMinSize, Math.sqrt(far));
+      }
+      if(hazeU) far *= Math.sqrt(Naval.hazeTransmit(camPos, this.group.position, hazeU));
+    }
     for(const L of this.lanternList || []){
       /* ON NE MASQUE PLUS LE GROUPE, et c'est un vrai défaut corrigé : il porte
          une LAMPE, et three compile ses programmes contre le nombre de lumières
@@ -2151,8 +2169,9 @@ Naval.ShipModel = class ShipModel {
         // a bare wick in cabin draughts: quicker and less even than a horn lantern
         ? 0.80 + 0.12*Math.sin(t*9.7 + L.seed) + 0.08*Math.sin(t*23.3 + L.seed*1.3)
         : 0.86 + 0.14*Math.sin(t*7.3 + L.seed) + 0.06*Math.sin(t*17.1 + L.seed*1.7);
-      L.halo.material.opacity = 0.85*on*flick;
-      L.mark.material.opacity = L.candle ? 0 : 0.95*on*flick;
+      L.halo.material.opacity = 0.85*on*flick*far;
+      L.mark.material.opacity = L.candle ? 0 : 0.95*on*flick*far;
+      L.mark.scale.setScalar(0.030*farSize);
       L.light.intensity = 2.6*on*flick;
     }
   }

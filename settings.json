@@ -8,19 +8,22 @@
     "spawnMin": 4000,
     "spawnMax": 5000,
     "despawn": 9000,
-    "pirateChance": 1,
+    "pirateChance": 0.25,
     "noticeDistance": 600,
     "spyglassRange": 7000,
     "spyglassField": 0.8,
     "landDistance": 2500,
     "spawnFromLand": 1500,
     "clearWater": 400,
-    "exclude": ["bouee-canard", "chaloupe"]
+    "exclude": ["bouee-canard", "chaloupe", "cotre", "chaland", "schooner"]
   },
   "night": {
     "glow": 2.6,
     "lightAt": 0.35,
-    "snuffAt": 0.25
+    "snuffAt": 0.25,
+    "farFrom": 1500,
+    "farFade": 1.5,
+    "farMinSize": 0.35
   },
   "bloom": {
     "enabled": true,
