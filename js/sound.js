@@ -181,6 +181,59 @@ Naval.Sound = class Sound {
     src.start(quand);
   }
 
+  /* UN SON QU'ON FABRIQUE, faute d'échantillon : écrit une fois dans un tampon,
+     puis joué par _jouer comme les autres, donc retardé, étouffé et placé par
+     la même acoustique. Rien à embarquer dans la page. */
+  _synth(cle, duree, remplir){
+    if(this.buf[cle]) return this.buf[cle];
+    const ctx = this.wake();
+    if(!ctx) return null;
+    const n = Math.floor(duree*ctx.sampleRate);
+    const b = ctx.createBuffer(1, n, ctx.sampleRate);
+    remplir(b.getChannelData(0), ctx.sampleRate);
+    this.buf[cle] = b;
+    return b;
+  }
+
+  /* LE TONNERRE d'un coup au but : un claquement sec, puis un roulement qui
+     s'éteint en battant — du bruit brun, qui est ce que l'air renvoie d'une
+     décharge répercutée par les nuages. */
+  tonnerre(pos, ecoute){
+    const b = this._synth('tonnerre', 4.5, (d, sr) => {
+      let brun = 0;
+      for(let i=0;i<d.length;i++){
+        const t = i/sr, w = Math.random()*2 - 1;
+        brun = (brun + 0.02*w)/1.02;
+        const claque = t < 0.14 ? w*(1 - t/0.14) : 0;
+        const roule = brun*6.5*Math.exp(-t*0.8)*(0.6 + 0.4*Math.sin(t*7 + Math.sin(t*2.3)*2));
+        d[i] = Math.max(-1, Math.min(1, claque*0.9 + roule));
+      }
+    });
+    this._jouer(b, pos, ecoute, 1, 1);
+  }
+
+  /* UN GRONDEMENT sous la coque : très grave, lent à monter, battu comme un
+     souffle. Une fondamentale qui glisse de 42 à 30 Hz et ses deux premières
+     harmoniques, noyées dans un bruit brun — assez bas pour se sentir plus que
+     s'entendre, ce qui est exactement ce qu'on veut d'une chose qu'on ne voit
+     pas encore. */
+  grondement(pos, ecoute){
+    const b = this._synth('grondement', 3.6, (d, sr) => {
+      let brun = 0, ph = 0;
+      for(let i=0;i<d.length;i++){
+        const t = i/sr, w = Math.random()*2 - 1;
+        brun = (brun + 0.02*w)/1.02;
+        const f = 42 - 12*Math.min(1, t/3.6);
+        ph += 2*Math.PI*f/sr;
+        const env = Math.min(1, t/0.6)*Math.exp(-Math.max(0, t - 1.6)*1.4);
+        const souffle = 0.65 + 0.35*Math.sin(t*2*Math.PI*5.5);
+        const ton = Math.sin(ph) + 0.45*Math.sin(2*ph + 0.4) + 0.2*Math.sin(3*ph + 1.1);
+        d[i] = Math.max(-1, Math.min(1, env*souffle*(0.55*ton + brun*4)));
+      }
+    });
+    this._jouer(b, pos, ecoute, 1, 1);
+  }
+
   /* UN COUP DE CANON, entendu d'où l'on regarde.
    *
    * `k` est le calibre relatif que guns.js calcule déjà (spec.L/60) : une

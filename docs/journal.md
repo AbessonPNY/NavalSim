@@ -4989,6 +4989,72 @@ Puis `"nation:<clé>"` : le pavillon de poupe est un `rect` comme ceux des tête
 de mât, et la clé de coupe les aurait confondus — les armes de Colomb au
 couronnement, les couleurs en tête de mât.
 
+## La foudre et le kraken
+
+Décidé avec Arnaud : un **kraken** d'abord, **dessiné par le code**, qu'on peut
+**fuir** et **combattre**, qui d'abord garde ses distances et se rapproche si
+l'on s'attarde — et qui **ne coule pas** le navire. Et la **foudre sur un mât**.
+
+**Les deux vivent dans les dépressions existantes** (`storms.at` → `inten`) et
+réutilisent ce qui existait : blessures de mât (`blesserMat`, désormais la règle
+unique des boulets, de la foudre et des bras), voiles qui éclatent, gerbes,
+sons retardés par la distance, cibles du canon (`guns.creatures`), refus de
+presser le temps. Aucun n'est un navire : pas de place dans la flotte ni dans
+la texture de profils. Réglages dans `settings.json` → `storm`.
+
+**La foudre** (`lightning.js`) : par navire, `perMinuteAtCore`·k par minute
+avec k croissant de `minInten` au centre, sur la plus haute tête de mât encore
+debout (`ship.mastTops()`). Le trait est un tube additif, **sans lampe** ;
+l'éclat vient de `stage.strike()`, allumé seulement à moins de 3 km. Tonnerre
+**synthétisé** (`sound.tonnerre`, bruit brun) — aucun échantillon à embarquer.
+Premier tracé : du bruit autour d'une droite, qui à un câble lit comme un
+faisceau ; puis une marche aléatoire, encore droite de loin ; enfin un **zigzag**
+à pas alternés de 8 à 30 m, rappelé sur la tête de mât sur le dernier tiers.
+
+**Le kraken** (`kraken.js`) : absent → rôde (450 m, `lingerBefore` 45 s à
+distance, puis approche à 1,2 m/s + 0,03 m/s par seconde passée) → étreinte à
+45 m → plonge. Il **décroche** si l'on file plus de 7 nœuds (4 m/s) et renonce
+à 800 m ; il plonge si l'intensité tombe sous la moitié du seuil, ou si ses
+14 points de vie tombent (bras 1, manteau 2 par boulet plein calibre). Un bras
+touché lâche prise 5 à 8 s. Toutes les 9 s un bras tord un mât (blessure) ou
+déchire une voile. Grondement synthétisé (`sound.grondement`).
+
+**Tenir un navire, c'est une amarre** — `ShipPhysics.grips`, traitée par
+`_moor` comme `moorings` mais dans sa propre liste, parce que la page lit « des
+amarres » comme « à quai ». Trois réglages, trouvés en mesurant :
+
+- **Traction à la lisse, pas au mât.** Accrochée au tiers d'un mât, la traction
+  horizontale avait un bras de levier de plusieurs mètres : galion couché à
+  36–48° tant qu'il tenait. Le bras reste *dessiné* enroulé au mât ; la force
+  s'applique là où il passe la lisse, et les bras alternent de bord.
+- **`gripHold` 0,07 → 0,03** du poids par bras : même à la lisse, trois bras
+  d'un bord à 7 % donnaient 44° de pointe. À 3 % : gîte RMS 4,2°, pointe 12,9°
+  (mer libre : 15°).
+- **Un frein, `gripBrake` 0,25/s par bras**, au centre de gravité : sous voiles
+  en force 7 la Roter Löwe filait encore 12,5 nœuds, les points d'appui cédant
+  (règle de l'ancre). Avec le frein : 10,7 → **0,3–0,6 nœud**, gîte 16° de
+  moyenne (13,8° libre, c'est le vent).
+
+Relevés au banc (solveur piloté à la main, Roter Löwe) : apparition → étreinte
+en ~3 min à la cape ; fuite à 11 nœuds → renonce en ~80 s ; sept boulets au
+manteau après un au bras → plonge et relâche tout. Chaland : 2,8 → 0,6 nœud.
+
+**Dessin** : chaque bras est un tube de 30 anneaux × 7, transporté
+parallèlement, reconstruit à chaque image (six bras : négligeable). Il rôde en
+arche qui sort et rentre ; il saisit par une courbe de Bézier depuis sa base
+sous le flanc, **bombée loin dehors** (une première version presque droite
+lisait comme des perches), puis trois tours autour de l'ancre ; `grow` fait
+avancer le bras le long de ce chemin. Le manteau n'affleure que d'un mètre (à
+−2,4 m il flottait comme une assiette). Yeux en `MeshBasicMaterial` : ils
+émettent. Phase du dos tirée à chaque apparition.
+
+**Pièges de banc** : `tempete()` transporte le navire mais la mer ne monte
+qu'à `weather.seaRate` (0,0125/s) — pour une capture, le relever quelques
+secondes ; un test qui déchire toutes les voiles laisse `whole = 0` et le
+navire immobile (`restoreMasts()`) ; l'éclair dure 0,25 s (0,38 d'abord, jugé trop long à l'usage), il faut retenir son
+`age` pour le photographier ; le navire actif au démarrage est le chaland, au
+port.
+
 ## À FAIRE — fusionner les voies d'eau d'un même endroit
 
 **Décidé, pas fait, et délibérément remis.** L'artillerie appelle `breach()` à

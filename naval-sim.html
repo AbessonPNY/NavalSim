@@ -390,6 +390,8 @@
 <script src="js/controls.js"></script>
 <script src="js/camera-rig.js"></script>
 <script src="js/hud.js"></script>
+<script src="js/lightning.js"></script>
+<script src="js/kraken.js"></script>
 <script>
 /* Wiring only. Every rule of the simulation lives in the modules above, and
    every dimension of every vessel lives in ships/*.json. */
@@ -490,15 +492,7 @@ async function main(){
          down — they were a yard thick at the partners and made to be shot at —
          so it takes several, and losing one is the reward for sustained fire
          rather than for a lucky shot. */
-      const f = e.ship.falls[index];
-      f.userData.wounds = (f.userData.wounds || 0) + 1;
-      /* And now it SHOWS. A ball through a mast cuts some of what is seized to
-         it, so a couple of ends are left swinging — until this, a mast that had
-         been hit twice looked exactly like one never touched, and there was no
-         way of knowing one was hurting her short of the third shot bringing it
-         down. */
-      e.ship.cutRigging(index, 2);
-      if(f.userData.wounds >= 3) e.ship.dropMast(index);
+      blesserMat(e, index, 1);
       return;
     }
     /* A tenth of a square metre for a full-sized gun: the ball's own hole plus
@@ -539,6 +533,21 @@ async function main(){
      ouvert pour elle seule ; le comptoir a exactement le même besoin — dire une
      phrase et s'effacer — et lui en écrire un seconde aurait donné deux
      bandeaux capables de se recouvrir. */
+  /* UNE BLESSURE DE MÂT, la même quel que soit ce qui la fait — boulet, foudre,
+     bras de kraken. Masts were TOUGH: a single ball through a lower mast did not
+     bring it down, so it takes three, and each one SHOWS — it cuts some of what
+     is seized to the mast, so a couple of ends are left swinging and one can
+     see one is hurting her before the third brings it down. Rend vrai si le mât
+     s'en va. */
+  function blesserMat(e, index, n){
+    const f = e && e.ship && e.ship.falls[index];
+    if(!f || f.userData.fall) return false;
+    f.userData.wounds = (f.userData.wounds || 0) + (n || 1);
+    e.ship.cutRigging(index, 2);
+    if(f.userData.wounds >= 3){ e.ship.dropMast(index); return true; }
+    return false;
+  }
+
   const dire = (()=>{
     const note = document.getElementById('shotNote');
     let hide = 0;
@@ -576,6 +585,66 @@ async function main(){
   const rain = new Naval.Rain(stage.scene);
   const splash = new Naval.Splash(stage.scene, stage);
   guns.onSplash = (at, water, speed, jet) => splash.burst(at, water, speed, jet);
+
+  /* ------------------------ CE QUI VIENT AVEC LA TEMPÊTE ------------------------
+
+     La foudre qui tombe sur une tête de mât, et le kraken qui vit au cœur des
+     dépressions. Aucun des deux n'est un navire : ils n'occupent pas de place
+     dans la flotte ni dans la texture de profils. Le kraken tient le navire par
+     des amarres (ShipPhysics.grips) et se laisse toucher au canon. */
+  const lightning = new Naval.Lightning(stage.scene);
+  const kraken = new Naval.Kraken(stage.scene, ocean.uniforms);
+  guns.creatures = [kraken];
+  guns.onCreature = (c, hit, speed, k, tireur) => {
+    splash.burst(hit.point.clone(), 10, 7, 1.4);
+    if(sonPret && sound.ctx) sound.crash(hit.point, k || 1, speed, 'hull', stage.camera);
+    c.wound(hit, k || 1);
+  };
+  const orage = [];                           // { entry, inten } — relu à chaque image
+  const krakenCtx = {
+    physics:null, ship:null, ocean, inten:0, t:0,
+    say: m => dire(m),
+    splash: (p, w, s, j) => splash.burst(p, w, s, j),
+    growl: p => { if(sonPret && sound.ctx) sound.grondement(p, stage.camera); },
+    onMast: i => {
+      const r = blesserMat(fleet[0], i, 1);
+      dire(r ? 'Le kraken arrache un mât !' : 'Le kraken tord un mât dans son étreinte !');
+    },
+    onSail: () => {
+      if(fleet[0].ship.splitSail(false) >= 0) dire('Un bras du kraken déchire une voile !');
+    }
+  };
+
+  /* La foudre tombe sur la plus haute tête de mât encore debout. Ce qu'elle
+     coûte : une voile, une blessure de mât (les mêmes que les boulets), et
+     parfois le mât d'un coup. L'éclair du ciel ne s'allume que si c'est assez
+     près pour éclairer notre pont. */
+  function foudroyer(e){
+    if(!e || !e.ship || !e.physics || e.physics.foundered) return;
+    const tops = e.ship.mastTops().filter(m => !m.gone);
+    if(!tops.length) return;
+    let top = tops[0];
+    for(const m of tops) if(m.y > top.y) top = m;
+    const w = new THREE.Vector3(top.x, top.y, top.z).applyQuaternion(e.body.quat).add(e.body.pos);
+    lightning.bolt(w);
+    if(w.distanceTo(stage.camera.position) < 3000) stage.strike();
+    if(sonPret && sound.ctx) sound.tonnerre(w, stage.camera);
+    blast.splinters(w, new THREE.Vector3(0, -1, 0), 0.6);
+    const L = Naval.LIGHTNING, mien = e === fleet[0];
+    let quoi = 'La foudre frappe la mâture !';
+    if(top.fall >= 0){
+      if(Math.random() < L.dismastChance){
+        e.ship.dropMast(top.fall);
+        quoi = 'La foudre fend le mât, qui s\u2019abat !';
+      }else if(Math.random() < L.woundChance){
+        if(blesserMat(e, top.fall, 1)) quoi = 'La foudre achève le mât, qui s\u2019abat !';
+        else quoi = 'La foudre frappe le mât et le blesse !';
+      }
+    }
+    if(Math.random() < L.splitChance && e.ship.splitSail(false) >= 0 && top.fall < 0)
+      quoi = 'La foudre met une voile en lambeaux !';
+    if(mien) dire(quoi);
+  }
   /* L'air qui remonte d'une épave : il est lu sur l'envahissement que le
      solveur calcule déjà, et rendu par la gerbe et le champ d'écume. */
   const wreckAir = new Naval.WreckAir(splash, foam);
@@ -1823,6 +1892,10 @@ async function main(){
     // les feux de nuit vivent dans le module, qui les lit à chaque image
     if(s && s.night) Object.assign(Naval.NIGHT, s.night);
     if(s && s.bloom) bloom.configure(s.bloom);
+    if(s && s.storm){
+      if(s.storm.lightning) Object.assign(Naval.LIGHTNING, s.storm.lightning);
+      if(s.storm.kraken) Object.assign(Naval.KRAKEN, s.storm.kraken);
+    }
   })();
 
   /* LES PAVILLONS (ships/textures/flags/flags.json) : chaque voile croisée en
@@ -2166,6 +2239,7 @@ async function main(){
     const cible = eauDans(s, 0.95);
     if(!cible){ dire('Cette dépression est posée sur la terre.'); return null; }
 
+    if(kraken.state === 'lurk' || kraken.state === 'grip') kraken._dive('storm');
     for(const e of fleet){
       e.body.pos.x += cible.x - X;
       e.body.pos.z += cible.z - Z;
@@ -2463,7 +2537,7 @@ async function main(){
                 bloom,
                 voileAuHasard, vueALaLunette, reglages: REGLAGES,
                 get spyglass(){ return spyglass; },
-                storms, get squall(){ return squall; },
+                storms, get squall(){ return squall; }, kraken, lightning, foudroyer,
                 get fleet(){ return fleet; } };
 
   /* ------------------------- PRESSER LE TEMPS -------------------------
@@ -2530,6 +2604,7 @@ async function main(){
     if(p.foundered || (p.breaches && p.breaches.length)) return 1;   // avarie
     if(guns.shot.length || guns._queue.length) return 1;             // on tire
     if(warpRumour && !warpRumour.hidden) return 1;                   // à décider
+    if(kraken.state !== 'absent') return 1;                          // il rôde
     // une voile de rencontre à moins de 2,5 km : c'est le moment de veiller
     for(const e of fleet) if(e.rencontre && !e.physics.foundered
       && Math.hypot(e.body.pos.x - b.pos.x, e.body.pos.z - b.pos.z) < 2500) return 1;
@@ -2766,6 +2841,8 @@ async function main(){
       blast.rebase(dx, dz);
       guns.rebase(dx, dz);
       cordage.rebase(dx, dz);
+      kraken.rebase(dx, dz);
+      lightning.rebase(dx, dz);
       for(const e of fleet) if(e.ship) e.ship.syncTo(e.body);
       ship.syncTo(physics.body);
     }
@@ -2799,6 +2876,18 @@ async function main(){
     /* Asked here, where her TRUE position is known and before anything wants
        the answer: the sea state below, and the chart just after. */
     squall = storms.at(worldPos.x, worldPos.z, t);
+
+    krakenCtx.physics = physics; krakenCtx.ship = ship;
+    krakenCtx.inten = squall ? squall.inten : 0; krakenCtx.t = t;
+    kraken.update(dt, krakenCtx);
+    orage.length = 0;
+    for(const e of fleet){
+      if(!e.ship || !e.physics) continue;
+      const q = e === fleet[0] ? squall
+        : storms.at(ocean.origin.x + e.body.pos.x, ocean.origin.z + e.body.pos.z, t);
+      if(q) orage.push({ entry:e, inten:q.inten });
+    }
+    lightning.update(dt, orage, foudroyer);
     chart.note(worldPos.x, worldPos.z);
     chartTick += dt;
     if(chartTick > 0.25){

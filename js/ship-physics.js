@@ -99,6 +99,10 @@ Naval.ShipPhysics = class ShipPhysics {
     /* Her lines to the shore. Empty at sea, which is the usual case, so this
        costs a length test a frame and nothing else. */
     this.moorings = [];
+    /* Held by something that is not a berth — a kraken's arms. The same springs
+       as the moorings, in their own list, because the page reads "has lines
+       out" as "alongside", and a monster is not a quay. */
+    this.grips = [];
     this.foundered = false;
     this.trappedAir = 0;                   // m³, what is left to burp up once she is under
     this._trapFilled = false;
@@ -665,7 +669,7 @@ Naval.ShipPhysics = class ShipPhysics {
      unlike the spray, a mooring that missed a rebase would drag her fifteen
      hundred metres in one frame. */
   _moor(dt, force, torque, cog, ocean){
-    const M = this.moorings;
+    const M = this.grips.length ? this.moorings.concat(this.grips) : this.moorings;
     if(!M || !M.length) return;
     const b = this.body, C = this.C;
     const ox = ocean ? ocean.origin.x : 0, oz = ocean ? ocean.origin.z : 0;
@@ -674,6 +678,14 @@ Naval.ShipPhysics = class ShipPhysics {
 
     for(const m of M){
       m.dragging = false;
+      /* A BRAKE, for what holds her by swimming against her rather than by a
+         fixed point: a resistance to her way through the water, per second, at
+         her centre of gravity — so it slows her without laying her over. A
+         kraken is not a bollard; it is several hundred tonnes of animal. */
+      if(m.brake){
+        force.x -= b.vel.x*b.mass*m.brake;
+        force.z -= b.vel.z*b.mass*m.brake;
+      }
       this._pw.set(m.lx, m.ly, m.lz).applyQuaternion(b.quat).add(b.pos);  // the fairlead
       this._nrm.set(m.wx - ox - this._pw.x,
                     (m.wy || 0)    - this._pw.y,

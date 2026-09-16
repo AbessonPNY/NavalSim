@@ -21,6 +21,7 @@
       "pays": "Espagne",
       "nationalite": "espagnol",
 	  "streamer": "ships/textures/flags/streamer_spanish.jpg",
+	  "poupe": "ships/textures/flags/cristobal_colombus_rect.jpg",
       "poids": 1
     },
     {

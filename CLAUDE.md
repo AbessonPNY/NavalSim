@@ -36,6 +36,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `weather.js` · `storms.js` | le vent qui se conduit seul · les dépressions, qui ont un lieu |
 | `rain.js` · `splash.js` | le rideau de pluie · l'eau jetée par ce qui tombe dedans |
 | `wreck-air.js` | l'air qui remonte d'une épave |
+| `lightning.js` · `kraken.js` | la foudre qui tombe sur une tête de mât · le monstre des dépressions |
 | `spyglass.js` | la lunette |
 | `bloom.js` | la lueur des lumières trop vives, la nuit seulement |
 | `anchor.js` | mouiller et lever l'ancre |
@@ -60,7 +61,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `capture.js` | la capture d'écran (touche `I`), écrite par le serveur de dev |
 | `purse.js` | la bourse, le cours des épices, la poudre |
 
-Réglages de jeu : `settings.json` (rencontres, nuit, bloom, naufrage).
+Réglages de jeu : `settings.json` (rencontres, nuit, bloom, naufrage, tempête : foudre et kraken).
 Objets flottants : `props/Props.json`. Pavillons : `ships/textures/flags/flags.json`.
 Fiches navires : `ships/*.json`, format dans `ships/README.md`.
 

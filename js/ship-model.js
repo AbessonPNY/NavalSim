@@ -2091,6 +2091,29 @@ Naval.ShipModel = class ShipModel {
       if(f.byNation) f.mesh.material = this._nationMat(f.nationKey);
   }
 
+  /* Her mastheads, in her own frame, with the fall that carries each one (-1
+     when none does: a procedural rig, or a mast the rig could not take). A
+     mast already gone over the side is marked `gone`. Read off the spars as
+     drawn on a model, off the sheet otherwise — the flags' own answer. */
+  mastTops(){
+    const out = [];
+    if(this.modelRoot){
+      for(const tp of this._sparScan().tops){
+        let fall = -1, near = 0.06*this.spec.L;
+        for(let i=0;i<this.falls.length;i++){
+          const d = Math.abs(this.falls[i].position.z - tp.z);
+          if(d < near){ near = d; fall = i; }
+        }
+        const gone = fall >= 0 && !!this.falls[fall].userData.fall;
+        out.push({ x:0, y:tp.y, z:tp.z, fall, gone });
+      }
+    }else{
+      for(const m of this.spec.masts)
+        out.push({ x:0, y:this.spec.deckMid + m.height, z:m.z, fall:-1, gone:false });
+    }
+    return out;
+  }
+
   /* Colours struck or flying — every flag she carries, together. */
   showColours(on){
     for(const f of this.flags || []) f.pivot.visible = on;

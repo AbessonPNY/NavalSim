@@ -33,6 +33,37 @@
     "scale": 0.25,
     "nightOnly": true
   },
+  "storm": {
+    "lightning": {
+      "enabled": true,
+      "minInten": 0.4,
+      "perMinuteAtCore": 0.5,
+      "splitChance": 0.5,
+      "woundChance": 0.6,
+      "dismastChance": 0.12
+    },
+    "kraken": {
+      "enabled": true,
+      "minInten": 0.3,
+      "appearAfter": 60,
+      "appearPerMinute": 0.6,
+      "lurkFar": 450,
+      "lingerBefore": 45,
+      "approachRate": 1.2,
+      "approachGrow": 0.03,
+      "fleeKnots": 7,
+      "retreatRate": 4,
+      "giveUpAt": 800,
+      "gripAt": 45,
+      "arms": 6,
+      "gripHold": 0.03,
+      "gripStretch": 2.5,
+      "gripBrake": 0.25,
+      "damageEvery": 9,
+      "hp": 14,
+      "cooldown": 900
+    }
+  },
   "wreck": {
     "bottleOneIn": 6
   }

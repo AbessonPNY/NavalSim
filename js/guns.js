@@ -86,6 +86,11 @@ Naval.Guns = class Guns {
     // which gun speaks next, one cursor per side: [babord, tribord]
     this._next = {};             // per group: tribord, bâbord, poupe, proue
     this.targets = [];         // fleet entries a ball may find, set by the page
+    /* And things that are not ships: each offers hitShot(a, b), the segment a
+       ball swept this sub-step, and answers with where it was struck or null.
+       onCreature(creature, hit, speed, calibre, shooter) says what it cost. */
+    this.creatures = [];
+    this.onCreature = null;
     this.onRecoil = null;      // wired by the page, so the hull answers back
     /* Le COUP, qui n'est pas le recul : l'un est ce que la pièce fait à la
        coque, l'autre ce qu'elle fait à l'air. Les confondre marchait tant que
@@ -568,6 +573,16 @@ Naval.Guns = class Guns {
             break;
           }
           if(dead) break;
+        }
+        if(dead) break;
+
+        // --- something in the water that is not a ship ---
+        for(const c of this.creatures){
+          const hit = c && c.hitShot ? c.hitShot(this._a, this._b) : null;
+          if(!hit) continue;
+          if(this.onCreature) this.onCreature(c, hit, b.v.length(), b.k, b.from);
+          dead = true;
+          break;
         }
         if(dead) break;
 
