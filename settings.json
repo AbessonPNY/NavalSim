@@ -1,5 +1,8 @@
 {
   "calendar": { "start": "1690-10-08" },
+  "crew": { "enabled": true, "count": 4, "minLength": 12, "farHide": 350,
+            "upright": 0.68, "lag": 0.35, "stanceFrom": 3, "stanceFull": 14, "braceFrom": 6, "braceFull": 18,
+            "glb": "creatures/sailor.glb" },
   "gunnery": { "reload": [30, 60] },
   "dolphins": {
     "enabled": true,

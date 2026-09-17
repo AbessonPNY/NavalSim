@@ -256,6 +256,26 @@
   #fps.low b{color:var(--warn)}
   #fps.crit b{color:var(--crit)}
 
+  /* The quest's objective, under the weather: gold, the colour of its ring on
+     the chart. It stays when H clears the glass, like the date. */
+  #questLine{position:absolute;right:20px;top:540px;z-index:4;pointer-events:none;
+    font-family:var(--script);font-size:21px;line-height:1.1;white-space:nowrap;
+    color:#f2c86a;text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 12px rgba(6,18,29,.95)}
+  #questLine[hidden]{display:none}
+  /* A step's message: a page of the log, in the middle of the picture. */
+  #questNote{position:absolute;left:50%;top:22%;transform:translateX(-50%);z-index:13;
+    width:min(460px,86vw);padding:16px 22px 12px;border-radius:6px;cursor:pointer;
+    background:rgba(236,224,196,.94);color:#2c2215;text-align:center;
+    border:1px solid rgba(120,92,50,.55);box-shadow:0 10px 36px rgba(0,0,0,.5);
+    animation:qnIn .35s ease-out both}
+  #questNote[hidden]{display:none}
+  #questNote b{display:block;font-family:var(--script);font-weight:400;font-size:32px;line-height:1.05;margin-bottom:6px}
+  #questNote p{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:15px;line-height:1.45;white-space:pre-line}
+  #questNote small{display:block;margin-top:8px;font-family:var(--mono);font-size:9.5px;color:rgba(44,34,21,.55)}
+  @keyframes qnIn{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}
+  #questSel{margin-top:6px}
+  #questSel[hidden]{display:none}
+
   /* Under the sea console: the vessels afloat, and the way to add one. */
   #fleetPanel{top:398px;right:16px;width:236px}
   /* THE DATE, as a log heads its page, under the sea console. An English

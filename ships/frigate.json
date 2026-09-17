@@ -1,10 +1,10 @@
 {
   "id": "frigate",
   "name": "Frégate Belliqueuse",
-  "note": "Frégate de 60 m, gréement carré à trois mâts — 2,5× la goélette dans toutes ses dimensions. Sa masse suit le cube de l'échelle : quinze fois celle de la goélette. Elle est lente à lancer et lente à abattre, ce qui est exactement ce qu'on attend d'elle.",
+  "note": "Frégate de 70 m, gréement carré à trois mâts — 2,5× la goélette dans toutes ses dimensions. Sa masse suit le cube de l'échelle : quinze fois celle de la goélette. Elle est lente à lancer et lente à abattre, ce qui est exactement ce qu'on attend d'elle.",
 
   "hull": {
-    "length": 60,
+    "length": 70,
     "beam": 14.5,
     "freeboardMid": 3.6,
     "sheerBow": 2.4,
@@ -69,5 +69,15 @@
 
   "camera": { "chaseDist": 92, "chaseHigh": 32, "orbitDist": 115, "helmZFrac": -0.42, "helmHeight": 8.85 },
 
-  "model": null
+  "model": {
+    "glb": "ships/models/laCouronne17e.glb",
+    "lengthAxis": "z",
+    "offset": [
+      0,
+      0,
+      0
+    ],
+    "rotationY": 0,
+    "relief": 16
+  }
 }

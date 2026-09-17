@@ -269,6 +269,7 @@ Naval.ShipModel = class ShipModel {
     this._buildFlags();
     this._buildLantern();
     this._buildRudder();
+    this._buildCrew();
     this._buildWake(scene);
     this._fwd = new THREE.Vector3();
   }
@@ -874,6 +875,7 @@ Naval.ShipModel = class ShipModel {
       this._buildFlags();
       this._buildLantern();
       this._buildRudder();
+      this._buildCrew();
       this._findNightGlow();
       return true;
     }catch(err){
@@ -1721,9 +1723,11 @@ Naval.ShipModel = class ShipModel {
       if(!obj.material) return;
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       for(const m of mats){
-        if(aoUniforms) Naval.applyShipAO(m, aoUniforms);
+        // the men get neither her occlusion (they are not in its pass) nor her scars
+        const man = !!m.userData.crew;
+        if(aoUniforms && !man) Naval.applyShipAO(m, aoUniforms);
         // scars on her timber, never on her canvas — and before the haze, which is the air in front
-        if(!m.userData.sailLit && obj !== this.wake) Naval.applyScars(m, this._scarU);
+        if(!m.userData.sailLit && !man && obj !== this.wake) Naval.applyScars(m, this._scarU);
         if(obj !== this.wake) Naval.applySnowCover(m, this._snowU);
         Naval.applyHaze(m, oceanUniforms);
       }
@@ -2595,6 +2599,153 @@ Naval.ShipModel = class ShipModel {
     }
   }
 
+  /* THE MEN ON DECK (crew.js). A sheet may place them; otherwise they are
+     found places on her deck by casting rays down onto her own meshes — the
+     only thing that knows where a deck is flat and clear on a model that
+     declares nothing. */
+  _buildCrew(){
+    if(this.crew){
+      this.group.remove(this.crew);
+      this.crew.geometry.dispose();
+      for(const m of [].concat(this.crew.material)) m.dispose();
+      this.crew = null;
+    }
+    if(Naval.crewShips) Naval.crewShips.add(this);    // to be re-dressed if a model arrives
+    const C = Naval.CREW, spec = this.spec, want = spec.crew;
+    if(!C || !C.enabled || !Naval.crewMesh) return;
+    if(want === 0 || (Array.isArray(want) && !want.length)) return;
+    if(want == null && spec.L < C.minLength) return;
+    const seed = Naval.crewSeed(spec.id);
+    const spots = Array.isArray(want) ? this._crewGiven(want)
+                : this._crewSpots(typeof want === 'number' ? want : C.count, seed);
+    if(!spots.length) return;
+    this.crew = Naval.crewMesh(spots, seed);
+    this.group.add(this.crew);
+    // rebuilt at sea (a model arrived): into her air at once, as applyAtmosphere would
+    if(this._skyU) for(const m of [].concat(this.crew.material)){
+      Naval.applySnowCover(m, this._snowU);
+      Naval.applyHaze(m, this._skyU);
+    }
+  }
+
+  _crewCaster(){
+    this.group.updateWorldMatrix(true, true);
+    const cloth = new Set(this.canvases || []), meshes = [];
+    (this.modelRoot || this.procedural).traverse(o => {
+      if(o.isMesh && !o.isInstancedMesh && !cloth.has(o)) meshes.push(o);
+    });
+    const Q = this.group.getWorldQuaternion(new THREE.Quaternion());
+    const Qi = Q.clone().invert();
+    const ray = new THREE.Raycaster();
+    const dir = new THREE.Vector3(), o = new THREE.Vector3(), n = new THREE.Vector3();
+    // the first thing met from a local point along a local direction
+    return (x, y, z, dx, dy, dz, far) => {
+      o.set(x, y, z); this.group.localToWorld(o);
+      ray.set(o, dir.set(dx, dy, dz).applyQuaternion(Q));
+      ray.far = far;
+      const h = ray.intersectObjects(meshes, false)[0];
+      if(!h) return null;
+      const p = this.group.worldToLocal(h.point.clone());
+      n.copy(h.face ? h.face.normal : dir).transformDirection(h.object.matrixWorld).applyQuaternion(Qi);
+      return { y:p.y, up:n.y };
+    };
+  }
+
+  _crewGiven(list){
+    const spec = this.spec, cast = this._crewCaster(), st = this._deckStations();
+    const out = [];
+    for(const c of list){
+      const x = c.x != null ? c.x : (c.xFrac || 0)*spec.B;
+      const z = c.z != null ? c.z : (c.zFrac || 0)*spec.L;
+      let y = c.y;
+      if(y == null){
+        const h = cast(x, st.deckNear(z) + 2.5, z, 0, -1, 0, 12);
+        y = h ? h.y : st.deckNear(z);
+      }
+      out.push({ x, y, z, yaw: (c.yaw || 0)*Math.PI/180 });
+    }
+    return out;
+  }
+
+  _crewSpots(count, seed){
+    const spec = this.spec, cast = this._crewCaster(), st = this._deckStations();
+    const rnd = Naval.crewRandom(seed);
+    const out = [];
+    // a place is good if the deck is level under his feet and nothing stands
+    // within an arm's length at knee and at chest height
+    const good = (x, z) => {
+      const rail = st.deckNear(z), top = rail + 2.5;
+      const h = cast(x, top, z, 0, -1, 0, 8);
+      if(!h || h.up < 0.85 || h.y > rail + 0.05) return null;
+      for(const [ax, az] of [[0.3,0],[-0.3,0],[0,0.3],[0,-0.3]]){
+        const k = cast(x + ax, top, z + az, 0, -1, 0, 8);
+        if(!k || k.up < 0.85 || Math.abs(k.y - h.y) > 0.12) return null;
+      }
+      for(const hy of [0.35, 1.2])
+        for(const [ax, az] of [[1,0],[-1,0],[0,1],[0,-1],[0.7,0.7],[-0.7,0.7],[0.7,-0.7],[-0.7,-0.7]])
+          if(cast(x, h.y + hy, z, ax, 0, az, 0.45)) return null;
+      // and not in a gun's recoil
+      for(const g of this.guns || []){
+        for(let t = 0; t <= 3; t += 0.5){
+          const gx = g.p.x - g.dir.x*t, gz = g.p.z - g.dir.z*t;
+          if(Math.hypot(gx - x, gz - z) < 0.9) return null;
+        }
+      }
+      return h.y;
+    };
+    // gather places, then take them far apart: drawn in order, four men had
+    // all landed on her forecastle
+    const found = [];
+    for(let i = 0; i < 240 && found.length < Math.max(12, count*4); i++){
+      const x = (rnd() - 0.5)*0.55*spec.B, z = (rnd() - 0.5)*0.8*spec.L;
+      const y = good(x, z);
+      if(y != null) found.push({ x, y, z, yaw: rnd()*Math.PI*2 });
+    }
+    const gap = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+    if(found.length) out.push(found.shift());
+    while(out.length < count && found.length){
+      let bi = -1, bd = 1.6;
+      found.forEach((c, i) => {
+        const d = Math.min(...out.map(s => gap(s, c)));
+        if(d > bd){ bd = d; bi = i; }
+      });
+      if(bi < 0) break;
+      out.push(found.splice(bi, 1)[0]);
+    }
+    return out;
+  }
+
+  /* Not drawn from afar or in the haze — a man is under a pixel long before —
+     nor aboard a ship that has gone down. */
+  setCrew(camPos, aboard, body, dt){
+    if(!this.crew) return;
+    const C = Naval.CREW;
+    this.crew.visible = aboard && !this._hazed && !!camPos
+      && this.group.position.distanceTo(camPos) < C.farHide;
+    if(!this.crew.visible || !body || !(dt > 0)) return;
+    /* How the deck moves under them. The true up in her frame, taken back in
+       part (C.upright) and followed with a lag, so a sudden roll catches them
+       for a moment before they right themselves. */
+    const U = this.crew.userData, u = U.u;
+    const q = this._crewQ || (this._crewQ = new THREE.Quaternion());
+    const up = this._crewV || (this._crewV = new THREE.Vector3());
+    up.set(0, 1, 0).applyQuaternion(q.copy(body.quat).invert());
+    const tilt = Math.acos(Math.min(1, up.y))*180/Math.PI;
+    up.multiplyScalar(C.upright); up.y += 1 - C.upright; up.normalize();
+    u.uCrewUp.value.lerp(up, 1 - Math.exp(-dt/Math.max(0.02, C.lag))).normalize();
+    // the stance follows the held peak of the tilt: they stay braced between rolls
+    U.peak = Math.max(tilt, U.peak*Math.exp(-dt/8));
+    const ss = x => x <= 0 ? 0 : x >= 1 ? 1 : x*x*(3 - 2*x);
+    const stance = ss((U.peak - C.stanceFrom)/Math.max(0.1, C.stanceFull - C.stanceFrom));
+    u.uCrewStance.value += (stance - u.uCrewStance.value)*(1 - Math.exp(-dt/1.5));
+    // the arms answer the rate of roll and pitch, quickly out and slowly back
+    const w = body.angVel;   // world frame: leaving out y leaves roll and pitch
+    const rate = Math.hypot(w.x, w.z)*180/Math.PI;
+    const brace = ss((rate - C.braceFrom)/Math.max(0.1, C.braceFull - C.braceFrom));
+    const b = u.uCrewBrace.value;
+    u.uCrewBrace.value = b + (brace - b)*(1 - Math.exp(-dt/(brace > b ? 0.25 : 1.2)));
+  }
+
   /* Put her into the lighting: her own shadows, and the layer that the
      occlusion pass renders on its own. She stays on the default layer too, so
      enabling this one changes nothing about how she is normally drawn. */
@@ -2603,7 +2754,8 @@ Naval.ShipModel = class ShipModel {
       if(!o.isMesh) return;
       o.castShadow = true;
       o.receiveShadow = true;
-      o.layers.enable(Naval.SHIP_LAYER);
+      // the men stay off her own passes: measured, each pass is paid per draw
+      if(!o.userData.crew) o.layers.enable(Naval.SHIP_LAYER);
     });
   }
 

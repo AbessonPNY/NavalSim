@@ -52,20 +52,23 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `world.js` · `land.js` | l'archipel et ses ports · le maillage des îles |
 | `jetty.js` | le ponton d'un port |
 | `chart.js` | la carte marine |
+| `quests.js` | les quêtes : étapes, lieux, objectifs (`quests/*.json`) |
 | `ship-model.js` | coque, gréement, voiles, pavillons, lanternes, safran, fenêtres de nuit, avirons, .glb |
 | `ship-physics.js` | sondes, corps rigide 6 ddl, gouvernail, voiles, avirons |
 | `controls.js` · `camera-rig.js` · `hud.js` | barre, caméras (vues à bord dans la fiche), instruments |
 | `helm.js` | la barre des navires qui ne sont pas le vôtre |
 | `guns.js` · `explosion.js` | la bordée et sa fumée · la soute qui saute |
 | `cordage.js` | les bouts rompus |
+| `crew.js` | les hommes sur le pont : silhouette dessinée, instanciée, animée au shader |
 | `gulls.js` · `dolphins.js` | les mouettes (à moins de 2 km des côtes) · les dauphins de l'étrave, par mer calme |
 | `sound.js` | le bruit, et le temps qu'il met à venir |
 | `capture.js` | la capture d'écran (touche `I`), écrite par le serveur de dev |
 | `purse.js` | la bourse, le cours des épices, la poudre |
 
-Réglages de jeu : `settings.json` (rencontres, nuit, bloom, naufrage, tempête : foudre et kraken, fantômes, calendrier, climat, dauphins, rechargement des pièces).
+Réglages de jeu : `settings.json` (rencontres, nuit, bloom, naufrage, tempête : foudre et kraken, fantômes, calendrier, climat, dauphins, rechargement des pièces, hommes sur le pont).
+Quêtes : `quests/*.json`, format dans `quests/README.md` (`Naval.app.allerQuete()` pour sauter à l'étape).
 Objets flottants : `props/Props.json`. Pavillons : `ships/textures/flags/flags.json`.
-Fiches navires : `ships/*.json`, format dans `ships/README.md`. Kraken et dauphins en `.glb` : `creatures/README.md`.
+Fiches navires : `ships/*.json`, format dans `ships/README.md`. Kraken, dauphins et marins en `.glb` : `creatures/README.md`.
 
 ## Règles à ne jamais casser
 

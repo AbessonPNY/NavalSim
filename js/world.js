@@ -78,6 +78,8 @@ Naval.World = class World {
        is a few hundred metres wide whatever the island behind it is doing. */
     this.shelf = 240;
     this.deep = 70;              // how deep it is once past the shelf
+    this.harbourDepth = 11;      // inside a mole: a 2000-ton ship draws 6 to 8 m (see _dredge)
+    this.quayRamp = 15;          // metres from the shore line to that depth
 
     const k = this.mapScale = Naval.MAP_SCALE || 1;
     this.isles = Naval.ARCHIPELAGO.map(t =>
@@ -242,7 +244,31 @@ Naval.World = class World {
      it exactly as she would on a shoal, and not one line of that had to be
      written twice. */
   heightAt(x, z){
-    return this._mole(x, z, this._islandHeight(x, z));
+    return this._mole(x, z, this._dredge(x, z, this._islandHeight(x, z)));
+  }
+
+  /* THE BASIN IS DEEP TO THE QUAY. Left to the shelf, the bottom inside the
+     mole rose as gently as any beach — nine metres at the jetty head, three at
+     fifty metres from the shore — and a seventy-metre frigate berthed along the
+     jetty sat her stern on the sand. A port worth the name is one a great ship
+     can lie in, so inside the ring the bottom is held at `harbourDepth`, and
+     meets the shore in a quay wall `quayRamp` metres wide rather than a slope.
+     Port-Royal in Jamaica was exactly that: deep water close in, ships of any
+     size alongside. Land is never cut: only what is already under water is
+     deepened. Read by heightAt, so the probes, the jetty legs and the seabed
+     mesh all see the same floor. */
+  _dredge(x, z, h){
+    if(h >= 0) return h;
+    for(const isl of this.isles){
+      const H = isl.port && isl.port.harbour;
+      if(!H) continue;
+      if(Math.hypot(x - H.cx, z - H.cz) > H.r) continue;
+      const dx = x - isl.x, dz = z - isl.z;
+      const out = Math.hypot(dx, dz) - this._shore(isl, Math.atan2(dz, dx));
+      const u = Math.max(0, Math.min(1, out/this.quayRamp));
+      h = Math.min(h, -this.harbourDepth*u*u*(3 - 2*u));
+    }
+    return h;
   }
 
   /* Metres from a world point to the nearest shore line, negative ashore — the

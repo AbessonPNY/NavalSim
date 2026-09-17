@@ -32,13 +32,14 @@ http.createServer((req, res) => {
 
   /* Live index of the ships folder, so dropping a spec in there is enough —
      no list to edit, no build step. Computed per request, never cached. */
-  if (rel === '/ships/index.json') {
+  const live = rel.match(/^\/(ships|quests)\/index\.json$/);
+  if (live) {
     let list = [];
     try {
-      list = fs.readdirSync(path.join(ROOT, 'ships'))
+      list = fs.readdirSync(path.join(ROOT, live[1]))
                .filter(f => f.endsWith('.json') && f !== 'index.json')
                .sort()
-               .map(f => 'ships/' + f);
+               .map(f => live[1] + '/' + f);
     } catch (e) { /* no ships folder yet — an empty list is a fine answer */ }
     res.writeHead(200, {'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});
     res.end(JSON.stringify(list));

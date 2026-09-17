@@ -5882,6 +5882,129 @@ médianes sur 8 tours. Marin factice : cylindre de 1 500 triangles.
 - La gestion de l'équipage sans rien afficher (effectif, postes, blessés) est
   de la donnée par navire : coût négligeable.
 
+## Quatre hommes sur le pont
+
+Première présence humaine à bord (`js/crew.js`), en suivant la mesure
+précédente : pas de squelette, un `InstancedMesh` par navire.
+
+- **Silhouette dessinée** (444 triangles) : jambes et culotte large de
+  toile, chemise, bras le long du corps, tête, bonnet de Monmouth. Couleurs
+  passées de la fin du XVIIe ; la chemise varie par homme (attribut
+  d'instance `aShirt`), la taille de ±6 %.
+- **Animation au vertex shader**, partie du corps lue sur l'attribut
+  `aPart` : respiration (≈ 4 s, torse et épaules), report du poids d'un pied
+  sur l'autre (≈ 10 s, hanche dehors et épaules en contre), tête qui se tourne
+  de temps en temps (±31°). Phase propre à chaque homme ; horloge commune
+  `Naval.CREW_U.uCrewT` (du temps, pas l'état d'un navire), repliée à 3600 s
+  pour la précision. L'ombre est celle de la silhouette immobile : quelques
+  centimètres, invisibles.
+- **Placement** (`_crewSpots`) : tirage de places sur le pont, par rayons vers
+  le bas sur les maillages du modèle (voiles exclues). Une place vaut si la
+  surface regarde en haut, n'est pas au-dessus de la lisse de la tranche
+  (sinon c'est une vergue), est plane à ±12 cm sur 30 cm autour, sans rien à
+  45 cm à hauteur de genou ni de poitrine, et hors de l'axe de recul des
+  pièces. Tirées dans l'ordre, les quatre de la goélette étaient toutes sur
+  l'avant : on garde maintenant douze candidates et on les prend **les plus
+  éloignées** les unes des autres. Une fiche peut aussi les placer (`crew`,
+  voir `ships/README.md`).
+- **Coût tenu** : hors de `SHIP_LAYER` (ni SSAO ni coque sous l'eau), pas
+  d'occlusion ni de cicatrices sur eux (`userData.crew`), un matériau par
+  navire pour que la neige reste la sienne ; masqués au-delà de 350 m, dans
+  la brume et sur un navire coulé.
+- Vérifié sur les huit fiches : 4 hommes sur chacune des six de plus de 12 m,
+  aucun sur la chaloupe ni la bouée ; programme compilé sans diagnostic. Le
+  rendu est à juger à l'œil.
+- **Ils tiennent debout** (`setCrew(camPos, aboard, body, dt)`, trois
+  uniformes par navire) :
+  - *d'aplomb* : la verticale vraie ramenée dans le repère du navire, prise à
+    `upright` = 68 % (un marin encaisse le reste dans les chevilles et les
+    genoux), ±15 % selon l'homme, suivie avec `lag` = 0,35 s de retard ; le
+    corps tourne autour des pieds, dans le repère propre de chaque homme
+    (`transpose(mat3(instanceMatrix))`) ;
+  - *pieds écartés, genoux pliés* selon le pic de gîte retenu (décroissance
+    8 s), de `stanceFrom` 3° à `stanceFull` 14° : ils restent campés entre
+    deux coups de roulis ;
+  - *bras écartés* (30 à 46°) selon la vitesse de roulis et de tangage, de
+    `braceFrom` 6°/s à `braceFull` 18°/s, sortis en 0,25 s, rentrés en 1,2 s.
+- Mesuré à pas fixe (gîte imposée 20°, roulis 15°/s) : redressement 10,2° à
+  0,5 s, 13,6° à 2 s (= 0,68 × 20) ; bras 0,72 à 0,5 s puis 0,83 ; appui 0,49 à
+  1 s, 0,86 à 3 s ; 3 s de calme : bras 0,07, appui encore 0,98.
+- **En .glb** : `tools/sailor-glb.js` écrit la silhouette dans
+  `creatures/sailor.glb` (quatre maillages nommés `jambes`, `corps`, `bras`,
+  `tete`), que `settings.json → crew.glb` fait charger et que le build embarque
+  (32 Ko). `Naval.loadCrewModel` fusionne les maillages en une géométrie, un
+  groupe par matière, la partie du corps lue sur le nom de l'objet ou d'un
+  parent ; les navires déjà à flot sont rhabillés (`Naval.crewShips`), leurs
+  matériaux repassés dans la neige et la brume sur place. Vérifié : 1 332
+  sommets chargés, parties 0 à 3, programme compilé. Non essayé : un modèle à
+  plusieurs matières.
+- Limites : la normale d'éclairage et l'ombre restent celles de l'homme non
+  redressé (la normale est calculée avant `begin_vertex` dans three) ; ils ne
+  réagissent ni aux tirs ni au kraken.
+
+## Les quêtes
+
+Premier pas vers les scénarios : `js/quests.js`, un fichier JSON par quête
+dans `quests/` (format : `quests/README.md`), une quête d'exemple
+(« La lettre du gouverneur », quatre étapes).
+
+- **Le monde reste ouvert** : une quête se choisit dans le panneau des
+  instruments (« Mode libre » par défaut) et ne fait que désigner des lieux.
+- **Les lieux se rapportent aux îles** : `Naval.MAP_SCALE` (0,70) déplace les
+  îles, donc un lieu écrit en mètres serait laissé en pleine mer. Formes :
+  port d'une île (tête du ponton, `port.hx/hz`), relèvement et distance
+  **depuis la côte** (`_shore` dans ce relèvement, pour que « deux milles au
+  large » le reste quelle que soit la taille de l'île), latitude et longitude
+  (inverse de `Naval.Geo.fix`), mètres du monde. Relèvement vrai, **est = −x**.
+- **Objectifs** : `reach` (entrer dans le cercle), `leave` (en sortir : ajouté après coup, voir plus bas), `stop` (y rester
+  sous `maxSpeed` nœuds pendant `hold` s, remis à zéro dès qu'on bouge),
+  `dock` (amarré ou mouillé dans le cercle : `physics.moorings`, où l'ancre
+  est une amarre de plus).
+- **Affichage** : ligne dorée sous le temps (`#questLine`, dans la colonne de
+  droite, qui reste quand H masque le reste) avec distance et cap ; anneau doré
+  sur la carte (`chart.places` accepte maintenant une `color`) ; message au
+  centre (`#questNote`, page de journal, titre en Estonia), en file, affiché
+  4 s plus 55 ms par lettre, un clic pour passer.
+- **Progression** gardée en `localStorage` (`navalsim.quests` : quête, étape,
+  quêtes finies marquées ✓ au menu), reprise au chargement.
+- **Build** : `Naval.QUESTS_DATA` embarqué, `quests/index.json` écrit pour
+  l'hébergement statique ; le serveur de dev liste `quests/` en direct comme
+  `ships/` (effectif à son prochain redémarrage).
+- **Piège** : la reprise lancée au chargement écrivait la ligne d'objectif
+  avant la déclaration de `physics` (« Cannot access 'physics' before
+  initialization », dans une promesse, donc sans bruit) : les quêtes se
+  chargent maintenant juste avant `Naval.app`.
+- Vérifié : lieux calculés (Tortue + 2 M à l'ouest → x = −131, du côté +x) ;
+  déroulé complet par `allerQuete()` ; amarrage refusé tant qu'on n'est pas
+  amarré, panne remise à zéro quand on avance, 9,5 s tenues ne suffisent pas
+  pour 10 ; dix messages dans l'ordre ; ✓ au menu ; reprise à l'étape 2 après
+  rechargement (« Accoster au Carénage — 7,9 M au 048° »).
+- **« Quitter la rade » ne se validait pas** (signalé à l'usage) : l'étape visait
+  un point à un mille au large dans le relèvement 290° **depuis le centre** de
+  Port-Royal, soit de l'autre côté de l'île, à 3,8 M du ponton. Quitter une
+  rade n'est pas rallier un point : nouvel objectif `leave` (sortir d'un
+  cercle, 1 M par défaut), ligne « 0,4 M sur 1,0 M ». Les jours, eux,
+  défilaient bien (23 h 58 → 9 octobre, vérifié).
+
+## Le bassin creusé
+
+Signalé : la frégate de 2000 tonneaux, passée à 70 m avec le modèle
+`laCouronne17e.glb`, finissait échouée à quai. Mesuré à son poste :
+5,6 m de tirant d'eau, et sous elle 17,9 / 13,1 / 9,1 / 5,8 / **3,2 m** de
+l'étrave à la poupe — le fond du bassin suivait la pente du plateau
+(70 m × (distance/240)²), neuf mètres à la tête du ponton, trois à cinquante
+mètres de la plage. La marche vers le musoir ne pouvait rien : la poupe d'un
+navire de 70 m le long d'un ponton de 86 m est forcément près du rivage.
+
+- `world._dredge`, lu par `heightAt` (donc par les sondes, les pieux du
+  ponton et le maillage du fond) : **dans l'anneau du môle**, le fond est tenu
+  à `harbourDepth` = 11 m, rejoint depuis le rivage par un quai de
+  `quayRamp` = 15 m (smoothstep). Seul ce qui est déjà sous l'eau est creusé.
+- Réalisme : Port-Royal de la Jamaïque avait justement de l'eau profonde
+  près du bord ; onze mètres reçoivent un deux-mille-tonneaux chargé (6 à 8 m).
+- Après : 14,4 / 11,0 / 11,0 / 11,0 / 11,0 m ; 30 s de solveur à pas fixe,
+  mer modérée, amarrée : aucun échouage.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

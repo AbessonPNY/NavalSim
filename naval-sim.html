@@ -30,6 +30,7 @@
     <div class="title"><b id="shipName">Goélette Archimède</b><span class="dot" id="statusDot"></span></div>
     <select id="shipSel" aria-label="Choisir le navire"></select>
     <select id="nationSel" aria-label="Choisir son pavillon"></select>
+    <select id="questSel" aria-label="Choisir une quête"><option value="">Mode libre</option></select>
     <!-- LA BOURSE EN TÊTE, et non plus au bas d’un panneau de six cents pixels :
          signalée à l’usage — « je ne vois pas ma bourse ». Sur une fenêtre courte
          elle passait sous le bord de l’écran, et un compteur qu’il faut aller
@@ -144,6 +145,9 @@
 
   <div id="dateLine">—</div>
   <div id="tempLine">—</div>
+  <div id="questLine" hidden></div>
+  <!-- Le message d'une étape de quête : au milieu de l'écran, un clic le range. -->
+  <div id="questNote" hidden><b></b><p></p><small>cliquer pour fermer</small></div>
 
   <!-- Stowage -->
   <div id="cargoPanel" class="panel">
@@ -398,11 +402,13 @@
 <script src="js/gulls.js"></script>
 <script src="js/dolphins.js"></script>
 <script src="js/chart.js"></script>
+<script src="js/quests.js"></script>
 <script src="js/explosion.js"></script>
 <script src="js/guns.js"></script>
 <script src="js/capture.js"></script>
 <script src="js/bloom.js"></script>
 <script src="js/spyglass.js"></script>
+<script src="js/crew.js"></script>
 <script src="js/ship-model.js"></script>
 <script src="js/ship-physics.js"></script>
 <script src="js/controls.js"></script>
@@ -681,7 +687,96 @@ async function main(){
     nations: () => PAVILLONS.filter(p => !p.pirate),
     say: m => dire(m)
   };
-  chart.places = () => { const p = ghosts.place(); return p ? [p] : []; };
+  /* LES QUÊTES (js/quests.js, dossier quests/). Le monde reste ouvert : une
+     quête ne fait que tendre un fil d'un lieu à l'autre. Son objectif s'écrit
+     sous la date et se marque sur la carte ; chaque étape remplie a son
+     message au milieu de l'écran, l'un après l'autre s'il en vient plusieurs. */
+  const quests = new Naval.Quests(world);
+  const questSel = document.getElementById('questSel');
+  const questLine = document.getElementById('questLine');
+  const questNote = document.getElementById('questNote');
+  const questFile = [];
+  let questShown = false, questHide = 0;
+  function questSuivant(){
+    clearTimeout(questHide);
+    const m = questFile.shift();
+    if(!m){ questNote.hidden = true; questShown = false; return; }
+    questNote.querySelector('b').textContent = m.title;
+    questNote.querySelector('p').textContent = m.text;
+    questNote.hidden = false; questShown = true;
+    // long enough to be read: four seconds and a little per letter
+    questHide = setTimeout(questSuivant, Math.min(20000, 4000 + 55*(m.title.length + m.text.length)));
+  }
+  questNote.addEventListener('click', questSuivant);
+  quests.onShow = (title, text) => {
+    if(!title && !text) return;
+    questFile.push({ title, text });
+    if(!questShown) questSuivant();
+  };
+  function questMenu(){
+    const v = quests.active ? quests.active.id : '';
+    questSel.length = 1;
+    for(const q of quests.list){
+      const o = document.createElement('option');
+      o.value = q.id;
+      o.textContent = 'Quête · ' + (q.title || q.id) + (quests.done.has(q.id) ? ' ✓' : '');
+      questSel.appendChild(o);
+    }
+    questSel.value = v;
+    questSel.hidden = !quests.list.length;
+  }
+  function questLigne(){
+    if(!physics) return;                    // no ship afloat yet
+    const o = quests.objective(ocean.origin.x + physics.body.pos.x, ocean.origin.z + physics.body.pos.z);
+    questLine.hidden = !o;
+    if(!o) return;
+    const mille = d => d < 926 ? Math.round(d/10)*10 + ' m' : (d/1852).toFixed(1).replace('.', ',') + ' M';
+    const loin = mille(o.dist);
+    const cap = String(Math.round(o.bearing) % 360).padStart(3, '0') + '°';
+    const tenir = (o.step.goal === 'stop' && o.hold > 0)
+      ? ' · ' + Math.ceil((o.step.hold != null ? o.step.hold : 8) - o.hold) + ' s' : '';
+    // leaving a place: how far out she is, against how far she must go
+    const etat = o.step.goal === 'leave'
+      ? mille(o.dist) + ' sur ' + mille(o.r)
+      : (o.dist <= o.r ? 'vous y êtes' + tenir : loin + ' au ' + cap);
+    questLine.textContent = (o.step.title || 'Étape ' + (o.index + 1)) + ' — ' + etat;
+  }
+  quests.onChange = () => { questMenu(); questLigne(); rangerColonne(); };
+  questSel.addEventListener('change', ()=>{
+    if(questSel.value) quests.start(questSel.value); else quests.stop();
+    questSel.blur();
+  });
+  // pour le débogage : aller au lieu de l'étape en cours
+  function allerQuete(){
+    const s = quests.current();
+    if(!s) return 'aucune quête en cours';
+    const p = quests.place(s);
+    let x = p.x, z = p.z;
+    if(s.at && s.at.port){
+      // just outside the jetty head, towards the open sea
+      const isl = world.byKey(s.at.island);
+      x += Math.cos(isl.port.ang)*200; z += Math.sin(isl.port.ang)*200;
+    }
+    const X = physics.body.pos.x + ocean.origin.x, Z = physics.body.pos.z + ocean.origin.z;
+    if(kraken.state === 'lurk' || kraken.state === 'grip') kraken._dive('storm');
+    for(const e of fleet){
+      e.body.pos.x += x - X; e.body.pos.z += z - Z;
+      e.body.vel.set(0, 0, 0); e.body.angVel.set(0, 0, 0);
+      if(e.ship) e.ship.syncTo(e.body);
+    }
+    physics.castOff && physics.castOff();
+    dire('Vous voici : ' + (s.title || 'étape ' + (quests.step + 1)) + '.');
+    return { x, z, etape: quests.step + 1 };
+  }
+
+  chart.places = () => {
+    const out = [];
+    const p = ghosts.place();
+    if(p) out.push(p);
+    const s = quests.current();
+    if(s) out.push(Object.assign(quests.place(s), { color:'#f2c86a' }));
+    return out;
+  };
 
   const orage = [];                           // { entry, inten } — relu à chaque image
   /* CE QUE LE KRAKEN FAIT, DIT À QUI COMMANDE. Il peut s'en prendre à
@@ -1155,7 +1250,7 @@ async function main(){
      hauteurs étaient écrites en dur et se chevauchaient déjà (la console de
      mer descend à 448 px, les boutons commençaient à 366) ; la date n'aurait
      fait qu'ajouter une ligne dans la mêlée. La carte reste ancrée en bas. */
-  const colonne = ['sea', 'dateLine', 'tempLine', 'hint', 'fleetPanel'].map(id => document.getElementById(id));
+  const colonne = ['sea', 'dateLine', 'tempLine', 'questLine', 'hint', 'fleetPanel'].map(id => document.getElementById(id));
   const tempEl = document.getElementById('tempLine');
   let tempDit = '';
   function direLeTemps(){
@@ -1173,7 +1268,7 @@ async function main(){
       y += el.offsetHeight + (el.id === 'sea' ? 4 : 8);
     }
   }
-  let colonneTick = 0;
+  let colonneTick = 0, questTick = 0;
   const seaRowEl = document.getElementById('seaRow');
   const seaWhoEl = document.getElementById('seaWho');
   let seaMaitre = null;                    // qui tient la mer, pour l'affichage
@@ -1580,7 +1675,11 @@ async function main(){
          emploie — et pas plus loin que le musoir, au-delà duquel il n'y a plus
          de quai contre lequel s'amarrer. Elle n'y arrive pas toujours : une
          coque trop profonde pour ce port reste trop profonde pour ce port, et
-         le dire est plus honnête que de creuser la baie sous elle. */
+         le dire est plus honnête que de creuser la baie sous elle.
+         (Le bassin a fini par être creusé quand même, à onze mètres jusqu'au
+         quai — world._dredge — pour une frégate de 70 m dont la poupe restait
+         dans 3,2 m d'eau : un port qui ne reçoit pas les grands navires n'en est
+         pas un. Cette marche vers le musoir reste pour les autres ports.) */
       /* Deux mètres six et non un mètre cinq sous la quille : `navigable` parle
          d'un navire qui PASSE, et un navire qui reste s'y fait poser par la
          houle plusieurs fois par minute. */
@@ -2055,6 +2154,8 @@ async function main(){
     if(s && s.climate) Object.assign(Naval.CLIMATE, s.climate);
     if(s && s.dolphins) Object.assign(Naval.DOLPHINS, s.dolphins);
     if(s && s.gunnery) Object.assign(Naval.GUNNERY, s.gunnery);
+    if(s && s.crew) Object.assign(Naval.CREW, s.crew);
+    Naval.loadCrewModel(Naval.CREW);
     dolphins.loadModel(Naval.DOLPHINS);
     if(s && s.night && s.night.moonChance != null) Naval.MOON = { chance: s.night.moonChance };
     if(s && s.storm){
@@ -2729,6 +2830,14 @@ async function main(){
     if(n > 0){ e.physics.powder -= n; e.rearme = 2 + Math.random()*3; }
   }
 
+  /* Les quêtes, une fois le navire à flot : reprendre une quête en cours écrit
+     sa ligne d'objectif, qui lit la position du navire. */
+  Naval.Quests.discover().then(list => {
+    quests.load(list);
+    questMenu();
+    quests.restore();
+  });
+
   /* The live instances, reachable from the console. Several bugs in this project
      were slow to pin down purely because nothing was inspectable at runtime. */
   Naval.app = { stage, ocean, foam, controls,
@@ -2741,6 +2850,7 @@ async function main(){
                 get spyglass(){ return spyglass; },
                 storms, get squall(){ return squall; }, kraken, lightning, foudroyer,
                 ghosts, fantomes, ghostCtx, calendar, climate, snow, dolphins,
+                quests, allerQuete,
                 get fleet(){ return fleet; } };
 
   /* ------------------------- PRESSER LE TEMPS -------------------------
@@ -3008,6 +3118,7 @@ async function main(){
         e.ship.setFlag(e.physics.appWindAngle, e.physics.tack, e.physics.appWindSpeed, t);
       }
       e.ship.setLantern(stage.night, t, stage.camera.position, ocean.uniforms);
+      e.ship.setCrew(stage.camera.position, !e.physics.foundered, e.physics.body, dt);
     }
 
     if(trimPending && physics.optSheet !== null){
@@ -3022,6 +3133,16 @@ async function main(){
                  physics.setFrac, physics.luffing, t, physics.sailLoad);
     ship.setFlag(physics.appWindAngle, physics.tack, physics.appWindSpeed, t);
     ship.setLantern(stage.night, t, stage.camera.position, ocean.uniforms);
+    ship.setCrew(stage.camera.position, !physics.foundered, physics.body, dt);
+    Naval.CREW_U.uCrewT.value = t % 3600;       // the men breathe; the wrap keeps float precision
+    if(quests.active){
+      const vx = physics.body.vel.x, vz = physics.body.vel.z;
+      quests.update(dt, { x: ocean.origin.x + physics.body.pos.x, z: ocean.origin.z + physics.body.pos.z,
+                          speed: Math.hypot(vx, vz), moored: physics.moorings.length > 0,
+                          lost: !!physics.foundered });
+      questTick += dt/Math.max(1, warpAllowed());
+      if(questTick > 0.5){ questTick = 0; questLigne(); }
+    }
     ship.updateWake(physics.body, ocean, t);
 
     /* --- the floating origin ---

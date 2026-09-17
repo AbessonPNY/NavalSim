@@ -56,3 +56,32 @@ node tools/dolphin-glb.js
   est calculée. Les nageoires sont des plaques fines à matière double face.
 - Chaque dauphin reçoit sa copie du modèle ; la taille varie un peu d'un animal
   à l'autre (×0,85 à ×1,2).
+
+## Les marins — `creatures/sailor.glb`
+
+Nommé par `settings.json` → `crew.glb`. Absent ou illisible : les hommes
+restent dessinés par le code. Le build l'embarque. Modèle de départ :
+
+```bash
+node tools/sailor-glb.js
+```
+
+| nom (de l'objet ou d'un parent) | rôle |
+|---|---|
+| `jambes` (ou `leg`, `culotte`, `chaussure`, `pied`…) | s'écartent et plient au genou quand la mer grossit |
+| `corps` (ou `body`, `torse`, `chemise`, `shirt`) | la chemise : **teintée par homme** — peignez-la claire, la teinte multiplie |
+| `bras` (ou `arm`, `main`, `hand`) | s'écartent de l'épaule sur un coup de roulis |
+| `tete` (ou `head`, `bonnet`, `cap`, `chapeau`, `cou`) | tourne de temps en temps autour de l'axe vertical |
+| tout le reste | suit le corps, sans mouvement propre |
+
+- **Debout, les pieds sur l'origine**, **regard vers −Y dans Blender** (l'avant
+  glTF est +Z) ; unités : le mètre, environ 1,75 m.
+- Le mouvement est calculé pour ces hauteurs : **épaules vers x ±0,235 à
+  1,41 m** (pivot des bras), respiration entre 1,0 et 1,45 m, jambes jusqu'à
+  0,86 m. Gardez les proportions, ou les membres pivoteront au mauvais endroit.
+- **Peu de triangles** (le modèle de départ en a 444) : chaque homme à bord est
+  dessiné, et le mouvement est calculé sur chacun de ses sommets.
+- Couleurs de sommet (couleurs du modèle de départ) et UV pour une texture ;
+  plusieurs matières possibles, textures incluses dans le `.glb`.
+- Pas d'armature ni d'animation à prévoir : tout est dans le shader.
+- Tous les hommes partagent le modèle ; la taille varie un peu (×0,93 à ×1,05).

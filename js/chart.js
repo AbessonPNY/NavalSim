@@ -163,14 +163,15 @@ Naval.Chart = class Chart {
       const q = px(p.x, p.z), rp = p.r*k;
       ctx.save();
       ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = 'rgba(150,235,210,.45)'; ctx.lineWidth = 1.2;
+      // a place may bring its own colour (the quest's objective is gold)
+      ctx.strokeStyle = p.color || 'rgba(150,235,210,.45)'; ctx.lineWidth = p.color ? 1.8 : 1.2;
       ctx.beginPath(); ctx.arc(q[0], q[1], Math.max(3, rp), 0, 6.2832); ctx.stroke();
       ctx.restore();
       ctx.font = 'italic 600 10px var(--disp, system-ui)';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(18,26,34,.72)';
       ctx.strokeText(p.name, q[0], q[1]);
-      ctx.fillStyle = '#bfeee2';
+      ctx.fillStyle = p.color || '#bfeee2';
       ctx.fillText(p.name, q[0], q[1]);
     }
 

@@ -145,6 +145,45 @@ gréement, et une fiche peut en écarter d'autres par leur nom de maillage :
 
 La console nomme ce qui a été écarté à chaque chargement.
 
+## Hommes sur le pont
+
+Quatre hommes debout, bras le long du corps, par défaut (`settings.json →
+crew.count`), sur tout navire d'au moins `crew.minLength` mètres. Ils
+respirent, portent leur poids d'un pied sur l'autre et tournent la tête de
+temps en temps.
+
+Sans rien déclarer, ils se trouvent une place tout seuls : des rayons lancés
+vers le bas sur le modèle cherchent un pont plat et dégagé (rien à portée de
+bras aux genoux ni à la poitrine, hors du recul des pièces), puis les hommes
+sont pris éloignés les uns des autres. Pour choisir :
+
+```json
+"crew": 6
+```
+
+```json
+"crew": [
+  { "zFrac": -0.38, "xFrac": 0.05, "yaw": 0 },
+  { "z": 2.5, "x": -1.2, "yaw": 90 },
+  { "z": -4, "x": 0, "y": 5.1 }
+]
+```
+
+- `x`/`z` en mètres ou `xFrac`/`zFrac` en fractions du bau et de la
+  longueur (étrave +z, **tribord −x**) ;
+- `y` absent : le pont sous ce point, lu sur le modèle ;
+- `yaw` en degrés, 0 = regarde vers l'étrave ;
+- `"crew": 0` ou `[]` : personne sur le pont.
+
+Au-delà de `crew.farHide` mètres (350) ou dans la brume, ils ne sont plus
+dessinés ; sur un navire coulé non plus.
+
+Ils tiennent debout sur un pont qui bouge, réglages dans `settings.json →
+crew` : `upright` (part de la gîte reprise par le corps, 0,68), `lag`
+(retard, s), `stanceFrom`/`stanceFull` (degrés de gîte où les pieds
+s'écartent), `braceFrom`/`braceFull` (degrés par seconde de roulis où les
+bras s'écartent).
+
 ## Gouvernail
 
 Le safran tourne avec la barre (`rudder.maxAngle` à fond), **à son rythme** :

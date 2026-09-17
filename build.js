@@ -243,7 +243,8 @@ if (fs.existsSync(SETTINGS)) {
   /* Les modèles des créatures, nommés par les réglages, portés comme celui
      d'un navire : le kraken, les dauphins. */
   for (const [kr, what] of [[settingsData.storm && settingsData.storm.kraken, 'kraken'],
-                            [settingsData.dolphins, 'dauphins']]) {
+                            [settingsData.dolphins, 'dauphins'],
+                            [settingsData.crew, 'équipage']]) {
   if (kr && kr.glb) {
     const p = path.join(ROOT, kr.glb);
     if (fs.existsSync(p)) {
@@ -304,11 +305,33 @@ if (fs.existsSync(FLAGS)) {
   inlined.push('ships/textures/flags/flags.json');
 }
 
+/* LES QUÊTES (quests/*.json) : toutes, dans l'ordre du dossier, portées dans
+   la page ; et un quests/index.json pour un hébergeur statique, comme les
+   navires. */
+let questsData = null;
+const QDIR = path.join(ROOT, 'quests');
+if (fs.existsSync(QDIR)) {
+  const files = fs.readdirSync(QDIR).filter(f => f.endsWith('.json') && f !== 'index.json').sort();
+  questsData = [];
+  for (const f of files) {
+    try {
+      questsData.push(JSON.parse(fs.readFileSync(path.join(QDIR, f), 'utf8')));
+      inlined.push('quests/' + f);
+    } catch (e) {
+      console.warn('  WARNING: quests/' + f + ' illisible (' + e.message + ') — laissée de côté');
+    }
+  }
+  fs.writeFileSync(path.join(QDIR, 'index.json'),
+                   JSON.stringify(files.map(f => 'quests/' + f), null, 2) + '\n', 'utf8');
+  console.log('wrote quests/index.json  (' + files.length + ' quête(s))');
+}
+
 const shipBlob = '<script>\nwindow.Naval = window.Naval || {};\n' +
   'Naval.SHIP_DATA = ' + JSON.stringify(shipData, null, 1) + ';\n' +
   (propsData ? 'Naval.PROPS_DATA = ' + JSON.stringify(propsData) + ';\n' : '') +
   (settingsData ? 'Naval.SETTINGS = ' + JSON.stringify(settingsData) + ';\n' : '') +
   (flagsData ? 'Naval.FLAGS_DATA = ' + JSON.stringify(flagsData) + ';\n' : '') +
+  (questsData ? 'Naval.QUESTS_DATA = ' + JSON.stringify(questsData) + ';\n' : '') +
   '</scr' + 'ipt>\n';
 
 /* A STYLESHEET MAY POINT AT FILES OF ITS OWN, and they are blocked exactly as
