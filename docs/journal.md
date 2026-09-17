@@ -5851,6 +5851,37 @@ Mesuré (galion pirate, horloge avancée à la main) : bordée de 6 à 0 / 0,20 
 0,43 / 0,65 / 0,77 / 1,16 s ; rechargements 33–52 s ; seconde bordée
 immédiate refusée sans dépense de poudre ; +66 s : 5 pièces sur 6 prêtes.
 
+## L'équipage : ce que coûterait de le montrer
+
+Mesure du 2026-09-17, avant toute implémentation. Galion pirate, caméra à
+47 m, 838×698 px ×1,25, ombres actives, boucle gelée, lots de 10 images
+entrelacés (réflexion + `stage.render()` + bloom, terminés par `readPixels`),
+médianes sur 8 tours. Marin factice : cylindre de 1 500 triangles.
+
+| configuration | ms / image |
+|---|---|
+| aucun marin | 9,0 – 9,3 |
+| 30 marins à squelette (20 os, `AnimationMixer`) | 12,8 – 14,1 |
+| les mêmes, aussi sur la couche du navire (SSAO, coque sous l'eau) | 15,4 |
+| les mêmes, sans projeter d'ombre | 13,1 |
+| 180 marins à squelette | 26,7 (31,3 sur la couche du navire) |
+| 30 marins instanciés, balancés dans le vertex shader (une texture lue) | 10,8 |
+| 180 marins instanciés | 10,0 |
+
+- Le **calcul** des squelettes n'y est pour rien : 0,085 ms pour 30 marins
+  (mixer + matrices + os).
+- Le coût est **par objet et par passe** : un `SkinnedMesh` est un appel de
+  dessin plus l'envoi de sa texture d'os, à chaque passe qui le voit (miroir,
+  principale…). ≈ 0,13 ms par marin et par image ; l'ombre ne change presque
+  rien.
+- **Instancié**, le coût ne dépend plus du nombre : environ 1 ms, à 30 comme à
+  180 (dans le bruit de mesure).
+- Donc, si l'équipage se voit un jour : animations précalculées dans une
+  texture (VAT), un `InstancedMesh` par silhouette, hors de `SHIP_LAYER`. Les
+  squelettes sont réservés à quelques personnages proches, s'il en faut.
+- La gestion de l'équipage sans rien afficher (effectif, postes, blessés) est
+  de la donnée par navire : coût négligeable.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code
