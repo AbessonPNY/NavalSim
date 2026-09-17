@@ -142,6 +142,9 @@
     <div class="wxAuto"><button id="autoWx">Météo automatique</button></div>
   </div>
 
+  <div id="dateLine">—</div>
+  <div id="tempLine">—</div>
+
   <!-- Stowage -->
   <div id="cargoPanel" class="panel">
     <div class="lbl">Cale · arrimage</div>
@@ -306,6 +309,7 @@
           <dt><kbd>F</kbd></dt><dd>le plan d’arrimage</dd>
           <dt><kbd>J</kbd></dt><dd>le banc d’essai</dd>
           <dt><kbd>I</kbd></dt><dd>capture d’écran</dd>
+          <dt><kbd>O</kbd></dt><dd>grande carte</dd>
         </dl>
       </section>
       <section>
@@ -328,6 +332,16 @@
   <div id="rumour" hidden>
     <div class="ruHead"><b>Navire parlé</b><button id="ruClose">✕</button></div>
     <div class="ruBody" id="ruText">—</div>
+  </div>
+
+  <!-- La grande carte, sur O -->
+  <div id="bigChart" class="panel" hidden>
+    <div class="lbl">Carte · <span id="bigChartScale">—</span> · <kbd>O</kbd> ou <kbd>Échap</kbd> pour fermer · molette pour zoomer</div>
+    <canvas id="bigChartCv" width="600" height="600"></canvas>
+    <div class="chartFix" id="bigChartFix">—</div>
+    <div class="chartZoom">
+      <button id="bigChartOut">−</button><button id="bigChartIn">+</button>
+    </div>
   </div>
 
   <div id="lost" hidden>
@@ -361,6 +375,7 @@
 <script src="js/ship-spec.js"></script>
 <script src="js/hull-lines.js"></script>
 <script src="js/stage.js"></script>
+<script src="js/calendar.js"></script>
 <script src="js/ocean.js"></script>
 <script src="js/foam.js"></script>
 <script src="js/ssao.js"></script>
@@ -369,6 +384,8 @@
 <script src="js/storms.js"></script>
 <script src="js/helm.js"></script>
 <script src="js/rain.js"></script>
+<script src="js/snow.js"></script>
+<script src="js/climate.js"></script>
 <script src="js/splash.js"></script>
 <script src="js/wreck-air.js"></script>
 <script src="js/cordage.js"></script>
@@ -379,6 +396,7 @@
 <script src="js/land.js"></script>
 <script src="js/jetty.js"></script>
 <script src="js/gulls.js"></script>
+<script src="js/dolphins.js"></script>
 <script src="js/chart.js"></script>
 <script src="js/explosion.js"></script>
 <script src="js/guns.js"></script>
@@ -392,6 +410,7 @@
 <script src="js/hud.js"></script>
 <script src="js/lightning.js"></script>
 <script src="js/kraken.js"></script>
+<script src="js/ghosts.js"></script>
 <script>
 /* Wiring only. Every rule of the simulation lives in the modules above, and
    every dimension of every vessel lives in ships/*.json. */
@@ -436,6 +455,11 @@ async function main(){
      island they are supposed to be circling. */
   const gulls = new Naval.Gulls(stage.scene, world);
   for(const m of gulls.materials) Naval.applyHaze(m, ocean.uniforms);
+  /* Les dauphins, par mer calme, qui viennent jouer à l'étrave. */
+  const dolphins = new Naval.Dolphins(stage.scene);
+  dolphins.setAtmosphere(ocean.uniforms);
+  const dolphinCtx = { body:null, spec:null, ocean, sea:0, hours:0, t:0, shore:1e9,
+                       splash:(p, w, s, j) => splash.burst(p, w, s, j), say:m => dire(m) };
 
   /* Land you can steer for has to be VISIBLE. The haze was tuned when there was
      nothing beyond the ship to see, at 2.4 km of visibility — an island a mile
@@ -570,9 +594,42 @@ async function main(){
     { fix:document.getElementById("chartFix"), scale:document.getElementById("chartScale") });
   /* La butée de zoom sort du monde : il faut pouvoir tenir tout l'archipel
      dans le cercle, et pas beaucoup plus — au-delà on ne cadre que de l'eau. */
-  chart.maxScale = Math.max(6, Math.ceil(1.35*world.extent/1852));
+  /* Demandé à l'usage : pouvoir dézoomer davantage. La butée tient maintenant
+     l'archipel ET ce qui l'entoure — le Cimetière des Galions est au large. */
+  chart.maxScale = Math.max(6, Math.ceil(2.5*world.extent/1852));
   document.getElementById("chartIn") .addEventListener("click", ()=> chart.zoom(1/1.6));
   document.getElementById("chartOut").addEventListener("click", ()=> chart.zoom(1.6));
+
+  /* LA GRANDE CARTE, sur O : le même dessin dans un canevas qui tient la
+     hauteur de l'écran, à son propre zoom, et qu'on ferme par O ou Échap. */
+  const bigChart = {
+    el: document.getElementById('bigChart'),
+    cv: document.getElementById('bigChartCv'),
+    els: { scale:document.getElementById('bigChartScale'), fix:document.getElementById('bigChartFix') },
+    scale: null
+  };
+  const bigZoom = f => {
+    bigChart.scale = Math.max(0.25, Math.min(chart.maxScale, bigChart.scale*f));
+    dessinerGrandeCarte();
+  };
+  let dernierTrait = null;           // the small chart's last arguments, reused
+  function dessinerGrandeCarte(){
+    if(!dernierTrait || bigChart.el.hidden) return;
+    chart.drawInto(bigChart.cv, bigChart.scale, bigChart.els, ...dernierTrait);
+  }
+  function basculerGrandeCarte(ouvrir){
+    const ouvre = ouvrir == null ? bigChart.el.hidden : ouvrir;
+    if(ouvre){
+      const s = Math.max(240, Math.floor(Math.min(innerWidth, innerHeight)*0.78) - 90);
+      bigChart.cv.width = bigChart.cv.height = s;
+      if(bigChart.scale == null) bigChart.scale = Math.max(4, chart.maxScale*0.45);
+    }
+    bigChart.el.hidden = !ouvre;
+    if(ouvre) dessinerGrandeCarte();
+  }
+  document.getElementById('bigChartIn') .addEventListener('click', ()=> bigZoom(1/1.4));
+  document.getElementById('bigChartOut').addEventListener('click', ()=> bigZoom(1.4));
+  bigChart.cv.addEventListener('wheel', ev => { ev.preventDefault(); bigZoom(ev.deltaY > 0 ? 1.2 : 1/1.2); }, { passive:false });
   const foam     = new Naval.FoamField(stage.renderer, ocean.uniforms);
   ocean.attachFoam(foam);
   const controls = new Naval.Controls();
@@ -583,6 +640,13 @@ async function main(){
      writing to them keeps every one of those honest and leaves nothing to
      fall out of step. Watching the console move is the readout. */
   const rain = new Naval.Rain(stage.scene);
+  /* LE TEMPS QU'IL FAIT : la température d'un climat réglable, les averses au
+     hasard, et la neige quand il fait assez froid. */
+  const snow = new Naval.Snow(stage.scene);
+  const climate = new Naval.Climate();
+  const rainBase = rain.uniforms.uColor.value.clone();
+  const snowBase = snow.uniforms.uColor.value.clone();
+  const lumiere = new THREE.Color();
   const splash = new Naval.Splash(stage.scene, stage);
   guns.onSplash = (at, water, speed, jet) => splash.burst(at, water, speed, jet);
 
@@ -600,6 +664,25 @@ async function main(){
     if(sonPret && sound.ctx) sound.crash(hit.point, k || 1, speed, 'hull', stage.camera);
     c.wound(hit, k || 1);
   };
+  /* LA FLOTTE FANTÔME : des coques de la flotte, habillées en spectres,
+     intangibles pour les vivants sauf pour qui s'approche trop. Le module garde
+     la scène ; ici on lui prête la flotte, les mots et l'horloge. */
+  const ghosts = new Naval.Ghosts();
+  const entreeDe = body => { for(const x of fleet) if(x.body === body) return x; return null; };
+  guns.canHit = (fromBody, e) => ghosts.canTouch(entreeDe(fromBody), e);
+  const ghostCtx = {
+    player:null, playerTrue:null, lit:false, origin:ocean.origin, t:0,
+    room: () => Naval.Config.MAX_SHIPS - fleet.length,
+    launch: async id => {
+      const sp = specs.find(s => s.id === id);
+      return sp ? launch(sp) : null;
+    },
+    scuttle: e => { const i = fleet.indexOf(e); if(i > 0){ scuttle(i); drawFleet(); } },
+    nations: () => PAVILLONS.filter(p => !p.pirate),
+    say: m => dire(m)
+  };
+  chart.places = () => { const p = ghosts.place(); return p ? [p] : []; };
+
   const orage = [];                           // { entry, inten } — relu à chaque image
   /* CE QUE LE KRAKEN FAIT, DIT À QUI COMMANDE. Il peut s'en prendre à
      n'importe quel navire du grain : quand c'est le vôtre, la phrase est la
@@ -1054,6 +1137,43 @@ async function main(){
      in full precision — the slider's tenth of a Beaufort is far too coarse a
      step to move a spectrum by. */
   const seaLag = { force:4, dir:45 };
+
+  /* LE CALENDRIER. Il tourne à minuit du cycle du jour et donne au soleil sa
+     saison : la déclinaison du jour de l'année, au lieu d'un printemps fixe. */
+  const calendar = new Naval.Calendar();
+  const dateEl = document.getElementById('dateLine');
+  function saison(){
+    stage.declination = calendar.declination();
+    stage.setTimeOfDay(stage.dayTime);
+    dateEl.textContent = calendar.label();
+  }
+  calendar.onDay = saison;
+  saison();
+
+  /* LA COLONNE DE DROITE, EN PILE : la mer, la date, les boutons de caméra,
+     la flotte — chacun sous le précédent, en sautant ce qui est masqué. Leurs
+     hauteurs étaient écrites en dur et se chevauchaient déjà (la console de
+     mer descend à 448 px, les boutons commençaient à 366) ; la date n'aurait
+     fait qu'ajouter une ligne dans la mêlée. La carte reste ancrée en bas. */
+  const colonne = ['sea', 'dateLine', 'tempLine', 'hint', 'fleetPanel'].map(id => document.getElementById(id));
+  const tempEl = document.getElementById('tempLine');
+  let tempDit = '';
+  function direLeTemps(){
+    const p = climate.precipitation(0);
+    const w = climate.word() + (p.amount > 0.05 ? (p.snow ? ', il neige' : ', il pleut') : '');
+    if(w !== tempDit){ tempDit = w; tempEl.textContent = w; }
+  }
+  climate.update(0, calendar, stage.dayTime, 0);
+  direLeTemps();
+  function rangerColonne(){
+    let y = 16;
+    for(const el of colonne){
+      if(!el || el.hidden || getComputedStyle(el).display === 'none') continue;
+      el.style.top = y + 'px';
+      y += el.offsetHeight + (el.id === 'sea' ? 4 : 8);
+    }
+  }
+  let colonneTick = 0;
   const seaRowEl = document.getElementById('seaRow');
   const seaWhoEl = document.getElementById('seaWho');
   let seaMaitre = null;                    // qui tient la mer, pour l'affichage
@@ -1081,6 +1201,11 @@ async function main(){
      horizon shows a seam. */
   stage.onSunChange = st => {
     ocean.uniforms.uSun.value.copy(st.sunDir);
+    ocean.uniforms.uMoon.value.copy(st.moonDir);
+    ocean.uniforms.uMoonLit.value = (st.moonLight || 0)*st.night*(1 - (st.storm || 0));
+    const tSun = Math.max(0, Math.min(1, st.sunElev/30));
+    ocean.uniforms.uWaterLight.value =
+      (0.75 + 0.25*tSun)*(1 - st.night) + (0.07 + 0.16*(st.moonLight || 0))*st.night;
     ocean.uniforms.uZenith.value.copy(st.zenith);
     ocean.uniforms.uHorizon.value.copy(st.horizon);
     // the light coming through the canvas reddens and dims with the sun itself
@@ -1272,6 +1397,7 @@ async function main(){
       spyglass.onChange = (on, power) =>
         dire(on ? 'Lunette ×' + Math.round(power) : 'Lunette rangée');
       controls.onSpyglass = ()=> spyglass.toggle();
+      controls.onBigChart = ()=> basculerGrandeCarte();
       // la capture redessine la scène : elle doit repasser par les deux couches
       capture.post = ()=> { bloom.render(); spyglass.render(); };
       /* LA POUDRE SE CONSOMME, une charge par coup, et c'est ce qui donne un
@@ -1298,7 +1424,7 @@ async function main(){
          ne fait rien sinon est la seule qu'on n'ait jamais à apprendre. */
       const keysMenu = document.getElementById('keysMenu');
       controls.onToggleKeys = ()=> { keysMenu.hidden = !keysMenu.hidden; };
-      controls.onCloseKeys  = ()=> { keysMenu.hidden = true; };
+      controls.onCloseKeys  = ()=> { keysMenu.hidden = true; basculerGrandeCarte(false); };
 
       /* CHAQUE PANNEAU SUR SA TOUCHE, de F2 à F6. `H` fait le vide d'un coup,
          ce qui sert à prendre une image propre ; ceci sert à autre chose — se
@@ -1912,6 +2038,12 @@ async function main(){
     // les feux de nuit vivent dans le module, qui les lit à chaque image
     if(s && s.night) Object.assign(Naval.NIGHT, s.night);
     if(s && s.bloom) bloom.configure(s.bloom);
+    if(s && s.ghosts) Object.assign(Naval.GHOSTS, s.ghosts);
+    if(s && s.calendar && s.calendar.start){ calendar.setStart(s.calendar.start); saison(); }
+    if(s && s.climate) Object.assign(Naval.CLIMATE, s.climate);
+    if(s && s.dolphins) Object.assign(Naval.DOLPHINS, s.dolphins);
+    dolphins.loadModel(Naval.DOLPHINS);
+    if(s && s.night && s.night.moonChance != null) Naval.MOON = { chance: s.night.moonChance };
     if(s && s.storm){
       if(s.storm.lightning) Object.assign(Naval.LIGHTNING, s.storm.lightning);
       if(s.storm.kraken) Object.assign(Naval.KRAKEN, s.storm.kraken);
@@ -2099,7 +2231,7 @@ async function main(){
       if(!e.remarque && !e.physics.foundered && (d < R.noticeDistance || vueALaLunette(e))) remarquer(e);
     }
 
-    if(portIci || voileEnRoute || t < prochaineVoile) return;
+    if(portIci || voileEnRoute || t < prochaineVoile || ghosts.active) return;
     /* Rien ne paraît tant qu'on est près de la terre — au port, au mouillage ou
        dans une passe : on croise des voiles au large. La pendule attend, et la
        première voile vient peu après avoir gagné la mer. */
@@ -2147,6 +2279,7 @@ async function main(){
   function drawFleet(){
     fleetEls.list.textContent = '';
     fleet.forEach((e,i)=>{
+      if(e.ghost) return;                     // les spectres ne se commandent pas
       const row = document.createElement('div');
       row.className = 'fleetRow' + (i===0 ? ' helm' : '');
       const nm = document.createElement('span');
@@ -2214,6 +2347,33 @@ async function main(){
 
      `ou` dit où l'on se pose : 0 le centre, 1 la lisière. Le centre est le plus
      dur et la lisière laisse le temps de voir venir. */
+  /* LE CIMETIÈRE DES GALIONS, pour le débogage : toute la flotte transportée à
+     douze cents mètres du milieu, la nuit tombée d'un coup (21 h). `fantomes(true)`
+     fait lever la bataille sans attendre. */
+  function fantomes(maintenant){
+    const G = Naval.GHOSTS;
+    const X = physics.body.pos.x + ocean.origin.x, Z = physics.body.pos.z + ocean.origin.z;
+    let dx = X - G.x, dz = Z - G.z;
+    const dl = Math.hypot(dx, dz) || 1;
+    const cx = G.x + dx/dl*1200, cz = G.z + dz/dl*1200;
+    if(kraken.state === 'lurk' || kraken.state === 'grip') kraken._dive('storm');
+    for(const e of fleet){
+      e.body.pos.x += cx - X; e.body.pos.z += cz - Z;
+      e.body.vel.set(0, 0, 0); e.body.angVel.set(0, 0, 0);
+      if(e.ship) e.ship.syncTo(e.body);
+    }
+    physics.castOff && physics.castOff();
+    /* L'HEURE, pas le curseur : le cycle du jour réécrit le soleil à chaque image
+       depuis stage.dayTime, et un soleil posé à la main revenait au jour. 21 h
+       laisse la nuit devant soi. */
+    stage.setTimeOfDay(21);
+    sunSlider.value = String(Math.round(stage.sunElev));
+    ghosts.spent = false;
+    if(maintenant) ghosts.linger = G.lingerBefore;
+    dire('Vous voici au ' + G.name + '.');
+    return { milieu_a_m: 1200, nom: G.name };
+  }
+
   function tempete(ou){
     const t = ocean.uniforms.uTime.value;
     const X = physics.body.pos.x + ocean.origin.x;
@@ -2389,6 +2549,9 @@ async function main(){
   function provoquer(e, tireur){
     if(!e || !tireur || e.body === tireur) return;
     if(e === fleet[0]) return;                  // le joueur décide lui-même
+    if(e.ghost) return;                         // leurs cibles, c'est leur scène qui les donne
+    const t = entreeDe(tireur);
+    if(t && t.ghost) return;
     e.provoquePar = tireur;
   }
   function ennemiDe(e){
@@ -2447,7 +2610,7 @@ async function main(){
       P.cible = null; P.phase = 'chasse';
       let bd = 4000;
       for(const o of fleet){
-        if(o === e || o.hostile || !o.physics || o.physics.foundered) continue;
+        if(o === e || o.hostile || o.ghost || !o.physics || o.physics.foundered) continue;
         if((P.ignore.get(o.body) || 0) > t) continue;
         const d = Math.hypot(o.body.pos.x - b.pos.x, o.body.pos.z - b.pos.z);
         if(d < bd){ bd = d; proie = o; }
@@ -2559,6 +2722,7 @@ async function main(){
                 voileAuHasard, vueALaLunette, reglages: REGLAGES,
                 get spyglass(){ return spyglass; },
                 storms, get squall(){ return squall; }, kraken, lightning, foudroyer,
+                ghosts, fantomes, ghostCtx, calendar, climate, snow, dolphins,
                 get fleet(){ return fleet; } };
 
   /* ------------------------- PRESSER LE TEMPS -------------------------
@@ -2625,6 +2789,7 @@ async function main(){
     if(p.foundered || (p.breaches && p.breaches.length)) return 1;   // avarie
     if(guns.shot.length || guns._queue.length) return 1;             // on tire
     if(warpRumour && !warpRumour.hidden) return 1;                   // à décider
+    if(ghosts.active) return 1;                                     // les spectres
     if(kraken.state !== 'absent' && kraken.victim && kraken.victim.body       // il rôde, près
        && kraken.victim.body.pos.distanceTo(b.pos) < 3000) return 1;
     // une voile de rencontre à moins de 2,5 km : c'est le moment de veiller
@@ -2735,7 +2900,8 @@ async function main(){
        liste est donnee a chaque image plutot que retenue, pour la raison qui a
        deja coute un bug ici : une reference gardee se perime des que la flotte
        change. */
-    for(const e of fleet) if(e.physics) e.physics.neighbours = fleet.map(x => x.physics);
+    for(const e of fleet) if(e.physics)
+      e.physics.neighbours = fleet.filter(x => !!x.ghost === !!e.ghost).map(x => x.physics);
 
     controls.update(dt);
     /* A mast that is going over takes its canvas with it, and it must do so
@@ -2866,6 +3032,7 @@ async function main(){
       guns.rebase(dx, dz);
       cordage.rebase(dx, dz);
       kraken.rebase(dx, dz);
+      dolphins.rebase(dx, dz);
       lightning.rebase(dx, dz);
       for(const e of fleet) if(e.ship) e.ship.syncTo(e.body);
       ship.syncTo(physics.body);
@@ -2909,7 +3076,11 @@ async function main(){
         : storms.at(ocean.origin.x + e.body.pos.x, ocean.origin.z + e.body.pos.z, t);
       if(q) orage.push({ entry:e, inten:q.inten });
     }
-    krakenCtx.list = orage; krakenCtx.player = fleet[0]; krakenCtx.t = t;
+    krakenCtx.list = ghosts.active ? orage.filter(it => !it.entry.ghost) : orage;
+    krakenCtx.player = fleet[0]; krakenCtx.t = t;
+    ghostCtx.player = fleet[0]; ghostCtx.playerTrue = worldPos;
+    ghostCtx.lit = !!ship._lit; ghostCtx.t = t;
+    ghosts.update(dt, ghostCtx);
     kraken.update(dt, krakenCtx);
     lightning.update(dt, orage, foudroyer);
     chart.note(worldPos.x, worldPos.z);
@@ -2924,6 +3095,9 @@ async function main(){
       chartHdg.set(0,0,1).applyQuaternion(physics.body.quat);
       chart.draw(worldPos, Math.atan2(-chartHdg.x, chartHdg.z), chartFleet,
                  squall ? { x:squall.storm.x, z:squall.storm.z, r:squall.storm.r } : null);
+      dernierTrait = [worldPos, Math.atan2(-chartHdg.x, chartHdg.z), chartFleet,
+                 squall ? { x:squall.storm.x, z:squall.storm.z, r:squall.storm.r } : null];
+      if(!bigChart.el.hidden) dessinerGrandeCarte();
     }
 
     stage.aimSun(physics.body.pos);       // the shadow box travels with her
@@ -2975,7 +3149,7 @@ async function main(){
     // before splash.update, which draws what it throws, and before foam.update, which lays its boils
     wreckAir.update(dt, fleet, ocean, t);
     anchors.update(dt, fleet, t);
-    flotsam.update(dt, fleet, t, fleet[0]);
+    flotsam.update(dt, ghosts.active ? fleet.filter(e => !e.ghost) : fleet, t, fleet[0]);
     splash.update(dt);
     cordage.update(dt, fleet, t, stage.camera.position);
     hud.update(dt);
@@ -3016,11 +3190,19 @@ async function main(){
     /* The day going round, and the sun with it. setTimeOfDay is cheap; what
        is not is the environment cubemap it asks to be rebuilt, and that is
        already throttled inside the stage with a catch-up in render(). */
+    // the column is laid out even when the day stands still
+    colonneTick += raw;
+    if(colonneTick > 0.5){ colonneTick = 0; direLeTemps(); rangerColonne(); }
     const sunRate = parseFloat(sunSpeed.value);
+    let heuresPassees = 0;
     if(sunRate > 0){
+      const avant = stage.dayTime;
       stage.setTimeOfDay(stage.dayTime + dt*sunRate/60);
+      if(stage.dayTime < avant) calendar.nextDay();      // minuit passé
+      heuresPassees = (stage.dayTime - avant + 24) % 24;
       sunTick += dt;
       if(sunTick > 0.25){
+        rangerColonne();
         sunTick = 0;
         sunSlider.value = String(Math.round(stage.sunElev));
         hud.showSun(stage.sunElev);
@@ -3112,20 +3294,49 @@ async function main(){
        a curtain of rain seen from below the surface is nonsense, and the drops
        would sit in front of the Snell window besides. */
     const wet = Math.max(0, Math.min(1, (ocean.seaState - 5.5)/2.8));
-    rain.update(dt, t, stage.camera.position, ocean.windVec, wet*(1 - under));
+    climate.update(heuresPassees, calendar, stage.dayTime, stage.storm || 0);
+    dolphinCtx.body = physics.body; dolphinCtx.spec = spec; dolphinCtx.sea = ocean.seaState;
+    dolphinCtx.hours = heuresPassees; dolphinCtx.t = t;
+    dolphinCtx.shore = world.shoreDistance(worldPos.x, worldPos.z);
+    dolphins.update(dt, dolphinCtx);
+    const pluie = climate.precipitation(wet);
+    /* What falls REFLECTS: it takes the light the horizon has, and is never
+       brighter than its daylight self. The rain had a fixed pale colour and
+       stood out at midnight. */
+    const clair = Math.min(1, (stage.horizon.r + stage.horizon.g + stage.horizon.b)/2.3);
+    rain.uniforms.uColor.value.copy(rainBase).multiplyScalar(0.12 + 0.88*clair);
+    lumiere.copy(snowBase).multiplyScalar(0.12 + 0.88*clair);
+    rain.update(dt, t, stage.camera.position, ocean.windVec, (pluie.snow ? 0 : pluie.amount)*(1 - under));
+    /* LA NEIGE TIENT SUR LES PONTS : un manteau qui s'épaissit en dix minutes de
+       jeu sous une forte chute, plafonné à 0,85 — un manteau, pas une congère —
+       et qui fond d'autant plus vite qu'il fait doux. Les spectres n'en
+       prennent pas. */
+    const fonte = Math.max(0, climate.temp - Naval.CLIMATE.snowBelow);
+    for(const e of fleet){
+      const sh = e.ship;
+      if(!sh || !sh._snowU) continue;
+      let c = sh.snowCover || 0;
+      if(e.ghost) c = 0;
+      else if(pluie.snow) c = Math.min(0.85, c + dt*pluie.amount/600);
+      else c = Math.max(0, c - dt*(0.5 + fonte)/1800);
+      sh.snowCover = c;
+      sh._snowU.uSnow.value = c;
+    }
+    snow.update(dt, t, stage.camera.position, ocean.windVec, (pluie.snow ? pluie.amount : 0)*(1 - under),
+                lumiere, stage.renderer.getContext().drawingBufferHeight);
 
     // both offscreen passes must run before the sea that samples them
-    stage.updateWeather(dt, parseFloat(document.getElementById('seaState').value));
+    stage.updateWeather(dt, parseFloat(document.getElementById('seaState').value), climate.amount*0.55);
     foam.update(stage.renderer, dt, t, physics.body.pos);
     ocean.syncFoam();
     /* The mirror must not carry the rain. Its lattice is folded about the
        REAL eye, so seen from the mirrored camera below the water it would be
        in quite the wrong place — and rain reflected in the sea it is falling
        into is not a thing anyone has ever seen. */
-    const wasRaining = rain.group.visible;
-    rain.group.visible = false;
+    const wasRaining = rain.group.visible, wasSnowing = snow.group.visible;
+    rain.group.visible = false; snow.group.visible = false;
     ocean.renderReflection(stage.renderer, stage.scene, stage.camera);
-    rain.group.visible = wasRaining;
+    rain.group.visible = wasRaining; snow.group.visible = wasSnowing;
     stage.render();
     bloom.render();                          // ce qui déborde des lumières, la nuit
     spyglass.render();                      // the eyepiece, over the finished picture

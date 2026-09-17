@@ -91,6 +91,9 @@ Naval.Guns = class Guns {
        onCreature(creature, hit, speed, calibre, shooter) says what it cost. */
     this.creatures = [];
     this.onCreature = null;
+    /* canHit(fromBody, entry): false and the ball goes through that hull as if
+       it were not there — which, for a ghost, it is not. */
+    this.canHit = null;
     this.onRecoil = null;      // wired by the page, so the hull answers back
     /* Le COUP, qui n'est pas le recul : l'un est ce que la pièce fait à la
        coque, l'autre ce qu'elle fait à l'air. Les confondre marchait tant que
@@ -516,6 +519,7 @@ Naval.Guns = class Guns {
         for(const e of this.targets){
           if(!e || !e.physics || !e.body || e.body === b.from) continue;
           if(e.afloat === 0) continue;
+          if(this.canHit && !this.canHit(b.from, e)) continue;
           const q = e.body.quat, o = e.body.pos, L = e.spec.L;
           const inv = this._q0.copy(q).invert();
           const l0 = this._l0.copy(this._a).sub(o).applyQuaternion(inv);

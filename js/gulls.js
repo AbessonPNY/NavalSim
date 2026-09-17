@@ -21,6 +21,10 @@ Naval.Gulls = class Gulls {
     this.world = world;
 
     this.range   = 2600;    // metres: beyond this a gull is under a pixel wide
+    /* Gulls are coastal birds: those that come out to a ship do so within a
+       couple of kilometres of the shore, and go home past it. */
+    this.shoreRange = 2000;
+    this._home = 0;         // 0 with the ship, 1 back over the island
     this.count   = 12;
     this.span    = 2.2;     // wingspan, a big gull
 
@@ -150,18 +154,31 @@ Naval.Gulls = class Gulls {
     /* The nearest island, and only if she is close enough for a gull to be more
        than a speck. Islands further off are simply left empty — birds drawn at
        three kilometres are pixels of noise in the haze. */
-    const near = this.world.near(centreWorld.x, centreWorld.z, this.range);
+    /* Measured to the SHORE, not to the island's middle: a big island is a
+       couple of kilometres across, and a range taken from its centre emptied
+       the sky a few hundred metres off its beach. Past the coastal range and
+       the followers' flight home, there are no gulls. */
+    const near = this.world.near(centreWorld.x, centreWorld.z, this.shoreRange + 6000);
     let best = null, bestD = Infinity;
     for(const isl of near){
-      const d = Math.hypot(isl.x - centreWorld.x, isl.z - centreWorld.z);
+      const dx = centreWorld.x - isl.x, dz = centreWorld.z - isl.z;
+      const d = Math.hypot(dx, dz) - this.world._shore(isl, Math.atan2(dz, dx));
       if(d < bestD){ bestD = d; best = isl; }
     }
-    if(!best){ this.group.visible = false; this.island = null; return; }
+    if(!best || bestD > this.shoreRange + 600){ this.group.visible = false; this.island = null; this._home = 1; return; }
     if(!this.island || this.island.key !== best.key) this._settleOn(best);
     this.group.visible = true;
 
     const ix = best.x - origin.x, iz = best.z - origin.z;
-    const sx = centreWorld.x - origin.x, sz = centreWorld.z - origin.z;
+    /* Past two kilometres from the nearest shore the followers turn for home:
+       their circle's centre slides from the ship to the island, at a bird's
+       pace rather than in a jump. Back inside, they come out again. */
+    const shore = bestD;
+    const wantHome = shore > this.shoreRange ? 1 : shore < this.shoreRange*0.8 ? 0 : this._home;
+    this._home += Math.max(-dt/25, Math.min(dt/25, wantHome - this._home));
+    const hk = this._home*this._home*(3 - 2*this._home);
+    const sx = centreWorld.x - origin.x + (ix - (centreWorld.x - origin.x))*hk;
+    const sz = centreWorld.z - origin.z + (iz - (centreWorld.z - origin.z))*hk;
     const t = this._t;
 
     for(const b of this.birds){

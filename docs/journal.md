@@ -5129,6 +5129,261 @@ retiré de la flotte → plongée, prises lâchées.
 
 **Arnaud valide lui-même le rendu** : plus de captures de ma part.
 
+## La flotte fantôme
+
+Voulu par Arnaud : de nuit, en un lieu précis, une flotte de navires
+fantomatiques rejoue une bataille passée ; on y assiste si l'on s'attarde.
+Ses choix : **pris à partie si trop près**, **pâles et translucides**, **deux
+contre deux**, et la scène finit au **premier** de trois événements — l'aube,
+un camp coulé (le vaincu sombre, le vainqueur s'efface), ou le départ du
+témoin. Puis : **voiles déchirées**, d'après une image.
+
+**Le lieu** : *Le Cimetière des Galions*, (−9 000 ; 6 000) en mètres vrais,
+70 m de fond, 5,7 km de toute côte, rayon 2 500 m, cercle pointillé et nom en
+italique sur la carte (`chart.places`). `settings.json` → `ghosts`.
+
+**Ce sont de vraies coques de la flotte**, mises à l'eau par `launch()`,
+menées et combattues par la même barre et les mêmes pièces : chacune reçoit
+pour `provoquePar` l'ennemi le plus proche de l'autre camp, et
+`servirLesPieces` fait le reste. Seuls les modèles qui ont des canons se
+battent (Roter Löwe, galion pirate) : deux Roter Löwe contre deux galions,
+chaque camp sous un pavillon national tiré de flags.json. Le pirate y perd son
+avidité (`hostile`, `pirate` à faux).
+
+**Ce qui en fait des spectres, décidé autour d'eux** (`ghosts.canTouch`) :
+fantôme contre fantôme, tout porte ; le vivant ne touche jamais un fantôme
+(ni boulet — `guns.canHit` laisse passer —, ni abordage : les voisins de
+collision sont filtrés) ; un fantôme ne touche un vivant que s'il s'est
+retourné contre lui, à moins de `aggroRange` (350 m). Ils ne provoquent ni ne
+sont provoqués par les vivants, un vrai pirate ne les chasse pas, le kraken ne
+les prend pas, un fantôme coulé ne laisse ni débris ni bouteille, et ils
+n'apparaissent pas dans le panneau Flotte. Pas de nouvelle voile ni de temps
+pressé pendant la scène.
+
+**L'aspect** : chaque matière du modèle teintée vers un vert froid, émissive
+faible (ils luisent, ils ne réfléchissent pas la lune), transparente à 45 % ×
+un fondu de 6 s ; fanaux verts ; voiles en loques par une carte de
+transparence dessinée (pied en langues, entailles aux ralingues, trous
+étoilés, trois variantes) découpée par `alphaTest`.
+
+**Relevé** (banc piloté à la main, la boucle du volet tournant à 3–6 % du temps
+réel — même cadencée par minuterie) : lignes à 700 m ; premières bordées vers
+2 min ; 252 boulets et une Roter Löwe à 17 voies d'eau à 8 min ; première
+coulée à 9 min 34, effacée et retirée 25 s plus tard ; une par camp à 11 min.
+Témoin posé à 250 m d'un fantôme : les deux survivants se retournent contre
+lui, six coups au but en une minute, l'un vient à 62 m. Départ à 4 km : fondu,
+retrait, pas de nouvelle bataille cette nuit (`spent`). Aube : fondu en 6 s.
+Victoire : vainqueurs effacés à 10 s, vaincus à 25 s — la première version les
+effaçait ensemble, et décomptait deux fois le délai des coulés.
+
+**Ils luisent et ils glissent** (demandé ensuite). La lueur : émissive portée
+à 0,95 dans un vert d'eau clair — assez pour que le bloom de nuit s'en saisisse
+— et une **aura** de trois sprites additifs le long de la coque (la texture du
+fanal, vert, 20 % × fondu, qui palpite un peu), sans lampe. La glisse :
+`ShipPhysics.glide`, une hauteur ; après intégration la coque y est remise,
+droite, cap libre, vitesse verticale et rotations de roulis/tangage annulées, et
+elle ne déclenche pas de gerbes. Relevé en mer 6 : houle de 4 à 7,5 m sous eux,
+**0° de roulis, 0° de tangage, 0 m de pilonnement**, 9 nœuds. **La glisse lâche
+à un quart du volume envahi** — sans cela un fantôme tenu à sa flottaison ne se
+serait jamais « trouvé sous l'eau trois secondes », et n'aurait jamais coulé :
+relevé, lâchée à 3,8 s d'une voie d'eau géante, coulé à 12 s.
+
+**Le bas s'efface, la brume les porte** (d'après une capture retouchée par
+Arnaud). `Naval.applyGhostFade` : une greffe de plus sur chaque matière du
+fantôme, chaînée après toutes les autres — la brume comprise, qu'elle suit en
+fin de fragment — avec sa clé `|ghost-fade`, qui multiplie l'alpha par une
+rampe sur la hauteur **monde** : rien à 0,5 m au-dessus de la mer, entier à
+0,5 + 0,15·L (le plat-bord d'un galion). La coque glissant à hauteur fixe, c'est
+son bas qui disparaît ; un fantôme qui sombre s'efface par le bas en
+s'enfonçant. Autour, onze bouffées de fumée (la texture des canons, teintée du
+même vert, additive) au ras de l'eau, le long et de part et d'autre, qui
+dérivent et respirent ; la mer en cache la moitié basse, ce qui les pose dessus.
+Vérifié : 16 matières greffées, aucune erreur de compilation.
+
+Piège d'outillage : des `
+` écrits dans un gabarit de script par un heredoc
+sont arrivés en vrais sauts de ligne dans une chaîne à guillemets simples —
+`node --check` l'a vu, pas le build, qui a écrit une page cassée sans rien dire.
+
+**Pièges** : `fantomes()` réglait le soleil par le curseur, que le cycle du
+jour réécrit aussitôt depuis `stage.dayTime` : la scène se terminait « à
+l'aube » à la première image. Il règle l'heure (21 h). Et une boucle gelée ne
+rafraîchit pas `worldPos` : le module croyait le témoin encore à l'ancien
+endroit.
+
+## La grande carte
+
+Demandé : « pouvoir dézoomer plus la carte ou l'afficher à part avec une
+touche ». Les deux. La butée de zoom passe de 1,35 à **2,5 fois l'étendue** de
+l'archipel (21 M au lieu d'environ 11) — le Cimetière des Galions est au large.
+Et **O** ouvre une grande carte au centre de l'écran : le **même** `draw()`,
+rendu dans un second canevas par `chart.drawInto(canvas, scale, els, …)` qui
+échange canevas, échelle et relevés puis les rend, avec les arguments du
+dernier tracé de la petite carte. Zoom propre (molette, boutons), fermeture
+par O ou Échap, 78 % de la hauteur de l'écran. Vérifié : 11 M à l'ouverture,
+21 M en butée, la petite carte inchangée (1,60 M).
+
+Piège de banc : un `keydown` envoyé à la fois à `window` et à `document` arrive
+DEUX fois à l'écouteur de la fenêtre — la carte s'ouvrait et se refermait.
+
+## La lune, une nuit sur deux ou presque
+
+Demandé : « la nuit il peut y avoir la lune aléatoirement ». Jusque-là le
+soleil passé sous l'horizon tenait lieu de lune — une lumière bleue fixe à
+0,28, donc une lune chaque nuit, invisible.
+
+**Tirée à la tombée de chaque nuit** (`stage.newMoon`) : présente avec la
+probabilité `night.moonChance` (0,6), une phase de 0,2 à 1, et un décalage
+horaire d'autant plus grand qu'elle est mince (± 9 h × (1 − phase)) — un
+croissant suit le soleil, une pleine lune se lève quand il se couche. Sa
+direction est l'opposé du soleil **tourné autour du pôle céleste** (latitude du
+monde, vers le nord +z) de ce décalage : elle se lève, passe et se couche avec
+le ciel, sans horloge à part.
+
+**Ce qu'elle change** : `lightDir`, d'où vient la lumière directe (et
+l'ombre), est la lune de nuit quand elle est levée ; l'intensité de nuit va de
+0,12 (ciel vide) à 0,40 (pleine) ; la voûte dessine son disque — face éclairée
+du côté du soleil, terminateur en ellipse, part sombre à peine visible, halo
+froid, plus gros que nature — et la mer un second lobe de reflets, froid, qui
+est son chemin sur l'eau (`uMoon`, `uMoonLit`, calculés dans `onSunChange`).
+Rien de tout cela ne touche la houle : les trois calculateurs sont intacts.
+
+Relevé sur six nuits : quatre lunes ; croissant de 0,32 haut à 19 h et couché
+avant 1 h ; lune de 0,82 levée à 22 h, 63° à 1 h ; lumière 0,12 sans lune,
+0,23–0,36 avec.
+
+## La mer qui luisait la nuit
+
+Signalé sur capture : de nuit, caméra au-dessus de l'eau, la mer paraissait
+éclairée par-dessous. Vue d'aplomb, le reflet du ciel ne pèse que 2 % (Fresnel)
+et l'on ne voit que le **corps** de l'eau — or `uDeep`/`uShallow` étaient un
+pigment constant, turquoise à minuit comme à midi. Et la lueur des crêtes
+(`uSSS`) se calculait sur un soleil passé sous l'horizon, maximale vue d'en
+haut.
+
+`uWaterLight` (posé avec le soleil) : `(0,75 + 0,25·t)` le jour (t = hauteur du
+soleil / 30°), `0,07 + 0,16·clair de lune` la nuit ; il multiplie le corps, et
+la lueur des crêtes s'éteint avec le soleil sous l'horizon. L'écume, qui se
+règle sur le corps et l'horizon, suit d'elle-même. Relevé, vue plongeante,
+moyenne de six points (RVB) : midi 56·107·131 inchangé ; nuit sans lune
+**9·54·77 → 3·6·8** ; pleine lune 4·14·20.
+
+## Le calendrier
+
+Demandé : une date, en Estonia, en haut à droite sous la console, au format
+« October 8th, 1598 ». `js/calendar.js` : un jour de plus à chaque minuit du
+cycle (détecté dans la boucle quand `dayTime` revient en arrière), départ dans
+`settings.json` → `calendar.start`. Grégorien — l'Espagne, la France et les
+États italiens l'avaient adopté en 1582 — et `Date` le remonte sans broncher
+(une année < 100 est posée à part, `Date.UTC` la prenant pour 19xx). Suffixes
+anglais, 11th–13th compris.
+
+**La saison vient de la date.** Le soleil était tenu à un printemps fixe
+(déclinaison 12°) ; il prend maintenant celle du jour de l'année (approximation
+en cosinus) : −6,5° le 8 octobre, −15° le 1er novembre, 11 h 45 de jour à cette
+latitude au lieu d'environ 12 h 25.
+
+**La colonne de droite est empilée.** Les hauteurs étaient écrites en dur et se
+chevauchaient déjà (console de mer jusqu'à 448 px, boutons de caméra dès 366,
+Flotte dès 398). `rangerColonne()` pose mer, date, boutons, Flotte l'un sous
+l'autre toutes les demi-secondes, en sautant ce qui est masqué. Relevé sur
+910 px de haut : 16–448, 452–484, 492–553, 561–707. **Reste** : la carte, ancrée
+en bas, commence à 583 px et recouvre le bas de la Flotte sur un écran de cette
+hauteur.
+
+## Le temps qu'il fait : averses, neige, et la température en mots
+
+Demandé : de la pluie et de la neige aléatoires, la neige en hiver, la
+température affichée en Estonia. Deux décisions d'Arnaud : **le climat est
+réglable et froid permis** (l'archipel est aux Antilles pour le soleil, où il ne
+neige jamais — la température suit donc son propre climat, celui de la Manche
+par défaut, sans toucher la course du soleil), et **la température se dit en
+mots** : pas de thermomètre en mer en 1598.
+
+`js/climate.js` : moyenne 9,5 °C, ± 9 sur l'année (le plus froid le 30 janvier),
+± 3 sur la journée (le plus chaud à 15 h), ± 3 d'un jour à l'autre (stable pour
+une même date), −3 par gros temps, −2 sous l'averse. Mots : glacial, gel,
+froid mordant, frais, doux, tiède, chaud, chaleur lourde. **Averses** tirées en
+heures DE JEU (3 par jour en moyenne, 20 à 90 minutes, intensité en cloche),
+donc aussi fréquentes par journée quel que soit le temps pressé ; ce qui tombe
+est la plus forte de l'averse et de la tempête, **neige sous 1,5 °C**. Une
+averse couvre aussi le ciel (`updateWeather` prend un voile en plus). Relevé :
+21 averses et 16 h de pluie en dix jours d'octobre ; assez froid pour neiger
+une partie de chaque jour de décembre à mars, douze jours en novembre (avec
+11 °C / ± 8, la neige n'était possible qu'aux matins les plus froids).
+
+`js/snow.js` : le treillis de la pluie, en points ronds dimensionnés à l'écran,
+chute d'un mètre par seconde, chaque flocon sur son petit cercle, le vent en
+portant l'essentiel ; clairsemé par graine quand il neige peu ; retiré du
+miroir comme la pluie. **Ce qui tombe réfléchit** : pluie et neige prennent
+désormais la clarté de l'horizon — la pluie avait une couleur pâle fixe et se
+voyait à minuit. Ligne `#tempLine` sous la date, dans la colonne empilée
+(« Frais, il pleut »).
+
+## Le manteau de neige
+
+Demandé : que le navire se couvre d'un petit manteau blanc quand il neige.
+`Naval.applySnowCover`, une greffe de plus sur les matières du navire, **avant
+la brume**, clé `|snow` : la couleur diffuse va au blanc de neige là où la
+normale **monde** regarde le ciel, d'abord les plats (pont, hunes, dessus des
+vergues et des lisses), puis des pentes de plus en plus raides à mesure que la
+couche s'épaissit ; bord cassé par un bruit posé dans le repère **du navire**,
+pour que les plaques restent où elles sont tombées quand il roule. Une voile,
+pendante, n'en prend presque pas par la même règle.
+
+L'épaisseur est **au navire** (`ship.snowCover`, `ship._snowU`) — un navire
+sorti de la neige la garde jusqu'à ce qu'elle fonde : +chute/600 par seconde
+de jeu (dix minutes de forte chute), plafond 0,85, fonte de (0,5 + degrés au-dessus
+du seuil)/1 800 par seconde. Les spectres n'en prennent pas. Relevé, pont de la
+Roter Löwe vu d'aplomb à midi : 98 nu, 160 à 0,3, 175 à 0,8 ; 48 matières
+greffées, sans erreur ; couche pleine en 8 min 30 de forte chute, fondue en
+4 min 40 à 6 °C.
+
+## Les dauphins, et des mouettes qui restent côtières
+
+**Dauphins** (`js/dolphins.js`, `settings.json` → `dolphins`). Par mer calme
+(sous force 3,5), loin d'un port (250 m), quatre bancs par jour DE JEU en
+moyenne, de 3 à 7 animaux, pour 3 à 8 minutes ; ils partent aussi si la mer se
+lève. Ils font ce que font les vrais : **surfent la vague d'étrave** si le
+navire a de l'erre (1,5 m/s) — une place chacun, devant l'étrave et de part et
+d'autre, qui ondule —, **tournent autour** s'il est arrêté, puis décrochent
+vers l'arrière et plongent. Chacun poursuit sa place comme un nageur (ressort
+amorti, plafond max(6 m/s, erre + 4)) et suit son propre cycle de surface : un
+arc hors de l'eau sur 28 % du cycle, un vrai saut une fois sur cinq, une petite
+gerbe en rentrant. Dessinés : corps tourné (profil en 12 points), aileron,
+nageoires, caudale sur pivot qui bat ; contre-ombrage en couleurs de sommet ; la
+brume sur leur matière. Premier réglage : hors de l'eau 5 à 8 % du temps, trop
+timide ; arc relevé et lissage raccourci : **16 %**. Relevé : à 6 nœuds, 12–16 m
+devant le centre du chaland (L/2 = 14, donc à l'étrave), 3–7 m par le travers ;
+arrêté, 30–40 m autour ; partis en moins d'une minute. `Naval.app.dolphins.summon()`.
+
+**Une gerbe à la sortie ET à l'entrée** (demandé ensuite). La seule gerbe, au
+plongeon, demandait 0,5 m³ à la réserve d'embruns — qui compte onze gouttes au
+mètre cube : six gouttes, invisibles. Désormais 1,8 m³ en sortant (jet plus
+haut) et 3,2 m³ en rentrant, fois 2,2 sur un vrai saut. Relevé, trois dauphins,
+une minute à 6 nœuds : 59 gerbes de sortie, 58 d'entrée, environ 63 gouttes par
+seconde — loin des 2 000 de la réserve.
+
+**Le dauphin en .glb** (`creatures/dolphin.glb`, `tools/dolphin-glb.js`,
+`settings.json` → `dolphins.glb`, embarqué par le build comme le kraken). Le
+modèle de départ est le dauphin dessiné : `corps` (profil tourné, UV, couleurs
+de sommet), `aileron`, deux nageoires, et `queue` dont l'**origine est
+l'articulation** — le jeu la fait battre autour de son X ; tout le reste est le
+corps. Chaque animal reçoit sa copie ; les matières du fichier prennent la brume
+(`setAtmosphere` retient l'air pour un modèle qui arrive après). **En
+l'écrivant, un défaut du dessin** : la caudale était tournée de −π/2 et
+s'étendait VERS L'AVANT dans le pédoncule ; elle traîne maintenant vers
+l'arrière (−1,11 à −1,37 m). Vérifié : modèle chargé, corps 4 pièces, queue 1.
+
+**Mouettes à moins de 2 km des côtes.** Elles s'affichaient d'après la distance
+au **centre** de l'île (2,6 km), et le tiers qui suit le navire le suivait
+n'importe où. Désormais la distance est prise à la **côte** (le même `_shore`),
+et les suiveuses rentrent au-dessus de leur île au-delà de 2 km (retour à
+0,8 × ce rayon, en 25 s dans les deux sens) ; au-delà de 2,6 km, plus aucune.
+Relevé, Port-Royal : 316, 1 516 et 1 916 m du rivage → le vol à 25 m du navire ;
+2 316 m → rentré ; 3 016 m → rien ; retour à 816 m → revenu. L'ancienne mesure
+vidait le ciel à quelques centaines de mètres du rivage d'une grande île.
+
 ## À FAIRE — fusionner les voies d'eau d'un même endroit
 
 **Décidé, pas fait, et délibérément remis.** L'artillerie appelle `breach()` à

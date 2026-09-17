@@ -1,4 +1,24 @@
 {
+  "calendar": { "start": "1690-10-08" },
+  "dolphins": {
+    "enabled": true,
+    "perDay": 4,
+    "calmBelow": 3.5,
+    "pod": [3, 7],
+    "minutes": [3, 8],
+    "awayFromShore": 250,
+    "glb": "creatures/dolphin.glb"
+  },
+  "climate": {
+    "mean": 9.5,
+    "seasonal": 9,
+    "daily": 3,
+    "wander": 3,
+    "coldestDay": 30,
+    "showersPerDay": 3,
+    "showerMinutes": [20, 90],
+    "snowBelow": 1.5
+  },
   "note": "Réglages de jeu. Distances en mètres, durées en secondes de temps de jeu (la compression du temps les accélère).",
   "encounters": {
     "enabled": true,
@@ -23,7 +43,8 @@
     "snuffAt": 0.25,
     "farFrom": 1500,
     "farFade": 1.5,
-    "farMinSize": 0.35
+    "farMinSize": 0.35,
+    "moonChance": 0.6
   },
   "bloom": {
     "enabled": true,
@@ -32,6 +53,22 @@
     "radius": 1.7,
     "scale": 0.25,
     "nightOnly": true
+  },
+  "ghosts": {
+    "enabled": true,
+    "name": "Le Cimetière des Galions",
+    "x": -9000,
+    "z": 6000,
+    "radius": 2500,
+    "lingerBefore": 90,
+    "aggroRange": 350,
+    "sideA": ["frigate17e", "frigate17e"],
+    "sideB": ["pirate", "pirate"],
+    "spread": 350,
+    "fade": 6,
+    "opacity": 0.45,
+    "victorLinger": 10,
+    "sunkLinger": 25
   },
   "storm": {
     "lightning": {

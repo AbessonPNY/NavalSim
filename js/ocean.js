@@ -161,6 +161,13 @@ Naval.Ocean = class Ocean {
         // phase the floating origin owes each wave, reduced mod 2π
         uWavePhase:{value:new Array(C.NWAVES).fill(0)},
         uSun:{value:sunDir.clone()},
+        /* The moon's road on the water: where she is, and how much of her
+           light arrives (up, lit, not behind the storm). */
+        uMoon:{value:new THREE.Vector3(0, 1, 0)}, uMoonLit:{value:0},
+        /* How much light is in the water to come back out of it: 1 by day,
+           a little less with the sun low, very little at night, a little more
+           under a moon. Set with the sun. */
+        uWaterLight:{value:1},
         uSunCol:{value:new THREE.Color(0xfff2dc)},  // the sail's transmitted light follows it
         uCam:{value:new THREE.Vector3()},
         uHalf:{value:half},
@@ -323,6 +330,8 @@ Naval.Ocean = class Ocean {
       fragmentShader:`
         precision highp float;
         uniform vec3 uSun,uCam,uDeep,uShallow,uSSS,uZenith,uHorizon;
+        uniform vec3 uMoon;
+        uniform float uMoonLit, uWaterLight;
         uniform float uTime, uAmpMax, uRipple;
         uniform vec2 uWind;
         uniform sampler2D uReflTex; uniform float uReflOn;
@@ -426,13 +435,20 @@ Naval.Ocean = class Ocean {
              this the sea stayed turquoise under a sky of slate, which reads as
              two pictures pasted together. */
           body *= 1.0 - 0.50*uStorm;
+          /* AND THE NIGHT TAKES IT TOO. The water's colour is light scattered
+             back up out of it, and it had been written as a constant pigment:
+             looking straight down at midnight — where the sky's reflection is
+             at its weakest and the body is all one sees — the sea glowed
+             turquoise as if lit from beneath. */
+          body *= uWaterLight;
 
           /* Subsurface glow: a crest lit from behind passes light through, and
              turns that characteristic green. Strongest on the wave tops, and
              only when the sun is on the far side. */
           float back = pow(max(dot(-V, uSun)*0.5 + 0.5, 0.0), 3.0);
           float crest = smoothstep(0.15, 1.0, vRel / max(uAmpMax, 0.05));
-          body += uSSS * crest * back * 0.55 * (1.0 - far);
+          // through a crest only when there is light behind it: none with the sun under
+          body += uSSS * crest * back * 0.55 * (1.0 - far) * uWaterLight * smoothstep(-0.05, 0.08, uSun.y);
 
           vec3 col = mix(body, sky, F);
 
@@ -459,6 +475,17 @@ Naval.Ocean = class Ocean {
           float Fs = 0.02 + 0.98*pow(1.0 - voh, 5.0);
           float shadow = max(dot(N, uSun), 0.0);        // no glitter on a back face
           col += vec3(1.0, 0.96, 0.86) * D * Fs * shadow * 2.4;
+
+          /* The same lobe for the moon, cold and faint: at night it is the only
+             road there is. */
+          if(uMoonLit > 0.001){
+            vec3 Hm = normalize(uMoon + V);
+            float nhm = max(dot(N, Hm), 0.0);
+            float ddm = nhm*nhm*(a*a - 1.0) + 1.0;
+            float Dm = (a*a) / (3.14159*ddm*ddm);
+            float Fm = 0.02 + 0.98*pow(1.0 - max(dot(V, Hm), 0.0), 5.0);
+            col += vec3(0.72, 0.80, 1.0) * Dm * Fm * max(dot(N, uMoon), 0.0) * 1.1 * uMoonLit;
+          }
 
           // a little diffuse tint, so troughs are not dead flat
           col += uShallow * max(dot(N, uSun), 0.0) * 0.05 * (1.0-far);

@@ -240,18 +240,21 @@ let settingsData = null;
 const SETTINGS = path.join(ROOT, 'settings.json');
 if (fs.existsSync(SETTINGS)) {
   settingsData = JSON.parse(fs.readFileSync(SETTINGS, 'utf8'));
-  /* Le modèle du kraken, nommé par les réglages, porté comme celui d'un navire. */
-  const kr = settingsData.storm && settingsData.storm.kraken;
+  /* Les modèles des créatures, nommés par les réglages, portés comme celui
+     d'un navire : le kraken, les dauphins. */
+  for (const [kr, what] of [[settingsData.storm && settingsData.storm.kraken, 'kraken'],
+                            [settingsData.dolphins, 'dauphins']]) {
   if (kr && kr.glb) {
     const p = path.join(ROOT, kr.glb);
     if (fs.existsSync(p)) {
       const bytes = fs.readFileSync(p);
       kr.glbBase64 = bytes.toString('base64');
-      console.log('  embedded ' + kr.glb + '  (kraken, ' + (bytes.length/1024).toFixed(1) + ' KB)');
+      console.log('  embedded ' + kr.glb + '  (' + what + ', ' + (bytes.length/1024).toFixed(1) + ' KB)');
     } else {
-      console.warn('  WARNING: ' + kr.glb + ' is missing — le kraken sera dessiné par le code');
+      console.warn('  WARNING: ' + kr.glb + ' is missing — ' + what + ' dessinés par le code');
       delete kr.glb;
     }
+  }
   }
   inlined.push('settings.json');
 }

@@ -492,6 +492,16 @@ Naval.Stage = class Stage {
                          uStormFlashDir:{value:new THREE.Vector2(0,1)}, uStormFlash:{value:0} };
     this.storm = 0;
     this.sunDir = new THREE.Vector3();
+    /* THE MOON, drawn for each night: whether there is one, how much of it is
+       lit, and how far from the sun's opposite it rides. It turns with the sky
+       — about the pole, like everything else up there — so it rises, crosses
+       and sets through the night. lightDir is where the scene's one direct
+       light comes from: the sun by day, the moon by night when she is up. */
+    this.moon = { on:false, phase:1, lag:0, lit:0, up:0 };
+    this.moonDir = new THREE.Vector3(0, 1, 0);
+    this.lightDir = new THREE.Vector3(0, 1, 0);
+    this._wasNight = false;
+    Naval.MOON = Naval.MOON || { chance: 0.6 };
     this.sun = new THREE.DirectionalLight(0xfff2dc, 2.1);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
@@ -543,11 +553,24 @@ Naval.Stage = class Stage {
     const night = Math.max(0, Math.min(1, -elevDeg/10));
     this.night = night;
 
+    // a new night, a new moon — or none
+    if(night > 0 && !this._wasNight) this.newMoon();
+    this._wasNight = night > 0;
+    this._placeMoon();
+    const M = this.moon;
+    /* How much moonlight arrives: there, above the horizon, as full as she is.
+       A new moon gives almost nothing, which is right. */
+    const moonLight = M.on ? M.up*(0.15 + 0.85*M.phase) : 0;
+    this.moonLight = moonLight;
+    this.lightDir.copy(night > 0.5 && M.on && M.up > 0.05 ? this.moonDir : this.sunDir);
+
     this.sun.color.setRGB(
       1.0 - 0.55*night,
       (0.72 + 0.23*t) - 0.30*night,
       (0.45 + 0.42*t) + 0.28*night);
-    this._sunBase = (1.1 + 1.0*t)*(1 - night) + 0.28*night;
+    /* At night the direct light is the moon's: 0.12 under an empty sky, up to
+       0.40 under a full one. It was a fixed 0.28 — a moon every night. */
+    this._sunBase = (1.1 + 1.0*t)*(1 - night) + (0.12 + 0.28*moonLight)*night;
     this.sun.intensity = this._sunBase * (1 - 0.62*this.storm);
     this.horizon.setRGB(
       (0.62 + 0.20*t)*(1-night) + 0.055*night,
@@ -565,6 +588,9 @@ Naval.Stage = class Stage {
     this.hemi.intensity = this._hemiBase + (this.flash||0)*2.6;
 
     if(this.skyMat){
+      this.skyMat.uniforms.uMoon.value.copy(this.moonDir);
+      this.skyMat.uniforms.uMoonLit.value = (M.on ? M.up : 0)*night;
+      this.skyMat.uniforms.uMoonPhase.value = 1 - 2*M.phase;
       this.skyMat.uniforms.uSun.value.copy(this.sunDir);
       this.skyMat.uniforms.uZenith.value.copy(this.zenith);
       this.skyMat.uniforms.uHorizon.value.copy(this.horizon);
@@ -572,6 +598,28 @@ Naval.Stage = class Stage {
     // the environment IS that sky, so it has to follow the sun with it
     this.refreshEnvironment();
     if(this.onSunChange) this.onSunChange(this);
+  }
+
+  /* Tonight's moon: Naval.MOON.chance that there is one; its lit fraction,
+     from a thin crescent to full; and, the thinner it is, the further it rides
+     from the sun's opposite — a crescent follows the sun down, a full moon
+     rises as it sets. */
+  newMoon(){
+    const M = this.moon;
+    M.on = Math.random() < (Naval.MOON.chance != null ? Naval.MOON.chance : 0.6);
+    M.phase = 0.2 + 0.8*Math.random();
+    M.lag = (Math.random() < 0.5 ? -1 : 1)*(1 - M.phase)*9;     // hours
+    if(this.onMoon) this.onMoon(M);
+  }
+
+  _placeMoon(){
+    const phi = (Naval.Geo ? Naval.Geo.LAT0 : 46.2)*Math.PI/180;
+    // the celestial pole: due north (+z), as high as the latitude
+    this._pole = this._pole || new THREE.Vector3();
+    this._pole.set(0, Math.sin(phi), Math.cos(phi));
+    this.moonDir.copy(this.sunDir).negate()
+      .applyAxisAngle(this._pole, this.moon.lag*Math.PI/12).normalize();
+    this.moon.up = Math.max(0, Math.min(1, (this.moonDir.y + 0.02)/0.12));
   }
 
   /* How hard it is blowing, from nought to a full gale, and what that does to
@@ -675,13 +723,14 @@ Naval.Stage = class Stage {
     u.uStormFlash.value = this._farA;
   }
 
-  updateWeather(dt, seaState){
+  updateWeather(dt, seaState, overcast){
     this._farLightning(dt);
 
     /* The weather in the sky, from the weather on the water. It comes on late
        and hard: a fresh breeze is a fine day with a lively sea, and there is no
        reason to spoil the view for it. From about force 5 the lid comes down. */
-    this.setStorm((seaState - 5.0)/3.2);
+    // a shower closes the sky part way too, without the gale's sea
+    this.setStorm(Math.max((seaState - 5.0)/3.2, overcast || 0));
 
     // storms only: below a strong breeze there is nothing to discharge
     const p = Math.max(0, (seaState - 5.2)/3.8);
@@ -718,7 +767,8 @@ Naval.Stage = class Stage {
         uStormFlashDir:this.skyUniforms.uStormFlashDir,
         uStormFlash:this.skyUniforms.uStormFlash,
         /* Under water there is no sky to draw: the vault becomes the deep. */
-        uSubmerged:{value:0}, uDeep:{value:new THREE.Color(0x0e3347)}
+        uSubmerged:{value:0}, uDeep:{value:new THREE.Color(0x0e3347)},
+        uMoon:{value:new THREE.Vector3(0, 1, 0)}, uMoonLit:{value:0}, uMoonPhase:{value:-1}
       },
       vertexShader:`
         varying vec3 vDir;
@@ -732,11 +782,39 @@ Naval.Stage = class Stage {
         uniform vec3 uSun, uZenith, uHorizon;
         uniform float uFlash, uSubmerged;
         uniform vec3 uDeep;
+        uniform vec3 uMoon;
+        uniform float uMoonLit, uMoonPhase;
         ${Naval.SKY_GLSL}
         void main(){
           vec3 c = navalSky(vDir, uSun, uZenith, uHorizon);
           // the disc itself, which only the dome draws
           c += vec3(1.0,0.95,0.85) * pow(max(dot(normalize(vDir),uSun),0.0), 2200.0) * 6.0;
+          /* The moon, dome only like the sun's disc: a pale disc lit on the side
+             that faces the sun, the terminator an ellipse across it, the dark
+             part faintly there against the sky, and a cold halo. Drawn larger
+             than life, as the eye remembers it. uMoonPhase runs from 1 (new) to
+             -1 (full). */
+          float ml = uMoonLit * (1.0 - uStorm);
+          if(ml > 0.001){
+            vec3 d = normalize(vDir);
+            float cm = dot(d, uMoon);
+            const float MR = 0.021;
+            vec3 rt = normalize(cross(uMoon, vec3(0.0, 1.0, 0.0)) + vec3(1e-5, 0.0, 0.0));
+            vec3 upm = cross(rt, uMoon);
+            vec2 p = vec2(dot(d, rt), dot(d, upm)) / MR;
+            float r2 = dot(p, p);
+            if(cm > 0.0 && r2 < 1.0){
+              vec2 s = normalize(vec2(dot(uSun, rt), dot(uSun, upm)) + vec2(1e-5, 0.0));
+              vec2 q = vec2(dot(p, s), dot(p, vec2(-s.y, s.x)));
+              float edge = uMoonPhase * sqrt(max(0.0, 1.0 - q.y*q.y));
+              float lit = smoothstep(edge - 0.08, edge + 0.08, q.x);
+              float limb = 1.0 - 0.3*r2;
+              vec3 face = mix(c*0.6 + vec3(0.02, 0.025, 0.035), vec3(0.95, 0.96, 1.0)*1.3*limb, lit);
+              c = mix(c, face, smoothstep(1.0, 0.9, r2) * min(1.0, ml*2.0));
+            }
+            c += vec3(0.55, 0.62, 0.80) * pow(max(cm, 0.0), 1500.0) * 0.35 * ml;
+            c += vec3(0.35, 0.40, 0.55) * pow(max(cm, 0.0), 80.0) * 0.06 * ml;
+          }
           // the discharge lights the whole vault, brightest low down
           c += vec3(0.62,0.70,0.92) * uFlash * (1.6 - 0.9*clamp(vDir.y,0.0,1.0));
           /* Submerged, the dome is not sky but the water beyond seeing: dark,
@@ -841,7 +919,7 @@ Naval.Stage = class Stage {
      within a minute — her shadows would simply stop. */
   aimSun(shipPos){
     this.sun.target.position.copy(shipPos);
-    this.sun.position.copy(this.sunDir).multiplyScalar(this.shadowSpan*3).add(shipPos);
+    this.sun.position.copy(this.lightDir).multiplyScalar(this.shadowSpan*3).add(shipPos);
   }
 
   render(){

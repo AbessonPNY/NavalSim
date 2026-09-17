@@ -34,16 +34,18 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 |---|---|
 | `config.js` | constantes du monde (ρ, g, grille de sondes, liste de repli des navires) |
 | `weather.js` · `storms.js` | le vent qui se conduit seul · les dépressions, qui ont un lieu |
-| `rain.js` · `splash.js` | le rideau de pluie · l'eau jetée par ce qui tombe dedans |
+| `rain.js` · `snow.js` · `splash.js` | le rideau de pluie · la neige · l'eau jetée par ce qui tombe dedans |
+| `climate.js` | la température (en mots), les averses, pluie ou neige |
 | `wreck-air.js` | l'air qui remonte d'une épave |
 | `lightning.js` · `kraken.js` | la foudre qui tombe sur une tête de mât · le monstre des dépressions |
+| `ghosts.js` | la flotte fantôme du Cimetière des Galions (nuit, `Naval.app.fantomes(true)` pour y aller) |
 | `spyglass.js` | la lunette |
 | `bloom.js` | la lueur des lumières trop vives, la nuit seulement |
 | `anchor.js` | mouiller et lever l'ancre |
 | `flotsam.js` | débris d'un naufrage, la bouteille, la cargaison échouée |
 | `ship-spec.js` | lit une fiche JSON et en **dérive** ce que le solveur consomme |
 | `hull-lines.js` | le plan de formes, en fonctions pures |
-| `stage.js` | renderer, scène, lumière, ciel |
+| `stage.js` · `calendar.js` | renderer, scène, lumière, ciel, lune · la date et la saison |
 | `ocean.js` | houle de Gerstner : shader GPU **et** échantillonnage CPU |
 | `foam.js` · `ssao.js` | champ d'écume persistant · occlusion ambiante du navire |
 | `underwater.js` | la coque vue à travers l'eau |
@@ -56,14 +58,14 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `helm.js` | la barre des navires qui ne sont pas le vôtre |
 | `guns.js` · `explosion.js` | la bordée et sa fumée · la soute qui saute |
 | `cordage.js` | les bouts rompus |
-| `gulls.js` | les mouettes |
+| `gulls.js` · `dolphins.js` | les mouettes (à moins de 2 km des côtes) · les dauphins de l'étrave, par mer calme |
 | `sound.js` | le bruit, et le temps qu'il met à venir |
 | `capture.js` | la capture d'écran (touche `I`), écrite par le serveur de dev |
 | `purse.js` | la bourse, le cours des épices, la poudre |
 
-Réglages de jeu : `settings.json` (rencontres, nuit, bloom, naufrage, tempête : foudre et kraken).
+Réglages de jeu : `settings.json` (rencontres, nuit, bloom, naufrage, tempête : foudre et kraken, fantômes, calendrier, climat, dauphins).
 Objets flottants : `props/Props.json`. Pavillons : `ships/textures/flags/flags.json`.
-Fiches navires : `ships/*.json`, format dans `ships/README.md`. Kraken en `.glb` : `creatures/README.md`.
+Fiches navires : `ships/*.json`, format dans `ships/README.md`. Kraken et dauphins en `.glb` : `creatures/README.md`.
 
 ## Règles à ne jamais casser
 

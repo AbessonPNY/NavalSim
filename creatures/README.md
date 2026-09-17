@@ -33,3 +33,26 @@ Ouvrez-le dans Blender, modifiez, puis **Fichier → Exporter → glTF 2.0**, fo
   (les yeux luisent la nuit).
 - Pas d'animation ni d'armature à prévoir : la courbure est calculée.
 - Le rayon de touche du corps suit la taille du modèle.
+
+## Les dauphins — `creatures/dolphin.glb`
+
+Nommé par `settings.json` → `dolphins.glb`. Absent ou illisible : les dauphins
+restent dessinés par le code. Le build l'embarque. Modèle de départ :
+
+```bash
+node tools/dolphin-glb.js
+```
+
+| nom | rôle |
+|---|---|
+| `queue` (ou `tail`, `caudale`) | la nageoire caudale. Son **origine est l'articulation** au pédoncule : le jeu la fait battre autour de son axe **X**. Ce qui lui est parenté bat avec elle. |
+| tout le reste | le corps (ici `corps`, `aileron`, `nageoire_gauche`, `nageoire_droite`) |
+
+- **Le nez vers −Y dans Blender** (l'avant glTF est +Z), le dos vers le haut ;
+  unités : le mètre (2,35 m du bec au pédoncule, la caudale en plus).
+- Le corps porte des couleurs de sommet (dos sombre, ventre clair) et des UV
+  (u autour du corps, v du bec à la queue) pour peindre une texture.
+- Pas d'armature ni d'animation à prévoir : la nage (arc, tangage, battement)
+  est calculée. Les nageoires sont des plaques fines à matière double face.
+- Chaque dauphin reçoit sa copie du modèle ; la taille varie un peu d'un animal
+  à l'autre (×0,85 à ×1,2).

@@ -237,6 +237,11 @@ Naval.ShipModel = class ShipModel {
        uniforms below are handed to her own materials only, so two ships in the
        same fight each show their own wounds. */
     this.scars = [];
+    /* HER SNOW: 0 bare, towards 1 a white coat on everything that faces the
+       sky. Hers alone — a ship that sailed out of the snow keeps it until it
+       melts — and set by the page as the weather goes. */
+    this._snowU = { uSnow:{ value:0 } };
+    this.snowCover = 0;
     this._scarU = {
       uScar:{ value: Array.from({ length:Naval.SCAR_MAX }, () => new THREE.Vector4()) },
       uScarCount:{ value:0 },
@@ -1719,6 +1724,7 @@ Naval.ShipModel = class ShipModel {
         if(aoUniforms) Naval.applyShipAO(m, aoUniforms);
         // scars on her timber, never on her canvas — and before the haze, which is the air in front
         if(!m.userData.sailLit && obj !== this.wake) Naval.applyScars(m, this._scarU);
+        if(obj !== this.wake) Naval.applySnowCover(m, this._snowU);
         Naval.applyHaze(m, oceanUniforms);
       }
     };
@@ -2922,6 +2928,44 @@ Naval.impactAtlas = function(list){
    diffuse term, so it is LIT: fresh oak in the sun, a pale thread at night.
 
    Chained like every other patch, with its own cache key, and before the haze. */
+/* SNOW LYING ON HER. Where a surface faces the sky, its colour goes to snow
+   by the depth of the coat: first the flats (deck, tops, the upper faces of
+   yards and rails), then the gentler slopes. The edge is broken by noise laid
+   in HER frame, so the patches stay where they fell as she rolls. A sail,
+   hanging, collects almost none by the same rule. Chained with its own key,
+   before the haze. */
+Naval.applySnowCover = function(mat, u){
+  if(!mat || mat.userData.snowCover || !mat.isMeshStandardMaterial) return;
+  mat.userData.snowCover = true;
+  const prevKey = mat.customProgramCacheKey.bind(mat);
+  mat.customProgramCacheKey = () => prevKey() + '|snow';
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (shader, renderer)=>{
+    if(prev) prev(shader, renderer);
+    shader.uniforms.uSnow = u.uSnow;
+    shader.vertexShader = 'varying vec3 vSnowN;\nvarying vec3 vSnowP;\n'
+      + shader.vertexShader.replace('#include <project_vertex>',
+        '#include <project_vertex>\n  vSnowN = normalize(mat3(modelMatrix) * objectNormal);\n  vSnowP = transformed;');
+    shader.fragmentShader = 'varying vec3 vSnowN;\nvarying vec3 vSnowP;\nuniform float uSnow;\n'
+      + 'float navalSnowHash(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719)))*43758.5453); }\n'
+      + 'float navalSnowNoise(vec3 p){ vec3 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);\n'
+      + '  float a = mix(mix(navalSnowHash(i), navalSnowHash(i+vec3(1,0,0)), f.x), mix(navalSnowHash(i+vec3(0,1,0)), navalSnowHash(i+vec3(1,1,0)), f.x), f.y);\n'
+      + '  float b = mix(mix(navalSnowHash(i+vec3(0,0,1)), navalSnowHash(i+vec3(1,0,1)), f.x), mix(navalSnowHash(i+vec3(0,1,1)), navalSnowHash(i+vec3(1,1,1)), f.x), f.y);\n'
+      + '  return mix(a, b, f.z); }\n'
+      + shader.fragmentShader.replace('#include <color_fragment>',
+        '#include <color_fragment>\n'
+      + '  if(uSnow > 0.001){\n'
+      + '    float upF = normalize(vSnowN).y;\n'
+      + '    float n = navalSnowNoise(vSnowP*1.7)*0.6 + navalSnowNoise(vSnowP*5.3)*0.4;\n'
+      + '    // the deeper the coat, the steeper the slopes it holds on\n'
+      + '    float reach = mix(0.92, 0.45, uSnow);\n'
+      + '    float s = smoothstep(reach, reach + 0.2, upF + (n - 0.5)*0.35) * smoothstep(0.0, 0.35, uSnow + n*0.3 - 0.15);\n'
+      + '    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.90, 0.92, 0.95), clamp(s, 0.0, 1.0)*0.95);\n'
+      + '  }');
+  };
+  mat.needsUpdate = true;
+};
+
 Naval.applyScars = function(mat, u){
   if(!mat || mat.userData.scars || !mat.isMeshStandardMaterial) return;
   mat.userData.scars = true;

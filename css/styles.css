@@ -231,6 +231,12 @@
      grows every time the sea console gains a control — the cloud slider pushed it
      66 px down — and a fixed top eventually runs the chart off a short window. */
   #chartPanel{bottom:16px;right:16px;width:236px}
+  /* The large chart on O: centred over the sea, above the other panels. */
+  #bigChart{top:50%;left:50%;transform:translate(-50%,-50%);z-index:20;padding:14px 16px;text-align:center}
+  #bigChart[hidden]{display:none}
+  #bigChartCv{display:block;margin:8px auto 0;border-radius:50%;cursor:zoom-in}
+  #bigChart kbd{font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:3px;
+    background:rgba(140,168,182,.18);border:1px solid rgba(200,220,232,.22);color:var(--ink)}
   #chart{display:block;margin:8px auto 0;border-radius:50%}
   .chartFix{margin-top:8px;text-align:center;font-family:var(--mono);font-size:11px;
     color:var(--accent);letter-spacing:.02em;font-variant-numeric:tabular-nums}
@@ -252,6 +258,19 @@
 
   /* Under the sea console: the vessels afloat, and the way to add one. */
   #fleetPanel{top:398px;right:16px;width:236px}
+  /* THE DATE, as a log heads its page, under the sea console. An English
+     round hand: no letter-spacing and no forced capitals, which would cut its
+     joins (see the F1 menu), and a size at which a script still reads. The
+     right column is stacked by the page (rangerColonne), so its top is set
+     there. */
+  #dateLine{position:absolute;right:20px;top:460px;z-index:4;pointer-events:none;
+    font-family:var(--script);font-size:30px;line-height:1.05;white-space:nowrap;
+    color:#e8ddc2;text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 14px rgba(6,18,29,.95)}
+  /* the weather in words, under the date and a size down. Both stay on screen
+     when H clears the glass: they belong to the picture, like a caption. */
+  #tempLine{position:absolute;right:20px;top:500px;z-index:4;pointer-events:none;
+    font-family:var(--script);font-size:23px;line-height:1.05;white-space:nowrap;
+    color:#d9cfb4;text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 12px rgba(6,18,29,.95)}
   /* In the gap between the attitude column and the sea console. It goes with
      the attitude panel on a narrow screen, being the same kind of luxury. */
   #cargoPanel{top:16px;left:470px;width:238px}

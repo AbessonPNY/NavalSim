@@ -109,6 +109,11 @@ Naval.ShipPhysics = class ShipPhysics {
        out" as "alongside", and a monster is not a quay. */
     this.grips = [];
     this.foundered = false;
+    /* GLIDING, for what sails the sea without being moved by it — a ghost.
+       A number is the height she is held at: upright, heading free, the swell
+       passing through her. Let go once she is badly flooded, so that what is
+       beaten can still go down. null is an ordinary hull. */
+    this.glide = null;
     this.trappedAir = 0;                   // m³, what is left to burp up once she is under
     this._trapFilled = false;
     this._trapAt = new THREE.Vector3();
@@ -1047,7 +1052,7 @@ Naval.ShipPhysics = class ShipPhysics {
        being a lot, and it means the pause never costs the best moment. */
     const big = slamW > this._slamLast*2
              && (this.slamPause - this._slamCool) > 1.0;
-    if(this.onSlam && (this._slamCool <= 0 || big)
+    if(this.onSlam && this.glide == null && (this._slamCool <= 0 || big)
        && slamW > (this.hullVolume/S.D)*this.slamTrigger){
       this._slamCool = this.slamPause;
       this._slamLast = slamW;
@@ -1192,6 +1197,18 @@ Naval.ShipPhysics = class ShipPhysics {
       this._tmp.copy(b.angVel).multiplyScalar(1/wlen);
       this._qc.setFromAxisAngle(this._tmp, wlen*dt);
       b.quat.premultiply(this._qc).normalize();
+    }
+
+    if(this.glide != null){
+      if(this.foundered || this.floodVol > 0.25*this.hullVolume) this.glide = null;
+      else{
+        b.pos.y = this.glide;
+        b.vel.y = 0;
+        const hx = this._tmp.set(0, 0, 1).applyQuaternion(b.quat);
+        const yaw = Math.atan2(hx.x, hx.z);
+        b.quat.setFromAxisAngle(this._tmp2.set(0, 1, 0), yaw);
+        b.angVel.set(0, b.angVel.y, 0);
+      }
     }
 
     // NaN guard: recover to a safe upright state rather than freeze the loop

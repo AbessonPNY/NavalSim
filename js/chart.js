@@ -60,6 +60,17 @@ Naval.Chart = class Chart {
 
   zoom(f){ this.scale = Math.max(0.25, Math.min(this.maxScale, this.scale*f)); }
 
+  /* The same chart, drawn into another canvas at its own scale — the large
+     one on O. One drawing for both, so the two can never disagree; the small
+     chart's canvas, scale and readouts are put back as they were. */
+  drawInto(canvas, scale, els, ...args){
+    const keep = [this.cv, this.ctx, this.scale, this.els];
+    this.cv = canvas; this.ctx = canvas.getContext('2d');
+    this.scale = scale; this.els = els || {};
+    try{ this.draw(...args); }
+    finally{ [this.cv, this.ctx, this.scale, this.els] = keep; }
+  }
+
   /* `fleet` entries carry world positions computed by the caller: the chart
      must not guess at the origin convention on its own. */
   draw(centre, headingRad, fleet, squall){
@@ -145,6 +156,24 @@ Naval.Chart = class Chart {
        Handed over by whoever keeps them (`this.marks`), in true metres. A
        bottle is a pale ringed dot, because one only knows roughly where it
        floats; a cargo is an X, because somebody wrote it down. */
+    /* Places with a name and no coast: a dashed ring and the name in italics,
+       pale — a sailor's rumour written on the chart rather than a survey. */
+    const places = this.places ? this.places() : [];
+    for(const p of places){
+      const q = px(p.x, p.z), rp = p.r*k;
+      ctx.save();
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = 'rgba(150,235,210,.45)'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(q[0], q[1], Math.max(3, rp), 0, 6.2832); ctx.stroke();
+      ctx.restore();
+      ctx.font = 'italic 600 10px var(--disp, system-ui)';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(18,26,34,.72)';
+      ctx.strokeText(p.name, q[0], q[1]);
+      ctx.fillStyle = '#bfeee2';
+      ctx.fillText(p.name, q[0], q[1]);
+    }
+
     const marks = this.marks ? this.marks() : [];
     for(const m of marks){
       const q = px(m.x, m.z);
