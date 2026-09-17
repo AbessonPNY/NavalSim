@@ -1381,11 +1381,16 @@ async function main(){
         /* La colonne annonce son groupe, et ce qu'il en reste dès qu'il en manque :
            « Tribord 4/6 ». Un compte plein ne se lit pas, il encombrerait. */
         const c = ship.gunCount ? ship.gunCount(gunSide) : {ok:0, all:0};
+        /* Et ce qui est chargé, tant que tout ne l'est pas : « Tribord · 3 prêtes
+           sur 6 ». Les pièces démontées restent comptées à part. */
+        const L = guns.loaded(ship.guns, gunSide);
         if(gunTextEl) gunTextEl.textContent = GUN_NAMES[gunSide]
-          + (c.all && c.ok < c.all ? ' ' + c.ok + '/' + c.all : '');
+          + (c.all && c.ok < c.all ? ' ' + c.ok + '/' + c.all : '')
+          + (L.all && L.ready < L.all ? ' · ' + L.ready + ' prête' + (L.ready > 1 ? 's' : '') + ' sur ' + L.all : '');
       }
       for(const b of gunSideEls) b.onclick = ()=>{ gunSide = Number(b.dataset.s); showGunSide(); };
       refreshGuns = showGunSide;
+      setInterval(() => { if(ship && ship.guns && ship.guns.length) showGunSide(); }, 500);
       showGunSide();
 
       controls.onShot = ()=> capture.take();
@@ -1414,8 +1419,15 @@ async function main(){
         const tires = held
           ? guns.broadside(ship.guns, side, physics.body, spec, ocean.windVec, physics.powder)
           : guns.fireOne(ship.guns, side, physics.body, spec, ocean.windVec);
+        if(!tires){
+          const L = guns.loaded(ship.guns, side);
+          dire('Pièces en rechargement · ' + GUN_NAMES[side].toLowerCase()
+               + (isFinite(L.next) ? ' — la première dans ' + Math.ceil(L.next) + ' s' : ''));
+          return;
+        }
         physics.powder = Math.max(0, physics.powder - tires);
         refreshMarket();
+        showGunSide();
       };
       /* LE MÉMENTO, et il ne fait que s'ouvrir et se fermer : seize touches ne
          tiennent pas sous trois curseurs sans faire de la console de barre un
@@ -2042,6 +2054,7 @@ async function main(){
     if(s && s.calendar && s.calendar.start){ calendar.setStart(s.calendar.start); saison(); }
     if(s && s.climate) Object.assign(Naval.CLIMATE, s.climate);
     if(s && s.dolphins) Object.assign(Naval.DOLPHINS, s.dolphins);
+    if(s && s.gunnery) Object.assign(Naval.GUNNERY, s.gunnery);
     dolphins.loadModel(Naval.DOLPHINS);
     if(s && s.night && s.night.moonChance != null) Naval.MOON = { chance: s.night.moonChance };
     if(s && s.storm){
@@ -2697,6 +2710,9 @@ async function main(){
     e.rearme = Math.max(0, (e.rearme || 0) - dt);
     const cible = ennemiDe(e);
     if(!cible || e.rearme > 0) return;
+    /* Les pièces se rechargent chacune à son rythme (guns.loaded) : un capitaine
+       attend d'avoir la plus grande part de son bord prête, plutôt que de
+       lâcher chaque pièce à mesure qu'elle revient en batterie. */
 
     _v1.copy(cible.pos).sub(e.body.pos); _v1.y = 0;
     const portee = _v1.length();
@@ -2706,9 +2722,11 @@ async function main(){
     _v1.normalize();
     const travers = _v1.dot(_v3);
     if(Math.abs(travers) < 0.62) return;                // elle n'a pas le bord
-    const n = guns.broadside(bouches, travers > 0 ? 1 : -1, e.body, e.spec,
-                             ocean.windVec, e.physics.powder);
-    if(n > 0){ e.physics.powder -= n; e.rearme = 20 + Math.random()*16; }
+    const bord = travers > 0 ? 1 : -1;
+    const L = guns.loaded(bouches, bord);
+    if(L.ready < Math.max(1, Math.ceil(0.6*L.all))) return;
+    const n = guns.broadside(bouches, bord, e.body, e.spec, ocean.windVec, e.physics.powder);
+    if(n > 0){ e.physics.powder -= n; e.rearme = 2 + Math.random()*3; }
   }
 
   /* The live instances, reachable from the console. Several bugs in this project

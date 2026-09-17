@@ -68,6 +68,11 @@ Naval.powderTexture = function(){
   return tex;
 };
 
+/* Game rules, overridden by settings.json → gunnery. */
+Naval.GUNNERY = {
+  reload: [30, 60]        // seconds a piece is out after firing, drawn per shot
+};
+
 Naval.Guns = class Guns {
   /* How much of the wind a powder cloud actually takes up. Cold, dense and
      laden, it hangs where it was made and sags away slowly — at the full speed
@@ -84,7 +89,10 @@ Naval.Guns = class Guns {
     this._queue = [];
     this.shot = [];            // round shot in the air
     // which gun speaks next, one cursor per side: [babord, tribord]
-    this._next = {};             // per group: tribord, bâbord, poupe, proue
+    /* THE GUN'S OWN CLOCK, in game seconds: each piece that has spoken is out
+       until its crew has sponged, loaded, rammed and run it out again. Kept on
+       the piece (g.readyAt), so it is hers and her ship's alone. */
+    this.clock = 0;
     this.targets = [];         // fleet entries a ball may find, set by the page
     /* And things that are not ships: each offers hitShot(a, b), the segment a
        ball swept this sub-step, and answers with where it was struck or null.
@@ -187,25 +195,58 @@ Naval.Guns = class Guns {
     return m;
   }
 
-  _battery(muzzles, side){
+  _battery(muzzles, side, loadedOnly){
     const out = [];
     // a dismounted piece is simply not in the battery any more
-    for(const g of muzzles) if(g.side === side && !g.out) out.push(g);
+    for(const g of muzzles){
+      if(g.side !== side || g.out) continue;
+      if(loadedOnly && (g.readyAt || 0) > this.clock) continue;
+      out.push(g);
+    }
     return out;
+  }
+
+  /* How many of a group are loaded, how many are mounted, and how long until
+     the next one is. */
+  loaded(muzzles, side){
+    let ready = 0, all = 0, next = Infinity;
+    for(const g of muzzles || []){
+      if(g.side !== side || g.out) continue;
+      all++;
+      const w = (g.readyAt || 0) - this.clock;
+      if(w <= 0) ready++; else next = Math.min(next, w);
+    }
+    return { ready, all, next: ready ? 0 : next };
+  }
+
+  /* A piece that fires is out for Naval.GUNNERY.reload seconds, drawn for each
+     gun — every crew has its own pace. The real figure for a heavy gun was a
+     minute and a half to two for a drilled navy crew, three to five for a
+     merchant; the game takes thirty to sixty, a compromise chosen for play. */
+  _spent(g, after){
+    const [a, b] = Naval.GUNNERY.reload;
+    g.readyAt = this.clock + (after || 0) + a + Math.random()*(b - a);
   }
 
   /* ONE GUN, and the next one next time. A tap on the key is a single piece
      going off, and the battery is walked down from forward to aft press by
      press — which is how a gundeck is actually worked when it is not firing
      together, and gives the player something to do between broadsides. */
+  // the cursor lives on her battery: one shared cursor walked every ship at once
   fireOne(muzzles, side, body, spec, wind){
-    const g = this._battery(muzzles, side);
-    if(!g.length) return 0;
-    const s = side;
-    const i = (this._next[s] || 0) % g.length;
-    this._next[s] = (i + 1) % g.length;
-    this._queue.push({ t:0, g:g[i], body, spec, wind });
-    return 1;
+    const all = this._battery(muzzles, side);
+    if(!all.length) return 0;
+    const cur = muzzles._next || (muzzles._next = {});
+    const start = (cur[side] || 0) % all.length;
+    for(let n = 0; n < all.length; n++){
+      const g = all[(start + n) % all.length];
+      if((g.readyAt || 0) > this.clock) continue;      // still loading: the next one
+      cur[side] = (start + n + 1) % all.length;
+      this._spent(g, 0);
+      this._queue.push({ t:0, g, body, spec, wind });
+      return 1;
+    }
+    return 0;
   }
 
   /* THE WHOLE BROADSIDE, gun by gun rather than all together.
@@ -227,23 +268,20 @@ Naval.Guns = class Guns {
      courte, les pièces du bout restant muettes faute de gargousse, ce qui est
      exactement ce qui arrivait. Absent, toute la batterie parle comme avant. */
   broadside(muzzles, side, body, spec, wind, max){
-    const g = this._battery(muzzles, side);
+    // only what is loaded speaks: a broadside is the guns that are ready
+    const g = this._battery(muzzles, side, true);
     if(!g.length) return 0;
     const fire = max === undefined ? g.length : Math.min(g.length, Math.max(0, max|0));
     if(!fire) return 0;
-    const s = side;
-    const start = (this._next[s] || 0) % g.length;
+    /* A few tenths of a second between guns, never together: each captain
+       waits for his own roll and his own match. */
     let delay = 0;
     for(let n = 0; n < fire; n++){
-      this._queue.push({ t:-delay, g:g[(start + n) % g.length], body, spec, wind });
-      delay += 0.05 + Math.random()*0.13;
-      if(Math.random() < 0.18) delay += 0.12 + Math.random()*0.30;   // one hangs fire
+      this._queue.push({ t:-delay, g:g[n], body, spec, wind });
+      this._spent(g[n], delay);
+      delay += 0.08 + Math.random()*0.22;
+      if(Math.random() < 0.18) delay += 0.15 + Math.random()*0.35;   // one hangs fire
     }
-    /* Toute la batterie a parlé, donc la prochaine pression repart d'où la
-       salve était partie — sauf si elle a été écourtée, auquel cas la suite
-       reprend là où la poudre a manqué. */
-    this._next[s] = (start + fire) % g.length;
-    if(fire === g.length) this._next[s] = start;
     return fire;
   }
 
@@ -623,6 +661,7 @@ Naval.Guns = class Guns {
   }
 
   update(dt, wind, ocean, t){
+    this.clock += dt;
     this._ocean = ocean; this._t = t || 0;    // fire() en a besoin pour son plancher
     this._flight(dt, ocean, t);
     /* SHE FIRES ON THE ROLL, and this is not a refinement — without it the

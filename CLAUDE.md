@@ -63,7 +63,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `capture.js` | la capture d'écran (touche `I`), écrite par le serveur de dev |
 | `purse.js` | la bourse, le cours des épices, la poudre |
 
-Réglages de jeu : `settings.json` (rencontres, nuit, bloom, naufrage, tempête : foudre et kraken, fantômes, calendrier, climat, dauphins).
+Réglages de jeu : `settings.json` (rencontres, nuit, bloom, naufrage, tempête : foudre et kraken, fantômes, calendrier, climat, dauphins, rechargement des pièces).
 Objets flottants : `props/Props.json`. Pavillons : `ships/textures/flags/flags.json`.
 Fiches navires : `ships/*.json`, format dans `ships/README.md`. Kraken et dauphins en `.glb` : `creatures/README.md`.
 

@@ -1375,7 +1375,7 @@ Naval.ShipModel = class ShipModel {
     /* A refit re-reeves her rigging, so every end already hanging is void. The
        epoch says so once instead of every caller having to remember it. */
     // and remounts her guns: the same refit, and the same three callers
-    for(const g of this.guns || []){ g.out = false; g.damage = 0; }
+    for(const g of this.guns || []){ g.out = false; g.damage = 0; g.readyAt = 0; }   // a refit sends her out loaded
     // and new planking: a refit leaves no scars
     this.scars.length = 0; this._scarU.uScarCount.value = 0;
     this.rigCuts.length = 0;

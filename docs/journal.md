@@ -5821,6 +5821,36 @@ Project Authors). Le texte complet est dans `css/fonts/OFL.txt` et **doit
 voyager avec les octets** — c'est la condition de la licence, et embarquer une
 fonte sans sa licence est la manière discrète de ne pas la respecter.
 
+## Le rechargement, pièce par pièce
+
+Une pièce qui a tiré est hors de service le temps qu'on l'écouvillonne, la
+charge, la bourre et la remette en batterie. Chaque canon porte son propre
+`g.readyAt` (horloge `guns.clock`, avancée par `guns.update`), tiré au hasard
+dans `Naval.GUNNERY.reload` — `settings.json → gunnery.reload`, **[30, 60] s**.
+
+- **Réalisme** : une pièce lourde demandait plutôt 1 min 30 à 2 min à un
+  équipage de marine entraîné, 3 à 5 min à un marchand. 30–60 s est un
+  compromis de jeu, choisi par Arnaud.
+- **La bordée** ne fait parler que les pièces chargées, étalées de quelques
+  dixièmes (0,08–0,30 s, et une sur cinq environ qui traîne de 0,15–0,5 s de
+  plus) : six pièces ≈ 1,2 s. Chacune repart en rechargement à partir de
+  *son* coup.
+- **Coup par coup** : le curseur saute les pièces qui rechargent. Il vit
+  désormais sur le tableau de bouches du navire (`muzzles._next`) et plus dans
+  `Guns` : un seul curseur par bord faisait avancer les pièces de tous les
+  navires ensemble.
+- **Rien de chargé** : pas de poudre dépensée, message « Pièces en
+  rechargement · tribord — la première dans 33 s ».
+- **Console** : « Tribord · 3 prêtes sur 6 » tant que tout n'est pas chargé,
+  relue toutes les 0,5 s.
+- **Les autres navires** attendent que 60 % de leur bord soit prêt avant de
+  lâcher leur bordée ; le vieux délai 20–36 s n'est plus qu'une pause de 2–5 s.
+- **Radoub** (`restoreMasts`) : les pièces repartent chargées.
+
+Mesuré (galion pirate, horloge avancée à la main) : bordée de 6 à 0 / 0,20 /
+0,43 / 0,65 / 0,77 / 1,16 s ; rechargements 33–52 s ; seconde bordée
+immédiate refusée sans dépense de poudre ; +66 s : 5 pièces sur 6 prêtes.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code
