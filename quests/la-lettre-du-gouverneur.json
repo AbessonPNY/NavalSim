@@ -1,28 +1,28 @@
 {
   "id": "la-lettre-du-gouverneur",
   "title": "La lettre du gouverneur",
-  "summary": "Porter un pli scellé au Carénage, puis chercher ce qu'est devenue la Sainte-Anne.",
-  "intro": "Le gouverneur de Port-Royal vous confie un pli scellé pour le capitaine du port du Carénage. « Ne le perdez pas, et ne le lisez pas. »",
+  "summary": "Porter un pli scellé à Petit-Goâve, puis chercher ce qu'est devenue la Sainte-Anne.",
+  "intro": "Le gouverneur de Port-Royal vous confie un pli scellé pour le commandant français de Petit-Goâve. « Ne le perdez pas, et ne le lisez pas. »",
   "steps": [
     {
       "title": "Quitter la rade",
-      "brief": "Sortez de la rade de Port-Royal et prenez le large : un mille au moins entre le ponton et vous.",
-      "at": { "island": "port-royal", "port": true },
+      "brief": "Sortez du port de Kingston par la passe de Port-Royal et prenez le large : un mille au moins entre le ponton et vous.",
+      "at": { "port": "port-royal" },
       "goal": "leave",
       "radius": 1852,
-      "message": "Port-Royal s'efface derrière vous. Cap sur Le Carénage."
+      "message": "Port-Royal s'efface derrière vous. Cap à l'est, sur la pointe d'Haïti, puis le golfe de la Gonâve."
     },
     {
-      "title": "Accoster au Carénage",
-      "brief": "Amarrez-vous au ponton du Carénage (touche M) pour remettre le pli.",
-      "at": { "island": "carenage", "port": true },
+      "title": "Accoster à Petit-Goâve",
+      "brief": "Amarrez-vous au ponton de Petit-Goâve (touche M) pour remettre le pli.",
+      "at": { "port": "petit-goave" },
       "goal": "dock",
-      "message": "Le capitaine du port brise le cachet et pâlit.\n« La Sainte-Anne n'est jamais arrivée. Elle a été vue pour la dernière fois à l'ouest de la Tortue. »"
+      "message": "Le commandant brise le cachet et pâlit.\n« La Sainte-Anne n'est jamais arrivée. On l'a vue pour la dernière fois dans le Passage du Vent, à l'ouest du Môle Saint-Nicolas. »"
     },
     {
       "title": "Les eaux de la Sainte-Anne",
-      "brief": "Rendez-vous à deux milles à l'ouest de la Tortue et mettez en panne pour observer.",
-      "at": { "island": "tortue", "bearing": 270, "miles": 2 },
+      "brief": "Rendez-vous dans le Passage du Vent, à l'ouest du Môle Saint-Nicolas, et mettez en panne pour observer.",
+      "at": { "lat": 19.85, "lon": -73.62 },
       "goal": "stop",
       "radius": 400,
       "maxSpeed": 1,
@@ -32,7 +32,7 @@
     {
       "title": "Rapporter la nouvelle",
       "brief": "Retournez à Port-Royal et amarrez-vous pour faire votre rapport.",
-      "at": { "island": "port-royal", "port": true },
+      "at": { "port": "port-royal" },
       "goal": "dock",
       "message": "Le gouverneur vous écoute sans un mot, puis ferme sa fenêtre sur le port."
     }

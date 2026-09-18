@@ -261,9 +261,10 @@ Naval.Flotsam = class Flotsam {
     for(let tries = 0; tries < 24; tries++){
       const a = Math.random()*Math.PI*2;
       if(isl.port && Math.abs(Math.atan2(Math.sin(a - isl.port.ang), Math.cos(a - isl.port.ang))) < 0.8) continue;
-      const shore = W._shore(isl, a);
-      for(let out = 0; out < W.shelf; out += 6){
-        const x = isl.x + Math.cos(a)*(shore + out), z = isl.z + Math.sin(a)*(shore + out);
+      /* Along that bearing from the port, the first stretch of water a metre
+         deep: the coast's own shoal, wherever the relief puts it. */
+      for(let out = 0; out < 4000; out += 2){          // the shoal band is a few metres wide
+        const x = isl.x + Math.cos(a)*out, z = isl.z + Math.sin(a)*out;
         const h = W.heightAt(x, z);
         if(h < -0.7 && h > -1.6){
           const it = { kind:'cargo', x, z, y:h + 0.45, yaw:Math.random()*Math.PI*2, age:0, life:Infinity,
@@ -271,7 +272,6 @@ Naval.Flotsam = class Flotsam {
           this.items.push(it);
           return it;
         }
-        if(h < -1.6) break;
       }
     }
     return null;

@@ -6079,6 +6079,78 @@ pendue au plafond, `cabineLantern` dans le `.glb`, qui danse avec le navire.
   4 m (coque, mâts, voiles) ; des couches les réduiraient, si la chambre
   devenait un lieu où l'on reste.
 
+## La vraie mer des Caraïbes
+
+Le 2026-09-18, l'archipel inventé (quatre îles en disques déformés,
+`ARCHIPELAGO` + `_shore`) cède la place à la géographie réelle autour de la
+Jamaïque. Décisions d'Arnaud : **échelle réduite** (formes réelles, distances
+÷ 10), **Cuba au nord et la vraie côte de Colombie–Venezuela au sud** (il
+avait dit « le continent au nord » ; au nord de la Jamaïque il y a Cuba, ce
+qu'il a accepté), édition par **carte de hauteurs peinte + modèles .glb**.
+Et le jeu démarre sans HUD : date, temps et carte seulement (`hud.startHidden`).
+
+- **Une seule définition** : `world/caraibes.json` (cadre en lat/lon, échelle
+  0,1, hauteurs × 0,25, codage du gris, ports, modèles) et
+  `world/caraibes-relief.png`, 3104 × 2912 px, **45 m de jeu par pixel**,
+  674 Ko. Tout le reste lit `heightAt`, `shoreDistance`, `nearestShore`.
+- **Le gris** : 128 = rivage ; hauteur = 1500 × (écart/127)², profondeur =
+  −400 × (écart/128)². Le carré donne des nuances fines près du rivage
+  (129 = 0,1 m, 132 = 1,5 m) : c'est là que se joue l'échouage, et c'est
+  peignable à la main.
+- **`tools/region-heightmap.js`** : côtes Natural Earth 1:10 M (domaine
+  public, téléchargées avec l'accord d'Arnaud, découpées à la zone :
+  94 contours, 80 Ko dans `world/sources/`), remplissage pair-impair par
+  lignes, distance exacte au rivage (Felzenszwalb) des deux côtés, puis :
+  plaine côtière, collines au bruit, **chaînes** de `reliefs.json` (Blue
+  Mountains, Sierra Maestra, massifs d'Hispaniola, Sierra Nevada de Santa
+  Marta…) en gaussiennes le long de leur crête. Fonds : **12 m à 40 m du
+  rivage**, puis plateau jusqu'à 70 m à 400 m, puis le large vers 400 m.
+  Les fonds ne sont pas réduits : réduits, le port de Kingston (150 à 300 m
+  de large en jeu) n'aurait eu que 7 m au milieu. 2 s de calcul.
+- **Hauteurs × 0,25 et non × 0,1** : réduire seulement les distances aurait
+  posé les 2 256 m des Blue Mountains sur 2 km de jeu, soit des pentes de 45°.
+  Mesuré : Blue Mountain Peak 595 m, Sierra Nevada 1 473 m.
+- **Les Palisadoes** (la langue de sable qui ferme le port de Kingston, un à
+  deux pixels) sortaient à −0,1 m : l'interpolation noie ce qui est plus fin
+  qu'un pixel. Tracées en « bande » d'au moins 1,5 pixel (`strips`), et la
+  terre ne descend jamais sous 2,5 m : 2,4 à 2,8 m. Kingston montait à 246 m
+  (crête des Blue Mountains trop à l'ouest) : recalée, 61 m.
+- **Les ports** : une ville en lat/lon et le relèvement du quai ; le rivage
+  est cherché dans ce relèvement, le ponton avance jusqu'à 9 m d'eau
+  (150 m au plus), et un **bassin** autour est creusé à 11 m (`_dredge` :
+  11 m dès qu'il y a un mètre d'eau, un mur de quai). Pas de môle par défaut :
+  Kingston est un port naturel. Les huit ports se sont placés (ponton de
+  34 à 100 m). La forme `isles` est gardée (clé, nom, x, z, `port`), donc
+  marché, rumeurs, rencontres et départ n'ont pas changé.
+- **`Naval.Geo`** prend l'échelle : `fix` et son inverse `toXZ` parlent en
+  vraies latitudes et longitudes ; l'origine du monde est Port-Royal, et le
+  soleil prend 17,9° N.
+- **Relief affiché en carreaux** de 1 440 m (`land.js`) : à la résolution
+  de l'image jusqu'à 4,5 km, au quart jusqu'à 14 km, une jupe de 30 m sous
+  chaque bord contre les fentes entre niveaux, seuls les carreaux où il y a
+  terre ou haut-fond. Mesuré au port : 75 carreaux affichés, **1,25 ms** par
+  image (4,27 contre 3,02 sans relief), 0,7 ms pour bâtir un carreau,
+  0,15 µs par `heightAt`. Premier passage « impatient » pour ne pas partir
+  d'un port dont la rive d'en face manque encore.
+- **Carte marine** : une image de la région tirée du relief (terre ombrée,
+  hauts-fonds pâles), découpée à la vue ; les ports par leur nom.
+- **Distance au rivage** : champ signé calculé au chargement au quart de la
+  résolution (180 m) ; les mouettes perchent au point de rivage le plus proche
+  (`nearestShore`, descente du champ), la cargaison échouée cherche la bande
+  d'un mètre d'eau le long d'un relèvement depuis un port (pas de 2 m : la
+  bande fait quelques mètres).
+- **Modèles posés** (`assets`) : lat/lon, cap, échelle, posés sur le relief ;
+  essai avec un modèle à Port-Royal : position exacte, hauteur 2,3 m, brume.
+- Vérifié : départ amarré à Port-Royal (17°56,7' N 076°49,9' O) sur 11 m,
+  sans échouage ; quête réécrite (Petit-Goâve à 22,7 M, naufrage dans le
+  Passage du Vent par 212 m) ; Cimetière des Galions toujours en eau
+  profonde ; aucune erreur.
+- **Pas encore** : l'abri naturel des baies (la houle entre dans Kingston
+  comme au large ; seuls les môles abritent) ; une résolution plus fine
+  autour des ports (45 m par pixel est grossier pour une passe) ; les villes
+  et forts en .glb ; les petites îles hors des données (seules Lime Cay et
+  Rackham Cay, à positions approchées).
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

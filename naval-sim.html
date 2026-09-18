@@ -16,7 +16,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="css/styles.css">
 
-<div id="app">
+<!-- The game opens on the picture alone (settings.json → hud.startHidden): H brings the instruments. -->
+<div id="app" class="nohud">
   <canvas id="gl"></canvas>
 
   <div id="boot">
@@ -433,7 +434,9 @@ async function main(){
 
   /* The world she sails in, and the land drawn out of it. The land breathes the
      same air as everything else, so each new island is hazed as it appears. */
-  const world = new Naval.World();
+  /* LA VRAIE MER DES CARAÏBES, lue dans world/caraibes.json et sa carte de
+     hauteurs (js/world.js, world/README.md). */
+  const world = await Naval.World.load('world/caraibes.json');
   /* Le cours suit l'échelle de la carte. Trois heures était juste pour CET
      archipel et ne veut rien dire en soi : ce qui compte est le rapport du
      palier à la durée d'une traversée, et rapprocher les îles le change. */
@@ -455,6 +458,8 @@ async function main(){
   land.onNewProp = g => g.traverse(o => {
     if(o.material) Naval.applyHaze(o.material, ocean.uniforms);
   });
+  // les modèles posés sur la carte (world/caraibes.json → assets), sans attendre
+  land.loadAssets(world.region.assets);
 
   /* Gulls, which are simply part of the land: they appear with it and leave
      with it. Hazed like everything else, or they would hang in front of the
@@ -602,7 +607,8 @@ async function main(){
      dans le cercle, et pas beaucoup plus — au-delà on ne cadre que de l'eau. */
   /* Demandé à l'usage : pouvoir dézoomer davantage. La butée tient maintenant
      l'archipel ET ce qui l'entoure — le Cimetière des Galions est au large. */
-  chart.maxScale = Math.max(6, Math.ceil(2.5*world.extent/1852));
+  // assez pour voir toute la région d'un coup d'œil, pas davantage
+  chart.maxScale = Math.max(6, Math.ceil(1.1*world.extent/1852));
   document.getElementById("chartIn") .addEventListener("click", ()=> chart.zoom(1/1.6));
   document.getElementById("chartOut").addEventListener("click", ()=> chart.zoom(1.6));
 
@@ -1269,6 +1275,7 @@ async function main(){
     }
   }
   let colonneTick = 0, questTick = 0;
+  let landReady = false;                   // the first land update builds everything in range at once
   const seaRowEl = document.getElementById('seaRow');
   const seaWhoEl = document.getElementById('seaWho');
   let seaMaitre = null;                    // qui tient la mer, pour l'affichage
@@ -1798,7 +1805,7 @@ async function main(){
      qu'on prend en main doit pouvoir faire servir sans commencer par un
      demi-tour dans un cul-de-sac. */
   {
-    const home = world.byKey('port-royal');
+    const home = world.startPort;
     const p = home.port, B = specs[0].B || 8;
     const ca = Math.cos(p.ang), sa = Math.sin(p.ang);
     /* Demi-ponton, demi-bau, et QUATRE MÈTRES ET DEMI de dégagement. Un mètre
@@ -2157,6 +2164,8 @@ async function main(){
     if(s && s.dolphins) Object.assign(Naval.DOLPHINS, s.dolphins);
     if(s && s.gunnery) Object.assign(Naval.GUNNERY, s.gunnery);
     if(s && s.crew) Object.assign(Naval.CREW, s.crew);
+    // the page opens without the instruments unless the settings say otherwise
+    if(s && s.hud && s.hud.startHidden === false) document.getElementById('app').classList.remove('nohud');
     if(Naval.CREW.enabled) Naval.loadCrewModel(Naval.CREW);
     dolphins.loadModel(Naval.DOLPHINS);
     if(s && s.night && s.night.moonChance != null) Naval.MOON = { chance: s.night.moonChance };
@@ -2515,7 +2524,7 @@ async function main(){
           /* Vingt-cinq mètres sous la quille et pas une côte à six cents : on
              ne la pose pas au large d'un haut-fond qu'elle touchera au premier
              creux, la mer étant justement ce qu'on vient chercher. */
-          if(world.heightAt(x, z) < -25 && !world.near(x, z, 600).length) return { x, z };
+          if(world.heightAt(x, z) < -25 && world.shoreDistance(x, z) > 600) return { x, z };
         }
       }
       return null;
@@ -2929,8 +2938,8 @@ async function main(){
     // une voile de rencontre à moins de 2,5 km : c'est le moment de veiller
     for(const e of fleet) if(e.rencontre && !e.physics.foundered
       && Math.hypot(e.body.pos.x - b.pos.x, e.body.pos.z - b.pos.z) < 2500) return 1;
-    if(world.near(b.pos.x + ocean.origin.x,
-                  b.pos.z + ocean.origin.z, 1500).length) return 1;  // terre
+    if(world.shoreDistance(b.pos.x + ocean.origin.x,
+                           b.pos.z + ocean.origin.z) < 1500) return 1;  // terre
     return warpWant;
   }
 
@@ -3210,7 +3219,8 @@ async function main(){
         u.uHarbourPass.value.set(best.px - ocean.origin.x, best.pz - ocean.origin.z);
       }else u.uHarbour.value.w = 0;
     }
-    land.update(worldPos, ocean.origin);
+    land.update(worldPos, ocean.origin, !landReady);
+    landReady = true;
     gulls.update(dt, worldPos, ocean.origin);
     /* Asked here, where her TRUE position is known and before anything wants
        the answer: the sea state below, and the chart just after. */

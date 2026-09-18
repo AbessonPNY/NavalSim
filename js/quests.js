@@ -5,11 +5,10 @@
  * message is put on the screen and the next step begins. The format is in
  * quests/README.md.
  *
- * Places are resolved against the world rather than written as bare metres
- * when that is possible (an island's port, a bearing and distance off an
- * island), because Naval.MAP_SCALE moves the islands and a quest written in
- * metres would be left behind in open water. Bare metres and latitude and
- * longitude are accepted too, for places that belong to no island.
+ * Places are named against the world: a port of the region (world/caraibes.json)
+ * — its jetty, or a bearing and distance from it — or a real latitude and
+ * longitude, which the reduced map turns into its own metres. Bare metres are
+ * accepted too.
  *
  * The module holds the state and the rules; the page shows what it says
  * (onShow for a message, objective() for the line under the date and the ring
@@ -82,24 +81,22 @@ Naval.Quests = class Quests {
   place(step){
     const a = step.at, W = this.world, G = Naval.QUEST_GOALS[step.goal || 'reach'];
     let x = 0, z = 0, name = step.title || '';
-    const isl = a.island ? W.byKey(a.island) : null;
-    if(a.island && !isl) console.warn('[quêtes] île inconnue : ' + a.island);
-    if(isl && a.port && isl.port){
+    // "island" is the old name of the field, when every port was an island
+    const key = typeof a.port === 'string' ? a.port : a.island;
+    const isl = key ? W.byKey(key) : null;
+    if(key && !isl) console.warn('[quêtes] port inconnu : ' + key);
+    if(isl && (a.port || !(a.bearing != null || a.miles != null || a.distance != null)) && isl.port){
       // the head of the jetty, out in the stream: where a ship is made fast
       x = isl.port.hx; z = isl.port.hz;
     }else if(isl){
-      /* A bearing FROM the island's centre, true degrees (0 north, 90 east —
-         east is -x here), and a distance from its SHORE along that bearing,
-         so "two miles off" means off the beach whatever the island's size. */
+      /* A bearing FROM the port, true degrees (0 north, 90 east — east is -x
+         here), and a distance in miles of the MAP (or metres). */
       const b = (a.bearing || 0)*Math.PI/180;
       const dx = -Math.sin(b), dz = Math.cos(b);
-      const shore = W._shore(isl, Math.atan2(dz, dx));
-      const d = shore + (a.miles != null ? a.miles*1852 : (a.distance || 0));
+      const d = a.miles != null ? a.miles*1852 : (a.distance || 0);
       x = isl.x + dx*d; z = isl.z + dz*d;
     }else if(a.lat != null && a.lon != null){
-      const g = Naval.Geo, m = g.M_PER_MIN*60;
-      z = (a.lat - g.LAT0)*m;
-      x = -(a.lon - g.LON0)*m*Math.max(0.02, Math.cos(a.lat*Math.PI/180));
+      ({ x, z } = Naval.Geo.toXZ(a.lat, a.lon));
     }else{
       x = a.x || 0; z = a.z || 0;
     }

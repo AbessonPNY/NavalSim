@@ -1,0 +1,34 @@
+{
+  "name": "La mer des Caraïbes",
+  "note": "Formes réelles, distances et tailles ÷10 (scale), hauteurs ×0,25 (vertical). Format : world/README.md.",
+
+  "scale": 0.1,
+  "vertical": 0.25,
+  "origin": { "lat": 17.9375, "lon": -76.8411 },
+
+  "relief": {
+    "image": "world/caraibes-relief.png",
+    "west": -80.0, "east": -67.0, "south": 9.2, "north": 21.0,
+    "sea": 128,
+    "maxHeight": 1500,
+    "maxDepth": 400,
+    "curve": 2
+  },
+
+  "harbourDepth": 11,
+
+  "ports": [
+    { "key": "port-royal", "name": "Port-Royal", "lat": 17.9425, "lon": -76.8330, "quay": 0,
+      "start": true, "note": "au bout des Palisadoes, quais côté port" },
+    { "key": "santiago", "name": "Santiago de Cuba", "lat": 20.0150, "lon": -75.8350, "quay": 200 },
+    { "key": "tortue", "name": "La Tortue", "lat": 20.0350, "lon": -72.7800, "quay": 180,
+      "note": "Cayonne, le repaire des boucaniers" },
+    { "key": "petit-goave", "name": "Petit-Goâve", "lat": 18.4330, "lon": -72.8700, "quay": 0 },
+    { "key": "carthagene", "name": "Carthagène", "lat": 10.4150, "lon": -75.5450, "quay": 200 },
+    { "key": "santa-marta", "name": "Santa Marta", "lat": 11.2450, "lon": -74.2150, "quay": 270 },
+    { "key": "portobelo", "name": "Portobelo", "lat": 9.5550, "lon": -79.6550, "quay": 300 },
+    { "key": "curacao", "name": "Willemstad", "lat": 12.1050, "lon": -68.9350, "quay": 180 }
+  ],
+
+  "assets": []
+}

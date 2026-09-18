@@ -1,4 +1,5 @@
 {
+  "hud": { "startHidden": true },
   "sound": { "music": false },
   "calendar": { "start": "1690-10-08" },
   "crew": { "enabled": false, "count": 4, "minLength": 12, "farHide": 350,

@@ -28,23 +28,6 @@ Naval.Chart = class Chart {
     this.trackEvery = 60;        // metres between marks
     this.trackMax = 900;
     this._last = null;
-    this._islands = new Map();   // key → traced outline, in world metres
-  }
-
-  /* An island's shore as a closed polygon, traced once. The outline comes from
-     the SAME `_shore` the terrain mesh is built on, so the chart can never show
-     a coast the eye does not find — the single-plan-of-forms rule, applied to
-     the land. */
-  _outline(isl){
-    let p = this._islands.get(isl.key);
-    if(p) return p;
-    p = [];
-    for(let i=0;i<72;i++){
-      const a = (i/72)*Math.PI*2, s = this.world._shore(isl, a);
-      p.push([isl.x + Math.cos(a)*s, isl.z + Math.sin(a)*s]);
-    }
-    this._islands.set(isl.key, p);
-    return p;
   }
 
   note(worldX, worldZ){
@@ -119,37 +102,28 @@ Naval.Chart = class Chart {
       ctx.beginPath(); ctx.arc(q[0], q[1], Math.max(2, rp), 0, 6.2832); ctx.fill();
     }
 
-    // --- land, with a shoal ring outside the shore ---
-    for(const isl of this.world.near(centre.x, centre.z, M*1.6)){
-      const out = this._outline(isl);
-      for(const [w, style] of [[1.30, 'rgba(90,150,175,.30)'], [1.0, '#b8a271']]){
-        ctx.beginPath();
-        for(let i=0;i<out.length;i++){
-          const q = px(isl.x + (out[i][0]-isl.x)*w, isl.z + (out[i][1]-isl.z)*w);
-          i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]);
-        }
-        ctx.closePath();
-        ctx.fillStyle = style; ctx.fill();
-      }
+    /* --- the land: the region's own picture (World.chartImage), the same
+       relief the hull grounds on, so the chart can never show a coast the eye
+       does not find. Cut to the view by two of its corners: north-west and
+       south-east, east being -x. --- */
+    const CI = this.world.chartImage();
+    const nw = this.world.pixelAt(centre.x + M, centre.z + M), se = this.world.pixelAt(centre.x - M, centre.z - M);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(CI.canvas, nw[0]/CI.K, nw[1]/CI.K, (se[0] - nw[0])/CI.K, (se[1] - nw[1])/CI.K, 0, 0, W, H);
 
-      /* Her NAME, and a chart without names is a picture of a coast rather
-         than a chart. Set on the island itself and not offset to one side: a
-         label with a leader line is for a mark too small to write on, and
-         these are kilometres across. The port is a ring at the head of its own
-         jetty, which is the one thing on the shore one steers for. */
-      const c = px(isl.x, isl.z);
-      ctx.font = '600 10px var(--disp, system-ui)';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    /* Her PORTS, by name, and a ring at the head of each jetty — the one thing
+       on a shore one steers for. A chart without names is a picture of a coast
+       rather than a chart. */
+    ctx.font = '600 10px var(--disp, system-ui)';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    for(const isl of this.world.near(centre.x, centre.z, M*1.5)){
+      const h = px(isl.port.hx, isl.port.hz);
+      ctx.strokeStyle = '#e8ddc2'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(h[0], h[1], 2.6, 0, 6.2832); ctx.stroke();
       ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(18,26,34,.72)';
-      ctx.strokeText(isl.name, c[0], c[1]);
+      ctx.strokeText(isl.name, h[0], h[1] - 5);
       ctx.fillStyle = '#e8ddc2';
-      ctx.fillText(isl.name, c[0], c[1]);
-
-      if(isl.port){
-        const h = px(isl.port.hx, isl.port.hz);
-        ctx.strokeStyle = '#e8ddc2'; ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.arc(h[0], h[1], 2.6, 0, 6.2832); ctx.stroke();
-      }
+      ctx.fillText(isl.name, h[0], h[1] - 5);
     }
 
     /* --- what is worth steering for: a bottle adrift, a cargo on the shallows ---

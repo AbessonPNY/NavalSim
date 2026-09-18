@@ -305,6 +305,30 @@ if (fs.existsSync(FLAGS)) {
   inlined.push('ships/textures/flags/flags.json');
 }
 
+/* LA RÉGION (world/caraibes.json) et sa carte de hauteurs, portée en data: URI :
+   la page publiée ne peut pas aller chercher l'image à côté d'elle. */
+let regionData = null;
+const REGION = path.join(ROOT, 'world', 'caraibes.json');
+if (fs.existsSync(REGION)) {
+  regionData = JSON.parse(fs.readFileSync(REGION, 'utf8'));
+  const img = path.join(ROOT, regionData.relief.image);
+  if (!fs.existsSync(img)) throw new Error('carte de hauteurs absente : ' + regionData.relief.image + ' (node tools/region-heightmap.js)');
+  const bytes = fs.readFileSync(img);
+  regionData.relief.image = 'data:image/png;base64,' + bytes.toString('base64');
+  console.log('  embedded ' + path.relative(ROOT, img) + '  (relief, ' + (bytes.length/1024).toFixed(0) + ' KB)');
+  // the models set down on the land travel in the page too
+  for(const a of regionData.assets || []){
+    if(!a.glb) continue;
+    const p = path.join(ROOT, a.glb);
+    if(!fs.existsSync(p)){ console.warn('  WARNING: ' + a.glb + ' is missing — modèle ignoré'); delete a.glb; continue; }
+    const g = fs.readFileSync(p);
+    a.glbBase64 = g.toString('base64');
+    console.log('  embedded ' + a.glb + '  (modèle posé, ' + (g.length/1024).toFixed(1) + ' KB)');
+    delete a.glb;
+  }
+  inlined.push('world/caraibes.json');
+}
+
 /* LES QUÊTES (quests/*.json) : toutes, dans l'ordre du dossier, portées dans
    la page ; et un quests/index.json pour un hébergeur statique, comme les
    navires. */
@@ -332,6 +356,7 @@ const shipBlob = '<script>\nwindow.Naval = window.Naval || {};\n' +
   (settingsData ? 'Naval.SETTINGS = ' + JSON.stringify(settingsData) + ';\n' : '') +
   (flagsData ? 'Naval.FLAGS_DATA = ' + JSON.stringify(flagsData) + ';\n' : '') +
   (questsData ? 'Naval.QUESTS_DATA = ' + JSON.stringify(questsData) + ';\n' : '') +
+  (regionData ? 'Naval.REGION_DATA = ' + JSON.stringify(regionData) + ';\n' : '') +
   '</scr' + 'ipt>\n';
 
 /* A STYLESHEET MAY POINT AT FILES OF ITS OWN, and they are blocked exactly as

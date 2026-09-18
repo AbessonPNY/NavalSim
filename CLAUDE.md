@@ -49,7 +49,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `ocean.js` | houle de Gerstner : shader GPU **et** échantillonnage CPU |
 | `foam.js` · `ssao.js` | champ d'écume persistant · occlusion ambiante du navire |
 | `underwater.js` | la coque vue à travers l'eau |
-| `world.js` · `land.js` | l'archipel et ses ports · le maillage des îles |
+| `world.js` · `land.js` | la mer des Caraïbes lue dans `world/` (relief, ports, modèles posés, `Naval.Geo`) · le relief en carreaux |
 | `jetty.js` | le ponton d'un port |
 | `chart.js` | la carte marine |
 | `quests.js` | les quêtes : étapes, lieux, objectifs (`quests/*.json`) |
@@ -66,6 +66,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `purse.js` | la bourse, le cours des épices, la poudre |
 
 Réglages de jeu : `settings.json` (son : musique d'ambiance, coupée par défaut ; rencontres, nuit, bloom, naufrage, tempête : foudre et kraken, fantômes, calendrier, climat, dauphins, rechargement des pièces, hommes sur le pont).
+Monde : `world/caraibes.json` + `world/caraibes-relief.png` (relief peint en gris), format dans `world/README.md` ; `tools/region-heightmap.js` repart des côtes réelles.
 Quêtes : `quests/*.json`, format dans `quests/README.md` (`Naval.app.allerQuete()` pour sauter à l'étape).
 Objets flottants : `props/Props.json`. Pavillons : `ships/textures/flags/flags.json`.
 Fiches navires : `ships/*.json`, format dans `ships/README.md`. Kraken, dauphins et marins en `.glb` : `creatures/README.md`.
@@ -117,7 +118,7 @@ longueurs ×s, surfaces ×s², vitesse machine ×√s.
 
 La page publiée ne peut rien charger de local : `build.js` inline tous les
 scripts, embarque fiches, réglages, props et pavillons (`Naval.SHIP_DATA`,
-`SETTINGS`, `PROPS_DATA`, `FLAGS_DATA`), les `.glb` et sons en base64, les
+`SETTINGS`, `PROPS_DATA`, `FLAGS_DATA`, `QUESTS_DATA`, `REGION_DATA` avec le relief en data: URI), les `.glb` et sons en base64, les
 images et `url()` CSS en `data:` URI, et **refuse** un fichier contenant encore
 une référence locale. Textures d'un modèle : **dans** le `.glb`. Ce que le code
 peut dessiner (lanterne, fumée, embrun, tête de mort) est dessiné sur un canvas.

@@ -182,6 +182,10 @@
   #app.nohud #lost,
   #app.nohud #rumour,
   #app.nohud #keysMenu{display:none}
+  /* The chart stays when H clears the glass, with the date and the weather:
+     it is how a navigator knows where he is, not an instrument readout.
+     Two ids outrank the rule above; a chart put away (.off) stays away. */
+  #app.nohud #chartPanel:not(.off){display:block}
 
   /* Et chaque panneau peut se ranger tout seul, de F2 a F6. Deux etats
      independants : `H` pose un voile sur tout, `.off` est ce que le

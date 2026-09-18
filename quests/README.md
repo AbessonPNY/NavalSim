@@ -9,7 +9,7 @@ un fil d'un lieu à l'autre.
 
 Pendant une quête :
 - l'objectif s'écrit en doré sous la date et le temps, avec la distance et le
-  cap à suivre (« Accoster au Carénage — 6,4 M au 312° ») ;
+  cap à suivre (« Accoster à Petit-Goâve — 22,7 M au 073° ») ;
 - son lieu est cerclé de doré sur la carte (touche `O` pour la grande carte) ;
 - quand une étape est remplie, son `message` s'affiche au milieu de l'écran
   (un clic le ferme), puis la consigne de l'étape suivante ;
@@ -25,9 +25,9 @@ Pendant une quête :
   "intro": "Affiché au lancement de la quête (sinon : summary).",
   "steps": [
     {
-      "title": "Accoster au Carénage",
+      "title": "Accoster à Petit-Goâve",
       "brief": "Consigne affichée quand l'étape commence (facultatif).",
-      "at": { "island": "carenage", "port": true },
+      "at": { "port": "petit-goave" },
       "goal": "dock",
       "radius": 450,
       "message": "Affiché quand l'étape est remplie.\nUn saut de ligne avec \\n."
@@ -61,19 +61,21 @@ Pendant une quête :
 
 ### Lieux (`at`)
 
-Mieux vaut situer un lieu **par rapport à une île** : l'échelle de la carte
-(`Naval.MAP_SCALE`) déplace les îles, et un lieu écrit en mètres resterait en
-pleine mer.
+Un lieu se donne par rapport à un **port** de la région (`world/caraibes.json`)
+ou par ses **vraies latitude et longitude** : la carte réduite en fait ses
+propres mètres.
 
 | forme | sens |
 |---|---|
-| `{ "island": "carenage", "port": true }` | la tête du ponton du port de l'île |
-| `{ "island": "tortue", "bearing": 270, "miles": 2 }` | à 2 milles **au large de la côte**, dans le relèvement 270° vu du centre de l'île (0 nord, 90 est). `distance` en mètres au lieu de `miles` |
-| `{ "island": "tortue" }` | sur la côte au nord de l'île (relèvement 0, distance 0) |
-| `{ "lat": 13.52, "lon": -60.95 }` | latitude et longitude, comme la carte les affiche |
-| `{ "x": -4000, "z": 9000 }` | mètres du monde (comme le Cimetière des Galions dans `settings.json`) |
+| `{ "port": "petit-goave" }` | la tête du ponton de ce port |
+| `{ "port": "port-royal", "bearing": 180, "miles": 2 }` | à 2 milles de la carte du port, dans le relèvement 180° (0 nord, 90 est). `distance` en mètres au lieu de `miles` |
+| `{ "lat": 19.85, "lon": -73.62 }` | latitude et longitude réelles, comme la carte les affiche |
+| `{ "x": -4000, "z": 9000 }` | mètres du monde (0 = Port-Royal) |
 
-Îles : `port-royal`, `carenage`, `saint-pierre`, `tortue`.
+`"island"` est encore compris à la place de `"port"` (ancien nom).
+
+Ports : `port-royal`, `santiago`, `tortue`, `petit-goave`, `carthagene`,
+`santa-marta`, `portobelo`, `curacao`.
 
 ## Déboguer
 

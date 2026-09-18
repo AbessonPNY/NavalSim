@@ -139,12 +139,12 @@ Naval.Gulls = class Gulls {
     };
   }
 
-  /* Scatter the flock over a new island. Only the radii need touching: they are
-     kept as fractions of the island's reach, so a big island gets a wide circle
-     and a rock gets a tight one without a second set of numbers. */
-  _settleOn(isl){
-    this.island = isl;
-    this.reach = this.world._shore(isl, 0) * 0.85;
+  /* The flock's roost: the nearest point of shore, found once and kept while
+     she stays within reach of it — a coast is not an island with a middle, and
+     a roost that followed her along the beach would drag the birds with it. */
+  _settleOn(at){
+    this.island = at;
+    this.reach = 700;             // metres the birds wheel about their roost
   }
 
   /* `centreWorld` is the vessel's TRUE position; `origin` the floating origin. */
@@ -158,15 +158,11 @@ Naval.Gulls = class Gulls {
        couple of kilometres across, and a range taken from its centre emptied
        the sky a few hundred metres off its beach. Past the coastal range and
        the followers' flight home, there are no gulls. */
-    const near = this.world.near(centreWorld.x, centreWorld.z, this.shoreRange + 6000);
-    let best = null, bestD = Infinity;
-    for(const isl of near){
-      const dx = centreWorld.x - isl.x, dz = centreWorld.z - isl.z;
-      const d = Math.hypot(dx, dz) - this.world._shore(isl, Math.atan2(dz, dx));
-      if(d < bestD){ bestD = d; best = isl; }
-    }
-    if(!best || bestD > this.shoreRange + 600){ this.group.visible = false; this.island = null; this._home = 1; return; }
-    if(!this.island || this.island.key !== best.key) this._settleOn(best);
+    const bestD = this.world.shoreDistance(centreWorld.x, centreWorld.z);
+    if(bestD > this.shoreRange + 600){ this.group.visible = false; this.island = null; this._home = 1; return; }
+    if(!this.island || Math.hypot(centreWorld.x - this.island.x, centreWorld.z - this.island.z) > this.shoreRange + 1500)
+      this._settleOn(this.world.nearestShore(centreWorld.x, centreWorld.z));
+    const best = this.island;
     this.group.visible = true;
 
     const ix = best.x - origin.x, iz = best.z - origin.z;
