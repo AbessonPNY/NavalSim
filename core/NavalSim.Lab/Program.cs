@@ -27,6 +27,7 @@ string mode = args.Length > 0 ? args[0] : "gale";
 switch (mode)
 {
     case "gale": Gale(); break;
+    case "waves": DumpWaves(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -40,6 +41,23 @@ return 0;
  * sans la travailler, et l'on peut donc avoir treize mètres de hauteur
  * significative pour cinq degrés de roulis. Mesurer la mer seule laisserait
  * croire à une tempête que le navire ne sent pas. */
+/* Les vagues que lit le solveur, une par ligne, pour les poser à côté de
+   `Naval.app.ocean.cpuWaves` dans la page : amp, k, dx, dz, omega, Q. */
+void DumpWaves()
+{
+    double force = args.Length > 1 ? double.Parse(args[1], CultureInfo.InvariantCulture) : 9.9;
+    double swell = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 1.35;
+    var ocean = new Ocean { Swell = swell, Time = 0 };
+    ocean.SetSeaState(force, 210);
+    Console.WriteLine($"force {force}, creux {swell}, sharp {ocean.Sharp:F4}, cpu {ocean.CpuWaveCount}");
+    for (int i = 0; i < ocean.CpuWaveCount; i++)
+    {
+        var w = ocean.Waves[i];
+        Console.WriteLine(FormattableString.Invariant(
+            $"  {w.Amp:F7} {w.K:F9} {w.Dx:F8} {w.Dz:F8} {w.Omega:F8} {w.Q:F8}"));
+    }
+}
+
 void Gale()
 {
     double force = args.Length > 1 ? double.Parse(args[1], CultureInfo.InvariantCulture) : 9.9;
@@ -87,7 +105,18 @@ void Gale()
     var b = phys.Body;
     double dt = 1.0 / 120, t = 0;
     double hMax = 0, tMax = 0, yLo = 1e9, yHi = -1e9, subLo = 1, subHi = 0;
-    for (int i = 0; i < 120 * 90; i++)
+    double h2 = 0, p2 = 0, y1 = 0, y2 = 0;
+    int m = 0;
+    /* DIX MINUTES, ET DES ÉCARTS-TYPES — la fenêtre de quatre-vingts secondes
+       mentait. Une mer à dix-huit composantes ne montre en 80 s que cinq ou six
+       périodes de sa houle dominante, et l'extrême qu'on y lit dépend surtout de
+       la réalisation : relevé sur le même chaland, force 9,9, creux 2,6, le MÊME
+       code JavaScript donnait 17 à 39 m de pilonnement selon l'origine choisie.
+       Et l'origine zéro, où ce labo démarre, phases nulles, en est une calme —
+       19 m, là où la page en montrait 36. On a cru à un solveur deux fois trop
+       mou ; sur 600 s les sept réalisations tombent toutes à 6,8° de roulis
+       RMS et 7 m de pilonnement RMS, origine zéro comprise. */
+    for (int i = 0; i < 120 * 600; i++)
     {
         phys.Step(dt, ocean, ctrl, t);
         t += dt;
@@ -96,16 +125,20 @@ void Gale()
         Vec3d up = b.Quat.Rotate(new Vec3d(0, 1, 0));
         Vec3d fwd = b.Quat.Rotate(new Vec3d(0, 0, 1));
         Vec3d right = b.Quat.Rotate(new Vec3d(-1, 0, 0));
-        hMax = Math.Max(hMax, Math.Abs(Math.Atan2(-right.Y, up.Y) * 180 / Math.PI));
-        tMax = Math.Max(tMax, Math.Abs(Math.Asin(Math.Clamp(fwd.Y, -1, 1)) * 180 / Math.PI));
+        double heel = Math.Atan2(-right.Y, up.Y) * 180 / Math.PI;
+        double trim = Math.Asin(Math.Clamp(fwd.Y, -1, 1)) * 180 / Math.PI;
+        hMax = Math.Max(hMax, Math.Abs(heel));
+        tMax = Math.Max(tMax, Math.Abs(trim));
+        h2 += heel * heel; p2 += trim * trim; y1 += b.Pos.Y; y2 += b.Pos.Y * b.Pos.Y; m++;
         yLo = Math.Min(yLo, b.Pos.Y); yHi = Math.Max(yHi, b.Pos.Y);
         subLo = Math.Min(subLo, phys.SubmergedFrac);
         subHi = Math.Max(subHi, phys.SubmergedFrac);
     }
     Console.WriteLine();
-    Console.WriteLine($"  {spec.Name}, 80 s dans cette mer :");
-    Console.WriteLine($"  roulis max      {hMax:F1} deg");
-    Console.WriteLine($"  tangage max     {tMax:F1} deg");
-    Console.WriteLine($"  pilonnement     {yHi - yLo:F2} m");
+    double yMean = y1 / m;
+    Console.WriteLine($"  {spec.Name}, 600 s dans cette mer :");
+    Console.WriteLine($"  roulis          RMS {Math.Sqrt(h2 / m):F2} deg   max {hMax:F1} deg");
+    Console.WriteLine($"  tangage         RMS {Math.Sqrt(p2 / m):F2} deg   max {tMax:F1} deg");
+    Console.WriteLine($"  pilonnement     RMS {Math.Sqrt(Math.Max(0, y2 / m - yMean * yMean)):F2} m     amplitude {yHi - yLo:F2} m");
     Console.WriteLine($"  immersion       {subLo * 100:F1} a {subHi * 100:F1} %");
 }

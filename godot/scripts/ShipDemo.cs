@@ -121,6 +121,8 @@ public partial class ShipDemo : Node3D
                + $"immersion {_ship.Physics.SubmergedFrac * 100:F1} %");
 
         _dist = (float)spec.L * 1.8f;
+        // un nouveau navire n'est pas là où était l'ancien : reprendre la station
+        if (_fixed) Plant();
         UpdateInfo();
     }
 
@@ -148,15 +150,18 @@ public partial class ShipDemo : Node3D
         /* L'ORIGINE FLOTTANTE. Au-delà de REBASE_RADIUS le monde entier glisse
            sous la flotte, et TOUT CE QUI TIENT UNE POSITION doit se décaler dans
            la MÊME image — sans quoi il se retrouve en désaccord avec la mer
-           d'exactement ce décalage. Ici : la coque, la mer et le champ d'écume.
-           La caméra fixe s'ajoutera à cette liste, et c'est la liste sur
-           laquelle ce projet a déjà oublié quelque chose deux fois. */
+           d'exactement ce décalage. Ici : la coque, la mer, le champ d'écume et
+           la caméra fixe — et c'est la liste sur laquelle ce projet a déjà
+           oublié quelque chose deux fois. */
         var b = _ship.Physics.Body;
         if (Math.Abs(b.Pos.X) > Config.RebaseRadius || Math.Abs(b.Pos.Z) > Config.RebaseRadius)
         {
             double dx = -b.Pos.X, dz = -b.Pos.Z;
             _sea.Core.Rebase(-dx, -dz);
             _foam.Rebase((float)-dx, (float)-dz);
+            // la seule chose qui ne suit PAS le navire : sans ceci elle resterait
+            // à quinze cents mètres, à filmer de l'eau vide
+            _anchor = new Vec3d(_anchor.X + dx, _anchor.Y, _anchor.Z + dz);
             b.Pos = new Vec3d(b.Pos.X + dx, b.Pos.Y, b.Pos.Z + dz);
             _ship.SyncTransform();
             GD.Print($"recentrage : origine désormais ({_sea.Core.Origin.X:F0}, {_sea.Core.Origin.Z:F0}) m");
@@ -193,6 +198,45 @@ public partial class ShipDemo : Node3D
         TickCapture();
     }
 
+    /* LA VUE FIXE de camera-rig.js (mode 3). Plantée dans le monde, position et
+       relèvement verrouillés, pointée sur elle UNE fois puis laissée tranquille :
+       elle s'éloigne et sort du champ, et c'est tout l'intérêt — c'est la seule
+       vue où l'on voit le navire AVANCER par rapport à une mer immobile, au
+       lieu d'une mer qui défile sous une coque clouée au centre de l'image. */
+    bool _fixed;
+    Vec3d _anchor;
+    double _fixYaw, _fixPitch;
+
+    /// <summary>
+    /// Prendre la station : sur sa hanche, à 26 m par le travers et 34 m en
+    /// arrière pour un navire de 24 m, en proportion pour les autres — un
+    /// bâtiment qui s'éloigne en diagonale rapetisse au lieu de traverser le
+    /// cadre et d'en sortir tout droit.
+    ///
+    /// La hauteur est prise sur la MER sous la station, pas sur la coque, puis
+    /// n'en bouge plus : c'est un pied posé, pas une bouée. Par creux extrême une
+    /// crête peut donc passer devant l'objectif, comme dans l'original.
+    /// </summary>
+    void Plant()
+    {
+        var b = _ship.Physics.Body;
+        double k = _ship.Spec.L / 24;
+        /* (1,0,0) local, comme l'original. Son commentaire dit « tribord », mais
+           tribord est −x local dans ce projet : c'est donc la hanche BÂBORD.
+           Porté tel quel, signalé plutôt que corrigé en silence. */
+        Vec3d r = b.Quat.Rotate(new Vec3d(1, 0, 0));
+        Vec3d f = b.Quat.Rotate(new Vec3d(0, 0, 1));
+        double ax = b.Pos.X + r.X * 26 * k - f.X * 34 * k;
+        double az = b.Pos.Z + r.Z * 26 * k - f.Z * 34 * k;
+        double ay = _sea.Core.Sample(ax, az, _t) + 12 * k;
+        _anchor = new Vec3d(ax, ay, az);
+
+        double dx = b.Pos.X - ax, dz = b.Pos.Z - az;
+        double dy = b.Pos.Y + 2 * k - ay;
+        _fixYaw = Math.Atan2(dx, dz);
+        _fixPitch = Math.Atan2(dy, Math.Sqrt(dx * dx + dz * dz));
+    }
+
     void UpdateCamera(double delta)
     {
         var target = _follow
@@ -215,6 +259,19 @@ public partial class ShipDemo : Node3D
         {
             _cam.Position = fe;
             _cam.LookAt(_fixLook ?? Vector3.Zero, Vector3.Up);
+            return;
+        }
+
+        if (_fixed)
+        {
+            // la position ET le relèvement sont verrouillés : rien ne suit
+            double cp = Math.Cos(_fixPitch), reach = 200 * _ship.Spec.L / 24;
+            var a = _anchor;
+            _cam.Position = new Vector3((float)a.X, (float)a.Y, (float)a.Z);
+            _cam.LookAt(new Vector3(
+                (float)(a.X + Math.Sin(_fixYaw) * cp * reach),
+                (float)(a.Y + Math.Sin(_fixPitch) * reach),
+                (float)(a.Z + Math.Cos(_fixYaw) * cp * reach)), Vector3.Up);
             return;
         }
 
@@ -286,6 +343,8 @@ public partial class ShipDemo : Node3D
 
         _info.Text =
             $"{_ship.Spec.Name}   ({_index + 1}/{_paths.Count})\n" +
+            // la moyenne du moteur sur la dernière seconde, et le temps qu'elle vaut
+            $"{Engine.GetFramesPerSecond(),4:F0} images/s   {1000.0 / Math.Max(1, Engine.GetFramesPerSecond()),5:F1} ms\n" +
             $"\n" +
             $"cap        {hdg,6:F0}°      vitesse   {speedKn,5:F1} nds\n" +
             $"gîte       {heel,6:F1}°      assiette  {trim,5:F1}°\n" +
@@ -296,8 +355,8 @@ public partial class ShipDemo : Node3D
             $"écoutes    {_ship.Ctrl.Sheet,6:F2}      voiles    {voiles}\n" +
             $"vent       {_windDeg,6:F0}°      force     {_force:F1} · {Config.Beaufort[bf].Name}\n" +
             $"\n" +
-            $"W S machine   A D barre   Q E écoutes   V voiles\n" +
-            $"↑↓ force   ←→ vent   PgUp/PgDn creux   N navire   F suivre";
+            $"W S machine   B élan   A D barre   Q E écoutes   V voiles\n" +
+            $"↑↓ force   ←→ vent   PgUp/PgDn creux   N navire   F suivre   C vue fixe   X replanter";
     }
 
     public override void _UnhandledInput(InputEvent e)
@@ -328,6 +387,15 @@ public partial class ShipDemo : Node3D
                 case Key.V: _ship.Ctrl.SailsSet = !_ship.Ctrl.SailsSet; break;
                 case Key.N: Launch(_index + 1); break;
                 case Key.F: _follow = !_follow; break;
+                case Key.C: _fixed = !_fixed; if (_fixed) Plant(); break;
+                case Key.X: if (_fixed) Plant(); break;
+                /* L'ÉLAN : l'équivalent de `Naval.app.controls.state.throttle = 45`
+                   dans la console d'origine. Le solveur ne borne pas la machine,
+                   donc c'est quarante-cinq fois la poussée — de quoi voir une coque
+                   lancée dans la houle sans attendre qu'elle prenne son erre. Un
+                   second appui coupe, sans quoi elle filerait sans fin ; W et S
+                   la ramènent aussi dans leur plage en la touchant. */
+                case Key.B: _ship.Ctrl.Throttle = _ship.Ctrl.Throttle > 1 ? 0 : 45; break;
                 case Key.Escape: GetTree().Quit(); break;
             }
         }
@@ -339,8 +407,17 @@ public partial class ShipDemo : Node3D
         }
         if (e is InputEventMouseMotion mm && _dragging)
         {
-            _orbit -= mm.Relative.X * 0.008f;
-            _pitch = Mathf.Clamp(_pitch + mm.Relative.Y * 0.004f, 0.01f, 1.3f);
+            if (_fixed)
+            {
+                // pointer une caméra plantée à la main, comme dans l'original
+                _fixYaw -= mm.Relative.X * 0.004;
+                _fixPitch = Math.Clamp(_fixPitch - mm.Relative.Y * 0.004, -0.9, 0.9);
+            }
+            else
+            {
+                _orbit -= mm.Relative.X * 0.008f;
+                _pitch = Mathf.Clamp(_pitch + mm.Relative.Y * 0.004f, 0.01f, 1.3f);
+            }
         }
     }
 
