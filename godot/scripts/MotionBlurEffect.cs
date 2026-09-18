@@ -177,7 +177,9 @@ public partial class MotionBlurEffect : CompositorEffect
             _checked = true;
             float e = 0;
             Projection want = Correction * mp;
-            for (int c = 0; c < 4; c++) for (int r = 0; r < 4; r++) e = Math.Max(e, Math.Abs(raw[c][r] - want[c][r]));
+            // sauf le décalage sous-pixel du TAA, que Godot ajoute à la seule projection du rendu
+            for (int c = 0; c < 4; c++) for (int r = 0; r < 4; r++)
+                if (c < 2 || r >= 2) e = Math.Max(e, Math.Abs(raw[c][r] - want[c][r]));
             GD.Print($"flou de mouvement : projection reçue {(e < 1e-4f ? "= correction Vulkan × caméra, comme attendu" : $"INATTENDUE (écart {e:E1}) — convention à revoir")}");
         }
         Projection P = raw;                  // déjà corrigée : voir plus haut

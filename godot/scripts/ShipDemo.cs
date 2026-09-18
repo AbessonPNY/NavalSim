@@ -102,6 +102,8 @@ public partial class ShipDemo : Node3D
         _cam.Attributes = _camAttr;
         _motionBlur = new MotionBlurEffect();
         _cam.Compositor = new Compositor { CompositorEffects = new Godot.Collections.Array<CompositorEffect> { _motionBlur } };
+        _dofMarker = new DofMarker();
+        AddChild(_dofMarker);
 
         var layer = new CanvasLayer();
         AddChild(layer);
@@ -237,6 +239,11 @@ public partial class ShipDemo : Node3D
     Settings _settings = null!;
     CameraAttributesPractical _camAttr = null!;
     MotionBlurEffect _motionBlur = null!;
+    DofMarker _dofMarker = null!;
+    // le repère reste affiché menu fermé, pour régler en regardant la mer
+    bool _dofMarkerKeep;
+    // la lueur tourne à l'armement : son programme compilé au démarrage, pas au crépuscule
+    int _glowPrime = 3;
     PanelContainer _menu = null!;
     // O et G changent ces deux-là au clavier : le menu les relit à l'ouverture
     CheckBox _chkOcclusion = null!, _chkIndirect = null!;
@@ -252,8 +259,43 @@ public partial class ShipDemo : Node3D
            moitié : c'est la mer vers l'horizon, pas le navire qu'on regarde. */
         _camAttr.DofBlurFarEnabled = s.Dof;
         _camAttr.DofBlurFarDistance = s.DofDistance;
-        _camAttr.DofBlurFarTransition = s.DofDistance * 0.5f;
-        _camAttr.DofBlurAmount = 0.08f;
+        _camAttr.DofBlurFarTransition = s.DofTransition;
+        _camAttr.DofBlurAmount = s.DofAmount;
+        // la qualité du bokeh est un réglage du SERVEUR, pas de la caméra
+        RenderingServer.CameraAttributesSetDofBlurQuality(
+            (RenderingServer.DofBlurQuality)Math.Clamp(s.DofQuality, 0, 3), false);
+
+        /* L'ANTICRÉNELAGE. Le MSAA lisse les arêtes — coque, mâture, cordages — ;
+           ce qui passe sur l'image finie lisse le reste. Le TAA lisse le mieux les
+           cordages fins, mais il accumule les images passées : sur une mer qui
+           bouge partout il laisse une traîne, et il fait double emploi avec le
+           flou de mouvement. */
+        var vp = GetViewport();
+        vp.Msaa3D = s.Msaa switch { 0 => Viewport.Msaa.Disabled, 2 => Viewport.Msaa.Msaa2X, 8 => Viewport.Msaa.Msaa8X, _ => Viewport.Msaa.Msaa4X };
+        vp.ScreenSpaceAA = s.ScreenAA switch { "fxaa" => Viewport.ScreenSpaceAAEnum.Fxaa, "smaa" => Viewport.ScreenSpaceAAEnum.Smaa, _ => Viewport.ScreenSpaceAAEnum.Disabled };
+        vp.UseTaa = s.ScreenAA == "taa";
+
+        /* LA LUEUR de bloom.js. Son seuil et son genou sont lus sur l'image
+           AFFICHÉE (0,72 ± 0,12) ; la lueur de Godot lit l'image LINÉAIRE, avant
+           l'encodage : les mêmes bornes, décodées, font 0,319 à 0,674. Godot fait
+           lui aussi une bascule douce (smoothstep du seuil au seuil + échelle), mais
+           sur le plus fort des trois canaux et non sur la luminance de l'œil. Le
+           flou de la page (quart de résolution, deux passes séparables) s'étale
+           sur ≈ 25 px en 1080p : les niveaux 2 et 3 de Godot, au quart et au
+           huitième, couvrent la même largeur. */
+        var env = _sky.Env;
+        env.GlowHdrThreshold = 0.319f;
+        env.GlowHdrScale = 0.355f;
+        env.GlowBloom = 0;
+        env.GlowBlendMode = Godot.Environment.GlowBlendModeEnum.Additive;
+        env.GlowNormalized = true;
+        for (int i = 0; i < 7; i++) env.SetGlowLevel(i, i == 2 || i == 3 ? 1 : 0);
+        env.GlowIntensity = s.GlowStrength;
+
+        /* L'EXPOSITION QUI S'ADAPTE — un ajout, la page n'en a pas. Elle éclaircit
+           la nuit que l'œil a mis du temps à accepter, d'où : coupée par défaut. */
+        _camAttr.AutoExposureEnabled = s.AutoExposure;
+        _camAttr.AutoExposureScale = s.AutoExposureScale;
         _motionBlur.Enabled = s.MotionBlur;
         _motionBlur.Shutter = s.Shutter;
         _motionBlur.MainProjection = _cam.GetCameraProjection();
@@ -286,7 +328,7 @@ public partial class ShipDemo : Node3D
         _menu = new PanelContainer
         {
             AnchorLeft = 0.5f, AnchorRight = 0.5f, AnchorTop = 0.5f, AnchorBottom = 0.5f,
-            OffsetLeft = -210, OffsetRight = 210, OffsetTop = -200, OffsetBottom = 200,
+            OffsetLeft = -220, OffsetRight = 220, OffsetTop = -300, OffsetBottom = 300,
             Visible = false
         };
         _menu.AddThemeStyleboxOverride("panel", new StyleBoxFlat
@@ -296,9 +338,12 @@ public partial class ShipDemo : Node3D
             CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
             ContentMarginLeft = 18, ContentMarginRight = 18, ContentMarginTop = 14, ContentMarginBottom = 14
         });
-        var box = new VBoxContainer();
+        /* Le menu a grandi plus que l'écran : il défile. */
+        var scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        var box = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         box.AddThemeConstantOverride("separation", 6);
-        _menu.AddChild(box);
+        scroll.AddChild(box);
+        _menu.AddChild(scroll);
         layer.AddChild(_menu);
 
         Label Title(string text, int size)
@@ -323,6 +368,20 @@ public partial class ShipDemo : Node3D
             var s = Slider(box, min, max, step, value);
             s.ValueChanged += x => { v.Text = x.ToString("F2"); set((float)x); Changed(); };
         }
+        void Choice(string text, string[] labels, int selected, Action<int> set)
+        {
+            var row = new HBoxContainer();
+            var n = new Label { Text = text, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            n.AddThemeFontSizeOverride("font_size", 14);
+            n.AddThemeColorOverride("font_color", new Color(0.94f, 0.96f, 0.98f));
+            var o = new OptionButton { FocusMode = Control.FocusModeEnum.None };
+            foreach (var l in labels) o.AddItem(l);
+            o.Selected = Math.Max(0, selected);
+            o.ItemSelected += i => { set((int)i); Changed(); };
+            row.AddChild(n);
+            row.AddChild(o);
+            box.AddChild(row);
+        }
 
         var st = _settings;
         Title("Options", 20);
@@ -337,8 +396,24 @@ public partial class ShipDemo : Node3D
         Check("Synchro verticale", st.VSync, on => st.VSync = on);
         Check("Profondeur de champ", st.Dof, on => st.Dof = on);
         Slide("Flou au-delà de (m)", 100, 3000, 50, st.DofDistance, x => st.DofDistance = x);
+        Slide("Fondu jusqu'au plein flou (m)", 0, 3000, 50, st.DofTransition, x => st.DofTransition = x);
+        Slide("Intensité du flou", 0.01, 0.3, 0.01, st.DofAmount, x => st.DofAmount = x);
+        Choice("Qualité du flou", new[] { "Très basse", "Basse", "Moyenne", "Haute" }, st.DofQuality, i => st.DofQuality = i);
+        // pas enregistré : un outil de réglage, pas une préférence
+        var keep = new CheckBox { Text = "Garder le repère sur la mer", FocusMode = Control.FocusModeEnum.None };
+        keep.Toggled += on => _dofMarkerKeep = on;
+        box.AddChild(keep);
         Check("Flou de mouvement", st.MotionBlur, on => st.MotionBlur = on);
         Slide("Obturateur", 0.05, 1, 0.05, st.Shutter, x => st.Shutter = x);
+        Choice("Anticrénelage MSAA", new[] { "Aucun", "2×", "4×", "8×" },
+            st.Msaa switch { 0 => 0, 2 => 1, 8 => 3, _ => 2 }, i => st.Msaa = i == 0 ? 0 : 1 << i);
+        var aa = new[] { "aucun", "fxaa", "smaa", "taa" };
+        Choice("Anticrénelage de l'image", new[] { "Aucun", "FXAA", "SMAA", "TAA" },
+            Array.IndexOf(aa, st.ScreenAA), i => st.ScreenAA = aa[i]);
+        Check("Lueur des lumières (la nuit)", st.Glow, on => st.Glow = on);
+        Slide("Intensité de la lueur", 0, 3, 0.05, st.GlowStrength, x => st.GlowStrength = x);
+        Check("Exposition automatique", st.AutoExposure, on => st.AutoExposure = on);
+        Slide("Échelle d'exposition", 0.05, 2, 0.05, st.AutoExposureScale, x => st.AutoExposureScale = x);
         Title("Performance", 15);
         Check("Solveurs sur plusieurs cœurs", st.ParallelSolvers, on => st.ParallelSolvers = on);
 
@@ -613,6 +688,14 @@ public partial class ShipDemo : Node3D
            écrit les trois, faute de quoi ils dériveraient en silence. */
         _sky.UpdateWeather(frame, _force);
         TickSunPanel(frame);
+        /* La lueur n'existe pas le jour — bloom.js saute sa passe tant que la nuit
+           n'a pas passé 0,02 : le soleil sur la houle déborderait le seuil et
+           voilerait la mer. Allumée aux premières images pour être compilée. */
+        if (_glowPrime > 0) _glowPrime--;
+        _sky.Env.GlowEnabled = _settings.Glow && (_glowPrime > 0 || _sky.Core.Night > 0.02);
+        _dofMarker.Visible = _settings.Dof && (_menu.Visible || _dofMarkerKeep);
+        if (_dofMarker.Visible)
+            _dofMarker.Draw(_cam, _sea.Core, _t, _settings.DofDistance, _settings.DofTransition);
         // les feux et les fenêtres suivent la nuit du ciel, et s'effacent au loin
         _ship.SetLantern(_sky.Core.Night, _t, _cam.GlobalPosition, _sky.Core);
         foreach (var s in _others) s.SetLantern(_sky.Core.Night, _t, _cam.GlobalPosition, _sky.Core);
@@ -1022,7 +1105,10 @@ public partial class ShipDemo : Node3D
                     break;
                 // ouvrir directement une vue à bord de la fiche
                 case "--vue": _camMode = 1; _deck = Math.Clamp(args[i + 1].ToInt(), 0, _ship.Spec.Decks.Count - 1); EnterDeck(); break;
-                case "--msaa": GetViewport().Msaa3D = args[i + 1] == "0" ? Viewport.Msaa.Disabled : Viewport.Msaa.Msaa4X; break;
+                case "--msaa": _settings.Msaa = args[i + 1].ToInt(); ApplySettings(); break;
+                case "--dofq": _settings.DofQuality = args[i + 1].ToInt(); ApplySettings(); break;
+                case "--aa": _settings.ScreenAA = args[i + 1]; ApplySettings(); break;
+                case "--lueur": _settings.Glow = args[i + 1] == "1"; ApplySettings(); break;
                 case "--dof": _settings.Dof = args[i + 1] == "1"; ApplySettings(); break;
                 case "--flou": _settings.MotionBlur = args[i + 1] == "1"; ApplySettings(); break;
                 case "--parallele": _settings.ParallelSolvers = args[i + 1] == "1"; break;

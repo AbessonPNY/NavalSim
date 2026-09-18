@@ -36,9 +36,25 @@ public sealed class Settings
     /// <summary>La profondeur de champ : le lointain flou au-delà de DofDistance mètres.</summary>
     public bool Dof = true;
     public float DofDistance = 600f;
+    /// <summary>Sur combien de mètres le flou monte jusqu'à son plein, au-delà de DofDistance.</summary>
+    public float DofTransition = 300f;
+    /// <summary>Le diamètre du flou, en part de l'image (Godot : dof_blur_amount).</summary>
+    public float DofAmount = 0.08f;
+    /// <summary>La qualité du bokeh : 0 très basse, 1 basse (celle de Godot), 2 moyenne, 3 haute. Mesuré en 1080p : +0,5 / +0,7 / +1,7 / +3,0 ms.</summary>
+    public int DofQuality = 1;
     /// <summary>Le flou de mouvement de la caméra, et la part d'obturateur (0,5 = 180°).</summary>
     public bool MotionBlur = true;
     public float Shutter = 0.5f;
+    /// <summary>L'anticrénelage géométrique : 0, 2, 4 ou 8 échantillons par pixel.</summary>
+    public int Msaa = 4;
+    /// <summary>L'anticrénelage sur l'image : aucun, fxaa, smaa ou taa.</summary>
+    public string ScreenAA = "fxaa";
+    /// <summary>La lueur des lumières trop vives (bloom.js), la nuit seulement.</summary>
+    public bool Glow = true;
+    public float GlowStrength = 0.9f;
+    /// <summary>L'exposition qui s'adapte, comme l'œil : absente de la page, coupée par défaut.</summary>
+    public bool AutoExposure = false;
+    public float AutoExposureScale = 0.4f;
 
     // [performance]
     /// <summary>Les solveurs des navires sur plusieurs cœurs : résultats identiques au bit près.</summary>
@@ -62,8 +78,17 @@ public sealed class Settings
         s.VSync = (bool)cf.GetValue("rendu", "synchro_verticale", s.VSync);
         s.Dof = (bool)cf.GetValue("rendu", "profondeur_de_champ", s.Dof);
         s.DofDistance = (float)cf.GetValue("rendu", "profondeur_de_champ_distance", s.DofDistance);
+        s.DofTransition = (float)cf.GetValue("rendu", "profondeur_de_champ_fondu", s.DofTransition);
+        s.DofAmount = (float)cf.GetValue("rendu", "profondeur_de_champ_intensite", s.DofAmount);
+        s.DofQuality = (int)cf.GetValue("rendu", "profondeur_de_champ_qualite", s.DofQuality);
         s.MotionBlur = (bool)cf.GetValue("rendu", "flou_de_mouvement", s.MotionBlur);
         s.Shutter = (float)cf.GetValue("rendu", "flou_de_mouvement_obturateur", s.Shutter);
+        s.Msaa = (int)cf.GetValue("rendu", "anticrenelage_msaa", s.Msaa);
+        s.ScreenAA = (string)cf.GetValue("rendu", "anticrenelage_image", s.ScreenAA);
+        s.Glow = (bool)cf.GetValue("rendu", "lueur", s.Glow);
+        s.GlowStrength = (float)cf.GetValue("rendu", "lueur_intensite", s.GlowStrength);
+        s.AutoExposure = (bool)cf.GetValue("rendu", "exposition_auto", s.AutoExposure);
+        s.AutoExposureScale = (float)cf.GetValue("rendu", "exposition_auto_echelle", s.AutoExposureScale);
         s.ParallelSolvers = (bool)cf.GetValue("performance", "solveurs_paralleles", s.ParallelSolvers);
         return s;
     }
@@ -80,8 +105,17 @@ public sealed class Settings
         cf.SetValue("rendu", "synchro_verticale", VSync);
         cf.SetValue("rendu", "profondeur_de_champ", Dof);
         cf.SetValue("rendu", "profondeur_de_champ_distance", DofDistance);
+        cf.SetValue("rendu", "profondeur_de_champ_fondu", DofTransition);
+        cf.SetValue("rendu", "profondeur_de_champ_intensite", DofAmount);
+        cf.SetValue("rendu", "profondeur_de_champ_qualite", DofQuality);
         cf.SetValue("rendu", "flou_de_mouvement", MotionBlur);
         cf.SetValue("rendu", "flou_de_mouvement_obturateur", Shutter);
+        cf.SetValue("rendu", "anticrenelage_msaa", Msaa);
+        cf.SetValue("rendu", "anticrenelage_image", ScreenAA);
+        cf.SetValue("rendu", "lueur", Glow);
+        cf.SetValue("rendu", "lueur_intensite", GlowStrength);
+        cf.SetValue("rendu", "exposition_auto", AutoExposure);
+        cf.SetValue("rendu", "exposition_auto_echelle", AutoExposureScale);
         cf.SetValue("performance", "solveurs_paralleles", ParallelSolvers);
         Error e = cf.Save(Path);
         if (e != Error.Ok) GD.PushWarning($"réglages non enregistrés dans {Path} : {e}");
