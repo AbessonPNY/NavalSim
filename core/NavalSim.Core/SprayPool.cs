@@ -40,6 +40,9 @@ public sealed class SprayPool
 
     public SprayPool(Random? rng = null) { _rng = rng ?? new Random(); }
 
+    /// <summary>Ce que l'embrun ne traverse pas : les coques à flot (HullCollider).</summary>
+    public readonly System.Collections.Generic.List<ISprayCollider> Colliders = new();
+
     /* Un curseur tournant plutôt qu'une recherche depuis zéro : une grosse gerbe
        demande deux cent quarante places d'un coup, et repartir du haut à chaque
        fois en faisait un quart de million de comparaisons dans une image. */
@@ -161,6 +164,11 @@ public sealed class SprayPool
 
             d.V = new Vec3d(d.V.X, d.V.Y - 9.81 * dt, d.V.Z) * Math.Max(0, 1 - d.K * dt);
             d.P = d.P + d.V * dt;
+            // renvoyée par une coque, ou restée sur son pont
+            bool alive = true;
+            foreach (var c in Colliders)
+                if (!c.Collide(ref d.P, ref d.V)) { alive = false; break; }
+            if (!alive) { d.On = false; continue; }
 
             Pos[w * 3] = (float)d.P.X; Pos[w * 3 + 1] = (float)d.P.Y; Pos[w * 3 + 2] = (float)d.P.Z;
             Size[w] = (float)(d.S0 + (d.S1 - d.S0) * Math.Pow(u, 0.6));

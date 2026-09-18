@@ -112,9 +112,9 @@ public partial class OceanNode : Node3D
     public void PushWaves(ShaderMaterial m)
     {
         m.SetShaderParameter(U.Time, (float)Core.Time);
-        m.SetShaderParameter(U.WaveA, _waveA);
-        m.SetShaderParameter(U.WaveB, _waveB);
-        m.SetShaderParameter(U.WavePhase, _wavePhase);
+        m.SetNow(U.WaveA, _waveA);
+        m.SetNow(U.WaveB, _waveB);
+        m.SetNow(U.WavePhase, _wavePhase);
     }
 
     /// <summary>
@@ -140,8 +140,8 @@ public partial class OceanNode : Node3D
         if (_mat == null) return;
         _mat.SetShaderParameter(U.LampCount, count);
         if (count == 0) return;
-        _mat.SetShaderParameter(U.Lamp, Lamps);
-        _mat.SetShaderParameter(U.LampRange, LampRange);
+        _mat.SetNow(U.Lamp, Lamps);
+        _mat.SetNow(U.LampRange, LampRange);
     }
 
     // ------------------------------------------------------------------
@@ -223,12 +223,12 @@ public partial class OceanNode : Node3D
     {
         m.SetShaderParameter(U.ShipCount, _shipCount);
         if (_profTex != null) m.SetShaderParameter(U.HullProf, _profTex);
-        m.SetShaderParameter(U.ShipPos, _shipPos);
-        m.SetShaderParameter(U.ShipFwd, _shipFwd);
-        m.SetShaderParameter(U.ShipHalf, _shipHalf);
-        m.SetShaderParameter(U.HullEnds, _hullEnds);
-        m.SetShaderParameter(U.ShipSpeed, _shipSpeed);
-        m.SetShaderParameter(U.ShipAfloat, _shipAfloat);
+        m.SetNow(U.ShipPos, _shipPos);
+        m.SetNow(U.ShipFwd, _shipFwd);
+        m.SetNow(U.ShipHalf, _shipHalf);
+        m.SetNow(U.HullEnds, _hullEnds);
+        m.SetNow(U.ShipSpeed, _shipSpeed);
+        m.SetNow(U.ShipAfloat, _shipAfloat);
     }
 
     /// <summary>

@@ -283,10 +283,10 @@ public partial class ShipNode
             c.N[k] = new Vector3(nr[k * 3], nr[k * 3 + 1], nr[k * 3 + 2]);
         }
         var arrays = c.Arrays;
-        arrays[(int)Mesh.ArrayType.Vertex] = c.V;
-        arrays[(int)Mesh.ArrayType.Normal] = c.N;
-        arrays[(int)Mesh.ArrayType.TexUV] = c.Uv;
-        arrays[(int)Mesh.ArrayType.Index] = c.Idx;
+        arrays.SetNow((int)Mesh.ArrayType.Vertex, c.V);
+        arrays.SetNow((int)Mesh.ArrayType.Normal, c.N);
+        arrays.SetNow((int)Mesh.ArrayType.TexUV, c.Uv);
+        arrays.SetNow((int)Mesh.ArrayType.Index, c.Idx);
         c.Mesh.ClearSurfaces();
         c.Mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
         c.Mesh.SurfaceSetMaterial(0, c.Mat);
@@ -421,6 +421,22 @@ public partial class ShipNode
         var nimg = Image.CreateFromData(w, h, false, Image.Format.Rgba8, outp);
         nimg.GenerateMipmaps();
         return ImageTexture.CreateFromImage(nimg);
+    }
+
+    /// <summary>
+    /// L'obstacle qu'elle oppose à l'embrun : son contour de flottaison, le dessus
+    /// de sa coque — lu sur le modèle, châteaux compris, ou sur le plan de formes —
+    /// et sa quille. Voir HullCollider, dans le noyau.
+    /// </summary>
+    public HullCollider MakeCollider(HullProfile prof)
+    {
+        Func<double, double> keel = z => Lines.KeelY(Math.Clamp(z / Spec.L + 0.5, 0, 1));
+        if (ModelRoot != null)
+        {
+            var parts = ModelParts();
+            if (parts.Count > 0) return new HullCollider(Physics, prof, DeckProfile(parts), keel);
+        }
+        return new HullCollider(Physics, prof, z => Lines.DeckY(Math.Clamp(z / Spec.L + 0.5, 0, 1)), keel);
     }
 
     /// <summary>Une pièce du modèle, mesurée dans le repère du navire.</summary>

@@ -29,19 +29,71 @@ switch (mode)
     case "gale": Gale(); break;
     case "waves": DumpWaves(); break;
     case "parallele": Parallele(); break;
+    case "embrun": Embrun(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
 }
 return 0;
 
-/* CE QUE VAUT UN ÉTAT DE MER, ET CE QU'IL FAIT AU NAVIRE.
- *
- * Les deux questions sont posées ensemble parce qu'elles se répondent l'une
- * l'autre : une houle très creuse mais très longue soulève une coque en bloc
- * sans la travailler, et l'on peut donc avoir treize mètres de hauteur
- * significative pour cinq degrés de roulis. Mesurer la mer seule laisserait
- * croire à une tempête que le navire ne sent pas. */
+/* L'EMBRUN CONTRE LA COQUE, ÉPROUVÉ. Des gerbes lancées au ras du bordé, des
+   deux bords et sur toute la longueur ; à chaque pas on compte les paquets qui
+   se trouvent DANS le volume de la coque — ce que l'on voyait depuis la chambre
+   du capitaine. Sans obstacle, puis avec.
+     dotnet run --project core/NavalSim.Lab -c Release -- embrun schooner */
+void Embrun()
+{
+    string name = args.Length > 1 ? args[1] : "schooner";
+    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    var lines = new HullLines(spec);
+    var phys = new ShipPhysics(spec, lines);
+    var ocean = new Ocean { Swell = 1.35, Time = 0 };
+    ocean.SetSeaState(0, 0);
+    phys.Settle(ocean, new Controls());
+    var prof = HullProfile.Procedural(spec, lines);
+    Func<double, double> top = z => lines.DeckY(Math.Clamp(z / spec.L + 0.5, 0, 1));
+    Func<double, double> keel = z => lines.KeelY(Math.Clamp(z / spec.L + 0.5, 0, 1));
+    var col = new HullCollider(phys, prof, top, keel);
+
+    // le même test que l'obstacle, sans rien corriger : dedans ou pas
+    bool Inside(Vec3d p)
+    {
+        var b = phys.Body;
+        Vec3d l = b.Quat.Inverted().Rotate(p - b.Pos);
+        if (l.Z < prof.EndAft || l.Z > prof.EndFwd) return false;
+        double u = Math.Clamp(l.Z / prof.HalfLen * 0.5 + 0.5, 0, 1) * prof.Fractions.Length - 0.5;
+        int n = prof.Fractions.Length;
+        int i0 = Math.Clamp((int)Math.Floor(u), 0, n - 1), i1 = Math.Min(i0 + 1, n - 1);
+        double ft = Math.Clamp(u - Math.Floor(u), 0, 1);
+        double hb = (prof.Fractions[i0] * (1 - ft) + prof.Fractions[i1] * ft) * prof.MaxHalfB;
+        return Math.Abs(l.X) < hb * 0.98 && l.Y < top(l.Z) - 0.05 && l.Y > keel(l.Z) + 0.05;
+    }
+
+    foreach (bool with in new[] { false, true })
+    {
+        var pool = new SprayPool(new Random(11));
+        if (with) pool.Colliders.Add(col);
+        long inside = 0, seen = 0;
+        for (int burst = 0; burst < 40; burst++)
+        {
+            double z = (burst % 10 - 4.5) / 10.0 * spec.L * 0.8;
+            double side = burst % 2 == 0 ? 1 : -1;
+            double hb = prof.MaxHalfB * 1.06;
+            pool.Burst(new Vec3d(side * hb, 0, z), 6, 4);
+            for (int s = 0; s < 120; s++)
+            {
+                pool.Update(1.0 / 60);
+                for (int i = 0; i < pool.Count; i++)
+                {
+                    seen++;
+                    if (Inside(new Vec3d(pool.Pos[i * 3], pool.Pos[i * 3 + 1], pool.Pos[i * 3 + 2]))) inside++;
+                }
+            }
+        }
+        Console.WriteLine($"  {(with ? "avec l'obstacle " : "sans obstacle   ")}  {inside,7} paquets·image dans la coque sur {seen} ({100.0 * inside / Math.Max(1, seen):F2} %)");
+    }
+}
+
 /* LES SOLVEURS SUR PLUSIEURS CŒURS, ÉPROUVÉS. Deux flottes identiques, l'une
    menée en série, l'autre en parallèle, dans la même mer : les trajectoires
    doivent être égales AU BIT PRÈS — chaque solveur ne touche qu'à son propre
@@ -129,6 +181,13 @@ void DumpWaves()
     }
 }
 
+/* CE QUE VAUT UN ÉTAT DE MER, ET CE QU'IL FAIT AU NAVIRE.
+ *
+ * Les deux questions sont posées ensemble parce qu'elles se répondent l'une
+ * l'autre : une houle très creuse mais très longue soulève une coque en bloc
+ * sans la travailler, et l'on peut donc avoir treize mètres de hauteur
+ * significative pour cinq degrés de roulis. Mesurer la mer seule laisserait
+ * croire à une tempête que le navire ne sent pas. */
 void Gale()
 {
     double force = args.Length > 1 ? double.Parse(args[1], CultureInfo.InvariantCulture) : 9.9;

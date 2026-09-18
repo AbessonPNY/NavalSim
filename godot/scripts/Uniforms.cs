@@ -82,3 +82,29 @@ public static class U
     public static readonly StringName Wind = new("u_wind");
     public static readonly StringName Zenith = new("u_zenith");
 }
+
+/// <summary>
+/// PASSER UN TABLEAU À GODOT SANS LAISSER DE FINALISEUR DERRIÈRE SOI.
+///
+/// Convertir un tableau (Vector3[], float[], Godot.Collections.Array…) en Variant
+/// crée un petit objet « libérateur » muni d'un finaliseur, qui rendra la mémoire
+/// native quand le ramasse-miettes le trouvera. Un objet à finaliseur survit aux
+/// petites collectes et s'entasse en génération 2 : à neuf navires, toile, flotte
+/// et feux en créaient à chaque image, et la collecte complète qu'ils finissaient
+/// par déclencher gelait une image de 38 ms en pleine course. Godot ayant RECOPIÉ
+/// le tableau, on libère le Variant à l'instant : il meurt jeune, sans finaliseur.
+/// </summary>
+public static class VariantHandoff
+{
+    public static void SetNow(this ShaderMaterial m, StringName name, Variant v)
+    {
+        m.SetShaderParameter(name, v);
+        v.Dispose();
+    }
+
+    public static void SetNow(this Godot.Collections.Array a, int index, Variant v)
+    {
+        a[index] = v;
+        v.Dispose();
+    }
+}

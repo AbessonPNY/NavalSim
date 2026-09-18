@@ -49,6 +49,7 @@ public partial class ShipDemo : Node3D
     readonly List<ShipPhysics> _fleet = new();
     // le contour que la mer lit pour le navire commandé
     HullProfile _prof = null!;
+    HullCollider? _hullCollider;
     int _index;
 
     /* LE SOUS-PAS NE DÉPASSE JAMAIS 1/15 s, et le compte en découle.
@@ -120,6 +121,18 @@ public partial class ShipDemo : Node3D
     readonly List<ShipNode> _others = new();
     int _flotteShip = 5;    // la frégate du XVIIe : modèle, toile, feux, lanterne pendue
 
+    /* LE MÉNAGE AU CHARGEMENT. Mettre une coque à l'eau laisse derrière soi des
+       dizaines de mégaoctets morts — sommets relus, images de rugosité, tableaux
+       de mesure : 394 Mo pour neuf frégates. Laissés au ramasse-miettes, ils
+       partaient en pleine course, dans une collecte complète qui gelait une image
+       de 38 à 42 ms. On la fait ici, pendant que rien ne bouge. */
+    static void Sweep()
+    {
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+    }
+
     void SpawnFleet(int n, int specIndex)
     {
         var spec = ShipLibrary.Load(_paths[(specIndex % _paths.Count + _paths.Count) % _paths.Count]);
@@ -136,12 +149,15 @@ public partial class ShipDemo : Node3D
             b.Pos = new Vec3d((i % 6 - 2.5) * 140, b.Pos.Y, 160 + (i / 6) * 180);
             s.SyncTransform();
             int row = _fleet.Count;
-            if (row < Config.MaxShips) _sea.SetHullProfile(row, s.MakeProfile(-y));
+            var prof = s.MakeProfile(-y);
+            if (row < Config.MaxShips) _sea.SetHullProfile(row, prof);
+            _spray.Pool.Colliders.Add(s.MakeCollider(prof));
             _fleet.Add(s.Physics);
             s.Physics.OnSlam = QueueSlam;
             _others.Add(s);
         }
         GD.Print($"flotte d'essai : {n} × {spec.Name}");
+        Sweep();
     }
 
     // ------------------------------------------------------------------
@@ -460,6 +476,10 @@ public partial class ShipDemo : Node3D
            sinon —, à la flottaison qu'elle vient de trouver. */
         _prof = _ship.MakeProfile(-y);
         _sea.SetHullProfile(0, _prof);
+        // et l'embrun ne la traverse plus : il rebondit sur son bordé ou reste sur son pont
+        if (_hullCollider != null) _spray.Pool.Colliders.Remove(_hullCollider);
+        _hullCollider = _ship.MakeCollider(_prof);
+        _spray.Pool.Colliders.Add(_hullCollider);
         string what = _ship.ModelRoot != null
             ? $"modèle {spec.Model!.Glb}, échelle {_ship.ModelRoot.Scale.X:F4}"
             : "coque procédurale";
@@ -477,6 +497,7 @@ public partial class ShipDemo : Node3D
         if (_fixed) Plant();
         // et ses vues à bord sont les SIENNES : la même, si elle en a autant, sinon la première
         if (_camMode == 1) { if (_deck >= spec.Decks.Count) _deck = 0; EnterDeck(); }
+        Sweep();
         UpdateInfo();
     }
 
