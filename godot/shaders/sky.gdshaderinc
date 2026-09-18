@@ -20,6 +20,21 @@ uniform float u_cloud = 0.12;     // la couverture, de 0 au couvert
 uniform float u_sky_time = 0.0;   // le pont de nuages dérive avec le jour
 uniform float u_storm = 0.0;      // le couvercle, de 0 à 1
 
+/* CE QUE L'ECRAN MONTRE, ET POURQUOI IL FAUT DEFAIRE L'ENCODAGE.
+   Aucun shader d'origine n'inclut `colorspace_fragment`, et three.js ne l'ajoute
+   qu'a ses materiaux integres : la mer et le ciel y ecrivent leur valeur TELLE
+   QUELLE dans le tampon sRGB. Toutes leurs couleurs ont ete reglees ainsi, a
+   l'oeil et a la mesure. Godot encode sa sortie, ce qui eclaircissait chaque ton
+   moyen du double — 0,28 sortait a 145/255 au lieu de 71 — et une ecume claire
+   sur une eau deja claire n'avait plus de gamme. On passe donc l'inverse exact
+   de son encodage, pour que l'octet affiche soit la valeur calculee.
+   Pour ce qui est VU seulement : la lumiere ambiante tiree du ciel reste en
+   valeurs brutes, comme le PMREM d'origine, qui rend en flottant. */
+vec3 naval_display(vec3 c) {
+	c = max(c, vec3(0.0));
+	return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, lessThan(c, vec3(0.04045)));
+}
+
 // --- un grain qu'on n'a pas encore atteint ---
 uniform vec2  u_storm_dir = vec2(1.0, 0.0);        // relèvement du grain le plus proche
 uniform float u_storm_loom = 0.0;                  // à quel point ce quart de ciel est noir

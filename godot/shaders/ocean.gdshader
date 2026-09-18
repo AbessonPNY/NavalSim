@@ -50,6 +50,12 @@ uniform float u_ripple = 0.9;
 uniform float u_amp_max = 1.0;
 uniform vec2  u_wind = vec2(1.0, 0.0);
 
+// le champ d'écume persistant (FoamField) : ce que les crêtes ont laissé
+uniform sampler2D u_foam_tex : filter_linear, repeat_disable;
+uniform vec2  u_foam_origin = vec2(0.0);
+uniform float u_foam_size = 620.0;
+uniform float u_foam_on = 0.0;
+
 varying vec3 v_world;
 varying vec3 v_nrm;
 varying float v_foam;
@@ -238,7 +244,23 @@ void fragment() {
 	   qu'en n'éclairant que l'écume on la rendait plus SOMBRE que l'eau sur
 	   laquelle elle repose, ce qui est le même défaut retourné. */
 	float fn = onde_fbm(v_world.xz * 0.55 + u_time * 0.05);
-	float foam = clamp(v_foam * (0.35 + 1.1 * fn), 0.0, 1.0) * (1.0 - far * 0.85);
+	float crest_foam = clamp(v_foam * (0.35 + 1.1 * fn), 0.0, 1.0);
+
+	/* L'écume déposée plus tôt et qui se disperse encore. Lue en espace MONDE,
+	   donc elle reste où elle est née pendant que le navire s'éloigne. */
+	float persist = 0.0;
+	if (u_foam_on > 0.5) {
+		vec2 fuv = (v_world.xz - u_foam_origin) / u_foam_size;
+		if (fuv.x > 0.0 && fuv.x < 1.0 && fuv.y > 0.0 && fuv.y < 1.0) {
+			float edge = min(min(fuv.x, 1.0 - fuv.x), min(fuv.y, 1.0 - fuv.y));
+			persist = texture(u_foam_tex, fuv).r
+			        * smoothstep(0.0, 0.03, edge);   // pas de bord franc
+		}
+	}
+	// la vieille écume est déchirée, en traînées, pas un lavis uniforme
+	persist *= (0.35 + 0.95 * fn);
+
+	float foam = clamp(max(crest_foam, persist), 0.0, 1.0) * (1.0 - far * 0.85);
 	vec3 foam_col = body * 0.5 + u_horizon * 1.05 * (1.0 - 0.55 * u_storm);
 	c = mix(c, foam_col, foam * 0.85);
 
@@ -248,5 +270,5 @@ void fragment() {
 	float hz = haze_along(eye, v_world);
 	c = mix(c, u_horizon * (1.0 - 0.55 * u_storm), hz);
 
-	ALBEDO = c;
+	ALBEDO = naval_display(c);
 }

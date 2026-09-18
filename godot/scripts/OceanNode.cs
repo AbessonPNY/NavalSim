@@ -90,10 +90,52 @@ public partial class OceanNode : Node3D
         var centre = new Vector3(eye.X, 0, eye.Z);
         _plane.Position = centre;
         _mat.SetShaderParameter("u_centre", centre);
-        _mat.SetShaderParameter("u_time", (float)t);
         _mat.SetShaderParameter("u_sharp", (float)Core.Sharp);
         _mat.SetShaderParameter("u_amp_max", (float)Core.AmpMax);
+        FillWaves();
+        PushWaves(_mat);
+    }
 
+    /// <summary>
+    /// Le spectre et l'horloge, vers tout shader qui lit la houle. UNE écriture
+    /// pour tous : la mer et le champ d'écume doivent déferler sur les MÊMES
+    /// vagues, et deux copies du tableau finiraient par ne plus l'être. Pose ce
+    /// que <see cref="UpdateFrom"/> a rempli pour cette image : l'appeler après.
+    /// </summary>
+    public void PushWaves(ShaderMaterial m)
+    {
+        m.SetShaderParameter("u_time", (float)Core.Time);
+        m.SetShaderParameter("u_wave_a", _waveA);
+        m.SetShaderParameter("u_wave_b", _waveB);
+        m.SetShaderParameter("u_wave_phase", _wavePhase);
+    }
+
+    /// <summary>
+    /// Le champ d'écume persistant, que la mer lit désormais. Taille une fois ;
+    /// texture et ancre à chaque image, par <see cref="SyncFoam"/>.
+    /// </summary>
+    public void AttachFoam(FoamField foam)
+    {
+        _foam = foam;
+        _mat?.SetShaderParameter("u_foam_size", FoamField.Size);
+        _mat?.SetShaderParameter("u_foam_on", 1.0f);
+    }
+
+    FoamField? _foam;
+
+    /// <summary>
+    /// La cible que le champ vient de rendre, et SON ancre — les deux de la même
+    /// passe, faute de quoi l'écume glisserait d'un pas à chaque image.
+    /// </summary>
+    public void SyncFoam()
+    {
+        if (_foam == null || _mat == null) return;
+        _mat.SetShaderParameter("u_foam_tex", _foam.Texture);
+        _mat.SetShaderParameter("u_foam_origin", _foam.Origin);
+    }
+
+    void FillWaves()
+    {
         for (int i = 0; i < Config.NWaves; i++)
         {
             ref Wave w = ref Core.Waves[i];
@@ -101,8 +143,5 @@ public partial class OceanNode : Node3D
             _waveB[i] = Variant.From(new Vector2((float)w.Omega, (float)w.Q));
             _wavePhase[i] = (float)w.Phase;
         }
-        _mat.SetShaderParameter("u_wave_a", _waveA);
-        _mat.SetShaderParameter("u_wave_b", _waveB);
-        _mat.SetShaderParameter("u_wave_phase", _wavePhase);
     }
 }

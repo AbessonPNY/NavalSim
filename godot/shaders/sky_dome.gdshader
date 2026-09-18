@@ -24,5 +24,7 @@ void sky() {
 	   QUELQUE PART, celui-ci est au-dessus d'elle. */
 	c += vec3(0.62, 0.70, 0.92) * u_flash * (1.6 - 0.9 * clamp(dir.y, 0.0, 1.0));
 
-	COLOR = c;
+	// le fond est VU, donc desencode ; la passe cubemap nourrit la lumiere
+	// ambiante et garde les valeurs brutes
+	COLOR = AT_CUBEMAP_PASS ? c : naval_display(c);
 }

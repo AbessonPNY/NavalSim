@@ -16,13 +16,14 @@ namespace NavalSim;
 public partial class ShipDemo : Node3D
 {
     OceanNode _sea = null!;
+    FoamField _foam = null!;
     SkyNode _sky = null!;
     ShipNode _ship = null!;
     Camera3D _cam = null!;
     Label _info = null!;
 
     double _t;
-    double _force = 4, _windDeg = 210, _cloud = 0.12;
+    double _force = 4, _windDeg = 210, _cloud = 0.06;   // 6 %, le reglage par defaut de la page d'origine
     /// <summary>
     /// LE CREUX, et il manquait — ce qui a coute une fausse piste entiere.
     ///
@@ -58,6 +59,10 @@ public partial class ShipDemo : Node3D
         _sea = new OceanNode();
         AddChild(_sea);
         _sea.Core.SetSeaState(_force, _windDeg);
+
+        _foam = new FoamField();
+        AddChild(_foam);
+        _sea.AttachFoam(_foam);
 
         _paths = ShipLibrary.Discover();
         GD.Print($"{_paths.Count} fiche(s) lue(s) dans {ShipLibrary.Folder}");
@@ -143,14 +148,15 @@ public partial class ShipDemo : Node3D
         /* L'ORIGINE FLOTTANTE. Au-delà de REBASE_RADIUS le monde entier glisse
            sous la flotte, et TOUT CE QUI TIENT UNE POSITION doit se décaler dans
            la MÊME image — sans quoi il se retrouve en désaccord avec la mer
-           d'exactement ce décalage. Ici : la coque et la mer. Le champ d'écume et
-           la caméra fixe s'ajouteront à cette liste, et c'est la liste sur
+           d'exactement ce décalage. Ici : la coque, la mer et le champ d'écume.
+           La caméra fixe s'ajoutera à cette liste, et c'est la liste sur
            laquelle ce projet a déjà oublié quelque chose deux fois. */
         var b = _ship.Physics.Body;
         if (Math.Abs(b.Pos.X) > Config.RebaseRadius || Math.Abs(b.Pos.Z) > Config.RebaseRadius)
         {
             double dx = -b.Pos.X, dz = -b.Pos.Z;
             _sea.Core.Rebase(-dx, -dz);
+            _foam.Rebase((float)-dx, (float)-dz);
             b.Pos = new Vec3d(b.Pos.X + dx, b.Pos.Y, b.Pos.Z + dz);
             _ship.SyncTransform();
             GD.Print($"recentrage : origine désormais ({_sea.Core.Origin.X:F0}, {_sea.Core.Origin.Z:F0}) m");
@@ -158,6 +164,13 @@ public partial class ShipDemo : Node3D
 
         UpdateCamera(frame);
         _sea.UpdateFrom(_cam.GlobalPosition, _t);
+        // la cible rendue à l'image d'avant, avec l'heure et l'ancre de CETTE passe
+        if (_foamCheckIn > 0 && --_foamCheckIn == 0) { FoamCheck(); return; }
+        // le champ suit la coque commandée, et passe AVANT la mer qui le lit
+        _foam.Step(frame, _sea, _ship.Position);
+        _foamT = _t;
+        _foamOrigin = _foam.Origin;
+        _sea.SyncFoam();
 
         /* LE MÊME CIEL PARTOUT, une fois par image. La mer le réfléchit, la
            coque respire sa brume, le dôme le dessine — et c est SkyNode qui
@@ -198,6 +211,13 @@ public partial class ShipDemo : Node3D
            milieu, cap immobile et vitesse angulaire résiduelle de 5e-9 rad/s.
            Elle ne tournait pas. Une caméra qui bouge toute seule autour d'une
            chose capable de bouger est un instrument qui ment. */
+        if (_fixEye is Vector3 fe)
+        {
+            _cam.Position = fe;
+            _cam.LookAt(_fixLook ?? Vector3.Zero, Vector3.Up);
+            return;
+        }
+
         float h = _dist * Mathf.Sin(_pitch);
         float r = _dist * Mathf.Cos(_pitch);
         var eye = target + new Vector3(Mathf.Sin(_orbit) * r, Mathf.Max(2f, h), Mathf.Cos(_orbit) * r);
@@ -362,7 +382,68 @@ public partial class ShipDemo : Node3D
                 // la machine en ligne de commande : une capture « en route » ne
                 // peut pas dependre du clavier, et un banc non plus
                 case "--throttle": _ship.Ctrl.Throttle = args[i + 1].ToFloat(); _drive = true; break;
+                // un oeil FIXE dans le monde, pour comparer au pixel avec la page
+                // d'origine : une camera qui suit une coque soulevee de quarante
+                // metres se retrouve dans la vague, et la comparaison ne vaut rien
+                case "--eye": _fixEye = ParseVec(args[i + 1]); break;
+                case "--look": _fixLook = ParseVec(args[i + 1]); break;
+                case "--foamcheck": _foamCheckIn = args[i + 1].ToInt(); break;
             }
+    }
+
+    Vector3? _fixEye, _fixLook;
+
+    /* LE CONTRÔLE DU CHAMP D'ÉCUME, en nombres et sans image. Il relit la cible
+       que le GPU vient de rendre et recalcule la déferlante au processeur, en
+       doubles, aux mêmes points du monde : là où une crête déferle franchement,
+       le champ doit valoir AU MOINS autant, puisqu'il ne fait que garder le
+       maximum. Un axe retourné ou une ancre décalée d'un pas s'y compteraient
+       par centaines. */
+    int _foamCheckIn = -1;
+    double _foamT;
+    Vector2 _foamOrigin;
+
+    void FoamCheck()
+    {
+        var img = _foam.Texture.GetImage();
+        var rng = new Random(7);
+        int strong = 0, bad = 0, lit = 0, n = 4000;
+        double sum = 0, maxSteep = 0;
+        for (int s = 0; s < n; s++)
+        {
+            int px = rng.Next(FoamField.Res), py = rng.Next(FoamField.Res);
+            float v = img.GetPixel(px, py).R;
+            sum += v;
+            if (v > 0.05f) lit++;
+            double x = _foamOrigin.X + (px + 0.5) / FoamField.Res * FoamField.Size;
+            double z = _foamOrigin.Y + (py + 0.5) / FoamField.Res * FoamField.Size;
+            double steep = 0;
+            for (int i = 0; i < Config.NWavesFoam; i++)
+            {
+                ref Wave w = ref _sea.Core.Waves[i];
+                double f = w.K * (w.Dx * x + w.Dz * z) - w.Omega * _foamT + w.Phase;
+                steep += w.Q * w.K * w.Amp * Math.Max(Math.Sin(f), 0);
+            }
+            maxSteep = Math.Max(maxSteep, steep);
+            double e = Math.Clamp((steep - 0.66) / (1.05 - 0.66), 0, 1);
+            double brk = e * e * (3 - 2 * e) * 0.9;
+            if (brk > 0.3) { strong++; if (v < brk - 0.05) bad++; }
+        }
+        GD.Print($"champ d'écume : {img.GetFormat()}, moyenne {sum / n:F3}, "
+               + $"texels écumeux {100.0 * lit / n:F1} %, déferlantes fortes {strong}, "
+               + $"en défaut {bad}, raideur max {maxSteep:F3}");
+        for (int i = 0; i < Config.NWavesFoam; i++)
+        {
+            ref Wave w = ref _sea.Core.Waves[i];
+            GD.Print($"  vague {i} : amp {w.Amp:F2} m, lambda {2 * Math.PI / w.K:F0} m, Q {w.Q:F3}, Q.k.amp {w.Q * w.K * w.Amp:F3}");
+        }
+        GetTree().Quit();
+    }
+
+    static Vector3 ParseVec(string s)
+    {
+        var p = s.Split(',');
+        return new Vector3(p[0].ToFloat(), p[1].ToFloat(), p[2].ToFloat());
     }
 
     void TickCapture()
