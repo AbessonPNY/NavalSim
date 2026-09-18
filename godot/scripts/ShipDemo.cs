@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NavalSim.Core;
 
 namespace NavalSim;
@@ -45,6 +46,8 @@ public partial class ShipDemo : Node3D
     List<string> _paths = new();
     // la flotte telle que la mer la voit : l'entrée 0 est le navire commandé
     readonly List<ShipPhysics> _fleet = new();
+    // le contour que la mer lit pour le navire commandé
+    HullProfile _prof = null!;
     int _index;
 
     /* LE SOUS-PAS NE DÉPASSE JAMAIS 1/15 s, et le compte en découle.
@@ -92,6 +95,115 @@ public partial class ShipDemo : Node3D
         _info.AddThemeColorOverride("font_outline_color", new Color(0, 0, 0, 0.85f));
         _info.AddThemeConstantOverride("outline_size", 5);
         layer.AddChild(_info);
+        BuildSunPanel(layer);
+    }
+
+    // ------------------------------------------------------------------
+    //  LE SOLEIL À LA MAIN — les curseurs « Hauteur du soleil » et
+    //  « Défilement du jour » de la console d'origine
+    // ------------------------------------------------------------------
+
+    HSlider _sunElev = null!, _sunSpeed = null!;
+    Label _sunVal = null!, _sunSpeedVal = null!;
+    double _sunTick;
+
+    void BuildSunPanel(CanvasLayer layer)
+    {
+        var panel = new PanelContainer
+        {
+            AnchorLeft = 1, AnchorRight = 1, OffsetLeft = -300, OffsetRight = -14, OffsetTop = 14
+        };
+        panel.AddThemeStyleboxOverride("panel", new StyleBoxFlat
+        {
+            BgColor = new Color(0.04f, 0.06f, 0.09f, 0.55f),
+            CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6,
+            CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
+            ContentMarginLeft = 12, ContentMarginRight = 12, ContentMarginTop = 8, ContentMarginBottom = 10
+        });
+        var box = new VBoxContainer();
+        panel.AddChild(box);
+        layer.AddChild(panel);
+
+        _sunVal = Row(box, "Hauteur du soleil");
+        /* Jusqu'à −40 : à cette latitude le soleil descend vraiment aussi bas, et
+           un curseur arrêté à −10 montrerait une nuit figée au crépuscule. */
+        _sunElev = Slider(box, -40, 80, 1, _sky.Core.SunElevDeg);
+        _sunSpeedVal = Row(box, "Défilement du jour");
+        _sunSpeed = Slider(box, 0, 16, 0.5, _sky.DayRate);
+
+        /* PRENDRE LE SOLEIL EN MAIN ARRÊTE L'HORLOGE, pour la même raison que la
+           mer : être réécrit un cinquième de seconde plus tard n'est pas une
+           interface. La hauteur change, le relèvement reste le sien. */
+        _sunElev.DragStarted += () => { _sky.DayRate = 0; _sunSpeed.SetValueNoSignal(0); ShowSunSpeed(); };
+        _sunElev.ValueChanged += v =>
+        {
+            _sky.DayRate = 0; _sunSpeed.SetValueNoSignal(0); ShowSunSpeed();
+            _sky.Core.SetSun(v, _sky.Core.SunBearingDeg);
+            _sky.Apply();
+            ShowSun(v);
+        };
+        _sunSpeed.ValueChanged += v => { _sky.DayRate = v; ShowSunSpeed(); };
+        ShowSun(_sky.Core.SunElevDeg);
+        ShowSunSpeed();
+    }
+
+    Label Row(VBoxContainer box, string name)
+    {
+        var row = new HBoxContainer();
+        var n = new Label { Text = name, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        var v = new Label { HorizontalAlignment = HorizontalAlignment.Right };
+        foreach (var l in new[] { n, v })
+        {
+            l.AddThemeFontSizeOverride("font_size", 14);
+            l.AddThemeColorOverride("font_color", new Color(0.94f, 0.96f, 0.98f));
+        }
+        row.AddChild(n);
+        row.AddChild(v);
+        box.AddChild(row);
+        return v;
+    }
+
+    static HSlider Slider(VBoxContainer box, double min, double max, double step, double value)
+    {
+        var s = new HSlider
+        {
+            MinValue = min, MaxValue = max, Step = step, Value = value,
+            // pas de focus : les flèches restent à la force et au vent
+            FocusMode = Control.FocusModeEnum.None,
+            CustomMinimumSize = new Vector2(0, 20)
+        };
+        box.AddChild(s);
+        return s;
+    }
+
+    void ShowSun(double e) =>
+        _sunVal.Text = e < 0 ? $"nuit {Math.Round(e)}°" : $"{Math.Round(e)}°";
+
+    /// <summary>
+    /// Le taux ÉNONCÉ : « ×2 » ne veut rien dire si « ×1 » ne dit pas quoi —
+    /// une minute réelle pour une heure. L'heure du ciel à côté.
+    /// </summary>
+    void ShowSunSpeed()
+    {
+        double v = _sky.DayRate;
+        double h = _sky.Core.DayTime;
+        string clock = $"{(int)h:00}:{(int)((h - (int)h) * 60):00}";
+        _sunSpeedVal.Text = v <= 0 ? $"arrêt · {clock}"
+            : $"×{(v % 1 != 0 ? v.ToString("F1") : v.ToString("F0"))} · {Math.Round(24 / v)} min/jour · {clock}";
+    }
+
+    /// <summary>Le curseur suit le soleil quand le jour tourne, quatre fois par seconde.</summary>
+    void TickSunPanel(double dt)
+    {
+        _sunTick += dt;
+        if (_sunTick < 0.25) return;
+        _sunTick = 0;
+        if (_sky.DayRunning)
+        {
+            _sunElev.SetValueNoSignal(Math.Round(_sky.Core.SunElevDeg));
+            ShowSun(_sky.Core.SunElevDeg);
+        }
+        ShowSunSpeed();
     }
 
     /// <summary>
@@ -122,9 +234,16 @@ public partial class ShipDemo : Node3D
         GD.Print($"{spec.Name} : assise à y = {y:F3} m, tirant {_ship.Physics.Draft:F2} m, "
                + $"immersion {_ship.Physics.SubmergedFrac * 100:F1} %");
 
-        /* SON CONTOUR À LA MER, dans sa rangée : le collier suit le bordé réel,
-           tiré du même plan de formes que la coque et ses sondes. */
-        _sea.SetHullProfile(0, HullProfile.Procedural(spec, _ship.Lines));
+        /* SON CONTOUR À LA MER, dans sa rangée : le collier suit le bordé qu'on
+           VOIT — mesuré sur le modèle s'il en porte un, lu dans le plan de formes
+           sinon —, à la flottaison qu'elle vient de trouver. */
+        _prof = _ship.MakeProfile(-y);
+        _sea.SetHullProfile(0, _prof);
+        string what = _ship.ModelRoot != null
+            ? $"modèle {spec.Model!.Glb}, échelle {_ship.ModelRoot.Scale.X:F4}"
+            : "coque procédurale";
+        GD.Print($"  {what} ; profil : demi-largeur {_prof.MaxHalfB:F3} m (fiche {spec.B * 0.5:F3}), "
+               + $"corps {_prof.EndAft:F2} à {_prof.EndFwd:F2} m");
         _fleet.Clear();
         _fleet.Add(_ship.Physics);
 
@@ -136,6 +255,10 @@ public partial class ShipDemo : Node3D
 
     public override void _Process(double delta)
     {
+        FrameStats(delta);
+        _ftWatch.Restart();
+        long ap0 = GC.GetAllocatedBytesForCurrentThread();
+
         /* Le pas d'image est PLAFONNÉ à cinquante millisecondes, pour protéger le
            solveur d'une saccade : une image d'une seconde ferait faire à la
            coque un bond d'une seconde, ressorts raides compris. */
@@ -148,12 +271,24 @@ public partial class ShipDemo : Node3D
         int sub = Math.Max(MinSub, (int)Math.Ceiling(frame / MaxSubDt));
         double dt = frame / sub;
         double t = _t - frame;
+        // ce que chaque étage alloue, pour --frametimes : le solveur doit rester à zéro
+        long a0 = GC.GetAllocatedBytesForCurrentThread();
         for (int s = 0; s < sub; s++)
         {
             _ship.Physics.Step(dt, _sea.Core, _ship.Ctrl, t);
             t += dt;
         }
+        long a1 = GC.GetAllocatedBytesForCurrentThread();
         _ship.SyncTransform();
+
+        /* LA TOILE SUIT LE SOLVEUR : l'écoute, le bord, la toile établie, le
+           faseyement et la charge sont lus à chaque image, jamais retenus — la
+           voile se gonfle parce qu'on la borde, avec la même pression qui pousse
+           le navire, sans seconde règle à tenir d'accord. */
+        var ph = _ship.Physics;
+        _ship.SetTrim(_ship.Ctrl.Sheet, ph.Tack, ph.SetFrac, ph.Luffing, _t, ph.SailLoad);
+        long a2 = GC.GetAllocatedBytesForCurrentThread();
+        _allocPhys += a1 - a0; _allocSails += a2 - a1; _allocFrames++;
 
         /* L'ORIGINE FLOTTANTE. Au-delà de REBASE_RADIUS le monde entier glisse
            sous la flotte, et TOUT CE QUI TIENT UNE POSITION doit se décaler dans
@@ -192,21 +327,26 @@ public partial class ShipDemo : Node3D
            coque respire sa brume, le dôme le dessine — et c est SkyNode qui
            écrit les trois, faute de quoi ils dériveraient en silence. */
         _sky.UpdateWeather(frame, _force);
+        TickSunPanel(frame);
+        // les feux et les fenêtres suivent la nuit du ciel, et s'effacent au loin
+        _ship.SetLantern(_sky.Core.Night, _t, _cam.GlobalPosition, _sky.Core);
         _sky.PushTo(_sea.Material);
         _sky.SetCloud(_sea.Material, _cloud, _t);
-        foreach (var m in _ship.Hazed) _sky.PushTo(m);
-        _sea.Material?.SetShaderParameter("u_ripple",
+        foreach (var m in _ship.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
+        _sea.Material?.SetShaderParameter(U.Ripple,
             (float)Math.Min(2.6, 0.40 + _sea.Core.WindSpeed * 0.105));
         var wv = _sea.Core.WindVec;
         double ws = Math.Sqrt(wv.X * wv.X + wv.Z * wv.Z);
         if (ws > 1e-4)
-            _sea.Material?.SetShaderParameter("u_wind",
+            _sea.Material?.SetShaderParameter(U.Wind,
                 new Vector2((float)(wv.X / ws), (float)(wv.Z / ws)));
 
         _hudAcc += frame;
         if (_hudAcc > 0.15) { _hudAcc = 0; UpdateInfo(); }
 
         TickCapture();
+        _ftWatch.Stop();
+        _allocProc += GC.GetAllocatedBytesForCurrentThread() - ap0;
     }
 
     /* LA VUE FIXE de camera-rig.js (mode 3). Plantée dans le monde, position et
@@ -367,7 +507,8 @@ public partial class ShipDemo : Node3D
             $"vent       {_windDeg,6:F0}°      force     {_force:F1} · {Config.Beaufort[bf].Name}\n" +
             $"\n" +
             $"W S machine   B élan   A D barre   Q E écoutes   V voiles\n" +
-            $"↑↓ force   ←→ vent   PgUp/PgDn creux   N navire   F suivre   C vue fixe   X replanter";
+            $"↑↓ force   ←→ vent   PgUp/PgDn creux   N navire   F suivre   C vue fixe   X replanter\n" +
+            $"O occlusion {(_sky.Env.SsaoEnabled ? "oui" : "non")}   G lumière indirecte {(_sky.Env.SsilEnabled ? "oui" : "non")}";
     }
 
     public override void _UnhandledInput(InputEvent e)
@@ -400,6 +541,9 @@ public partial class ShipDemo : Node3D
                 case Key.F: _follow = !_follow; break;
                 case Key.C: _fixed = !_fixed; if (_fixed) Plant(); break;
                 case Key.X: if (_fixed) Plant(); break;
+                // l'occlusion ambiante et l'illumination globale, pour juger à l'œil
+                case Key.O: _sky.Env.SsaoEnabled = !_sky.Env.SsaoEnabled; break;
+                case Key.G: _sky.Env.SsilEnabled = !_sky.Env.SsilEnabled; break;
                 /* L'ÉLAN : l'équivalent de `Naval.app.controls.state.throttle = 45`
                    dans la console d'origine. Le solveur ne borne pas la machine,
                    donc c'est quarante-cinq fois la poussée — de quoi voir une coque
@@ -476,10 +620,83 @@ public partial class ShipDemo : Node3D
                 case "--eye": _fixEye = ParseVec(args[i + 1]); break;
                 case "--look": _fixLook = ParseVec(args[i + 1]); break;
                 case "--foamcheck": _foamCheckIn = args[i + 1].ToInt(); break;
+                // le profil de flottaison, station par station, à poser à côté de
+                // ship.hullProfile(64, -eq) dans la page
+                // la régularité des images, mesurée : voir FrameStats
+                // sans synchro verticale : pour mesurer ce que la machine tient vraiment
+                case "--vsync": DisplayServer.WindowSetVsyncMode(args[i + 1] == "0" ? DisplayServer.VSyncMode.Disabled : DisplayServer.VSyncMode.Enabled); break;
+                case "--ssao": _sky.Env.SsaoEnabled = args[i + 1] == "1"; break;
+                case "--ssil": _sky.Env.SsilEnabled = args[i + 1] == "1"; break;
+                case "--frametimes": _ftLeft = args[i + 1].ToInt(); _ftGc0 = GC.GetTotalPauseDuration(); break;
+                // le soleil figé à cette hauteur : pour éprouver la nuit sans attendre
+                case "--sun": _sky.DayRate = 0; _sky.Core.SetSun(args[i + 1].ToFloat(), _sky.Core.SunBearingDeg); _sky.Apply();
+                    GD.Print(FormattableString.Invariant($"nuit {_sky.Core.Night:F2}, lune {(_sky.Core.MoonOn ? "oui" : "non")} phase {_sky.Core.MoonPhase:F2} levée {_sky.Core.MoonUp:F2}, lumière de l'eau {_sky.Core.WaterLight:F3}, lumière directe {_sky.Core.SunIntensity:F3}"));
+                    break;
+                case "--dumprig":
+                    foreach (var l in _ship.RigLog) GD.Print("gréement " + l);
+                    break;
+                case "--dumpprofile":
+                    GD.Print("profil " + string.Join(" ", Array.ConvertAll(_prof.Fractions,
+                        f => f.ToString("F5", System.Globalization.CultureInfo.InvariantCulture))));
+                    break;
             }
     }
 
     Vector3? _fixEye, _fixLook;
+
+    /* LA RÉGULARITÉ DES IMAGES, en nombres. Un à-coup « quasi imperceptible »
+       ne se juge pas à l'œil sur une capture : il se lit dans la distribution
+       des temps d'image, et dans ce que le ramasse-miettes a pris pendant ce
+       temps. On relève le pas brut de Godot, sans le plafond de 50 ms. */
+    long _allocPhys, _allocSails, _allocFrames, _allocRun0 = -1, _allocProc;
+    int _ftLeft = -1;
+    readonly List<double> _ft = new();
+    TimeSpan _ftGc0;
+    int _ftCol0 = -1, _ftCol1, _ftCol2;
+
+    readonly System.Diagnostics.Stopwatch _ftWatch = new();
+    double _ftCpuSum, _ftGpuSum, _ftRsCpuSum;
+    Rid _ftVp;
+
+    void FrameStats(double delta)
+    {
+        if (_ftLeft < 0) return;
+        if (_ftCol0 < 0)
+        {
+            _ftCol0 = GC.CollectionCount(0); _ftCol1 = GC.CollectionCount(1); _ftCol2 = GC.CollectionCount(2);
+            _ftVp = GetViewport().GetViewportRid();
+            RenderingServer.ViewportSetMeasureRenderTime(_ftVp, true);
+        }
+        else
+        {
+            // l'image d'avant : notre _Process, puis ce que le rendu a pris
+            _ftCpuSum += _ftWatch.Elapsed.TotalMilliseconds;
+            _ftGpuSum += RenderingServer.ViewportGetMeasuredRenderTimeGpu(_ftVp);
+            _ftRsCpuSum += RenderingServer.ViewportGetMeasuredRenderTimeCpu(_ftVp);
+        }
+        if (_ft.Count == 30) _allocRun0 = GC.GetTotalAllocatedBytes();
+        _ft.Add(delta * 1000);
+        if (--_ftLeft > 0) return;
+        var s = _ft.Skip(30).OrderBy(x => x).ToArray();      // les premières images chargent encore
+        double P(double q) => s[(int)Math.Min(s.Length - 1, Math.Floor(q * (s.Length - 1)))];
+        double med = P(0.5);
+        int hitches = s.Count(x => x > 1.5 * med);
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        GD.Print(string.Format(inv,
+            "images {0} : moyenne {1:F2} ms, médiane {2:F2}, p95 {3:F2}, p99 {4:F2}, max {5:F2} ; "
+          + "au-delà de 1,5×médiane : {6} ; ramasse-miettes : gen0 {7}, gen1 {8}, gen2 {9}, "
+          + "pause totale {10:F1} ms, allouées {11:F1} Mo",
+            s.Length, s.Average(), med, P(0.95), P(0.99), s[^1], hitches,
+            GC.CollectionCount(0) - _ftCol0, GC.CollectionCount(1) - _ftCol1, GC.CollectionCount(2) - _ftCol2,
+            (GC.GetTotalPauseDuration() - _ftGc0).TotalMilliseconds, GC.GetTotalAllocatedBytes() / 1048576.0));
+        int m = _ft.Count - 1;
+        GD.Print(string.Format(inv, "par image, en moyenne : notre _Process {0:F2} ms, rendu côté processeur {1:F2} ms, carte graphique {2:F2} ms",
+            _ftCpuSum / m, _ftRsCpuSum / m, _ftGpuSum / m));
+        GD.Print(string.Format(inv, "alloué par image : solveur {0:F0} o, toile {1:F0} o, tout _Process {2:F0} o, tout le programme pendant la course {3:F0} o",
+            (double)_allocPhys / _allocFrames, (double)_allocSails / _allocFrames, (double)_allocProc / _allocFrames,
+            (GC.GetTotalAllocatedBytes() - _allocRun0) / (double)(_ft.Count - 30)));
+        GetTree().Quit();
+    }
 
     /* LE CONTRÔLE DU CHAMP D'ÉCUME, en nombres et sans image. Il relit la cible
        que le GPU vient de rendre et recalcule la déferlante au processeur, en
@@ -526,7 +743,7 @@ public partial class ShipDemo : Node3D
            les deux contours ne s'écartent guère de plus d'un mètre. L'avant et
            l'arrière tiennent aux conventions, pas à ce contrôle : station 0 à
            la voûte (halfB, t = 0), colonne 0 en u = 0, u = 1 à l'étrave (+z). */
-        var prof = HullProfile.Procedural(_ship.Spec, _ship.Lines);
+        var prof = _prof;
         var bb = _ship.Physics.Body;
         Vec3d fw3 = bb.Quat.Rotate(new Vec3d(0, 0, 1));
         double fl = Math.Sqrt(fw3.X * fw3.X + fw3.Z * fw3.Z);

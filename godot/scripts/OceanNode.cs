@@ -74,8 +74,8 @@ public partial class OceanNode : Node3D
         };
         AddChild(_plane);
 
-        _mat.SetShaderParameter("u_half", (float)Config.OceanSize * 0.5f);
-        _mat.SetShaderParameter("u_seg", (float)Config.OceanSeg);
+        _mat.SetShaderParameter(U.Half, (float)Config.OceanSize * 0.5f);
+        _mat.SetShaderParameter(U.Seg, (float)Config.OceanSeg);
     }
 
     /// <summary>
@@ -91,9 +91,9 @@ public partial class OceanNode : Node3D
 
         var centre = new Vector3(eye.X, 0, eye.Z);
         _plane.Position = centre;
-        _mat.SetShaderParameter("u_centre", centre);
-        _mat.SetShaderParameter("u_sharp", (float)Core.Sharp);
-        _mat.SetShaderParameter("u_amp_max", (float)Core.AmpMax);
+        _mat.SetShaderParameter(U.Centre, centre);
+        _mat.SetShaderParameter(U.Sharp, (float)Core.Sharp);
+        _mat.SetShaderParameter(U.AmpMax, (float)Core.AmpMax);
         FillWaves();
         PushWaves(_mat);
     }
@@ -106,10 +106,10 @@ public partial class OceanNode : Node3D
     /// </summary>
     public void PushWaves(ShaderMaterial m)
     {
-        m.SetShaderParameter("u_time", (float)Core.Time);
-        m.SetShaderParameter("u_wave_a", _waveA);
-        m.SetShaderParameter("u_wave_b", _waveB);
-        m.SetShaderParameter("u_wave_phase", _wavePhase);
+        m.SetShaderParameter(U.Time, (float)Core.Time);
+        m.SetShaderParameter(U.WaveA, _waveA);
+        m.SetShaderParameter(U.WaveB, _waveB);
+        m.SetShaderParameter(U.WavePhase, _wavePhase);
     }
 
     /// <summary>
@@ -119,8 +119,8 @@ public partial class OceanNode : Node3D
     public void AttachFoam(FoamField foam)
     {
         _foam = foam;
-        _mat?.SetShaderParameter("u_foam_size", FoamField.Size);
-        _mat?.SetShaderParameter("u_foam_on", 1.0f);
+        _mat?.SetShaderParameter(U.FoamSize, FoamField.Size);
+        _mat?.SetShaderParameter(U.FoamOn, 1.0f);
     }
 
     FoamField? _foam;
@@ -202,14 +202,14 @@ public partial class OceanNode : Node3D
     /// </summary>
     public void PushShips(ShaderMaterial m)
     {
-        m.SetShaderParameter("u_ship_count", _shipCount);
-        if (_profTex != null) m.SetShaderParameter("u_hull_prof", _profTex);
-        m.SetShaderParameter("u_ship_pos", _shipPos);
-        m.SetShaderParameter("u_ship_fwd", _shipFwd);
-        m.SetShaderParameter("u_ship_half", _shipHalf);
-        m.SetShaderParameter("u_hull_ends", _hullEnds);
-        m.SetShaderParameter("u_ship_speed", _shipSpeed);
-        m.SetShaderParameter("u_ship_afloat", _shipAfloat);
+        m.SetShaderParameter(U.ShipCount, _shipCount);
+        if (_profTex != null) m.SetShaderParameter(U.HullProf, _profTex);
+        m.SetShaderParameter(U.ShipPos, _shipPos);
+        m.SetShaderParameter(U.ShipFwd, _shipFwd);
+        m.SetShaderParameter(U.ShipHalf, _shipHalf);
+        m.SetShaderParameter(U.HullEnds, _hullEnds);
+        m.SetShaderParameter(U.ShipSpeed, _shipSpeed);
+        m.SetShaderParameter(U.ShipAfloat, _shipAfloat);
     }
 
     /// <summary>
@@ -219,8 +219,8 @@ public partial class OceanNode : Node3D
     public void SyncFoam()
     {
         if (_foam == null || _mat == null) return;
-        _mat.SetShaderParameter("u_foam_tex", _foam.Texture);
-        _mat.SetShaderParameter("u_foam_origin", _foam.Origin);
+        _mat.SetShaderParameter(U.FoamTex, _foam.Texture);
+        _mat.SetShaderParameter(U.FoamOrigin, _foam.Origin);
     }
 
     void FillWaves()

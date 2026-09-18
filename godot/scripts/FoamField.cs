@@ -51,8 +51,8 @@ public partial class FoamField : Node
                 RenderTargetClearMode = SubViewport.ClearMode.Always
             };
             _mat[i] = new ShaderMaterial { Shader = shader };
-            _mat[i].SetShaderParameter("u_size", Size);
-            _mat[i].SetShaderParameter("u_texel", 1f / Res);
+            _mat[i].SetShaderParameter(U.Size, Size);
+            _mat[i].SetShaderParameter(U.Texel, 1f / Res);
             _vp[i].AddChild(new ColorRect
             {
                 Size = new Vector2(Res, Res),
@@ -66,7 +66,7 @@ public partial class FoamField : Node
                un NaN multiplié par le fondu reste NaN pour toujours. Une lecture
                décalée hors du champ ne lit rien : chaque cible est rendue une
                fois à vide, avant la première vraie passe. */
-            _mat[i].SetShaderParameter("u_offset_uv", new Vector2(2, 2));
+            _mat[i].SetShaderParameter(U.OffsetUv, new Vector2(2, 2));
             _vp[i].RenderTargetUpdateMode = SubViewport.UpdateMode.Once;
         }
     }
@@ -100,11 +100,11 @@ public partial class FoamField : Node
 
         int next = 1 - _cur;
         var m = _mat[next];
-        m.SetShaderParameter("u_prev", _vp[_cur].GetTexture());
-        m.SetShaderParameter("u_origin", Origin);
-        m.SetShaderParameter("u_decay", (float)Math.Exp(-Math.Max(dt, 0) / Tau));
+        m.SetShaderParameter(U.Prev, _vp[_cur].GetTexture());
+        m.SetShaderParameter(U.Origin, Origin);
+        m.SetShaderParameter(U.Decay, (float)Math.Exp(-Math.Max(dt, 0) / Tau));
         // où relire, dans l'image d'avant, le même morceau de monde
-        m.SetShaderParameter("u_offset_uv", (Origin - _prevOrigin) / Size);
+        m.SetShaderParameter(U.OffsetUv, (Origin - _prevOrigin) / Size);
         sea.PushWaves(m);
         sea.PushShips(m);
 

@@ -51,6 +51,65 @@ public sealed class Sky
 
     double _sunBase, _hemiBase;
 
+    // ---- la nuit : la lune, et la lumière de l'eau ----
+    /// <summary>La latitude, pour le pôle autour duquel tourne la lune.</summary>
+    public double Latitude = 13.6;
+    /// <summary>La chance qu'une nuit ait une lune (Naval.MOON.chance).</summary>
+    public double MoonChance = 0.6;
+    public bool MoonOn { get; private set; }
+    /// <summary>La part éclairée, du fin croissant (0,2) à la pleine (1).</summary>
+    public double MoonPhase { get; private set; } = 1;
+    /// <summary>Son avance ou son retard sur l'opposé du soleil, en heures.</summary>
+    public double MoonLag { get; private set; }
+    /// <summary>Combien elle est levée, de 0 sous l'horizon à 1 bien au-dessus.</summary>
+    public double MoonUp { get; private set; }
+    public Vec3d MoonDir { get; private set; } = new(0, 1, 0);
+    /// <summary>Ce qui arrive de lumière de lune, de 0 à 1.</summary>
+    public double MoonLight { get; private set; }
+    /// <summary>D'où vient la lumière directe : le soleil, ou la lune la nuit.</summary>
+    public Vec3d LightDir { get; private set; } = new(0, 1, 0);
+    /// <summary>La lumière qui ressort de l'eau : 1 le jour, 0,07 à 0,23 la nuit.</summary>
+    public double WaterLight { get; private set; } = 1;
+    /// <summary>La route de lune sur l'eau : sa lumière, la nuit, sous un ciel ouvert.</summary>
+    public double SeaMoonLit => MoonLight * Night * (1 - Storm);
+    /// <summary>Le disque au dôme : levée et de nuit (le couvercle l'efface dans le shader).</summary>
+    public double DomeMoonLit => (MoonOn ? MoonUp : 0) * Night;
+    /// <summary>La phase comme le shader du dôme la lit : 1 nouvelle, −1 pleine.</summary>
+    public double MoonPhaseU => 1 - 2 * MoonPhase;
+
+    bool _wasNight;
+    readonly Random _rng = new();
+
+    /// <summary>
+    /// La lune de cette nuit : s'il y en a une, sa part éclairée, et — plus elle
+    /// est mince — de combien elle s'écarte de l'opposé du soleil : un croissant
+    /// suit le soleil qui descend, une pleine se lève quand il se couche.
+    /// </summary>
+    public void NewMoon()
+    {
+        MoonOn = _rng.NextDouble() < MoonChance;
+        MoonPhase = 0.2 + 0.8 * _rng.NextDouble();
+        MoonLag = (_rng.NextDouble() < 0.5 ? -1 : 1) * (1 - MoonPhase) * 9;
+    }
+
+    /// <summary>
+    /// Elle tourne avec le ciel — autour du pôle, comme tout ce qui est là-haut —,
+    /// donc elle se lève, passe et se couche dans la nuit.
+    /// </summary>
+    void PlaceMoon()
+    {
+        double phi = Latitude * Math.PI / 180;
+        // le pôle céleste : plein nord (+z), à la hauteur de la latitude
+        var k = new Vec3d(0, Math.Sin(phi), Math.Cos(phi));
+        var v = -SunDir;
+        double a = MoonLag * Math.PI / 12, c = Math.Cos(a), s = Math.Sin(a);
+        // Rodrigues : v·cos + (k×v)·sin + k·(k·v)·(1 − cos)
+        var kxv = new Vec3d(k.Y * v.Z - k.Z * v.Y, k.Z * v.X - k.X * v.Z, k.X * v.Y - k.Y * v.X);
+        double kv = k.X * v.X + k.Y * v.Y + k.Z * v.Z;
+        MoonDir = (v * c + kxv * s + k * (kv * (1 - c))).Normalized();
+        MoonUp = Math.Max(0, Math.Min(1, (MoonDir.Y + 0.02) / 0.12));
+    }
+
     public Sky() { SetSun(45, 135); }
 
     /// <summary>
@@ -77,17 +136,38 @@ public sealed class Sky
 
         /* Sous l'horizon il fait nuit. Pas noir — une vraie mer garde de nuit un
            éclat froid pris au ciel, et il faut encore pouvoir distinguer son
-           propre bâtiment. Le soleil tient lieu de lune : faible, bleu, et jamais
-           tout à fait parti. */
+           propre bâtiment. La lumière directe passe alors à la LUNE, quand il y en
+           a une et qu'elle est levée ; sans elle il reste le ciel, et presque rien. */
         double night = Math.Max(0, Math.Min(1, -elevDeg / 10));
         Night = night;
+
+        // une nouvelle nuit, une nouvelle lune — ou aucune
+        if (night > 0 && !_wasNight) NewMoon();
+        _wasNight = night > 0;
+        PlaceMoon();
+        /* Ce qui arrive de lumière de lune : levée, et aussi pleine qu'elle l'est.
+           Une nouvelle lune ne donne presque rien, et c'est juste. */
+        MoonLight = MoonOn ? MoonUp * (0.15 + 0.85 * MoonPhase) : 0;
+        // la seule lumière directe de la scène : le soleil le jour, la lune la nuit quand elle est levée
+        LightDir = night > 0.5 && MoonOn && MoonUp > 0.05 ? MoonDir : SunDir;
 
         SunColor = new Rgb(
             1.0 - 0.55 * night,
             (0.72 + 0.23 * t) - 0.30 * night,
             (0.45 + 0.42 * t) + 0.28 * night);
 
-        _sunBase = (1.1 + 1.0 * t) * (1 - night) + 0.28 * night;
+        /* La nuit, la lumière directe est celle de la lune : 0,12 sous un ciel
+           vide, jusqu'à 0,40 sous une pleine. Elle valait 0,28 fixe — une lune
+           chaque nuit. */
+        _sunBase = (1.1 + 1.0 * t) * (1 - night) + (0.12 + 0.28 * MoonLight) * night;
+
+        /* LA LUMIÈRE QUI EST DANS L'EAU pour en ressortir : 1 le jour, un peu moins
+           soleil bas, très peu la nuit, un peu plus sous une lune. La couleur de
+           l'eau est de la lumière rediffusée vers le haut, et elle avait été écrite
+           comme un pigment constant : à minuit, là où le reflet du ciel est au plus
+           faible et où l'on ne voit que le corps de l'eau, la mer luisait turquoise
+           comme éclairée par-dessous. */
+        WaterLight = (0.75 + 0.25 * t) * (1 - night) + (0.07 + 0.16 * MoonLight) * night;
         SunIntensity = _sunBase * (1 - 0.62 * Storm);
 
         Horizon = new Rgb(
@@ -168,6 +248,7 @@ public sealed class Sky
     {
         const double rad = Math.PI / 180;
         DayTime = ((hours % 24) + 24) % 24;
+        Latitude = latitudeDeg;
         double phi = latitudeDeg * rad;
         double decl = Declination * rad;                   // la saison
         double H = (DayTime - 12) / 24 * 2 * Math.PI;      // angle horaire : nul à midi
@@ -190,4 +271,24 @@ public sealed class Sky
     /// d'écran qui clignote.
     /// </summary>
     public void RefreshFlash() => HemiIntensity = _hemiBase + Flash * 2.6;
+
+    /// <summary>
+    /// La même loi que haze_along, au processeur, pour décider de ce que la brume
+    /// a déjà caché — <c>Naval.hazeTransmit</c>. Elle doit rester la JUMELLE du
+    /// shader : même intégrale de profondeur, mêmes paramètres, sans quoi un feu
+    /// s'éteindrait pendant que le shader en montrerait encore la trace. Rend la
+    /// fraction de sa propre lumière qui arrive encore.
+    /// </summary>
+    public double HazeTransmit(Vec3d from, Vec3d to)
+    {
+        double dx = to.X - from.X, dy0 = to.Y - from.Y, dz = to.Z - from.Z;
+        double dist = Math.Sqrt(dx * dx + dy0 * dy0 + dz * dz);
+        if (dist < 0.001) return 1;
+        double H = HazeHeight;
+        double y0 = Math.Max(from.Y, 0), y1 = Math.Max(to.Y, 0), dy = y1 - y0;
+        double depth = Math.Abs(dy) < 0.01
+            ? Math.Exp(-y0 / H) * dist
+            : dist * (H / dy) * (Math.Exp(-y0 / H) - Math.Exp(-y1 / H));
+        return Math.Exp(-Haze * Math.Abs(depth));
+    }
 }

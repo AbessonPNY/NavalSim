@@ -51,6 +51,14 @@ uniform float u_ripple = 0.9;
 uniform float u_amp_max = 1.0;
 uniform vec2  u_wind = vec2(1.0, 0.0);
 
+/* LA NUIT SUR L'EAU. u_water_light : la lumière qui est dans l'eau pour en
+   ressortir — 1 le jour, un peu moins soleil bas, très peu la nuit, un peu plus
+   sous une lune (Sky.WaterLight). u_moon, u_moon_lit : la lune, et ce qu'elle
+   pose de lumière sur la mer, sa route. */
+uniform float u_water_light = 1.0;
+uniform vec3  u_moon = vec3(0.0, 1.0, 0.0);
+uniform float u_moon_lit = 0.0;
+
 // le champ d'écume persistant (FoamField) : ce que les crêtes ont laissé
 uniform sampler2D u_foam_tex : filter_linear, repeat_disable;
 uniform vec2  u_foam_origin = vec2(0.0);
@@ -188,13 +196,19 @@ void fragment() {
 	   doit atteindre le corps de l'eau — sans quoi elle reste turquoise sous un
 	   ciel d'ardoise, ce qui se lit comme deux images collées l'une à l'autre. */
 	body *= 1.0 - 0.50 * u_storm;
+	/* ET LA NUIT LE PREND AUSSI. La couleur de l'eau est de la lumière rediffusée
+	   vers le haut, et elle avait été écrite comme un pigment constant : à minuit,
+	   droit dessous — là où le reflet du ciel est au plus faible et où l'on ne voit
+	   que le corps de l'eau —, la mer luisait turquoise comme éclairée par-dessous. */
+	body *= u_water_light;
 
 	/* La lueur sous la surface : une crête éclairée par-derrière laisse passer la
 	   lumière et vire à ce vert caractéristique. La plus forte sur les sommets, et
 	   seulement quand le soleil est de l'autre côté. */
 	float back = pow(max(dot(-V, u_sun) * 0.5 + 0.5, 0.0), 3.0);
 	float crest = smoothstep(0.15, 1.0, v_rel / max(u_amp_max, 0.05));
-	body += u_sss * crest * back * 0.55 * (1.0 - far);
+	// à travers une crête seulement s'il y a de la lumière derrière : aucune, soleil couché
+	body += u_sss * crest * back * 0.55 * (1.0 - far) * u_water_light * smoothstep(-0.05, 0.08, u_sun.y);
 
 	vec3 c = mix(body, sky, F);
 
@@ -222,6 +236,17 @@ void fragment() {
 	float Fs = 0.02 + 0.98 * pow(1.0 - voh, 5.0);
 	float shadow = max(dot(N, u_sun), 0.0);        // pas d'éclat sur une face au dos
 	c += vec3(1.0, 0.96, 0.86) * D * Fs * shadow * 2.4;
+
+	/* Le même lobe pour la lune, froid et faible : la nuit, c'est la seule route
+	   qu'il y ait. */
+	if (u_moon_lit > 0.001) {
+		vec3 Hm = normalize(u_moon + V);
+		float nhm = max(dot(N, Hm), 0.0);
+		float ddm = nhm * nhm * (a * a - 1.0) + 1.0;
+		float Dm = (a * a) / (3.14159265 * ddm * ddm);
+		float Fm = 0.02 + 0.98 * pow(1.0 - max(dot(V, Hm), 0.0), 5.0);
+		c += vec3(0.72, 0.80, 1.0) * Dm * Fm * max(dot(N, u_moon), 0.0) * 1.1 * u_moon_lit;
+	}
 
 	// un peu de teinte diffuse, pour que les creux ne soient pas morts
 	c += u_shallow * max(dot(N, u_sun), 0.0) * 0.05 * (1.0 - far);

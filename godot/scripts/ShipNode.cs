@@ -39,8 +39,8 @@ public partial class ShipNode : Node3D
     ShaderMaterial MakeHullMaterial(Color albedo, float roughness)
     {
         var m = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull.gdshader") };
-        m.SetShaderParameter("u_albedo", albedo);
-        m.SetShaderParameter("u_roughness", roughness);
+        m.SetShaderParameter(U.Albedo, albedo);
+        m.SetShaderParameter(U.Roughness, roughness);
         Hazed.Add(m);
         return m;
     }
@@ -56,64 +56,216 @@ public partial class ShipNode : Node3D
             Mesh = ToArrayMesh(Lines.BuildGeometry()),
             // la coque est une nappe fermée par deux culs : on voit son intérieur
             // quand elle gîte, donc le shader dessine les deux faces
-            MaterialOverride = MakeHullMaterial(new Color(0.22f, 0.26f, 0.31f), 0.72f)
+            MaterialOverride = MakeHullMaterial(Hex(spec.Appearance.Hull), 0.72f)
         };
         AddChild(_hull);
 
         BuildRig();
+        LoadModel();
+        // les feux après le gréement : la lanterne du grand mât se pend à SON mât
+        BuildLanterns();
+        FindNightGlow();
+    }
+
+    // ------------------------------------------------------------------
+    //  LE MODÈLE .glb — ship-model.js, loadModel
+    // ------------------------------------------------------------------
+
+    /// <summary>Le modèle adopté, ou <c>null</c> si elle garde sa coque procédurale.</summary>
+    public Node3D? ModelRoot { get; private set; }
+
+    /// <summary>
+    /// Remplacer la coque procédurale par le modèle de la fiche. Rend <c>true</c>
+    /// s'il est adopté, <c>false</c> si elle garde la sienne — et ne lève JAMAIS :
+    /// un modèle absent ne doit pas emporter la simulation avec lui.
+    ///
+    /// LE .glb NE PORTE QUE L'APPARENCE. La flottaison vient toujours des cotes
+    /// de la fiche : on ne tire pas un volume de carène fiable d'un maillage
+    /// quelconque sans une voxélisation coûteuse. Les sondes ne changent donc pas
+    /// d'un iota ; seul change ce qu'on voit.
+    ///
+    /// Chargé à l'EXÉCUTION par GltfDocument, et non importé par l'éditeur : les
+    /// fiches et leurs modèles vivent hors du projet Godot, dans ships/, où la
+    /// page d'origine les lit aussi. Un seul dossier pour les deux versions.
+    /// </summary>
+    bool LoadModel()
+    {
+        var m = Spec.Model;
+        if (m == null || string.IsNullOrEmpty(m.Glb)) return false;
+        string root = System.IO.Path.GetDirectoryName(
+            ShipLibrary.Folder.TrimEnd('/', '\\')) ?? "";
+        string path = System.IO.Path.Combine(root, m.Glb);
+        try
+        {
+            var doc = new GltfDocument();
+            var state = new GltfState();
+            Error err = doc.AppendFromFile(path, state);
+            if (err != Error.Ok || doc.GenerateScene(state) is not Node3D obj)
+            {
+                GD.PushWarning($"[{Spec.Id}] impossible de charger {m.Glb} ({err}) — "
+                             + "elle garde sa coque procédurale.");
+                return false;
+            }
+
+            SplitPrimitives(obj);
+
+            // sa COQUE ramenée à la longueur que le solveur fait flotter
+            double k = m.Scale ?? HullScale(obj, m.LengthAxis);
+            obj.Scale = Vector3.One * (float)k;
+            obj.Rotation = new Vector3(0, (float)m.RotationY, 0);
+            var off = m.Offset;
+            obj.Position = new Vector3((float)off[0], (float)off[1], (float)off[2]);
+
+            /* La coque et le gréement procéduraux s'en vont, avec leur brume et
+               leur toile. RETIRÉS de l'arbre et pas seulement libérés : un nœud
+               libéré reste enfant jusqu'à la fin de l'image, et le parcours qui
+               pose la brume ci-dessous l'aurait encore trouvé. */
+            RemoveChild(_hull); _hull.QueueFree();
+            RemoveChild(_rig); _rig.QueueFree();
+            Hazed.Clear();
+            ClearRig();
+
+            AddChild(obj);
+            ModelRoot = obj;
+            RigModel();
+            // sur tout ce qui est à bord, y compris les espars que RigModel vient
+            // de sortir du modèle pour les pendre dans leurs pivots
+            AttachHaze(this);
+            return true;
+        }
+        catch (Exception e)
+        {
+            GD.PushWarning($"[{Spec.Id}] {m.Glb} : {e.Message} — elle garde sa coque procédurale.");
+            return false;
+        }
     }
 
     /// <summary>
-    /// Des mâts, et ils ne sont pas décoratifs : une coque seule ne montre pas
-    /// son roulis. Le pont suit la tonture et l'œil n'a aucune verticale à quoi
-    /// comparer l'inclinaison, si bien qu'un navire qui roule de dix degrés a
-    /// l'air d'une coque posée à plat sur une mer penchée. Un espar vertical
-    /// règle cela d'un trait.
+    /// L'échelle qui ramène la COQUE du modèle à sa longueur annoncée.
     ///
-    /// Ils sortent de la fiche — <c>rig.masts</c> — donc un bâtiment sans
-    /// gréement n'en porte pas, ce qui est le comportement voulu.
+    /// Mesurer l'objet entier comptait son beaupré et ses vergues comme du
+    /// navire : le Roter Löwe sortait avec 47,5 m de coque là où le solveur en
+    /// faisait flotter 60, et tout ce qui dérive de ses cotes débordait du bois —
+    /// le collier d'écume surtout, qui dépassait son étrave et sa poupe de plus
+    /// de six mètres. La coque est le maillage le plus VOLUMINEUX : les espars
+    /// sont longs mais n'enferment presque rien. Appelée avant toute
+    /// transformation posée sur le modèle, donc dans son propre repère.
     /// </summary>
-    void BuildRig()
+    double HullScale(Node3D obj, string lengthAxis)
     {
-        _rig = new Node3D();
-        AddChild(_rig);
-
-        var timber = MakeHullMaterial(new Color(0.69f, 0.55f, 0.36f), 0.85f);
-
-        foreach (var m in Spec.Masts)
+        double best = -1, along = 0;
+        foreach (var (mi, rel) in Meshes(obj))
         {
-            if (m.Height <= 0) continue;
-            double deckY = Lines.DeckY(m.Z / Spec.L + 0.5);
-            var mast = new MeshInstance3D
-            {
-                Mesh = new CylinderMesh
-                {
-                    TopRadius = (float)(Spec.L * 0.006),
-                    BottomRadius = (float)(Spec.L * 0.010),
-                    Height = (float)m.Height,
-                    RadialSegments = 8
-                },
-                MaterialOverride = timber,
-                Position = new Vector3(0, (float)(deckY + m.Height * 0.5), (float)m.Z)
-            };
-            _rig.AddChild(mast);
-
-            // une vergue, en travers, pour que le lacet se lise aussi
-            if (m.Boom > 0)
-                _rig.AddChild(new MeshInstance3D
-                {
-                    Mesh = new CylinderMesh
-                    {
-                        TopRadius = (float)(Spec.L * 0.004),
-                        BottomRadius = (float)(Spec.L * 0.004),
-                        Height = (float)m.Boom,
-                        RadialSegments = 6
-                    },
-                    MaterialOverride = timber,
-                    Position = new Vector3(0, (float)(deckY + m.Height * 0.72), (float)m.Z),
-                    RotationDegrees = new Vector3(0, 0, 90)
-                });
+            var box = rel * mi.Mesh.GetAabb();
+            double vol = (double)box.Size.X * box.Size.Y * box.Size.Z;
+            if (vol > best) { best = vol; along = lengthAxis == "x" ? box.Size.X : box.Size.Z; }
         }
+        return along > 1e-6 ? Spec.L / along : 1;
+    }
+
+    /// <summary>
+    /// Chaque maillage sous <paramref name="root"/>, avec la transformée qui le
+    /// ramène dans le repère de <paramref name="root"/> (sa propre transformée
+    /// comprise). Calculée à la main : le modèle n'est pas encore dans l'arbre,
+    /// et une transformée globale n'y voudrait rien dire.
+    /// </summary>
+    static IEnumerable<(MeshInstance3D, Transform3D)> Meshes(Node3D root)
+    {
+        var stack = new Stack<(Node, Transform3D)>();
+        stack.Push((root, root.Transform));
+        while (stack.Count > 0)
+        {
+            var (n, t) = stack.Pop();
+            if (n is MeshInstance3D mi && mi.Mesh != null) yield return (mi, t);
+            // enfants empilés à l'envers, pour être rendus DANS L'ORDRE, comme
+            // traverse() de three : sur une égalité, le choix de la coque ou d'un
+            // mât se fait au premier trouvé
+            var kids = n.GetChildren();
+            for (int i = kids.Count - 1; i >= 0; i--)
+                stack.Push((kids[i], kids[i] is Node3D c3 ? t * c3.Transform : t));
+        }
+    }
+
+    ShaderMaterial? _hazePass;
+
+    /// <summary>
+    /// Poser la brume sur chaque matériau du modèle, en DERNIER de sa chaîne de
+    /// passes : c'est l'air devant tout le reste. Une seule passe partagée, que
+    /// <see cref="SkyNode.PushTo"/> tient à jour comme les autres.
+    ///
+    /// Pas sur un matériau à shader : la toile et les espars procéduraux portent
+    /// DÉJÀ la brume dans le leur, et une seconde passe la compterait deux fois.
+    /// </summary>
+    void AttachHaze(Node3D obj)
+    {
+        _hazePass ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+        Hazed.Add(_hazePass);
+        var done = new HashSet<Material>();
+        foreach (var (mi, _) in Meshes(obj))
+            for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
+            {
+                var mat = mi.GetSurfaceOverrideMaterial(s) ?? mi.Mesh.SurfaceGetMaterial(s);
+                if (mat is ShaderMaterial || mi.MaterialOverride is ShaderMaterial) continue;
+                if (mat == null)
+                {
+                    mat = new StandardMaterial3D();
+                    mi.SetSurfaceOverrideMaterial(s, mat);
+                }
+                if (!done.Add(mat)) continue;
+                var last = mat;
+                while (last.NextPass != null && last.NextPass != _hazePass) last = last.NextPass;
+                last.NextPass = _hazePass;
+            }
+    }
+
+    /// <summary>
+    /// Son profil de flottaison. Un modèle se mesure sur SON maillage de coque,
+    /// puisque c'est la forme que l'œil voit — le lire dans le plan de formes
+    /// ferait écumer autour d'un navire qui n'est pas celui qu'on dessine.
+    /// <paramref name="waterlineY"/> est la flottaison dans son repère : moins
+    /// l'assise que <c>Settle()</c> a trouvée.
+    /// </summary>
+    public HullProfile MakeProfile(double waterlineY, int n = 64)
+    {
+        if (ModelRoot == null) return HullProfile.Procedural(Spec, Lines, n);
+
+        // la coque : le plus volumineux, mesuré cette fois dans SON repère à elle
+        MeshInstance3D? hull = null;
+        Transform3D hullT = Transform3D.Identity;
+        double best = -1;
+        foreach (var (mi, rel) in Meshes(ModelRoot))
+        {
+            var box = rel * mi.Mesh.GetAabb();
+            double vol = (double)box.Size.X * box.Size.Y * box.Size.Z;
+            if (vol > best) { best = vol; hull = mi; hullT = rel; }
+        }
+        var raw = new float[n];
+        if (hull != null)
+        {
+            double lo = HullProfile.BandLo(Spec, waterlineY), hi = HullProfile.BandHi(Spec, waterlineY);
+            for (int s = 0; s < hull.Mesh.GetSurfaceCount(); s++)
+            {
+                var arrays = hull.Mesh.SurfaceGetArrays(s);
+                var verts = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                foreach (var v in verts)
+                {
+                    var p = hullT * v;
+                    if (p.Y < lo || p.Y > hi) continue;
+                    int b = HullProfile.Station(Spec, p.Z, n);
+                    float x = Math.Abs(p.X);
+                    /* UN SOMMET SUR L'AXE N'APPORTE AUCUNE LARGEUR. Sous three.js son
+                       |x| vaut exactement zéro et la station reste vide, donc
+                       comblée entre ses voisines ; ici la chaîne de transformées de
+                       l'import lui laisse un bruit de flottant d'un centième de
+                       millimètre, qui suffisait à la déclarer MESURÉE et à couper
+                       le comblement. Relevé sur la bouée canard : l'arrière du
+                       corps tombait de −1,14 à −0,89 m. */
+                    if (x < 1e-4f) continue;
+                    if (x > raw[b]) raw[b] = x;
+                }
+            }
+        }
+        return HullProfile.Measured(raw, Spec);
     }
 
     static ArrayMesh ToArrayMesh(in HullMesh hm)

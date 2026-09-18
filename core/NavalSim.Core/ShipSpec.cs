@@ -61,6 +61,10 @@ public sealed class MastSpec
     [JsonPropertyName("height")]    public double Height { get; set; }
     [JsonPropertyName("boom")]      public double Boom { get; set; }
     [JsonPropertyName("tackAbove")] public double TackAbove { get; set; }
+    /// <summary>Gréement carré : la hauteur de chaque vergue, en fraction du mât, de bas en haut.</summary>
+    [JsonPropertyName("yards")]     public List<double> Yards { get; set; } = new();
+    /// <summary>L'envergure de la basse vergue, en fraction du bau.</summary>
+    [JsonPropertyName("yardSpan")]  public double YardSpan { get; set; }
 
     /// <summary>Position absolue, derivee de zFrac multiplie par L au chargement.</summary>
     [JsonIgnore] public double Z { get; set; }
@@ -88,7 +92,7 @@ public sealed class RigSpec
 
 /// <summary>
 /// Le modele importe, quand la fiche en designe un. Une fiche sans modele
-/// (frigate, schooner) porte <c>null</c> et garde sa coque procedurale, batie
+/// (schooner, chaloupe) porte <c>null</c> -- ou un bloc model sans glb -- et garde sa coque procedurale, batie
 /// par <see cref="HullLines"/> -- c'est le repli, et il est ecrit avant l'asset
 /// parce qu'un repli ecrit apres est un repli que personne ne regarde.
 /// </summary>
@@ -99,6 +103,54 @@ public sealed class ModelSpec
     [JsonPropertyName("lengthAxis")] public string LengthAxis { get; set; } = "z";
     [JsonPropertyName("offset")]     public double[] Offset { get; set; } = { 0, 0, 0 };
     [JsonPropertyName("rotationY")]  public double RotationY { get; set; }
+    /// <summary>
+    /// L'echelle imposee. Absente, le modele est ramene a la longueur que le
+    /// solveur fait flotter, mesuree sur sa COQUE et non sur l'objet entier.
+    /// </summary>
+    [JsonPropertyName("scale")]      public double? Scale { get; set; }
+    /// <summary>
+    /// Ce que la fiche tient hors du gréement, par morceau de nom : une pièce qui
+    /// a la forme d'un espar sans en être un (une fenêtre de château, un fanal).
+    /// </summary>
+    [JsonPropertyName("rigIgnore")]  public List<string> RigIgnore { get; set; } = new();
+    /// <summary>La force des fenêtres de nuit : 1 par défaut, 0 pour ne rien allumer.</summary>
+    [JsonPropertyName("nightGlow")]  public double? NightGlow { get; set; }
+}
+
+/// <summary>
+/// Un feu du bord. Une fiche en nomme autant qu'elle en porte, chacun à sa place
+/// dans SON repère : x/z en mètres ou xFrac/zFrac en fractions du bau et de la
+/// longueur ; y absent veut dire « sur le pont à cette station ». Une liste VIDE
+/// veut dire aucun feu ; pas de liste, le feu de poupe par défaut.
+/// </summary>
+public sealed class LanternSpec
+{
+    [JsonPropertyName("x")]     public double? X { get; set; }
+    [JsonPropertyName("xFrac")] public double? XFrac { get; set; }
+    [JsonPropertyName("y")]     public double? Y { get; set; }
+    [JsonPropertyName("z")]     public double? Z { get; set; }
+    [JsonPropertyName("zFrac")] public double? ZFrac { get; set; }
+    [JsonPropertyName("above")] public double Above { get; set; }
+    [JsonPropertyName("size")]  public double? Size { get; set; }
+    /// <summary>« 0xffb24a » ou un nombre, comme la page l'accepte.</summary>
+    [JsonPropertyName("color")] public JsonElement? Color { get; set; }
+    /// <summary>« candle » : une bougie, sans repère de loin.</summary>
+    [JsonPropertyName("kind")]  public string? Kind { get; set; }
+    /// <summary>Le nom d'un objet du .glb où la pendre (pendule : pas encore porté).</summary>
+    [JsonPropertyName("hang")]  public string? Hang { get; set; }
+}
+
+/// <summary>
+/// Ses couleurs, en hex sRGB comme la page les lit ("0xece4d2"), et les images
+/// peintes sur sa toile, par SORTE de voile : un motif appartient aux basses
+/// voiles et aux huniers, il n'a rien à faire sur un foc.
+/// </summary>
+public sealed class AppearanceSpec
+{
+    [JsonPropertyName("hull")]      public string Hull { get; set; } = "0x3a2a1c";
+    [JsonPropertyName("spar")]      public string Spar { get; set; } = "0xa8875a";
+    [JsonPropertyName("canvas")]    public string Canvas { get; set; } = "0xf2ebdc";
+    [JsonPropertyName("canvasMap")] public Dictionary<string, string>? CanvasMap { get; set; }
 }
 
 public sealed class ShipJson
@@ -114,6 +166,8 @@ public sealed class ShipJson
     [JsonPropertyName("rudder")] public RudderSpec Rudder { get; set; } = new();
     [JsonPropertyName("rig")]    public RigSpec Rig { get; set; } = new();
     [JsonPropertyName("model")]  public ModelSpec? Model { get; set; }
+    [JsonPropertyName("appearance")] public AppearanceSpec Appearance { get; set; } = new();
+    [JsonPropertyName("lanterns")]   public List<LanternSpec>? Lanterns { get; set; }
 }
 
 /// <summary>
@@ -173,6 +227,9 @@ public sealed class ShipSpec
     public double JibFootZ { get; }
 
     public ModelSpec? Model { get; }
+    public AppearanceSpec Appearance { get; }
+    /// <summary>Ses feux, ou <c>null</c> : le feu de poupe par défaut.</summary>
+    public List<LanternSpec>? Lanterns { get; }
 
     // renseigne une fois la grille de sondes batie
     public double HullVolume { get; private set; }
@@ -239,6 +296,8 @@ public sealed class ShipSpec
         JibFootZ = r.Jib != null ? r.Jib.FootFrac * L : 0;
 
         Model = json.Model;
+        Appearance = json.Appearance ?? new();
+        Lanterns = json.Lanterns;
     }
 
     private static readonly JsonSerializerOptions JsonOpts = new()

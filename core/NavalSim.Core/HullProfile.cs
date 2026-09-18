@@ -46,6 +46,51 @@ public sealed class HullProfile
     }
 
     /// <summary>
+    /// Un modèle : la plus grande demi-largeur relevée sur SON maillage de coque,
+    /// par station, dans la bande qui va d'un peu sous la flottaison au haut de
+    /// sa préceinte (<see cref="BandLo"/>, <see cref="BandHi"/>). Le relevé
+    /// lui-même se fait côté moteur, qui seul a le maillage ; tout le reste est
+    /// ici.
+    ///
+    /// La bande et non la flottaison seule : ce qu'il faut tracer est la ligne
+    /// que l'ŒIL la voit faire dans l'eau, et une coque évasée se tient
+    /// au-dessus de sa propre flottaison — 6,35 m contre 7,7 sur le Roter Löwe,
+    /// si bien qu'un contour pris exactement à la flottaison se dessine sous ses
+    /// propres hauts et disparaît.
+    /// </summary>
+    public static HullProfile Measured(float[] raw, ShipSpec spec)
+    {
+        int n = raw.Length;
+        var outp = (float[])raw.Clone();
+        /* Les stations que la bande a manquées sont comblées entre les plus
+           proches voisines mesurées, lues sur une COPIE pour qu'une station
+           comblée n'en ensemence jamais une autre. */
+        for (int i = 0; i < n; i++)
+        {
+            if (raw[i] > 0) continue;
+            int j = i - 1; while (j >= 0 && raw[j] == 0) j--;
+            int k = i + 1; while (k < n && raw[k] == 0) k++;
+            if (j < 0 && k >= n) continue;
+            if (j < 0) outp[i] = (float)((double)raw[k] * (i + 1) / (k + 1));       // s'effile depuis son bout
+            else if (k >= n) outp[i] = (float)((double)raw[j] * (n - i) / (n - j));
+            else outp[i] = (float)(raw[j] + ((double)raw[k] - raw[j]) * (i - j) / (k - j));
+        }
+        return Finish(outp, spec);
+    }
+
+    /// <summary>Le bas de la bande relevée, sous la flottaison : −2 % de la longueur.</summary>
+    public static double BandLo(ShipSpec spec, double waterlineY) => waterlineY - 0.02 * spec.L;
+    /// <summary>Le haut de la bande : +6 % de la longueur, le haut de sa préceinte.</summary>
+    public static double BandHi(ShipSpec spec, double waterlineY) => waterlineY + 0.06 * spec.L;
+
+    /// <summary>La station d'un point à <paramref name="z"/> le long d'elle.</summary>
+    public static int Station(ShipSpec spec, double z, int n = 64)
+    {
+        double halfLen = spec.L * 0.5;
+        return Math.Min(n - 1, Math.Max(0, (int)Math.Floor((z + halfLen) / (2 * halfLen) * n)));
+    }
+
+    /// <summary>
     /// Lisser, normaliser, trouver les extrémités du corps : commun aux deux
     /// sources, mesurée ou procédurale.
     /// </summary>

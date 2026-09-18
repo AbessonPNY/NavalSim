@@ -32,9 +32,19 @@ public partial class SkyNode : Node3D
     /// <summary>La latitude du monde. 13,6° N — entre la Martinique et Sainte-Lucie.</summary>
     public double Latitude = 13.60;
 
-    /// <summary>Le défilement du jour, en heures de ciel par minute réelle.</summary>
-    public double DayRate = 60.0;
-    public bool DayRunning;
+    /// <summary>
+    /// LE DÉFILEMENT DU JOUR, en heures de ciel par minute réelle — le curseur
+    /// « Défilement du jour » de la page, qui énonce UN taux : ×1, c'est une
+    /// minute réelle pour une heure, donc un jour en vingt-quatre minutes ; ×2,
+    /// où elle démarre, en douze. Porté d'abord à 60, soit soixante heures par
+    /// minute : personne ne l'avait vu, le jour ne tournant pas encore.
+    /// Zéro arrête l'horloge.
+    /// </summary>
+    public double DayRate = 2.0;
+    public bool DayRunning => DayRate > 0;
+
+    /// <summary>L'heure à laquelle la page commence sa journée.</summary>
+    public const double StartHour = 9.5;
 
     // --- l'éclair proche, et le grain lointain : DEUX choses différentes ---
     double _flashT;
@@ -74,7 +84,42 @@ public partial class SkyNode : Node3D
                ce n est pas la chaine pour laquelle les chiffres ont ete trouves.
                Linear = la meme sortie que three.js. */
             TonemapMode = Godot.Environment.ToneMapper.Linear,
-            TonemapExposure = 1.0f
+            TonemapExposure = 1.0f,
+
+            /* L'OCCLUSION AMBIANTE, et c'est la même que celle de ssao.js, en
+               mieux placée. La page la limitait au NAVIRE pour une raison
+               écrite : son passage de profondeur dessinait la mer à plat, ce qui
+               faussait l'occlusion exactement là où la coque touche l'eau. Ici la
+               mer passe par son propre shader, déplacement compris, jusque dans la
+               profondeur : l'objection tombe, et la vague qui monte le long du
+               bordé l'assombrit à juste titre.
+
+               Ses autres choix restent : 2,4 m de rayon — l'échelle de ce qui doit
+               occulter, un pavois, une écoutille — et la demi-résolution
+               (project.godot), l'occlusion étant basse fréquence par nature. Et
+               elle ne touche QUE la lumière indirecte : une planche au fond d'une
+               écoutille que le soleil atteint encore est aussi claire que le pont ;
+               ce qu'elle perd, c'est le ciel. light_affect à zéro, c'est cela. */
+            SsaoEnabled = true,
+            SsaoRadius = 2.4f,
+            SsaoIntensity = 2.0f,
+            SsaoPower = 1.5f,
+            SsaoLightAffect = 0.0f,
+            SsaoAOChannelAffect = 0.0f,
+
+            /* L'ILLUMINATION GLOBALE, et c'est un AJOUT : la page n'en avait pas.
+               En espace écran (SSIL) plutôt que SDFGI ou VoxelGI, qui supposent une
+               géométrie immobile — le navire ne l'est jamais, et la mer, déplacée
+               dans son shader, n'existe pour eux que plate. Le SSIL relit l'image
+               de l'image d'avant : la toile au soleil éclaire le pont, la mer
+               verdit le bas du bordé, ce que l'ambiante du ciel seule ne fait pas.
+               Toutes les couleurs du projet ont été réglées SANS lui : il éclaire,
+               donc il se juge à l'œil et se coupe d'une touche (G). */
+            SsilEnabled = true,
+            SsilRadius = 5.0f,
+            SsilIntensity = 1.0f,
+            SsilSharpness = 0.98f,
+            SsilNormalRejection = 1.0f
         };
         AddChild(new WorldEnvironment { Environment = Env });
 
@@ -86,19 +131,24 @@ public partial class SkyNode : Node3D
         };
         AddChild(Sun);
 
+        // la journée commence où la page commence la sienne
+        Core.SetTimeOfDay(StartHour, Latitude);
         Apply();
     }
 
     /// <summary>Recopie l'état du noyau dans le moteur et dans le dôme.</summary>
     public void Apply()
     {
-        var d = Core.SunDir;
+        /* LA LUMIÈRE DIRECTE VIENT DE LA LUNE LA NUIT, quand elle est levée : c'est
+           la seule lampe du ciel, et ses ombres doivent tomber de son côté. */
+        var d = Core.LightDir;
         var dir = new Vector3((float)d.X, (float)d.Y, (float)d.Z);
 
         // une lumière directionnelle regarde le long de son -Z : elle est donc
-        // placée du côté du soleil et braquée sur l'origine
+        // placée du côté de l'astre et braquée sur l'origine
         Sun.Position = dir * 400f;
-        Sun.LookAt(Vector3.Zero, Vector3.Up);
+        // une lune au zénith rendrait « haut » colinéaire à la visée : autre repère alors
+        Sun.LookAt(Vector3.Zero, Mathf.Abs(dir.Y) > 0.999f ? Vector3.Forward : Vector3.Up);
 
         Sun.LightColor = new Color((float)Core.SunColor.R, (float)Core.SunColor.G, (float)Core.SunColor.B);
         Sun.LightEnergy = (float)Core.SunIntensity;
@@ -109,6 +159,9 @@ public partial class SkyNode : Node3D
         Env.AmbientLightEnergy = (float)Math.Max(0.05, Core.HemiIntensity * 3.2);
 
         PushTo(_domeMat);
+        // le disque de la lune et sa phase n'appartiennent qu'au dôme
+        _domeMat.SetShaderParameter(U.MoonDisc, (float)Core.DomeMoonLit);
+        _domeMat.SetShaderParameter(U.MoonPhase, (float)Core.MoonPhaseU);
     }
 
     /// <summary>
@@ -121,30 +174,40 @@ public partial class SkyNode : Node3D
     {
         if (m == null) return;
         var d = Core.SunDir;
-        m.SetShaderParameter("u_sun", new Vector3((float)d.X, (float)d.Y, (float)d.Z));
+        m.SetShaderParameter(U.Sun, new Vector3((float)d.X, (float)d.Y, (float)d.Z));
         // Vector3 et non Color : ces valeurs sont deja lineaires, et passer par
         // un Color sur un uniforme `source_color` les convertirait une fois de trop.
-        m.SetShaderParameter("u_zenith", new Vector3((float)Core.Zenith.R, (float)Core.Zenith.G, (float)Core.Zenith.B));
-        m.SetShaderParameter("u_horizon", new Vector3((float)Core.Horizon.R, (float)Core.Horizon.G, (float)Core.Horizon.B));
-        m.SetShaderParameter("u_storm", (float)Core.Storm);
-        m.SetShaderParameter("u_haze", (float)Core.Haze);
-        m.SetShaderParameter("u_haze_h", (float)Core.HazeHeight);
-        m.SetShaderParameter("u_flash", (float)Core.Flash);
+        m.SetShaderParameter(U.Zenith, new Vector3((float)Core.Zenith.R, (float)Core.Zenith.G, (float)Core.Zenith.B));
+        m.SetShaderParameter(U.Horizon, new Vector3((float)Core.Horizon.R, (float)Core.Horizon.G, (float)Core.Horizon.B));
+        m.SetShaderParameter(U.Storm, (float)Core.Storm);
+        m.SetShaderParameter(U.Haze, (float)Core.Haze);
+        m.SetShaderParameter(U.HazeH, (float)Core.HazeHeight);
+        m.SetShaderParameter(U.Flash, (float)Core.Flash);
+        // la nuit sur l'eau : sa lumière propre, et la lune avec sa route
+        m.SetShaderParameter(U.WaterLight, (float)Core.WaterLight);
+        var md = Core.MoonDir;
+        m.SetShaderParameter(U.Moon, new Vector3((float)md.X, (float)md.Y, (float)md.Z));
+        m.SetShaderParameter(U.MoonLit, (float)Core.SeaMoonLit);
+        // la lumière qui traverse la toile suit celle du soleil : sa couleur,
+        // à la moitié de son intensité, comme uSunCol dans la page
+        double k = Core.SunIntensity * 0.5;
+        m.SetShaderParameter(U.SunCol, new Vector3(
+            (float)(Core.SunColor.R * k), (float)(Core.SunColor.G * k), (float)(Core.SunColor.B * k)));
     }
 
     public void SetCloud(ShaderMaterial m, double amount, double skyTime)
     {
-        m?.SetShaderParameter("u_cloud", (float)amount);
-        m?.SetShaderParameter("u_sky_time", (float)skyTime);
+        m?.SetShaderParameter(U.Cloud, (float)amount);
+        m?.SetShaderParameter(U.SkyTime, (float)skyTime);
     }
 
     /// <summary>Le grain qu'on voit venir : son relèvement et sa noirceur.</summary>
     public void SetLoom(ShaderMaterial m, Vector2 bearing, double loom)
     {
-        m?.SetShaderParameter("u_storm_dir", bearing);
-        m?.SetShaderParameter("u_storm_loom", (float)loom);
-        m?.SetShaderParameter("u_storm_flash_dir", _farDir);
-        m?.SetShaderParameter("u_storm_flash", (float)_farA);
+        m?.SetShaderParameter(U.StormDir, bearing);
+        m?.SetShaderParameter(U.StormLoom, (float)loom);
+        m?.SetShaderParameter(U.StormFlashDir, _farDir);
+        m?.SetShaderParameter(U.StormFlash, (float)_farA);
     }
     Vector2 _farDir = Vector2.Right;
 

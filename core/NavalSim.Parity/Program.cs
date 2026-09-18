@@ -206,4 +206,12 @@ Console.WriteLine(physFailures == 0
     ? "PARITE TENUE -- le C# et le JS integrent la meme coque."
     : $"{physFailures} DIVERGENCE(S) sur le solveur.");
 
-return failures == 0 && seaFailures == 0 && physFailures == 0 ? 0 : 1;
+Console.WriteLine();
+string sailDump = Path.GetFullPath(Path.Combine(root, "..", "..", "..", "..", "parity-sails.json"));
+int sailFailures = NavalSim.Parity.SailParity.Run(sailDump);
+Console.WriteLine();
+Console.WriteLine(sailFailures == 0
+    ? "PARITE TENUE -- le C# et le JS tissent et forment la meme toile."
+    : $"{sailFailures} DIVERGENCE(S) sur la toile.");
+
+return failures == 0 && seaFailures == 0 && physFailures == 0 && sailFailures == 0 ? 0 : 1;
