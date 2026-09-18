@@ -143,6 +143,37 @@ public sealed class LanternSpec
 }
 
 /// <summary>
+/// Un point de vue DEPUIS le navire (camera.decks) : l'œil dans son repère —
+/// x/z en mètres ou xFrac/zFrac en fractions du bau et de la longueur, y en mètres
+/// au-dessus de la flottaison —, puis où il regarde (yaw en degrés, 0 l'étrave, 180
+/// la poupe, 90 bâbord ; pitch en degrés), sa focale et son plan proche.
+/// </summary>
+public sealed class DeckView
+{
+    [JsonPropertyName("name")]  public string Name { get; set; } = "À bord";
+    [JsonPropertyName("x")]     public double? X { get; set; }
+    [JsonPropertyName("xFrac")] public double? XFrac { get; set; }
+    [JsonPropertyName("y")]     public double? Y { get; set; }
+    [JsonPropertyName("z")]     public double? Z { get; set; }
+    [JsonPropertyName("zFrac")] public double? ZFrac { get; set; }
+    [JsonPropertyName("yaw")]   public double Yaw { get; set; }
+    [JsonPropertyName("pitch")] public double Pitch { get; set; }
+    [JsonPropertyName("fov")]   public double? Fov { get; set; }
+    [JsonPropertyName("near")]  public double? Near { get; set; }
+}
+
+/// <summary>Les distances de prise de vue, propres à chaque navire, et ses vues à bord.</summary>
+public sealed class CameraSpec
+{
+    [JsonPropertyName("helmHeight")] public double? HelmHeight { get; set; }
+    [JsonPropertyName("helmZFrac")]  public double? HelmZFrac { get; set; }
+    [JsonPropertyName("chaseDist")]  public double ChaseDist { get; set; }
+    [JsonPropertyName("chaseHigh")]  public double ChaseHigh { get; set; }
+    [JsonPropertyName("orbitDist")]  public double OrbitDist { get; set; }
+    [JsonPropertyName("decks")]      public List<DeckView>? Decks { get; set; }
+}
+
+/// <summary>
 /// Ses couleurs, en hex sRGB comme la page les lit ("0xece4d2"), et les images
 /// peintes sur sa toile, par SORTE de voile : un motif appartient aux basses
 /// voiles et aux huniers, il n'a rien à faire sur un foc.
@@ -170,6 +201,7 @@ public sealed class ShipJson
     [JsonPropertyName("model")]  public ModelSpec? Model { get; set; }
     [JsonPropertyName("appearance")] public AppearanceSpec Appearance { get; set; } = new();
     [JsonPropertyName("lanterns")]   public List<LanternSpec>? Lanterns { get; set; }
+    [JsonPropertyName("camera")]     public CameraSpec Camera { get; set; } = new();
 }
 
 /// <summary>
@@ -232,6 +264,13 @@ public sealed class ShipSpec
     public AppearanceSpec Appearance { get; }
     /// <summary>Ses feux, ou <c>null</c> : le feu de poupe par défaut.</summary>
     public List<LanternSpec>? Lanterns { get; }
+    public CameraSpec Camera { get; }
+    /// <summary>
+    /// Ses vues à bord, dans l'ordre où C les parcourt. Sans camera.decks, la
+    /// passerelle d'autrefois, tirée de helmHeight et helmZFrac : les vieilles
+    /// fiches ne cassent pas.
+    /// </summary>
+    public List<DeckView> Decks { get; }
 
     // renseigne une fois la grille de sondes batie
     public double HullVolume { get; private set; }
@@ -300,6 +339,10 @@ public sealed class ShipSpec
         Model = json.Model;
         Appearance = json.Appearance ?? new();
         Lanterns = json.Lanterns;
+        Camera = json.Camera ?? new();
+        Decks = Camera.Decks is { Count: > 0 } d
+            ? d
+            : new List<DeckView> { new() { Name = "Passerelle", X = 0, Y = Camera.HelmHeight, ZFrac = Camera.HelmZFrac } };
     }
 
     private static readonly JsonSerializerOptions JsonOpts = new()

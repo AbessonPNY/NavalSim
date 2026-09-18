@@ -475,6 +475,8 @@ public partial class ShipDemo : Node3D
         _dist = (float)spec.L * 1.8f;
         // un nouveau navire n'est pas là où était l'ancien : reprendre la station
         if (_fixed) Plant();
+        // et ses vues à bord sont les SIENNES : la même, si elle en a autant, sinon la première
+        if (_camMode == 1) { if (_deck >= spec.Decks.Count) _deck = 0; EnterDeck(); }
         UpdateInfo();
     }
 
@@ -596,7 +598,9 @@ public partial class ShipDemo : Node3D
        elle s'éloigne et sort du champ, et c'est tout l'intérêt — c'est la seule
        vue où l'on voit le navire AVANCER par rapport à une mer immobile, au
        lieu d'une mer qui défile sous une coque clouée au centre de l'image. */
-    bool _fixed;
+    // 0 orbite, 1 à bord (les vues de la fiche), 2 fixe — l'ordre du bouton de la page
+    int _camMode;
+    bool _fixed => _camMode == 2;
     Vec3d _anchor;
     double _fixYaw, _fixPitch;
 
@@ -630,6 +634,70 @@ public partial class ShipDemo : Node3D
         _fixPitch = Math.Atan2(dy, Math.Sqrt(dx * dx + dz * dz));
     }
 
+    // ------------------------------------------------------------------
+    //  LES VUES À BORD — camera.decks de la fiche, mode 2 de camera-rig.js
+    // ------------------------------------------------------------------
+
+    /* SES PROPRES POINTS DE VUE, dans SA fiche : la passerelle, la chambre du
+       capitaine, ce que le modéliste a prévu de montrer. Chaque vue donne l'œil
+       dans le repère du navire et où il regarde ; le regard est pris dans ce
+       repère, donc la vue suit le pont. Le glisser regarde autour À PARTIR de ce
+       regard, la molette change la focale, qui est rendue en sortant. */
+    int _deck;
+    double _bridgeYaw, _bridgePitch;
+    const float OutsideFov = 55, OutsideNear = 0.05f;
+
+    string CamName() => _camMode switch
+    {
+        1 => _ship.Spec.Decks[_deck].Name,
+        2 => "Fixe",
+        _ => "Orbite"
+    };
+
+    /// <summary>
+    /// C : Orbite, puis chaque vue à bord de la fiche dans l'ordre, puis Fixe —
+    /// le cycle du bouton caméra de la page, qui parcourt ses vues à bord avant de
+    /// passer au mode suivant. La Proue de la page n'est pas portée.
+    /// </summary>
+    void CycleCamera()
+    {
+        if (_camMode == 0) { _camMode = 1; _deck = 0; EnterDeck(); }
+        else if (_camMode == 1 && _deck + 1 < _ship.Spec.Decks.Count) { _deck++; EnterDeck(); }
+        else if (_camMode == 1) { _camMode = 2; SetLens(OutsideFov, OutsideNear); Plant(); }
+        else _camMode = 0;
+        UpdateInfo();
+    }
+
+    /* Entrer dans une vue : regard remis droit devant ELLE, sa focale et son plan
+       proche. Un intérieur en demande un bien plus court que la mer : une
+       cloison à portée de main serait coupée net. */
+    void EnterDeck()
+    {
+        var v = _ship.Spec.Decks[_deck];
+        _bridgeYaw = 0; _bridgePitch = 0;
+        SetLens((float)(v.Fov ?? OutsideFov), (float)(v.Near ?? OutsideNear));
+    }
+
+    void SetLens(float fov, float near) { _cam.Fov = fov; _cam.Near = near; }
+
+    void DeckCamera()
+    {
+        var spec = _ship.Spec;
+        var v = spec.Decks[_deck];
+        double k = spec.L / 24;
+        // l'œil : hauteur au-dessus de la flottaison ; absente, l'ancienne règle de la passerelle
+        double x = v.X ?? (v.XFrac ?? 0) * spec.B;
+        double z = v.Z ?? (v.ZFrac ?? spec.Camera.HelmZFrac ?? -0.4) * spec.L;
+        double y = v.Y ?? spec.DeckMid + 2.1 * k;
+        var eye = new Vector3((float)x, (float)y, (float)z);
+        double yaw = v.Yaw * Math.PI / 180 + _bridgeYaw, pitch = v.Pitch * Math.PI / 180 + _bridgePitch;
+        double cp = Math.Cos(pitch);
+        var dir = new Vector3((float)(Math.Sin(yaw) * cp), (float)Math.Sin(pitch), (float)(Math.Cos(yaw) * cp));
+        var xf = _ship.GlobalTransform;
+        _cam.Position = xf * eye;
+        _cam.LookAt(xf * (eye + dir * (float)(120 * k)), Vector3.Up);
+    }
+
     void UpdateCamera(double delta)
     {
         var target = _follow
@@ -652,6 +720,12 @@ public partial class ShipDemo : Node3D
         {
             _cam.Position = fe;
             _cam.LookAt(_fixLook ?? Vector3.Zero, Vector3.Up);
+            return;
+        }
+
+        if (_camMode == 1)
+        {
+            DeckCamera();
             return;
         }
 
@@ -749,7 +823,7 @@ public partial class ShipDemo : Node3D
             $"vent       {_windDeg,6:F0}°      force     {_force:F1} · {Config.Beaufort[bf].Name}\n" +
             $"\n" +
             $"W S machine   B élan   A D barre   Q E écoutes   V voiles\n" +
-            $"↑↓ force   ←→ vent   PgUp/PgDn creux   N navire   F suivre   C vue fixe   X replanter   Échap options\n" +
+            $"↑↓ force   ←→ vent   PgUp/PgDn creux   N navire   F suivre   C vues ({CamName()})   X replanter   Échap options\n" +
             $"O occlusion {(_sky.Env.SsaoEnabled ? "oui" : "non")}   G lumière indirecte {(_sky.Env.SsilEnabled ? "oui" : "non")}";
     }
 
@@ -781,7 +855,7 @@ public partial class ShipDemo : Node3D
                 case Key.V: _ship.Ctrl.SailsSet = !_ship.Ctrl.SailsSet; break;
                 case Key.N: Launch(_index + 1); break;
                 case Key.F: _follow = !_follow; break;
-                case Key.C: _fixed = !_fixed; if (_fixed) Plant(); break;
+                case Key.C: CycleCamera(); break;
                 case Key.X: if (_fixed) Plant(); break;
                 // l'occlusion ambiante et l'illumination globale, pour juger à l'œil
                 case Key.O: _settings.Occlusion = !_settings.Occlusion; Changed(); break;
@@ -804,12 +878,27 @@ public partial class ShipDemo : Node3D
         if (e is InputEventMouseButton mb)
         {
             if (mb.ButtonIndex == MouseButton.Left) _dragging = mb.Pressed;
-            else if (mb.ButtonIndex == MouseButton.WheelUp) _dist = Mathf.Max(10f, _dist * 0.9f);
-            else if (mb.ButtonIndex == MouseButton.WheelDown) _dist = Mathf.Min(900f, _dist * 1.11f);
+            // à bord la molette change la focale, comme dans la page ; dehors, la distance
+            else if (mb.ButtonIndex == MouseButton.WheelUp)
+            {
+                if (_camMode == 1) _cam.Fov = Mathf.Clamp(_cam.Fov - 2, 12, 75);
+                else _dist = Mathf.Max(10f, _dist * 0.9f);
+            }
+            else if (mb.ButtonIndex == MouseButton.WheelDown)
+            {
+                if (_camMode == 1) _cam.Fov = Mathf.Clamp(_cam.Fov + 2, 12, 75);
+                else _dist = Mathf.Min(900f, _dist * 1.11f);
+            }
         }
         if (e is InputEventMouseMotion mm && _dragging)
         {
-            if (_fixed)
+            if (_camMode == 1)
+            {
+                // regarder autour À PARTIR du regard de la vue
+                _bridgeYaw -= mm.Relative.X * 0.004;
+                _bridgePitch = Math.Clamp(_bridgePitch - mm.Relative.Y * 0.004, -0.7, 0.7);
+            }
+            else if (_fixed)
             {
                 // pointer une caméra plantée à la main, comme dans l'original
                 _fixYaw -= mm.Relative.X * 0.004;
@@ -879,6 +968,8 @@ public partial class ShipDemo : Node3D
                 case "--sun": _sky.DayRate = 0; _sky.Core.SetSun(args[i + 1].ToFloat(), _sky.Core.SunBearingDeg); _sky.Apply();
                     GD.Print(FormattableString.Invariant($"nuit {_sky.Core.Night:F2}, lune {(_sky.Core.MoonOn ? "oui" : "non")} phase {_sky.Core.MoonPhase:F2} levée {_sky.Core.MoonUp:F2}, lumière de l'eau {_sky.Core.WaterLight:F3}, lumière directe {_sky.Core.SunIntensity:F3}"));
                     break;
+                // ouvrir directement une vue à bord de la fiche
+                case "--vue": _camMode = 1; _deck = Math.Clamp(args[i + 1].ToInt(), 0, _ship.Spec.Decks.Count - 1); EnterDeck(); break;
                 case "--parallele": _settings.ParallelSolvers = args[i + 1] == "1"; break;
                 case "--flotte": SpawnFleet(args[i + 1].ToInt(), _flotteShip); break;
                 case "--flotte-navire": _flotteShip = args[i + 1].ToInt(); break;
