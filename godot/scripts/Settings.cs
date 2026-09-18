@@ -33,6 +33,12 @@ public sealed class Settings
     public bool IndirectLight = true;
     /// <summary>La synchro verticale : voir la mémoire sur les écrans virtuels.</summary>
     public bool VSync = true;
+    /// <summary>La profondeur de champ : le lointain flou au-delà de DofDistance mètres.</summary>
+    public bool Dof = true;
+    public float DofDistance = 600f;
+    /// <summary>Le flou de mouvement de la caméra, et la part d'obturateur (0,5 = 180°).</summary>
+    public bool MotionBlur = true;
+    public float Shutter = 0.5f;
 
     // [performance]
     /// <summary>Les solveurs des navires sur plusieurs cœurs : résultats identiques au bit près.</summary>
@@ -54,6 +60,10 @@ public sealed class Settings
         s.Occlusion = (bool)cf.GetValue("rendu", "occlusion_ambiante", s.Occlusion);
         s.IndirectLight = (bool)cf.GetValue("rendu", "lumiere_indirecte", s.IndirectLight);
         s.VSync = (bool)cf.GetValue("rendu", "synchro_verticale", s.VSync);
+        s.Dof = (bool)cf.GetValue("rendu", "profondeur_de_champ", s.Dof);
+        s.DofDistance = (float)cf.GetValue("rendu", "profondeur_de_champ_distance", s.DofDistance);
+        s.MotionBlur = (bool)cf.GetValue("rendu", "flou_de_mouvement", s.MotionBlur);
+        s.Shutter = (float)cf.GetValue("rendu", "flou_de_mouvement_obturateur", s.Shutter);
         s.ParallelSolvers = (bool)cf.GetValue("performance", "solveurs_paralleles", s.ParallelSolvers);
         return s;
     }
@@ -68,6 +78,10 @@ public sealed class Settings
         cf.SetValue("rendu", "occlusion_ambiante", Occlusion);
         cf.SetValue("rendu", "lumiere_indirecte", IndirectLight);
         cf.SetValue("rendu", "synchro_verticale", VSync);
+        cf.SetValue("rendu", "profondeur_de_champ", Dof);
+        cf.SetValue("rendu", "profondeur_de_champ_distance", DofDistance);
+        cf.SetValue("rendu", "flou_de_mouvement", MotionBlur);
+        cf.SetValue("rendu", "flou_de_mouvement_obturateur", Shutter);
         cf.SetValue("performance", "solveurs_paralleles", ParallelSolvers);
         Error e = cf.Save(Path);
         if (e != Error.Ok) GD.PushWarning($"réglages non enregistrés dans {Path} : {e}");

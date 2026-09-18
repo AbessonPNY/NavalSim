@@ -93,6 +93,13 @@ public partial class ShipDemo : Node3D
 
         _cam = new Camera3D { Current = true, Fov = 55, Far = 9000 };
         AddChild(_cam);
+        /* LA PROFONDEUR DE CHAMP, native (CameraAttributesPractical), et LE FLOU DE
+           MOUVEMENT, qui ne l'est pas : un calcul inséré dans le rendu
+           (MotionBlurEffect). Tous deux se règlent dans reglages.ini et le menu. */
+        _camAttr = new CameraAttributesPractical();
+        _cam.Attributes = _camAttr;
+        _motionBlur = new MotionBlurEffect();
+        _cam.Compositor = new Compositor { CompositorEffects = new Godot.Collections.Array<CompositorEffect> { _motionBlur } };
 
         var layer = new CanvasLayer();
         AddChild(layer);
@@ -226,6 +233,8 @@ public partial class ShipDemo : Node3D
     // ------------------------------------------------------------------
 
     Settings _settings = null!;
+    CameraAttributesPractical _camAttr = null!;
+    MotionBlurEffect _motionBlur = null!;
     PanelContainer _menu = null!;
     // O et G changent ces deux-là au clavier : le menu les relit à l'ouverture
     CheckBox _chkOcclusion = null!, _chkIndirect = null!;
@@ -237,6 +246,15 @@ public partial class ShipDemo : Node3D
         _sky.Env.SsaoEnabled = s.Occlusion;
         _sky.Env.SsilEnabled = s.IndirectLight;
         DisplayServer.WindowSetVsyncMode(s.VSync ? DisplayServer.VSyncMode.Enabled : DisplayServer.VSyncMode.Disabled);
+        /* Le lointain devient flou passé cette distance, sur une transition de la
+           moitié : c'est la mer vers l'horizon, pas le navire qu'on regarde. */
+        _camAttr.DofBlurFarEnabled = s.Dof;
+        _camAttr.DofBlurFarDistance = s.DofDistance;
+        _camAttr.DofBlurFarTransition = s.DofDistance * 0.5f;
+        _camAttr.DofBlurAmount = 0.08f;
+        _motionBlur.Enabled = s.MotionBlur;
+        _motionBlur.Shutter = s.Shutter;
+        _motionBlur.MainProjection = _cam.GetCameraProjection();
         _sea.Material?.SetShaderParameter(U.LampReflection, s.LampReflection);
         _sea.Material?.SetShaderParameter(U.LampWater, s.LampWater);
         if (_ship != null)
@@ -315,6 +333,10 @@ public partial class ShipDemo : Node3D
         _chkOcclusion = Check("Occlusion ambiante", st.Occlusion, on => st.Occlusion = on);
         _chkIndirect = Check("Lumière indirecte", st.IndirectLight, on => st.IndirectLight = on);
         Check("Synchro verticale", st.VSync, on => st.VSync = on);
+        Check("Profondeur de champ", st.Dof, on => st.Dof = on);
+        Slide("Flou au-delà de (m)", 100, 3000, 50, st.DofDistance, x => st.DofDistance = x);
+        Check("Flou de mouvement", st.MotionBlur, on => st.MotionBlur = on);
+        Slide("Obturateur", 0.05, 1, 0.05, st.Shutter, x => st.Shutter = x);
         Title("Performance", 15);
         Check("Solveurs sur plusieurs cœurs", st.ParallelSolvers, on => st.ParallelSolvers = on);
 
@@ -991,6 +1013,9 @@ public partial class ShipDemo : Node3D
                     break;
                 // ouvrir directement une vue à bord de la fiche
                 case "--vue": _camMode = 1; _deck = Math.Clamp(args[i + 1].ToInt(), 0, _ship.Spec.Decks.Count - 1); EnterDeck(); break;
+                case "--msaa": GetViewport().Msaa3D = args[i + 1] == "0" ? Viewport.Msaa.Disabled : Viewport.Msaa.Msaa4X; break;
+                case "--dof": _settings.Dof = args[i + 1] == "1"; ApplySettings(); break;
+                case "--flou": _settings.MotionBlur = args[i + 1] == "1"; ApplySettings(); break;
                 case "--parallele": _settings.ParallelSolvers = args[i + 1] == "1"; break;
                 case "--flotte": SpawnFleet(args[i + 1].ToInt(), _flotteShip); break;
                 case "--flotte-navire": _flotteShip = args[i + 1].ToInt(); break;
