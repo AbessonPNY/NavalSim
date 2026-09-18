@@ -35,6 +35,14 @@ vec3 naval_display(vec3 c) {
 	return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, lessThan(c, vec3(0.04045)));
 }
 
+/* Et son inverse : ramener une valeur LINÉAIRE du moteur — l'image déjà rendue
+   qu'on relit sous la mer — dans l'espace où la mer et le ciel font leurs
+   calculs, celui des valeurs écrites telles quelles à l'écran. */
+vec3 naval_encode(vec3 c) {
+	c = max(c, vec3(0.0));
+	return mix(1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, c * 12.92, lessThan(c, vec3(0.0031308)));
+}
+
 // --- un grain qu'on n'a pas encore atteint ---
 uniform vec2  u_storm_dir = vec2(1.0, 0.0);        // relèvement du grain le plus proche
 uniform float u_storm_loom = 0.0;                  // à quel point ce quart de ciel est noir

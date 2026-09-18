@@ -352,6 +352,77 @@ public partial class ShipNode
         }
     }
 
+    /// <summary>
+    /// LE RELIEF TIRÉ DE LA RUGOSITÉ — _reliefFromRoughness. Chaque matière qui
+    /// porte une rugosité et pas de carte normale reçoit le relief peint dans ce
+    /// même gris (ReliefMap, dans le noyau). Une matière qui a déjà une vraie
+    /// carte normale est laissée telle quelle.
+    ///
+    /// La carte sort dans la convention glTF — vert vers le haut de l'image —, qui
+    /// est celle que Godot attend : pas de retournement ici. La page en posait un
+    /// (normalScale (1, −1)) parce que three, sans tangentes, en recalcule un repère
+    /// retourné ; Godot, lui, veut des TANGENTES, que ce modèle n'a pas forcément :
+    /// elles sont générées pour chaque surface qui reçoit un relief.
+    /// </summary>
+    static void ReliefFromRoughness(Node3D root, double strength)
+    {
+        if (!(strength > 0)) return;
+        var made = new Dictionary<Texture2D, ImageTexture?>();   // une carte par image source
+        foreach (var (mi, _) in Meshes(root))
+        {
+            var mesh = mi.Mesh;
+            if (mesh.GetSurfaceCount() != 1) continue;           // SplitPrimitives est passé
+            if ((mi.GetSurfaceOverrideMaterial(0) ?? mesh.SurfaceGetMaterial(0)) is not BaseMaterial3D mat) continue;
+            if (mat.RoughnessTexture == null || mat.NormalEnabled) continue;
+            if (!made.TryGetValue(mat.RoughnessTexture, out var nt))
+            {
+                nt = MakeRelief(mat.RoughnessTexture, strength, mat.RoughnessTextureChannel);
+                made[mat.RoughnessTexture] = nt;
+            }
+            if (nt == null) continue;
+            mat.NormalEnabled = true;
+            mat.NormalTexture = nt;
+            mat.NormalScale = 1;
+
+            var arrays = mesh.SurfaceGetArrays(0);
+            if (arrays[(int)Mesh.ArrayType.Tangent].VariantType == Variant.Type.Nil
+                && arrays[(int)Mesh.ArrayType.TexUV].VariantType != Variant.Type.Nil)
+            {
+                var st = new SurfaceTool();
+                st.CreateFromArrays(arrays);
+                st.GenerateTangents();
+                var am = st.Commit();
+                am.SurfaceSetMaterial(0, mat);
+                mi.Mesh = am;
+            }
+        }
+    }
+
+    static ImageTexture? MakeRelief(Texture2D src, double strength, BaseMaterial3D.TextureChannel ch)
+    {
+        var img = src.GetImage();
+        if (img == null || img.IsEmpty()) return null;
+        img = (Image)img.Duplicate();
+        if (img.IsCompressed()) img.Decompress();
+        img.Convert(Image.Format.Rgba8);
+        int channel = ch switch
+        {
+            BaseMaterial3D.TextureChannel.Red => 0,
+            BaseMaterial3D.TextureChannel.Blue => 2,
+            BaseMaterial3D.TextureChannel.Alpha => 3,
+            _ => 1                                      // la rugosité glTF est dans le vert
+        };
+        int w = img.GetWidth(), h = img.GetHeight();
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var outp = ReliefMap.FromHeight(img.GetData(), w, h, strength, channel);
+        long sum = 0;
+        foreach (var b in outp) sum += b;
+        GD.Print($"relief {w}x{h} canal {channel} : somme {sum}, {sw.ElapsedMilliseconds} ms");
+        var nimg = Image.CreateFromData(w, h, false, Image.Format.Rgba8, outp);
+        nimg.GenerateMipmaps();
+        return ImageTexture.CreateFromImage(nimg);
+    }
+
     /// <summary>Une pièce du modèle, mesurée dans le repère du navire.</summary>
     sealed class Part
     {

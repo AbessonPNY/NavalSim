@@ -89,10 +89,10 @@ public partial class SkyNode : Node3D
             /* L'OCCLUSION AMBIANTE, et c'est la même que celle de ssao.js, en
                mieux placée. La page la limitait au NAVIRE pour une raison
                écrite : son passage de profondeur dessinait la mer à plat, ce qui
-               faussait l'occlusion exactement là où la coque touche l'eau. Ici la
-               mer passe par son propre shader, déplacement compris, jusque dans la
-               profondeur : l'objection tombe, et la vague qui monte le long du
-               bordé l'assombrit à juste titre.
+               faussait l'occlusion exactement là où la coque touche l'eau. Ici le
+               résultat est le même par une autre voie : la mer est une matière
+               TRANSPARENTE (elle relit l'image pour montrer la coque sous l'eau), et
+               l'occlusion de Godot ne voit que l'opaque — donc le navire seul.
 
                Ses autres choix restent : 2,4 m de rayon — l'échelle de ce qui doit
                occulter, un pavois, une écoutille — et la demi-résolution

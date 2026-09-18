@@ -19,6 +19,11 @@ namespace NavalSim;
 /// </summary>
 public static class U
 {
+    public static readonly StringName LampReflection = new("u_lamp_reflection");
+    public static readonly StringName LampWater = new("u_lamp_water");
+    public static readonly StringName Lamp = new("u_lamp");
+    public static readonly StringName LampRange = new("u_lamp_range");
+    public static readonly StringName LampCount = new("u_lamp_count");
     public static readonly StringName WaterLight = new("u_water_light");
     public static readonly StringName Moon = new("u_moon");
     public static readonly StringName MoonLit = new("u_moon_lit");

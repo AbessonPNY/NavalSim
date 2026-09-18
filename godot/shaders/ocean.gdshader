@@ -17,7 +17,7 @@ shader_type spatial;
  * prise en espace monde parce que le plan de mer est recentré sur la caméra à
  * chaque image ; en local, la houle resterait collée à la caméra et se
  * désynchroniserait du champ de hauteur que le solveur échantillonne. */
-render_mode world_vertex_coords, cull_disabled, unshaded;
+render_mode world_vertex_coords, cull_disabled, unshaded, depth_draw_always;
 
 #include "res://shaders/gerstner.gdshaderinc"
 #include "res://shaders/sky.gdshaderinc"
@@ -58,6 +58,30 @@ uniform vec2  u_wind = vec2(1.0, 0.0);
 uniform float u_water_light = 1.0;
 uniform vec3  u_moon = vec3(0.0, 1.0, 0.0);
 uniform float u_moon_lit = 0.0;
+
+/* LES FEUX DU BORD, que la mer ne verrait pas autrement : elle est `unshaded`,
+   calculée tout entière ici, et aucune lampe du moteur ne l'atteint. Position et
+   énergie de chaque feu (xyz, w), sa portée à part. */
+#define NLAMP 8
+uniform vec4  u_lamp[NLAMP];
+uniform float u_lamp_range[NLAMP];
+uniform int   u_lamp_count = 0;
+// leurs deux forces, réglables (reglages.ini, [lanternes])
+uniform float u_lamp_reflection = 2.4;
+uniform float u_lamp_water = 0.6;
+// 0xffb765, la flamme de _lanternAt, en linéaire
+const vec3 LAMP_COL = vec3(1.0, 0.473, 0.130);
+
+/* CE QUI EST SOUS LA SURFACE, VU À TRAVERS ELLE. L'image et la profondeur déjà
+   rendues — la coque comprise, dessinée avant la mer (voir la fin du shader).
+   u_absorb : l'extinction par canal et par mètre ; u_refract : Snell, 1 pour de
+   l'eau de mer — un cadran, pas une rustine. */
+uniform sampler2D u_screen : hint_screen_texture, filter_linear;
+uniform sampler2D u_depth : hint_depth_texture, filter_nearest;
+uniform vec3  u_absorb = vec3(0.34, 0.13, 0.085);
+uniform float u_refract = 1.0;
+// la décharge au-dessus éclaire l'eau comme le ciel
+uniform float u_flash = 0.0;
 
 // le champ d'écume persistant (FoamField) : ce que les crêtes ont laissé
 uniform sampler2D u_foam_tex : filter_linear, repeat_disable;
@@ -143,6 +167,14 @@ vec3 ride_normale(vec2 p, float fade) {
 	         + onde_fbm((q + vec2(0.0, e)) * 2.7 - d2 * 0.5) * 0.5;
 	float s = 1.35 * u_ripple * fade;
 	return normalize(vec3(-(hx - h) * s, 1.0, -(hz - h) * s));
+}
+
+// la profondeur de VUE, en mètres, de ce qui est déjà rendu à ce point de l'écran
+// (la matrice est passée : les intégrées n'existent que dans fragment())
+float view_depth(vec2 uv, mat4 inv_proj) {
+	float d = textureLod(u_depth, uv, 0.0).r;
+	vec4 v = inv_proj * vec4(uv * 2.0 - 1.0, d, 1.0);
+	return -v.z / v.w;
 }
 
 void fragment() {
@@ -251,6 +283,39 @@ void fragment() {
 	// un peu de teinte diffuse, pour que les creux ne soient pas morts
 	c += u_shallow * max(dot(N, u_sun), 0.0) * 0.05 * (1.0 - far);
 
+	/* LES FEUX SUR L'EAU — un AJOUT, la page n'en a pas. Chaque lanterne pose
+	   sur la mer ce qu'une flamme y pose la nuit :
+	   · son REFLET, par le même lobe que le soleil et la lune — les rides l'étirent
+	     en une traînée qui tremble, et c'est ce qui la fait lire de loin ;
+	   · un peu de lumière ENTRÉE dans l'eau et qui en ressort teintée par elle ;
+	   · et l'écume, qui la prend comme un drap blanc (plus bas).
+	   La décroissance est celle de la lampe du moteur — en carré de la distance,
+	   coupée à sa portée —, pour que l'eau et le bordé s'éclairent ensemble. Les
+	   deux gains (2,4 pour le reflet, celui du soleil ; 0,6 d'eau claire) sont
+	   CHOISIS, pas mesurés, et se jugent à l'œil : ils sont dans reglages.ini. */
+	vec3 lamp_foam = vec3(0.0);
+	for (int i = 0; i < NLAMP; i++) {
+		if (i >= u_lamp_count) break;
+		vec3 Lv = u_lamp[i].xyz - v_world;
+		float dl = length(Lv);
+		vec3 L = Lv / max(dl, 1e-3);
+		float nd = dl / max(u_lamp_range[i], 0.01);
+		nd *= nd; nd *= nd;
+		float win = max(1.0 - nd, 0.0);
+		win *= win;
+		float irr = u_lamp[i].w * win / max(dl * dl, 0.01);
+		if (irr <= 1e-5) continue;
+		vec3 lc = LAMP_COL * irr * max(dot(N, L), 0.0);
+		vec3 Hl = normalize(L + V);
+		float nhl = max(dot(N, Hl), 0.0);
+		float ddl = nhl * nhl * (a * a - 1.0) + 1.0;
+		float Dl = (a * a) / (3.14159265 * ddl * ddl);
+		float Fl = 0.02 + 0.98 * pow(1.0 - max(dot(V, Hl), 0.0), 5.0);
+		c += lc * Dl * Fl * u_lamp_reflection;
+		c += lc * (u_shallow * u_lamp_water + vec3(0.02));
+		lamp_foam += lc;
+	}
+
 	/* L'ÉCUME DE CRÊTE, et il lui faut TROIS choses que le premier jet n'avait
 	   pas — sans quoi la mer sort blanche comme un champ de neige, ce qu'elle a
 	   fait.
@@ -338,14 +403,66 @@ void fragment() {
 	persist *= (0.35 + 0.95 * fn);
 
 	float foam = clamp(max(crest_foam, persist) + hull_foam, 0.0, 1.0) * (1.0 - far * 0.85);
-	vec3 foam_col = body * 0.5 + u_horizon * 1.05 * (1.0 - 0.55 * u_storm);
+	vec3 foam_col = body * 0.5 + u_horizon * 1.05 * (1.0 - 0.55 * u_storm)
+	              + lamp_foam * 0.8;          // l'écume prend la flamme comme un drap blanc
 	c = mix(c, foam_col, foam * 0.85);
 
 	/* ET LA BRUME EN DERNIER, parce que c'est l'air devant tout le reste. La mer
 	   et le navire la lisent dans la MÊME fonction, sinon le bâtiment reste net
-	   contre une mer délavée. */
+	   contre une mer délavée.
+
+	   Et elle se fond dans le CIEL QUI EST JUSTE DERRIÈRE ce morceau d'eau, pas
+	   dans une couleur de brouillard plate : à la limite la mer et le ciel dans
+	   cette direction ont la même couleur, il ne reste plus de bord à voir, et
+	   l'horizon se dissout au lieu de finir sur une ligne. Le portage gardait un
+	   gris d'horizon uniforme ; c'est la loi de la page, et celle de la coque. */
 	float hz = haze_along(eye, v_world);
-	c = mix(c, u_horizon * (1.0 - 0.55 * u_storm), hz);
+	c = mix(c, naval_sky(normalize(v_world - eye), u_sun, u_zenith, u_horizon), hz);
+
+	// une décharge au-dessus éclaire l'eau aussi, et l'écume davantage
+	c += vec3(0.42, 0.50, 0.68) * u_flash * (0.55 + 0.9 * foam);
+
+	/* CE QUI EST SOUS LA SURFACE, VU À TRAVERS ELLE — la fin du shader de la page.
+
+	   La page dessinait la coque une seconde fois, seule, dans un tampon avec sa
+	   profondeur. Ici elle est déjà dans l'image : la mer est rendue APRÈS tout
+	   l'opaque (matière transparente, priorité la plus basse, voir OceanNode) et
+	   relit l'image et la profondeur de ce qui est derrière elle. La différence
+	   entre cette profondeur et celle de la surface est l'épaisseur d'eau en
+	   travers. Là où rien n'est derrière — le ciel — l'épaisseur est immense et
+	   l'eau reste opaque ; là où la coque est DEVANT, l'épaisseur est négative et
+	   rien n'est doublé.
+
+	   L'extinction est PAR CANAL — le rouge parti en trois mètres, le bleu portant
+	   trois fois plus loin —, ce qui la fait passer au vert, puis au bleu, puis à
+	   rien, au lieu de griser comme ferait la brume. C'est ce qui adoucit la
+	   ligne de flottaison : sous la surface le bordé ne s'arrête pas, il s'enfonce. */
+	vec2 base = SCREEN_UV;
+	float thick0 = max(view_depth(base, INV_PROJECTION_MATRIX) - (-VERTEX.z), 0.0);
+
+	/* LA RÉFRACTION : la ride de surface portée sur ce qui est dessous. Snell
+	   dévie le rayon d'environ (1 − 1/n) de l'inclinaison, un quart pour l'eau de
+	   mer, et le décalage au bordé est cet angle fois la profondeur — construit en
+	   MÈTRES MONDE puis reprojeté, pour que champ, format et assiette de la
+	   caméra s'arrangent d'eux-mêmes. Saturé à cinq mètres : au-delà il
+	   effacerait son contour, et elle doit rester lisible en s'effaçant. */
+	float bend = min(thick0, 5.0) * 0.25 * u_refract;
+	vec4 c0 = PROJECTION_MATRIX * VIEW_MATRIX * vec4(v_world, 1.0);
+	vec4 c1 = PROJECTION_MATRIX * VIEW_MATRIX * vec4(v_world + vec3(N.x, 0.0, N.z) * bend, 1.0);
+	// de coordonnées projetées à SCREEN_UV : ×0,5 (la projection de Godot porte déjà le sens de l'écran)
+	vec2 shift = (c1.xy / c1.w - c0.xy / c0.w) * 0.5;
+	vec2 suv = clamp(base + shift, vec2(0.0), vec2(1.0));
+	float thick = view_depth(suv, INV_PROJECTION_MATRIX) - (-VERTEX.z);
+	/* Si le rayon dévié tombe sur quelque chose DEVANT l'eau, il a atteint ses
+	   hauts, et les tirer dans l'eau étalerait sa lisse sur la mer : on revient
+	   au regard droit. */
+	if (thick <= 0.0) { suv = base; thick = thick0; }
+	if (thick > 0.0) {
+		vec3 T = exp(-u_absorb * thick);
+		c = mix(c, naval_encode(textureLod(u_screen, suv, 0.0).rgb), clamp(T, 0.0, 1.0));
+	}
 
 	ALBEDO = naval_display(c);
+	// transparente pour lire ce qui est derrière, mais pleinement opaque à l'œil
+	ALPHA = 1.0;
 }

@@ -115,6 +115,8 @@ public sealed class ModelSpec
     [JsonPropertyName("rigIgnore")]  public List<string> RigIgnore { get; set; } = new();
     /// <summary>La force des fenêtres de nuit : 1 par défaut, 0 pour ne rien allumer.</summary>
     [JsonPropertyName("nightGlow")]  public double? NightGlow { get; set; }
+    /// <summary>Le gain de pente du relief tiré de la rugosité (voir ReliefMap) ; absent, aucun.</summary>
+    [JsonPropertyName("relief")]     public double? Relief { get; set; }
 }
 
 /// <summary>

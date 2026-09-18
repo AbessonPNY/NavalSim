@@ -47,7 +47,12 @@ public partial class OceanNode : Node3D
             GD.PushError("shaders/ocean.gdshader introuvable");
             return;
         }
-        _mat = new ShaderMaterial { Shader = shader };
+        /* LA PREMIÈRE DES MATIÈRES TRANSPARENTES. La mer lit l'image et la
+           profondeur déjà rendues pour montrer la coque sous l'eau, ce qui la fait
+           passer après tout l'opaque ; la priorité la plus basse la met avant tout
+           le reste du transparent — brume des modèles, feux, embrun —, qui se teste
+           alors contre la profondeur qu'elle écrit (depth_draw_always). */
+        _mat = new ShaderMaterial { Shader = shader, RenderPriority = -1 };
 
         /* Le plan, et son nombre de segments : c'est le même OCEAN_SEG que le
            JavaScript, parce que le remaillage vers la caméra du vertex shader est
@@ -124,6 +129,20 @@ public partial class OceanNode : Node3D
     }
 
     FoamField? _foam;
+
+    // les feux du bord, pour la mer qu'aucune lampe du moteur n'atteint (NLAMP)
+    public readonly Vector4[] Lamps = new Vector4[8];
+    public readonly float[] LampRange = new float[8];
+
+    /// <summary>Les <paramref name="count"/> premiers feux de <see cref="Lamps"/>, vers la mer.</summary>
+    public void PushLamps(int count)
+    {
+        if (_mat == null) return;
+        _mat.SetShaderParameter(U.LampCount, count);
+        if (count == 0) return;
+        _mat.SetShaderParameter(U.Lamp, Lamps);
+        _mat.SetShaderParameter(U.LampRange, LampRange);
+    }
 
     // ------------------------------------------------------------------
     //  LA FLOTTE, VUE PAR LA MER — pour le collier d'écume et le sillage

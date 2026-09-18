@@ -18,6 +18,7 @@ public partial class ShipDemo : Node3D
 {
     OceanNode _sea = null!;
     FoamField _foam = null!;
+    SprayNode _spray = null!;
     SkyNode _sky = null!;
     ShipNode _ship = null!;
     Camera3D _cam = null!;
@@ -69,9 +70,14 @@ public partial class ShipDemo : Node3D
         AddChild(_foam);
         _sea.AttachFoam(_foam);
 
+        _spray = new SprayNode();
+        AddChild(_spray);
+
         _paths = ShipLibrary.Discover();
         GD.Print($"{_paths.Count} fiche(s) lue(s) dans {ShipLibrary.Folder}");
         Launch(0);
+        // les réglages du fichier d'abord ; la ligne de commande, lue ensuite, a le dernier mot
+        ApplySettings();
         SetupCapture();
     }
 
@@ -96,6 +102,118 @@ public partial class ShipDemo : Node3D
         _info.AddThemeConstantOverride("outline_size", 5);
         layer.AddChild(_info);
         BuildSunPanel(layer);
+        _settings = Settings.Load();
+        BuildMenu(layer);
+    }
+
+    // ------------------------------------------------------------------
+    //  LES RÉGLAGES — reglages.ini et le menu d'options (Échap)
+    // ------------------------------------------------------------------
+
+    Settings _settings = null!;
+    PanelContainer _menu = null!;
+    // O et G changent ces deux-là au clavier : le menu les relit à l'ouverture
+    CheckBox _chkOcclusion = null!, _chkIndirect = null!;
+
+    /// <summary>Poser les réglages sur le ciel, la mer, l'affichage et le navire.</summary>
+    void ApplySettings()
+    {
+        var s = _settings;
+        _sky.Env.SsaoEnabled = s.Occlusion;
+        _sky.Env.SsilEnabled = s.IndirectLight;
+        DisplayServer.WindowSetVsyncMode(s.VSync ? DisplayServer.VSyncMode.Enabled : DisplayServer.VSyncMode.Disabled);
+        _sea.Material?.SetShaderParameter(U.LampReflection, s.LampReflection);
+        _sea.Material?.SetShaderParameter(U.LampWater, s.LampWater);
+        if (_ship != null)
+        {
+            _ship.SetLanternShadows(s.LanternShadows);
+            if (_ship.WithMastLantern != s.MastLantern)
+            {
+                _ship.WithMastLantern = s.MastLantern;
+                _ship.RebuildLanterns();
+            }
+        }
+    }
+
+    void Changed()
+    {
+        ApplySettings();
+        _settings.Save();
+        UpdateInfo();
+    }
+
+    /// <summary>
+    /// Le menu d'options, sur Échap. Chaque réglage s'applique à l'instant et
+    /// s'écrit dans le fichier ; rien à valider, rien à perdre en le fermant.
+    /// </summary>
+    void BuildMenu(CanvasLayer layer)
+    {
+        _menu = new PanelContainer
+        {
+            AnchorLeft = 0.5f, AnchorRight = 0.5f, AnchorTop = 0.5f, AnchorBottom = 0.5f,
+            OffsetLeft = -210, OffsetRight = 210, OffsetTop = -200, OffsetBottom = 200,
+            Visible = false
+        };
+        _menu.AddThemeStyleboxOverride("panel", new StyleBoxFlat
+        {
+            BgColor = new Color(0.04f, 0.06f, 0.09f, 0.88f),
+            CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
+            CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
+            ContentMarginLeft = 18, ContentMarginRight = 18, ContentMarginTop = 14, ContentMarginBottom = 14
+        });
+        var box = new VBoxContainer();
+        box.AddThemeConstantOverride("separation", 6);
+        _menu.AddChild(box);
+        layer.AddChild(_menu);
+
+        Label Title(string text, int size)
+        {
+            var l = new Label { Text = text };
+            l.AddThemeFontSizeOverride("font_size", size);
+            l.AddThemeColorOverride("font_color", new Color(0.94f, 0.96f, 0.98f));
+            box.AddChild(l);
+            return l;
+        }
+        CheckBox Check(string text, bool value, Action<bool> set)
+        {
+            var c = new CheckBox { Text = text, ButtonPressed = value, FocusMode = Control.FocusModeEnum.None };
+            c.Toggled += on => { set(on); Changed(); };
+            box.AddChild(c);
+            return c;
+        }
+        void Slide(string text, double min, double max, double step, double value, Action<float> set)
+        {
+            var v = Row(box, text);
+            v.Text = value.ToString("F2");
+            var s = Slider(box, min, max, step, value);
+            s.ValueChanged += x => { v.Text = x.ToString("F2"); set((float)x); Changed(); };
+        }
+
+        var st = _settings;
+        Title("Options", 20);
+        Title("Lanternes", 15);
+        Check("Ombres des lanternes", st.LanternShadows, on => st.LanternShadows = on);
+        Check("Lanterne du grand mât", st.MastLantern, on => st.MastLantern = on);
+        Slide("Reflet sur la mer", 0, 6, 0.1, st.LampReflection, x => st.LampReflection = x);
+        Slide("Lumière dans l'eau", 0, 2, 0.05, st.LampWater, x => st.LampWater = x);
+        Title("Rendu", 15);
+        _chkOcclusion = Check("Occlusion ambiante", st.Occlusion, on => st.Occlusion = on);
+        _chkIndirect = Check("Lumière indirecte", st.IndirectLight, on => st.IndirectLight = on);
+        Check("Synchro verticale", st.VSync, on => st.VSync = on);
+
+        var path = new Label { Text = ProjectSettings.GlobalizePath(Settings.Path), AutowrapMode = TextServer.AutowrapMode.Arbitrary };
+        path.AddThemeFontSizeOverride("font_size", 11);
+        path.AddThemeColorOverride("font_color", new Color(0.7f, 0.74f, 0.78f));
+        box.AddChild(path);
+
+        var buttons = new HBoxContainer();
+        var back = new Button { Text = "Reprendre", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        var quit = new Button { Text = "Quitter", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        back.Pressed += () => _menu.Visible = false;
+        quit.Pressed += () => GetTree().Quit();
+        buttons.AddChild(back);
+        buttons.AddChild(quit);
+        box.AddChild(buttons);
     }
 
     // ------------------------------------------------------------------
@@ -225,6 +343,8 @@ public partial class ShipDemo : Node3D
 
         _ship = new ShipNode();
         AddChild(_ship);
+        _ship.LanternShadows = _settings.LanternShadows;
+        _ship.WithMastLantern = _settings.MastLantern;
         _ship.Build(spec);
         _ship.Ctrl.SailsSet = false;
         _ship.Ctrl.Sheet = 0.6;
@@ -246,6 +366,10 @@ public partial class ShipDemo : Node3D
                + $"corps {_prof.EndAft:F2} à {_prof.EndFwd:F2} m");
         _fleet.Clear();
         _fleet.Add(_ship.Physics);
+        /* LA COQUE QUI TAPE JETTE DE L'EAU — wireSplash : le solveur dit combien
+           d'eau elle vient de chasser et à quelle vitesse, la réserve en fait une
+           gerbe. Toute coque le fait, pas seulement la nôtre. */
+        _ship.Physics.OnSlam = (at, rate, speed) => { _slams++; _spray.Pool.Burst(at, rate * 0.12, speed); };
 
         _dist = (float)spec.L * 1.8f;
         // un nouveau navire n'est pas là où était l'ancien : reprendre la station
@@ -302,6 +426,7 @@ public partial class ShipDemo : Node3D
             double dx = -b.Pos.X, dz = -b.Pos.Z;
             _sea.Core.Rebase(-dx, -dz);
             _foam.Rebase((float)-dx, (float)-dz);
+            _spray.Pool.Rebase(-dx, -dz);
             // la seule chose qui ne suit PAS le navire : sans ceci elle resterait
             // à quinze cents mètres, à filmer de l'eau vide
             _anchor = new Vec3d(_anchor.X + dx, _anchor.Y, _anchor.Z + dz);
@@ -330,9 +455,15 @@ public partial class ShipDemo : Node3D
         TickSunPanel(frame);
         // les feux et les fenêtres suivent la nuit du ciel, et s'effacent au loin
         _ship.SetLantern(_sky.Core.Night, _t, _cam.GlobalPosition, _sky.Core);
+        // et la mer les voit : leur reflet et leur lumière sur l'eau
+        _sea.PushLamps(_ship.FillLamps(_sea.Lamps, _sea.LampRange, 0));
         _sky.PushTo(_sea.Material);
         _sky.SetCloud(_sea.Material, _cloud, _t);
         foreach (var m in _ship.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
+        // l'embrun est aussi clair que ce qui l'éclaire : l'horizon, qui porte l'heure
+        _sky.PushTo(_spray.Material);
+        _spray.Step(frame);
+        if (_spray.Pool.Count > _sprayMax) _sprayMax = _spray.Pool.Count;
         _sea.Material?.SetShaderParameter(U.Ripple,
             (float)Math.Min(2.6, 0.40 + _sea.Core.WindSpeed * 0.105));
         var wv = _sea.Core.WindVec;
@@ -507,7 +638,7 @@ public partial class ShipDemo : Node3D
             $"vent       {_windDeg,6:F0}°      force     {_force:F1} · {Config.Beaufort[bf].Name}\n" +
             $"\n" +
             $"W S machine   B élan   A D barre   Q E écoutes   V voiles\n" +
-            $"↑↓ force   ←→ vent   PgUp/PgDn creux   N navire   F suivre   C vue fixe   X replanter\n" +
+            $"↑↓ force   ←→ vent   PgUp/PgDn creux   N navire   F suivre   C vue fixe   X replanter   Échap options\n" +
             $"O occlusion {(_sky.Env.SsaoEnabled ? "oui" : "non")}   G lumière indirecte {(_sky.Env.SsilEnabled ? "oui" : "non")}";
     }
 
@@ -542,8 +673,8 @@ public partial class ShipDemo : Node3D
                 case Key.C: _fixed = !_fixed; if (_fixed) Plant(); break;
                 case Key.X: if (_fixed) Plant(); break;
                 // l'occlusion ambiante et l'illumination globale, pour juger à l'œil
-                case Key.O: _sky.Env.SsaoEnabled = !_sky.Env.SsaoEnabled; break;
-                case Key.G: _sky.Env.SsilEnabled = !_sky.Env.SsilEnabled; break;
+                case Key.O: _settings.Occlusion = !_settings.Occlusion; Changed(); break;
+                case Key.G: _settings.IndirectLight = !_settings.IndirectLight; Changed(); break;
                 /* L'ÉLAN : l'équivalent de `Naval.app.controls.state.throttle = 45`
                    dans la console d'origine. Le solveur ne borne pas la machine,
                    donc c'est quarante-cinq fois la poussée — de quoi voir une coque
@@ -551,7 +682,12 @@ public partial class ShipDemo : Node3D
                    second appui coupe, sans quoi elle filerait sans fin ; W et S
                    la ramènent aussi dans leur plage en la touchant. */
                 case Key.B: _ship.Ctrl.Throttle = _ship.Ctrl.Throttle > 1 ? 0 : 45; break;
-                case Key.Escape: GetTree().Quit(); break;
+                // le menu d'options ; « Quitter » y est désormais
+                case Key.Escape:
+                    _chkOcclusion.SetPressedNoSignal(_settings.Occlusion);
+                    _chkIndirect.SetPressedNoSignal(_settings.IndirectLight);
+                    _menu.Visible = !_menu.Visible;
+                    break;
             }
         }
         if (e is InputEventMouseButton mb)
@@ -648,6 +784,7 @@ public partial class ShipDemo : Node3D
        ne se juge pas à l'œil sur une capture : il se lit dans la distribution
        des temps d'image, et dans ce que le ramasse-miettes a pris pendant ce
        temps. On relève le pas brut de Godot, sans le plafond de 50 ms. */
+    int _slams, _sprayMax;
     long _allocPhys, _allocSails, _allocFrames, _allocRun0 = -1, _allocProc;
     int _ftLeft = -1;
     readonly List<double> _ft = new();
@@ -692,6 +829,7 @@ public partial class ShipDemo : Node3D
         int m = _ft.Count - 1;
         GD.Print(string.Format(inv, "par image, en moyenne : notre _Process {0:F2} ms, rendu côté processeur {1:F2} ms, carte graphique {2:F2} ms",
             _ftCpuSum / m, _ftRsCpuSum / m, _ftGpuSum / m));
+        GD.Print($"gerbes : {_slams}, paquets d'embrun en l'air au plus : {_sprayMax}");
         GD.Print(string.Format(inv, "alloué par image : solveur {0:F0} o, toile {1:F0} o, tout _Process {2:F0} o, tout le programme pendant la course {3:F0} o",
             (double)_allocPhys / _allocFrames, (double)_allocSails / _allocFrames, (double)_allocProc / _allocFrames,
             (GC.GetTotalAllocatedBytes() - _allocRun0) / (double)(_ft.Count - 30)));

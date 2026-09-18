@@ -36,6 +36,9 @@ public partial class ShipNode
     readonly List<Lantern> _lanterns = new();
     readonly List<(BaseMaterial3D Mat, double Base)> _nightMats = new();
     bool _lit;
+
+    /// <summary>Les réglages qui touchent aux feux : posés AVANT Build, relus par RebuildLanterns.</summary>
+    public bool LanternShadows = true, WithMastLantern = true;
     static readonly RandomNumberGenerator Rng = new();
 
     /// <summary>
@@ -95,7 +98,7 @@ public partial class ShipNode
             var L = LanternAt(this, new Vector3((float)x, (float)y, (float)z), l);
             _lanterns.Add(L);
         }
-        MastLantern();
+        if (WithMastLantern) MastLantern();
         foreach (var L in _lanterns)
         {
             var g = L.Group.GlobalPosition - GlobalPosition;
@@ -149,6 +152,35 @@ public partial class ShipNode
         return fallback;
     }
 
+    /// <summary>Allumer ou couper les ombres des feux, sans rien reconstruire.</summary>
+    public void SetLanternShadows(bool on)
+    {
+        LanternShadows = on;
+        foreach (var L in _lanterns) L.Light.ShadowEnabled = on;
+    }
+
+    /// <summary>Refaire les feux : la lanterne du mât a été ajoutée ou retirée.</summary>
+    public void RebuildLanterns() => BuildLanterns();
+
+    /// <summary>
+    /// Ses feux tels que la mer doit les voir : position monde et énergie de
+    /// l'instant (flamme comprise), portée à part. Rend le nombre écrit.
+    /// </summary>
+    public int FillLamps(Vector4[] lamp, float[] range, int start)
+    {
+        int n = start;
+        foreach (var L in _lanterns)
+        {
+            if (n >= lamp.Length) break;
+            if (L.Light.LightEnergy <= 0) continue;
+            var p = L.Light.GlobalPosition;
+            lamp[n] = new Vector4(p.X, p.Y, p.Z, L.Light.LightEnergy);
+            range[n] = L.Light.OmniRange;
+            n++;
+        }
+        return n - start;
+    }
+
     /// <summary>Un feu : sa lueur de près, sa marque de loin, et sa lampe.</summary>
     Lantern LanternAt(Node3D parent, Vector3 at, LanternSpec? l)
     {
@@ -192,7 +224,8 @@ public partial class ShipNode
             {
                 Mesh = Cylinder(0.022, 0.025, 0.14, 10),
                 MaterialOverride = MakeHullMaterial(Hex("0xefe6cf"), 0.7f),
-                Position = new Vector3(0, -0.085f, 0)
+                Position = new Vector3(0, -0.085f, 0),
+                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off
             });
 
         /* Une vraie flamme, pas une ampoule : elle est éclairée par une mèche dans
@@ -205,7 +238,14 @@ public partial class ShipNode
             LightEnergy = 0,
             OmniRange = (float)(26 * k),
             OmniAttenuation = 1.0f,
-            ShadowEnabled = false
+            /* SES OMBRES, en cube : une lanterne au pied d'un mât jette l'ombre du
+               mât sur le pont, et c'est ce qui la fait lire comme une flamme posée là
+               plutôt que comme un halo collé à l'image. Ni son halo ni sa bougie ne
+               portent d'ombre, ni le verre des modèles (voir FindNightGlow) : une
+               flamme enfermée dans sa propre lanterne ne sortait que par quatre
+               fentes, ce que la page avait déjà rencontré. */
+            ShadowEnabled = LanternShadows,
+            OmniShadowMode = OmniLight3D.ShadowMode.Cube
         };
         group.AddChild(L.Light);
         parent.AddChild(group);
@@ -233,6 +273,8 @@ public partial class ShipNode
                 if ((mi.GetSurfaceOverrideMaterial(s) ?? mi.Mesh.SurfaceGetMaterial(s)) is not BaseMaterial3D mat) continue;
                 if (!seen.Add(mat)) continue;
                 bool byName = GlowNames.IsMatch(mat.ResourceName ?? "");
+                // le verre et les fanaux laissent passer la lumière : pas d'ombre
+                if (byName) mi.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
                 bool hasMap = mat.EmissionTexture != null;
                 if (!hasMap && !byName) continue;
                 /* Une carte émissive est MULTIPLIÉE par la couleur émissive, que
