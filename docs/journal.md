@@ -5942,6 +5942,15 @@ précédente : pas de squelette, un `InstancedMesh` par navire.
   redressé (la normale est calculée avant `begin_vertex` dans three) ; ils ne
   réagissent ni aux tirs ni au kraken.
 
+### Retirés (2026-09-18)
+
+Arnaud les retire tels qu'ils sont : il préfère plus tard **un** marin, tiré
+au hasard, qui effectue une manœuvre, plutôt que plusieurs hommes immobiles.
+`crew.enabled` passe à `false` (réglages et défaut de `crew.js`, puisque les
+navires se construisent parfois avant la lecture des réglages) ; le `.glb`
+n'est plus chargé ni embarqué. Le code reste : placement sur le pont par
+rayons, instanciation, lecture du `.glb` par noms, tenue à la gîte.
+
 ## Les quêtes
 
 Premier pas vers les scénarios : `js/quests.js`, un fichier JSON par quête
@@ -6004,6 +6013,71 @@ navire de 70 m le long d'un ponton de 86 m est forcément près du rivage.
   près du bord ; onze mètres reçoivent un deux-mille-tonneaux chargé (6 à 8 m).
 - Après : 14,4 / 11,0 / 11,0 / 11,0 / 11,0 m ; 30 s de solveur à pas fixe,
   mer modérée, amarrée : aucun échouage.
+
+## La lanterne de la chambre
+
+La bougie de la chambre du capitaine (Roter Löwe) passe dans une lanterne
+pendue au plafond, `cabineLantern` dans le `.glb`, qui danse avec le navire.
+
+- Champ `hang` d'un feu : l'objet nommé est détaché de sa place et accroché
+  à un pivot au **haut de sa boîte** (le crochet) ; la flamme et sa lampe vont
+  au milieu de la boîte. Ici 37 × 61 × 36 cm, crochet à 5,04 m, flamme à
+  4,73 m, soit un pendule de 0,31 m (période ≈ 1,1 s).
+- `swingLanterns(body, dt)` : pendule amorti (ζ = 0,12) dans le repère du
+  navire, deux axes (roulis → travers, tangage → long), dont le repos est la
+  **verticale vraie** : quand elle gîte, la lanterne reste d'aplomb avec un
+  temps de retard et dépasse. Pas de 8 ms ; au-delà de 0,25 s d'image
+  (temps pressé), elle pend simplement d'aplomb. Mesuré sur une gîte
+  brusque de 15° : −14,8, −25,0, −13,6, −8,5, −16,9… autour de −15.
+- Le nom est celui que three donne à l'objet : un nœud sans nom prend celui
+  de son **maillage** — `cabineLantern` n'était pas un nom de nœud dans le
+  fichier, et une recherche sur les seuls nœuds ne le trouvait pas.
+- **Piège** : reconstruire les feux (`_buildLantern`) retirait le pivot, donc
+  la lanterne du modèle avec lui ; elle est maintenant rendue à son parent
+  d'origine (`attach`, rotation remise à zéro) avant que le pivot parte.
+- Une bougie enfermée brûle comme une lanterne (scintillement plus calme que
+  la mèche nue).
+
+### Un vrai pendule, et son ombre
+
+- **Pendule vrai** : un poids au bout d'une ligne de longueur fixe, intégré
+  dans le monde (pas de 8 ms, contrainte de longueur par projection),
+  entraîné par la gravité **moins l'accélération du crochet**. La vitesse du
+  crochet vient du corps (v + ω × r), pas d'une différence de positions, sinon
+  chaque glissement de l'origine flottante serait une secousse ; son
+  accélération est lissée (40 ms) contre le grain des sous-pas. Amortissement
+  ζ = 0,05. Vérifié sur un roulis régulier de ±10° en 8 s : la lanterne penche
+  jusqu'à 12,9° par rapport au pont mais 2,9° seulement par rapport à la
+  verticale — le crochet, 4,5 m au-dessus du centre de roulis, est jeté de
+  côté de 0,49 m/s² au bout du roulis, soit atan(0,49/9,81) = 2,8°. Sur une mer
+  irrégulière les à-coups la lancent davantage.
+- **La corde** : un rayon vers le haut depuis le sommet de la lanterne trouve
+  le plafond (2 m au plus) ; s'il reste plus de 3 cm, une ligne de chanvre
+  goudronné est dessinée du crochet à l'anneau, et le pendule s'allonge
+  d'autant. Arnaud peut donc retirer la corde modélisée.
+- **L'ombre** : la lampe de la lanterne pendue projette des ombres (carte
+  cubique 256², portée 4 m, `Naval.LANTERN_SHADOW`). `castShadow` est posé une
+  fois, à l'arrivée du modèle ; ensuite seul `shadow.autoUpdate` bascule
+  (`lanternShadows`) : vrai si la caméra est à moins de 4 m et la lampe
+  allumée, faux sinon — la carte reste figée, rien ne se recompile.
+- **Mesuré** (Roter Löwe, 22 h, 838×698 ×1,25, lots de 10 images entrelacés,
+  médianes) : dans la chambre, ombre recalculée 10,07 ms contre 8,28 figée,
+  soit **+1,8 ms**, 326 appels de dessin de plus (six faces) ; au large, ombre
+  figée 10,98 contre 10,88 sans ombre : le coût permanent est dans le bruit.
+  Premier passage plus bruité : chambre 10,74 recalculée, 7,59 figée, 8,22
+  sans ombre.
+- **Vu à l'usage (capture d'Arnaud) : une chambre noire et quatre taches au
+  plafond.** La carte d'ombre ne connaît pas le verre : les vitres et le métal
+  de la lanterne enfermaient la flamme, qui ne sortait que par quatre fentes du
+  chapeau. Les pièces de la lanterne (et la corde) ne projettent plus d'ombre
+  (`userData.noCast`, respecté par `enableLighting` qui remettait `castShadow`
+  partout) ; tout le reste de la chambre en projette. Et la flamme était au
+  milieu de la boîte, qui comprend la tige du haut, donc sous le chapeau : un
+  rayon vers le bas trouve le fond de la lanterne, la mèche est 16 cm
+  au-dessus (bougie de 14 cm). Relevé : fond 4,07 m, flamme 4,23, crochet 4,51.
+- Les 326 appels viennent des objets dont la sphère englobante touche les
+  4 m (coque, mâts, voiles) ; des couches les réduiraient, si la chambre
+  devenait un lieu où l'on reste.
 
 ## Conventions
 

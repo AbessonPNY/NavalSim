@@ -2396,7 +2396,17 @@ Naval.ShipModel = class ShipModel {
      The texture is drawn on a canvas rather than loaded: the published page
      cannot fetch a local image, and a radial gradient is three lines. */
   _buildLantern(){
-    for(const L of this.lanternList || []) this.group.remove(L.group);
+    for(const L of this.lanternList || []){
+      L.group.removeFromParent();
+      const S = L.swing;
+      if(S){
+        // the lamp goes back where the model had it, or a rebuild would lose it
+        S.pivot.rotation.set(0, 0, 0);
+        S.pivot.updateWorldMatrix(true, false);
+        if(S.home && S.mesh.parent === S.pivot) S.home.attach(S.mesh);
+        S.pivot.removeFromParent();
+      }
+    }
     this.lanternList = [];
     const spec = this.spec;
 
@@ -2409,9 +2419,162 @@ Naval.ShipModel = class ShipModel {
       const x = l.x != null ? l.x : (l.xFrac || 0)*spec.B;
       const z = l.z != null ? l.z : (l.zFrac != null ? l.zFrac*spec.L : zAft);
       const y = l.y != null ? l.y : deckNear(z) + 0.10*spec.L/6 + (l.above || 0);
-      this.lanternList.push(this._lanternAt(x, y, z, l));
+      const L = this._lanternAt(x, y, z, l);
+      if(l.hang) this._hangLantern(L, l.hang);
+      this.lanternList.push(L);
     }
     this.lantern = this.lanternList[0] || null;
+  }
+
+  /* UNE LANTERNE PENDUE AU BARROT. The sheet names a mesh of the model
+     (`hang`, e.g. "cabineLantern"); that mesh is taken off wherever it was
+     and hung from a hook in the deckhead — found by a ray straight up from the
+     top of its box — on a line drawn here from the hook down to the lamp. The
+     flame (a candle here) is moved into it, at the middle of the box. It then
+     swings as a real pendulum does (swingLanterns). If the model's own rope
+     already reaches the deckhead, there is no line to draw and the hook is the
+     top of the box. Without the mesh in the model, the flame stays where the
+     sheet put it.
+
+     Its lamp alone casts shadows (a cube map: six renders of what is near),
+     kept small and short, and redrawn only while the eye is in the room at
+     night — see lanternShadows. Turned on here, once, as the model arrives:
+     switching a shadow on later would recompile the scene in play. */
+  _hangLantern(L, name){
+    if(!this.modelRoot) return;
+    const want = String(name).toLowerCase();
+    let o = null;
+    this.modelRoot.traverse(c => { if(!o && (c.name || '').toLowerCase() === want) o = c; });
+    if(!o){
+      console.warn('[' + this.spec.id + '] lanterne « ' + name + ' » absente du .glb — la flamme reste à sa place');
+      return;
+    }
+    this.group.updateWorldMatrix(true, true);
+    const inv = new THREE.Matrix4().copy(this.group.matrixWorld).invert();
+    const box = new THREE.Box3().setFromObject(o).applyMatrix4(inv);   // in her frame
+    const mid = box.getCenter(new THREE.Vector3());
+    // the deckhead above the lamp: its own meshes left out, and no further than 2 m
+    const skip = new Set();
+    o.traverse(c => skip.add(c));
+    const solid = [];
+    this.modelRoot.traverse(c => { if(c.isMesh && !skip.has(c)) solid.push(c); });
+    const top = new THREE.Vector3(mid.x, box.max.y - 0.02, mid.z);
+    const ray = new THREE.Raycaster(this.group.localToWorld(top.clone()),
+      new THREE.Vector3(0, 1, 0).transformDirection(this.group.matrixWorld), 0, 2);
+    const hit = ray.intersectObjects(solid, false)[0];
+    const line = hit ? Math.max(0, hit.distance - 0.02) : 0;
+    const hookY = box.max.y + line;
+
+    const pivot = new THREE.Group();
+    pivot.position.set(mid.x, hookY, mid.z);            // the hook
+    this.group.add(pivot);
+    pivot.updateWorldMatrix(true, false);
+    const home = o.parent;
+    pivot.attach(o);                                    // keeps where it hangs
+    if(line > 0.03){
+      // tarred hemp, from the hook to the lamp's ring
+      const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, line, 5),
+        new THREE.MeshStandardMaterial({ color:0x3a2e22, roughness:0.9 }));
+      rope.position.y = -line/2;
+      rope.userData.noCast = true;
+      pivot.add(rope);
+    }
+    /* THE CANDLE STANDS ON THE LANTERN'S FLOOR, not in the middle of its box:
+       the box reaches up the ring and whatever hangs it, and the middle of that
+       put the flame under the cap. A ray down from the middle finds the floor
+       among the lantern's own faces; the wick is a candle's height above it. */
+    const own = [];
+    o.traverse(c => { if(c.isMesh) own.push(c); });
+    const down = new THREE.Raycaster(this.group.localToWorld(mid.clone()),
+      new THREE.Vector3(0, -1, 0).transformDirection(this.group.matrixWorld), 0, box.max.y - box.min.y);
+    const floor = down.intersectObjects(own, false)[0];
+    let flameY = mid.y;
+    if(floor){
+      const fy = this.group.worldToLocal(floor.point.clone()).y;
+      flameY = Math.min(mid.y, fy + 0.16);               // 14 cm of wax, and the wick
+    }
+    L.group.removeFromParent();
+    pivot.add(L.group);
+    L.group.position.set(0, flameY - hookY, 0);        // the flame, inside
+
+    /* AND THE LANTERN THROWS NO SHADOW OF ITS OWN. Its panes are faces like any
+       other to the shadow map, which knows nothing of glass: the flame was shut
+       in a box and got out by four slits in the cap — four bright patches on the
+       deckhead and a black cabin. Its own pieces, and the line, are left out of
+       the shadow; everything else in the cabin still casts. */
+    for(const c of own){ c.castShadow = false; c.userData.noCast = true; }
+
+    const lt = L.light;
+    lt.castShadow = true;
+    lt.shadow.mapSize.set(256, 256);
+    lt.shadow.camera.near = 0.05;
+    lt.shadow.camera.far = Naval.LANTERN_SHADOW.range;
+    lt.shadow.bias = -0.004;
+    lt.shadow.autoUpdate = false;                       // drawn only when looked at
+    lt.shadow.needsUpdate = true;
+
+    L.swing = { pivot, mesh: o, home, rope: line > 0.03, len: Math.max(0.15, hookY - flameY),
+                o: new THREE.Vector3(), u: new THREE.Vector3(),
+                vh: new THREE.Vector3(), ah: new THREE.Vector3(), live: false };
+  }
+
+  /* Only when it can be seen: the eye within range of the lamp, the lamp lit.
+     Elsewhere the map is left as it was — the six renders cost nothing — and
+     the lamp's shadow flag never changes, so nothing recompiles. */
+  lanternShadows(camPos){
+    for(const L of this.lanternList || []){
+      const S = L.swing;
+      if(!S || !L.light.castShadow) continue;
+      const near = L.light.intensity > 0 && camPos &&
+        L.group.getWorldPosition(this._swW || (this._swW = new THREE.Vector3())).distanceTo(camPos)
+          < Naval.LANTERN_SHADOW.range;
+      L.light.shadow.autoUpdate = !!near;
+    }
+  }
+
+  /* Each frame, for the lanterns that hang. A REAL PENDULUM: the lamp is a
+     weight on a line of fixed length, integrated in the world, and what drives
+     it is gravity less the acceleration of the hook. The hook sits metres
+     above her centre of roll, so every roll throws it sideways and the lamp
+     is left behind, then catches up and swings past; that is the dance, and
+     no angle in it is written by hand. The weight is carried relative to the
+     hook (`o`, world axes) with its velocity relative to the hook (`u`), and
+     the hook's velocity comes from the body's own (v + ω × r), so the
+     floating origin's jumps never reach it. A pressed clock (a frame over a
+     quarter second) just lets it hang. */
+  swingLanterns(body, dt){
+    if(!body || !(dt > 0)) return;
+    const q = this._swQ || (this._swQ = new THREE.Quaternion());
+    const r = this._swR || (this._swR = new THREE.Vector3());
+    const vh = this._swH || (this._swH = new THREE.Vector3());
+    const a = this._swA || (this._swA = new THREE.Vector3());
+    const d = this._swD || (this._swD = new THREE.Vector3());
+    const DOWN = Naval.LANTERN_SHADOW.down;
+    for(const L of this.lanternList || []){
+      const S = L.swing;
+      if(!S) continue;
+      r.copy(S.pivot.position).applyQuaternion(body.quat);          // hook, from her origin
+      vh.copy(body.angVel).cross(r).add(body.vel);                  // the hook's velocity
+      if(!S.live || dt > 0.25){
+        S.o.set(0, -S.len, 0); S.u.set(0, 0, 0);
+        S.vh.copy(vh); S.ah.set(0, 0, 0); S.live = true;
+      }else{
+        a.copy(vh).sub(S.vh).multiplyScalar(1/dt);
+        S.vh.copy(vh);
+        S.ah.lerp(a, 1 - Math.exp(-dt/0.04));    // the solver's substeps make it grainy
+        const w = Math.sqrt(9.81/S.len), c = 2*0.05*w;   // a lamp on a line barely damps
+        const n = Math.ceil(dt/0.008), h = dt/n;
+        for(let i = 0; i < n; i++){
+          S.u.x -= S.ah.x*h; S.u.y += (-9.81 - S.ah.y)*h; S.u.z -= S.ah.z*h;
+          S.u.multiplyScalar(Math.exp(-c*h));
+          S.o.addScaledVector(S.u, h).setLength(S.len);
+          d.copy(S.o).multiplyScalar(1/S.len);
+          S.u.addScaledVector(d, -S.u.dot(d));                   // the line takes the rest
+        }
+      }
+      d.copy(S.o).normalize().applyQuaternion(q.copy(body.quat).invert());   // in her frame
+      S.pivot.quaternion.setFromUnitVectors(DOWN, d);
+    }
   }
 
   /* Un feu : sa lueur de près, sa marque de loin, et sa lampe. */
@@ -2588,8 +2751,9 @@ Naval.ShipModel = class ShipModel {
         continue;
       }
       // two slow beats out of phase read as a flame; one alone reads as a pulse
-      const flick = L.candle
+      const flick = (L.candle && !L.swing)
         // a bare wick in cabin draughts: quicker and less even than a horn lantern
+        // (a candle shut in a hanging lantern burns as a lantern does)
         ? 0.80 + 0.12*Math.sin(t*9.7 + L.seed) + 0.08*Math.sin(t*23.3 + L.seed*1.3)
         : 0.86 + 0.14*Math.sin(t*7.3 + L.seed) + 0.06*Math.sin(t*17.1 + L.seed*1.7);
       L.halo.material.opacity = 0.85*on*flick*far;
@@ -2752,7 +2916,7 @@ Naval.ShipModel = class ShipModel {
   enableLighting(){
     this.group.traverse(o => {
       if(!o.isMesh) return;
-      o.castShadow = true;
+      o.castShadow = !o.userData.noCast;     // a hanging lantern's own glass, see _hangLantern
       o.receiveShadow = true;
       // the men stay off her own passes: measured, each pass is paid per draw
       if(!o.userData.crew) o.layers.enable(Naval.SHIP_LAYER);
@@ -3117,6 +3281,10 @@ Naval.applySnowCover = function(mat, u){
   };
   mat.needsUpdate = true;
 };
+
+/* The hanging lantern's shadow: how far it reaches (the cabin, no more — the
+   cube map's six renders only draw what is inside it). */
+Naval.LANTERN_SHADOW = { range: 4, down: new THREE.Vector3(0, -1, 0) };
 
 Naval.applyScars = function(mat, u){
   if(!mat || mat.userData.scars || !mat.isMeshStandardMaterial) return;

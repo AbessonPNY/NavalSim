@@ -26,7 +26,7 @@ window.Naval = window.Naval || {};
 
 /* Overridden by settings.json → crew. */
 Naval.CREW = {
-  enabled: true,
+  enabled: false,      // off: idle men all over the deck were not worth their cost (2026-09-18)
   count: 4,            // men on deck when a sheet does not say
   minLength: 12,       // metres: a boat shorter than this carries none by default
   farHide: 350,        // metres from the eye beyond which they are not drawn at all

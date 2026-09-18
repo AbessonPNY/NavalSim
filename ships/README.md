@@ -92,11 +92,12 @@ Une fiche déclare les feux qu'elle porte et où ils pendent :
 | `above` | de combien le relever au-dessus de ce pont |
 | `size` | 1 par défaut, la taille de la lueur |
 | `color` | `"0xffcf7a"` par défaut, la couleur de la flamme |
+| `hang` | le **nom d'un objet du .glb** (ex. `"cabineLantern"`) : l'objet est pendu au haut de sa boîte (le crochet au plafond), la flamme va au milieu de la boîte, et le tout se balance en vrai pendule (gravité et secousses du crochet). Un rayon vers le haut trouve le plafond : s'il y a de l'espace entre le haut de l'objet et le plafond, **une corde est dessinée** jusqu'au crochet — inutile de la modéliser. Sa lampe projette des ombres, recalculées seulement quand la caméra est à moins de 4 m, la nuit. Absent du modèle : la flamme reste à `x`/`y`/`z` |
 | `kind` | `"candle"` : une bougie — bâton de cire sous la flamme, pas de repère visible de loin, flamme plus vive. `y` est alors la hauteur de la flamme |
 
 Une bougie brûle dans la chambre du capitaine de la Roter Löwe
-(`frigate17e.json`) : `size` 0,1, `y` à hauteur de table, sous la vue « Chambre du
-capitaine ».
+(`frigate17e.json`), enfermée dans la lanterne `cabineLantern` pendue au barrot
+(`hang`) : elle danse avec le roulis, sous la vue « Chambre du capitaine ».
 
 Pas de champ `lanterns` : un seul feu au couronnement, placé automatiquement,
 comme avant. Une **liste vide** (`"lanterns": []`) : aucun feu.
@@ -146,6 +147,10 @@ gréement, et une fiche peut en écarter d'autres par leur nom de maillage :
 La console nomme ce qui a été écarté à chaque chargement.
 
 ## Hommes sur le pont
+
+**Désactivés depuis le 2026-09-18** (`settings.json → crew.enabled: false`) :
+plusieurs hommes immobiles sur le pont ne valaient pas leur coût. Le code et ce
+format restent, pour un marin qui fera une manœuvre. `enabled: true` les rend.
 
 Quatre hommes debout, bras le long du corps, par défaut (`settings.json →
 crew.count`), sur tout navire d'au moins `crew.minLength` mètres. Ils

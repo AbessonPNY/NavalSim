@@ -244,7 +244,7 @@ if (fs.existsSync(SETTINGS)) {
      d'un navire : le kraken, les dauphins. */
   for (const [kr, what] of [[settingsData.storm && settingsData.storm.kraken, 'kraken'],
                             [settingsData.dolphins, 'dauphins'],
-                            [settingsData.crew, 'équipage']]) {
+                            [settingsData.crew && settingsData.crew.enabled && settingsData.crew, 'équipage']]) {
   if (kr && kr.glb) {
     const p = path.join(ROOT, kr.glb);
     if (fs.existsSync(p)) {

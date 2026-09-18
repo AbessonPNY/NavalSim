@@ -59,6 +59,9 @@ node tools/dolphin-glb.js
 
 ## Les marins — `creatures/sailor.glb`
 
+**Pas chargé tant que les hommes sur le pont sont désactivés**
+(`crew.enabled: false`, depuis le 2026-09-18) ; le build ne l'embarque pas non plus.
+
 Nommé par `settings.json` → `crew.glb`. Absent ou illisible : les hommes
 restent dessinés par le code. Le build l'embarque. Modèle de départ :
 

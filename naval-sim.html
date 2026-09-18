@@ -2140,7 +2140,9 @@ async function main(){
     landDistance:2500, spawnFromLand:1500, clearWater:400,
     exclude:['bouee-canard', 'chaloupe'] },
     // ce qu'un naufrage laisse : une bouteille une fois sur N (0 = jamais)
-    wreck: { bottleOneIn:6 } };
+    wreck: { bottleOneIn:6 },
+    // la musique d'ambiance : coupée par défaut, place aux bruits du bord
+    sound: { music:false } };
   flotsam.bottleOneIn = () => REGLAGES.wreck.bottleOneIn;
   (async ()=>{
     let s = Naval.SETTINGS;
@@ -2155,7 +2157,7 @@ async function main(){
     if(s && s.dolphins) Object.assign(Naval.DOLPHINS, s.dolphins);
     if(s && s.gunnery) Object.assign(Naval.GUNNERY, s.gunnery);
     if(s && s.crew) Object.assign(Naval.CREW, s.crew);
-    Naval.loadCrewModel(Naval.CREW);
+    if(Naval.CREW.enabled) Naval.loadCrewModel(Naval.CREW);
     dolphins.loadModel(Naval.DOLPHINS);
     if(s && s.night && s.night.moonChance != null) Naval.MOON = { chance: s.night.moonChance };
     if(s && s.storm){
@@ -2626,6 +2628,10 @@ async function main(){
 
   function reglerAmbiance(){
     if(!sonPret || !sound.ctx) return;
+    if(!REGLAGES.sound.music){
+      if(ambVoulue){ ambVoulue = null; sound.ambiance(null); }
+      return;
+    }
     const seuil = ambVoulue === AMB_ACTION ? LACHEE : EN_VUE;
     /* Une voile noire en vue, ou du fer en l'air — l'un ou l'autre suffit.
        Le second compte parce qu'un combat reste un combat meme si l'adversaire
@@ -3119,6 +3125,7 @@ async function main(){
       }
       e.ship.setLantern(stage.night, t, stage.camera.position, ocean.uniforms);
       e.ship.setCrew(stage.camera.position, !e.physics.foundered, e.physics.body, dt);
+      e.ship.swingLanterns(e.physics.body, dt);
     }
 
     if(trimPending && physics.optSheet !== null){
@@ -3134,6 +3141,8 @@ async function main(){
     ship.setFlag(physics.appWindAngle, physics.tack, physics.appWindSpeed, t);
     ship.setLantern(stage.night, t, stage.camera.position, ocean.uniforms);
     ship.setCrew(stage.camera.position, !physics.foundered, physics.body, dt);
+    ship.swingLanterns(physics.body, dt);
+    ship.lanternShadows(stage.camera.position);
     Naval.CREW_U.uCrewT.value = t % 3600;       // the men breathe; the wrap keeps float precision
     if(quests.active){
       const vx = physics.body.vel.x, vz = physics.body.vel.z;
