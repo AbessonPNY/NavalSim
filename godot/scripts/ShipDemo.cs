@@ -59,7 +59,7 @@ public partial class ShipDemo : Node3D
     const int MinSub = 4;
     const double MaxSubDt = 1.0 / 15;
 
-    public override void _ExitTree() => _motionBlur?.Release();
+    public override void _ExitTree() { _motionBlur?.Release(); _anamorphic?.Release(); }
 
     public override void _Ready()
     {
@@ -101,7 +101,9 @@ public partial class ShipDemo : Node3D
         _camAttr = new CameraAttributesPractical();
         _cam.Attributes = _camAttr;
         _motionBlur = new MotionBlurEffect();
-        _cam.Compositor = new Compositor { CompositorEffects = new Godot.Collections.Array<CompositorEffect> { _motionBlur } };
+        _anamorphic = new AnamorphicDofEffect();
+        // la profondeur de champ avant le flou de mouvement, comme dans l'objectif puis l'obturateur
+        _cam.Compositor = new Compositor { CompositorEffects = new Godot.Collections.Array<CompositorEffect> { _anamorphic, _motionBlur } };
         _dofMarker = new DofMarker();
         AddChild(_dofMarker);
 
@@ -247,6 +249,7 @@ public partial class ShipDemo : Node3D
     Settings _settings = null!;
     CameraAttributesPractical _camAttr = null!;
     MotionBlurEffect _motionBlur = null!;
+    AnamorphicDofEffect _anamorphic = null!;
     DofMarker _dofMarker = null!;
     readonly ColorRect[] _maskBars = { new() { Color = Colors.Black }, new() { Color = Colors.Black } };
     const float FilmAspect = 2.35f;
@@ -292,13 +295,21 @@ public partial class ShipDemo : Node3D
            un fondu en mètres ne vaut pas aux deux bouts à la fois — trois cents
            mètres n'ont pas de sens pour une mise au point à deux. */
         bool far = s.DofDistance < DofRange.Infinity;
-        _camAttr.DofBlurFarEnabled = s.Dof && far;
+        // l'un OU l'autre : le flou anamorphique remplace celui de Godot
+        bool godotDof = s.Dof && !s.DofAnamorphic;
+        _camAttr.DofBlurFarEnabled = godotDof && far;
         _camAttr.DofBlurFarDistance = far ? s.DofDistance : 8192;
         _camAttr.DofBlurFarTransition = Math.Max(0.01f, s.DofDistance * s.DofFade);
-        _camAttr.DofBlurNearEnabled = s.Dof && s.DofNear > 0;
+        _camAttr.DofBlurNearEnabled = godotDof && s.DofNear > 0;
         _camAttr.DofBlurNearDistance = s.DofNear;
         _camAttr.DofBlurNearTransition = Math.Max(0.01f, s.DofNear * s.DofFade);
         _camAttr.DofBlurAmount = s.DofAmount;
+        _anamorphic.Enabled = s.Dof && s.DofAnamorphic && (far || s.DofNear > 0);
+        _anamorphic.Near = s.DofNear;
+        _anamorphic.Far = s.DofDistance;
+        _anamorphic.Fade = s.DofFade;
+        _anamorphic.Amount = s.DofAmount;
+        _anamorphic.Quality = s.DofQuality;
         // la qualité du bokeh est un réglage du SERVEUR, pas de la caméra
         RenderingServer.CameraAttributesSetDofBlurQuality(
             (RenderingServer.DofBlurQuality)Math.Clamp(s.DofQuality, 0, 3), false);
@@ -454,6 +465,7 @@ public partial class ShipDemo : Node3D
         box.AddChild(range);
         Slide("Fondu (part de la distance)", 0.05, 2, 0.05, st.DofFade, x => st.DofFade = x);
         Slide("Intensité du flou", 0.01, 0.3, 0.01, st.DofAmount, x => st.DofAmount = x);
+        Choice("Forme du flou", new[] { "Sphérique (Godot)", "Anamorphique 2:1" }, st.DofAnamorphic ? 1 : 0, i => st.DofAnamorphic = i == 1);
         Choice("Qualité du flou", new[] { "Très basse", "Basse", "Moyenne", "Haute" }, st.DofQuality, i => st.DofQuality = i);
         // pas enregistré : un outil de réglage, pas une préférence
         var keep = new CheckBox { Text = "Garder le repère sur la mer", FocusMode = Control.FocusModeEnum.None };
@@ -1166,6 +1178,7 @@ public partial class ShipDemo : Node3D
                 case "--msaa": _settings.Msaa = args[i + 1].ToInt(); ApplySettings(); break;
                 case "--dofn": _settings.DofNear = args[i + 1].ToFloat(); ApplySettings(); break;
                 case "--dofd": _settings.DofDistance = args[i + 1].ToFloat(); ApplySettings(); break;
+                case "--anamorph": _settings.DofAnamorphic = args[i + 1] == "1"; ApplySettings(); break;
                 case "--dofq": _settings.DofQuality = args[i + 1].ToInt(); ApplySettings(); break;
                 case "--aa": _settings.ScreenAA = args[i + 1]; ApplySettings(); break;
                 case "--masque": _settings.FilmMask = args[i + 1] == "1"; ApplySettings(); break;

@@ -70,5 +70,5 @@ void main() {
 		float t = (float(i) + 0.5) / float(n) - 0.5;
 		acc += texture(src_color, uv + vel * t);
 	}
-	frag = acc / float(n);
+	frag = vec4(acc.rgb / float(n), 1.0);
 }

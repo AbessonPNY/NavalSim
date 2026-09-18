@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://ck333xth0uit0"
+path="res://.godot/imported/anamorphic_dof.glsl-b0ee4df15e47c2a45391ca15a2aa4121.res"
+
+[deps]
+
+source_file="res://shaders/anamorphic_dof.glsl"
+dest_files=["res://.godot/imported/anamorphic_dof.glsl-b0ee4df15e47c2a45391ca15a2aa4121.res"]
+
+[params]
+

@@ -45,6 +45,8 @@ public sealed class Settings
     public float DofAmount = 0.08f;
     /// <summary>La qualité du bokeh : 0 très basse, 1 basse (celle de Godot), 2 moyenne, 3 haute. Mesuré en 1080p : +0,5 / +0,7 / +1,7 / +3,0 ms.</summary>
     public int DofQuality = 1;
+    /// <summary>Le flou en ovale deux fois plus haut que large d'un objectif de scope, à la place de celui de Godot.</summary>
+    public bool DofAnamorphic = false;
     /// <summary>Le flou de mouvement de la caméra, et la part d'obturateur (0,5 = 180°).</summary>
     public bool MotionBlur = true;
     public float Shutter = 0.5f;
@@ -90,6 +92,7 @@ public sealed class Settings
         s.DofFade = (float)cf.GetValue("rendu", "profondeur_de_champ_fondu_part", s.DofFade);
         s.DofAmount = (float)cf.GetValue("rendu", "profondeur_de_champ_intensite", s.DofAmount);
         s.DofQuality = (int)cf.GetValue("rendu", "profondeur_de_champ_qualite", s.DofQuality);
+        s.DofAnamorphic = (bool)cf.GetValue("rendu", "profondeur_de_champ_anamorphique", s.DofAnamorphic);
         s.MotionBlur = (bool)cf.GetValue("rendu", "flou_de_mouvement", s.MotionBlur);
         s.Shutter = (float)cf.GetValue("rendu", "flou_de_mouvement_obturateur", s.Shutter);
         s.Msaa = (int)cf.GetValue("rendu", "anticrenelage_msaa", s.Msaa);
@@ -120,6 +123,7 @@ public sealed class Settings
         cf.SetValue("rendu", "profondeur_de_champ_fondu_part", DofFade);
         cf.SetValue("rendu", "profondeur_de_champ_intensite", DofAmount);
         cf.SetValue("rendu", "profondeur_de_champ_qualite", DofQuality);
+        cf.SetValue("rendu", "profondeur_de_champ_anamorphique", DofAnamorphic);
         cf.SetValue("rendu", "flou_de_mouvement", MotionBlur);
         cf.SetValue("rendu", "flou_de_mouvement_obturateur", Shutter);
         cf.SetValue("rendu", "anticrenelage_msaa", Msaa);
