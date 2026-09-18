@@ -31,6 +31,7 @@ public partial class ShipNode
         public OmniLight3D Light = null!;
         public bool Candle;
         public double Seed;
+        public Swing? Swing;
     }
 
     readonly List<Lantern> _lanterns = new();
@@ -83,7 +84,18 @@ public partial class ShipNode
     /// </summary>
     void BuildLanterns()
     {
-        foreach (var L in _lanterns) L.Group.QueueFree();
+        foreach (var L in _lanterns)
+        {
+            /* la lampe retourne où le modèle l'avait, sans quoi une reconstruction
+               des feux la perdrait avec son pivot */
+            if (L.Swing is { } S)
+            {
+                S.Pivot.Quaternion = Quaternion.Identity;
+                if (S.Home != null && S.Mesh.GetParent() == S.Pivot) S.Mesh.Reparent(S.Home, true);
+                S.Pivot.QueueFree();
+            }
+            L.Group.QueueFree();
+        }
         _lanterns.Clear();
         var spec = Spec;
         var (zAft, deckNear) = DeckStations();
@@ -93,9 +105,8 @@ public partial class ShipNode
             double x = l.X ?? (l.XFrac ?? 0) * spec.B;
             double z = l.Z ?? (l.ZFrac.HasValue ? l.ZFrac.Value * spec.L : zAft);
             double y = l.Y ?? deckNear(z) + 0.10 * spec.L / 6 + l.Above;
-            if (l.Hang != null)
-                GD.Print($"[{spec.Id}] lanterne pendue « {l.Hang} » : le pendule n'est pas encore porté, la flamme reste à sa place");
             var L = LanternAt(this, new Vector3((float)x, (float)y, (float)z), l);
+            if (l.Hang != null) HangLantern(L, l.Hang);
             _lanterns.Add(L);
         }
         if (WithMastLantern) MastLantern();
@@ -150,6 +161,189 @@ public partial class ShipNode
             return Convert.ToInt32(s.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? s[2..] : s, 16);
         }
         return fallback;
+    }
+
+    // ------------------------------------------------------------------
+    //  LA LANTERNE PENDUE AU BARROT — _hangLantern et swingLanterns
+    // ------------------------------------------------------------------
+
+    /// <summary>Ce qui fait d'un feu une lampe pendue : son crochet, sa ligne, son pendule.</summary>
+    sealed class Swing
+    {
+        public Node3D Pivot = null!;
+        public Node3D Mesh = null!;
+        public Node? Home;
+        public Pendulum Pend = null!;
+    }
+
+    /// <summary>
+    /// UNE LANTERNE PENDUE AU BARROT. La fiche nomme un objet du modèle (<c>hang</c>) ;
+    /// il est ôté d'où il était et pendu à un crochet du barrot — trouvé par un
+    /// rayon tiré droit en haut depuis le haut de sa boîte —, au bout d'une ligne
+    /// tirée ici du crochet à la lampe. La flamme est mise dedans, et le tout se
+    /// balance en vrai pendule. Si la corde du modèle atteint déjà le barrot, il n'y
+    /// a rien à tirer et le crochet est le haut de la boîte. Sans l'objet dans le
+    /// modèle, la flamme reste où la fiche l'a mise.
+    /// </summary>
+    void HangLantern(Lantern L, string name)
+    {
+        if (ModelRoot == null) return;
+        string want = name.ToLowerInvariant();
+        Node3D? o = null;
+        var stack = new Stack<Node>();
+        stack.Push(ModelRoot);
+        while (stack.Count > 0 && o == null)
+        {
+            var n = stack.Pop();
+            if (n is Node3D n3 && n.Name.ToString().ToLowerInvariant() == want) { o = n3; break; }
+            var kids = n.GetChildren();
+            for (int i = kids.Count - 1; i >= 0; i--) stack.Push(kids[i]);
+        }
+        if (o == null)
+        {
+            GD.PushWarning($"[{Spec.Id}] lanterne « {name} » absente du .glb — la flamme reste à sa place");
+            return;
+        }
+
+        // ses pièces à elle, et toutes les autres : le barrot est dans les autres
+        var own = new HashSet<MeshInstance3D>();
+        foreach (var (mi, _) in Meshes(o)) own.Add(mi);
+        var ownRel = new List<(MeshInstance3D, Transform3D)>();
+        var solid = new List<(MeshInstance3D, Transform3D)>();
+        foreach (var (mi, rel) in Meshes(ModelRoot))
+            (own.Contains(mi) ? ownRel : solid).Add((mi, rel));
+
+        // sa boîte, dans le repère du navire
+        Aabb box = default;
+        bool first = true;
+        foreach (var (mi, rel) in ownRel)
+        {
+            var b = rel * mi.Mesh.GetAabb();
+            box = first ? b : box.Merge(b);
+            first = false;
+        }
+        if (first) return;
+        Vector3 mid = box.GetCenter();
+        float top = box.End.Y;
+
+        // le barrot au-dessus de la lampe : ses propres pièces exclues, et pas plus loin que 2 m
+        float? hit = RayHit(solid, new Vector3(mid.X, top - 0.02f, mid.Z), Vector3.Up, 2f);
+        float line = hit.HasValue ? Math.Max(0, hit.Value - 0.02f) : 0;
+        float hookY = top + line;
+
+        var pivot = new Node3D { Position = new Vector3(mid.X, hookY, mid.Z) };   // le crochet
+        AddChild(pivot);
+        var home = o.GetParent();
+        o.Reparent(pivot, true);                          // garde l'endroit où elle pend
+        if (line > 0.03f)
+        {
+            // du chanvre goudronné, du crochet à l'anneau de la lampe
+            pivot.AddChild(new MeshInstance3D
+            {
+                Mesh = Cylinder(0.007, 0.007, line, 5),
+                MaterialOverride = MakeHullMaterial(Hex("0x3a2e22"), 0.9f),
+                Position = new Vector3(0, -line / 2, 0),
+                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off
+            });
+        }
+
+        /* LA BOUGIE EST POSÉE AU FOND DE LA LANTERNE, pas au milieu de sa boîte :
+           la boîte monte jusqu'à l'anneau et ce qui la pend, et son milieu mettait
+           la flamme sous le chapeau. Un rayon vers le bas depuis le milieu trouve
+           le fond parmi ses propres faces ; la mèche est une bougie plus haut. */
+        float flameY = mid.Y;
+        float? floor = RayHit(ownRel, mid, Vector3.Down, box.Size.Y);
+        if (floor.HasValue) flameY = Math.Min(mid.Y, mid.Y - floor.Value + 0.16f);   // 14 cm de cire, et la mèche
+        L.Group.Reparent(pivot, false);
+        L.Group.Position = new Vector3(0, flameY - hookY, 0);
+
+        /* ET LA LANTERNE NE JETTE PAS D'OMBRE À ELLE. Ses vitres sont des faces
+           comme les autres pour la carte d'ombre, qui ne sait rien du verre : la
+           flamme enfermée dans une boîte ne sortait que par quatre fentes du
+           chapeau — quatre taches claires au barrot, et une chambre noire. */
+        foreach (var mi in own) mi.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
+
+        L.Swing = new Swing { Pivot = pivot, Mesh = o, Home = home, Pend = new Pendulum(hookY - flameY) };
+        RigLog.Add(FormattableString.Invariant($"pendue {name} : crochet x {mid.X:F2} y {hookY:F2} z {mid.Z:F2}, ligne {line:F3}, flamme y {flameY:F2}, longueur {L.Swing.Pend.Len:F3}"));
+    }
+
+    /// <summary>
+    /// Le rayon le plus proche touché, en mètres, dans le repère du navire, sur des
+    /// maillages SANS collision — les modèles n'en ont pas. Comme le Raycaster de
+    /// three : seules les faces tournées vers le rayon comptent, sauf pour une
+    /// matière double face. Godot tient pour face avant le sens horaire, d'où le
+    /// signe du test.
+    /// </summary>
+    static float? RayHit(List<(MeshInstance3D Mi, Transform3D Rel)> meshes, Vector3 o, Vector3 dir, float far)
+    {
+        float best = far;
+        bool any = false;
+        foreach (var (mi, rel) in meshes)
+        {
+            var mesh = mi.Mesh;
+            for (int s = 0; s < mesh.GetSurfaceCount(); s++)
+            {
+                var mat = mi.GetSurfaceOverrideMaterial(s) ?? mesh.SurfaceGetMaterial(s);
+                bool both = mat is BaseMaterial3D bm && bm.CullMode == BaseMaterial3D.CullModeEnum.Disabled;
+                var arr = mesh.SurfaceGetArrays(s);
+                var v = arr[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                var idxV = arr[(int)Mesh.ArrayType.Index];
+                int[] idx = idxV.VariantType == Variant.Type.Nil
+                    ? Iota(v.Length) : idxV.AsInt32Array();
+                for (int t = 0; t + 2 < idx.Length; t += 3)
+                {
+                    Vector3 a = rel * v[idx[t]], b = rel * v[idx[t + 1]], c = rel * v[idx[t + 2]];
+                    Vector3 e1 = b - a, e2 = c - a;
+                    Vector3 n = e1.Cross(e2);
+                    if (!both && dir.Dot(n) <= 0) continue;        // face tournée ailleurs
+                    // Möller–Trumbore
+                    Vector3 p = dir.Cross(e2);
+                    float det = e1.Dot(p);
+                    if (Math.Abs(det) < 1e-9f) continue;
+                    float inv = 1 / det;
+                    Vector3 tv = o - a;
+                    float u = tv.Dot(p) * inv;
+                    if (u < 0 || u > 1) continue;
+                    Vector3 q = tv.Cross(e1);
+                    float w = dir.Dot(q) * inv;
+                    if (w < 0 || u + w > 1) continue;
+                    float d = e2.Dot(q) * inv;
+                    if (d > 0 && d < best) { best = d; any = true; }
+                }
+            }
+        }
+        return any ? best : null;
+    }
+
+    // 0, 1, 2… : les indices d'une surface qui n'en a pas
+    static int[] Iota(int n)
+    {
+        var r = new int[n];
+        for (int i = 0; i < n; i++) r[i] = i;
+        return r;
+    }
+
+    /// <summary>
+    /// Chaque image, pour les lanternes pendues : le pendule avance avec la vitesse
+    /// du crochet, et le pivot prend sa direction, ramenée dans le repère du navire.
+    /// </summary>
+    public void SwingLanterns(double dt)
+    {
+        if (!(dt > 0)) return;
+        var b = Physics.Body;
+        foreach (var L in _lanterns)
+        {
+            var S = L.Swing;
+            if (S == null) continue;
+            var pp = S.Pivot.Position;
+            Vec3d r = b.Quat.Rotate(new Vec3d(pp.X, pp.Y, pp.Z));        // le crochet, depuis son origine
+            var w = b.AngVel;
+            Vec3d hookVel = new Vec3d(w.Y * r.Z - w.Z * r.Y, w.Z * r.X - w.X * r.Z, w.X * r.Y - w.Y * r.X) + b.Vel;
+            Vec3d d = S.Pend.Step(hookVel, dt);
+            Vec3d dl = b.Quat.Inverted().Rotate(d);                       // dans son repère
+            var to = new Vector3((float)dl.X, (float)dl.Y, (float)dl.Z).Normalized();
+            S.Pivot.Quaternion = new Quaternion(Vector3.Down, to);
+        }
     }
 
     /// <summary>Allumer ou couper les ombres des feux, sans rien reconstruire.</summary>
@@ -330,7 +524,9 @@ public partial class ShipNode
                 continue;
             }
             // deux battements lents déphasés se lisent comme une flamme ; un seul, comme un pouls
-            double flick = L.Candle
+            // une mèche nue dans les courants d'air d'une chambre : plus vive et moins régulière ;
+            // une bougie enfermée dans une lanterne pendue brûle comme une lanterne
+            double flick = L.Candle && L.Swing == null
                 ? 0.80 + 0.12 * Math.Sin(t * 9.7 + L.Seed) + 0.08 * Math.Sin(t * 23.3 + L.Seed * 1.3)
                 : 0.86 + 0.14 * Math.Sin(t * 7.3 + L.Seed) + 0.06 * Math.Sin(t * 17.1 + L.Seed * 1.7);
             L.Halo.SetShaderParameter(U.Opacity, (float)(0.85 * on * flick * far));

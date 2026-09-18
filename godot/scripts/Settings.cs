@@ -34,6 +34,10 @@ public sealed class Settings
     /// <summary>La synchro verticale : voir la mémoire sur les écrans virtuels.</summary>
     public bool VSync = true;
 
+    // [performance]
+    /// <summary>Les solveurs des navires sur plusieurs cœurs : résultats identiques au bit près.</summary>
+    public bool ParallelSolvers = true;
+
     public static Settings Load()
     {
         var s = new Settings();
@@ -50,6 +54,7 @@ public sealed class Settings
         s.Occlusion = (bool)cf.GetValue("rendu", "occlusion_ambiante", s.Occlusion);
         s.IndirectLight = (bool)cf.GetValue("rendu", "lumiere_indirecte", s.IndirectLight);
         s.VSync = (bool)cf.GetValue("rendu", "synchro_verticale", s.VSync);
+        s.ParallelSolvers = (bool)cf.GetValue("performance", "solveurs_paralleles", s.ParallelSolvers);
         return s;
     }
 
@@ -63,6 +68,7 @@ public sealed class Settings
         cf.SetValue("rendu", "occlusion_ambiante", Occlusion);
         cf.SetValue("rendu", "lumiere_indirecte", IndirectLight);
         cf.SetValue("rendu", "synchro_verticale", VSync);
+        cf.SetValue("performance", "solveurs_paralleles", ParallelSolvers);
         Error e = cf.Save(Path);
         if (e != Error.Ok) GD.PushWarning($"réglages non enregistrés dans {Path} : {e}");
     }

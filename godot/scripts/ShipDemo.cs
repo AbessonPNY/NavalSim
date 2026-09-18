@@ -107,6 +107,105 @@ public partial class ShipDemo : Node3D
     }
 
     // ------------------------------------------------------------------
+    //  LA FLOTTE D'ESSAI — --flotte N, pour le test de charge
+    // ------------------------------------------------------------------
+
+    /* D'AUTRES COQUES À FLOT, chacune entière : son solveur, sa toile, ses feux et
+       son pendule, sa rangée dans la texture de profils, ses gerbes. Rangées par
+       six, à 140 m par le travers et 160 m devant la nôtre, pour qu'elles soient
+       dans l'image sans se toucher. La règle de la page tient : tout état d'un
+       navire vit sur SON instance, et l'indice dans la flotte est la rangée de
+       profil — au-delà de Config.MaxShips la mer ne les voit plus, mais elles
+       flottent et se dessinent. */
+    readonly List<ShipNode> _others = new();
+    int _flotteShip = 5;    // la frégate du XVIIe : modèle, toile, feux, lanterne pendue
+
+    void SpawnFleet(int n, int specIndex)
+    {
+        var spec = ShipLibrary.Load(_paths[(specIndex % _paths.Count + _paths.Count) % _paths.Count]);
+        if (spec == null) return;
+        for (int i = 0; i < n; i++)
+        {
+            var s = new ShipNode { LanternShadows = _settings.LanternShadows, WithMastLantern = _settings.MastLantern };
+            AddChild(s);
+            s.Build(spec);
+            s.Ctrl.SailsSet = true;
+            s.Ctrl.Sheet = 0.6;
+            double y = s.Physics.Settle(_sea.Core, s.Ctrl);
+            var b = s.Physics.Body;
+            b.Pos = new Vec3d((i % 6 - 2.5) * 140, b.Pos.Y, 160 + (i / 6) * 180);
+            s.SyncTransform();
+            int row = _fleet.Count;
+            if (row < Config.MaxShips) _sea.SetHullProfile(row, s.MakeProfile(-y));
+            _fleet.Add(s.Physics);
+            s.Physics.OnSlam = QueueSlam;
+            _others.Add(s);
+        }
+        GD.Print($"flotte d'essai : {n} × {spec.Name}");
+    }
+
+    // ------------------------------------------------------------------
+    //  LES SOLVEURS SUR PLUSIEURS CŒURS
+    // ------------------------------------------------------------------
+
+    /* CHAQUE SOLVEUR NE TOUCHE QU'À SON PROPRE ÉTAT et ne fait que LIRE la mer —
+       vérifié dans le noyau : aucun champ statique modifiable, Sample n'écrit
+       rien, et seul Settle modifie la mer, à la mise à l'eau. L'ordre des calculs
+       ne peut donc rien changer : le labo (mode « parallele ») mène deux flottes
+       identiques, l'une en série, l'autre en parallèle, et les trouve égales AU
+       BIT PRÈS, de 1 à 32 galions ; ×3,1 à quatre navires, ×5,6 à trente-deux, sur
+       vingt cœurs logiques. À un seul navire le parallélisme coûte (×0,9) : il ne
+       joue qu'à partir de deux.
+
+       Une seule chose sortait du navire pendant son pas : le choc qui jette une
+       gerbe dans la réserve COMMUNE d'embrun. Il est mis en file pendant le calcul
+       et versé ensuite, sur le fil principal. */
+    readonly List<ShipNode> _stepping = new();
+    readonly System.Collections.Concurrent.ConcurrentQueue<(Vec3d At, double Rate, double Speed)> _slamQueue = new();
+    int _stepSub;
+    double _stepDt, _stepT0;
+    Action<int>? _stepOne;
+
+    void QueueSlam(Vec3d at, double rate, double speed) => _slamQueue.Enqueue((at, rate, speed));
+
+    void StepSolvers(int sub, double dt, double t0)
+    {
+        _stepping.Clear();
+        _stepping.Add(_ship);
+        _stepping.AddRange(_others);
+        _stepSub = sub; _stepDt = dt; _stepT0 = t0;
+        // un délégué gardé : en recréer un à chaque image serait de la mémoire à ramasser
+        _stepOne ??= i =>
+        {
+            var s = _stepping[i];
+            double t = _stepT0;
+            for (int k = 0; k < _stepSub; k++) { s.Physics.Step(_stepDt, _sea.Core, s.Ctrl, t); t += _stepDt; }
+        };
+        if (_settings.ParallelSolvers && _stepping.Count > 1)
+            System.Threading.Tasks.Parallel.For(0, _stepping.Count, _stepOne);
+        else
+            for (int i = 0; i < _stepping.Count; i++) _stepOne(i);
+
+        // les gerbes, versées dans la réserve commune par un seul fil
+        while (_slamQueue.TryDequeue(out var e))
+        {
+            _slams++;
+            _spray.Pool.Burst(e.At, e.Rate * 0.12, e.Speed);
+        }
+    }
+
+    void StepOthers(double frame)
+    {
+        foreach (var s in _others)
+        {
+            s.SyncTransform();
+            var p = s.Physics;
+            s.SetTrim(s.Ctrl.Sheet, p.Tack, p.SetFrac, p.Luffing, _t, p.SailLoad);
+            s.SwingLanterns(frame);
+        }
+    }
+
+    // ------------------------------------------------------------------
     //  LES RÉGLAGES — reglages.ini et le menu d'options (Échap)
     // ------------------------------------------------------------------
 
@@ -200,6 +299,8 @@ public partial class ShipDemo : Node3D
         _chkOcclusion = Check("Occlusion ambiante", st.Occlusion, on => st.Occlusion = on);
         _chkIndirect = Check("Lumière indirecte", st.IndirectLight, on => st.IndirectLight = on);
         Check("Synchro verticale", st.VSync, on => st.VSync = on);
+        Title("Performance", 15);
+        Check("Solveurs sur plusieurs cœurs", st.ParallelSolvers, on => st.ParallelSolvers = on);
 
         var path = new Label { Text = ProjectSettings.GlobalizePath(Settings.Path), AutowrapMode = TextServer.AutowrapMode.Arbitrary };
         path.AddThemeFontSizeOverride("font_size", 11);
@@ -369,7 +470,7 @@ public partial class ShipDemo : Node3D
         /* LA COQUE QUI TAPE JETTE DE L'EAU — wireSplash : le solveur dit combien
            d'eau elle vient de chasser et à quelle vitesse, la réserve en fait une
            gerbe. Toute coque le fait, pas seulement la nôtre. */
-        _ship.Physics.OnSlam = (at, rate, speed) => { _slams++; _spray.Pool.Burst(at, rate * 0.12, speed); };
+        _ship.Physics.OnSlam = QueueSlam;
 
         _dist = (float)spec.L * 1.8f;
         // un nouveau navire n'est pas là où était l'ancien : reprendre la station
@@ -397,11 +498,7 @@ public partial class ShipDemo : Node3D
         double t = _t - frame;
         // ce que chaque étage alloue, pour --frametimes : le solveur doit rester à zéro
         long a0 = GC.GetAllocatedBytesForCurrentThread();
-        for (int s = 0; s < sub; s++)
-        {
-            _ship.Physics.Step(dt, _sea.Core, _ship.Ctrl, t);
-            t += dt;
-        }
+        StepSolvers(sub, dt, t);
         long a1 = GC.GetAllocatedBytesForCurrentThread();
         _ship.SyncTransform();
 
@@ -411,6 +508,9 @@ public partial class ShipDemo : Node3D
            le navire, sans seconde règle à tenir d'accord. */
         var ph = _ship.Physics;
         _ship.SetTrim(_ship.Ctrl.Sheet, ph.Tack, ph.SetFrac, ph.Luffing, _t, ph.SailLoad);
+        // les lanternes pendues suivent le roulis en vrais pendules
+        _ship.SwingLanterns(frame);
+        StepOthers(frame);
         long a2 = GC.GetAllocatedBytesForCurrentThread();
         _allocPhys += a1 - a0; _allocSails += a2 - a1; _allocFrames++;
 
@@ -431,6 +531,12 @@ public partial class ShipDemo : Node3D
             // à quinze cents mètres, à filmer de l'eau vide
             _anchor = new Vec3d(_anchor.X + dx, _anchor.Y, _anchor.Z + dz);
             b.Pos = new Vec3d(b.Pos.X + dx, b.Pos.Y, b.Pos.Z + dz);
+            foreach (var s in _others)
+            {
+                var ob = s.Physics.Body;
+                ob.Pos = new Vec3d(ob.Pos.X + dx, ob.Pos.Y, ob.Pos.Z + dz);
+                s.SyncTransform();
+            }
             _ship.SyncTransform();
             GD.Print($"recentrage : origine désormais ({_sea.Core.Origin.X:F0}, {_sea.Core.Origin.Z:F0}) m");
         }
@@ -455,11 +561,16 @@ public partial class ShipDemo : Node3D
         TickSunPanel(frame);
         // les feux et les fenêtres suivent la nuit du ciel, et s'effacent au loin
         _ship.SetLantern(_sky.Core.Night, _t, _cam.GlobalPosition, _sky.Core);
+        foreach (var s in _others) s.SetLantern(_sky.Core.Night, _t, _cam.GlobalPosition, _sky.Core);
         // et la mer les voit : leur reflet et leur lumière sur l'eau
-        _sea.PushLamps(_ship.FillLamps(_sea.Lamps, _sea.LampRange, 0));
+        int lamps = _ship.FillLamps(_sea.Lamps, _sea.LampRange, 0);
+        foreach (var s in _others) lamps += s.FillLamps(_sea.Lamps, _sea.LampRange, lamps);
+        _sea.PushLamps(lamps);
         _sky.PushTo(_sea.Material);
         _sky.SetCloud(_sea.Material, _cloud, _t);
         foreach (var m in _ship.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
+        foreach (var s in _others)
+            foreach (var m in s.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
         // l'embrun est aussi clair que ce qui l'éclaire : l'horizon, qui porte l'heure
         _sky.PushTo(_spray.Material);
         _spray.Step(frame);
@@ -768,6 +879,9 @@ public partial class ShipDemo : Node3D
                 case "--sun": _sky.DayRate = 0; _sky.Core.SetSun(args[i + 1].ToFloat(), _sky.Core.SunBearingDeg); _sky.Apply();
                     GD.Print(FormattableString.Invariant($"nuit {_sky.Core.Night:F2}, lune {(_sky.Core.MoonOn ? "oui" : "non")} phase {_sky.Core.MoonPhase:F2} levée {_sky.Core.MoonUp:F2}, lumière de l'eau {_sky.Core.WaterLight:F3}, lumière directe {_sky.Core.SunIntensity:F3}"));
                     break;
+                case "--parallele": _settings.ParallelSolvers = args[i + 1] == "1"; break;
+                case "--flotte": SpawnFleet(args[i + 1].ToInt(), _flotteShip); break;
+                case "--flotte-navire": _flotteShip = args[i + 1].ToInt(); break;
                 case "--dumprig":
                     foreach (var l in _ship.RigLog) GD.Print("gréement " + l);
                     break;

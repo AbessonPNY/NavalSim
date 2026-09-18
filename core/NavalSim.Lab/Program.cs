@@ -28,6 +28,7 @@ switch (mode)
 {
     case "gale": Gale(); break;
     case "waves": DumpWaves(); break;
+    case "parallele": Parallele(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -41,6 +42,76 @@ return 0;
  * sans la travailler, et l'on peut donc avoir treize mètres de hauteur
  * significative pour cinq degrés de roulis. Mesurer la mer seule laisserait
  * croire à une tempête que le navire ne sent pas. */
+/* LES SOLVEURS SUR PLUSIEURS CŒURS, ÉPROUVÉS. Deux flottes identiques, l'une
+   menée en série, l'autre en parallèle, dans la même mer : les trajectoires
+   doivent être égales AU BIT PRÈS — chaque solveur ne touche qu'à son propre
+   état et ne fait que LIRE la mer, donc l'ordre des calculs ne peut rien
+   changer. Et le temps de chacune, pour savoir ce que le parallélisme rapporte.
+     dotnet run --project core/NavalSim.Lab -c Release -- parallele 16 pirate */
+void Parallele()
+{
+    int n = args.Length > 1 ? int.Parse(args[1], CultureInfo.InvariantCulture) : 16;
+    string name = args.Length > 2 ? args[2] : "frigate17e";
+    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    var ocean = new Ocean { Swell = 1.6, Time = 0 };
+    ocean.SetSeaState(7, 210);
+
+    ShipPhysics[] Fleet()
+    {
+        var f = new ShipPhysics[n];
+        for (int i = 0; i < n; i++)
+        {
+            var p = new ShipPhysics(spec, new HullLines(spec));
+            var ctrl = new Controls { Throttle = 0.5, Rudder = 0.2, Sheet = 0.6, SailsSet = true };
+            p.Settle(ocean, ctrl);
+            p.Body.Pos = new Vec3d((i % 6 - 2.5) * 140, p.Body.Pos.Y, 160 + (i / 6) * 180);
+            f[i] = p;
+        }
+        return f;
+    }
+    var ctrls = new Controls { Throttle = 0.5, Rudder = 0.2, Sheet = 0.6, SailsSet = true };
+    var serial = Fleet();
+    var par = Fleet();
+    const int frames = 600, sub = 4;
+    double dt = 1.0 / 60 / sub;
+
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    double t = 0;
+    for (int f = 0; f < frames; f++)
+    {
+        foreach (var p in serial) { double tt = t; for (int s = 0; s < sub; s++) { p.Step(dt, ocean, ctrls, tt); tt += dt; } }
+        t += sub * dt;
+    }
+    double msSerial = sw.Elapsed.TotalMilliseconds;
+
+    sw.Restart();
+    t = 0;
+    for (int f = 0; f < frames; f++)
+    {
+        double t0 = t;
+        System.Threading.Tasks.Parallel.For(0, n, i =>
+        {
+            double tt = t0;
+            for (int s = 0; s < sub; s++) { par[i].Step(dt, ocean, ctrls, tt); tt += dt; }
+        });
+        t += sub * dt;
+    }
+    double msPar = sw.Elapsed.TotalMilliseconds;
+
+    double worst = 0;
+    for (int i = 0; i < n; i++)
+    {
+        var a = serial[i].Body; var b = par[i].Body;
+        worst = Math.Max(worst, Math.Abs(a.Pos.X - b.Pos.X) + Math.Abs(a.Pos.Y - b.Pos.Y) + Math.Abs(a.Pos.Z - b.Pos.Z)
+                              + Math.Abs(a.Quat.X - b.Quat.X) + Math.Abs(a.Quat.Y - b.Quat.Y)
+                              + Math.Abs(a.Quat.Z - b.Quat.Z) + Math.Abs(a.Quat.W - b.Quat.W));
+    }
+    Console.WriteLine($"{n} × {spec.Name}, {frames} images de {sub} sous-pas, {Environment.ProcessorCount} cœurs logiques");
+    Console.WriteLine($"  série      {msSerial / frames:F3} ms par image");
+    Console.WriteLine($"  parallèle  {msPar / frames:F3} ms par image   (×{msSerial / msPar:F1})");
+    Console.WriteLine($"  écart des trajectoires : {worst:E1} {(worst == 0 ? "— identiques au bit près" : "— DIFFÉRENTES")}");
+}
+
 /* Les vagues que lit le solveur, une par ligne, pour les poser à côté de
    `Naval.app.ocean.cpuWaves` dans la page : amp, k, dx, dz, omega, Q. */
 void DumpWaves()
