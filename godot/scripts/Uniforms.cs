@@ -29,6 +29,7 @@ public static class U
     public static readonly StringName MoonLit = new("u_moon_lit");
     public static readonly StringName MoonDisc = new("u_moon_disc");
     public static readonly StringName MoonPhase = new("u_moon_phase");
+    public static readonly StringName Dazzle = new("u_dazzle");
     public static readonly StringName Color = new("u_color");
     public static readonly StringName Opacity = new("u_opacity");
     public static readonly StringName Fixed = new("u_fixed");

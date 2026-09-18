@@ -33,11 +33,14 @@ public sealed class Settings
     public bool IndirectLight = true;
     /// <summary>La synchro verticale : voir la mémoire sur les écrans virtuels.</summary>
     public bool VSync = true;
-    /// <summary>La profondeur de champ : le lointain flou au-delà de DofDistance mètres.</summary>
+    /// <summary>La profondeur de champ : net de DofNear à DofDistance mètres, flou en deçà et au-delà.</summary>
     public bool Dof = true;
+    /// <summary>Net à partir d'ici ; 0 : pas de flou de près.</summary>
+    public float DofNear = 0f;
+    /// <summary>Flou au-delà ; DofRange.Infinity (1e6) : pas de flou au loin.</summary>
     public float DofDistance = 600f;
-    /// <summary>Sur combien de mètres le flou monte jusqu'à son plein, au-delà de DofDistance.</summary>
-    public float DofTransition = 300f;
+    /// <summary>Le fondu jusqu'au plein flou, en PART de la distance, des deux côtés : 0,5 à 600 m, c'est 300 m.</summary>
+    public float DofFade = 0.5f;
     /// <summary>Le diamètre du flou, en part de l'image (Godot : dof_blur_amount).</summary>
     public float DofAmount = 0.08f;
     /// <summary>La qualité du bokeh : 0 très basse, 1 basse (celle de Godot), 2 moyenne, 3 haute. Mesuré en 1080p : +0,5 / +0,7 / +1,7 / +3,0 ms.</summary>
@@ -52,9 +55,14 @@ public sealed class Settings
     /// <summary>La lueur des lumières trop vives (bloom.js), la nuit seulement.</summary>
     public bool Glow = true;
     public float GlowStrength = 0.9f;
-    /// <summary>L'exposition qui s'adapte, comme l'œil : absente de la page, coupée par défaut.</summary>
+    /// <summary>L'exposition qui s'adapte, comme l'œil : absente de la page, coupée par défaut.
+    /// Elle ne fait que BAISSER, passé le seuil de luminance moyenne ; et elle rend le soleil éblouissant.</summary>
     public bool AutoExposure = false;
-    public float AutoExposureScale = 0.4f;
+    public float AutoExposureThreshold = 1.0f;
+    /// <summary>La vitesse d'adaptation (Godot : auto_exposure_speed).</summary>
+    public float AutoExposureSpeed = 0.5f;
+    /// <summary>Le masque de cinéma : l'image recadrée au format 2,35:1 par deux bandes noires.</summary>
+    public bool FilmMask = false;
 
     // [performance]
     /// <summary>Les solveurs des navires sur plusieurs cœurs : résultats identiques au bit près.</summary>
@@ -78,7 +86,8 @@ public sealed class Settings
         s.VSync = (bool)cf.GetValue("rendu", "synchro_verticale", s.VSync);
         s.Dof = (bool)cf.GetValue("rendu", "profondeur_de_champ", s.Dof);
         s.DofDistance = (float)cf.GetValue("rendu", "profondeur_de_champ_distance", s.DofDistance);
-        s.DofTransition = (float)cf.GetValue("rendu", "profondeur_de_champ_fondu", s.DofTransition);
+        s.DofNear = (float)cf.GetValue("rendu", "profondeur_de_champ_net_a_partir_de", s.DofNear);
+        s.DofFade = (float)cf.GetValue("rendu", "profondeur_de_champ_fondu_part", s.DofFade);
         s.DofAmount = (float)cf.GetValue("rendu", "profondeur_de_champ_intensite", s.DofAmount);
         s.DofQuality = (int)cf.GetValue("rendu", "profondeur_de_champ_qualite", s.DofQuality);
         s.MotionBlur = (bool)cf.GetValue("rendu", "flou_de_mouvement", s.MotionBlur);
@@ -88,7 +97,9 @@ public sealed class Settings
         s.Glow = (bool)cf.GetValue("rendu", "lueur", s.Glow);
         s.GlowStrength = (float)cf.GetValue("rendu", "lueur_intensite", s.GlowStrength);
         s.AutoExposure = (bool)cf.GetValue("rendu", "exposition_auto", s.AutoExposure);
-        s.AutoExposureScale = (float)cf.GetValue("rendu", "exposition_auto_echelle", s.AutoExposureScale);
+        s.AutoExposureThreshold = (float)cf.GetValue("rendu", "exposition_auto_seuil", s.AutoExposureThreshold);
+        s.AutoExposureSpeed = (float)cf.GetValue("rendu", "exposition_auto_vitesse", s.AutoExposureSpeed);
+        s.FilmMask = (bool)cf.GetValue("rendu", "masque_cinema", s.FilmMask);
         s.ParallelSolvers = (bool)cf.GetValue("performance", "solveurs_paralleles", s.ParallelSolvers);
         return s;
     }
@@ -105,7 +116,8 @@ public sealed class Settings
         cf.SetValue("rendu", "synchro_verticale", VSync);
         cf.SetValue("rendu", "profondeur_de_champ", Dof);
         cf.SetValue("rendu", "profondeur_de_champ_distance", DofDistance);
-        cf.SetValue("rendu", "profondeur_de_champ_fondu", DofTransition);
+        cf.SetValue("rendu", "profondeur_de_champ_net_a_partir_de", DofNear);
+        cf.SetValue("rendu", "profondeur_de_champ_fondu_part", DofFade);
         cf.SetValue("rendu", "profondeur_de_champ_intensite", DofAmount);
         cf.SetValue("rendu", "profondeur_de_champ_qualite", DofQuality);
         cf.SetValue("rendu", "flou_de_mouvement", MotionBlur);
@@ -115,7 +127,9 @@ public sealed class Settings
         cf.SetValue("rendu", "lueur", Glow);
         cf.SetValue("rendu", "lueur_intensite", GlowStrength);
         cf.SetValue("rendu", "exposition_auto", AutoExposure);
-        cf.SetValue("rendu", "exposition_auto_echelle", AutoExposureScale);
+        cf.SetValue("rendu", "exposition_auto_seuil", AutoExposureThreshold);
+        cf.SetValue("rendu", "exposition_auto_vitesse", AutoExposureSpeed);
+        cf.SetValue("rendu", "masque_cinema", FilmMask);
         cf.SetValue("performance", "solveurs_paralleles", ParallelSolvers);
         Error e = cf.Save(Path);
         if (e != Error.Ok) GD.PushWarning($"réglages non enregistrés dans {Path} : {e}");

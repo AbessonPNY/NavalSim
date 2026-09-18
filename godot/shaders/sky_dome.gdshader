@@ -17,6 +17,32 @@ uniform vec3 u_moon = vec3(0.0, 1.0, 0.0);
 uniform float u_moon_disc = 0.0;
 uniform float u_moon_phase = -1.0;
 
+// 1 : le soleil à sa vraie luminance, pour l'exposition automatique ; 0 : celui de la page
+uniform float u_dazzle = 0.0;
+
+/* LE SOLEIL ÉBLOUISSANT. Le ciel et la mer sont calibrés comme la page, jamais
+   plus clairs que le blanc ; le vrai soleil est des milliers de fois plus
+   lumineux que le ciel, et c'est CE TROP-PLEIN qui fait fermer l'œil. Sans lui,
+   un disque de deux degrés ne pèse que 0,3 % de l'image et l'exposition ne bouge
+   pas. Deux parts, en valeurs LINÉAIRES, ajoutées après le décodage :
+   - le cœur, 0,7° de rayon, à 7000 : sur un champ de 55°, il ajoute ≈ 2 à la
+     luminance moyenne de l'image quand il y est ;
+   - l'auréole, A/(θ² + θ0²), la diffusion vers l'avant qui blanchit le ciel
+     autour du soleil : ≈ 0,8 de plus, soleil au centre.
+   Soit ≈ 2,8 : l'exposition tombe au tiers, un stop et demi. Rien sous
+   l'horizon, rien dans la tempête — le disque, lui, n'en tient pas compte, mais
+   un soleil voilé n'éblouit pas. */
+vec3 naval_glare(vec3 d) {
+	float cs = dot(d, u_sun);
+	if (cs <= 0.0) return vec3(0.0);
+	float th2 = 2.0 * (1.0 - cs);                    // θ², aux petits angles
+	const float TH0 = 0.012;
+	float core = 7000.0 * (1.0 - smoothstep(TH0 * TH0 * 0.8, TH0 * TH0 * 1.2, th2));
+	float halo = 0.05 / (th2 + TH0 * TH0);
+	float vis = smoothstep(-0.01, 0.03, u_sun.y) * (1.0 - u_storm);
+	return vec3(1.0, 0.95, 0.85) * (core + halo) * vis;
+}
+
 void sky() {
 	vec3 dir = EYEDIR;
 	vec3 c = naval_sky(dir, u_sun, u_zenith, u_horizon);
@@ -57,6 +83,6 @@ void sky() {
 	c += vec3(0.62, 0.70, 0.92) * u_flash * (1.6 - 0.9 * clamp(dir.y, 0.0, 1.0));
 
 	// le fond est VU, donc desencode ; la passe cubemap nourrit la lumiere
-	// ambiante et garde les valeurs brutes
-	COLOR = AT_CUBEMAP_PASS ? c : naval_display(c);
+	// ambiante et garde les valeurs brutes — sans l'eblouissement, qui n'eclaire rien
+	COLOR = AT_CUBEMAP_PASS ? c : naval_display(c) + u_dazzle * naval_glare(normalize(dir));
 }

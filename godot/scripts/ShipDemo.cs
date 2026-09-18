@@ -105,6 +105,14 @@ public partial class ShipDemo : Node3D
         _dofMarker = new DofMarker();
         AddChild(_dofMarker);
 
+        /* LE MASQUE DE CINÉMA, sous le texte du tableau de bord : deux bandes noires
+           qui ramènent l'image au 2,35:1 du scope. Sur un écran plus large que ce
+           format (rare), des bandes de côté. */
+        var mask = new CanvasLayer { Layer = 0 };
+        AddChild(mask);
+        foreach (var r in _maskBars) { r.MouseFilter = Control.MouseFilterEnum.Ignore; mask.AddChild(r); }
+        GetViewport().SizeChanged += LayoutMask;
+
         var layer = new CanvasLayer();
         AddChild(layer);
         _info = new Label { Position = new Vector2(18, 14) };
@@ -240,6 +248,28 @@ public partial class ShipDemo : Node3D
     CameraAttributesPractical _camAttr = null!;
     MotionBlurEffect _motionBlur = null!;
     DofMarker _dofMarker = null!;
+    readonly ColorRect[] _maskBars = { new() { Color = Colors.Black }, new() { Color = Colors.Black } };
+    const float FilmAspect = 2.35f;
+
+    void LayoutMask()
+    {
+        Vector2 s = GetViewport().GetVisibleRect().Size;
+        bool on = _settings?.FilmMask == true;
+        foreach (var r in _maskBars) r.Visible = on;
+        if (!on || s.X <= 0 || s.Y <= 0) return;
+        if (s.X / s.Y < FilmAspect)
+        {
+            float bar = (s.Y - s.X / FilmAspect) * 0.5f;
+            _maskBars[0].Position = Vector2.Zero; _maskBars[0].Size = new Vector2(s.X, bar);
+            _maskBars[1].Position = new Vector2(0, s.Y - bar); _maskBars[1].Size = new Vector2(s.X, bar);
+        }
+        else
+        {
+            float bar = (s.X - s.Y * FilmAspect) * 0.5f;
+            _maskBars[0].Position = Vector2.Zero; _maskBars[0].Size = new Vector2(bar, s.Y);
+            _maskBars[1].Position = new Vector2(s.X - bar, 0); _maskBars[1].Size = new Vector2(bar, s.Y);
+        }
+    }
     // le repère reste affiché menu fermé, pour régler en regardant la mer
     bool _dofMarkerKeep;
     // la lueur tourne à l'armement : son programme compilé au démarrage, pas au crépuscule
@@ -257,9 +287,17 @@ public partial class ShipDemo : Node3D
         DisplayServer.WindowSetVsyncMode(s.VSync ? DisplayServer.VSyncMode.Enabled : DisplayServer.VSyncMode.Disabled);
         /* Le lointain devient flou passé cette distance, sur une transition de la
            moitié : c'est la mer vers l'horizon, pas le navire qu'on regarde. */
-        _camAttr.DofBlurFarEnabled = s.Dof;
-        _camAttr.DofBlurFarDistance = s.DofDistance;
-        _camAttr.DofBlurFarTransition = s.DofTransition;
+        /* NET ENTRE DEUX DISTANCES. Le flou de près monte vers l'œil sur la même
+           part de sa distance que celui du lointain s'étend au-delà de la sienne :
+           un fondu en mètres ne vaut pas aux deux bouts à la fois — trois cents
+           mètres n'ont pas de sens pour une mise au point à deux. */
+        bool far = s.DofDistance < DofRange.Infinity;
+        _camAttr.DofBlurFarEnabled = s.Dof && far;
+        _camAttr.DofBlurFarDistance = far ? s.DofDistance : 8192;
+        _camAttr.DofBlurFarTransition = Math.Max(0.01f, s.DofDistance * s.DofFade);
+        _camAttr.DofBlurNearEnabled = s.Dof && s.DofNear > 0;
+        _camAttr.DofBlurNearDistance = s.DofNear;
+        _camAttr.DofBlurNearTransition = Math.Max(0.01f, s.DofNear * s.DofFade);
         _camAttr.DofBlurAmount = s.DofAmount;
         // la qualité du bokeh est un réglage du SERVEUR, pas de la caméra
         RenderingServer.CameraAttributesSetDofBlurQuality(
@@ -292,10 +330,21 @@ public partial class ShipDemo : Node3D
         for (int i = 0; i < 7; i++) env.SetGlowLevel(i, i == 2 || i == 3 ? 1 : 0);
         env.GlowIntensity = s.GlowStrength;
 
-        /* L'EXPOSITION QUI S'ADAPTE — un ajout, la page n'en a pas. Elle éclaircit
-           la nuit que l'œil a mis du temps à accepter, d'où : coupée par défaut. */
+        /* L'EXPOSITION QUI S'ADAPTE — un ajout, la page n'en a pas, coupée par
+           défaut. Godot règle l'exposition à échelle / luminance moyenne, la
+           moyenne bornée entre deux sensibilités (ISO × 0,125 / 100 en luminance,
+           CameraAttributesPractical). Bornée en bas AU SEUIL, elle ne dépasse
+           jamais 1 : l'image calibrée comme la page est le maximum, et la nuit
+           noire le reste. Elle ne fait que baisser, quand la moyenne passe le
+           seuil — ce qui n'arrive qu'au soleil éblouissant, allumé avec elle. */
+        const float IsoToLum = 0.125f / 100f;
         _camAttr.AutoExposureEnabled = s.AutoExposure;
-        _camAttr.AutoExposureScale = s.AutoExposureScale;
+        _camAttr.AutoExposureScale = s.AutoExposureThreshold;
+        _camAttr.AutoExposureMinSensitivity = s.AutoExposureThreshold / IsoToLum;
+        _camAttr.AutoExposureMaxSensitivity = 20f / IsoToLum;
+        _camAttr.AutoExposureSpeed = s.AutoExposureSpeed;
+        _sky.SetDazzle(s.AutoExposure);
+        LayoutMask();
         _motionBlur.Enabled = s.MotionBlur;
         _motionBlur.Shutter = s.Shutter;
         _motionBlur.MainProjection = _cam.GetCameraProjection();
@@ -368,6 +417,7 @@ public partial class ShipDemo : Node3D
             var s = Slider(box, min, max, step, value);
             s.ValueChanged += x => { v.Text = x.ToString("F2"); set((float)x); Changed(); };
         }
+
         void Choice(string text, string[] labels, int selected, Action<int> set)
         {
             var row = new HBoxContainer();
@@ -395,8 +445,14 @@ public partial class ShipDemo : Node3D
         _chkIndirect = Check("Lumière indirecte", st.IndirectLight, on => st.IndirectLight = on);
         Check("Synchro verticale", st.VSync, on => st.VSync = on);
         Check("Profondeur de champ", st.Dof, on => st.Dof = on);
-        Slide("Flou au-delà de (m)", 100, 3000, 50, st.DofDistance, x => st.DofDistance = x);
-        Slide("Fondu jusqu'au plein flou (m)", 0, 3000, 50, st.DofTransition, x => st.DofTransition = x);
+        // la zone nette : deux repères sur un curseur de 0 à l'infini
+        var zone = Row(box, "Net");
+        var range = new DofRange { Near = st.DofNear, Far = st.DofDistance };
+        void ShowZone() => zone.Text = $"de {DofRange.Format(range.Near)} à {DofRange.Format(range.Far)}";
+        ShowZone();
+        range.Changed += () => { st.DofNear = range.Near; st.DofDistance = range.Far; ShowZone(); Changed(); };
+        box.AddChild(range);
+        Slide("Fondu (part de la distance)", 0.05, 2, 0.05, st.DofFade, x => st.DofFade = x);
         Slide("Intensité du flou", 0.01, 0.3, 0.01, st.DofAmount, x => st.DofAmount = x);
         Choice("Qualité du flou", new[] { "Très basse", "Basse", "Moyenne", "Haute" }, st.DofQuality, i => st.DofQuality = i);
         // pas enregistré : un outil de réglage, pas une préférence
@@ -412,8 +468,10 @@ public partial class ShipDemo : Node3D
             Array.IndexOf(aa, st.ScreenAA), i => st.ScreenAA = aa[i]);
         Check("Lueur des lumières (la nuit)", st.Glow, on => st.Glow = on);
         Slide("Intensité de la lueur", 0, 3, 0.05, st.GlowStrength, x => st.GlowStrength = x);
+        Check("Masque de cinéma 2,35:1", st.FilmMask, on => st.FilmMask = on);
         Check("Exposition automatique", st.AutoExposure, on => st.AutoExposure = on);
-        Slide("Échelle d'exposition", 0.05, 2, 0.05, st.AutoExposureScale, x => st.AutoExposureScale = x);
+        Slide("Seuil d'exposition", 0.2, 3, 0.05, st.AutoExposureThreshold, x => st.AutoExposureThreshold = x);
+        Slide("Vitesse d'adaptation", 0.1, 5, 0.1, st.AutoExposureSpeed, x => st.AutoExposureSpeed = x);
         Title("Performance", 15);
         Check("Solveurs sur plusieurs cœurs", st.ParallelSolvers, on => st.ParallelSolvers = on);
 
@@ -695,7 +753,7 @@ public partial class ShipDemo : Node3D
         _sky.Env.GlowEnabled = _settings.Glow && (_glowPrime > 0 || _sky.Core.Night > 0.02);
         _dofMarker.Visible = _settings.Dof && (_menu.Visible || _dofMarkerKeep);
         if (_dofMarker.Visible)
-            _dofMarker.Draw(_cam, _sea.Core, _t, _settings.DofDistance, _settings.DofTransition);
+            _dofMarker.Draw(_cam, _sea.Core, _t, _settings.DofNear, _settings.DofDistance, _settings.DofFade);
         // les feux et les fenêtres suivent la nuit du ciel, et s'effacent au loin
         _ship.SetLantern(_sky.Core.Night, _t, _cam.GlobalPosition, _sky.Core);
         foreach (var s in _others) s.SetLantern(_sky.Core.Night, _t, _cam.GlobalPosition, _sky.Core);
@@ -1106,8 +1164,12 @@ public partial class ShipDemo : Node3D
                 // ouvrir directement une vue à bord de la fiche
                 case "--vue": _camMode = 1; _deck = Math.Clamp(args[i + 1].ToInt(), 0, _ship.Spec.Decks.Count - 1); EnterDeck(); break;
                 case "--msaa": _settings.Msaa = args[i + 1].ToInt(); ApplySettings(); break;
+                case "--dofn": _settings.DofNear = args[i + 1].ToFloat(); ApplySettings(); break;
+                case "--dofd": _settings.DofDistance = args[i + 1].ToFloat(); ApplySettings(); break;
                 case "--dofq": _settings.DofQuality = args[i + 1].ToInt(); ApplySettings(); break;
                 case "--aa": _settings.ScreenAA = args[i + 1]; ApplySettings(); break;
+                case "--masque": _settings.FilmMask = args[i + 1] == "1"; ApplySettings(); break;
+                case "--expo": _settings.AutoExposure = args[i + 1] == "1"; ApplySettings(); break;
                 case "--lueur": _settings.Glow = args[i + 1] == "1"; ApplySettings(); break;
                 case "--dof": _settings.Dof = args[i + 1] == "1"; ApplySettings(); break;
                 case "--flou": _settings.MotionBlur = args[i + 1] == "1"; ApplySettings(); break;

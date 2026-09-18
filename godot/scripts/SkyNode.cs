@@ -170,6 +170,9 @@ public partial class SkyNode : Node3D
     /// qu'il faut ne pas oublier — et c'est pour cela que tout est écrit ici et
     /// nulle part ailleurs.
     /// </summary>
+    /// <summary>Le soleil à sa vraie luminance, pour l'exposition automatique (voir sky_dome).</summary>
+    public void SetDazzle(bool on) => _domeMat.SetShaderParameter(U.Dazzle, on ? 1f : 0f);
+
     public void PushTo(ShaderMaterial m)
     {
         if (m == null) return;
