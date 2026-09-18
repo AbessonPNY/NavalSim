@@ -29,6 +29,21 @@ eval(fs.readFileSync(path.join(root, 'js', 'config.js'), 'utf8'));
 eval(fs.readFileSync(path.join(root, 'js', 'ship-spec.js'), 'utf8'));
 eval(fs.readFileSync(path.join(root, 'js', 'hull-lines.js'), 'utf8'));
 
+/* Le profil de flottaison que la mer lit pour son collier d'ecume vit dans
+   ship-model.js, qui ne se charge pas sans un three.js entier. La methode est
+   donc lue dans le fichier meme, par son texte, et appelee sur un objet qui ne
+   porte que ce qu'elle touche pour une coque procedurale : pas une ligne
+   recopiee, et si elle change, le banc voit la nouvelle. */
+const modelSrc = fs.readFileSync(path.join(root, 'js', 'ship-model.js'), 'utf8');
+const hpAt = modelSrc.indexOf('hullProfile(n, waterlineY){');
+if (hpAt < 0) throw new Error('hullProfile introuvable dans ship-model.js');
+let depth = 0, hpEnd = modelSrc.indexOf('{', hpAt);
+for (let i = hpEnd; i < modelSrc.length; i++) {
+  if (modelSrc[i] === '{') depth++;
+  else if (modelSrc[i] === '}' && --depth === 0) { hpEnd = i + 1; break; }
+}
+const hullProfile = eval('({' + modelSrc.slice(hpAt, hpEnd) + '})').hullProfile;
+
 const out = {};
 for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.json') && f !== 'index.json')) {
   const json = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
@@ -56,6 +71,9 @@ for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.json') && f !== 'in
     rec.halfB.push(hl.halfB(t));
     rec.beamFactor.push(hl.beamFactor(t));
   }
+  const prof = hullProfile.call({ spec, lines: hl, modelRoot: null }, 64, 0);
+  rec.profile = { fractions: Array.from(prof.fractions), maxHalfB: prof.maxHalfB,
+                  aft: prof.ends.aft, fwd: prof.ends.fwd };
   // et le maillage entier, qui est ce que l'oeil verra reellement
   const geo = hl.buildGeometry();
   rec.mesh = { positions: Array.from(geo.__pos), indices: Array.from(geo.__idx) };

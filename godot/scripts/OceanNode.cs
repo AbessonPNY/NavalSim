@@ -1,4 +1,6 @@
 using Godot;
+using System;
+using System.Collections.Generic;
 using NavalSim.Core;
 
 namespace NavalSim;
@@ -122,6 +124,93 @@ public partial class OceanNode : Node3D
     }
 
     FoamField? _foam;
+
+    // ------------------------------------------------------------------
+    //  LA FLOTTE, VUE PAR LA MER — pour le collier d'écume et le sillage
+    // ------------------------------------------------------------------
+
+    /* Une rangée de demi-largeurs par navire ; l'indice dans la flotte EST la
+       rangée, comme dans l'original. Un rectangle tant qu'on ne lui a rien
+       dit : faux, mais jamais absent. */
+    Image? _profImg;
+    ImageTexture? _profTex;
+    readonly HullProfile?[] _profs = new HullProfile?[Config.MaxShips];
+
+    readonly Vector3[] _shipPos = new Vector3[Config.MaxShips];
+    readonly Vector2[] _shipFwd = new Vector2[Config.MaxShips];
+    readonly Vector2[] _shipHalf = new Vector2[Config.MaxShips];
+    readonly Vector2[] _hullEnds = new Vector2[Config.MaxShips];
+    readonly float[] _shipSpeed = new float[Config.MaxShips];
+    readonly float[] _shipAfloat = new float[Config.MaxShips];
+    int _shipCount;
+
+    const int ProfCols = 64;
+
+    /// <summary>Donner à la mer le contour d'un navire, dans SA rangée.</summary>
+    public void SetHullProfile(int index, HullProfile prof)
+    {
+        if (index < 0 || index >= Config.MaxShips) return;
+        if (_profImg == null)
+        {
+            _profImg = Image.CreateEmpty(ProfCols, Config.MaxShips, false, Image.Format.Rf);
+            _profImg.Fill(new Color(1, 1, 1, 1));
+        }
+        int n = prof.Fractions.Length;
+        for (int i = 0; i < ProfCols; i++)
+        {
+            // un profil plus court est étiré sur la rangée plutôt que laissé blanc
+            float f = prof.Fractions[Math.Min(n - 1, i * n / ProfCols)];
+            _profImg.SetPixel(i, index, new Color(f, 0, 0, 1));
+        }
+        if (_profTex == null) _profTex = ImageTexture.CreateFromImage(_profImg);
+        else _profTex.Update(_profImg);
+
+        _profs[index] = prof;
+        _hullEnds[index] = new Vector2((float)prof.EndAft, (float)prof.EndFwd);
+    }
+
+    /// <summary>
+    /// Dire à la mer où est chaque coque à flot, une fois par image. L'entrée 0
+    /// est le navire commandé ; les rangées au-delà du compte ne sont pas lues.
+    /// </summary>
+    public void TrackShips(IReadOnlyList<ShipPhysics> fleet)
+    {
+        _shipCount = Math.Min(fleet.Count, Config.MaxShips);
+        for (int i = 0; i < _shipCount; i++)
+        {
+            var p = fleet[i];
+            var b = p.Body;
+            _shipPos[i] = new Vector3((float)b.Pos.X, (float)b.Pos.Y, (float)b.Pos.Z);
+            Vec3d f = b.Quat.Rotate(new Vec3d(0, 0, 1));
+            _shipFwd[i] = new Vector2((float)f.X, (float)f.Z).Normalized();
+            // sa plus grande demi-largeur TELLE QUE MESURÉE, qui met son profil à
+            // l'échelle : spec.B n'est que le chiffre annoncé
+            _shipHalf[i] = new Vector2((float)(p.Spec.L * 0.5),
+                (float)(_profs[i]?.MaxHalfB ?? p.Spec.B * 0.5));
+            _shipSpeed[i] = (float)Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z);
+            _shipAfloat[i] = 1f;   // le naufrage n'est pas encore porté
+            // sans profil, ses extrémités sont celles de sa longueur hors tout
+            if (_profs[i] == null)
+                _hullEnds[i] = new Vector2((float)(-p.Spec.L * 0.5), (float)(p.Spec.L * 0.5));
+        }
+        if (_mat != null) PushShips(_mat);
+    }
+
+    /// <summary>
+    /// La flotte vers tout shader qui inclut hull_gap : la mer et le champ
+    /// d'écume lisent les MÊMES tableaux, écrits ici seulement.
+    /// </summary>
+    public void PushShips(ShaderMaterial m)
+    {
+        m.SetShaderParameter("u_ship_count", _shipCount);
+        if (_profTex != null) m.SetShaderParameter("u_hull_prof", _profTex);
+        m.SetShaderParameter("u_ship_pos", _shipPos);
+        m.SetShaderParameter("u_ship_fwd", _shipFwd);
+        m.SetShaderParameter("u_ship_half", _shipHalf);
+        m.SetShaderParameter("u_hull_ends", _hullEnds);
+        m.SetShaderParameter("u_ship_speed", _shipSpeed);
+        m.SetShaderParameter("u_ship_afloat", _shipAfloat);
+    }
 
     /// <summary>
     /// La cible que le champ vient de rendre, et SON ancre — les deux de la même

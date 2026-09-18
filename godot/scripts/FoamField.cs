@@ -106,6 +106,7 @@ public partial class FoamField : Node
         // où relire, dans l'image d'avant, le même morceau de monde
         m.SetShaderParameter("u_offset_uv", (Origin - _prevOrigin) / Size);
         sea.PushWaves(m);
+        sea.PushShips(m);
 
         _vp[next].RenderTargetUpdateMode = SubViewport.UpdateMode.Once;
         _cur = next;

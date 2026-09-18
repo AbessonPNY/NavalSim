@@ -120,6 +120,16 @@ foreach (var entry in doc.RootElement.EnumerateObject())
     Curve("halfB", hl.HalfB);
     Curve("beamFactor", hl.BeamFactor);
 
+    // --- le profil de flottaison, que la mer lit pour son collier d'ecume ---
+    var jp = rec.GetProperty("profile");
+    var hp = HullProfile.Procedural(spec, hl);
+    var jf = jp.GetProperty("fractions");
+    for (int i = 0; i < hp.Fractions.Length; i++)
+        Check($"profile[{i}]", jf[i].GetDouble(), hp.Fractions[i]);
+    Check("profile.maxHalfB", jp.GetProperty("maxHalfB").GetDouble(), hp.MaxHalfB);
+    Check("profile.aft", jp.GetProperty("aft").GetDouble(), hp.EndAft);
+    Check("profile.fwd", jp.GetProperty("fwd").GetDouble(), hp.EndFwd);
+
     // --- et le maillage entier, qui est ce que l'oeil verra ---
     var mesh = rec.GetProperty("mesh");
     var jsPos = mesh.GetProperty("positions");
@@ -163,7 +173,7 @@ foreach (var entry in doc.RootElement.EnumerateObject())
 }
 
 Console.WriteLine();
-Console.WriteLine($"{shipsChecked} navires. Par coque : 4 courbes x 65 stations, "
+Console.WriteLine($"{shipsChecked} navires. Par coque : 4 courbes x 65 stations, le profil de flottaison (64), "
                 + "195 sommets et 780 triangles.");
 Console.WriteLine($"  courbes  (double, tol {TolCurve:E0})   pire ecart {worstCurveAll:E2}"
                 + (worstCurveAll > 0 ? $"  {worstCurveWhere}" : "  -- identique au bit pres"));

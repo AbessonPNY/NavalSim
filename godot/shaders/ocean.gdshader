@@ -22,6 +22,7 @@ render_mode world_vertex_coords, cull_disabled, unshaded;
 #include "res://shaders/gerstner.gdshaderinc"
 #include "res://shaders/sky.gdshaderinc"
 #include "res://shaders/haze.gdshaderinc"
+#include "res://shaders/hull_gap.gdshaderinc"
 
 uniform float u_half = 3500.0;
 uniform float u_seg = 384.0;
@@ -246,6 +247,57 @@ void fragment() {
 	float fn = onde_fbm(v_world.xz * 0.55 + u_time * 0.05);
 	float crest_foam = clamp(v_foam * (0.35 + 1.1 * fn), 0.0, 1.0);
 
+	/* L'ÉCUME OÙ LA COQUE COUPE L'EAU : un collier vif au ras du bordé, puis la
+	   moustache d'étrave qui ne se montre qu'une fois qu'elle a de l'erre.
+	   hull_gap donne la distance à sa VRAIE flottaison, en mètres — négative
+	   dedans, positive dehors. */
+	float hull_foam = 0.0;
+	for (int i = 0; i < NSHIP; i++) {
+		if (i >= u_ship_count) break;
+		vec2 rel = v_world.xz - u_ship_pos[i].xz;
+		vec2 f2 = normalize(u_ship_fwd[i]);
+		vec2 r2 = vec2(f2.y, -f2.x);
+		float t_along;
+		float gap_m = hull_gap(rel, f2, r2, u_ship_half[i], u_hull_ends[i],
+		                       (float(i) + 0.5) / float(NSHIP), t_along);
+		float way = clamp(u_ship_speed[i] / 3.0, 0.0, 1.0);
+
+		/* Seuls le collier net et la vague d'étrave restent instantanés — ils
+		   appartiennent à la coque et doivent bouger avec elle. La traînée qui
+		   s'attarde derrière vient du champ d'écume, qui la laisse dans l'eau.
+
+		   Le collier s'AMINCIT vers l'intérieur, sous le bordé, au lieu de
+		   s'arrêter sur une ligne. L'écume s'accumule contre une coque et fuit
+		   dessous ; un bord intérieur franc se lit comme une décalcomanie posée
+		   sur l'eau. */
+		float collar = (1.0 - smoothstep(0.0, 0.85, gap_m))
+		             * smoothstep(-1.3, -0.1, gap_m);
+
+		/* La vague d'étrave : pas une bande sur sa moitié avant, mais une
+		   moustache à l'étrave et deux ailes qui filent vers l'arrière. La crête
+		   s'écarte comme la RACINE CARRÉE de la distance derrière l'étrave, ce
+		   qui donne à une vague d'étrave son aile parabolique plutôt qu'un bord
+		   droit, et il lui faut de l'erre — un navire stoppé n'en jette aucune.
+
+		   La rampe « fast » sature au double de « way », si bien que la gerbe
+		   continue de monter quand le collier a cessé de grandir : c'est ce qui
+		   la fait paraître menée plutôt que simplement à flot. */
+		float fast   = clamp(u_ship_speed[i] / 6.0, 0.0, 1.0);
+		float along  = t_along * u_ship_half[i].x;
+		float s_aft  = max(u_hull_ends[i].y - along, 0.0);   // mètres derrière l'étrave
+		float spread = 1.7 * sqrt(s_aft) * fast;
+		float wing   = exp(-pow((gap_m - spread) / (0.75 + 0.9 * fast), 2.0));
+		float fade   = exp(-s_aft / (5.0 + 30.0 * fast));    // s'éteint vers l'arrière
+		float bow    = wing * fade * way * step(-0.1, gap_m);
+
+		/* Les navires n'ajoutent pas d'écume au-delà de la saturation, ils se
+		   la partagent : deux coques bord à bord font une tache blanche, pas une
+		   tache deux fois blanche. */
+		hull_foam = max(hull_foam,
+			clamp(collar * 0.70 + bow * (0.55 + 0.75 * fast), 0.0, 1.0) * u_ship_afloat[i]);
+	}
+	hull_foam *= (0.45 + 0.80 * fn);
+
 	/* L'écume déposée plus tôt et qui se disperse encore. Lue en espace MONDE,
 	   donc elle reste où elle est née pendant que le navire s'éloigne. */
 	float persist = 0.0;
@@ -260,7 +312,7 @@ void fragment() {
 	// la vieille écume est déchirée, en traînées, pas un lavis uniforme
 	persist *= (0.35 + 0.95 * fn);
 
-	float foam = clamp(max(crest_foam, persist), 0.0, 1.0) * (1.0 - far * 0.85);
+	float foam = clamp(max(crest_foam, persist) + hull_foam, 0.0, 1.0) * (1.0 - far * 0.85);
 	vec3 foam_col = body * 0.5 + u_horizon * 1.05 * (1.0 - 0.55 * u_storm);
 	c = mix(c, foam_col, foam * 0.85);
 

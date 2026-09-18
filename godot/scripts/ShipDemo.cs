@@ -43,6 +43,8 @@ public partial class ShipDemo : Node3D
     bool _drive;
 
     List<string> _paths = new();
+    // la flotte telle que la mer la voit : l'entrée 0 est le navire commandé
+    readonly List<ShipPhysics> _fleet = new();
     int _index;
 
     /* LE SOUS-PAS NE DÉPASSE JAMAIS 1/15 s, et le compte en découle.
@@ -120,6 +122,12 @@ public partial class ShipDemo : Node3D
         GD.Print($"{spec.Name} : assise à y = {y:F3} m, tirant {_ship.Physics.Draft:F2} m, "
                + $"immersion {_ship.Physics.SubmergedFrac * 100:F1} %");
 
+        /* SON CONTOUR À LA MER, dans sa rangée : le collier suit le bordé réel,
+           tiré du même plan de formes que la coque et ses sondes. */
+        _sea.SetHullProfile(0, HullProfile.Procedural(spec, _ship.Lines));
+        _fleet.Clear();
+        _fleet.Add(_ship.Physics);
+
         _dist = (float)spec.L * 1.8f;
         // un nouveau navire n'est pas là où était l'ancien : reprendre la station
         if (_fixed) Plant();
@@ -169,12 +177,15 @@ public partial class ShipDemo : Node3D
 
         UpdateCamera(frame);
         _sea.UpdateFrom(_cam.GlobalPosition, _t);
+        // après le recentrage : la mer et le champ lisent la coque où elle EST
+        _sea.TrackShips(_fleet);
         // la cible rendue à l'image d'avant, avec l'heure et l'ancre de CETTE passe
         if (_foamCheckIn > 0 && --_foamCheckIn == 0) { FoamCheck(); return; }
         // le champ suit la coque commandée, et passe AVANT la mer qui le lit
         _foam.Step(frame, _sea, _ship.Position);
         _foamT = _t;
         _foamOrigin = _foam.Origin;
+        _foamShip = _ship.Position;
         _sea.SyncFoam();
 
         /* LE MÊME CIEL PARTOUT, une fois par image. La mer le réfléchit, la
@@ -479,6 +490,7 @@ public partial class ShipDemo : Node3D
     int _foamCheckIn = -1;
     double _foamT;
     Vector2 _foamOrigin;
+    Vector3 _foamShip;
 
     void FoamCheck()
     {
@@ -506,6 +518,50 @@ public partial class ShipDemo : Node3D
             double brk = e * e * (3 - 2 * e) * 0.9;
             if (brk > 0.3) { strong++; if (v < brk - 0.05) bad++; }
         }
+        /* L'ANNEAU DE LA COQUE, recalculé au processeur avec le MÊME profil :
+           partout où un texel tombe sur sa flottaison, le champ doit valoir au
+           moins ce que l'anneau y dépose. Cela prouve qu'il est POSÉ sur elle,
+           et c'est tout : essayé avec l'étrave volontairement inversée, sur la
+           goélette, il ne voit rien — l'anneau fait 2,2 m de large en dedans et
+           les deux contours ne s'écartent guère de plus d'un mètre. L'avant et
+           l'arrière tiennent aux conventions, pas à ce contrôle : station 0 à
+           la voûte (halfB, t = 0), colonne 0 en u = 0, u = 1 à l'étrave (+z). */
+        var prof = HullProfile.Procedural(_ship.Spec, _ship.Lines);
+        var bb = _ship.Physics.Body;
+        Vec3d fw3 = bb.Quat.Rotate(new Vec3d(0, 0, 1));
+        double fl = Math.Sqrt(fw3.X * fw3.X + fw3.Z * fw3.Z);
+        double fx = fw3.X / fl, fz = fw3.Z / fl, rx = fz, rz = -fx;
+        double halfL = _ship.Spec.L * 0.5;
+        double way = Math.Clamp(Math.Sqrt(bb.Vel.X * bb.Vel.X + bb.Vel.Z * bb.Vel.Z) / 3.0, 0, 1);
+        int ring = 0, ringBad = 0;
+        double ringSum = 0;
+        for (int px = 0; px < FoamField.Res; px++)
+            for (int py = 0; py < FoamField.Res; py++)
+            {
+                double x = _foamOrigin.X + (px + 0.5) / FoamField.Res * FoamField.Size - _foamShip.X;
+                double z = _foamOrigin.Y + (py + 0.5) / FoamField.Res * FoamField.Size - _foamShip.Z;
+                if (Math.Abs(x) > halfL + 5 || Math.Abs(z) > halfL + 5) continue;
+                double along = x * fx + z * fz, athw = x * rx + z * rz;
+                double ta = along / halfL;
+                double u = Math.Clamp(ta * 0.5 + 0.5, 0, 1) * prof.Fractions.Length - 0.5;
+                int i0 = Math.Clamp((int)Math.Floor(u), 0, prof.Fractions.Length - 1);
+                int i1 = Math.Min(i0 + 1, prof.Fractions.Length - 1);
+                double fr = Math.Clamp(u - Math.Floor(u), 0, 1);
+                double hb = (prof.Fractions[i0] * (1 - fr) + prof.Fractions[i1] * fr) * prof.MaxHalfB;
+                double mid = (prof.EndAft + prof.EndFwd) * 0.5, hbody = (prof.EndFwd - prof.EndAft) * 0.5;
+                double dx = Math.Abs(athw) - hb, dz = Math.Abs(along - mid) - hbody;
+                double gap = Math.Sqrt(Math.Pow(Math.Max(dx, 0), 2) + Math.Pow(Math.Max(dz, 0), 2))
+                           + Math.Min(Math.Max(dx, dz), 0);
+                if (Math.Abs(gap) > 0.25) continue;
+                ring++;
+                float v = img.GetPixel(px, py).R;
+                ringSum += v;
+                // la bande vaut ~1 sur la ligne ; un peu de marge pour l'étalement
+                if (v < 0.7 * (0.06 + way)) ringBad++;
+            }
+        GD.Print($"anneau de coque : {ring} texels sur sa flottaison, moyenne {ringSum / Math.Max(1, ring):F3} "
+               + $"(attendu ≥ {0.06 + way:F3} à l'erre {way:F2}), en défaut {ringBad}");
+
         GD.Print($"champ d'écume : {img.GetFormat()}, moyenne {sum / n:F3}, "
                + $"texels écumeux {100.0 * lit / n:F1} %, déferlantes fortes {strong}, "
                + $"en défaut {bad}, raideur max {maxSteep:F3}");
