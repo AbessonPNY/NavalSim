@@ -27,7 +27,40 @@ public partial class MotionBlurEffect : CompositorEffect
 
     RenderingDevice? _rd;
     Rid _copyShader, _copyPipeline, _shader, _linear, _nearest, _ubo;
-    readonly byte[] _params = new byte[144];
+    // std140 : voir Params dans motion_blur.glsl
+    const int OffMisc = 192, OffToLocal = 208, OffPrevModel = OffToLocal + 64 * MaxShips,
+              OffMin = OffPrevModel + 64 * MaxShips, OffMax = OffMin + 16 * MaxShips;
+    public const int MaxShips = 8;
+    readonly byte[] _params = new byte[OffMax + 16 * MaxShips];
+
+    /* LES NAVIRES, écrits par la démo sur le fil principal, lus ici sur celui du
+       rendu. Chaque place garde la transformée de l'image d'avant : c'est d'elle
+       qu'un point du pont venait. */
+    readonly object _shipLock = new();
+    readonly Transform3D[] _shipCur = new Transform3D[MaxShips], _shipPrev = new Transform3D[MaxShips];
+    readonly Aabb[] _shipBox = new Aabb[MaxShips];
+    readonly bool[] _shipHasPrev = new bool[MaxShips];
+    int _shipCount, _shipFill;
+
+    /// <summary>Une image : <see cref="AddShip"/> pour chaque navire, puis <see cref="EndShips"/>.</summary>
+    public void BeginShips() => _shipFill = 0;
+
+    /// <summary>Un navire, sa transformée de cette image et sa boîte dans son repère.</summary>
+    public void AddShip(Transform3D xf, Aabb localBox)
+    {
+        if (_shipFill >= MaxShips) return;
+        lock (_shipLock)
+        {
+            int i = _shipFill++;
+            // la place a changé de navire (flotte recomposée) : pas d'image d'avant
+            _shipHasPrev[i] = i < _shipCount && _shipBox[i] == localBox;
+            _shipPrev[i] = _shipHasPrev[i] ? _shipCur[i] : xf;
+            _shipCur[i] = xf;
+            _shipBox[i] = localBox;
+        }
+    }
+
+    public void EndShips() { lock (_shipLock) _shipCount = _shipFill; }
 
     // la recopie : l'image du rendu vers le tampon
     readonly RDUniform _cSrc = new() { UniformType = RenderingDevice.UniformType.SamplerWithTexture, Binding = 0 };
@@ -93,12 +126,18 @@ public partial class MotionBlurEffect : CompositorEffect
         _ubo = _rd.UniformBufferCreate((uint)_params.Length);
     }
 
-    public override void _Notification(int what)
+    /* LIBÉRER AVANT QUE LE PÉRIPHÉRIQUE NE S'ÉTEIGNE. Une ressource Godot meurt
+       quand plus rien ne la tient, et l'effet est tenu par le compositeur de la
+       caméra jusqu'après l'arrêt du rendu : la démo l'appelle donc en sortant. */
+    public void Release() => RenderingServer.CallOnRenderThread(Callable.From(FreeAll));
+
+    void FreeAll()
     {
-        // les pipelines, ensembles et la cible dépendent des shaders : ils partent avec eux
-        if (what != NotificationPredelete || _rd == null) return;
-        foreach (Rid r in new[] { _shader, _copyShader, _linear, _nearest, _ubo })
+        if (_rd == null) return;
+        // les dépendants d'abord : pipelines avant shaders
+        foreach (Rid r in new[] { _pipeline, _copyPipeline, _ubo, _linear, _nearest, _shader, _copyShader })
             if (r.IsValid) _rd.FreeRid(r);
+        _pipeline = _copyPipeline = _ubo = _linear = _nearest = _shader = _copyShader = default;
     }
 
     /* LA CORRECTION DE VULKAN, que Godot pose sur la projection de la caméra : y
@@ -147,10 +186,23 @@ public partial class MotionBlurEffect : CompositorEffect
         if (!_hasPrev) { _prevVP = VP; _hasPrev = true; return; }
 
         Put(_params, 0, P.Inverse());
-        Put(_params, 64, _prevVP * new Projection(cam));
-        BitConverter.TryWriteBytes(_params.AsSpan(128), Shutter);
-        BitConverter.TryWriteBytes(_params.AsSpan(132), (float)Samples);
-        BitConverter.TryWriteBytes(_params.AsSpan(136), MaxLength);
+        Put(_params, 64, new Projection(cam));
+        Put(_params, 128, _prevVP);
+        BitConverter.TryWriteBytes(_params.AsSpan(OffMisc), Shutter);
+        BitConverter.TryWriteBytes(_params.AsSpan(OffMisc + 4), (float)Samples);
+        BitConverter.TryWriteBytes(_params.AsSpan(OffMisc + 8), MaxLength);
+        lock (_shipLock)
+        {
+            BitConverter.TryWriteBytes(_params.AsSpan(OffMisc + 12), (float)_shipCount);
+            for (int i = 0; i < _shipCount; i++)
+            {
+                Put(_params, OffToLocal + 64 * i, new Projection(_shipCur[i].AffineInverse()));
+                Put(_params, OffPrevModel + 64 * i, new Projection(_shipPrev[i]));
+                Aabb b = _shipBox[i];
+                Col(_params, OffMin + 16 * i, new Vector4(b.Position.X, b.Position.Y, b.Position.Z, 0));
+                Col(_params, OffMax + 16 * i, new Vector4(b.End.X, b.End.Y, b.End.Z, 0));
+            }
+        }
         _rd.BufferUpdate(_ubo, 0, (uint)_params.Length, _params);
         _prevVP = VP;
 

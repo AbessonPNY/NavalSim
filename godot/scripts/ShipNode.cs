@@ -282,6 +282,47 @@ public partial class ShipNode : Node3D
         return st.Commit();
     }
 
+    Aabb? _bounds;
+
+    /// <summary>
+    /// Tout ce qui est à bord — coque, mâture, toile, feux —, dans le repère du
+    /// navire, mesuré une fois. Pour le flou de mouvement, qui doit savoir quels
+    /// points bougent AVEC le navire. Un mètre de marge : la toile se gonfle au-delà
+    /// de ses vergues, et un point du bord laissé dehors serait flouté comme de
+    /// l'eau.
+    /// </summary>
+    public Aabb LocalBounds()
+    {
+        if (_bounds is Aabb b) return b;
+        Transform3D toLocal = GlobalTransform.AffineInverse();
+        Aabb box = default;
+        bool any = false;
+        var stack = new Stack<Node>();
+        stack.Push(this);
+        while (stack.Count > 0)
+        {
+            var n = stack.Pop();
+            // pas les lumières : leur « boîte » est leur portée
+            if (n is GeometryInstance3D g && g.Visible)
+            {
+                var gb = toLocal * g.GlobalTransform * g.GetAabb();
+                box = any ? box.Merge(gb) : gb;
+                any = true;
+            }
+            foreach (var c in n.GetChildren()) stack.Push(c);
+        }
+        if (!any) box = new Aabb(new Vector3((float)(-Spec.B), -5, (float)(-Spec.L * 0.5)),
+                                 new Vector3((float)(Spec.B * 2), 30, (float)Spec.L));
+        /* SYMÉTRIQUE EN TRAVERS : mesurée vergues brassées d'un bord, elle allait de
+           −4,8 à +10 m sur le navire 5 ; les vergues passent de l'autre bord au
+           virement, et la toile avec. */
+        float half = Math.Max(-box.Position.X, box.End.X);
+        box = new Aabb(new Vector3(-half, box.Position.Y, box.Position.Z),
+                       new Vector3(2 * half, box.Size.Y, box.Size.Z)).Grow(1f);
+        _bounds = box;
+        return box;
+    }
+
     /// <summary>
     /// LA FRONTIÈRE. Double vers flottant, une fois par image.
     /// </summary>

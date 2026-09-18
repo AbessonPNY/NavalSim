@@ -59,6 +59,8 @@ public partial class ShipDemo : Node3D
     const int MinSub = 4;
     const double MaxSubDt = 1.0 / 15;
 
+    public override void _ExitTree() => _motionBlur?.Release();
+
     public override void _Ready()
     {
         BuildScene();
@@ -587,6 +589,13 @@ public partial class ShipDemo : Node3D
         }
 
         UpdateCamera(frame);
+        // les navires et la caméra de la MÊME image : le flou compare les deux
+        _motionBlur.BeginShips();
+        _motionBlur.AddShip(_ship.GlobalTransform, _ship.LocalBounds());
+        foreach (var s in _others) _motionBlur.AddShip(s.GlobalTransform, s.LocalBounds());
+        _motionBlur.EndShips();
+        // les vues à bord ont leur propre champ : la vérification lit celui d'ICI
+        _motionBlur.MainProjection = _cam.GetCameraProjection();
         _sea.UpdateFrom(_cam.GlobalPosition, _t);
         // après le recentrage : la mer et le champ lisent la coque où elle EST
         _sea.TrackShips(_fleet);
