@@ -6371,6 +6371,19 @@ Demandé (2026-09-20) : « les naufrages d'abord ».
   2,3 s ; la bouteille 1,74 m/s, 31 cm, 2,8 s. Le même ressort porte
   l'enfoncement de fin de vie, sa flottaison descendant.
 
+- **Des gouttes sur l'objectif au sortir de l'eau** (demandé : « comme une
+  vitre »). Une passe canvas sur l'image finie, sur le calque de l'oculaire :
+  un semis de perles (une case sur deux vide, deux tailles, chacune séchant à
+  son heure), quatre gouttes qui glissent en traînant, et un film qui délave et
+  sèche le premier. Chaque perle est une LENTILLE — l'image est relue décalée
+  par sa pente — et non une tache floue. La mouillure vaut 1 sous l'eau et sèche
+  en sept secondes ; `--gouttes x` la pose pour l'essai. Premier jet trop
+  gros et trop dense : un aquarium (relevé sur capture), perles réduites de
+  moitié et film ramené de 0,35 à 0,16. Puis, demandé : MOINS de perles et plus
+  accentuées — deux cases sur trois sèches, rayons doublés, déviation portée de
+  0,030 à 0,085 (les glissantes à 0,12). Un semis fin et serré se lit comme du
+  verre dépoli ; de grosses perles qui plient fort se lisent comme de l'eau.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

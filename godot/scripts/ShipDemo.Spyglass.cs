@@ -37,6 +37,8 @@ public partial class ShipDemo
         var m = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/spyglass.gdshader") };
         _glassRect.Material = m;
         layer.AddChild(_glassRect);
+        // les gouttes sur le même calque, posées APRÈS l'oculaire : elles sont sur le verre
+        BuildDroplets(layer);
         AddChild(layer);
         // le verre se dessine pendant que le reste se charge : il ne coûte rien à la première visée
         System.Threading.Tasks.Task.Run(() => SpyglassGlass.Texture);

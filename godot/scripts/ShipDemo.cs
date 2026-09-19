@@ -899,6 +899,7 @@ public partial class ShipDemo : Node3D
             _under.Water = new Color((float)(0.0015 * wl), (float)(0.0120 * wl), (float)(0.0240 * wl));
             _under.Time = (float)_t;
         }
+        DropletTick(frame, under);
         _sky.PushTo(_sea.Material);
         _sky.SetCloud(_sea.Material, _cloud, _t);
         foreach (var m in _ship.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
@@ -2055,6 +2056,8 @@ public partial class ShipDemo : Node3D
                 case "--pirate": SpawnPirate(args[i + 1].ToFloat()); break;
                 case "--fantomes": GoToGhosts(true); break;
                 case "--lunette": ToggleSpyglass(); break;
+                // l'objectif mouillé d'emblée, pour juger les gouttes sans plonger
+                case "--gouttes": _wet = Math.Clamp(args[i + 1].ToFloat(), 0, 1); break;
                 // l'œil tourné vers le soleil, un peu au-dessus de l'eau : pour juger sa route
                 case "--vers-soleil":
                     var sdir = _sky.Core.SunDir;
