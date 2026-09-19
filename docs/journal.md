@@ -6242,6 +6242,28 @@ n'est pas en jeu, la physique ne voit rien.
   vent, toute crête qui monte assez blanchit (moutons), pleine au sommet, en
   fils sur la frange, rien sur la face. Un grain de bulles en bruit lissé, de
   près seulement ; un voile de fils fins sur la moitié haute, par plaques.
+- **L'écume de Tessendorf : le jacobien.** La raideur « steep » était une somme
+  tronquée (chaque vague à part, sa moitié positive) ; les moutons à la hauteur
+  une règle à la main. Remplacés par le jacobien du déplacement horizontal,
+  J = (1 + ∂Dx/∂x)(1 + ∂Dz/∂z) − (∂Dx/∂z)², écrit une fois dans
+  `gerstner.gdshaderinc` pour la mer (écume instantanée) et le champ
+  d'écume (qui garde ce qui a cassé, un cran plus bas, en traînées). **Mesuré
+  sur la houle du noyau** (400 × 400 m, pas d'un mètre, quatre instants) : nos
+  vagues sont douces — J min 0,37 à 0,52 de force 3 à 8, sous 0,7 sur 0,3 à
+  3,5 % de la mer, jamais sous 0,5 ou presque ; l'ancienne règle n'écumait
+  quasiment rien (0,4 % à force 8). Seuil 0,75, plein 0,25 plus bas, réglable.
+- **Corrigé sur captures** (triptyques avant / 1re version / corrigé, aux
+  valeurs par défaut — `--mer-defaut 1`) : le bruit plissé dessinait une trame
+  de nervures, remplacé par un Perlin signé et lisse étiré en travers du vent,
+  octaves décroissant plus vite qu'elles ne s'affinent ; la route de soleil a sa
+  propre rugosité (0,055 + 0,08 du vent, Cox et Munk l'élargissent sans
+  l'éteindre), les curseurs ne matifiant plus que le ciel renvoyé ; seuil du
+  jacobien 0,85, têtes pleines dès la moitié de la rampe. **Piège** : les
+  premières captures lisaient le reglages.ini du joueur (rides 2,3, rugosité
+  0,22, seuil 0,49) — trois « défauts » sur quatre étaient ses réglages. Comparer
+  toujours aux valeurs par défaut.
+- **Panneau de mise au point** sur ⇧M, sur le côté, sans rien arrêter
+  (`--panneau-mer 1`, `--masquer 1` pour une capture sans instruments).
 - **Réglages de mise au point** (menu, section Mer, `reglages.ini` → `[mer]`) :
   rugosité de base, rugosité ajoutée par le vent (nouveau : la mer se ternit en
   montant), flou du ciel dans l'eau (une eau rugueuse reflète un ciel flou —

@@ -72,11 +72,34 @@ float gerstner_profile(float s, float sharp, out float dsl) {
  * d'anticrénelage ci-dessous, qui n'appartient qu'au maillage, celui-ci est de
  * la PHYSIQUE : le solveur et l'écume le lisent aussi.
  */
+/* LE JACOBIEN DE LA SURFACE — où l'eau se TASSE. Une vague de Gerstner ne fait
+ * pas que monter : elle déplace l'eau à l'horizontale, vers ses crêtes. Le
+ * jacobien de ce déplacement, J = (1 + ∂Dx/∂x)(1 + ∂Dz/∂z) − (∂Dx/∂z)², vaut 1
+ * au repos, moins là où la surface se comprime, et 0 quand elle se replie sur
+ * elle-même : la crête casse. C'est le critère de l'écume de Tessendorf, et il
+ * dit ce que la hauteur seule ne dit pas — une crête haute mais ronde ne casse
+ * pas, deux trains qui se croisent cassent là où ils se rencontrent.
+ *
+ * Il remplace une somme TRONQUÉE (la compression de chaque vague prise à part,
+ * sa moitié positive seulement) qui ignorait le terme croisé et ne laissait
+ * jamais le creux d'une vague compenser la crête d'une autre.
+ *
+ * Écrit ici une fois, pour la mer et pour le champ d'écume : `jac` accumule
+ * (∂Dx/∂x, ∂Dz/∂z, ∂Dx/∂z) vague par vague, `gerstner_jacobian` en fait J. */
+void gerstner_jacobian_term(vec2 d, float amp, float k, float Q, float s, inout vec3 jac) {
+	float w = Q * amp * k * s;
+	jac -= vec3(d.x * d.x, d.y * d.y, d.x * d.y) * w;
+}
+
+float gerstner_jacobian(vec3 jac) {
+	return (1.0 + jac.x) * (1.0 + jac.y) - jac.z * jac.z;
+}
+
 void gerstner_sum(vec2 world_xz, float t, float shelter, float spacing,
-                  out vec3 disp, out vec3 nrm_acc, out float steep, out float height) {
+                  out vec3 disp, out vec3 nrm_acc, out float jacobian, out float height) {
 	disp = vec3(0.0);
 	nrm_acc = vec3(0.0);
-	steep = 0.0;
+	vec3 jac = vec3(0.0);
 	height = 0.0;
 
 	for (int i = 0; i < NW; i++) {
@@ -122,8 +145,9 @@ void gerstner_sum(vec2 world_xz, float t, float shelter, float spacing,
 		nrm_acc.z -= d.y * WA * c;
 		nrm_acc.y -= Q * WA * s;
 
-		steep += Q * WA * max(s, 0.0);
+		gerstner_jacobian_term(d, amp, k, Q, s, jac);
 	}
+	jacobian = gerstner_jacobian(jac);
 }
 
 

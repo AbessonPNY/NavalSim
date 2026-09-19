@@ -55,6 +55,7 @@ uniform float u_sky_blur = 0.6;
 uniform float u_ride_gain = 1.0;
 uniform float u_cap_gain = 1.0;
 uniform float u_foam_gain = 1.0;
+uniform float u_jac_foam = 0.85;     // où l'écume commence : un jacobien sous ce seuil
 // hauteur de reference de la lueur de crete, a l echelle de l etat de mer :
 // le noyau la calcule deja (Ocean.AmpMax), on ne la redecide pas ici
 uniform float u_amp_max = 1.0;
@@ -127,16 +128,21 @@ void vertex() {
 
 	vec3 disp;
 	vec3 nrm_acc;
-	float steep;
+	float jacobian;
 	float height;
-	gerstner_sum(w0.xz, u_time, shelter, spacing, disp, nrm_acc, steep, height);
+	gerstner_sum(w0.xz, u_time, shelter, spacing, disp, nrm_acc, jacobian, height);
 
 	VERTEX = w0 + disp;
 	v_nrm = gerstner_normal(nrm_acc);
 	NORMAL = v_nrm;
 
 	v_world = VERTEX;
-	v_foam = smoothstep(0.55, 0.95, steep);
+	/* L'eau battue : là où la surface se tasse (voir gerstner_jacobian). Rien au
+	   seuil u_jac_foam, tout 0,25 plus bas ; 0 serait la crête qui se replie.
+	   Mesuré sur la houle du noyau (400 × 400 m, pas d'un mètre) : nos vagues
+	   sont douces, J ne passe sous 0,7 que sur 1 à 3,5 % de la mer de force 5
+	   à 8, et presque jamais sous 0,5 — d'où un seuil à 0,75 et non à 0,5. */
+	v_foam = smoothstep(u_jac_foam, u_jac_foam - 0.25, jacobian);
 	v_rel = height;
 }
 
@@ -159,34 +165,47 @@ float onde_fbm(vec2 p) {
 	     + onde_noise(p * 4.11 - 7.0) * 0.17;
 }
 
+/* LE BRUIT DE PERLIN, commun aux rides et à l'écume : un bruit de gradient,
+   lisse, sans grille visible, ≈ [−1, 1]. */
+float perlin(vec2 p) {
+	vec2 i = floor(p), f = fract(p);
+	vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+	float a0 = naval_hash13(vec3(i, 5.0)) * 6.2831853;
+	float a1 = naval_hash13(vec3(i + vec2(1.0, 0.0), 5.0)) * 6.2831853;
+	float a2 = naval_hash13(vec3(i + vec2(0.0, 1.0), 5.0)) * 6.2831853;
+	float a3 = naval_hash13(vec3(i + vec2(1.0, 1.0), 5.0)) * 6.2831853;
+	float g0 = dot(vec2(cos(a0), sin(a0)), f);
+	float g1 = dot(vec2(cos(a1), sin(a1)), f - vec2(1.0, 0.0));
+	float g2 = dot(vec2(cos(a2), sin(a2)), f - vec2(0.0, 1.0));
+	float g3 = dot(vec2(cos(a3), sin(a3)), f - vec2(1.0, 1.0));
+	return mix(mix(g0, g1, u.x), mix(g2, g3, u.x), u.y) * 1.4;   // ≈ [−1, 1]
+}
+
 /* LES RIDES. Le maillage ne porte que dix-huit longues vagues ; tout ce qui est
    plus fin que quelques mètres doit vivre dans la NORMALE, ou la mer a l'air de
    plastique moulé.
 
-   DES ARÊTES, PAS DES BOSSES. Un clapot de vent n'est pas une tôle bosselée :
-   ce sont de petites crêtes FINES et des creux larges, couchées EN TRAVERS du
-   vent, longues d'un bord à l'autre et courtes dans le sens où elles courent.
-   Le premier jet sommait un bruit lisse, qui donnait des bosses molles et une
-   lumière de plastique. Ici chaque octave est un bruit PLISSÉ (1 − |2n − 1|,
-   au carré : une ligne vive là où le bruit passe par le milieu), étiré trois
-   fois en travers du vent, et tourné de quelques degrés de plus à chaque octave
-   pour que les trains se croisent comme sur une vraie mer. Chacun avance avec
-   le vent à sa vitesse — les petites plus lentement, comme l'eau profonde le
-   veut (c ∝ √λ). Ce sont ces arêtes qui accrochent le soleil, la lune et les
-   feux en paillettes. */
+   DE LONGUES RIDES COUCHÉES EN TRAVERS DU VENT. Deux essais écartés : un fbm de
+   bruit à valeurs, qui donnait des bosses molles ; puis un bruit PLISSÉ
+   (1 − |2n − 1|), qui donnait bien des arêtes, mais un bruit à valeurs plissé
+   dessine un RÉSEAU de nervures — une trame de cellules, relevée sur les
+   captures, et du papier d'aluminium froissé dès qu'on pousse les rides. Ici
+   un bruit de Perlin SIGNÉ et lisse, étiré trois fois en travers du vent : des
+   ondulations longues et continues, sans pli ni maille. Trois octaves, tournées
+   de 0,38 rad l'une de l'autre pour que les trains se croisent, chacune poussée
+   à sa vitesse (les petites plus lentes, c ∝ √λ), et d'amplitude décroissant
+   plus vite que leur fréquence ne croît, pour que la pente soit portée par la
+   plus longue et que les fines ne fassent que la troubler. */
 float ride_h(vec2 p) {
 	vec2 w = u_wind;
 	vec2 x = vec2(dot(p, w), dot(p, vec2(-w.y, w.x)));   // le long du vent, en travers
-	float h = 0.0, amp = 0.5, f = 0.42, c = 1.25;
+	float h = 0.0, amp = 1.0, f = 0.35, c = 1.25;
 	for (int i = 0; i < 3; i++) {
 		float an = (float(i) - 1.0) * 0.38;
 		vec2 r = vec2(cos(an) * x.x - sin(an) * x.y, sin(an) * x.x + cos(an) * x.y);
-		// en travers du vent, trois fois plus long ; poussé le long du vent à sa vitesse
 		vec2 q = vec2((r.x - u_time * c) * f, r.y * f * 0.33) + vec2(float(i) * 17.3, float(i) * 5.1);
-		float n = onde_noise(q);
-		float k = 1.0 - abs(2.0 * n - 1.0);
-		h += k * k * amp;
-		amp *= 0.5; f *= 2.13; c *= 0.69;
+		h += perlin(q) * amp;
+		amp *= 0.4; f *= 2.1; c *= 0.69;
 	}
 	return h;
 }
@@ -197,7 +216,7 @@ vec3 ride_normale(vec2 p, float fade) {
 	float h  = ride_h(p);
 	float hx = ride_h(p + vec2(e, 0.0));
 	float hz = ride_h(p + vec2(0.0, e));
-	float s = 0.9 * u_ripple * u_ride_gain * fade / e;
+	float s = 0.5 * u_ripple * u_ride_gain * fade / e;
 	return normalize(vec3(-(hx - h) * s, 1.0, -(hz - h) * s));
 }
 
@@ -215,19 +234,6 @@ vec3 ride_normale(vec2 p, float fade) {
    gauchis pour ne pas être réguliers, un second jeu plus fin là où c'est le
    plus battu, et un pointillé de bulles qui ne vit que de près. Rend 1 sur
    l'écume. */
-float perlin(vec2 p) {
-	vec2 i = floor(p), f = fract(p);
-	vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
-	float a0 = naval_hash13(vec3(i, 5.0)) * 6.2831853;
-	float a1 = naval_hash13(vec3(i + vec2(1.0, 0.0), 5.0)) * 6.2831853;
-	float a2 = naval_hash13(vec3(i + vec2(0.0, 1.0), 5.0)) * 6.2831853;
-	float a3 = naval_hash13(vec3(i + vec2(1.0, 1.0), 5.0)) * 6.2831853;
-	float g0 = dot(vec2(cos(a0), sin(a0)), f);
-	float g1 = dot(vec2(cos(a1), sin(a1)), f - vec2(1.0, 0.0));
-	float g2 = dot(vec2(cos(a2), sin(a2)), f - vec2(0.0, 1.0));
-	float g3 = dot(vec2(cos(a3), sin(a3)), f - vec2(1.0, 1.0));
-	return mix(mix(g0, g1, u.x), mix(g2, g3, u.x), u.y) * 1.4;   // ≈ [−1, 1]
-}
 
 // un trait : là où le bruit passe par zéro, d'une largeur w (en part de l'amplitude)
 float foam_stroke(vec2 q, float w) {
@@ -357,7 +363,12 @@ void fragment() {
 	   tient lieu du détail de vague qu'on vient d'ôter. */
 	vec3 H = normalize(u_sun + V);
 	float coarse = smoothstep(0.8, 6.0, v_spacing);
-	float rough = clamp(rough_w + 0.30 * v_foam + 0.24 * far + 0.26 * coarse, 0.03, 0.7);
+	/* LA ROUTE DE SOLEIL GARDE SA PROPRE RUGOSITÉ. Celle des curseurs matifie
+	   l'eau et floute le ciel qu'elle renvoie ; appliquée au soleil, elle
+	   étalait sa route jusqu'à l'effacer — relevé sur une capture de grosse mer
+	   au soleil bas. Le vent élargit la route (Cox et Munk), il ne l'éteint pas :
+	   un peu du vent seulement. */
+	float rough = clamp(0.055 + 0.08 * wind_n + 0.30 * v_foam + 0.24 * far + 0.26 * coarse, 0.03, 0.6);
 	float a = rough * rough;
 	float nh = max(dot(N, H), 0.0);
 	float dd = nh * nh * (a * a - 1.0) + 1.0;
@@ -444,15 +455,11 @@ void fragment() {
 	/* L'ÉCUME TIENT À LA CRÊTE : la part battue est la raideur (v_foam), et plus
 	   encore près du sommet — c'est là que l'eau déferle, l'écume en redescend
 	   par le dos de la vague en s'effilochant. */
-	/* LES MOUTONS. Le HAUT de la vague blanchit, d'abord par la hauteur : passé
-	   un certain vent, toute crête qui monte assez casse son sommet, raide ou
-	   non — c'est ce qu'on voit d'une grosse mer, des têtes blanches sur des
-	   pentes sombres. Pleine au sommet, en dentelle sur la frange, rien sur la
-	   face. Une première version ne tenait l'écume qu'à la raideur, et la
-	   dentelle courait sur toute la face de la vague en fils sans cime. */
-	float sea = smoothstep(0.5, 1.6, u_ripple);
-	float cap = clamp(smoothstep(0.22, 0.62, hrel) * sea * u_cap_gain, 0.0, 1.0);
-	float battue = clamp(max(v_foam * mix(0.4, 1.2, smoothstep(0.0, 0.55, hrel)), cap), 0.0, 1.0);
+	/* LES MOUTONS, là où la crête se pince et casse : le jacobien (v_foam), et
+	   non plus la hauteur — une règle à la main qui blanchissait toute crête
+	   haute, ronde ou non. Pleins au cœur, en traits sur la frange. */
+	// des têtes franches : pleines dès la moitié de la rampe
+	float battue = clamp(v_foam * 1.6 * u_cap_gain, 0.0, 1.0);
 	// la finesse que la maille et la distance permettent encore
 	float fine = (1.0 - smoothstep(0.8, 2.5, v_spacing)) * (1.0 - smoothstep(35.0, 140.0, dist));
 	float lc = mix(lace(v_world.xz, battue, fine), 0.4 * battue + 0.2, clamp(lace_far, 0.0, 1.0));

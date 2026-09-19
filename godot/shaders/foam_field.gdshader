@@ -30,6 +30,7 @@ uniform vec2 u_origin;
 uniform float u_decay = 1.0;
 uniform float u_size = 620.0;
 uniform float u_texel = 0.0009765625;
+uniform float u_jac_foam = 0.85;     // le même seuil que la mer
 
 void fragment() {
 	vec2 wpos = u_origin + UV * u_size;      // XZ monde de ce texel
@@ -51,7 +52,7 @@ void fragment() {
 	   borne de maille, comme l'original : c'est une question sur la mer, pas sur
 	   la façon dont un maillage la dessine. Le havre n'est pas encore porté,
 	   d'où un abri de 1. */
-	float steep = 0.0;
+	vec3 jac = vec3(0.0);
 	for (int i = 0; i < NW_FOAM; i++) {
 		vec2 d = u_wave_a[i].xy;
 		float amp = u_wave_a[i].z;
@@ -59,9 +60,12 @@ void fragment() {
 		float omega = u_wave_b[i].x;
 		float Q = u_wave_b[i].y;
 		float f = k * dot(d, wpos) - omega * u_time + u_wave_phase[i];
-		steep += Q * k * amp * max(sin(f), 0.0);
+		gerstner_jacobian_term(d, amp, k, Q, sin(f), jac);
 	}
-	float breaking = smoothstep(0.66, 1.05, steep) * 0.9;
+	/* Laissée là où la crête casse — le même jacobien que la mer, un peu plus
+	   bas : ce qui reste est ce qui a VRAIMENT déferlé. Elle y demeure, se
+	   disperse, et les traînées descendent le dos des vagues qui passent. */
+	float breaking = smoothstep(u_jac_foam - 0.06, u_jac_foam - 0.3, gerstner_jacobian(jac)) * 0.9;
 
 	// --- et là où chaque coque déchire la surface ---
 	float hull = 0.0;

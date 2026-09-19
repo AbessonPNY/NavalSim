@@ -69,6 +69,8 @@ public sealed class Settings
     // [mer] — réglages de mise au point du shader de la mer
     public float SeaRoughBase = 0.055f, SeaRoughWind = 0.15f, SeaSkyBlur = 0.6f;
     public float SeaRideGain = 1f, SeaCapGain = 1f, SeaFoamGain = 1f;
+    /// <summary>Le jacobien sous lequel l'eau écume : plus haut, plus de crêtes blanchissent.</summary>
+    public float SeaJacobian = 0.85f;
 
     // [navire]
     /// <summary>Le pavillon hissé sur le navire à la barre : l'id d'une nation de flags.json, vide pour celui de la fiche.</summary>
@@ -118,6 +120,7 @@ public sealed class Settings
         s.SeaRideGain = (float)cf.GetValue("mer", "rides", s.SeaRideGain);
         s.SeaCapGain = (float)cf.GetValue("mer", "moutons", s.SeaCapGain);
         s.SeaFoamGain = (float)cf.GetValue("mer", "ecume", s.SeaFoamGain);
+        s.SeaJacobian = (float)cf.GetValue("mer", "seuil_jacobien", s.SeaJacobian);
         s.ParallelSolvers = (bool)cf.GetValue("performance", "solveurs_paralleles", s.ParallelSolvers);
         return s;
     }
@@ -156,6 +159,7 @@ public sealed class Settings
         cf.SetValue("mer", "rides", SeaRideGain);
         cf.SetValue("mer", "moutons", SeaCapGain);
         cf.SetValue("mer", "ecume", SeaFoamGain);
+        cf.SetValue("mer", "seuil_jacobien", SeaJacobian);
         cf.SetValue("performance", "solveurs_paralleles", ParallelSolvers);
         Error e = cf.Save(Path);
         if (e != Error.Ok) GD.PushWarning($"réglages non enregistrés dans {Path} : {e}");

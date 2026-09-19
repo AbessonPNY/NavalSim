@@ -78,6 +78,12 @@ public partial class FoamField : Node
     /// ses DEUX ancres glissent avec lui — sans quoi l'image suivante lirait le
     /// recentrage comme un déplacement colossal et effacerait tout le champ.
     /// </summary>
+    /// <summary>Le seuil du jacobien sous lequel une crête laisse son écume — le même que la mer.</summary>
+    public void SetJacobianFoam(float j)
+    {
+        foreach (var m in _mat) m.SetShaderParameter("u_jac_foam", j);
+    }
+
     public void Rebase(float dx, float dz)
     {
         Origin -= new Vector2(dx, dz);

@@ -157,6 +157,7 @@ public partial class ShipDemo : Node3D
         BuildSunPanel(layer);
         _settings = Settings.Load();
         BuildMenu(layer);
+        BuildSeaPanel(layer);
         BuildSpyglass();
     }
 
@@ -400,6 +401,7 @@ public partial class ShipDemo : Node3D
         _motionBlur.MainProjection = _cam.GetCameraProjection();
         _sea.Material?.SetShaderParameter(U.LampReflection, s.LampReflection);
         _sea.Material?.SetShaderParameter(U.LampWater, s.LampWater);
+        _foam?.SetJacobianFoam(s.SeaJacobian);
         if (_sea.Material is ShaderMaterial sm)
         {
             sm.SetShaderParameter("u_rough_base", s.SeaRoughBase);
@@ -408,6 +410,7 @@ public partial class ShipDemo : Node3D
             sm.SetShaderParameter("u_ride_gain", s.SeaRideGain);
             sm.SetShaderParameter("u_cap_gain", s.SeaCapGain);
             sm.SetShaderParameter("u_foam_gain", s.SeaFoamGain);
+            sm.SetShaderParameter("u_jac_foam", s.SeaJacobian);
         }
         if (_ship != null)
         {
@@ -532,13 +535,11 @@ public partial class ShipDemo : Node3D
         Check("Exposition automatique", st.AutoExposure, on => st.AutoExposure = on);
         Slide("Seuil d'exposition", 0.2, 3, 0.05, st.AutoExposureThreshold, x => st.AutoExposureThreshold = x);
         Slide("Vitesse d'adaptation", 0.1, 5, 0.1, st.AutoExposureSpeed, x => st.AutoExposureSpeed = x);
-        Title("Mer (mise au point)", 15);
-        Slide("Rugosité de base", 0.01, 0.4, 0.005, st.SeaRoughBase, x => st.SeaRoughBase = x);
-        Slide("Rugosité ajoutée par le vent", 0, 0.5, 0.01, st.SeaRoughWind, x => st.SeaRoughWind = x);
-        Slide("Flou du ciel dans l'eau", 0, 1.5, 0.05, st.SeaSkyBlur, x => st.SeaSkyBlur = x);
-        Slide("Rides", 0, 3, 0.05, st.SeaRideGain, x => st.SeaRideGain = x);
-        Slide("Moutons", 0, 2, 0.05, st.SeaCapGain, x => st.SeaCapGain = x);
-        Slide("Écume en traits", 0, 2, 0.05, st.SeaFoamGain, x => st.SeaFoamGain = x);
+        Title("Mer", 15);
+        var seaHint = new Label { Text = "Mise au point de la mer : ⇧M, un panneau sur le côté" };
+        seaHint.AddThemeFontSizeOverride("font_size", 13);
+        seaHint.AddThemeColorOverride("font_color", new Color(0.8f, 0.84f, 0.88f));
+        box.AddChild(seaHint);
         Title("Navire", 15);
         // le pavillon à la barre : celui de la fiche, ou une nation de flags.json
         var nlabels = new List<string> { "Pavillon de la fiche" };
@@ -1122,7 +1123,7 @@ public partial class ShipDemo : Node3D
             (_inSquall ? $"dépression {_squall.Dist / 1852,6:F1} mille(s) du centre · au cœur force {_squall.Storm.Peak:F1} · ici {_squall.Force:F1}\n" : "") +
             $"\n" +
             $"W S machine   B élan   A D barre   Q E écoutes   V voiles\n" +
-            $"↑↓ force   ←→ vent   T météo {(_weather.On ? "auto" : "à la main")}   J gros temps   K kraken   R radoub   G feu (tenu : bordée, ⇧ : autre bord)   Tab bord   Y soute   U pirate   P fantômes   L lunette   PgUp/PgDn creux   N navire   F suivre   C vues ({CamName()})   X replanter   H masquer   Échap options\n" +
+            $"↑↓ force   ←→ vent   T météo {(_weather.On ? "auto" : "à la main")}   J gros temps   K kraken   R radoub   G feu (tenu : bordée, ⇧ : autre bord)   Tab bord   Y soute   U pirate   P fantômes   L lunette   ⇧M mer   PgUp/PgDn creux   N navire   F suivre   C vues ({CamName()})   X replanter   H masquer   Échap options\n" +
             $"O occlusion {(_sky.Env.SsaoEnabled ? "oui" : "non")}   lumière indirecte au menu";
     }
 
@@ -1185,6 +1186,7 @@ public partial class ShipDemo : Node3D
                 case Key.U: SpawnPirate(900); break;
                 case Key.P: GoToGhosts(true); break;
                 case Key.L: ToggleSpyglass(); break;
+                case Key.M when k.ShiftPressed: ToggleSeaPanel(); break;
                 /* L'ÉLAN : l'équivalent de `Naval.app.controls.state.throttle = 45`
                    dans la console d'origine. Le solveur ne borne pas la machine,
                    donc c'est quarante-cinq fois la poussée — de quoi voir une coque
@@ -1999,6 +2001,18 @@ public partial class ShipDemo : Node3D
                 case "--pirate": SpawnPirate(args[i + 1].ToFloat()); break;
                 case "--fantomes": GoToGhosts(true); break;
                 case "--lunette": ToggleSpyglass(); break;
+                // les instruments masqués, comme H : pour une capture de la scène seule
+                case "--masquer": _info.Visible = _sunPanel.Visible = args[i + 1] != "1"; break;
+                case "--panneau-mer": _seaPanel.Visible = args[i + 1] == "1"; break;
+                // la mer aux valeurs par défaut, sans toucher au fichier : pour comparer
+                case "--mer-defaut":
+                    var dm = new Settings();
+                    _settings.SeaRoughBase = dm.SeaRoughBase; _settings.SeaRoughWind = dm.SeaRoughWind;
+                    _settings.SeaSkyBlur = dm.SeaSkyBlur; _settings.SeaRideGain = dm.SeaRideGain;
+                    _settings.SeaCapGain = dm.SeaCapGain; _settings.SeaFoamGain = dm.SeaFoamGain;
+                    _settings.SeaJacobian = dm.SeaJacobian;
+                    ApplySettings();
+                    break;
                 // une cible par le travers tribord, à cette distance : le premier navire de --flotte
                 case "--cible":
                     if (_others.Count > 0)
