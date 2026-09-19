@@ -184,6 +184,8 @@ public sealed class AppearanceSpec
     [JsonPropertyName("spar")]      public string Spar { get; set; } = "0xa8875a";
     [JsonPropertyName("canvas")]    public string Canvas { get; set; } = "0xf2ebdc";
     [JsonPropertyName("canvasMap")] public Dictionary<string, string>? CanvasMap { get; set; }
+    /// <summary>Le pavillon qu'elle arbore ; « jolly » : la tête de mort, et c'est une déclaration.</summary>
+    [JsonPropertyName("ensign")]    public string? Ensign { get; set; }
 }
 
 public sealed class ShipJson

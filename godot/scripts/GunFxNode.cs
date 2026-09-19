@@ -339,7 +339,9 @@ public partial class GunFxNode : Node3D
                     var (col, a) = Look(p, u);
                     float s = (float)size, c = (float)Math.Cos(p.Rot), sn = (float)Math.Sin(p.Rot);
                     // la taille et l'angle dans le premier axe : voir puff.gdshaderinc
-                    var basis = new Basis(new Vector3(c * s, sn * s, 0), new Vector3(-sn * s, c * s, 0), new Vector3(0, 0, s));
+                    // la taille et l'angle dans le premier axe ; le plancher dans le troisième (voir puff.gdshaderinc)
+                    var basis = new Basis(new Vector3(c * s, sn * s, 0), new Vector3(-sn * s, c * s, 0),
+                                          new Vector3(p.HasFloor ? 1 : 0, (float)p.Floor, s));
                     mm.SetInstanceTransform(drawn, new Transform3D(basis, p.P));
                     mm.SetInstanceCustomData(drawn, new Color(col.X, col.Y, col.Z, (float)a));
                     drawn++;

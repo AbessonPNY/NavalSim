@@ -102,6 +102,11 @@ public static class PhysicsParity
                         Hold = g.GetProperty("hold").GetDouble(), Brake = g.GetProperty("brake").GetDouble()
                     });
 
+            // --- la barre automatique, si le scénario en a une ---
+            AutoHelm? helm = null;
+            if (sc.TryGetProperty("helm", out var jh) && jh.ValueKind == JsonValueKind.Array)
+                helm = new AutoHelm(phys) { Target = new Vec3d(jh[0].GetDouble(), jh[1].GetDouble(), jh[2].GetDouble()) };
+
             // --- la trajectoire ---
             const double dt = 1.0 / 120;
             double t = 0;
@@ -116,6 +121,7 @@ public static class PhysicsParity
 
             for (int i = 0; i < steps; i++)
             {
+                helm?.Update(dt, ocean, ctrl);
                 phys.Step(dt, ocean, ctrl, t);
                 t += dt;
                 if (!(i % 50 == 49 || i == steps - 1)) continue;
@@ -165,6 +171,13 @@ public static class PhysicsParity
                 St("appWindAngle", e.GetProperty("beta"), phys.AppWindAngle);
                 St("optSheet", e.GetProperty("opt"), phys.OptSheet ?? -99);
                 // les bouts d'en face des prises, qui glissent au-delà de leur tenue, et leur tension
+                if (helm != null)
+                {
+                    St("rudder", e.GetProperty("rud"), ctrl.Rudder);
+                    St("sheet", e.GetProperty("sht"), ctrl.Sheet);
+                    if (e.GetProperty("beat").GetInt32() != helm.BeatSide)
+                    { Console.Error.WriteLine($"  {id}: bord {e.GetProperty("beat").GetInt32()} contre {helm.BeatSide} a t={t:F2}"); failures++; }
+                }
                 if (e.TryGetProperty("gw", out var gw))
                     for (int g = 0; g < gw.GetArrayLength() && g < phys.Grips.Count; g++)
                     {
@@ -188,7 +201,7 @@ public static class PhysicsParity
                             + $"   quat {worstQuat:E2}   etat {worstState:E1}"
                             + (nonFinite.Count > 0
                                 ? $"   [JS non fini : {string.Join(", ", nonFinite)}]" : ""));
-            if (!ok)
+            if (!ok || worstState > 1e-3)
                 Console.WriteLine($"        bati sur {whereBuild}, etat sur {whereState}"
                                 + (firstDivergePos > 0 ? $", position depasse le cm a t={firstDivergePos:F2} s" : ""));
         }

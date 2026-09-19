@@ -206,6 +206,7 @@ public partial class ShipDemo : Node3D
             _fleet.Add(s.Physics);
             s.Physics.OnSlam = QueueSlam;
             _others.Add(s);
+            Arm(s);
         }
         GD.Print($"flotte d'essai : {n} × {spec.Name}");
         Sweep();
@@ -727,7 +728,7 @@ public partial class ShipDemo : Node3D
         /* UN MÂT QUI S'EN VA EMPORTE SA TOILE, et AVANT qu'elle soit poussée : lu
            après, elle serait menée une image de plus par des voiles déjà dans l'eau. */
         Rigging(_ship, frame);
-        foreach (var s in _others) Rigging(s, frame);
+        foreach (var s in _others) { Rigging(s, frame); Steer(s, frame); }
         StepSolvers(sub, dt, t);
         // porter de la toile coûte de la toile, et au-delà, l'espar
         TearCanvas(_ship, frame, true); StrainMast(_ship, frame, true);
@@ -765,6 +766,7 @@ public partial class ShipDemo : Node3D
             _cordage.Rebase(-dx, -dz);
             _splinters.Rebase(-dx, -dz);
             _gunnery.Rebase(-dx, -dz);
+            foreach (var pr in _pirates.Values) pr.Rebase(-dx, -dz);
             _gunFx.Rebase(-dx, -dz);
             // la seule chose qui ne suit PAS le navire : sans ceci elle resterait
             // à quinze cents mètres, à filmer de l'eau vide
@@ -1086,7 +1088,7 @@ public partial class ShipDemo : Node3D
             (_inSquall ? $"dépression {_squall.Dist / 1852,6:F1} mille(s) du centre · au cœur force {_squall.Storm.Peak:F1} · ici {_squall.Force:F1}\n" : "") +
             $"\n" +
             $"W S machine   B élan   A D barre   Q E écoutes   V voiles\n" +
-            $"↑↓ force   ←→ vent   T météo {(_weather.On ? "auto" : "à la main")}   J gros temps   K kraken   R radoub   G feu (tenu : bordée, ⇧ : autre bord)   Tab bord   Y soute   PgUp/PgDn creux   N navire   F suivre   C vues ({CamName()})   X replanter   H masquer   Échap options\n" +
+            $"↑↓ force   ←→ vent   T météo {(_weather.On ? "auto" : "à la main")}   J gros temps   K kraken   R radoub   G feu (tenu : bordée, ⇧ : autre bord)   Tab bord   Y soute   U pirate   PgUp/PgDn creux   N navire   F suivre   C vues ({CamName()})   X replanter   H masquer   Échap options\n" +
             $"O occlusion {(_sky.Env.SsaoEnabled ? "oui" : "non")}   lumière indirecte au menu";
     }
 
@@ -1146,6 +1148,7 @@ public partial class ShipDemo : Node3D
                 case Key.O: _settings.Occlusion = !_settings.Occlusion; Changed(); break;
                 case Key.Tab: CycleGunSide(); break;
                 case Key.Y: BlowUp(_ship); break;
+                case Key.U: SpawnPirate(900); break;
                 /* L'ÉLAN : l'équivalent de `Naval.app.controls.state.throttle = 45`
                    dans la console d'origine. Le solveur ne borne pas la machine,
                    donc c'est quarante-cinq fois la poussée — de quoi voir une coque
@@ -1565,7 +1568,7 @@ public partial class ShipDemo : Node3D
         // qui a tiré : c'est ce qui permet à un navire de savoir contre qui se retourner
         ShipNode? shooter = null;
         foreach (var (node, tt) in _targets) if (tt.Physics == from) { shooter = node; break; }
-        if (shooter != null && s != _ship && shooter != s && !_hostile.ContainsKey(s)) _hostile[s] = (shooter, 0);
+        if (shooter != null && s != _ship && shooter != s && !_pirates.ContainsKey(s) && !_hostile.ContainsKey(s)) _hostile[s] = (shooter, 0);
 
         var w = new Vector3((float)world.X, (float)world.Y, (float)world.Z);
         // le bois d'abord, quoi qu'on ait touché : le même événement vu du dehors
@@ -1650,15 +1653,15 @@ public partial class ShipDemo : Node3D
        plus grande part de son bord soit prête. */
     void ServeGuns(ShipNode s, double dt)
     {
-        if (!_hostile.TryGetValue(s, out var h)) return;
         var ph = s.Physics;
         if (ph.Foundered || ph.Powder <= 0 || s.Battery.Guns.Count == 0) return;
-        if (!IsInstanceValid(h.Foe) || h.Foe.Physics.Foundered) { _hostile.Remove(s); return; }
-        h.Rearm = Math.Max(0, h.Rearm - dt);
-        _hostile[s] = h;
-        if (h.Rearm > 0) return;
+        _rearm.TryGetValue(s, out double rearm);
+        rearm = Math.Max(0, rearm - dt);
+        _rearm[s] = rearm;
+        var foe = EnemyOf(s);
+        if (foe == null || rearm > 0) return;
         var b = ph.Body;
-        var to = h.Foe.Physics.Body.Pos - b.Pos;
+        var to = foe.Body.Pos - b.Pos;
         to = new Vec3d(to.X, 0, to.Z);
         double range = to.Length;
         if (range > 340 || range < 12) return;
@@ -1670,9 +1673,9 @@ public partial class ShipDemo : Node3D
         var L = _gunnery.Loaded(s.Battery, side);
         if (L.Ready < Math.Max(1, (int)Math.Ceiling(0.6 * L.All))) return;
         int n = _gunnery.Broadside(s.Battery, side, ph, ph.Powder);
-        if (n > 0) { ph.Powder -= n; _hostile[s] = (h.Foe, 2 + _gunRng.NextDouble() * 3); }
+        if (n > 0) { ph.Powder -= n; _rearm[s] = 2 + _gunRng.NextDouble() * 3; }
     }
-
+    readonly Dictionary<ShipNode, double> _rearm = new();
     void GunTick(double dt)
     {
         _gunnery.Targets.Clear();
@@ -1707,6 +1710,114 @@ public partial class ShipDemo : Node3D
         ph.BlowUp();
         s.DropAllMasts();
         if (s == _ship) Say("La soute saute !");
+    }
+
+    // ------------------------------------------------------------------
+    //  QUI SE BAT, ET POURQUOI — le pavillon noir, la barre des autres,
+    //  le pirate qui chasse puis aborde
+    // ------------------------------------------------------------------
+
+    /* LE PAVILLON NOIR EST UNE DÉCLARATION, PAS UNE DÉCORATION : un navire est
+       hostile parce qu'il arbore la tête de mort (appearance.ensign = « jolly »),
+       et non parce qu'une fiche porte un drapeau booléen quelque part. Tous les
+       autres sont pacifiques jusqu'à ce qu'on les touche. */
+    static bool IsJolly(ShipNode s) => s.Spec.Appearance.Ensign == "jolly";
+
+    readonly Dictionary<ShipNode, AutoHelm> _helms = new();
+    readonly Dictionary<ShipNode, Pirate> _pirates = new();
+    readonly List<Pirate.Sail> _sails = new();
+
+    AutoHelm HelmOf(ShipNode s)
+    {
+        if (_helms.TryGetValue(s, out var h)) return h;
+        h = new AutoHelm(s.Physics);
+        _helms[s] = h;
+        return h;
+    }
+
+    /* SON HUMEUR DE PIRATE, sur son entrée et nulle part ailleurs ; et la garde
+       suit le pavillon : une barre réglée à une longueur et demie amène à quarante
+       mètres, ce qui est un abordage et non un duel. Un navire qui vient canonner
+       se tient au plein fouet. */
+    void Arm(ShipNode s)
+    {
+        if (!IsJolly(s) || _pirates.ContainsKey(s)) return;
+        var h = HelmOf(s);
+        h.Standoff = Math.Max(h.Standoff, 185);
+        _pirates[s] = new Pirate(h.Standoff);
+    }
+
+    /// <summary>La coque qu'un navire a pour ennemi, ou nulle : le pirate pendant sa chasse, un navire provoqué contre qui l'a touché.</summary>
+    ShipPhysics? EnemyOf(ShipNode s)
+    {
+        if (_pirates.TryGetValue(s, out var p)) return p.Enemy;
+        if (_hostile.TryGetValue(s, out var h) && IsInstanceValid(h.Foe) && !h.Foe.Physics.Foundered) return h.Foe.Physics;
+        return null;
+    }
+
+    /* LA BARRE DES AUTRES, avant le solveur : elle écrit dans les mêmes commandes
+       qu'une main, jamais dans la coque. Le pirate choisit où aller ; un navire
+       provoqué va vers qui l'a touché ; les autres ne bougent pas de leur route. */
+    void Steer(ShipNode s, double dt)
+    {
+        if (_pirates.TryGetValue(s, out var p))
+        {
+            var h = HelmOf(s);
+            var prey = p.Cible;
+            _sails.Clear();
+            _sails.Add(new Pirate.Sail(_ship.Physics, _ship.Battery, IsJolly(_ship)));
+            foreach (var o in _others) _sails.Add(new Pirate.Sail(o.Physics, o.Battery, IsJolly(o)));
+            string? ev = p.Pilot(dt, _t, s.Physics, h, _sails, _ship.Physics);
+            if (ev != null && prey != null)
+            {
+                bool mine = prey == _ship.Physics;
+                if (ev == "abordage" && mine) Say("Le pirate cesse le feu — il vient vous aborder par l’arrière");
+                else if (ev == "pillage")
+                {
+                    if (mine) Say("Abordés ! Le pirate vous pille et s’éloigne");
+                    else if ((prey.Body.Pos - _ship.Physics.Body.Pos).Length < 3000)
+                    {
+                        string name = "un navire";
+                        foreach (var o in _others) if (o.Physics == prey) { name = o.Spec.Name; break; }
+                        Say("Le pirate aborde et pille " + name);
+                    }
+                }
+            }
+            h.Update(dt, _sea.Core, s.Ctrl);
+            return;
+        }
+        if (_hostile.TryGetValue(s, out var hs) && IsInstanceValid(hs.Foe))
+        {
+            var h = HelmOf(s);
+            h.Target = hs.Foe.Physics.Body.Pos;
+            h.Update(dt, _sea.Core, s.Ctrl);
+        }
+    }
+
+    /* IL PARAÎT AU VENT, ET CAP SUR VOUS : un pirate tient l'AVANTAGE DU VENT —
+       c'est lui qui choisit d'engager ou non, et vous qui devez remonter vers lui
+       pour lui échapper ou le combattre. Paru sous le vent, il mettrait une
+       demi-heure à louvoyer jusqu'à vous, gagnant sept dixièmes de nœud au vent. */
+    /// <summary>Faire paraître un pirate à <paramref name="dist"/> mètres, au vent de vous, sa soute pleine.</summary>
+    void SpawnPirate(double dist)
+    {
+        int idx = _paths.FindIndex(p => System.IO.Path.GetFileName(p) == "pirate.json");
+        if (idx < 0) { GD.PushWarning("ships/pirate.json introuvable"); return; }
+        int before = _others.Count;
+        SpawnFleet(1, idx);
+        if (_others.Count == before) return;
+        var s = _others[^1];
+        var b = s.Physics.Body;
+        var me = _ship.Physics.Body.Pos;
+        // d'où vient le vent, en relèvement : l'avant est +z, l'est −x
+        double wf = _sea.Core.WindDeg * Math.PI / 180;
+        b.Pos = new Vec3d(me.X - Math.Sin(wf) * dist, b.Pos.Y, me.Z + Math.Cos(wf) * dist);
+        // cap sur vous : le vent dans le dos, ou presque
+        double toMe = Math.Atan2(-(me.X - b.Pos.X), me.Z - b.Pos.Z);
+        b.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), -toMe);
+        s.SyncTransform();
+        Arm(s);
+        Say("Une voile sous pavillon noir !");
     }
 
     void SetAutoWeather(bool on)
@@ -1826,6 +1937,7 @@ public partial class ShipDemo : Node3D
                 case "--foudre": Strike(_ship); break;
                 case "--bordee": _gunSide = args[i + 1].ToInt(); Fire(false, true); break;
                 case "--soute": BlowUp(_ship); break;
+                case "--pirate": SpawnPirate(args[i + 1].ToFloat()); break;
                 // une cible par le travers tribord, à cette distance : le premier navire de --flotte
                 case "--cible":
                     if (_others.Count > 0)

@@ -103,6 +103,7 @@ eval(fs.readFileSync(path.join(root, 'js', 'hull-lines.js'), 'utf8'));
 eval(fs.readFileSync(path.join(root, 'js', 'stage.js'), 'utf8'));
 eval(fs.readFileSync(path.join(root, 'js', 'ocean.js'), 'utf8'));
 eval(fs.readFileSync(path.join(root, 'js', 'ship-physics.js'), 'utf8'));
+eval(fs.readFileSync(path.join(root, 'js', 'helm.js'), 'utf8'));
 
 const C = Naval.Config;
 const oproto = Naval.Ocean.prototype;
@@ -152,7 +153,10 @@ const scenarios = [
     ctrl: { throttle: 0, rudder: 0, sheet: 0, sailsSet: false }, breach: true },
   // six bras de kraken : les prises du solveur (grips), frein, raideur, tenue qui cede
   { id: 'kraken',       ship: 'pirate',   force: 6, deg: 45,  steps: 900,
-    ctrl: { throttle: 0, rudder: 0, sheet: 0.8, sailsSet: true }, grips: true }
+    ctrl: { throttle: 0, rudder: 0, sheet: 0.8, sailsSet: true }, grips: true },
+  // la barre automatique : au pres vers une marque au vent, le vent du nord-ouest
+  { id: 'barre-auto',   ship: 'pirate',   force: 4, deg: 315, steps: 21600,
+    ctrl: { throttle: 0, rudder: 0, sheet: 0.5, sailsSet: true }, helm: [100, 0, 1200] }
 ];
 
 for (const sc of scenarios) {
@@ -177,7 +181,7 @@ for (const sc of scenarios) {
 
   const rec = {
     id: sc.id, ship: sc.ship, force: sc.force, deg: sc.deg, steps: sc.steps,
-    ctrl: sc.ctrl, breach: !!sc.breach, grips,
+    ctrl: sc.ctrl, breach: !!sc.breach, grips, helm: sc.helm || null,
     hullVolume: phys.hullVolume,
     probes: phys.probes.length,
     cargoCapacity: phys.cargoCapacity,
@@ -191,8 +195,12 @@ for (const sc of scenarios) {
      est le sous-pas reel du jeu. */
   const dt = 1 / 120;
   let t = 0;
+  const ctrl = Object.assign({}, sc.ctrl);
+  let helm = null;
+  if (sc.helm) { helm = new Naval.AutoHelm(phys, ctrl); helm.target = new THREE.Vector3(...sc.helm); }
   for (let i = 0; i < sc.steps; i++) {
-    phys.step(dt, ocean, sc.ctrl, t);
+    if (helm) helm.update(dt, ocean, ctrl);
+    phys.step(dt, ocean, ctrl, t);
     t += dt;
     // on releve toutes les 50 images : assez pour voir la divergence s installer,
     // assez peu pour que le fichier reste lisible
@@ -211,7 +219,8 @@ for (const sc of scenarios) {
         beta: phys.appWindAngle, tack: phys.tack,
         opt: phys.optSheet === null ? -99 : phys.optSheet,
         // les bouts d'en face, qui glissent quand elle tire plus fort que leur tenue
-        gw: phys.grips.map(g => [g.wx, g.wz, g.tension || 0])
+        gw: phys.grips.map(g => [g.wx, g.wz, g.tension || 0]),
+        rud: ctrl.rudder, sht: ctrl.sheet, beat: helm ? helm.beatSide : 0
       });
     }
   }
