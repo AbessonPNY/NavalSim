@@ -67,8 +67,10 @@ public interface IGhostHost
 {
     /// <summary>Combien de coques la flotte peut encore prendre.</summary>
     int Room { get; }
-    /// <summary>Mettre à l'eau une coque de cette fiche, sans humeur de pirate ; null si impossible.</summary>
-    GhostHull? Launch(string id);
+    /// <summary>Une bataille se lève : l'hôte tire les couleurs des deux camps.</summary>
+    void Rising();
+    /// <summary>Mettre à l'eau une coque de cette fiche pour ce camp, sous ses couleurs, sans humeur de pirate ; null si impossible.</summary>
+    GhostHull? Launch(string id, int side);
     /// <summary>La retirer de la flotte.</summary>
     void Scuttle(Ghost g);
     void Say(string msg);
@@ -233,6 +235,7 @@ public sealed class GhostScene
         foreach (var id in G.SideB) want.Add((id, 1));
         int n = Math.Min(want.Count, host.Room);
         if (n < 2) return;
+        host.Rising();
 
         // l'axe des deux lignes : en travers de la ligne de visée du témoin
         double cx = G.X - origin.X, cz = G.Z - origin.Z;
@@ -253,7 +256,7 @@ public sealed class GhostScene
         int[] perSide = { 0, 0 };
         foreach (var (id, side) in order)
         {
-            var h = host.Launch(id);
+            var h = host.Launch(id, side);
             if (h is not GhostHull hull) continue;
             int k = perSide[side]++;
             int sgn = side == 0 ? -1 : 1;

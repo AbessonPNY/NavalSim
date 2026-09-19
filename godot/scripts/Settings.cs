@@ -66,6 +66,10 @@ public sealed class Settings
     /// <summary>Le masque de cinéma : l'image recadrée au format 2,35:1 par deux bandes noires.</summary>
     public bool FilmMask = false;
 
+    // [navire]
+    /// <summary>Le pavillon hissé sur le navire à la barre : l'id d'une nation de flags.json, vide pour celui de la fiche.</summary>
+    public string Nation = "";
+
     // [performance]
     /// <summary>Les solveurs des navires sur plusieurs cœurs : résultats identiques au bit près.</summary>
     public bool ParallelSolvers = true;
@@ -103,6 +107,7 @@ public sealed class Settings
         s.AutoExposureThreshold = (float)cf.GetValue("rendu", "exposition_auto_seuil", s.AutoExposureThreshold);
         s.AutoExposureSpeed = (float)cf.GetValue("rendu", "exposition_auto_vitesse", s.AutoExposureSpeed);
         s.FilmMask = (bool)cf.GetValue("rendu", "masque_cinema", s.FilmMask);
+        s.Nation = (string)cf.GetValue("navire", "pavillon", s.Nation);
         s.ParallelSolvers = (bool)cf.GetValue("performance", "solveurs_paralleles", s.ParallelSolvers);
         return s;
     }
@@ -134,6 +139,7 @@ public sealed class Settings
         cf.SetValue("rendu", "exposition_auto_seuil", AutoExposureThreshold);
         cf.SetValue("rendu", "exposition_auto_vitesse", AutoExposureSpeed);
         cf.SetValue("rendu", "masque_cinema", FilmMask);
+        cf.SetValue("navire", "pavillon", Nation);
         cf.SetValue("performance", "solveurs_paralleles", ParallelSolvers);
         Error e = cf.Save(Path);
         if (e != Error.Ok) GD.PushWarning($"réglages non enregistrés dans {Path} : {e}");

@@ -222,14 +222,15 @@ public sealed class SailCloth
     /// r160 : produits vectoriels des faces cumulés sur leurs sommets, rangés en
     /// float à chaque ajout, puis normalisés par multiplication par 1/longueur.
     /// </summary>
-    void ComputeNormals()
+    void ComputeNormals() => ComputeNormals(Positions, Normals, Indices);
+
+    /// <summary>La même règle pour tout maillage de toile — la voile, le pavillon.</summary>
+    internal static void ComputeNormals(float[] p, float[] nr, int[] idx)
     {
-        var nr = Normals;
         Array.Clear(nr);
-        var p = Positions;
-        for (int i = 0; i < Indices.Length; i += 3)
+        for (int i = 0; i < idx.Length; i += 3)
         {
-            int a = Indices[i] * 3, bb = Indices[i + 1] * 3, c = Indices[i + 2] * 3;
+            int a = idx[i] * 3, bb = idx[i + 1] * 3, c = idx[i + 2] * 3;
             double cbx = (double)p[c] - p[bb], cby = (double)p[c + 1] - p[bb + 1], cbz = (double)p[c + 2] - p[bb + 2];
             double abx = (double)p[a] - p[bb], aby = (double)p[a + 1] - p[bb + 1], abz = (double)p[a + 2] - p[bb + 2];
             double x = cby * abz - cbz * aby, y = cbz * abx - cbx * abz, z = cbx * aby - cby * abx;

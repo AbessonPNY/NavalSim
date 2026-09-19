@@ -117,6 +117,48 @@ public static class SailParity
         if (!trimOk) failures++;
         Console.WriteLine($"  {(trimOk ? "OK  " : "FAUX")}  brassage, {step} pas       pire ecart {worstTrim:E1} rad"
             + (trimOk ? "" : $"  (pas {worstStep})"));
+
+        // --- les pavillons : leur coupe, puis leur ondulation ---
+        if (rootEl.TryGetProperty("flags", out var flags))
+            foreach (var f in flags.EnumerateArray())
+            {
+                var l = JsonSerializer.Deserialize<FlagSpec>(f.GetProperty("l").GetRawText())!;
+                var cloth = new FlagCloth(f.GetProperty("spec").GetProperty("L").GetDouble(), l, f.GetProperty("seed").GetDouble());
+                double worst = 0, worstNor = 0, worstYaw = 0;
+                string where = "";
+                void Cmp(string name, JsonElement js, float[] cs, ref double w)
+                {
+                    if (js.GetArrayLength() != cs.Length) { w = double.PositiveInfinity; where = name + " (longueur)"; return; }
+                    for (int i = 0; i < cs.Length; i++)
+                    {
+                        double j = js[i].GetDouble(), e = Math.Abs(j - cs[i]) / Math.Max(1, Math.Abs(j));
+                        if (e > w) { w = e; where = $"{name}[{i}]"; }
+                    }
+                }
+                Cmp("base", f.GetProperty("base"), cloth.Base, ref worst);
+                Cmp("u", f.GetProperty("u"), cloth.U, ref worst);
+                Cmp("v", f.GetProperty("v"), cloth.V, ref worst);
+                Cmp("uv", f.GetProperty("uv"), cloth.Uvs, ref worst);
+                var idx = f.GetProperty("idx");
+                bool idxOk = idx.GetArrayLength() == cloth.Indices.Length
+                    && cloth.Indices.Select((v, i) => idx[i].GetInt32() == v).All(b => b);
+                bool metaOk = f.GetProperty("shape").GetString() == cloth.ShapeName
+                    && Math.Abs(f.GetProperty("hoist").GetDouble() - cloth.Hoist) < 1e-12
+                    && Math.Abs(f.GetProperty("fly").GetDouble() - cloth.Fly) < 1e-12
+                    && Math.Abs(f.GetProperty("wave").GetDouble() - cloth.Wave) < 1e-12;
+                foreach (var fr in f.GetProperty("frames").EnumerateArray())
+                {
+                    double yaw = cloth.Stream(fr.GetProperty("beta").GetDouble(), fr.GetProperty("tack").GetDouble(),
+                                              fr.GetProperty("vApp").GetDouble(), fr.GetProperty("t").GetDouble());
+                    worstYaw = Math.Max(worstYaw, Math.Abs(yaw - fr.GetProperty("yaw").GetDouble()));
+                    Cmp("pos", fr.GetProperty("pos"), cloth.Positions, ref worst);
+                    Cmp("nor", fr.GetProperty("nor"), cloth.Normals, ref worstNor);
+                }
+                bool ok = worst <= 1e-6 && worstNor <= 1e-5 && worstYaw <= 1e-12 && idxOk && metaOk;
+                if (!ok) failures++;
+                Console.WriteLine($"  {(ok ? "OK  " : "FAUX")}  pavillon {cloth.ShapeName,-11}  grille et onde {worst:E1}   normales {worstNor:E1}   lacet {worstYaw:E1}"
+                    + (ok ? "" : $"   <- {where}{(idxOk ? "" : " indices")}{(metaOk ? "" : " cotes")}"));
+            }
         return failures;
     }
 

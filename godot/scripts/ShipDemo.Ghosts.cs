@@ -30,7 +30,25 @@ public partial class ShipDemo : IGhostHost
 
     int IGhostHost.Room => Config.MaxShips - _fleet.Count;
 
-    GhostHull? IGhostHost.Launch(string id)
+    /* Deux nations, une par camp, tirées sans remise parmi les pavillons
+       nationaux — le hasard franc de la page, pas le tirage au poids des
+       rencontres. */
+    readonly Nation?[] _ghostColours = new Nation?[2];
+
+    void IGhostHost.Rising()
+    {
+        var pool = _nations.All.FindAll(x => !x.Pirate);
+        for (int k = 0; k < 2; k++)
+        {
+            if (pool.Count == 0) { _ghostColours[k] = null; continue; }
+            int i = (int)(_ghostRng.NextDouble() * pool.Count);
+            _ghostColours[k] = pool[i];
+            pool.RemoveAt(i);
+        }
+    }
+    readonly Random _ghostRng = new();
+
+    GhostHull? IGhostHost.Launch(string id, int side)
     {
         int idx = _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == id);
         if (idx < 0) { GD.PushWarning($"ships/{id}.json introuvable"); return null; }
@@ -43,6 +61,8 @@ public partial class ShipDemo : IGhostHost
         var h = HelmOf(s);
         h.Standoff = Math.Max(h.Standoff, 185);
         TargetOf(s);                                    // armée : ses charges en soute
+        // elle se bat sous le pavillon de son camp, pâli avec elle
+        if (_ghostColours[side] is { } flag && s.HasFlag) { s.SetEnsign(flag.Image, flag); s.ShowColours(true); }
         s.Ghostify(_ghosts.Rules.Opacity, _gunFx.Smoke);
         return new GhostHull(s.Physics, s, _hulls[s].Y);
     }

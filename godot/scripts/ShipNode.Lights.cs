@@ -51,7 +51,7 @@ public partial class ShipNode
     /// sur la Roter Löwe —, et une station seule avait déjà fait tomber le feu
     /// cinq mètres sous sa lisse, à l'intérieur de son propre château.
     /// </summary>
-    (double ZAft, Func<double, double> DeckNear) DeckStations()
+    (double ZAft, double ZFore, Func<double, double> DeckNear) DeckStations()
     {
         if (ModelRoot != null)
         {
@@ -67,7 +67,7 @@ public partial class ShipNode
                     if (v > best) { best = v; hull = p; }
                 }
                 double z0 = hull.Min.Z, z1 = hull.Max.Z, span = z1 - z0;
-                return (z0 + span * 0.02, z =>                 // tout à l'arrière, +z étant l'étrave
+                return (z0 + span * 0.02, z1 - span * 0.02, z =>   // tout à l'arrière, +z étant l'étrave
                 {
                     double y = double.NegativeInfinity;
                     for (double f = -0.03; f <= 0.031; f += 0.01)
@@ -76,7 +76,7 @@ public partial class ShipNode
                 });
             }
         }
-        return (-Spec.L * 0.45, z => Lines.DeckY(Math.Min(1, Math.Max(0, z / Spec.L + 0.5))));
+        return (-Spec.L * 0.45, Spec.L * 0.48, z => Lines.DeckY(Math.Min(1, Math.Max(0, z / Spec.L + 0.5))));
     }
 
     /// <summary>
@@ -100,7 +100,7 @@ public partial class ShipNode
         }
         _lanterns.Clear();
         var spec = Spec;
-        var (zAft, deckNear) = DeckStations();
+        var (zAft, _, deckNear) = DeckStations();
         var list = spec.Lanterns ?? new List<LanternSpec> { new() { Z = zAft } };
         foreach (var l in list)
         {

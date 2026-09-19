@@ -85,6 +85,22 @@ public partial class ShipNode
             c.Node.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
         }
 
+        /* Ses couleurs aussi, pâlies : celles de son camp, hissées avant. Entières —
+           la page ne met en loques que la toile. */
+        var whole = new Dictionary<Material, ShaderMaterial>();
+        foreach (var f in _flags)
+        {
+            if (!whole.TryGetValue(f.Mat, out var gm))
+            {
+                var src = f.Mat as ShaderMaterial;
+                var col = src?.GetShaderParameter(U.Canvas).AsColor() ?? Colors.White;
+                bool painted = src != null && src.GetShaderParameter(U.HasMap).AsSingle() > 0.5f;
+                whole[f.Mat] = gm = Ghost(cloth, col, painted ? src!.GetShaderParameter(U.Map).As<Texture2D>() : null, Uncut());
+            }
+            f.Mat = gm;
+            f.Node.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
+        }
+
         // le reste : bois, métal, espars — ce qui a déjà sa pâleur (la toile) et les feux exceptés
         var done = new Dictionary<Material, ShaderMaterial>();
         var hullShader = GD.Load<Shader>("res://shaders/hull.gdshader");
@@ -221,6 +237,16 @@ public partial class ShipNode
     /* ------------------------------------------------------------------ */
 
     const int TornCount = 3;
+    static ImageTexture? _uncut;
+
+    // une toile sans trou : la carte blanche
+    static ImageTexture Uncut()
+    {
+        if (_uncut != null) return _uncut;
+        var img = Image.CreateEmpty(4, 4, false, Image.Format.L8);
+        img.Fill(Colors.White);
+        return _uncut = ImageTexture.CreateFromImage(img);
+    }
     static ImageTexture[]? _torn;
 
     /* Une carte de transparence où le blanc est la toile et le noir ce qui manque :

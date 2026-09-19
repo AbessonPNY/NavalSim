@@ -4989,6 +4989,20 @@ Puis `"nation:<clé>"` : le pavillon de poupe est un `rect` comme ceux des tête
 de mât, et la clé de coupe les aurait confondus — les armes de Colomb au
 couronnement, les couleurs en tête de mât.
 
+**Portage Godot (2026-09-19).** La grille et l'onde dans le noyau
+(`FlagCloth`, `FlagShape`), la table des nations (`Nations`, tirage au poids) ;
+le banc de la toile relève `_flagAt` et `setFlag` par leur texte et les compare
+sur cinq coupes et trois brises : **écart nul**, au bit près. Le placement
+(`ShipNode.Flags.cs`) suit la page : têtes de mât relues sur les espars, pendus
+dans la chute de leur mât, hampes de poupe et de beaupré, bout du beaupré lu
+sur le modèle. Relevé sur le Roter Löwe (30 m) : poupe à −13,3 m, beaupré à
++20,4, flamme à l'artimon, grand pavillon à 15,2 m. Le vôtre se choisit dans
+les options (`reglages.ini` → `pavillon`), les autres voiles en tirent un ; le
+pirate paraît sous le noir, sans ruse d'emprunt (le démasquage n'est pas
+porté) ; chaque camp fantôme a sa nation, pâlie avec lui. Écart : le beaupré
+d'une fiche procédurale (`rig.bowsprit`) n'est pas lu — aucune fiche à
+coque dessinée ne déclare de pavillon d'étrave.
+
 ## La foudre et le kraken
 
 Décidé avec Arnaud : un **kraken** d'abord, **dessiné par le code**, qu'on peut

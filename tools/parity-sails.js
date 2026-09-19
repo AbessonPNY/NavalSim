@@ -159,6 +159,44 @@ for (const s of sails) for (const belly of bellies) {
   out.trim = seq;
 }
 
+/* Les pavillons : la grille de chaque coupe (_flagAt), puis quelques images de
+   leur ondulation (setFlag) — brise franche, brise mourante, calme. La phase
+   tiree au hasard est posee a la main apres coup, pour que le C# ait la meme. */
+{
+  class Group {
+    constructor() { this.position = new Vector3(); this.rotation = { x: 0, y: 0 }; this.children = []; }
+    add(o) { this.children.push(o); o.parent = this; }
+  }
+  THREE.Group = Group;
+  const m = /Naval\.FLAG_SHAPES\s*=\s*(\{[\s\S]*?\n\});/.exec(src);
+  if (!m) throw new Error('FLAG_SHAPES introuvable');
+  Naval.FLAG_SHAPES = eval('(' + m[1] + ')');
+  const flagAt = method('_flagAt'), setFlag = method('setFlag');
+  const cases = [
+    { spec: { L: 60 }, l: {} },
+    { spec: { L: 60 }, l: { shape: 'swallowtail', size: 1.6 } },
+    { spec: { L: 24 }, l: { shape: 'pennant', length: 2.4 } },
+    { spec: { L: 60 }, l: { shape: 'streamer', size: 0.8 } },
+    { spec: { L: 38 }, l: { shape: 'nimportequoi', size: 0.6 } }
+  ];
+  out.flags = [];
+  cases.forEach((c, n) => {
+    const self = { spec: c.spec, mats: { flag: {} }, _nationMat() { return {}; }, _flagMat() { return {}; } };
+    const f = flagAt.call(self, new Group(), 0, 10, 0, c.l, 0);
+    f.seed = 0.37 + n * 1.13;
+    const g = f.mesh.geometry;
+    const rec = { spec: c.spec, l: c.l, seed: f.seed, hoist: f.hoist, fly: f.fly, wave: f.wave, shape: f.shape,
+                  base: Array.from(f.base), u: Array.from(f.u), v: Array.from(f.v),
+                  uv: Array.from(g.attributes.uv.array), idx: Array.from(g.index), frames: [] };
+    for (const [beta, tack, vApp, t] of [[2.4, 1, 9.5, 3.1], [0.7, -1, 4.2, 17.25], [1.9, 1, 0.3, 40.0]]) {
+      setFlag.call({ flags: [f] }, beta, tack, vApp, t);
+      rec.frames.push({ beta, tack, vApp, t, yaw: f.pivot.rotation.y,
+                        pos: Array.from(g.attributes.position.array), nor: Array.from(g.attributes.normal.array) });
+    }
+    out.flags.push(rec);
+  });
+}
+
 const dest = path.join(root, 'core', 'parity-sails.json');
 fs.writeFileSync(dest, JSON.stringify(out));
 console.log('releve des voiles ecrit : ' + dest + '  (' + out.sails.length + ' voiles x ' + states.length + ' etats, ' + out.trim.length + ' pas de brassage)');

@@ -63,6 +63,7 @@ public partial class ShipDemo : Node3D
 
     public override void _Ready()
     {
+        LoadNations();
         BuildScene();
 
         _sea = new OceanNode();
@@ -209,6 +210,7 @@ public partial class ShipDemo : Node3D
             s.Physics.OnSlam = QueueSlam;
             _others.Add(s);
             if (arm) Arm(s);
+            Colours(s);
         }
         GD.Print($"flotte d'essai : {n} × {spec.Name}");
         Sweep();
@@ -271,6 +273,7 @@ public partial class ShipDemo : Node3D
             s.SyncTransform();
             var p = s.Physics;
             s.SetTrim(s.Ctrl.Sheet, p.Tack, p.SetFrac, p.Luffing, _t, p.SailLoad);
+            s.StreamFlags(_t);
             s.SwingLanterns(frame);
         }
     }
@@ -517,6 +520,12 @@ public partial class ShipDemo : Node3D
         Check("Exposition automatique", st.AutoExposure, on => st.AutoExposure = on);
         Slide("Seuil d'exposition", 0.2, 3, 0.05, st.AutoExposureThreshold, x => st.AutoExposureThreshold = x);
         Slide("Vitesse d'adaptation", 0.1, 5, 0.1, st.AutoExposureSpeed, x => st.AutoExposureSpeed = x);
+        Title("Navire", 15);
+        // le pavillon à la barre : celui de la fiche, ou une nation de flags.json
+        var nlabels = new List<string> { "Pavillon de la fiche" };
+        foreach (var n in _nations.All) nlabels.Add(n.Pirate ? "Pavillon noir" : "Pavillon · " + (n.Pays ?? n.Id));
+        Choice("Pavillon", nlabels.ToArray(), _nations.All.FindIndex(n => n.Id == st.Nation) + 1,
+            i => { st.Nation = i == 0 ? "" : _nations.All[i - 1].Id; HoistNation(); });
         Title("Performance", 15);
         Check("Solveurs sur plusieurs cœurs", st.ParallelSolvers, on => st.ParallelSolvers = on);
 
@@ -690,6 +699,7 @@ public partial class ShipDemo : Node3D
         GD.Print($"  {what} ; profil : demi-largeur {_prof.MaxHalfB:F3} m (fiche {spec.B * 0.5:F3}), "
                + $"corps {_prof.EndAft:F2} à {_prof.EndFwd:F2} m");
         RefitFleet();
+        HoistNation();
         /* LA COQUE QUI TAPE JETTE DE L'EAU — wireSplash : le solveur dit combien
            d'eau elle vient de chasser et à quelle vitesse, la réserve en fait une
            gerbe. Toute coque le fait, pas seulement la nôtre. */
@@ -743,6 +753,7 @@ public partial class ShipDemo : Node3D
            le navire, sans seconde règle à tenir d'accord. */
         var ph = _ship.Physics;
         _ship.SetTrim(_ship.Ctrl.Sheet, ph.Tack, ph.SetFrac, ph.Luffing, _t, ph.SailLoad);
+        _ship.StreamFlags(_t);
         // les lanternes pendues suivent le roulis en vrais pendules
         _ship.SwingLanterns(frame);
         StepOthers(frame);

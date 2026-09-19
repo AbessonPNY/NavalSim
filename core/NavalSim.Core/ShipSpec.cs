@@ -186,6 +186,8 @@ public sealed class AppearanceSpec
     [JsonPropertyName("canvasMap")] public Dictionary<string, string>? CanvasMap { get; set; }
     /// <summary>Le pavillon qu'elle arbore ; « jolly » : la tête de mort, et c'est une déclaration.</summary>
     [JsonPropertyName("ensign")]    public string? Ensign { get; set; }
+    /// <summary>L'image qui flotte ; le camp reste dit par <see cref="Ensign"/>.</summary>
+    [JsonPropertyName("ensignMap")] public string? EnsignMap { get; set; }
     /// <summary>Les impacts peints : des variantes, chacune une suite de stades de l'éraflure à la plaie ouverte.</summary>
     [JsonPropertyName("impactMaps")] public List<List<string>>? ImpactMaps { get; set; }
 }
@@ -205,6 +207,7 @@ public sealed class ShipJson
     [JsonPropertyName("model")]  public ModelSpec? Model { get; set; }
     [JsonPropertyName("appearance")] public AppearanceSpec Appearance { get; set; } = new();
     [JsonPropertyName("lanterns")]   public List<LanternSpec>? Lanterns { get; set; }
+    [JsonPropertyName("flags")]      public List<FlagSpec>? Flags { get; set; }
     [JsonPropertyName("camera")]     public CameraSpec Camera { get; set; } = new();
 }
 
@@ -268,6 +271,8 @@ public sealed class ShipSpec
     public AppearanceSpec Appearance { get; }
     /// <summary>Ses feux, ou <c>null</c> : le feu de poupe par défaut.</summary>
     public List<LanternSpec>? Lanterns { get; }
+    /// <summary>Ses pavillons ; absents, un seul en tête du plus grand mât.</summary>
+    public List<FlagSpec>? Flags { get; }
     public CameraSpec Camera { get; }
     /// <summary>
     /// Ses vues à bord, dans l'ordre où C les parcourt. Sans camera.decks, la
@@ -343,6 +348,7 @@ public sealed class ShipSpec
         Model = json.Model;
         Appearance = json.Appearance ?? new();
         Lanterns = json.Lanterns;
+        Flags = json.Flags;
         Camera = json.Camera ?? new();
         Decks = Camera.Decks is { Count: > 0 } d
             ? d

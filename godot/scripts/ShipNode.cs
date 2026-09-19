@@ -95,6 +95,8 @@ public partial class ShipNode : Node3D
         LoadModel();
         // les feux après le gréement : la lanterne du grand mât se pend à SON mât
         BuildLanterns();
+        // ses couleurs, une fois ses mâts trouvés : elles se pendent dans leurs chutes
+        BuildFlags();
         FindNightGlow();
     }
 
