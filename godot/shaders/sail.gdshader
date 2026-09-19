@@ -24,6 +24,7 @@ shader_type spatial;
 render_mode cull_disabled;
 
 #include "res://shaders/ship_haze.gdshaderinc"
+#include "res://shaders/ship_snow.gdshaderinc"
 
 uniform vec3 u_canvas : source_color = vec3(0.95, 0.92, 0.86);
 uniform vec3 u_emissive : source_color = vec3(0.553, 0.525, 0.435);   // 0x8d866f
@@ -31,13 +32,16 @@ uniform float u_emissive_k = 0.12;
 uniform sampler2D u_map : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform float u_has_map = 0.0;
 uniform vec3 u_sun_col = vec3(1.0, 0.95, 0.86);
+uniform float u_snow = 0.0;          // la couche de neige sur CE navire : pendante, la toile n'en garde presque pas
 
 varying vec3 v_world;
 varying vec3 v_raw_n;
+varying vec3 v_local;
 
 void vertex() {
 	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	v_raw_n = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	v_local = VERTEX;
 }
 
 void fragment() {
@@ -46,6 +50,8 @@ void fragment() {
 	   voiles unies — un motif sur un matériau blanc est un drap à côté du foc. */
 	vec3 diffuse = u_canvas;
 	if (u_has_map > 0.5) diffuse *= texture(u_map, UV).rgb;
+	// par sa normale, comme la page : c'est la face qui regarde le ciel qui la reçoit
+	diffuse = mix(diffuse, NAVAL_SNOW_COLOR, naval_snow(v_raw_n.y, v_local, u_snow));
 
 	vec3 to_eye = normalize(CAMERA_POSITION_WORLD - v_world);   // pas E : réservé
 	vec3 N = normalize(v_raw_n);

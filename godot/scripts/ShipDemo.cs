@@ -75,6 +75,9 @@ public partial class ShipDemo : Node3D
 
         _spray = new SprayNode();
         AddChild(_spray);
+        _precip = new PrecipNode();
+        AddChild(_precip);
+        LoadClimate();
 
         _paths = ShipLibrary.Discover();
         GD.Print($"{_paths.Count} fiche(s) lue(s) dans {ShipLibrary.Folder}");
@@ -760,7 +763,9 @@ public partial class ShipDemo : Node3D
         /* LE MÊME CIEL PARTOUT, une fois par image. La mer le réfléchit, la
            coque respire sa brume, le dôme le dessine — et c est SkyNode qui
            écrit les trois, faute de quoi ils dériveraient en silence. */
+        double dayBefore = _sky.Core.DayTime;
         _sky.UpdateWeather(frame, _sea.Core.SeaState);
+        FallTick(frame, dayBefore);
         TickSunPanel(frame);
         /* La lueur n'existe pas le jour — bloom.js saute sa passe tant que la nuit
            n'a pas passé 0,02 : le soleil sur la houle déborderait le seuil et
@@ -1030,6 +1035,7 @@ public partial class ShipDemo : Node3D
             $"machine    {_ship.Ctrl.Throttle,6:F2}      barre     {_ship.Ctrl.Rudder,5:F2}\n" +
             $"écoutes    {_ship.Ctrl.Sheet,6:F2}      voiles    {voiles}\n" +
             $"vent       {_windNowDeg,6:F0}°      force     {_sea.Core.SeaState:F1} · {Config.Beaufort[bf].Name}{(_seaMaster != null ? " · " + _seaMaster : "")}\n" +
+            $"air        {_climate.Word()}{(_fall.Amount > 0.004 ? (_fall.Snow ? " · il neige" : " · il pleut") : "")}   {_calendar.Date:dd/MM/yyyy}{(_ship.SnowCover > 0.01 ? $"   neige sur le pont {_ship.SnowCover * 100:F0} %" : "")}\n" +
             (_inSquall ? $"dépression {_squall.Dist / 1852,6:F1} mille(s) du centre · au cœur force {_squall.Storm.Peak:F1} · ici {_squall.Force:F1}\n" : "") +
             $"\n" +
             $"W S machine   B élan   A D barre   Q E écoutes   V voiles\n" +
@@ -1156,6 +1162,74 @@ public partial class ShipDemo : Node3D
     Squall _squall;
     string? _seaMaster;
 
+    // ------------------------------------------------------------------
+    //  CE QUI TOMBE — le climat (température, averses), la pluie, la neige,
+    //  et la neige qui tient sur les ponts
+    // ------------------------------------------------------------------
+
+    PrecipNode _precip = null!;
+    Calendar _calendar = new();
+    Climate _climate = new();
+    (double Amount, bool Snow) _fall;
+
+    /* LE CLIMAT DE LA PAGE, lu dans SON settings.json : le départ du calendrier et
+       la section « climate ». Un fichier absent ou abîmé laisse les valeurs par
+       défaut, qui sont celles de climate.js. */
+    void LoadClimate()
+    {
+        string path = System.IO.Path.GetFullPath(System.IO.Path.Combine(ProjectSettings.GlobalizePath("res://"), "..", "settings.json"));
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(path));
+            var root = doc.RootElement;
+            if (root.TryGetProperty("calendar", out var c) && c.TryGetProperty("start", out var s))
+                _calendar = new Calendar(s.GetString());
+            if (root.TryGetProperty("climate", out var k))
+                _climate = new Climate(ClimateSettings.FromJson(k));
+        }
+        catch (Exception ex) { GD.PushWarning($"settings.json illisible ({ex.Message}) : climat par défaut"); }
+    }
+
+    /// <summary>
+    /// Une image de ce qui tombe. Le climat avance en heures de JEU — l'horloge du
+    /// jour, pas la montre : presser le temps amène autant d'averses par jour —, et
+    /// minuit passé tourne la page du calendrier. La pluie d'un coup de vent (à
+    /// partir de force 5,5) et l'averse se composent ; au froid, c'est de la neige.
+    /// </summary>
+    void FallTick(double dt, double dayBefore)
+    {
+        double dayAfter = _sky.Core.DayTime;
+        if (dayAfter < dayBefore) _calendar.NextDay();          // minuit passé
+        double hours = (dayAfter - dayBefore + 24) % 24;
+        _climate.Update(hours, _calendar, dayAfter, _sky.Core.Storm);
+
+        double wet = Math.Clamp((_sea.Core.SeaState - 5.5) / 2.8, 0, 1);
+        _fall = _climate.Precipitation(wet);
+
+        // ce qui tombe réfléchit : la clarté de l'horizon, qui porte l'heure
+        var h = _sky.Core.Horizon;
+        double light = Math.Min(1, (h.R + h.G + h.B) / 2.3);
+        var w = _sea.Core.WindVec;
+        _precip.Step(_cam.GlobalPosition, _t, new Vector3((float)w.X, (float)w.Y, (float)w.Z),
+            _fall.Snow ? 0 : _fall.Amount, _fall.Snow ? _fall.Amount : 0, light,
+            GetViewport().GetVisibleRect().Size.Y);
+
+        /* LA NEIGE TIENT SUR LES PONTS : un manteau qui s'épaissit en dix minutes
+           sous une forte chute, plafonné à 0,85 — un manteau, pas une congère —,
+           et qui fond d'autant plus vite qu'il fait doux. À chaque coque la
+           sienne : un navire sorti de la neige la garde jusqu'à ce qu'elle fonde. */
+        double melt = Math.Max(0, _climate.Temp - _climate.K.SnowBelow);
+        Settle(_ship);
+        foreach (var s in _others) Settle(s);
+        void Settle(ShipNode s)
+        {
+            double c = s.SnowCover;
+            c = _fall.Snow ? Math.Min(0.85, c + dt * _fall.Amount / 600)
+                           : Math.Max(0, c - dt * (0.5 + melt) / 1800);
+            s.SetSnowCover(c);
+        }
+    }
+
     void SetAutoWeather(bool on)
     {
         _weather.On = on;
@@ -1266,6 +1340,8 @@ public partial class ShipDemo : Node3D
                 // simulation ne montre qu une voilure a moitie etablie
                 case "--after": _captureIn = args[i + 1].ToInt(); break;
                 case "--force": _force = args[i + 1].ToFloat(); Restate(); break;
+                case "--date": _calendar = new Calendar(args[i + 1]); break;
+                case "--averse": _climate.StartShower(args[i + 1].ToFloat(), 1.0); break;
                 case "--meteo": SetAutoWeather(args[i + 1] == "1"); break;
                 case "--tempete": GoToStorm(args[i + 1].ToFloat()); break;
                 case "--swell": _swell = args[i + 1].ToFloat(); Restate(); break;

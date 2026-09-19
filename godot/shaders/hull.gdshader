@@ -15,14 +15,20 @@ shader_type spatial;
 render_mode cull_disabled;
 
 #include "res://shaders/ship_haze.gdshaderinc"
+#include "res://shaders/ship_snow.gdshaderinc"
 
 uniform vec3 u_albedo : source_color = vec3(0.22, 0.26, 0.31);
 uniform float u_roughness : hint_range(0.0, 1.0) = 0.72;
+uniform float u_snow = 0.0;          // la couche de neige sur CE navire
 
 varying vec3 v_world;
+varying vec3 v_local;
+varying float v_up;
 
 void vertex() {
 	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	v_local = VERTEX;
+	v_up = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz).y;
 }
 
 /* LA BRUME SE POSE DANS fragment(), ET C'EST EXACT PLUTÔT QU'APPROCHÉ.
@@ -37,9 +43,11 @@ void vertex() {
  * lui, ne passe pas par l'albédo, d'où le même facteur sur SPECULAR. */
 void fragment() {
 	float hz = haze_along(CAMERA_POSITION_WORLD, v_world);
-	ALBEDO = u_albedo * (1.0 - hz);
+	// la neige sur la couleur, AVANT la brume : l'air est devant elle aussi
+	float sn = naval_snow(v_up, v_local, u_snow);
+	ALBEDO = mix(u_albedo, NAVAL_SNOW_COLOR, sn) * (1.0 - hz);
 	SPECULAR = 0.5 * (1.0 - hz);
 	EMISSION = ship_haze_colour(CAMERA_POSITION_WORLD, v_world) * hz;
-	ROUGHNESS = u_roughness;
+	ROUGHNESS = mix(u_roughness, 0.9, sn);
 	METALLIC = 0.0;
 }

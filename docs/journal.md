@@ -5320,6 +5320,15 @@ désormais la clarté de l'horizon — la pluie avait une couleur pâle fixe et 
 voyait à minuit. Ligne `#tempLine` sous la date, dans la colonne empilée
 (« Frais, il pleut »).
 
+**Corrigé le 2026-09-19, trouvé en portant le climat sous Godot** : `_h` rendait
+un hachage SIGNÉ — `x ^= x >>> 15` laisse un int32 en JavaScript —, donc dans
+[−0,5 ; 0,5) et non [0 ; 1), et l'errance d'un jour à l'autre allait de **−6 à
+0 °C** au lieu de ± 3. Le climat était en moyenne 3 °C plus froid que ses
+réglages. Corrigé des deux côtés ensemble (`(x >>> 0)`, et `Climate.DayHash`
+du noyau), la parité le vérifie. **Les relevés ci-dessus ont été faits avec ce
+climat trop froid** : la neige de novembre et de mars y est surestimée ; à
+remesurer si on veut les chiffres.
+
 ## Le manteau de neige
 
 Demandé : que le navire se couvre d'un petit manteau blanc quand il neige.

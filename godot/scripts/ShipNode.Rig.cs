@@ -241,6 +241,7 @@ public partial class ShipNode
             else GD.PushWarning($"[voile] texture introuvable : {mapSrc} — la toile reste unie");
         }
         Hazed.Add(m);
+        AddSnowed(m);
         return m;
     }
 

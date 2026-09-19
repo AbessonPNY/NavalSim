@@ -42,7 +42,9 @@ Naval.Climate = class Climate {
   _h(n){
     let x = (n*2654435761) >>> 0;
     x ^= x >>> 13; x = Math.imul(x, 0x5bd1e995) >>> 0; x ^= x >>> 15;
-    return x/4294967296;
+    // unsigned: `x ^= x >>> 15` leaves a SIGNED int32, which put the hash in
+    // [-0.5, 0.5) and the day-to-day wander at -6..0 degrees instead of +-3
+    return (x >>> 0)/4294967296;
   }
 
   /* dtHours: how far the day clock moved. storm: 0..1, how hard the

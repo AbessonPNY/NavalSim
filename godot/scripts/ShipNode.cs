@@ -36,13 +36,41 @@ public partial class ShipNode : Node3D
     /// </summary>
     public readonly List<ShaderMaterial> Hazed = new();
 
+    /// <summary>
+    /// Les matériaux qui portent SA neige : coque et espars procéduraux, toile, et
+    /// la passe posée sur un modèle. À elle seule — un navire sorti de la neige la
+    /// garde jusqu'à ce qu'elle fonde —, réglée par <see cref="SetSnowCover"/>.
+    /// </summary>
+    public readonly List<ShaderMaterial> Snowed = new();
+
+    /// <summary>La couche de neige sur elle : 0 nue, vers 1 un manteau sur tout ce qui regarde le ciel.</summary>
+    public double SnowCover { get; private set; }
+    float _snowPushed = -1;
+
+    public void SetSnowCover(double cover)
+    {
+        SnowCover = cover;
+        // écrite quand elle a bougé d'un rien qu'on puisse voir, pas à chaque image
+        if (Math.Abs(cover - _snowPushed) < 1e-4) return;
+        _snowPushed = (float)cover;
+        foreach (var m in Snowed) m.SetShaderParameter(U.Snow, _snowPushed);
+    }
+
     ShaderMaterial MakeHullMaterial(Color albedo, float roughness)
     {
         var m = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull.gdshader") };
         m.SetShaderParameter(U.Albedo, albedo);
         m.SetShaderParameter(U.Roughness, roughness);
         Hazed.Add(m);
+        AddSnowed(m);
         return m;
+    }
+
+    // né avec la couche qu'elle porte déjà : une voile refaite sous la neige est blanche aussi
+    internal void AddSnowed(ShaderMaterial m)
+    {
+        Snowed.Add(m);
+        if (_snowPushed > 0) m.SetShaderParameter(U.Snow, _snowPushed);
     }
 
     public void Build(ShipSpec spec)
@@ -124,6 +152,8 @@ public partial class ShipNode : Node3D
             RemoveChild(_hull); _hull.QueueFree();
             RemoveChild(_rig); _rig.QueueFree();
             Hazed.Clear();
+            Snowed.Clear();
+            _snowPushed = -1;
             ClearRig();
 
             AddChild(obj);
@@ -187,7 +217,7 @@ public partial class ShipNode : Node3D
         }
     }
 
-    ShaderMaterial? _hazePass;
+    ShaderMaterial? _hazePass, _snowPass;
 
     /// <summary>
     /// Poser la brume sur chaque matériau du modèle, en DERNIER de sa chaîne de
@@ -201,6 +231,9 @@ public partial class ShipNode : Node3D
     {
         _hazePass ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
         Hazed.Add(_hazePass);
+        // la neige passe AVANT la brume : l'air est devant elle aussi
+        _snowPass ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/ship_snow.gdshader"), NextPass = _hazePass };
+        Snowed.Add(_snowPass);
         var done = new HashSet<Material>();
         foreach (var (mi, _) in Meshes(obj))
             for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
@@ -214,8 +247,8 @@ public partial class ShipNode : Node3D
                 }
                 if (!done.Add(mat)) continue;
                 var last = mat;
-                while (last.NextPass != null && last.NextPass != _hazePass) last = last.NextPass;
-                last.NextPass = _hazePass;
+                while (last.NextPass != null && last.NextPass != _hazePass && last.NextPass != _snowPass) last = last.NextPass;
+                last.NextPass = _snowPass;
             }
     }
 

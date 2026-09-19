@@ -162,6 +162,40 @@ public static class WeatherParity
         if (!nearOk) failures++;
         Console.WriteLine($"  {(nearOk ? "OK  " : "FAIL")}  la plus proche             pire ecart {worstNear:E1} m"
                         + (nearBad > 0 ? $"  ; {nearBad} en desaccord" : ""));
+
+        // --- le climat ---
+        var cj = root.GetProperty("climate");
+        var crng = new Mulberry32((uint)cj.GetProperty("seed").GetInt32());
+        var cal = new Calendar(cj.GetProperty("start").GetString());
+        var cl = new Climate(ClimateSettings.FromJson(cj.GetProperty("settings")), crng.Next);
+        double hour = cj.GetProperty("hour0").GetDouble();
+        var dh = cj.GetProperty("dh").EnumerateArray().Select(e => e.GetDouble()).ToArray();
+        int cn = cj.GetProperty("n").GetInt32();
+        var csteps = cj.GetProperty("steps").EnumerateArray().ToArray();
+        double worstTemp = 0, worstAmt = 0; int flagBad = 0, ck = 0; string whereTemp = "";
+        for (int i = 0; i < cn && ck < csteps.Length; i++)
+        {
+            double dtH = dh[i % dh.Length];
+            double storm = Math.Max(0, Math.Sin(i * 0.013)) * 0.8;
+            double before = hour;
+            hour = (hour + dtH) % 24;
+            if (hour < before) cal.NextDay();
+            cl.Update(dtH, cal, hour, storm);
+            var pr = cl.Precipitation(i % 3 == 0 ? 0.4 : 0);
+            if (csteps[ck].GetProperty("n").GetInt32() != i) continue;
+            var s = csteps[ck++];
+            double dT = Math.Abs(s.GetProperty("temp").GetDouble() - cl.Temp);
+            if (dT > worstTemp) { worstTemp = dT; whereTemp = $"jour {cal.Day}, {hour:F2} h"; }
+            worstAmt = Math.Max(worstAmt, Math.Abs(s.GetProperty("amount").GetDouble() - cl.Amount));
+            worstAmt = Math.Max(worstAmt, Math.Abs(s.GetProperty("pAmount").GetDouble() - pr.Amount));
+            if (s.GetProperty("showering").GetBoolean() != cl.Showering || s.GetProperty("snow").GetBoolean() != pr.Snow
+                || s.GetProperty("word").GetString() != cl.Word() || s.GetProperty("day").GetInt32() != cal.Day) flagBad++;
+        }
+        bool climOk = worstTemp <= 1e-9 && worstAmt <= 1e-9 && flagBad == 0 && ck == csteps.Length;
+        if (!climOk) failures++;
+        Console.WriteLine($"  {(climOk ? "OK  " : "FAIL")}  climat, {cn} pas sur {cal.Day} jours   temperature {worstTemp:E1}"
+                        + (worstTemp > 0 ? $" ({whereTemp})" : "") + $", averses {worstAmt:E1}"
+                        + (flagBad > 0 ? $"  ; {flagBad} en desaccord (averse, neige, mot ou jour)" : ""));
         return failures;
     }
 }

@@ -12,7 +12,7 @@ const path = require('path');
 
 const root = path.join(__dirname, '..');
 global.window = global;
-for (const f of ['weather.js', 'storms.js'])
+for (const f of ['weather.js', 'storms.js', 'calendar.js', 'climate.js'])
   eval(fs.readFileSync(path.join(root, 'js', f), 'utf8'));
 
 function mulberry32(a) {
@@ -79,6 +79,30 @@ for (const [x, z, t] of [[0, 0, 0], [123456, -98765, 5000], [-250000, 40000, 123
   nearest.push(f ? { x, z, t, i: f.storm.key, dist: f.dist } : { x, z, t, none: true });
 }
 out.nearest = nearest;
+
+// --- le climat : la temperature et les averses, sur des centaines de jours ---
+const settings = JSON.parse(fs.readFileSync(path.join(root, 'settings.json'), 'utf8'));
+Object.assign(Naval.CLIMATE, settings.climate || {});
+Math.random = mulberry32(16901008);
+const cal = new Naval.Calendar(settings.calendar && settings.calendar.start);
+const cl = new Naval.Climate();
+let hour = 6.5;
+const climate = [];
+const dh = [0.01, 0.05, 0.2, 0.5, 0.03, 1.1];
+for (let n = 0; n < 12000; n++) {
+  const dtH = dh[n % dh.length];
+  const storm = Math.max(0, Math.sin(n * 0.013)) * 0.8;
+  const before = hour;
+  hour = (hour + dtH) % 24;
+  if (hour < before) cal.nextDay();
+  cl.update(dtH, cal, hour, storm);
+  const p = cl.precipitation(n % 3 === 0 ? 0.4 : 0);
+  if (n % 5 === 0)
+    climate.push({ n, day: cal.day, hour, temp: cl.temp, amount: cl.amount, showering: !!cl.shower,
+                   pAmount: p.amount, snow: p.snow, word: cl.word() });
+}
+out.climate = { seed: 16901008, start: settings.calendar && settings.calendar.start, hour0: 6.5,
+                dh, n: 12000, settings: Naval.CLIMATE, steps: climate };
 
 const dest = path.join(root, 'core', 'parity-weather.json');
 fs.writeFileSync(dest, JSON.stringify(out));

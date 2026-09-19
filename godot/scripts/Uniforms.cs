@@ -30,6 +30,10 @@ public static class U
     public static readonly StringName MoonDisc = new("u_moon_disc");
     public static readonly StringName MoonPhase = new("u_moon_phase");
     public static readonly StringName Dazzle = new("u_dazzle");
+    public static readonly StringName Snow = new("u_snow");
+    // ce qui tombe : la pluie et la neige
+    public static readonly StringName Eye = new("u_eye"), Slant = new("u_slant"), Len = new("u_len"),
+        Amount = new("u_amount"), Drift = new("u_drift"), Scale = new("u_scale"), Box = new("u_box");
     public static readonly StringName Color = new("u_color");
     public static readonly StringName Opacity = new("u_opacity");
     public static readonly StringName Fixed = new("u_fixed");
