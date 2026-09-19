@@ -685,6 +685,8 @@ public partial class ShipDemo : Node3D
         _t += frame;
 
         ReadKeys(frame);
+        // le temps AVANT le solveur : la coque et le shader liront la même mer
+        WeatherTick(frame, _t - frame);
 
         // --- le solveur, en sous-pas ---
         int sub = Math.Max(MinSub, (int)Math.Ceiling(frame / MaxSubDt));
@@ -758,7 +760,7 @@ public partial class ShipDemo : Node3D
         /* LE MÊME CIEL PARTOUT, une fois par image. La mer le réfléchit, la
            coque respire sa brume, le dôme le dessine — et c est SkyNode qui
            écrit les trois, faute de quoi ils dériveraient en silence. */
-        _sky.UpdateWeather(frame, _force);
+        _sky.UpdateWeather(frame, _sea.Core.SeaState);
         TickSunPanel(frame);
         /* La lueur n'existe pas le jour — bloom.js saute sa passe tant que la nuit
            n'a pas passé 0,02 : le soleil sur la houle déborderait le seuil et
@@ -1009,7 +1011,7 @@ public partial class ShipDemo : Node3D
         var (heel, trim, hdg) = _ship.Attitude();
 
         double speedKn = Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z) * Config.MsToKn;
-        int bf = Mathf.Clamp((int)Math.Round(_force), 0, 9);
+        int bf = Mathf.Clamp((int)Math.Round(_sea.Core.SeaState), 0, 9);
 
         string voiles = p.SetFrac > 0.99 ? "établies"
                       : p.SetFrac < 0.01 ? "ferlées"
@@ -1027,10 +1029,11 @@ public partial class ShipDemo : Node3D
             $"\n" +
             $"machine    {_ship.Ctrl.Throttle,6:F2}      barre     {_ship.Ctrl.Rudder,5:F2}\n" +
             $"écoutes    {_ship.Ctrl.Sheet,6:F2}      voiles    {voiles}\n" +
-            $"vent       {_windDeg,6:F0}°      force     {_force:F1} · {Config.Beaufort[bf].Name}\n" +
+            $"vent       {_windNowDeg,6:F0}°      force     {_sea.Core.SeaState:F1} · {Config.Beaufort[bf].Name}{(_seaMaster != null ? " · " + _seaMaster : "")}\n" +
+            (_inSquall ? $"dépression {_squall.Dist / 1852,6:F1} mille(s) du centre · au cœur force {_squall.Storm.Peak:F1} · ici {_squall.Force:F1}\n" : "") +
             $"\n" +
             $"W S machine   B élan   A D barre   Q E écoutes   V voiles\n" +
-            $"↑↓ force   ←→ vent   PgUp/PgDn creux   N navire   F suivre   C vues ({CamName()})   X replanter   H masquer   Échap options\n" +
+            $"↑↓ force   ←→ vent   T météo {(_weather.On ? "auto" : "à la main")}   J gros temps   PgUp/PgDn creux   N navire   F suivre   C vues ({CamName()})   X replanter   H masquer   Échap options\n" +
             $"O occlusion {(_sky.Env.SsaoEnabled ? "oui" : "non")}   G lumière indirecte {(_sky.Env.SsilEnabled ? "oui" : "non")}";
     }
 
@@ -1050,10 +1053,13 @@ public partial class ShipDemo : Node3D
             Key key = k.PhysicalKeycode != Key.None ? k.PhysicalKeycode : k.Keycode;
             switch (key)
             {
-                case Key.Up: _force = Math.Min(9.9, _force + 0.5); Restate(); break;
-                case Key.Down: _force = Math.Max(0, _force - 0.5); Restate(); break;
-                case Key.Left: _windDeg = (_windDeg - 15 + 360) % 360; Restate(); break;
-                case Key.Right: _windDeg = (_windDeg + 15) % 360; Restate(); break;
+                // une main sur la console reprend la main à la météo, comme le curseur de la page
+                case Key.Up: _weather.On = false; _force = Math.Min(9.9, _force + 0.5); Restate(); break;
+                case Key.Down: _weather.On = false; _force = Math.Max(0, _force - 0.5); Restate(); break;
+                case Key.Left: _weather.On = false; _windDeg = (_windDeg - 15 + 360) % 360; Restate(); break;
+                case Key.Right: _weather.On = false; _windDeg = (_windDeg + 15) % 360; Restate(); break;
+                case Key.T: SetAutoWeather(!_weather.On); break;
+                case Key.J: GoToStorm(0); break;
                 // Page Haut / Page Bas : ces deux-la portent le meme nom et occupent
                 // la meme place sur toute disposition, ce qui evite la question
                 // AZERTY entierement.
@@ -1133,6 +1139,114 @@ public partial class ShipDemo : Node3D
         _sea.Core.Time = _t;
         _sea.Core.Swell = _swell;
         _sea.Core.SetSeaState(_force, _windDeg);
+        _lagForce = _force; _lagDir = _windDeg;
+        UpdateInfo();
+    }
+
+    // ------------------------------------------------------------------
+    //  LE TEMPS QU'IL FAIT — la météo qui se conduit seule, et les
+    //  dépressions, qui ont un lieu (noyau : Weather, Storms)
+    // ------------------------------------------------------------------
+
+    readonly Weather _weather = new();
+    readonly Storms _storms = new();
+    // la mer qui court après le vent, au plus à Weather.SeaRate
+    double _lagForce = 4, _lagDir = 210, _windNowDeg = 210;
+    bool _inSquall;
+    Squall _squall;
+    string? _seaMaster;
+
+    void SetAutoWeather(bool on)
+    {
+        _weather.On = on;
+        // l'allumer part de ce que montre la console : pas de mer téléportée à un autre jour
+        if (on) _weather.Sync(_force, _windDeg);
+        UpdateInfo();
+    }
+
+    /// <summary>
+    /// LA MER OÙ ELLE EST VRAIMENT — trois choses la décident et se composent
+    /// ICI : la console, qui fait le jour ; la météo, quand elle tourne seule ;
+    /// et la dépression où elle se trouve, qui l'emporte sur les deux, une
+    /// dépression ne négociant pas. UNE cible, que le spectre poursuit à vitesse
+    /// bornée — ce qui compte surtout en entrant dans un grain, où un saut sans
+    /// borne rebattrait toute la mer. Le vent, lui, est celui de l'instant : la
+    /// toile sent la risée quand elle arrive, la houle met des minutes à suivre.
+    /// </summary>
+    void WeatherTick(double dt, double tNow)
+    {
+        _weather.Update(dt);
+        double tgtF = _weather.On ? _weather.Force : _force;
+        double tgtD = _weather.On ? _weather.Dir : _windDeg;
+        string? master = _weather.On ? "météo auto" : null;
+
+        // sa position VRAIE : les dépressions vivent en mètres monde, pas autour de l'origine flottante
+        var b = _ship.Physics.Body;
+        var o = _sea.Core.Origin;
+        _inSquall = _storms.At(o.X + b.Pos.X, o.Z + b.Pos.Z, tNow, out _squall);
+        if (_inSquall && _squall.Force > tgtF)
+        {
+            master = "dépression";
+            tgtF = _squall.Force;
+            /* le vent tourne autour du centre, par le plus court et à proportion de
+               l'enfoncement : il refuse régulièrement à l'approche, et c'est ainsi
+               qu'on trouve le milieu sans baromètre */
+            double dd = (_squall.WindDeg - tgtD + 540) % 360 - 180;
+            tgtD += dd * _squall.Inten;
+        }
+
+        // laissée à elle-même, la console EST la mer
+        if (!_weather.On && !_inSquall) { _lagForce = tgtF; _lagDir = tgtD; }
+        if (_weather.ChaseSea(ref _lagForce, ref _lagDir, dt, tgtF, tgtD))
+        {
+            _sea.Core.Time = tNow;          // la correction de bande se compte contre l'horloge
+            _sea.Core.SetSeaState(_lagForce, _lagDir);
+        }
+        // le dernier mot est à la risée : la toile la sent, la houle suit plus tard
+        _sea.Core.SetWind(tgtF, tgtD);
+        _windNowDeg = (tgtD % 360 + 360) % 360;
+
+        /* LA CONSOLE SUIT CE QUI SOUFFLE tant que la météo ou le grain décident,
+           comme les curseurs de la page : sans quoi, à la sortie d'un grain, la
+           mer retomberait d'un coup à ce qu'on avait réglé avant d'y entrer. */
+        if (_weather.On || _inSquall) { _force = _lagForce; _windDeg = _windNowDeg; }
+        _seaMaster = master;
+
+        // le quart de ciel noir vers le centre, et ses éclairs
+        _sky.SetSquall(_inSquall ? new Vector2((float)_squall.ToX, (float)_squall.ToZ) : Vector2.Zero,
+                       _inSquall ? _squall.Loom : 0);
+    }
+
+    /// <summary>
+    /// EMMÈNE-MOI DANS LE GROS TEMPS — tempete() de la page : la dépression la plus
+    /// proche, et la coque posée à <paramref name="fraction"/> de son rayon (0 : au
+    /// centre). Pas de terre dans cette démo, donc pas d'île où s'échouer : la
+    /// page, elle, cherche de l'eau sous le grain. Le transport déplace l'ORIGINE
+    /// — la coque reste où elle est, près de zéro, et le monde glisse sous elle —,
+    /// et elle arrive droite et sans erre.
+    /// </summary>
+    void GoToStorm(double fraction)
+    {
+        var b = _ship.Physics.Body;
+        var o = _sea.Core.Origin;
+        double x = o.X + b.Pos.X, z = o.Z + b.Pos.Z;
+        if (!_storms.Nearest(x, z, _t, 12, null, out var s, out double dist))
+        {
+            GD.Print("pas une dépression à portée");
+            return;
+        }
+        double k = Math.Clamp(fraction, 0, 0.95);
+        double tx = s.X + s.R * k, tz = s.Z;
+        _sea.Core.Time = _t;
+        _sea.Core.Rebase(tx - x, tz - z);
+        _foam.Rebase((float)(tx - x), (float)(tz - z));
+        _spray.Pool.Rebase(tx - x, tz - z);
+        if (_fixed) Plant();
+        b.Vel = new Vec3d(0, 0, 0);
+        b.AngVel = new Vec3d(0, 0, 0);
+        _storms.At(tx, tz, _t, out var q);
+        GD.Print(FormattableString.Invariant(
+            $"dépression à {dist / 1852:F1} milles (rayon {s.R:F0} m, force {s.Peak:F1} au cœur) — force {q.Force:F1} ici"));
         UpdateInfo();
     }
 
@@ -1152,6 +1266,8 @@ public partial class ShipDemo : Node3D
                 // simulation ne montre qu une voilure a moitie etablie
                 case "--after": _captureIn = args[i + 1].ToInt(); break;
                 case "--force": _force = args[i + 1].ToFloat(); Restate(); break;
+                case "--meteo": SetAutoWeather(args[i + 1] == "1"); break;
+                case "--tempete": GoToStorm(args[i + 1].ToFloat()); break;
                 case "--swell": _swell = args[i + 1].ToFloat(); Restate(); break;
                 case "--pitch": _pitch = args[i + 1].ToFloat(); break;
                 case "--dist": _dist = args[i + 1].ToFloat(); break;

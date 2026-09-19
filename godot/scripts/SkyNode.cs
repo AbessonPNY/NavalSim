@@ -196,6 +196,11 @@ public partial class SkyNode : Node3D
         double k = Core.SunIntensity * 0.5;
         m.SetShaderParameter(U.SunCol, new Vector3(
             (float)(Core.SunColor.R * k), (float)(Core.SunColor.G * k), (float)(Core.SunColor.B * k)));
+        // le grain qu'on voit venir, et ses éclairs : le même quart noir sur le dôme, la mer et la brume
+        m.SetShaderParameter(U.StormDir, _loomDir);
+        m.SetShaderParameter(U.StormLoom, (float)_loom);
+        m.SetShaderParameter(U.StormFlashDir, _farDir);
+        m.SetShaderParameter(U.StormFlash, (float)_farA);
     }
 
     public void SetCloud(ShaderMaterial m, double amount, double skyTime)
@@ -204,15 +209,19 @@ public partial class SkyNode : Node3D
         m?.SetShaderParameter(U.SkyTime, (float)skyTime);
     }
 
-    /// <summary>Le grain qu'on voit venir : son relèvement et sa noirceur.</summary>
-    public void SetLoom(ShaderMaterial m, Vector2 bearing, double loom)
+    /// <summary>
+    /// Le grain qu'on voit venir : le relèvement de son centre (unitaire, x et z du
+    /// monde) et la noirceur de ce quart de ciel, 0 par temps clair. Retenu ici et
+    /// poussé par <see cref="PushTo"/> avec le reste du ciel ; ses éclairs
+    /// lointains partent de là.
+    /// </summary>
+    public void SetSquall(Vector2 bearing, double loom)
     {
-        m?.SetShaderParameter(U.StormDir, bearing);
-        m?.SetShaderParameter(U.StormLoom, (float)loom);
-        m?.SetShaderParameter(U.StormFlashDir, _farDir);
-        m?.SetShaderParameter(U.StormFlash, (float)_farA);
+        if (loom > 0) _loomDir = bearing;
+        _loom = loom;
     }
-    Vector2 _farDir = Vector2.Right;
+    Vector2 _loomDir = new(0, 1), _farDir = Vector2.Right;
+    double _loom;
 
     /// <summary>
     /// L'éclair PROCHE : un coup au-dessus d'elle, qui éclaire le pont, la toile
@@ -264,7 +273,8 @@ public partial class SkyNode : Node3D
             // quelque part le long du front plutôt qu'en plein milieu
             double a = (_rng.Randf() - 0.5) * 0.95;
             float ca = Mathf.Cos((float)a), sa = Mathf.Sin((float)a);
-            _farDir = new Vector2(_farDir.X * ca - _farDir.Y * sa, _farDir.X * sa + _farDir.Y * ca);
+            // tourné depuis le relèvement du GRAIN, comme la page — pas depuis l'éclair d'avant
+            _farDir = new Vector2(_loomDir.X * ca - _loomDir.Y * sa, _loomDir.X * sa + _loomDir.Y * ca);
         }
     }
 
@@ -272,7 +282,7 @@ public partial class SkyNode : Node3D
     /// Le temps qui passe : le jour qui défile, l'éclair qui s'éteint, et le gros
     /// temps tiré de l'état de la mer.
     /// </summary>
-    public void UpdateWeather(double dt, double seaState, double loom = 0)
+    public void UpdateWeather(double dt, double seaState)
     {
         if (DayRunning)
         {
@@ -281,7 +291,7 @@ public partial class SkyNode : Node3D
         }
 
         Core.SetSeaState(seaState);
-        FarLightning(dt, loom);
+        FarLightning(dt, _loom);
 
         // orages seulement : sous une bonne brise il n'y a rien à décharger
         double p = Math.Max(0, (seaState - 5.2) / 3.8);

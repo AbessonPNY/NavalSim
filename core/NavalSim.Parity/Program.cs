@@ -214,4 +214,12 @@ Console.WriteLine(sailFailures == 0
     ? "PARITE TENUE -- le C# et le JS tissent et forment la meme toile."
     : $"{sailFailures} DIVERGENCE(S) sur la toile.");
 
-return failures == 0 && seaFailures == 0 && physFailures == 0 && sailFailures == 0 ? 0 : 1;
+Console.WriteLine();
+string weatherDump = Path.GetFullPath(Path.Combine(root, "..", "..", "..", "..", "parity-weather.json"));
+int weatherFailures = NavalSim.Parity.WeatherParity.Run(weatherDump);
+Console.WriteLine();
+Console.WriteLine(weatherFailures == 0
+    ? "PARITE TENUE -- le C# et le JS font le meme temps."
+    : $"{weatherFailures} DIVERGENCE(S) sur la meteo.");
+
+return failures == 0 && seaFailures == 0 && physFailures == 0 && sailFailures == 0 && weatherFailures == 0 ? 0 : 1;
