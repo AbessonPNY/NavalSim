@@ -78,6 +78,14 @@ public partial class ShipDemo : Node3D
         _precip = new PrecipNode();
         AddChild(_precip);
         LoadClimate();
+        _lightning = new LightningNode();
+        AddChild(_lightning);
+        _krakenNode = new KrakenNode();
+        AddChild(_krakenNode);
+        _krakenNode.Build(_krakenRules.Glb == null ? null
+            : System.IO.Path.GetFullPath(System.IO.Path.Combine(ProjectSettings.GlobalizePath("res://"), "..", _krakenRules.Glb)));
+        _kraken = new Kraken(_krakenRules) { BodyR = _krakenNode.BodyR };
+        WireKraken();
 
         _paths = ShipLibrary.Discover();
         GD.Print($"{_paths.Count} fiche(s) lue(s) dans {ShipLibrary.Folder}");
@@ -126,6 +134,17 @@ public partial class ShipDemo : Node3D
         _info.AddThemeColorOverride("font_outline_color", new Color(0, 0, 0, 0.85f));
         _info.AddThemeConstantOverride("outline_size", 5);
         layer.AddChild(_info);
+        // UN SEUL CANAL DE MESSAGES, comme dans la page : une phrase, qui s'efface
+        _note = new Label
+        {
+            AnchorLeft = 0, AnchorRight = 1, AnchorTop = 1, AnchorBottom = 1, OffsetTop = -120, OffsetBottom = -80,
+            HorizontalAlignment = HorizontalAlignment.Center, Visible = false
+        };
+        _note.AddThemeFontSizeOverride("font_size", 22);
+        _note.AddThemeColorOverride("font_color", new Color(0.98f, 0.95f, 0.86f));
+        _note.AddThemeColorOverride("font_outline_color", new Color(0, 0, 0, 0.9f));
+        _note.AddThemeConstantOverride("outline_size", 6);
+        layer.AddChild(_note);
         BuildSunPanel(layer);
         _settings = Settings.Load();
         BuildMenu(layer);
@@ -697,7 +716,14 @@ public partial class ShipDemo : Node3D
         double t = _t - frame;
         // ce que chaque étage alloue, pour --frametimes : le solveur doit rester à zéro
         long a0 = GC.GetAllocatedBytesForCurrentThread();
+        /* UN MÂT QUI S'EN VA EMPORTE SA TOILE, et AVANT qu'elle soit poussée : lu
+           après, elle serait menée une image de plus par des voiles déjà dans l'eau. */
+        Rigging(_ship, frame);
+        foreach (var s in _others) Rigging(s, frame);
         StepSolvers(sub, dt, t);
+        // porter de la toile coûte de la toile, et au-delà, l'espar
+        TearCanvas(_ship, frame, true); StrainMast(_ship, frame, true);
+        foreach (var s in _others) { TearCanvas(s, frame, false); StrainMast(s, frame, false); }
         long a1 = GC.GetAllocatedBytesForCurrentThread();
         _ship.SyncTransform();
 
@@ -726,6 +752,8 @@ public partial class ShipDemo : Node3D
             _sea.Core.Rebase(-dx, -dz);
             _foam.Rebase((float)-dx, (float)-dz);
             _spray.Pool.Rebase(-dx, -dz);
+            _kraken.Rebase(-dx, -dz);
+            _lightning.Rebase(-dx, -dz);
             // la seule chose qui ne suit PAS le navire : sans ceci elle resterait
             // à quinze cents mètres, à filmer de l'eau vide
             _anchor = new Vec3d(_anchor.X + dx, _anchor.Y, _anchor.Z + dz);
@@ -766,6 +794,7 @@ public partial class ShipDemo : Node3D
         double dayBefore = _sky.Core.DayTime;
         _sky.UpdateWeather(frame, _sea.Core.SeaState);
         FallTick(frame, dayBefore);
+        StormTick(frame);
         TickSunPanel(frame);
         /* La lueur n'existe pas le jour — bloom.js saute sa passe tant que la nuit
            n'a pas passé 0,02 : le soleil sur la houle déborderait le seuil et
@@ -785,6 +814,7 @@ public partial class ShipDemo : Node3D
         _sky.PushTo(_sea.Material);
         _sky.SetCloud(_sea.Material, _cloud, _t);
         foreach (var m in _ship.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
+        if (_krakenNode.Visible) foreach (var m in _krakenNode.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
         foreach (var s in _others)
             foreach (var m in s.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
         // l'embrun est aussi clair que ce qui l'éclaire : l'horizon, qui porte l'heure
@@ -1039,7 +1069,7 @@ public partial class ShipDemo : Node3D
             (_inSquall ? $"dépression {_squall.Dist / 1852,6:F1} mille(s) du centre · au cœur force {_squall.Storm.Peak:F1} · ici {_squall.Force:F1}\n" : "") +
             $"\n" +
             $"W S machine   B élan   A D barre   Q E écoutes   V voiles\n" +
-            $"↑↓ force   ←→ vent   T météo {(_weather.On ? "auto" : "à la main")}   J gros temps   PgUp/PgDn creux   N navire   F suivre   C vues ({CamName()})   X replanter   H masquer   Échap options\n" +
+            $"↑↓ force   ←→ vent   T météo {(_weather.On ? "auto" : "à la main")}   J gros temps   K kraken   R radoub   PgUp/PgDn creux   N navire   F suivre   C vues ({CamName()})   X replanter   H masquer   Échap options\n" +
             $"O occlusion {(_sky.Env.SsaoEnabled ? "oui" : "non")}   G lumière indirecte {(_sky.Env.SsilEnabled ? "oui" : "non")}";
     }
 
@@ -1066,6 +1096,14 @@ public partial class ShipDemo : Node3D
                 case Key.Right: _weather.On = false; _windDeg = (_windDeg + 15) % 360; Restate(); break;
                 case Key.T: SetAutoWeather(!_weather.On); break;
                 case Key.J: GoToStorm(0); break;
+                // le radoub : mâts replantés, toile renverguée — pour recommencer un essai
+                case Key.R: _ship.RestoreMasts(); Say("Radoub : la mâture est remise en état."); break;
+                // le kraken, tout de suite contre elle — pour le voir sans attendre une minute au cœur d'un grain
+                case Key.K:
+                    // il ne vit qu'au cœur des dépressions : hors d'elles, il replongerait à l'image suivante
+                    if (!_inSquall || _squall.Inten < _krakenRules.MinInten) GoToStorm(0.2);
+                    _kraken.Summon(true, PreyOf(_ship));
+                    break;
                 // Page Haut / Page Bas : ces deux-la portent le meme nom et occupent
                 // la meme place sur toute disposition, ce qui evite la question
                 // AZERTY entierement.
@@ -1184,6 +1222,11 @@ public partial class ShipDemo : Node3D
             var root = doc.RootElement;
             if (root.TryGetProperty("calendar", out var c) && c.TryGetProperty("start", out var s))
                 _calendar = new Calendar(s.GetString());
+            if (root.TryGetProperty("storm", out var st))
+            {
+                if (st.TryGetProperty("lightning", out var li)) _lightRules = LightningSettings.FromJson(li);
+                if (st.TryGetProperty("kraken", out var kr)) _krakenRules = KrakenSettings.FromJson(kr);
+            }
             if (root.TryGetProperty("climate", out var k))
                 _climate = new Climate(ClimateSettings.FromJson(k));
         }
@@ -1228,6 +1271,195 @@ public partial class ShipDemo : Node3D
                            : Math.Max(0, c - dt * (0.5 + melt) / 1800);
             s.SetSnowCover(c);
         }
+    }
+
+    // ------------------------------------------------------------------
+    //  CE QUI VIENT AVEC LA TEMPÊTE — la foudre qui tombe sur une tête de
+    //  mât, et le kraken qui vit au cœur des dépressions
+    // ------------------------------------------------------------------
+
+    LightningNode _lightning = null!;
+    KrakenNode _krakenNode = null!;
+    Kraken _kraken = null!;
+    LightningSettings _lightRules = new();
+    KrakenSettings _krakenRules = new();
+    readonly Random _stormRng = new();
+    // chaque coque dans une dépression, et combien elle y est enfoncée — relue à chaque image
+    readonly List<(KrakenPrey Prey, double Inten)> _orage = new();
+    readonly Dictionary<ShipNode, KrakenPrey> _preys = new();
+    readonly Dictionary<KrakenPrey, ShipNode> _preyShip = new();
+
+    // gardé : une lambda neuve à chaque image, ce sont des octets pour le ramasse-miettes
+    Func<KrakenPrey, bool>? _alive;
+    bool PreyAlive(KrakenPrey p) =>
+        _preyShip.TryGetValue(p, out var s) && (s == _ship || _others.Contains(s)) && !p.Physics.Foundered;
+
+    Label _note = null!;
+    double _noteLeft;
+
+    /// <summary>Dire une phrase, et la laisser s'effacer — dire() de la page.</summary>
+    void Say(string text)
+    {
+        _note.Text = text;
+        _note.Visible = true;
+        _noteLeft = 2.6;
+        GD.Print(text);
+    }
+
+    KrakenPrey PreyOf(ShipNode s)
+    {
+        if (_preys.TryGetValue(s, out var p)) return p;
+        p = new KrakenPrey { Physics = s.Physics, Tops = s.MastTops, DeckNear = s.DeckNear, Name = s.Spec.Name };
+        _preys[s] = p;
+        _preyShip[p] = s;
+        return p;
+    }
+
+    /* CE QUE LE KRAKEN FAIT, DIT À QUI COMMANDE. Quand c'est le vôtre, la phrase
+       est la vôtre ; quand c'est un autre, elle le nomme — et seulement s'il est
+       assez près pour qu'on le voie, à moins de trois kilomètres. */
+    static readonly Dictionary<string, (string Mine, string Other)> KrakenSays = new()
+    {
+        ["appear"] = ("Quelque chose d’énorme remue sous la houle…", "Quelque chose d’énorme remue sous la houle, près du {n}…"),
+        ["approach"] = ("Le kraken se rapproche !", "Le kraken se rapproche du {n} !"),
+        ["grip"] = ("Le kraken enlace le navire !", "Le kraken enlace le {n} !"),
+        ["beaten"] = ("Touché ! Le kraken lâche prise et sombre dans les profondeurs.", "Le kraken lâche le {n} et sombre dans les profondeurs."),
+        ["flee"] = ("Le kraken renonce : vous l’avez distancé.", "Le {n} a distancé le kraken."),
+        ["storm"] = ("Le kraken regagne les profondeurs.", "Le kraken regagne les profondeurs.")
+    };
+
+    void KrakenSay((string Mine, string Other) t, KrakenPrey prey)
+    {
+        if (_preyShip.TryGetValue(prey, out var s) && s == _ship) { Say(t.Mine); return; }
+        if ((prey.Physics.Body.Pos - _ship.Physics.Body.Pos).Length <= 3000) Say(t.Other.Replace("{n}", prey.Name));
+    }
+
+    void WireKraken()
+    {
+        _kraken.Event = (kind, prey) =>
+        {
+            if (prey != null && KrakenSays.TryGetValue(kind, out var t)) KrakenSay(t, prey);
+        };
+        /* LE DÉGÂT N'EST PAS ENCORE PORTÉ : un mât qui se tord ou tombe, une voile
+           arrachée de ses ralingues viendront avec la mâture qui tombe et la toile
+           qui se déchire (les canons en ont besoin aussi). Dit à la console, et
+           pas au joueur : annoncer un dégât qui n'a pas lieu serait mentir. */
+        _kraken.OnMast = (prey, fall) =>
+        {
+            if (!_preyShip.TryGetValue(prey, out var s)) return;
+            KrakenSay(s.WoundMast(fall) ? ("Le kraken arrache un mât !", "Le kraken arrache un mât du {n} !")
+                                        : ("Le kraken tord un mât dans son étreinte !", "Le kraken tord un mât du {n} !"), prey);
+        };
+        _kraken.OnSail = prey =>
+        {
+            if (_preyShip.TryGetValue(prey, out var s) && s.SplitSail(false) >= 0)
+                KrakenSay(("Un bras du kraken déchire une voile !", "Le kraken déchire une voile du {n} !"), prey);
+        };
+    }
+
+    /// <summary>
+    /// Une image de ce qui vient avec la tempête : qui est dans une dépression et
+    /// de combien, la foudre tirée navire par navire, le kraken.
+    /// </summary>
+    void StormTick(double dt)
+    {
+        if (_noteLeft > 0 && (_noteLeft -= dt) <= 0) _note.Visible = false;
+
+        var o = _sea.Core.Origin;
+        _orage.Clear();
+        Gather(_ship);
+        foreach (var s in _others) Gather(s);
+        void Gather(ShipNode s)
+        {
+            var b = s.Physics.Body;
+            if (_storms.At(o.X + b.Pos.X, o.Z + b.Pos.Z, _t, out var q)) _orage.Add((PreyOf(s), q.Inten));
+        }
+
+        _kraken.Update(dt, _orage, _sea.Core, _t, _alive ??= PreyAlive);
+        _krakenNode.Sync(_kraken);
+
+        foreach (var (prey, inten) in _orage)
+            if (_stormRng.NextDouble() < _lightRules.StrikeChance(inten, dt)) Strike(_preyShip[prey]);
+        _lightning.Step(dt);
+    }
+
+    /* LA FOUDRE TOMBE SUR LA PLUS HAUTE TÊTE DE MÂT encore debout. L'éclair du
+       ciel ne s'allume que si c'est assez près pour éclairer notre pont. Ce
+       qu'elle coûte : une voile, une blessure de mât — les mêmes que les boulets —,
+       et parfois le mât d'un coup. */
+    void Strike(ShipNode s)
+    {
+        if (s.Physics.Foundered || !s.HighestMasthead(out var w, out int fall)) return;
+        _lightning.Strike(w);
+        if (w.DistanceTo(_cam.GlobalPosition) < 3000) _sky.Strike();
+        string what = "La foudre frappe la mâture !";
+        if (fall >= 0)
+        {
+            if (_stormRng.NextDouble() < _lightRules.DismastChance)
+            {
+                if (s.DropMast(fall)) what = "La foudre fend le mât, qui s’abat !";
+            }
+            else if (_stormRng.NextDouble() < _lightRules.WoundChance)
+                what = s.WoundMast(fall) ? "La foudre achève le mât, qui s’abat !" : "La foudre frappe le mât et le blesse !";
+        }
+        if (_stormRng.NextDouble() < _lightRules.SplitChance && s.SplitSail(false) >= 0 && fall < 0)
+            what = "La foudre met une voile en lambeaux !";
+        if (s == _ship) Say(what);
+    }
+
+    // ------------------------------------------------------------------
+    //  PORTER DE LA TOILE COÛTE DE LA TOILE — tearCanvas et strainMast
+    // ------------------------------------------------------------------
+
+    void Rigging(ShipNode s, double dt)
+    {
+        s.StepRigging(dt);
+        s.Physics.Standing = s.Standing();
+        s.Physics.Whole = s.Whole();
+    }
+
+    /* Le risque est un TAUX, pas un seuil qui claque : une couture lâche d'autant
+       plus vite qu'on insiste, comme le carré de l'excès, pour que force 7
+       pardonne et que force 9 ne pardonne pas. LA SURFACE ÉTABLIE MULTIPLIE LE
+       DANGER, ELLE NE BAISSE PAS LE SEUIL : la toile cède à une PRESSION, donc un
+       ris ne soulage pas d'un newton ce qui reste dehors ; il achète moins de
+       tissu exposé. Ferler tout à fait est la seule chose qui mette à l'abri.
+       Relevé dans la page sur le galion à pleine voilure : force 7 pardonne une
+       demi-heure, force 9 coûte une voile en une vingtaine de secondes. */
+    const double TearRate = 0.045;            // par seconde, à deux fois le seuil
+    /* LE MÂT A SA PROPRE CAUSE, bien plus rare, et une barre plus haute que la
+       toile — 2,6 fois ce qu'elle tient —, sans quoi il partait AVANT la première
+       déchirure, et un fusible qui saute après le circuit ne sert à rien. C'est
+       la rafale qui casse le mât, pas le coup de vent. */
+    const double MastRate = 1.0, MastLoad = 2.6;
+
+    void TearCanvas(ShipNode s, double dt, bool mine)
+    {
+        var ph = s.Physics;
+        if (ph.Foundered || ph.SetFrac < 0.02) return;
+        double excess = ph.SailLoad / Config.CanvasStrength - 1;
+        if (excess <= 0) return;
+        if (_stormRng.NextDouble() > TearRate * excess * excess * ph.SetFrac * dt) return;
+        // au DOUBLE de ce que la toile tient, la ferrure part avec le tissu et le mât prend une blessure
+        bool hard = ph.SailLoad > 2 * Config.CanvasStrength;
+        int r = s.SplitSail(hard);
+        if (r == -1 || !mine) return;         // une conserve ne commente pas ses avaries
+        Say(r <= -2 ? "Le mât est parti par-dessus bord !"
+          : hard ? "Une voile éclate — le gréement souffre !"
+                 : "Une voile se déchire dans la rafale !");
+    }
+
+    void StrainMast(ShipNode s, double dt, bool mine)
+    {
+        var ph = s.Physics;
+        if (ph.Foundered || ph.SetFrac < 0.02) return;
+        if (ph.SailLoad <= MastLoad * Config.CanvasStrength) return;   // en deçà, la toile suffit à payer
+        double excess = ph.SailLoad / Config.CanvasStrength - 1;
+        var (i, part) = s.HeaviestMast();
+        if (i < 0 || part <= 0) return;
+        if (_stormRng.NextDouble() > TearRate * MastRate * excess * excess * ph.SetFrac * part * dt) return;
+        if (!s.DropMast(i)) return;
+        if (mine) Say("Le mât est parti par-dessus bord !");
     }
 
     void SetAutoWeather(bool on)
@@ -1315,6 +1547,7 @@ public partial class ShipDemo : Node3D
         _sea.Core.Rebase(tx - x, tz - z);
         _foam.Rebase((float)(tx - x), (float)(tz - z));
         _spray.Pool.Rebase(tx - x, tz - z);
+        if (_kraken.State == KrakenState.Lurk || _kraken.State == KrakenState.Grip) _kraken.Dive("storm");
         if (_fixed) Plant();
         b.Vel = new Vec3d(0, 0, 0);
         b.AngVel = new Vec3d(0, 0, 0);
@@ -1342,6 +1575,9 @@ public partial class ShipDemo : Node3D
                 case "--force": _force = args[i + 1].ToFloat(); Restate(); break;
                 case "--date": _calendar = new Calendar(args[i + 1]); break;
                 case "--averse": _climate.StartShower(args[i + 1].ToFloat(), 1.0); break;
+                case "--kraken": _kraken.Summon(args[i + 1] == "1", PreyOf(_ship)); break;
+                case "--foudre": Strike(_ship); break;
+                case "--demater": _ship.DropMast(args[i + 1].ToInt()); break;
                 case "--meteo": SetAutoWeather(args[i + 1] == "1"); break;
                 case "--tempete": GoToStorm(args[i + 1].ToFloat()); break;
                 case "--swell": _swell = args[i + 1].ToFloat(); Restate(); break;

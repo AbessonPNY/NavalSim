@@ -149,7 +149,10 @@ const scenarios = [
   { id: 'gros-temps',   ship: 'pirate',   force: 8, deg: 45,  steps: 600,
     ctrl: { throttle: 0, rudder: -0.4, sheet: 0.9, sailsSet: true } },
   { id: 'envahissement', ship: 'frigate', force: 4, deg: 120, steps: 900,
-    ctrl: { throttle: 0, rudder: 0, sheet: 0, sailsSet: false }, breach: true }
+    ctrl: { throttle: 0, rudder: 0, sheet: 0, sailsSet: false }, breach: true },
+  // six bras de kraken : les prises du solveur (grips), frein, raideur, tenue qui cede
+  { id: 'kraken',       ship: 'pirate',   force: 6, deg: 45,  steps: 900,
+    ctrl: { throttle: 0, rudder: 0, sheet: 0.8, sailsSet: true }, grips: true }
 ];
 
 for (const sc of scenarios) {
@@ -160,10 +163,21 @@ for (const sc of scenarios) {
   const ocean = makeOcean(sc.force, sc.deg, 0);
 
   if (sc.breach) { phys.breach(1, 0.30, 0.20); phys.breach(3, 0.18, 0.35); }
+  let grips = null;
+  if (sc.grips) {
+    const rails = [0.28, -0.05, -0.32, 0.12, -0.2, 0.4];
+    grips = rails.map((r, k) => {
+      const side = k % 2 ? 1 : -1;
+      return { lx: side * spec.B * 0.42, ly: 1.5, lz: r * spec.L,
+               wx: side * (spec.B / 2 + 3.5), wy: -7, wz: r * spec.L + 1,
+               len: 7.5, stretch: 2.5, hold: 0.03 * phys.body.mass * C.G, brake: 0.25, kraken: true };
+    });
+    phys.grips = grips.map(g => Object.assign({}, g));
+  }
 
   const rec = {
     id: sc.id, ship: sc.ship, force: sc.force, deg: sc.deg, steps: sc.steps,
-    ctrl: sc.ctrl, breach: !!sc.breach,
+    ctrl: sc.ctrl, breach: !!sc.breach, grips,
     hullVolume: phys.hullVolume,
     probes: phys.probes.length,
     cargoCapacity: phys.cargoCapacity,
@@ -195,7 +209,9 @@ for (const sc of scenarios) {
         flood: phys.floodVol, fsr: phys.freeSurfaceRise,
         drive: phys.sailDrive, load: phys.sailLoad,
         beta: phys.appWindAngle, tack: phys.tack,
-        opt: phys.optSheet === null ? -99 : phys.optSheet
+        opt: phys.optSheet === null ? -99 : phys.optSheet,
+        // les bouts d'en face, qui glissent quand elle tire plus fort que leur tenue
+        gw: phys.grips.map(g => [g.wx, g.wz, g.tension || 0])
       });
     }
   }

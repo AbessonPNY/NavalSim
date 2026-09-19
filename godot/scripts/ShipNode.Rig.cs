@@ -28,6 +28,9 @@ public partial class ShipNode
         public Vector3[] V = null!, N = null!;
         public Vector2[] Uv = null!;
         public int[] Idx = null!;
+        // le mât qui la porte (−1 : aucun qui tombe), et si elle a éclaté hors de ses ralingues
+        public int Mast = -1;
+        public bool Split;
         // un seul tableau de surface par voile, rempli à chaque image : en créer un
         // neuf soixante fois par seconde et par voile, c'est de la mémoire à ramasser
         public readonly Godot.Collections.Array Arrays = NewArrays();
@@ -70,6 +73,8 @@ public partial class ShipNode
         _canvases.Clear();
         _rigs.Clear();
         _masts.Clear();
+        _damage.Clear();
+        _tops = null;
         _jibRig = null;
     }
 
@@ -310,6 +315,7 @@ public partial class ShipNode
             rig.Rotation = new Vector3(0, (float)(rig == _jibRig ? angle * 0.75 : angle), 0);
         foreach (var c in _canvases)
         {
+            if (c.Split) continue;                       // partie : plus rien à former
             c.Cloth.Shape(Spec.Rig.Belly, load, luffing, t, set);
             Upload(c);
         }
@@ -619,6 +625,7 @@ public partial class ShipNode
             var pivot = new Node3D { Position = new Vector3(0, (float)-heel, 0) };
             fall.AddChild(pivot);
 
+            double share = 0;
             for (int i = 0; i < mast.Count; i++)
             {
                 var y = mast[i];
@@ -643,6 +650,8 @@ public partial class ShipNode
                     new Vec3d(-half, yy, dz), new Vec3d(half, yy, dz),
                     new Vec3d(half * 0.86, yy - drop, dz), new Vec3d(-half * 0.86, yy - drop, dz)
                 }, new Vec3d(0, 0, 1), SailCut.Square()));
+                _canvases[^1].Mast = _masts.Count;
+                share += half * 2 * drop;                // à peu près sa surface, pour ce qu'elle pousse
                 RigLog.Add(FormattableString.Invariant($"voile {half:F2} {yy:F2} {drop:F2}"));
             }
             RigLog.Add(FormattableString.Invariant(
@@ -651,6 +660,14 @@ public partial class ShipNode
                 pole != null ? pole.Mid.Z - z0 : 0, 0,
                 pole != null ? pole.Size.Y : mast[0].Mid.Y - heel,
                 pole != null ? Math.Max(pole.Size.X, pole.Size.Z) * 0.5 : 0.3));
+            /* Seul un mât qui est SON PROPRE maillage peut tomber. Sans lui, la toile
+               tomberait d'un espar resté debout en l'air, ce qui est pire que rien :
+               elle garde alors sa mâture, et le dit. */
+            _damage.Add(new MastDamage
+            {
+                Fall = fall, Heel = heel, Share = share, HasPole = pole != null,
+                Height = pole != null ? pole.Size.Y : mast[0].Mid.Y - heel
+            });
             _rigs.Add(pivot);
         }
     }

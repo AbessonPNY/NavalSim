@@ -580,23 +580,31 @@ public sealed partial class ShipPhysics
     /// </summary>
     void Moor(ref Vec3d force, ref Vec3d torque, in Vec3d cog, Ocean ocean)
     {
-        if (Moorings.Count == 0) return;
+        if (Moorings.Count == 0 && Grips.Count == 0) return;
+        foreach (var m in Moorings) MoorOne(m, ref force, ref torque, cog, ocean);
+        foreach (var m in Grips) MoorOne(m, ref force, ref torque, cog, ocean);
+    }
+
+    void MoorOne(Mooring m, ref Vec3d force, ref Vec3d torque, in Vec3d cog, Ocean ocean)
+    {
         var b = Body;
         double ox = ocean.Origin.X, oz = ocean.Origin.Z;
-        // elle prend son propre poids à quatre-vingts centimètres d'allongement :
-        // du chanvre, pas de l'acier
-        double kLine = b.Mass * Config.G / 0.8;
-
-        foreach (var m in Moorings)
         {
+            m.Dragging = false;
+            /* UN FREIN, pour ce qui la retient en nageant contre elle et non d'un
+               point fixe : une résistance à son erre, par seconde, à son centre de
+               gravité — elle ralentit sans se coucher. Un kraken n'est pas une
+               bitte ; c'est plusieurs centaines de tonnes d'animal. */
+            if (m.Brake > 0)
+                force += new Vec3d(-b.Vel.X * b.Mass * m.Brake, 0, -b.Vel.Z * b.Mass * m.Brake);
             Vec3d pw = b.Quat.Rotate(new Vec3d(m.Lx, m.Ly, m.Lz)) + b.Pos;   // l'écubier
             Vec3d nrm = new Vec3d(m.Wx - ox - pw.X, m.Wy - pw.Y, m.Wz - oz - pw.Z);
             double d = nrm.Length;
-            if (d < 1e-4) continue;
+            if (d < 1e-4) return;
 
             // le bout veut d en deçà de len, la défense veut d au-delà : rien à
             // faire tant qu'on n'est pas du mauvais côté de sa longueur
-            if (m.Push ? (d >= m.Len) : (d <= m.Len)) continue;
+            if (m.Push ? (d >= m.Len) : (d <= m.Len)) return;
             nrm = nrm / d;
 
             Vec3d r = pw - cog;
@@ -608,14 +616,32 @@ public sealed partial class ShipPhysics
                simplement de signe — et le sens dans lequel « closing » est le
                mouvement que l'amortissement doit combattre aussi. */
             double sgn = m.Push ? -1 : 1;
-            double pull = sgn * (kLine * (d - m.Len)) - sgn * closing * b.Mass * 0.9;
-            if (pull <= 0) continue;
+            /* Un long câble est un ressort plus mou qu'une aussière courte ; Stretch
+               dit à combien de mètres il prend son poids — absent, les quatre-vingts
+               centimètres du chanvre d'un quai. */
+            double k = m.Stretch > 0 ? b.Mass * Config.G / m.Stretch : b.Mass * Config.G / 0.8;
+            double pull = sgn * (k * (d - m.Len)) - sgn * closing * b.Mass * 0.9;
+            if (pull <= 0) return;
             pull *= sgn;
             /* Borné à un poids et demi. Un bout casse, et même avant de casser il
                n'y a aucun sens à ce qu'une amarre hale plus fort que le navire ne
                pèse — un ressort non borné plus un grand pas, c'est ainsi qu'un
                solveur envoie une coque en l'air. */
             pull = sgn * Math.Min(Math.Abs(pull), b.Mass * Config.G * 1.5);
+
+            /* CE QUI TIENT NE TIENT PAS TOUT : au-delà de sa tenue il GLISSE. Le même
+               ressort, dont le bout d'en face a le droit de céder — l'allongement
+               que la borne refuse, c'est lui qui le paie en glissant vers elle. */
+            if (m.Hold > 0 && pull > m.Hold)
+            {
+                double give = (pull - m.Hold) / k;
+                double hl = Math.Sqrt(nrm.X * nrm.X + nrm.Z * nrm.Z);
+                if (hl == 0) hl = 1;
+                m.Wx -= nrm.X / hl * give; m.Wz -= nrm.Z / hl * give;    // nrm va de l'écubier au bout
+                pull = m.Hold;
+                m.Dragging = true;
+            }
+            m.Tension = pull;
 
             Vec3d fVec = nrm * pull;
             force += fVec;

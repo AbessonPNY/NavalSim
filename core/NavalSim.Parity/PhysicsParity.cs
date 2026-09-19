@@ -92,6 +92,15 @@ public static class PhysicsParity
                 phys.MakeBreach(1, 0.30, 0.20);
                 phys.MakeBreach(3, 0.18, 0.35);
             }
+            if (sc.TryGetProperty("grips", out var jg) && jg.ValueKind == JsonValueKind.Array)
+                foreach (var g in jg.EnumerateArray())
+                    phys.Grips.Add(new Mooring
+                    {
+                        Lx = g.GetProperty("lx").GetDouble(), Ly = g.GetProperty("ly").GetDouble(), Lz = g.GetProperty("lz").GetDouble(),
+                        Wx = g.GetProperty("wx").GetDouble(), Wy = g.GetProperty("wy").GetDouble(), Wz = g.GetProperty("wz").GetDouble(),
+                        Len = g.GetProperty("len").GetDouble(), Stretch = g.GetProperty("stretch").GetDouble(),
+                        Hold = g.GetProperty("hold").GetDouble(), Brake = g.GetProperty("brake").GetDouble()
+                    });
 
             // --- la trajectoire ---
             const double dt = 1.0 / 120;
@@ -155,6 +164,14 @@ public static class PhysicsParity
                 St("sailLoad", e.GetProperty("load"), phys.SailLoad);
                 St("appWindAngle", e.GetProperty("beta"), phys.AppWindAngle);
                 St("optSheet", e.GetProperty("opt"), phys.OptSheet ?? -99);
+                // les bouts d'en face des prises, qui glissent au-delà de leur tenue, et leur tension
+                if (e.TryGetProperty("gw", out var gw))
+                    for (int g = 0; g < gw.GetArrayLength() && g < phys.Grips.Count; g++)
+                    {
+                        St($"grip[{g}].wx", gw[g][0], phys.Grips[g].Wx);
+                        St($"grip[{g}].wz", gw[g][1], phys.Grips[g].Wz);
+                        St($"grip[{g}].tension", gw[g][2], phys.Grips[g].Tension);
+                    }
                 if (e.GetProperty("tack").GetInt32() != phys.Tack)
                 {
                     Console.Error.WriteLine($"  {id}: amure {e.GetProperty("tack").GetInt32()} "

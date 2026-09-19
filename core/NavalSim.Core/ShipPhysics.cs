@@ -86,6 +86,15 @@ public sealed class Mooring
     public double Wx, Wy, Wz;       // la bitte, en mètres MONDE VRAIS
     public double Len;
     public bool Push;               // vrai = défense
+    /// <summary>Les mètres d'allongement auxquels il prend son poids ; 0 : les 80 cm d'un quai.</summary>
+    public double Stretch;
+    /// <summary>Ce que le bout d'en face TIENT (N) ; au-delà il cède et glisse vers elle. 0 : il tient tout.</summary>
+    public double Hold;
+    /// <summary>Un FREIN, par seconde, sur son erre : ce qui la retient en nageant contre elle, pas d'un point fixe.</summary>
+    public double Brake;
+    /// <summary>Relevés par le solveur : il glisse en ce moment, et ce qu'il tire (N).</summary>
+    public bool Dragging;
+    public double Tension;
 }
 
 /// <summary>Ce que le solveur demande à la terre. Sans elle, elle ne touche jamais.</summary>
@@ -138,6 +147,12 @@ public sealed partial class ShipPhysics
     public readonly List<Breach> Breaches = new();
     public readonly List<Parcel> Cargo = new();
     public readonly List<Mooring> Moorings = new();
+    /// <summary>
+    /// CE QUI LA TIENT SANS ÊTRE UNE AMARRE — les bras du kraken. Les mêmes
+    /// ressorts, dans leur propre liste, parce que la page lit « a des bouts
+    /// dehors » sur <see cref="Moorings"/> et qu'un animal n'est pas un quai.
+    /// </summary>
+    public readonly List<Mooring> Grips = new();
 
     /// <summary>La terre. Posée par la page ; sans elle elle ne touche jamais.</summary>
     public IGround? World;
