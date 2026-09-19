@@ -5736,6 +5736,18 @@ pour l'essai était **dans la colline**. Vérifier la scène sans la passe avant
 soupçonner la passe. Et la capture d'écran redessine la lunette avant de lire
 (`capture.post`), sans quoi l'image sortirait sans oculaire.
 
+**Portage Godot (2026-09-19).** Le verre est un `ColorRect` sur un calque sous
+le HUD, dont le shader lit `hint_screen_texture` : l'image finie, déjà
+encodée — exactement ce que la page recopie du framebuffer, si bien que les
+formules passent telles quelles (seul y change de sens). Le verre abîmé est
+retracé par un petit traceur C# (`SpyglassGlass`), mêmes gestes, même
+générateur de Lehmer, même graine. Deux pièges : **Godot refuse un champ sous
+1°** (`p_fov < 1`), et ×100 en demande 0,55° — la caméra passe en projection
+FRUSTUM, hauteur 2·près·tan(champ/2) au plan proche, sans borne ; et **les flous
+se coupent à l'œil** (profondeur de champ réglée pour l'œil nu, flou de
+mouvement qui ferait d'un coup de visée un trait). Relevé : noir hors du disque,
+0,90 au centre, 0,49 à 0,9 rayon, 0,16 au biseau.
+
 **Les touches sont passées dans un MÉMENTO, sur `F1`.** Elles vivaient sous les
 curseurs, en sept rangées de `kbd` empilées dans les colonnes de la console de
 barre : seize touches ne tiennent pas là sans faire du poste de barre un

@@ -157,6 +157,7 @@ public partial class ShipDemo : Node3D
         BuildSunPanel(layer);
         _settings = Settings.Load();
         BuildMenu(layer);
+        BuildSpyglass();
     }
 
     // ------------------------------------------------------------------
@@ -333,6 +334,8 @@ public partial class ShipDemo : Node3D
         bool far = s.DofDistance < DofRange.Infinity;
         // l'un OU l'autre : le flou anamorphique remplace celui de Godot
         bool godotDof = s.Dof && !s.DofAnamorphic;
+        // à la lunette, ni l'un ni l'autre : voir ShipDemo.Spyglass
+        godotDof &= !_glassUp;
         _camAttr.DofBlurFarEnabled = godotDof && far;
         _camAttr.DofBlurFarDistance = far ? s.DofDistance : 8192;
         _camAttr.DofBlurFarTransition = Math.Max(0.01f, s.DofDistance * s.DofFade);
@@ -340,7 +343,7 @@ public partial class ShipDemo : Node3D
         _camAttr.DofBlurNearDistance = s.DofNear;
         _camAttr.DofBlurNearTransition = Math.Max(0.01f, s.DofNear * s.DofFade);
         _camAttr.DofBlurAmount = s.DofAmount;
-        _anamorphic.Enabled = s.Dof && s.DofAnamorphic && (far || s.DofNear > 0);
+        _anamorphic.Enabled = s.Dof && s.DofAnamorphic && (far || s.DofNear > 0) && !_glassUp;
         _anamorphic.Near = s.DofNear;
         _anamorphic.Far = s.DofDistance;
         _anamorphic.Fade = s.DofFade;
@@ -392,7 +395,7 @@ public partial class ShipDemo : Node3D
         _camAttr.AutoExposureSpeed = s.AutoExposureSpeed;
         _sky.SetDazzle(s.AutoExposure);
         LayoutMask();
-        _motionBlur.Enabled = s.MotionBlur;
+        _motionBlur.Enabled = s.MotionBlur && !_glassUp;
         _motionBlur.Shutter = s.Shutter;
         _motionBlur.MainProjection = _cam.GetCameraProjection();
         _sea.Material?.SetShaderParameter(U.LampReflection, s.LampReflection);
@@ -795,6 +798,7 @@ public partial class ShipDemo : Node3D
         }
 
         UpdateCamera(frame);
+        AimSpyglass(frame);                     // après la vue : sa position, la visée de la lunette
         // les navires et la caméra de la MÊME image : le flou compare les deux
         _motionBlur.BeginShips();
         _motionBlur.AddShip(_ship.GlobalTransform, _ship.LocalBounds());
@@ -1102,7 +1106,7 @@ public partial class ShipDemo : Node3D
             (_inSquall ? $"dépression {_squall.Dist / 1852,6:F1} mille(s) du centre · au cœur force {_squall.Storm.Peak:F1} · ici {_squall.Force:F1}\n" : "") +
             $"\n" +
             $"W S machine   B élan   A D barre   Q E écoutes   V voiles\n" +
-            $"↑↓ force   ←→ vent   T météo {(_weather.On ? "auto" : "à la main")}   J gros temps   K kraken   R radoub   G feu (tenu : bordée, ⇧ : autre bord)   Tab bord   Y soute   U pirate   P fantômes   PgUp/PgDn creux   N navire   F suivre   C vues ({CamName()})   X replanter   H masquer   Échap options\n" +
+            $"↑↓ force   ←→ vent   T météo {(_weather.On ? "auto" : "à la main")}   J gros temps   K kraken   R radoub   G feu (tenu : bordée, ⇧ : autre bord)   Tab bord   Y soute   U pirate   P fantômes   L lunette   PgUp/PgDn creux   N navire   F suivre   C vues ({CamName()})   X replanter   H masquer   Échap options\n" +
             $"O occlusion {(_sky.Env.SsaoEnabled ? "oui" : "non")}   lumière indirecte au menu";
     }
 
@@ -1164,6 +1168,7 @@ public partial class ShipDemo : Node3D
                 case Key.Y: BlowUp(_ship); break;
                 case Key.U: SpawnPirate(900); break;
                 case Key.P: GoToGhosts(true); break;
+                case Key.L: ToggleSpyglass(); break;
                 /* L'ÉLAN : l'équivalent de `Naval.app.controls.state.throttle = 45`
                    dans la console d'origine. Le solveur ne borne pas la machine,
                    donc c'est quarante-cinq fois la poussée — de quoi voir une coque
@@ -1183,6 +1188,8 @@ public partial class ShipDemo : Node3D
                     break;
             }
         }
+        // la lunette à l'œil prend le glisser et la molette
+        if (GlassMouse(e)) return;
         if (e is InputEventMouseButton mb)
         {
             if (mb.ButtonIndex == MouseButton.Left) _dragging = mb.Pressed;
@@ -1975,6 +1982,7 @@ public partial class ShipDemo : Node3D
                 case "--soute": BlowUp(_ship); break;
                 case "--pirate": SpawnPirate(args[i + 1].ToFloat()); break;
                 case "--fantomes": GoToGhosts(true); break;
+                case "--lunette": ToggleSpyglass(); break;
                 // une cible par le travers tribord, à cette distance : le premier navire de --flotte
                 case "--cible":
                     if (_others.Count > 0)
