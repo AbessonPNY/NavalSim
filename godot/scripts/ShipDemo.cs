@@ -508,6 +508,7 @@ public partial class ShipDemo : Node3D
     // ------------------------------------------------------------------
 
     HSlider _sunElev = null!, _sunSpeed = null!;
+    PanelContainer _sunPanel = null!;
     Label _sunVal = null!, _sunSpeedVal = null!;
     double _sunTick;
 
@@ -527,6 +528,7 @@ public partial class ShipDemo : Node3D
         var box = new VBoxContainer();
         panel.AddChild(box);
         layer.AddChild(panel);
+        _sunPanel = panel;
 
         _sunVal = Row(box, "Hauteur du soleil");
         /* Jusqu'à −40 : à cette latitude le soleil descend vraiment aussi bas, et
@@ -1028,7 +1030,7 @@ public partial class ShipDemo : Node3D
             $"vent       {_windDeg,6:F0}°      force     {_force:F1} · {Config.Beaufort[bf].Name}\n" +
             $"\n" +
             $"W S machine   B élan   A D barre   Q E écoutes   V voiles\n" +
-            $"↑↓ force   ←→ vent   PgUp/PgDn creux   N navire   F suivre   C vues ({CamName()})   X replanter   Échap options\n" +
+            $"↑↓ force   ←→ vent   PgUp/PgDn creux   N navire   F suivre   C vues ({CamName()})   X replanter   H masquer   Échap options\n" +
             $"O occlusion {(_sky.Env.SsaoEnabled ? "oui" : "non")}   G lumière indirecte {(_sky.Env.SsilEnabled ? "oui" : "non")}";
     }
 
@@ -1072,6 +1074,10 @@ public partial class ShipDemo : Node3D
                    second appui coupe, sans quoi elle filerait sans fin ; W et S
                    la ramènent aussi dans leur plage en la touchant. */
                 case Key.B: _ship.Ctrl.Throttle = _ship.Ctrl.Throttle > 1 ? 0 : 45; break;
+                /* L'IMAGE SEULE : les commandes et le panneau du soleil s'effacent,
+                   pour regarder ou filmer. Le menu reste sur Échap, et le masque de
+                   cinéma, qui fait partie de l'image, reste en place. */
+                case Key.H: _info.Visible = _sunPanel.Visible = !_info.Visible; break;
                 // le menu d'options ; « Quitter » y est désormais
                 case Key.Escape:
                     _chkOcclusion.SetPressedNoSignal(_settings.Occlusion);
