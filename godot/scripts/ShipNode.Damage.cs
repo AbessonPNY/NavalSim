@@ -210,7 +210,8 @@ public partial class ShipNode
     {
         RigCuts.Clear();
         RigEpoch++;
-        Battery.Restore();          // et remonte ses pièces : le même radoub
+        Battery.Restore();
+        ClearScars();               // et un bordé neuf : un radoub ne laisse pas de cicatrice          // et remonte ses pièces : le même radoub
         foreach (var c in _canvases) { c.Split = false; c.Node.Visible = true; }
         foreach (var d in _damage)
         {

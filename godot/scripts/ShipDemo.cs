@@ -1583,6 +1583,8 @@ public partial class ShipDemo : Node3D
            du calibre — un trou est une surface. Petit devant les pompes : un navire
            n'est pas perdu sur un coup heureux, il l'est d'être percé encore et encore. */
         s.Physics.MakeBreach(index, 0.10 * k * k, Math.Clamp(frac, 0, 1));
+        // la marque dans le bordé, qui s'aggrave si l'on retape au même endroit
+        s.Scar(w, k);
         // et les pièces qui étaient derrière le bordé
         var b = s.Physics.Body;
         var local = b.Quat.Inverted().Rotate(world - b.Pos);

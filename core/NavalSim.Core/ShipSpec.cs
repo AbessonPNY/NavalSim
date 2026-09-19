@@ -186,6 +186,8 @@ public sealed class AppearanceSpec
     [JsonPropertyName("canvasMap")] public Dictionary<string, string>? CanvasMap { get; set; }
     /// <summary>Le pavillon qu'elle arbore ; « jolly » : la tête de mort, et c'est une déclaration.</summary>
     [JsonPropertyName("ensign")]    public string? Ensign { get; set; }
+    /// <summary>Les impacts peints : des variantes, chacune une suite de stades de l'éraflure à la plaie ouverte.</summary>
+    [JsonPropertyName("impactMaps")] public List<List<string>>? ImpactMaps { get; set; }
 }
 
 public sealed class ShipJson

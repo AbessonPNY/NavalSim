@@ -443,14 +443,21 @@ public partial class GunFxNode : Node3D
             }
     }
 
-    // un disque qu'on MORD dans l'image : « destination-out »
+    /* UN DISQUE QU'ON MORD dans l'image — « destination-out » de la page, mais
+       ESTOMPÉ. Découpée net comme sur le canvas, chaque encoche était un cercle à
+       bord dur : au bord d'un banc, là où peu de bouffées se recouvrent, on voyait la
+       mer à travers une couronne de trous ronds tous de la même taille, et ils se
+       lisaient comme des disques sombres posés sur l'eau — signalé à l'usage. Estompée
+       sur la moitié de son rayon, l'encoche garde la silhouette déchirée et perd son
+       bord : il n'y a plus de cercle à lire. */
     static void Bite(float[] a, int s, float cx, float cy, float r)
     {
         for (int y = 0; y < s; y++)
             for (int x = 0; x < s; x++)
             {
                 float d = MathF.Sqrt((x + 0.5f - cx) * (x + 0.5f - cx) + (y + 0.5f - cy) * (y + 0.5f - cy));
-                float cov = Math.Clamp(r - d + 0.5f, 0, 1);
+                float u = Math.Clamp((r - d) / (0.5f * r), 0, 1);
+                float cov = u * u * (3 - 2 * u);
                 a[y * s + x] *= 1 - cov;
             }
     }

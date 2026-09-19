@@ -63,6 +63,7 @@ public partial class ShipNode : Node3D
         m.SetShaderParameter(U.Roughness, roughness);
         Hazed.Add(m);
         AddSnowed(m);
+        AddScarred(m);
         return m;
     }
 
@@ -78,6 +79,8 @@ public partial class ShipNode : Node3D
         Spec = spec;
         Lines = new HullLines(spec);
         Physics = new ShipPhysics(spec, Lines);
+        // ses impacts peints, avant qu'aucune matière ne naisse : chacune les reçoit à sa création
+        LoadImpactAtlas();
 
         _hull = new MeshInstance3D
         {
@@ -153,6 +156,7 @@ public partial class ShipNode : Node3D
             RemoveChild(_rig); _rig.QueueFree();
             Hazed.Clear();
             Snowed.Clear();
+            _scarred.Clear();
             _snowPushed = -1;
             ClearRig();
 
@@ -235,6 +239,9 @@ public partial class ShipNode : Node3D
         // la neige passe AVANT la brume : l'air est devant elle aussi
         _snowPass ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/ship_snow.gdshader"), NextPass = _hazePass };
         Snowed.Add(_snowPass);
+        // et les blessures avant la neige : ses plaies se couvrent de blanc comme le reste
+        _scarPass ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/ship_scar.gdshader"), NextPass = _snowPass };
+        AddScarred(_scarPass);
         var done = new HashSet<Material>();
         foreach (var (mi, _) in Meshes(obj))
             for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
@@ -248,8 +255,9 @@ public partial class ShipNode : Node3D
                 }
                 if (!done.Add(mat)) continue;
                 var last = mat;
-                while (last.NextPass != null && last.NextPass != _hazePass && last.NextPass != _snowPass) last = last.NextPass;
-                last.NextPass = _snowPass;
+                while (last.NextPass != null && last.NextPass != _hazePass && last.NextPass != _snowPass && last.NextPass != _scarPass)
+                    last = last.NextPass;
+                last.NextPass = _scarPass;
             }
     }
 
@@ -366,6 +374,7 @@ public partial class ShipNode : Node3D
         Position = new Vector3((float)b.Pos.X, (float)b.Pos.Y, (float)b.Pos.Z);
         Quaternion = new Quaternion(
             (float)b.Quat.X, (float)b.Quat.Y, (float)b.Quat.Z, (float)b.Quat.W).Normalized();
+        PushShipInverse();          // ses blessures la suivent
     }
 
     /// <summary>Sa gîte et son assiette, en degrés, lues sur ses propres axes.</summary>
