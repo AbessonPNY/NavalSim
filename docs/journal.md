@@ -6359,6 +6359,18 @@ Demandé (2026-09-20) : « les naufrages d'abord ».
   sortait délavée ; c'est l'eau profonde de la mer qu'il faut, au tiers. Deux
   curseurs au panneau ⇧M.
 
+- **Regarder le ciel depuis sous l'eau** (demandé). La vue d'orbite tenait l'œil
+  à deux mètres au moins AU-DESSUS d'elle et son inclinaison à zéro : on ne
+  pouvait jamais passer sous la quille. Le plancher ne vaut plus que par le
+  dessus, l'inclinaison descend à −1,2 rad, et la fenêtre de Snell est là.
+- **Les débris remontent avec de l'élan** (demandé). Ils montaient à vitesse fixe
+  et se collaient à la surface ; c'est désormais un ressort amorti — la poussée
+  les rappelle à leur flottaison, l'amortissement mange l'élan —, et ils jettent
+  leur peu d'eau en crevant. Relevé (simulation du pas de temps) : le tonneau
+  crève à 2,40 m/s, saute 55 cm, s'apaise en 5 s ; la planche 1,55 m/s, 27 cm,
+  2,3 s ; la bouteille 1,74 m/s, 31 cm, 2,8 s. Le même ressort porte
+  l'enfoncement de fin de vie, sa flottaison descendant.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

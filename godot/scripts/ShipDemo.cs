@@ -1080,7 +1080,13 @@ public partial class ShipDemo : Node3D
 
         float h = _dist * Mathf.Sin(_pitch);
         float r = _dist * Mathf.Cos(_pitch);
-        var eye = target + new Vector3(Mathf.Sin(_orbit) * r, Mathf.Max(2f, h), Mathf.Cos(_orbit) * r);
+        /* SOUS LA QUILLE, SI ON LE DEMANDE. L'œil était tenu à deux mètres au
+           moins au-dessus d'elle : on ne pouvait donc jamais passer dessous ni
+           regarder le ciel à travers la surface. Le plancher ne vaut plus que
+           lorsqu'on la regarde d'en haut ; l'inclinaison négative descend sous la
+           quille, et c'est là qu'est la fenêtre de Snell. */
+        float eyeY = _pitch >= 0 ? Mathf.Max(2f, h) : h;
+        var eye = target + new Vector3(Mathf.Sin(_orbit) * r, eyeY, Mathf.Cos(_orbit) * r);
         _cam.Position = eye;
         _cam.LookAt(target, Vector3.Up);
     }
@@ -1283,7 +1289,8 @@ public partial class ShipDemo : Node3D
             else
             {
                 _orbit -= mm.Relative.X * 0.008f;
-                _pitch = Mathf.Clamp(_pitch + mm.Relative.Y * 0.004f, 0.01f, 1.3f);
+                // sous zéro, elle plonge : la mer se referme au-dessus et l'on voit le ciel par la fenêtre
+                _pitch = Mathf.Clamp(_pitch + mm.Relative.Y * 0.004f, -1.2f, 1.3f);
             }
         }
     }

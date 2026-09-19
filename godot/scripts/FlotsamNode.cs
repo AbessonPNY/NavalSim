@@ -29,7 +29,8 @@ public partial class FlotsamNode : Node3D
     {
         public string Kind = "plank";
         public double X, Z, Y = -2, Yaw, Age, Life, Draft;
-        public bool Rise = true;
+        public double Vy;                 // son erre verticale : il remonte avec de l'élan
+        public bool Broke;                // a-t-il déjà crevé la surface
         public Node3D Node = null!;
         public ShaderMaterial? Halo;
         public MeshInstance3D? Mark;
@@ -41,6 +42,8 @@ public partial class FlotsamNode : Node3D
     {
         public double Scale = 1, Draft, Life = 900;
         public double PickupRadius = 10, PickupSpeed = 1.03;
+        /// <summary>Sa poussée (rad/s²) et son amortissement : un tonneau se balance, une planche non.</summary>
+        public double Push = 6, Damp = 1.6;
         public bool Halo = true;
         public double HaloRadius = 1.1, HaloIntensity = 1, Mark = 0.032, MarkFrom = 60;
         public Color HaloColor = new(0xa8 / 255f, 0xec / 255f, 1f);
@@ -48,9 +51,9 @@ public partial class FlotsamNode : Node3D
 
     readonly Dictionary<string, Kind> _def = new()
     {
-        ["plank"] = new Kind { Draft = 0.02, Life = 900 },
-        ["barrel"] = new Kind { Draft = 0.12, Life = 900 },
-        ["bottle"] = new Kind { Scale = 3, Draft = 0.05, Life = 1800 }
+        ["plank"] = new Kind { Draft = 0.02, Life = 900, Push = 9, Damp = 3.0 },
+        ["barrel"] = new Kind { Draft = 0.12, Life = 900, Push = 6, Damp = 1.5 },
+        ["bottle"] = new Kind { Scale = 3, Draft = 0.05, Life = 1800, Push = 8, Damp = 2.6 }
     };
     int _debrisMin = 1, _debrisMax = 2;
     /// <summary>Une bouteille sur combien de naufrages — settings.json → wreck.bottleOneIn.</summary>
@@ -63,6 +66,8 @@ public partial class FlotsamNode : Node3D
 
     /// <summary>Une bouteille repêchée : le navire d'où elle vient.</summary>
     public Action<string?>? OnBottle;
+    /// <summary>Un objet qui crève la surface en remontant : où, l'eau jetée, sa vitesse.</summary>
+    public Action<Vec3d, double, double>? OnBreak;
 
     public override void _Ready()
     {
@@ -148,11 +153,27 @@ public partial class FlotsamNode : Node3D
             double sea0 = sea.Sample(lx, lz, t);
             double sx = sea.Sample(lx + 0.8, lz, t) - sea.Sample(lx - 0.8, lz, t);
             double sz = sea.Sample(lx, lz + 0.8, t) - sea.Sample(lx, lz - 0.8, t);
-            // il monte de l'épave, puis suit la surface, et pour finir s'enfonce
+            /* IL REMONTE AVEC DE L'ÉLAN. Il montait à vitesse fixe et se collait à
+               la surface dès qu'il l'atteignait : un tonneau arraché à une cale
+               noyée arrive au contraire lancé, CRÈVE la surface, retombe et se
+               balance jusqu'à s'apaiser. Un ressort amorti le rend d'un trait : la
+               poussée le rappelle à sa flottaison, l'amortissement mange l'élan —
+               fort pour une planche, qui s'aplatit tout de suite, faible pour un
+               tonneau, qui danse. Et le même ressort porte son enfoncement de fin
+               de vie, puisque sa flottaison descend. */
             double sinking = Math.Max(0, (it.Age - (it.Life - 20)) / 20);
             double target = sea0 - it.Draft - sinking * 1.5;
-            it.Y = it.Rise ? Math.Min(target, it.Y + 1.2 * dt) : it.Y + (target - it.Y) * Math.Min(1, dt * 6);
-            if (it.Rise && it.Y >= target - 0.01) it.Rise = false;
+            var K0 = _def[it.Kind];
+            it.Vy += (target - it.Y) * K0.Push * dt;
+            it.Vy *= 1 - Math.Min(1, K0.Damp * dt);
+            it.Vy = Math.Clamp(it.Vy, -6, 6);
+            it.Y += it.Vy * dt;
+            // la gerbe qu'il jette en crevant la surface, une seule fois
+            if (!it.Broke && it.Y > sea0 - it.Draft * 0.5)
+            {
+                it.Broke = true;
+                if (it.Vy > 0.8) OnBreak?.Invoke(new Vec3d(lx, sea0, lz), Math.Min(1.2, 0.12 * it.Vy * it.Vy), 1.5 + it.Vy);
+            }
 
             // posé sur la pente de la vague, et tourné sur lui-même
             var up = new Vector3((float)(-sx / 1.6), 1, (float)(-sz / 1.6)).Normalized();

@@ -21,6 +21,8 @@ public partial class ShipDemo
         // la gerbe basse que chaque poche soulève en crevant, et le bouillon qui reste
         _wreckAir.OnBurst = (at, water, speed, jet) => _spray.Pool.Burst(at, water, speed, jet);
         _flotsam.BottleOneIn = _bottleOneIn;
+        // ce qui crève la surface en remontant jette son peu d'eau, par la même réserve
+        _flotsam.OnBreak = (at, water, speed) => _spray.Pool.Burst(at, water, speed);
         // ce qu'elle contient regarde la page ; ici elle se nomme, en attendant la carte
         _flotsam.OnBottle = from => Say(from != null
             ? $"Une bouteille repêchée — elle vient du {from}"
