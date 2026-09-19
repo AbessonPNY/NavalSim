@@ -46,6 +46,15 @@ uniform vec3 u_sss     = vec3(0.02843, 0.34190, 0.23843);   // 0x2f9e86
 
 // force des rides, montée avec le vent : 0,40 par calme, 2,6 en tempête
 uniform float u_ripple = 0.9;
+/* LES RÉGLAGES DE MISE AU POINT (menu, section Mer) : la rugosité de l'eau, qui
+   monte avec le vent, le flou du ciel dans le miroir qui la suit, et la part des
+   rides, des moutons et de l'écume en traits. */
+uniform float u_rough_base = 0.055;
+uniform float u_rough_wind = 0.15;
+uniform float u_sky_blur = 0.6;
+uniform float u_ride_gain = 1.0;
+uniform float u_cap_gain = 1.0;
+uniform float u_foam_gain = 1.0;
 // hauteur de reference de la lueur de crete, a l echelle de l etat de mer :
 // le noyau la calcule deja (Ocean.AmpMax), on ne la redecide pas ici
 uniform float u_amp_max = 1.0;
@@ -152,21 +161,94 @@ float onde_fbm(vec2 p) {
 
 /* LES RIDES. Le maillage ne porte que dix-huit longues vagues ; tout ce qui est
    plus fin que quelques mètres doit vivre dans la NORMALE, ou la mer a l'air de
-   plastique moulé. Trois octaves de bruit, dérivant avec le vent à des rythmes
-   différents, dérivées pour donner une pente. */
+   plastique moulé.
+
+   DES ARÊTES, PAS DES BOSSES. Un clapot de vent n'est pas une tôle bosselée :
+   ce sont de petites crêtes FINES et des creux larges, couchées EN TRAVERS du
+   vent, longues d'un bord à l'autre et courtes dans le sens où elles courent.
+   Le premier jet sommait un bruit lisse, qui donnait des bosses molles et une
+   lumière de plastique. Ici chaque octave est un bruit PLISSÉ (1 − |2n − 1|,
+   au carré : une ligne vive là où le bruit passe par le milieu), étiré trois
+   fois en travers du vent, et tourné de quelques degrés de plus à chaque octave
+   pour que les trains se croisent comme sur une vraie mer. Chacun avance avec
+   le vent à sa vitesse — les petites plus lentement, comme l'eau profonde le
+   veut (c ∝ √λ). Ce sont ces arêtes qui accrochent le soleil, la lune et les
+   feux en paillettes. */
+float ride_h(vec2 p) {
+	vec2 w = u_wind;
+	vec2 x = vec2(dot(p, w), dot(p, vec2(-w.y, w.x)));   // le long du vent, en travers
+	float h = 0.0, amp = 0.5, f = 0.42, c = 1.25;
+	for (int i = 0; i < 3; i++) {
+		float an = (float(i) - 1.0) * 0.38;
+		vec2 r = vec2(cos(an) * x.x - sin(an) * x.y, sin(an) * x.x + cos(an) * x.y);
+		// en travers du vent, trois fois plus long ; poussé le long du vent à sa vitesse
+		vec2 q = vec2((r.x - u_time * c) * f, r.y * f * 0.33) + vec2(float(i) * 17.3, float(i) * 5.1);
+		float n = onde_noise(q);
+		float k = 1.0 - abs(2.0 * n - 1.0);
+		h += k * k * amp;
+		amp *= 0.5; f *= 2.13; c *= 0.69;
+	}
+	return h;
+}
+
 vec3 ride_normale(vec2 p, float fade) {
 	if (fade <= 0.001) return vec3(0.0, 1.0, 0.0);
-	vec2 d1 = u_wind * u_time * 0.65;
-	vec2 d2 = u_wind * u_time * 0.31;
-	float e = 0.35;
-	vec2 q = p * 0.22;
-	float h  = onde_fbm(q + d1 * 0.22) + onde_fbm(q * 2.7 - d2 * 0.5) * 0.5;
-	float hx = onde_fbm(q + vec2(e, 0.0) * 0.22 + d1 * 0.22)
-	         + onde_fbm((q + vec2(e, 0.0)) * 2.7 - d2 * 0.5) * 0.5;
-	float hz = onde_fbm(q + vec2(0.0, e) * 0.22 + d1 * 0.22)
-	         + onde_fbm((q + vec2(0.0, e)) * 2.7 - d2 * 0.5) * 0.5;
-	float s = 1.35 * u_ripple * fade;
+	float e = 0.2;
+	float h  = ride_h(p);
+	float hx = ride_h(p + vec2(e, 0.0));
+	float hz = ride_h(p + vec2(0.0, e));
+	float s = 0.9 * u_ripple * u_ride_gain * fade / e;
 	return normalize(vec3(-(hx - h) * s, 1.0, -(hz - h) * s));
+}
+
+/* L'ÉCUME EN TRAITS. Ce qu'on veut voir d'une grosse mer, dessiné comme un
+   film d'animation le ferait : des traits blancs qui ondulent sur le HAUT des
+   vagues, granuleux comme de la craie, sur des pentes sombres (d'après une
+   retouche d'Arnaud).
+
+   Deux essais écartés : un semis de bruit lisse (des taches) et un réseau
+   cellulaire de Worley — il donnait une peau de crocodile, des mailles de
+   même taille sur toute la mer. Ici, un BRUIT DE PERLIN : ses lignes de
+   passage par zéro sont continues, sinueuses, sans maille ni grille — des
+   traits. Leur épaisseur suit ce que l'eau est battue : des fils sur la
+   frange, des bandes au sommet. Étirés en travers du vent comme les crêtes,
+   gauchis pour ne pas être réguliers, un second jeu plus fin là où c'est le
+   plus battu, et un pointillé de bulles qui ne vit que de près. Rend 1 sur
+   l'écume. */
+float perlin(vec2 p) {
+	vec2 i = floor(p), f = fract(p);
+	vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+	float a0 = naval_hash13(vec3(i, 5.0)) * 6.2831853;
+	float a1 = naval_hash13(vec3(i + vec2(1.0, 0.0), 5.0)) * 6.2831853;
+	float a2 = naval_hash13(vec3(i + vec2(0.0, 1.0), 5.0)) * 6.2831853;
+	float a3 = naval_hash13(vec3(i + vec2(1.0, 1.0), 5.0)) * 6.2831853;
+	float g0 = dot(vec2(cos(a0), sin(a0)), f);
+	float g1 = dot(vec2(cos(a1), sin(a1)), f - vec2(1.0, 0.0));
+	float g2 = dot(vec2(cos(a2), sin(a2)), f - vec2(0.0, 1.0));
+	float g3 = dot(vec2(cos(a3), sin(a3)), f - vec2(1.0, 1.0));
+	return mix(mix(g0, g1, u.x), mix(g2, g3, u.x), u.y) * 1.4;   // ≈ [−1, 1]
+}
+
+// un trait : là où le bruit passe par zéro, d'une largeur w (en part de l'amplitude)
+float foam_stroke(vec2 q, float w) {
+	float n = abs(perlin(q) + 0.5 * perlin(q * 2.03 + 9.1));
+	return 1.0 - smoothstep(w * 0.45, w, n);
+}
+
+float lace(vec2 p, float fill, float fine) {
+	vec2 w = u_wind;
+	vec2 x = vec2(dot(p, w), dot(p, vec2(-w.y, w.x)));
+	// en travers du vent, deux fois plus long ; dérive avec lui
+	vec2 q = vec2(x.x - u_time * 0.35, x.y * 0.45) * 0.16;
+	q += (vec2(perlin(q * 0.37 + 3.1), perlin(q * 0.37 - 5.3))) * 0.9;
+	float foam = foam_stroke(q, mix(0.07, 0.55, fill));
+	foam = max(foam, foam_stroke(q * 2.3 + 17.0, mix(0.03, 0.3, fill)) * smoothstep(0.25, 0.8, fill) * fine);
+	/* Le grain des bulles, de près seulement : un bruit LISSÉ à trois par mètre,
+	   seuillé en douceur. Un premier pointillé en cases (floor) sortait en
+	   damier de pixels, et clignotait d'être retiré trois fois par seconde —
+	   relevé sur une capture. */
+	float g = onde_noise(p * 3.0 + u_wind * u_time * 0.15);
+	return foam * mix(1.0, smoothstep(0.28, 0.62, g), 0.45 * fine);
 }
 
 // la profondeur de VUE, en mètres, de ce qui est déjà rendu à ce point de l'écran
@@ -194,7 +276,7 @@ void fragment() {
 	   quadrilatère couvre plusieurs mètres, ou elles crénellent comme les vagues
 	   le faisaient. */
 	float r_fade = (1.0 - smoothstep(0.8, 4.0, v_spacing))
-	             * (1.0 - smoothstep(25.0, 260.0, dist));
+	             * (1.0 - smoothstep(25.0, 350.0, dist));
 	vec3 rn = ride_normale(v_world.xz, r_fade);
 	N = normalize(vec3(N.x + rn.x, N.y, N.z + rn.z));
 
@@ -205,6 +287,14 @@ void fragment() {
 	   tout ce qui a la structure fine d'un cirrus redescend en bavure grise qui
 	   se lit comme de la saleté sur l'eau plutôt que comme du ciel. */
 	vec3 sky = naval_sky(R, u_sun, u_zenith, u_horizon, 0.0);
+	/* UNE EAU RUGUEUSE REFLÈTE UN CIEL FLOU. Le miroir restait net quel que soit
+	   le vent, et c'est la moitié de l'aspect plastique : une mer battue ne
+	   renvoie plus l'image du ciel, elle en renvoie la moyenne, tirée vers le
+	   haut. La rugosité monte avec le vent (u_ripple le porte). */
+	float wind_n = smoothstep(0.4, 2.6, u_ripple);
+	float rough_w = u_rough_base + u_rough_wind * wind_n;
+	vec3 sky_soft = naval_sky(normalize(R + vec3(0.0, 0.8, 0.0)), u_sun, u_zenith, u_horizon, 0.0);
+	sky = mix(sky, sky_soft, clamp(rough_w * 2.5 * u_sky_blur, 0.0, 0.9));
 
 	/* DEUX FRESNEL, ET LES CONFONDRE M'A COÛTÉ UNE VERSION.
 	   Celui du MIROIR se prend sur N·V : c'est la part de la lumière que la
@@ -242,7 +332,19 @@ void fragment() {
 	// à travers une crête seulement s'il y a de la lumière derrière : aucune, soleil couché
 	body += u_sss * crest * back * 0.55 * (1.0 - far) * u_water_light * smoothstep(-0.05, 0.08, u_sun.y);
 
+	/* LE CREUX SOMBRE ET LA CRÊTE CLAIRE — ce qui fait le relief d'une grosse
+	   mer, et que l'éclairage seul ne donnait pas : un creux est entouré d'eau
+	   plus haute qui lui cache une part du ciel (moins de ciel rediffusé, moins
+	   de ciel dans le miroir), une crête est MINCE et la lumière du ciel la
+	   traverse. Non pas du soleil seulement — sous un ciel d'orage ou de lune,
+	   c'est tout le ciel qui passe au travers, et la face de la vague s'éclaire
+	   d'un vert sombre. Un parti pris de dessin, comme un film d'animation
+	   l'aurait : la mer se lit par ses masses avant de se lire par ses reflets. */
+	float hrel = v_rel / max(u_amp_max, 0.05);
+	float open = smoothstep(-0.75, 0.55, hrel);
+	body += u_sss * crest * 0.35 * u_water_light * (1.0 - far);
 	vec3 c = mix(body, sky, F);
+	c *= mix(0.62, 1.0, mix(open, 1.0, far));
 
 	/* --- LA ROUTE DE SCINTILLEMENT ---
 	   Un lobe GGX, et non un point de miroir unique. La rugosité monte avec le
@@ -255,7 +357,7 @@ void fragment() {
 	   tient lieu du détail de vague qu'on vient d'ôter. */
 	vec3 H = normalize(u_sun + V);
 	float coarse = smoothstep(0.8, 6.0, v_spacing);
-	float rough = clamp(0.055 + 0.30 * v_foam + 0.24 * far + 0.26 * coarse, 0.03, 0.6);
+	float rough = clamp(rough_w + 0.30 * v_foam + 0.24 * far + 0.26 * coarse, 0.03, 0.7);
 	float a = rough * rough;
 	float nh = max(dot(N, H), 0.0);
 	float dd = nh * nh * (a * a - 1.0) + 1.0;
@@ -335,7 +437,36 @@ void fragment() {
 	   qu'en n'éclairant que l'écume on la rendait plus SOMBRE que l'eau sur
 	   laquelle elle repose, ce qui est le même défaut retourné. */
 	float fn = onde_fbm(v_world.xz * 0.55 + u_time * 0.05);
-	float crest_foam = clamp(v_foam * (0.35 + 1.1 * fn), 0.0, 1.0);
+	/* La dentelle, bornée en bande passante comme les rides : quand une maille
+	   de la grille couvre plusieurs mètres, les fils ne se résolvent plus et
+	   crénelleraient — elle cède alors à sa moyenne. */
+	float lace_far = smoothstep(1.5, 5.0, v_spacing) + far;
+	/* L'ÉCUME TIENT À LA CRÊTE : la part battue est la raideur (v_foam), et plus
+	   encore près du sommet — c'est là que l'eau déferle, l'écume en redescend
+	   par le dos de la vague en s'effilochant. */
+	/* LES MOUTONS. Le HAUT de la vague blanchit, d'abord par la hauteur : passé
+	   un certain vent, toute crête qui monte assez casse son sommet, raide ou
+	   non — c'est ce qu'on voit d'une grosse mer, des têtes blanches sur des
+	   pentes sombres. Pleine au sommet, en dentelle sur la frange, rien sur la
+	   face. Une première version ne tenait l'écume qu'à la raideur, et la
+	   dentelle courait sur toute la face de la vague en fils sans cime. */
+	float sea = smoothstep(0.5, 1.6, u_ripple);
+	float cap = clamp(smoothstep(0.22, 0.62, hrel) * sea * u_cap_gain, 0.0, 1.0);
+	float battue = clamp(max(v_foam * mix(0.4, 1.2, smoothstep(0.0, 0.55, hrel)), cap), 0.0, 1.0);
+	// la finesse que la maille et la distance permettent encore
+	float fine = (1.0 - smoothstep(0.8, 2.5, v_spacing)) * (1.0 - smoothstep(35.0, 140.0, dist));
+	float lc = mix(lace(v_world.xz, battue, fine), 0.4 * battue + 0.2, clamp(lace_far, 0.0, 1.0));
+	float crest_foam = clamp(lc * smoothstep(0.03, 0.3, battue) * (0.75 + 0.35 * fn) * u_foam_gain, 0.0, 1.0);
+	/* ET CE QUI RESTE ENTRE LES CRÊTES : un voile de fils très fins, répandu par
+	   places sur l'eau libre, que laissent les déferlantes passées. Rien par
+	   petit temps ; il vient avec le vent (u_ripple le porte), par grandes
+	   plaques qui dérivent — pas partout à la fois. Fils seulement : la dentelle
+	   à son plus maigre. */
+	float breeze = smoothstep(0.9, 2.1, u_ripple);
+	float plaque = smoothstep(0.45, 0.8, onde_noise(v_world.xz * 0.012 - u_wind * u_time * 0.004 + 21.0));
+	// et seulement sur la moitié haute : ce que les têtes blanches laissent en redescendant
+	float voile = breeze * plaque * smoothstep(0.05, 0.4, hrel) * (1.0 - clamp(lace_far, 0.0, 1.0));
+	if (voile > 0.001) crest_foam = max(crest_foam, lace(v_world.xz * 1.3 + 40.0, 0.0, fine) * voile * 0.45);
 
 	/* L'ÉCUME OÙ LA COQUE COUPE L'EAU : un collier vif au ras du bordé, puis la
 	   moustache d'étrave qui ne se montre qu'une fois qu'elle a de l'erre.
@@ -399,8 +530,8 @@ void fragment() {
 			        * smoothstep(0.0, 0.03, edge);   // pas de bord franc
 		}
 	}
-	// la vieille écume est déchirée, en traînées, pas un lavis uniforme
-	persist *= (0.35 + 0.95 * fn);
+	// la vieille écume est déchirée, en traînées de dentelle, pas un lavis uniforme
+	persist *= 0.25 + 0.95 * lace(v_world.xz, persist, fine) * (1.0 - clamp(lace_far, 0.0, 1.0)) + 0.4 * clamp(lace_far, 0.0, 1.0);
 
 	float foam = clamp(max(crest_foam, persist) + hull_foam, 0.0, 1.0) * (1.0 - far * 0.85);
 	vec3 foam_col = body * 0.5 + u_horizon * 1.05 * (1.0 - 0.55 * u_storm)

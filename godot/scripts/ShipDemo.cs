@@ -400,6 +400,15 @@ public partial class ShipDemo : Node3D
         _motionBlur.MainProjection = _cam.GetCameraProjection();
         _sea.Material?.SetShaderParameter(U.LampReflection, s.LampReflection);
         _sea.Material?.SetShaderParameter(U.LampWater, s.LampWater);
+        if (_sea.Material is ShaderMaterial sm)
+        {
+            sm.SetShaderParameter("u_rough_base", s.SeaRoughBase);
+            sm.SetShaderParameter("u_rough_wind", s.SeaRoughWind);
+            sm.SetShaderParameter("u_sky_blur", s.SeaSkyBlur);
+            sm.SetShaderParameter("u_ride_gain", s.SeaRideGain);
+            sm.SetShaderParameter("u_cap_gain", s.SeaCapGain);
+            sm.SetShaderParameter("u_foam_gain", s.SeaFoamGain);
+        }
         if (_ship != null)
         {
             _ship.SetLanternShadows(s.LanternShadows);
@@ -523,6 +532,13 @@ public partial class ShipDemo : Node3D
         Check("Exposition automatique", st.AutoExposure, on => st.AutoExposure = on);
         Slide("Seuil d'exposition", 0.2, 3, 0.05, st.AutoExposureThreshold, x => st.AutoExposureThreshold = x);
         Slide("Vitesse d'adaptation", 0.1, 5, 0.1, st.AutoExposureSpeed, x => st.AutoExposureSpeed = x);
+        Title("Mer (mise au point)", 15);
+        Slide("Rugosité de base", 0.01, 0.4, 0.005, st.SeaRoughBase, x => st.SeaRoughBase = x);
+        Slide("Rugosité ajoutée par le vent", 0, 0.5, 0.01, st.SeaRoughWind, x => st.SeaRoughWind = x);
+        Slide("Flou du ciel dans l'eau", 0, 1.5, 0.05, st.SeaSkyBlur, x => st.SeaSkyBlur = x);
+        Slide("Rides", 0, 3, 0.05, st.SeaRideGain, x => st.SeaRideGain = x);
+        Slide("Moutons", 0, 2, 0.05, st.SeaCapGain, x => st.SeaCapGain = x);
+        Slide("Écume en traits", 0, 2, 0.05, st.SeaFoamGain, x => st.SeaFoamGain = x);
         Title("Navire", 15);
         // le pavillon à la barre : celui de la fiche, ou une nation de flags.json
         var nlabels = new List<string> { "Pavillon de la fiche" };

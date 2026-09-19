@@ -66,6 +66,10 @@ public sealed class Settings
     /// <summary>Le masque de cinéma : l'image recadrée au format 2,35:1 par deux bandes noires.</summary>
     public bool FilmMask = false;
 
+    // [mer] — réglages de mise au point du shader de la mer
+    public float SeaRoughBase = 0.055f, SeaRoughWind = 0.15f, SeaSkyBlur = 0.6f;
+    public float SeaRideGain = 1f, SeaCapGain = 1f, SeaFoamGain = 1f;
+
     // [navire]
     /// <summary>Le pavillon hissé sur le navire à la barre : l'id d'une nation de flags.json, vide pour celui de la fiche.</summary>
     public string Nation = "";
@@ -108,6 +112,12 @@ public sealed class Settings
         s.AutoExposureSpeed = (float)cf.GetValue("rendu", "exposition_auto_vitesse", s.AutoExposureSpeed);
         s.FilmMask = (bool)cf.GetValue("rendu", "masque_cinema", s.FilmMask);
         s.Nation = (string)cf.GetValue("navire", "pavillon", s.Nation);
+        s.SeaRoughBase = (float)cf.GetValue("mer", "rugosite_base", s.SeaRoughBase);
+        s.SeaRoughWind = (float)cf.GetValue("mer", "rugosite_vent", s.SeaRoughWind);
+        s.SeaSkyBlur = (float)cf.GetValue("mer", "flou_du_reflet", s.SeaSkyBlur);
+        s.SeaRideGain = (float)cf.GetValue("mer", "rides", s.SeaRideGain);
+        s.SeaCapGain = (float)cf.GetValue("mer", "moutons", s.SeaCapGain);
+        s.SeaFoamGain = (float)cf.GetValue("mer", "ecume", s.SeaFoamGain);
         s.ParallelSolvers = (bool)cf.GetValue("performance", "solveurs_paralleles", s.ParallelSolvers);
         return s;
     }
@@ -140,6 +150,12 @@ public sealed class Settings
         cf.SetValue("rendu", "exposition_auto_vitesse", AutoExposureSpeed);
         cf.SetValue("rendu", "masque_cinema", FilmMask);
         cf.SetValue("navire", "pavillon", Nation);
+        cf.SetValue("mer", "rugosite_base", SeaRoughBase);
+        cf.SetValue("mer", "rugosite_vent", SeaRoughWind);
+        cf.SetValue("mer", "flou_du_reflet", SeaSkyBlur);
+        cf.SetValue("mer", "rides", SeaRideGain);
+        cf.SetValue("mer", "moutons", SeaCapGain);
+        cf.SetValue("mer", "ecume", SeaFoamGain);
         cf.SetValue("performance", "solveurs_paralleles", ParallelSolvers);
         Error e = cf.Save(Path);
         if (e != Error.Ok) GD.PushWarning($"réglages non enregistrés dans {Path} : {e}");

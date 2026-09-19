@@ -6215,6 +6215,48 @@ Et le jeu démarre sans HUD : date, temps et carte seulement (`hud.startHidden`)
   et forts en .glb ; les petites îles hors des données (seules Lime Cay et
   Rackham Cay, à positions approchées).
 
+## La mer de Godot : des arêtes et de la dentelle
+
+Demandé (2026-09-19) : une mer plus vraie, **dans Godot seulement**, sans
+quitter le rendu de film d'animation — d'après une image de tempête, puis deux
+photos d'écume. Rien ne touche la géométrie : la règle des trois calculateurs
+n'est pas en jeu, la physique ne voit rien.
+
+- **Les rides sont des arêtes.** L'ancien fbm lisse donnait des bosses molles.
+  Chaque octave est désormais un bruit plissé (1 − |2n − 1|, au carré), étiré
+  trois fois en travers du vent, tourné de 0,38 rad d'une octave à l'autre pour
+  que les trains se croisent, poussé à sa vitesse (les petites plus lentes, c ∝
+  √λ). Portée étendue de 260 à 350 m.
+- **Le creux sombre, la crête claire.** Parti pris de dessin : le creux perd
+  jusqu'à 38 % (moins de ciel, dans l'eau comme dans le miroir), la crête mince
+  laisse passer le ciel — un vert sombre même sans soleil, sous l'orage ou la
+  lune. Fondu vers le neutre avec la distance.
+- **L'écume en traits, sur le haut des vagues** (d'après une retouche
+  d'Arnaud : des traits blancs granuleux qui ondulent sur les crêtes). Deux
+  essais écartés : un réseau de Worley — « peau de crocodile », des mailles de
+  même taille partout — puis un pointillé en cases (`floor`) qui sortait en
+  damier de pixels et clignotait, retiré trois fois par seconde. Retenu : les
+  lignes de passage par zéro d'un **bruit de Perlin** (deux octaves, espace
+  gauchi, étiré en travers du vent), continues et sinueuses ; leur épaisseur
+  suit « battue » — la raideur, et surtout la **hauteur** : passé un peu de
+  vent, toute crête qui monte assez blanchit (moutons), pleine au sommet, en
+  fils sur la frange, rien sur la face. Un grain de bulles en bruit lissé, de
+  près seulement ; un voile de fils fins sur la moitié haute, par plaques.
+- **Réglages de mise au point** (menu, section Mer, `reglages.ini` → `[mer]`) :
+  rugosité de base, rugosité ajoutée par le vent (nouveau : la mer se ternit en
+  montant), flou du ciel dans l'eau (une eau rugueuse reflète un ciel flou —
+  le miroir restait net, moitié de l'aspect plastique), rides, moutons, écume
+  en traits.
+- **Pas de texture à agrandir.** Rides et dentelle sont calculées à chaque
+  pixel ; ce qui borne leur finesse est la bande passante voulue contre la
+  maille, pas une résolution. Le champ d'écume persistant (1024² sur 620 m,
+  0,6 m le texel) ne dit que COMBIEN d'écume ; la dentelle dessine sa forme.
+
+Relevé, 1280×720, force 6, moitié basse de l'écran : de jour, luminance moyenne
+0,298 → 0,319, écart-type 0,126 → 0,140, pixels quasi blancs 0,97 → 0,76 % ; de
+nuit (soleil à −30°), moyenne 0,041 → 0,031, écart inchangé. Coût : carte
+graphique 2,09 → 2,36 ms.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code
