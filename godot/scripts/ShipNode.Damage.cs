@@ -95,6 +95,17 @@ public partial class ShipNode
         return true;
     }
 
+    /* LA SOUTE LES PREND TOUS — mais pas ensemble : à quelques dixièmes de seconde
+       et de bords alternés, pour la raison des trois charges. Au même instant cela
+       se lit comme un objet qui casse ; décalé, comme un navire qui part en morceaux. */
+    public int DropAllMasts()
+    {
+        int n = 0, side = _dmgRng.NextDouble() < 0.5 ? -1 : 1;
+        for (int i = 0; i < _damage.Count; i++)
+            if (DropMast(i, side * (i % 2 == 1 ? -1 : 1), n * 0.45)) n++;
+        return n;
+    }
+
     /* LA TOILE EST LE FUSIBLE DU MÂT. Fait éclater UNE voile, tirée au sort parmi
        celles qui tiennent encore — pondérée par le tissu, donc un grand mât en perd
        plus souvent qu'un artimon, sans qu'aucune probabilité ait été écrite par
@@ -199,6 +210,7 @@ public partial class ShipNode
     {
         RigCuts.Clear();
         RigEpoch++;
+        Battery.Restore();          // et remonte ses pièces : le même radoub
         foreach (var c in _canvases) { c.Split = false; c.Node.Visible = true; }
         foreach (var d in _damage)
         {

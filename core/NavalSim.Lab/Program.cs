@@ -30,11 +30,35 @@ switch (mode)
     case "waves": DumpWaves(); break;
     case "parallele": Parallele(); break;
     case "embrun": Embrun(); break;
+    case "canon": Canon(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
 }
 return 0;
+
+/* LE VOL DU BOULET, ÉPROUVÉ contre les chiffres que guns.js annonce pour un calibre
+   de référence (k = 1) : 296 m/s restants et 1,46 s pour 500 m, plus de dix mètres
+   de chute là-dessus, 1,2 m à 200. Un boulet lâché à plat à 6,5 m sur une mer
+   plate, sans cible : on relève sa course. */
+void Canon()
+{
+    var ocean = new Ocean { Swell = 1.35, Time = 0 };
+    ocean.SetSeaState(0, 0);
+    var g = new Gunnery();
+    var shot = new Gunnery.Shot { P = new Vec3d(0, 6.5, 0), V = new Vec3d(440, 0, 0), C = 0.00097, K = 1 };
+    g.Shots.Add(shot);
+    double t = 0, dt = 1.0 / 240;
+    bool r200 = false, r500 = false;
+    while (g.Shots.Count > 0 && t < 12)
+    {
+        g.Update(dt, ocean, t);
+        t += dt;
+        if (!r200 && shot.P.X >= 200) { r200 = true; Console.WriteLine($"200 m : {t:F3} s, {shot.V.Length:F0} m/s, chute {6.5 - shot.P.Y:F2} m"); }
+        if (!r500 && shot.P.X >= 500) { r500 = true; Console.WriteLine($"500 m : {t:F3} s, {shot.V.Length:F0} m/s, chute {6.5 - shot.P.Y:F2} m"); }
+    }
+    Console.WriteLine($"dans l'eau à {shot.P.X:F0} m, au bout de {t:F2} s");
+}
 
 /* L'EMBRUN CONTRE LA COQUE, ÉPROUVÉ. Des gerbes lancées au ras du bordé, des
    deux bords et sur toute la longueur ; à chaque pas on compte les paquets qui

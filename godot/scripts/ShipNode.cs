@@ -159,6 +159,7 @@ public partial class ShipNode : Node3D
             AddChild(obj);
             ModelRoot = obj;
             RigModel();
+            FindGuns();
             // sur tout ce qui est à bord, y compris les espars que RigModel vient
             // de sortir du modèle pour les pendre dans leurs pivots
             AttachHaze(this);

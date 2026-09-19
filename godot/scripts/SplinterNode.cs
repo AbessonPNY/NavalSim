@@ -28,6 +28,7 @@ public partial class SplinterNode : Node3D
     {
         public Vector3 P, V, W, Rot, Scale;
         public double T, Life, K;
+        public Color Tint;
     }
 
     readonly Piece[] _live = new Piece[Max];
@@ -40,14 +41,15 @@ public partial class SplinterNode : Node3D
     {
         var wood = new StandardMaterial3D
         {
-            AlbedoColor = new Color(0xc9 / 255f, 0xa8 / 255f, 0x75 / 255f), Roughness = 0.92f,
+            // la couleur est par instance : chêne brut pour un éclat, bois patiné pour une planche
+            VertexColorUseAsAlbedo = true, Roughness = 0.9f,
             // elles respirent le même air que la coque
             NextPass = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") }
         };
         Hazed.Add((ShaderMaterial)wood.NextPass);
         _mm = new MultiMesh
         {
-            TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
+            TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true,
             InstanceCount = Max, VisibleInstanceCount = 0,
             Mesh = new BoxMesh { Size = Vector3.One, Material = wood }
         };
@@ -91,10 +93,37 @@ public partial class SplinterNode : Node3D
                 V = v,
                 // bout sur bout, et plus vite qu'une planche : ils sont plus légers
                 W = new Vector3((R() - 0.5f) * 26, (R() - 0.5f) * 26, (R() - 0.5f) * 26),
-                Life = 1.6 + R() * 1.9, K = 0.25 * sk
+                Life = 1.6 + R() * 1.9, K = 0.25 * sk, Tint = Splinter
             };
         }
         return n;
+    }
+
+    static readonly Color Splinter = new(0xc9 / 255f, 0xa8 / 255f, 0x75 / 255f), Plank = new(0x6b / 255f, 0x4f / 255f, 0x31 / 255f);
+
+    /* LE BOIS DE LA SOUTE, en vrais arcs balistiques : c'est lui qui donne sa TAILLE
+       à l'explosion — l'œil lit la hauteur qu'il atteint et le temps qu'il met à
+       retomber. Les mêmes pièces que les éclats, COUPÉES AUTREMENT : une explosion
+       jette des morceaux de navire, courts, épais, lents, bout sur bout ; un boulet
+       jette des échardes. Toute la différence est dans les nombres. */
+    public void Planks(Vector3 at, double k)
+    {
+        float wk = (float)(0.55 + 0.45 * k);             // les planches grandissent, bien moins vite qu'elle
+        float fk = (float)k;
+        for (int i = 0; i < 24 && _n < Max; i++)
+        {
+            float a = R() * Mathf.Tau, e = 0.45f + R() * 0.95f;
+            _live[_n++] = new Piece
+            {
+                Scale = new Vector3((0.14f + R() * 0.22f) * wk, (0.07f + R() * 0.11f) * wk, (1.10f + R() * 2.30f) * wk),
+                Rot = new Vector3(R() * 6.28f, R() * 6.28f, R() * 6.28f),
+                P = at,
+                V = new Vector3(Mathf.Cos(a) * Mathf.Cos(e), Mathf.Sin(e), Mathf.Sin(a) * Mathf.Cos(e)) * ((14 + R() * 24) * fk),
+                // bout sur bout, et vite : une planche jetée par la poudre ne plane pas
+                W = new Vector3((R() - 0.5f) * 15, (R() - 0.5f) * 15, (R() - 0.5f) * 15),
+                Life = 5.0 + R() * 3.0, K = k, Tint = Plank
+            };
+        }
     }
 
     public void Step(double dt, Ocean sea, double t, SprayPool spray)
@@ -118,6 +147,7 @@ public partial class SplinterNode : Node3D
             p.Rot += p.W * fdt;
             _live[w] = p;
             _mm.SetInstanceTransform(w, new Transform3D(Basis.FromEuler(p.Rot) * Basis.FromScale(p.Scale), p.P));
+            _mm.SetInstanceColor(w, p.Tint);
             w++;
         }
         _n = w;

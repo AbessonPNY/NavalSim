@@ -86,6 +86,10 @@ public partial class ShipDemo : Node3D
         AddChild(_cordage);
         _splinters = new SplinterNode();
         AddChild(_splinters);
+        _gunFx = new GunFxNode { Timber = _splinters };
+        AddChild(_gunFx);
+        _gunnery = new Gunnery(_gunRules);
+        WireGuns();
         _krakenNode.Build(_krakenRules.Glb == null ? null
             : System.IO.Path.GetFullPath(System.IO.Path.Combine(ProjectSettings.GlobalizePath("res://"), "..", _krakenRules.Glb)));
         _kraken = new Kraken(_krakenRules) { BodyR = _krakenNode.BodyR };
@@ -760,6 +764,8 @@ public partial class ShipDemo : Node3D
             _lightning.Rebase(-dx, -dz);
             _cordage.Rebase(-dx, -dz);
             _splinters.Rebase(-dx, -dz);
+            _gunnery.Rebase(-dx, -dz);
+            _gunFx.Rebase(-dx, -dz);
             // la seule chose qui ne suit PAS le navire : sans ceci elle resterait
             // à quinze cents mètres, à filmer de l'eau vide
             _anchor = new Vec3d(_anchor.X + dx, _anchor.Y, _anchor.Z + dz);
@@ -801,6 +807,7 @@ public partial class ShipDemo : Node3D
         _sky.UpdateWeather(frame, _sea.Core.SeaState);
         FallTick(frame, dayBefore);
         StormTick(frame);
+        GunTick(frame);
         TickSunPanel(frame);
         /* La lueur n'existe pas le jour — bloom.js saute sa passe tant que la nuit
            n'a pas passé 0,02 : le soleil sur la houle déborderait le seuil et
@@ -823,6 +830,7 @@ public partial class ShipDemo : Node3D
         if (_krakenNode.Visible) foreach (var m in _krakenNode.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
         foreach (var m in _cordage.Hazed) _sky.PushTo(m);
         foreach (var m in _splinters.Hazed) _sky.PushTo(m);
+        foreach (var m in _gunFx.Hazed) _sky.PushTo(m);
         foreach (var s in _others)
             foreach (var m in s.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
         // l'embrun est aussi clair que ce qui l'éclaire : l'horizon, qui porte l'heure
@@ -1073,16 +1081,28 @@ public partial class ShipDemo : Node3D
             $"machine    {_ship.Ctrl.Throttle,6:F2}      barre     {_ship.Ctrl.Rudder,5:F2}\n" +
             $"écoutes    {_ship.Ctrl.Sheet,6:F2}      voiles    {voiles}\n" +
             $"vent       {_windNowDeg,6:F0}°      force     {_sea.Core.SeaState:F1} · {Config.Beaufort[bf].Name}{(_seaMaster != null ? " · " + _seaMaster : "")}\n" +
+            GunLine() +
             $"air        {_climate.Word()}{(_fall.Amount > 0.004 ? (_fall.Snow ? " · il neige" : " · il pleut") : "")}   {_calendar.Date:dd/MM/yyyy}{(_ship.SnowCover > 0.01 ? $"   neige sur le pont {_ship.SnowCover * 100:F0} %" : "")}\n" +
             (_inSquall ? $"dépression {_squall.Dist / 1852,6:F1} mille(s) du centre · au cœur force {_squall.Storm.Peak:F1} · ici {_squall.Force:F1}\n" : "") +
             $"\n" +
             $"W S machine   B élan   A D barre   Q E écoutes   V voiles\n" +
-            $"↑↓ force   ←→ vent   T météo {(_weather.On ? "auto" : "à la main")}   J gros temps   K kraken   R radoub   PgUp/PgDn creux   N navire   F suivre   C vues ({CamName()})   X replanter   H masquer   Échap options\n" +
-            $"O occlusion {(_sky.Env.SsaoEnabled ? "oui" : "non")}   G lumière indirecte {(_sky.Env.SsilEnabled ? "oui" : "non")}";
+            $"↑↓ force   ←→ vent   T météo {(_weather.On ? "auto" : "à la main")}   J gros temps   K kraken   R radoub   G feu (tenu : bordée, ⇧ : autre bord)   Tab bord   Y soute   PgUp/PgDn creux   N navire   F suivre   C vues ({CamName()})   X replanter   H masquer   Échap options\n" +
+            $"O occlusion {(_sky.Env.SsaoEnabled ? "oui" : "non")}   lumière indirecte au menu";
     }
 
     public override void _UnhandledInput(InputEvent e)
     {
+        /* G : UN APPUI, une pièce ; TENU, la bordée entière — la répétition du clavier
+           le dit, et un loquet empêche un long appui de lâcher bordée sur bordée.
+           ⇧ : l'autre bord, une fois. */
+        if (e is InputEventKey gk && (gk.PhysicalKeycode != Key.None ? gk.PhysicalKeycode : gk.Keycode) == Key.G)
+        {
+            if (!gk.Pressed) _salvo = false;
+            else if (!gk.Echo) Fire(gk.ShiftPressed, false);
+            else if (!_salvo) { _salvo = true; Fire(gk.ShiftPressed, true); }
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         if (e is InputEventKey k && k.Pressed && !k.Echo)
         {
             /* Même raison que ci-dessus : l'emplacement, pas l'étiquette. Les
@@ -1124,7 +1144,8 @@ public partial class ShipDemo : Node3D
                 case Key.X: if (_fixed) Plant(); break;
                 // l'occlusion ambiante et l'illumination globale, pour juger à l'œil
                 case Key.O: _settings.Occlusion = !_settings.Occlusion; Changed(); break;
-                case Key.G: _settings.IndirectLight = !_settings.IndirectLight; Changed(); break;
+                case Key.Tab: CycleGunSide(); break;
+                case Key.Y: BlowUp(_ship); break;
                 /* L'ÉLAN : l'équivalent de `Naval.app.controls.state.throttle = 45`
                    dans la console d'origine. Le solveur ne borne pas la machine,
                    donc c'est quarante-cinq fois la poussée — de quoi voir une coque
@@ -1230,6 +1251,7 @@ public partial class ShipDemo : Node3D
             var root = doc.RootElement;
             if (root.TryGetProperty("calendar", out var c) && c.TryGetProperty("start", out var s))
                 _calendar = new Calendar(s.GetString());
+            if (root.TryGetProperty("gunnery", out var gu)) _gunRules = GunnerySettings.FromJson(gu);
             if (root.TryGetProperty("storm", out var st))
             {
                 if (st.TryGetProperty("lightning", out var li)) _lightRules = LightningSettings.FromJson(li);
@@ -1293,6 +1315,7 @@ public partial class ShipDemo : Node3D
     KrakenNode _krakenNode = null!;
     Kraken _kraken = null!;
     LightningSettings _lightRules = new();
+    GunnerySettings _gunRules = new();
     KrakenSettings _krakenRules = new();
     readonly Random _stormRng = new();
     // chaque coque dans une dépression, et combien elle y est enfoncée — relue à chaque image
@@ -1485,6 +1508,207 @@ public partial class ShipDemo : Node3D
         if (mine) Say("Le mât est parti par-dessus bord !");
     }
 
+    // ------------------------------------------------------------------
+    //  LES GROSSES PIÈCES — la bordée, les coups reçus, la riposte, la soute
+    // ------------------------------------------------------------------
+
+    Gunnery _gunnery = null!;
+    GunFxNode _gunFx = null!;
+    readonly Dictionary<ShipNode, ShotTarget> _targets = new();
+    // les coques qu'on a provoquées : elles se retournent contre qui les a touchées
+    readonly Dictionary<ShipNode, (ShipNode Foe, double Rearm)> _hostile = new();
+    readonly Random _gunRng = new();
+    /* LE BORD EN BATTERIE, un ÉTAT qu'on voit et non une touche dont il faut se
+       souvenir : +1 tribord, −1 bâbord, +2 poupe, −2 proue — « l'autre » est le négatif. */
+    int _gunSide = 1;
+    bool _salvo;
+    static readonly Dictionary<int, string> GunNames = new() { [1] = "tribord", [-1] = "bâbord", [2] = "poupe", [-2] = "proue" };
+
+    ShotTarget TargetOf(ShipNode s)
+    {
+        if (_targets.TryGetValue(s, out var t)) return t;
+        t = new ShotTarget { Physics = s.Physics, Battery = s.Battery, Shell = s.HullShell(), Masts = s.MastBoxes, Tag = s };
+        _targets[s] = t;
+        // armée à sa première apparition : quarante charges par pièce, comme la page
+        s.Physics.PowderMax = s.Battery.Guns.Count * 40;
+        s.Physics.Powder = s.Physics.PowderMax;
+        return t;
+    }
+
+    void WireGuns()
+    {
+        _gunnery.OnFire = (at, dir, k, floor, ph) =>
+            _gunFx.Gun(new Vector3((float)at.X, (float)at.Y, (float)at.Z), new Vector3((float)dir.X, (float)dir.Y, (float)dir.Z), k, floor);
+        /* Un boulet fait un trou ÉTROIT dans l'eau très vite : une colonne haute et
+           mince, pas un dôme — le volume est borné par la réserve d'embrun, pour
+           qu'une bordée de six y tienne sans que les dernières volent les premières. */
+        _gunnery.OnSplash = (at, water, speed, jet) => _spray.Pool.Burst(at, water, speed, jet);
+        _gunnery.OnCreature = (a, b, shot) =>
+        {
+            if (!_kraken.HitShot(a, b, out double u, out var arm)) return false;
+            var hit = a + (b - a) * u;
+            _spray.Pool.Burst(hit, 10, 7, 1.4);
+            _kraken.Wound(arm, shot.K);
+            return true;
+        };
+        _gunnery.OnStrike = Struck;
+    }
+
+    /* CE QU'UN BOULET LUI COÛTE, par une mécanique qui existait déjà : un trou dans
+       son flanc est la même voie d'eau que les autres — Torricelli, la carène
+       liquide et l'envahissement prennent la suite sans une ligne pour l'artillerie ;
+       un mât touché est la même blessure que la foudre. Rien du fait d'être canonné
+       n'est un cas à part. */
+    void Struck(ShotTarget t, string kind, int index, double frac, double speed, double k, ShipPhysics from, Vec3d world, Vec3d dir)
+    {
+        if (t.Tag is not ShipNode s) return;
+        // qui a tiré : c'est ce qui permet à un navire de savoir contre qui se retourner
+        ShipNode? shooter = null;
+        foreach (var (node, tt) in _targets) if (tt.Physics == from) { shooter = node; break; }
+        if (shooter != null && s != _ship && shooter != s && !_hostile.ContainsKey(s)) _hostile[s] = (shooter, 0);
+
+        var w = new Vector3((float)world.X, (float)world.Y, (float)world.Z);
+        // le bois d'abord, quoi qu'on ait touché : le même événement vu du dehors
+        _splinters.Splinters(w, new Vector3((float)dir.X, (float)dir.Y, (float)dir.Z), k);
+        if (kind == "mast")
+        {
+            // un bas mât faisait un pied de chêne : il en faut plusieurs, c'est la récompense du feu soutenu
+            s.WoundMast(index);
+            return;
+        }
+        /* Un dixième de mètre carré pour une pièce de plein calibre, et comme le CARRÉ
+           du calibre — un trou est une surface. Petit devant les pompes : un navire
+           n'est pas perdu sur un coup heureux, il l'est d'être percé encore et encore. */
+        s.Physics.MakeBreach(index, 0.10 * k * k, Math.Clamp(frac, 0, 1));
+        // et les pièces qui étaient derrière le bordé
+        var b = s.Physics.Body;
+        var local = b.Quat.Inverted().Rotate(world - b.Pos);
+        var down = s.Battery.Wound(local, k, s.Spec.L);
+        if (down.Count > 0 && s == _ship)
+        {
+            int side = down[0].Side;
+            var (ok, all) = s.Battery.Count(side);
+            string where = Math.Abs(side) == 2 ? "en " + GunNames[side] : "à " + GunNames[side];
+            Say((down.Count > 1 ? down.Count + " pièces démontées " : "Pièce démontée ") + where
+                + (ok > 0 ? $" · {ok}/{all} en état" : " · plus une pièce en état"));
+        }
+    }
+
+    /* TIRER — un appui, une pièce : la batterie parcourue de l'avant à l'arrière ;
+       la touche TENUE, la bordée entière, une seule fois par appui. La poudre se
+       consomme sur ce que les pièces ont RÉELLEMENT tiré. */
+    void Fire(bool other, bool held)
+    {
+        var ph = _ship.Physics;
+        var bat = _ship.Battery;
+        TargetOf(_ship);
+        if (bat.Guns.Count == 0) { Say("Ce navire ne porte pas de batterie"); return; }
+        if (ph.Powder <= 0) { Say("Plus une charge en soute"); return; }
+        int side = other ? -_gunSide : _gunSide;
+        if (!bat.Has(side)) { Say("Aucune pièce en " + GunNames[side]); return; }
+        if (bat.Count(side).Ok == 0) { Say("Plus une pièce en état · " + GunNames[side]); return; }
+        int fired = held ? _gunnery.Broadside(bat, side, ph, ph.Powder) : _gunnery.FireOne(bat, side, ph);
+        if (fired == 0)
+        {
+            var L = _gunnery.Loaded(bat, side);
+            Say("Pièces en rechargement · " + GunNames[side]
+                + (double.IsFinite(L.Next) ? $" — la première dans {Math.Ceiling(L.Next)} s" : ""));
+            return;
+        }
+        ph.Powder = Math.Max(0, ph.Powder - fired);
+    }
+
+    /* LA COLONNE ANNONCE SON BORD, et ce qu'il en reste dès qu'il en manque :
+       « tribord 4/6 · 3 prêtes sur 6 ». Un compte plein ne se lit pas. */
+    string GunLine()
+    {
+        var bat = _ship.Battery;
+        if (bat.Guns.Count == 0) return "";
+        var (ok, all) = bat.Count(_gunSide);
+        var L = _gunnery.Loaded(bat, _gunSide);
+        return $"pièces     {GunNames[_gunSide]}" + (all > 0 && ok < all ? $" {ok}/{all}" : "")
+             + (L.All > 0 && L.Ready < L.All ? $" · {L.Ready} prête{(L.Ready > 1 ? "s" : "")} sur {L.All}" : "")
+             + $" · {_ship.Physics.Powder} charges\n";
+    }
+
+    void CycleGunSide()
+    {
+        int[] order = { 1, -1, 2, -2 };
+        int i = Array.IndexOf(order, _gunSide);
+        for (int n = 1; n <= 4; n++)
+        {
+            int s = order[(i + n) % 4];
+            if (_ship.Battery.Has(s)) { _gunSide = s; break; }
+        }
+        Say("En batterie : " + GunNames[_gunSide]);
+    }
+
+    /* SERVIR LES PIÈCES d'une coque provoquée. Le bord est choisi sur le relèvement :
+       elle ne tire que si la cible relève franchement par le travers — une pièce
+       pointe en travers, et cela la fait manœuvrer au lieu de mitrailler. Trois cent
+       quarante mètres, là où s'arrête le plein fouet. Un capitaine attend que la
+       plus grande part de son bord soit prête. */
+    void ServeGuns(ShipNode s, double dt)
+    {
+        if (!_hostile.TryGetValue(s, out var h)) return;
+        var ph = s.Physics;
+        if (ph.Foundered || ph.Powder <= 0 || s.Battery.Guns.Count == 0) return;
+        if (!IsInstanceValid(h.Foe) || h.Foe.Physics.Foundered) { _hostile.Remove(s); return; }
+        h.Rearm = Math.Max(0, h.Rearm - dt);
+        _hostile[s] = h;
+        if (h.Rearm > 0) return;
+        var b = ph.Body;
+        var to = h.Foe.Physics.Body.Pos - b.Pos;
+        to = new Vec3d(to.X, 0, to.Z);
+        double range = to.Length;
+        if (range > 340 || range < 12) return;
+        var fwd = b.Quat.Rotate(new Vec3d(0, 0, 1));
+        var starboard = fwd.Cross(new Vec3d(0, 1, 0));          // tribord vrai
+        double abeam = to.Normalized().Dot(starboard);
+        if (Math.Abs(abeam) < 0.62) return;                    // elle n'a pas le bord
+        int side = abeam > 0 ? 1 : -1;
+        var L = _gunnery.Loaded(s.Battery, side);
+        if (L.Ready < Math.Max(1, (int)Math.Ceiling(0.6 * L.All))) return;
+        int n = _gunnery.Broadside(s.Battery, side, ph, ph.Powder);
+        if (n > 0) { ph.Powder -= n; _hostile[s] = (h.Foe, 2 + _gunRng.NextDouble() * 3); }
+    }
+
+    void GunTick(double dt)
+    {
+        _gunnery.Targets.Clear();
+        _gunnery.Targets.Add(TargetOf(_ship));
+        foreach (var s in _others) { _gunnery.Targets.Add(TargetOf(s)); ServeGuns(s, dt); }
+        _gunnery.Update(dt, _sea.Core, _t);
+        var h = _sky.Core.Horizon;
+        _gunFx.Step(dt, _sea.Core.WindVec, new Vec3d(h.R, h.G, h.B), _gunnery.Shots);
+    }
+
+    /* LA SOUTE. Trois charges, pas une, à quelques mètres et quelques dixièmes de
+       seconde l'une de l'autre — au milieu d'abord, puis vers l'avant, puis bien
+       à l'arrière —, posées dans SON repère. Puis elle s'ouvre à la mer, et ses mâts
+       partent : une soute qui l'ouvre d'un bout à l'autre ne laisse pas trois
+       bâtons debout. */
+    void BlowUp(ShipNode s)
+    {
+        var ph = s.Physics;
+        var b = ph.Body;
+        double h = s.Spec.CeHeight, along = Math.Min(9, s.Spec.L * 0.15);
+        (double Delay, Vec3d P, double S)[] shots =
+        {
+            (0.00, new Vec3d(0.0, h * 0.30, 0.0), 1.00),
+            (0.32, new Vec3d(1.9, h * 0.55, along), 0.78),
+            (0.66, new Vec3d(-1.6, h * 0.42, -along * 0.8), 0.90)
+        };
+        foreach (var (delay, p, sz) in shots)
+        {
+            var w = b.Quat.Rotate(p) + b.Pos;
+            _gunFx.BlastIn(delay, new Vector3((float)w.X, (float)w.Y, (float)w.Z), s.Spec.L * sz);
+        }
+        ph.BlowUp();
+        s.DropAllMasts();
+        if (s == _ship) Say("La soute saute !");
+    }
+
     void SetAutoWeather(bool on)
     {
         _weather.On = on;
@@ -1600,6 +1824,17 @@ public partial class ShipDemo : Node3D
                 case "--averse": _climate.StartShower(args[i + 1].ToFloat(), 1.0); break;
                 case "--kraken": _kraken.Summon(args[i + 1] == "1", PreyOf(_ship)); break;
                 case "--foudre": Strike(_ship); break;
+                case "--bordee": _gunSide = args[i + 1].ToInt(); Fire(false, true); break;
+                case "--soute": BlowUp(_ship); break;
+                // une cible par le travers tribord, à cette distance : le premier navire de --flotte
+                case "--cible":
+                    if (_others.Count > 0)
+                    {
+                        var cb = _others[0].Physics.Body;
+                        cb.Pos = new Vec3d(-args[i + 1].ToFloat(), cb.Pos.Y, 0);
+                        _others[0].SyncTransform();
+                    }
+                    break;
                 case "--demater": _ship.DropMast(args[i + 1].ToInt()); break;
                 case "--meteo": SetAutoWeather(args[i + 1] == "1"); break;
                 case "--tempete": GoToStorm(args[i + 1].ToFloat()); break;
@@ -1622,7 +1857,8 @@ public partial class ShipDemo : Node3D
                 // ship.hullProfile(64, -eq) dans la page
                 // la régularité des images, mesurée : voir FrameStats
                 // sans synchro verticale : pour mesurer ce que la machine tient vraiment
-                case "--vsync": DisplayServer.WindowSetVsyncMode(args[i + 1] == "0" ? DisplayServer.VSyncMode.Disabled : DisplayServer.VSyncMode.Enabled); break;
+                // par les réglages (sans les enregistrer) : une autre option qui les réapplique ne la défait pas
+                case "--vsync": _settings.VSync = args[i + 1] != "0"; ApplySettings(); break;
                 case "--ssao": _sky.Env.SsaoEnabled = args[i + 1] == "1"; break;
                 case "--ssil": _sky.Env.SsilEnabled = args[i + 1] == "1"; break;
                 case "--frametimes": _ftLeft = args[i + 1].ToInt(); _ftGc0 = GC.GetTotalPauseDuration(); break;
