@@ -156,7 +156,10 @@ const scenarios = [
     ctrl: { throttle: 0, rudder: 0, sheet: 0.8, sailsSet: true }, grips: true },
   // la barre automatique : au pres vers une marque au vent, le vent du nord-ouest
   { id: 'barre-auto',   ship: 'pirate',   force: 4, deg: 315, steps: 21600,
-    ctrl: { throttle: 0, rudder: 0, sheet: 0.5, sailsSet: true }, helm: [100, 0, 1200] }
+    ctrl: { throttle: 0, rudder: 0, sheet: 0.5, sailsSet: true }, helm: [100, 0, 1200] },
+  // la glisse d un fantome : tenue a hauteur fixe, droite, la houle passe au travers
+  { id: 'glisse',       ship: 'frigate17e', force: 6, deg: 45, steps: 900,
+    ctrl: { throttle: 0, rudder: 0.4, sheet: 0.7, sailsSet: true }, glide: 0.8 }
 ];
 
 for (const sc of scenarios) {
@@ -178,10 +181,11 @@ for (const sc of scenarios) {
     });
     phys.grips = grips.map(g => Object.assign({}, g));
   }
+  if (sc.glide != null) phys.glide = sc.glide;
 
   const rec = {
     id: sc.id, ship: sc.ship, force: sc.force, deg: sc.deg, steps: sc.steps,
-    ctrl: sc.ctrl, breach: !!sc.breach, grips, helm: sc.helm || null,
+    ctrl: sc.ctrl, breach: !!sc.breach, grips, helm: sc.helm || null, glide: sc.glide ?? null,
     hullVolume: phys.hullVolume,
     probes: phys.probes.length,
     cargoCapacity: phys.cargoCapacity,

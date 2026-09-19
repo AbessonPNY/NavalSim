@@ -126,6 +126,8 @@ public sealed class Gunnery
     public Action<Vec3d, double, double, double>? OnSplash;
     /// <summary>Ce qui n'est pas un navire et peut être touché (le kraken) : le segment balayé, et rend vrai s'il a touché.</summary>
     public Func<Vec3d, Vec3d, Shot, bool>? OnCreature;
+    /// <summary>Qui a tiré, et la coque sur le chemin : faux, et le boulet la traverse comme si elle n'était pas là — ce qui, pour un fantôme, est le cas.</summary>
+    public Func<ShipPhysics, ShotTarget, bool>? CanHit;
 
     readonly Func<double> _random;
 
@@ -350,6 +352,7 @@ public sealed class Gunnery
         {
             var ph = e.Physics;
             if (ph == b.From || ph.Foundered) continue;
+            if (CanHit != null && !CanHit(b.From, e)) continue;
             var body = ph.Body;
             var inv = body.Quat.Inverted();
             Vec3d l0 = inv.Rotate(a0 - body.Pos), l1 = inv.Rotate(a1 - body.Pos);

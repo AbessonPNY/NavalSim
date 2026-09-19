@@ -162,6 +162,13 @@ public sealed partial class ShipPhysics
     public double Aground;          // mètres dont sa quille est DANS le fond
     public double Touching;         // mètres dont son bordé est DANS une autre coque
     public bool Foundered;
+    /// <summary>
+    /// LA GLISSE, pour ce qui court sur la mer sans qu'elle le remue — un fantôme.
+    /// La hauteur où elle est tenue : droite, cap libre, la houle passant au
+    /// travers d'elle. Lâchée une fois envahie au quart, pour que le vaincu
+    /// puisse encore sombrer. null : une coque ordinaire.
+    /// </summary>
+    public double? Glide;
     public bool PumpOn = true;
     public double PumpRate;
     /// <summary>

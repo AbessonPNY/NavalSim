@@ -102,6 +102,9 @@ public static class PhysicsParity
                         Hold = g.GetProperty("hold").GetDouble(), Brake = g.GetProperty("brake").GetDouble()
                     });
 
+            if (sc.TryGetProperty("glide", out var jgl) && jgl.ValueKind == JsonValueKind.Number)
+                phys.Glide = jgl.GetDouble();
+
             // --- la barre automatique, si le scénario en a une ---
             AutoHelm? helm = null;
             if (sc.TryGetProperty("helm", out var jh) && jh.ValueKind == JsonValueKind.Array)

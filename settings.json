@@ -72,7 +72,7 @@
     "sideB": ["pirate", "pirate"],
     "spread": 350,
     "fade": 6,
-    "opacity": 0.45,
+    "opacity": 0.3,
     "victorLinger": 10,
     "sunkLinger": 25
   },

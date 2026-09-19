@@ -32,6 +32,7 @@ uniform float u_emissive_k = 0.12;
 uniform sampler2D u_map : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform float u_has_map = 0.0;
 uniform vec3 u_sun_col = vec3(1.0, 0.95, 0.86);
+uniform float u_translucency = 0.45;   // la part de la lumière reçue derrière qui ressort devant
 uniform float u_snow = 0.0;          // la couche de neige sur CE navire : pendante, la toile n'en garde presque pas
 
 varying vec3 v_world;
@@ -64,6 +65,14 @@ void fragment() {
 	// la brume en dernier, par le même tour que la coque : voir hull.gdshader
 	float hz = haze_along(CAMERA_POSITION_WORLD, v_world);
 	ALBEDO = diffuse * (1.0 - hz);
+	/* ET LA TOILE LAISSE PASSER LE JOUR DE PARTOUT, pas seulement dans l'axe : le
+	   lobe ci-dessus est la lumière qui file droit à travers le tissage, mais une
+	   toile de lin en diffuse aussi une bonne part de l'autre côté — une voile au
+	   contre-jour est claire même quand on ne regarde pas vers le soleil. Godot le
+	   fait pour TOUTE lumière (BACKLIGHT) : le soleil, la lune, et le fanal de
+	   poupe qui éclaire la misaine par derrière. Un écart voulu avec la page, qui
+	   n'a que le lobe. */
+	BACKLIGHT = diffuse * u_translucency * (1.0 - hz);
 	SPECULAR = 0.5 * (1.0 - hz);
 	ROUGHNESS = 0.95;
 	METALLIC = 0.0;

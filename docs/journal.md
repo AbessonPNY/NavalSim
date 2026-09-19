@@ -5211,6 +5211,35 @@ l'aube » à la première image. Il règle l'heure (21 h). Et une boucle gelée 
 rafraîchit pas `worldPos` : le module croyait le témoin encore à l'ancien
 endroit.
 
+**Portage Godot (2026-09-19).** La scène est dans le noyau (`Ghosts.cs`,
+`GhostScene` + `IGhostHost`), la glisse dans le solveur (`ShipPhysics.Glide`,
+scénario de parité « glisse » tenu à 2,5 µm), le filtre des boulets dans
+`Gunnery.CanHit`. Touche P ou `--fantomes 1` pour y aller. Trois écarts voulus
+avec la page : **une seule peau** — chaque matière est dessinée deux fois, une
+pré-passe de profondeur (`render_priority` −10) puis la couleur un rien
+avancée : sans elle bordé, vaigrage et pont s'empilaient à 45 % chacun et le
+spectre paraissait plein (demandé par Arnaud) ; **la ligne de fondu ondule** et
+le bas s'éteint vers le noir, avec des bandes pâles qui montent ; **de la
+vapeur** monte des ponts (14 volutes qui naissent vite et s'éteignent
+lentement). Puis, demandé encore : **pas de contour** — l'opacité suit |N·V|,
+une surface vue de biais s'efface et la silhouette se fond ; lueur portée à
+1,5 (le bord n'en porte plus), aura plus large et plus forte ; `opacity` de
+settings.json passée de 0,45 à 0,3 (la page en profite aussi). Pas encore de
+pavillons nationaux (Godot n'a pas de pavillons). Relevé : camp pirate percé
+à t = 20 s, glisse lâchée à 30 % d'eau, coulés à 75 s, vainqueurs dissous et
+retirés 10 s plus tard (flotte 5 → 3), sans exception.
+
+Au passage, la toile de TOUS les navires côté Godot reçoit `BACKLIGHT`
+(0,45) : la transmission diffuse d'un lin, pour toute lumière derrière elle
+— soleil, lune, fanal —, en plus du lobe de la page qui ne vaut que dans
+l'axe du soleil.
+
+Bogue de la page trouvé au portage : `alphaTest` 0,45 comparé à
+opacité × carte, avec une opacité ≤ 0,45 : toute la toile disparaissait tant
+que le fondu n'était pas complet. Seuil désormais à la moitié de l'opacité
+courante. Piège Godot : un `varying` ne s'écrit pas dans une fonction d'un
+include, seulement dans `vertex()` — le passer en paramètre.
+
 ## La grande carte
 
 Demandé : « pouvoir dézoomer plus la carte ou l'afficher à part avec une

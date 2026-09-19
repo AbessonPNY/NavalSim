@@ -178,7 +178,7 @@ public sealed partial class ShipPhysics
            place, passé une seconde. Il reste rare par construction, doubler étant
            beaucoup. */
         bool big = slamW > _slamLast * 2 && (SlamPause - _slamCool) > 1.0;
-        if (OnSlam != null && (_slamCool <= 0 || big)
+        if (OnSlam != null && Glide == null && (_slamCool <= 0 || big)
             && slamW > (HullVolume / S.D) * SlamTrigger)
         {
             _slamCool = SlamPause;
@@ -264,6 +264,19 @@ public sealed partial class ShipPhysics
             // premultiply : dq · quat, puis renormalisation — Godot VÉRIFIE la
             // norme d'un quaternion là où three.js laissait passer
             b.Quat = (dq * b.Quat).Normalized();
+        }
+
+        if (Glide is double gy)
+        {
+            if (Foundered || FloodVol > 0.25 * HullVolume) Glide = null;
+            else
+            {
+                b.Pos = new Vec3d(b.Pos.X, gy, b.Pos.Z);
+                b.Vel = new Vec3d(b.Vel.X, 0, b.Vel.Z);
+                Vec3d hx = b.Quat.Rotate(new Vec3d(0, 0, 1));
+                b.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), Math.Atan2(hx.X, hx.Z));
+                b.AngVel = new Vec3d(0, b.AngVel.Y, 0);
+            }
         }
 
         // Garde-fou NaN : on récupère dans un état droit plutôt que de figer la boucle

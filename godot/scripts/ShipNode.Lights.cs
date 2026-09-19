@@ -37,6 +37,8 @@ public partial class ShipNode
     readonly List<Lantern> _lanterns = new();
     readonly List<(BaseMaterial3D Mat, double Base)> _nightMats = new();
     bool _lit;
+    /// <summary>Ses feux sont-ils allumés : la nuit, par la règle des fanaux.</summary>
+    public bool Lit => _lit;
 
     /// <summary>Les réglages qui touchent aux feux : posés AVANT Build, relus par RebuildLanterns.</summary>
     public bool LanternShadows = true, WithMastLantern = true;

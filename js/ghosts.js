@@ -338,7 +338,7 @@ Naval.Ghosts = class Ghosts {
         if(m.emissive){ m.emissive.set(0x5fe6c4); m.emissiveIntensity = 0.95; }
         m.transparent = true;
         m.needsUpdate = true;
-        mats.push({ m, base: Naval.GHOSTS.opacity });
+        mats.push({ m, base: Naval.GHOSTS.opacity, cloth: cloth.has(m) });
       }
     });
     for(const L of ship.lanternList || []) L.light.color.set(0x7dffc8);
@@ -397,6 +397,10 @@ Naval.Ghosts = class Ghosts {
         continue;
       }
       it.m.opacity = it.base*g.fade;
+      /* The test is made against opacity × map, so a fixed threshold took the
+         whole sail away while she faded — the canvas came last and went first.
+         Held at half her own opacity, only the holes are cut. */
+      if(it.cloth) it.m.alphaTest = Math.max(1e-3, 0.5*it.m.opacity);
     }
     e.ship.group.visible = true;
   }

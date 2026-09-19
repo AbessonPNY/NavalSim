@@ -184,7 +184,7 @@ public partial class ShipDemo : Node3D
         GC.Collect();
     }
 
-    void SpawnFleet(int n, int specIndex)
+    void SpawnFleet(int n, int specIndex, bool arm = true)
     {
         var spec = ShipLibrary.Load(_paths[(specIndex % _paths.Count + _paths.Count) % _paths.Count]);
         if (spec == null) return;
@@ -202,11 +202,13 @@ public partial class ShipDemo : Node3D
             int row = _fleet.Count;
             var prof = s.MakeProfile(-y);
             if (row < Config.MaxShips) _sea.SetHullProfile(row, prof);
-            _spray.Pool.Colliders.Add(s.MakeCollider(prof));
+            var col = s.MakeCollider(prof);
+            _spray.Pool.Colliders.Add(col);
+            _hulls[s] = (prof, col, y);
             _fleet.Add(s.Physics);
             s.Physics.OnSlam = QueueSlam;
             _others.Add(s);
-            Arm(s);
+            if (arm) Arm(s);
         }
         GD.Print($"flotte d'essai : {n} × {spec.Name}");
         Sweep();
@@ -687,8 +689,7 @@ public partial class ShipDemo : Node3D
             : "coque procédurale";
         GD.Print($"  {what} ; profil : demi-largeur {_prof.MaxHalfB:F3} m (fiche {spec.B * 0.5:F3}), "
                + $"corps {_prof.EndAft:F2} à {_prof.EndFwd:F2} m");
-        _fleet.Clear();
-        _fleet.Add(_ship.Physics);
+        RefitFleet();
         /* LA COQUE QUI TAPE JETTE DE L'EAU — wireSplash : le solveur dit combien
            d'eau elle vient de chasser et à quelle vitesse, la réserve en fait une
            gerbe. Toute coque le fait, pas seulement la nôtre. */
@@ -822,6 +823,8 @@ public partial class ShipDemo : Node3D
         // les feux et les fenêtres suivent la nuit du ciel, et s'effacent au loin
         _ship.SetLantern(_sky.Core.Night, _t, _cam.GlobalPosition, _sky.Core);
         foreach (var s in _others) s.SetLantern(_sky.Core.Night, _t, _cam.GlobalPosition, _sky.Core);
+        // après les feux : la scène lit la nuit par leur règle
+        GhostTick(frame);
         // et la mer les voit : leur reflet et leur lumière sur l'eau
         int lamps = _ship.FillLamps(_sea.Lamps, _sea.LampRange, 0);
         foreach (var s in _others) lamps += s.FillLamps(_sea.Lamps, _sea.LampRange, lamps);
@@ -1088,7 +1091,7 @@ public partial class ShipDemo : Node3D
             (_inSquall ? $"dépression {_squall.Dist / 1852,6:F1} mille(s) du centre · au cœur force {_squall.Storm.Peak:F1} · ici {_squall.Force:F1}\n" : "") +
             $"\n" +
             $"W S machine   B élan   A D barre   Q E écoutes   V voiles\n" +
-            $"↑↓ force   ←→ vent   T météo {(_weather.On ? "auto" : "à la main")}   J gros temps   K kraken   R radoub   G feu (tenu : bordée, ⇧ : autre bord)   Tab bord   Y soute   U pirate   PgUp/PgDn creux   N navire   F suivre   C vues ({CamName()})   X replanter   H masquer   Échap options\n" +
+            $"↑↓ force   ←→ vent   T météo {(_weather.On ? "auto" : "à la main")}   J gros temps   K kraken   R radoub   G feu (tenu : bordée, ⇧ : autre bord)   Tab bord   Y soute   U pirate   P fantômes   PgUp/PgDn creux   N navire   F suivre   C vues ({CamName()})   X replanter   H masquer   Échap options\n" +
             $"O occlusion {(_sky.Env.SsaoEnabled ? "oui" : "non")}   lumière indirecte au menu";
     }
 
@@ -1149,6 +1152,7 @@ public partial class ShipDemo : Node3D
                 case Key.Tab: CycleGunSide(); break;
                 case Key.Y: BlowUp(_ship); break;
                 case Key.U: SpawnPirate(900); break;
+                case Key.P: GoToGhosts(true); break;
                 /* L'ÉLAN : l'équivalent de `Naval.app.controls.state.throttle = 45`
                    dans la console d'origine. Le solveur ne borne pas la machine,
                    donc c'est quarante-cinq fois la poussée — de quoi voir une coque
@@ -1254,6 +1258,7 @@ public partial class ShipDemo : Node3D
             var root = doc.RootElement;
             if (root.TryGetProperty("calendar", out var c) && c.TryGetProperty("start", out var s))
                 _calendar = new Calendar(s.GetString());
+            if (root.TryGetProperty("ghosts", out var gh)) _ghosts.Rules = GhostRules.FromJson(gh);
             if (root.TryGetProperty("gunnery", out var gu)) _gunRules = GunnerySettings.FromJson(gu);
             if (root.TryGetProperty("storm", out var st))
             {
@@ -1322,7 +1327,7 @@ public partial class ShipDemo : Node3D
     KrakenSettings _krakenRules = new();
     readonly Random _stormRng = new();
     // chaque coque dans une dépression, et combien elle y est enfoncée — relue à chaque image
-    readonly List<(KrakenPrey Prey, double Inten)> _orage = new();
+    readonly List<(KrakenPrey Prey, double Inten)> _orage = new(), _orageKraken = new();
     readonly Dictionary<ShipNode, KrakenPrey> _preys = new();
     readonly Dictionary<KrakenPrey, ShipNode> _preyShip = new();
 
@@ -1414,7 +1419,10 @@ public partial class ShipDemo : Node3D
             if (_storms.At(o.X + b.Pos.X, o.Z + b.Pos.Z, _t, out var q)) _orage.Add((PreyOf(s), q.Inten));
         }
 
-        _kraken.Update(dt, _orage, _sea.Core, _t, _alive ??= PreyAlive);
+        // le kraken ne prend pas les spectres ; la foudre, si
+        _orageKraken.Clear();
+        foreach (var it in _orage) if (!_preyShip[it.Prey].IsGhost) _orageKraken.Add(it);
+        _kraken.Update(dt, _orageKraken, _sea.Core, _t, _alive ??= PreyAlive);
         _krakenNode.Sync(_kraken);
 
         foreach (var (prey, inten) in _orage)
@@ -1555,6 +1563,8 @@ public partial class ShipDemo : Node3D
             return true;
         };
         _gunnery.OnStrike = Struck;
+        // un spectre ne se touche que par un spectre, ou par celui qui s'est retourné contre vous
+        _gunnery.CanHit = (from, t) => _ghosts.CanTouch(from, t.Physics);
     }
 
     /* CE QU'UN BOULET LUI COÛTE, par une mécanique qui existait déjà : un trou dans
@@ -1568,7 +1578,9 @@ public partial class ShipDemo : Node3D
         // qui a tiré : c'est ce qui permet à un navire de savoir contre qui se retourner
         ShipNode? shooter = null;
         foreach (var (node, tt) in _targets) if (tt.Physics == from) { shooter = node; break; }
-        if (shooter != null && s != _ship && shooter != s && !_pirates.ContainsKey(s) && !_hostile.ContainsKey(s)) _hostile[s] = (shooter, 0);
+        // les spectres ne provoquent pas les vivants et n'en sont pas provoqués
+        if (shooter != null && s != _ship && shooter != s && !_pirates.ContainsKey(s) && !_hostile.ContainsKey(s)
+            && !s.IsGhost && !shooter.IsGhost) _hostile[s] = (shooter, 0);
 
         var w = new Vector3((float)world.X, (float)world.Y, (float)world.Z);
         // le bois d'abord, quoi qu'on ait touché : le même événement vu du dehors
@@ -1753,6 +1765,7 @@ public partial class ShipDemo : Node3D
     ShipPhysics? EnemyOf(ShipNode s)
     {
         if (_pirates.TryGetValue(s, out var p)) return p.Enemy;
+        if (s.IsGhost) return _ghosts.Of(s.Physics)?.Foe;
         if (_hostile.TryGetValue(s, out var h) && IsInstanceValid(h.Foe) && !h.Foe.Physics.Foundered) return h.Foe.Physics;
         return null;
     }
@@ -1768,7 +1781,8 @@ public partial class ShipDemo : Node3D
             var prey = p.Cible;
             _sails.Clear();
             _sails.Add(new Pirate.Sail(_ship.Physics, _ship.Battery, IsJolly(_ship)));
-            foreach (var o in _others) _sails.Add(new Pirate.Sail(o.Physics, o.Battery, IsJolly(o)));
+            // un vrai pirate ne chasse pas les spectres
+            foreach (var o in _others) if (!o.IsGhost) _sails.Add(new Pirate.Sail(o.Physics, o.Battery, IsJolly(o)));
             string? ev = p.Pilot(dt, _t, s.Physics, h, _sails, _ship.Physics);
             if (ev != null && prey != null)
             {
@@ -1785,6 +1799,15 @@ public partial class ShipDemo : Node3D
                     }
                 }
             }
+            h.Update(dt, _sea.Core, s.Ctrl);
+            return;
+        }
+        if (s.IsGhost)
+        {
+            // droit sur l'ennemi que la scène lui donne ; la bataille finie, il garde sa route
+            var foe = _ghosts.Of(s.Physics)?.Foe;
+            var h = HelmOf(s);
+            if (foe != null) h.Target = foe.Body.Pos;
             h.Update(dt, _sea.Core, s.Ctrl);
             return;
         }
@@ -1940,6 +1963,7 @@ public partial class ShipDemo : Node3D
                 case "--bordee": _gunSide = args[i + 1].ToInt(); Fire(false, true); break;
                 case "--soute": BlowUp(_ship); break;
                 case "--pirate": SpawnPirate(args[i + 1].ToFloat()); break;
+                case "--fantomes": GoToGhosts(true); break;
                 // une cible par le travers tribord, à cette distance : le premier navire de --flotte
                 case "--cible":
                     if (_others.Count > 0)

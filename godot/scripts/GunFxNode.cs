@@ -50,6 +50,8 @@ public partial class GunFxNode : Node3D
     Vector3 _lit = Vector3.One;
 
     public readonly List<ShaderMaterial> Hazed = new();
+    /// <summary>La fumée de la soute, que la brume des spectres emprunte.</summary>
+    public ImageTexture Smoke { get; private set; } = null!;
     /// <summary>Les planches de la soute : les éclats, coupés autrement.</summary>
     public SplinterNode? Timber;
 
@@ -60,7 +62,7 @@ public partial class GunFxNode : Node3D
         var quad = new QuadMesh { Size = Vector2.One };
         _mmAdd = Pool(quad, "res://shaders/puff_add.gdshader", GlowTexture(), MaxAdd);
         _mmPowder = Pool(quad, "res://shaders/puff_mix.gdshader", PowderTexture(), MaxPowder);
-        _mmSoot = Pool(quad, "res://shaders/puff_mix.gdshader", SmokeTexture(), MaxSoot);
+        _mmSoot = Pool(quad, "res://shaders/puff_mix.gdshader", Smoke = SmokeTexture(), MaxSoot);
 
         /* UN BOULET, bien plus gros que nature, et exprès : un douze livres fait onze
            centimètres, un tiers de pixel à une encablure — il n'existerait pas. Son
