@@ -265,6 +265,55 @@ float view_depth(vec2 uv, mat4 inv_proj) {
 	return -v.z / v.w;
 }
 
+/* LE REFLET DES COQUES — ce que la page obtient en rendant le monde une seconde
+   fois depuis un œil en miroir sous la surface. Ici il est cherché DANS L'IMAGE
+   déjà rendue, que la mer relit de toute façon pour la coque vue à travers
+   l'eau : le rayon renvoyé par la surface est suivi pas à pas dans l'espace de
+   vue, projeté à chaque pas sur l'écran, et comparé à la profondeur de ce qui
+   s'y trouve ; là où il passe derrière une surface opaque, il l'a touchée, et
+   c'est sa couleur qui se reflète.
+
+   Pas de seconde passe, et pas de plan de coupe — que Godot n'offre pas pour les
+   matières d'un modèle : un rayon renvoyé MONTE, il ne peut pas rencontrer le
+   bas d'une coque sous l'eau. Le prix : ce qui est hors de l'image ne se reflète
+   pas. Le reflet s'efface donc vers les bords de l'écran au lieu de s'y couper.
+   Rend (couleur encodée, part touchée). */
+vec4 hull_mirror(vec3 P, vec3 Rv, mat4 proj, mat4 inv_proj) {
+	float t = 0.6, prev_t = 0.0;
+	for (int i = 0; i < 40; i++) {
+		vec3 Q = P + Rv * t;
+		if (Q.z > -0.05) break;                         // passé derrière l'œil
+		vec4 cl = proj * vec4(Q, 1.0);
+		vec2 uv = cl.xy / cl.w * 0.5 + 0.5;
+		if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) break;
+		float scene = view_depth(uv, inv_proj);
+		float ray = -Q.z;
+		// derrière une surface, et pas trop loin derrière : c'est elle qu'il a touchée
+		if (ray > scene && ray - scene < 0.6 + 0.08 * t) {
+			// affiner entre le pas d'avant et celui-ci
+			float a = prev_t, b = t;
+			for (int k = 0; k < 5; k++) {
+				float m = 0.5 * (a + b);
+				vec3 Qm = P + Rv * m;
+				vec4 cm = proj * vec4(Qm, 1.0);
+				vec2 um = cm.xy / cm.w * 0.5 + 0.5;
+				if (-Qm.z > view_depth(um, inv_proj)) b = m; else a = m;
+			}
+			vec3 Qb = P + Rv * b;
+			vec4 cb = proj * vec4(Qb, 1.0);
+			vec2 ub = cb.xy / cb.w * 0.5 + 0.5;
+			// s'efface vers les bords de l'image et avec la longueur du rayon
+			vec2 edge = smoothstep(0.0, 0.08, ub) * (1.0 - smoothstep(0.92, 1.0, ub));
+			float w = edge.x * edge.y * (1.0 - smoothstep(60.0, 140.0, b));
+			return vec4(naval_encode(textureLod(u_screen, ub, 0.0).rgb), w);
+		}
+		prev_t = t;
+		t = t * 1.13 + 0.25;
+		if (t > 140.0) break;
+	}
+	return vec4(0.0);
+}
+
 void fragment() {
 	vec3 eye = CAMERA_POSITION_WORLD;
 	vec3 V = normalize(eye - v_world);
@@ -349,6 +398,27 @@ void fragment() {
 	float hrel = v_rel / max(u_amp_max, 0.05);
 	float open = smoothstep(-0.75, 0.55, hrel);
 	body += u_sss * crest * 0.35 * u_water_light * (1.0 - far);
+	/* Le monde au-dessus de l'eau, sur le ciel : cherché de près seulement, et
+	   sur une normale adoucie — les rides pleines le hacheraient en éclats. */
+	/* Et seulement au pied d'un navire : son reflet ne peut tomber qu'à moins de
+	   la hauteur de sa mâture de lui — deux longueurs et demie, avec de la marge.
+	   Ailleurs la recherche ne trouverait que du ciel, à 0,7 ms l'image. */
+	bool near_ship = false;
+	for (int i = 0; i < NSHIP; i++) {
+		if (i >= u_ship_count) break;
+		float reach = 5.0 * u_ship_half[i].x + 10.0;
+		vec2 dd = v_world.xz - u_ship_pos[i].xz;
+		if (dot(dd, dd) < reach * reach) { near_ship = true; break; }
+	}
+	if (near_ship && dist < 400.0) {
+		vec3 Nr = normalize(vec3(N.x * 0.5, N.y, N.z * 0.5));
+		vec3 Rw = reflect(-V, Nr);
+		if (Rw.y > 0.0) {
+			vec3 Rv = normalize((VIEW_MATRIX * vec4(Rw, 0.0)).xyz);
+			vec4 hm = hull_mirror(VERTEX, Rv, PROJECTION_MATRIX, INV_PROJECTION_MATRIX);
+			sky = mix(sky, hm.rgb, hm.a * (1.0 - smoothstep(250.0, 400.0, dist)));
+		}
+	}
 	vec3 c = mix(body, sky, F);
 	c *= mix(0.62, 1.0, mix(open, 1.0, far));
 
@@ -521,26 +591,45 @@ void fragment() {
 		/* Les navires n'ajoutent pas d'écume au-delà de la saturation, ils se
 		   la partagent : deux coques bord à bord font une tache blanche, pas une
 		   tache deux fois blanche. */
+		/* LE V DE KELVIN : deux bras fins qui partent de l'étrave et s'ouvrent à
+		   19,5° du cap — l'angle que prend le sillage de tout ce qui avance en eau
+		   profonde, quelle que soit sa vitesse. Dessinés ici, dans le repère du
+		   navire, et non déposés dans le champ d'écume : un V qui avance, déposé
+		   image après image, se remplirait en triangle. Un trait qui s'élargit en
+		   vieillissant, s'efface au loin, et se casse en tirets comme de l'écume. */
+		float lat_k = abs(dot(rel, r2));
+		float s_bow = max(u_hull_ends[i].y - along, 0.0);          // mètres derrière l'étrave
+		float arm_w = 0.35 + 0.025 * s_bow;
+		float arm = exp(-pow((lat_k - 0.354 * s_bow - 0.4) / arm_w, 2.0))
+		          * exp(-s_bow / (35.0 + 90.0 * fast)) * smoothstep(0.5, 4.0, s_bow)
+		          * step(0.0, gap_m) * way;          // un V se voit dès qu'on avance
+		// rompu, pas effacé : un seuil franc sur le bruit coupait le trait sur des dizaines de mètres
+		arm *= 0.55 + 0.45 * smoothstep(-0.4, 0.4, perlin(vec2(s_bow * 0.25, lat_k * 0.08) + float(i) * 7.0));
+
 		hull_foam = max(hull_foam,
-			clamp(collar * 0.70 + bow * (0.55 + 0.75 * fast), 0.0, 1.0) * u_ship_afloat[i]);
+			clamp(collar * 0.70 + bow * (0.55 + 0.75 * fast) + arm * 0.9, 0.0, 1.0) * u_ship_afloat[i]);
 	}
 	hull_foam *= (0.45 + 0.80 * fn);
 
 	/* L'écume déposée plus tôt et qui se disperse encore. Lue en espace MONDE,
 	   donc elle reste où elle est née pendant que le navire s'éloigne. */
 	float persist = 0.0;
+	float wake_lines = 0.0;             // les fils de poupe, nets : le canal vert du champ
 	if (u_foam_on > 0.5) {
 		vec2 fuv = (v_world.xz - u_foam_origin) / u_foam_size;
 		if (fuv.x > 0.0 && fuv.x < 1.0 && fuv.y > 0.0 && fuv.y < 1.0) {
 			float edge = min(min(fuv.x, 1.0 - fuv.x), min(fuv.y, 1.0 - fuv.y));
-			persist = texture(u_foam_tex, fuv).r
-			        * smoothstep(0.0, 0.03, edge);   // pas de bord franc
+			vec4 ft = texture(u_foam_tex, fuv);
+			persist = ft.r * smoothstep(0.0, 0.03, edge);   // pas de bord franc
+			wake_lines = ft.g * smoothstep(0.0, 0.03, edge);
 		}
 	}
 	// la vieille écume est déchirée, en traînées de dentelle, pas un lavis uniforme
 	persist *= 0.25 + 0.95 * lace(v_world.xz, persist, fine) * (1.0 - clamp(lace_far, 0.0, 1.0)) + 0.4 * clamp(lace_far, 0.0, 1.0);
 
-	float foam = clamp(max(crest_foam, persist) + hull_foam, 0.0, 1.0) * (1.0 - far * 0.85);
+	// les fils de poupe restent des fils : pas de dentelle, à peine rompus
+	wake_lines = smoothstep(0.15, 0.6, wake_lines) * (0.75 + 0.35 * fn);
+	float foam = clamp(max(max(crest_foam, persist), wake_lines) + hull_foam, 0.0, 1.0) * (1.0 - far * 0.85);
 	vec3 foam_col = body * 0.5 + u_horizon * 1.05 * (1.0 - 0.55 * u_storm)
 	              + lamp_foam * 0.8;          // l'écume prend la flamme comme un drap blanc
 	c = mix(c, foam_col, foam * 0.85);

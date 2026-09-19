@@ -6262,8 +6262,29 @@ n'est pas en jeu, la physique ne voit rien.
   premières captures lisaient le reglages.ini du joueur (rides 2,3, rugosité
   0,22, seuil 0,49) — trois « défauts » sur quatre étaient ses réglages. Comparer
   toujours aux valeurs par défaut.
-- **Panneau de mise au point** sur ⇧M, sur le côté, sans rien arrêter
+- **Panneau de mise au point** sur ⇧M, sur le côté, sans rien arrêter — lu par sa LETTRE (`Keycode`) et non par son emplacement : sur un AZERTY le M est à la place du point-virgule QWERTY, et l'emplacement « M » est la virgule ; le panneau ne s'ouvrait pas. Des touches à un coup de la démo, seule M change de place
   (`--panneau-mer 1`, `--masquer 1` pour une capture sans instruments).
+- **Le sillage en traits** (d'après un dessin d'Arnaud sur une capture). Deux
+  fils derrière le safran, à ±0,22 de la demi-largeur : déposés à la poupe dans
+  le canal VERT du champ d'écume, qui n'est ni étalé ni mêlé à la nappe (étalé
+  d'un texel par image, un fil devient une bande en une seconde) et s'efface
+  plus lentement — tirés en lignes par le navire qui avance, ils suivent sa
+  vraie route. Et le V de Kelvin, deux bras à 19,5° du cap (tan = 0,354),
+  dessinés sur la mer dans le repère du navire : déposé image après image, un V
+  qui avance se remplirait en triangle. Piège : un seuil franc sur un Perlin
+  (smoothstep(−0,2 ; 0,5)) effaçait le trait sur des dizaines de mètres — la
+  sonde en rouge montrait le V entier, la mer rien ; modulé entre 55 et 100 %.
+  Il faut de l'erre pour les voir : `--throttle 1` sur la frégate du XVIIe.
+- **Le reflet des coques** (« il y est sur le js »). La page rend le monde une
+  seconde fois depuis un œil en miroir, avec un plan de coupe pour tenir le bas
+  de la coque hors du reflet. Godot n'offre pas de plan de coupe pour les
+  matières d'un modèle ; le reflet est donc cherché DANS L'IMAGE que la mer relit
+  déjà pour la coque vue à travers l'eau : le rayon renvoyé (sur une normale
+  adoucie de moitié) est suivi en espace de vue, 40 pas croissants et 5
+  d'affinage, jusqu'à passer derrière une surface opaque. Un rayon renvoyé
+  monte : il ne rencontre jamais le bas d'une coque. Limite : rien hors de
+  l'image ; s'efface aux bords. Coût mesuré à 720p : +0,7 ms partout, **+0,3 ms**
+  une fois borné au pied des navires (cinq demi-longueurs plus 10 m).
 - **Réglages de mise au point** (menu, section Mer, `reglages.ini` → `[mer]`) :
   rugosité de base, rugosité ajoutée par le vent (nouveau : la mer se ternit en
   montant), flou du ciel dans l'eau (une eau rugueuse reflète un ciel flou —

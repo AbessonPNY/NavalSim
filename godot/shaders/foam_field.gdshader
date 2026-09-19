@@ -48,6 +48,13 @@ void fragment() {
 	}
 	prev *= u_decay;
 
+	/* LES LIGNES DE POUPE, dans le canal vert : NI étalées NI mélangées à la nappe
+	   — sans quoi, étalées d'un texel par image, elles devenaient une bande en
+	   une seconde —, seulement effacées, et plus lentement que la nappe. */
+	float lines = 0.0;
+	if (puv.x > 0.0 && puv.x < 1.0 && puv.y > 0.0 && puv.y < 1.0)
+		lines = texture(u_prev, puv).g * pow(u_decay, 0.6);
+
 	/* L'écume fraîche là où une crête déferle. Le profil NON affûté et sans
 	   borne de maille, comme l'original : c'est une question sur la mer, pas sur
 	   la façon dont un maillage la dessine. Le havre n'est pas encore porté,
@@ -97,8 +104,20 @@ void fragment() {
 		float wing   = exp(-pow((gap_m - spread) / (1.0 + 1.2 * fast), 2.0)) * fast;
 
 		hull = max(hull, max(band * (0.06 + 1.0 * way), wing * 0.85) * u_ship_afloat[i]);
+
+		/* Deux fils derrière le safran : l'eau que le gouvernail et l'étambot
+		   fendent et retournent, de part et d'autre de l'axe. Déposés en deux
+		   petites taches juste derrière la poupe, à chaque image : c'est le
+		   navire qui avance qui les tire en lignes, et elles suivent donc sa
+		   VRAIE route, virages compris. */
+		float lat = dot(rel, r2);
+		float behind = u_hull_ends[i].x - t_along * u_ship_half[i].x;   // mètres derrière la poupe
+		float at_stern = exp(-pow((behind - 0.8) / 1.1, 2.0));
+		float off = 0.22 * u_ship_half[i].y;
+		float two = max(exp(-pow((lat - off) / 0.38, 2.0)), exp(-pow((lat + off) / 0.38, 2.0)));
+		lines = max(lines, two * at_stern * way * u_ship_afloat[i]);
 	}
 
 	// déposer, sans jamais accumuler au-delà de la saturation
-	COLOR = vec4(clamp(max(prev, max(breaking, hull)), 0.0, 1.0), 0.0, 0.0, 1.0);
+	COLOR = vec4(clamp(max(prev, max(breaking, hull)), 0.0, 1.0), clamp(lines, 0.0, 1.0), 0.0, 1.0);
 }

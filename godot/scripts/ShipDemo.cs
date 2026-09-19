@@ -1152,6 +1152,11 @@ public partial class ShipDemo : Node3D
                outil d'automatisation n'ont pas toujours de code physique, et le
                projet a déjà rencontré exactement ce cas côté navigateur. */
             Key key = k.PhysicalKeycode != Key.None ? k.PhysicalKeycode : k.Keycode;
+            /* ⇧M, PAR SA LETTRE et non par son emplacement : sur un AZERTY le M est
+               là où un QWERTY a son point-virgule, et l'emplacement « M » est la
+               virgule — le panneau ne s'ouvrait pas. Les autres commandes tombent
+               aux mêmes places sur les deux claviers. */
+            if (k.ShiftPressed && k.Keycode == Key.M) { ToggleSeaPanel(); GetViewport().SetInputAsHandled(); return; }
             switch (key)
             {
                 // une main sur la console reprend la main à la météo, comme le curseur de la page
@@ -1186,7 +1191,6 @@ public partial class ShipDemo : Node3D
                 case Key.U: SpawnPirate(900); break;
                 case Key.P: GoToGhosts(true); break;
                 case Key.L: ToggleSpyglass(); break;
-                case Key.M when k.ShiftPressed: ToggleSeaPanel(); break;
                 /* L'ÉLAN : l'équivalent de `Naval.app.controls.state.throttle = 45`
                    dans la console d'origine. Le solveur ne borne pas la machine,
                    donc c'est quarante-cinq fois la poussée — de quoi voir une coque
@@ -2242,7 +2246,8 @@ public partial class ShipDemo : Node3D
         var img = GetViewport().GetTexture().GetImage();
         if (img == null || img.GetWidth() < 8) { GD.PushError("capture vide"); GetTree().Quit(1); return; }
         Error err = img.SavePng(_capturePath);
-        GD.Print(err == Error.Ok ? $"capture écrite : {_capturePath}" : $"capture ratée : {err}");
+        var cv = _ship.Physics.Body.Vel;
+        GD.Print(err == Error.Ok ? FormattableString.Invariant($"capture écrite : {_capturePath} (erre {Math.Sqrt(cv.X * cv.X + cv.Z * cv.Z):F1} m/s)") : $"capture ratée : {err}");
         GetTree().Quit(err == Error.Ok ? 0 : 1);
     }
 }
