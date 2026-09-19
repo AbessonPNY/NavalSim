@@ -55,6 +55,14 @@ public sealed class Compartment
     public double HalfB;
     public double DeckY = double.NegativeInfinity;
     public double KeelY = double.PositiveInfinity;
+    /* L'AIR CHASSÉ SOUS L'EAU depuis la dernière lecture, et par où il est sorti.
+       Chaque mètre cube d'eau qui entre pendant que la sortie est noyée pousse
+       dehors un mètre cube d'air : de la comptabilité, que la physique ne relit
+       pas — elle sert à wreck-air, qui le fait remonter. */
+    public double Air;
+    public Vec3d Vent;
+    /// <summary>De combien son livet est sous l'eau ; zéro ou moins, il est dehors.</summary>
+    public double Over;
 }
 
 /// <summary>Une voie d'eau.</summary>
@@ -170,6 +178,10 @@ public sealed partial class ShipPhysics
     /// </summary>
     public double? Glide;
     public bool PumpOn = true;
+    /// <summary>Ce qui reste à roter une fois dessous, en m³ : l'air des châteaux et sous les barrots.</summary>
+    public double TrappedAir;
+    bool _trapFilled;
+    Vec3d _trapAt;
     public double PumpRate;
     /// <summary>
     /// Force de l'effet de carène liquide, 1 étant la correction du manuel.
@@ -495,7 +507,8 @@ public sealed partial class ShipPhysics
     public void Salvage()
     {
         Breaches.Clear();
-        foreach (var c in Comps) c.Vol = 0;
+        foreach (var c in Comps) { c.Vol = 0; c.Air = 0; }
+        TrappedAir = 0; _trapFilled = false;
         Foundered = false;
         Standing = 1;      // et ses mâts sont replantés
         Whole = 1;         // et sa toile renvergée
@@ -528,6 +541,18 @@ public sealed partial class ShipPhysics
         if (Breaches.Count == 0 && FloodVol <= 1e-6) return;
         double before = FloodVol;
 
+        /* LE HAUT DE CHAQUE COMPARTIMENT D'ABORD : le même relevé que
+           l'envahissement par le pont prenait déjà, pris plus tôt, si bien
+           qu'aucun chiffre du solveur ne bouge — et ce qui entre pendant qu'il
+           est noyé est porté au compte de l'AIR qui en sort, à cet endroit. */
+        foreach (var c in Comps)
+        {
+            if (c.Vol >= c.Cap) { c.Over = 0; continue; }
+            Vec3d top = Body.Quat.Rotate(new Vec3d(0, c.DeckY, c.Mid.Z)) + Body.Pos;
+            c.Over = ocean.Sample(top.X, top.Z, t) - top.Y;
+            if (c.Over > 0) c.Vent = top;
+        }
+
         foreach (var br in Breaches)
         {
             var c = Comps[br.Comp];
@@ -535,17 +560,21 @@ public sealed partial class ShipPhysics
             Vec3d pw = Body.Quat.Rotate(new Vec3d(0, br.Y, br.Z)) + Body.Pos;
             double head = ocean.Sample(pw.X, pw.Z, t) - pw.Y;
             if (head <= 0) continue;
+            double was = c.Vol;
             c.Vol = Math.Min(c.Cap, c.Vol + 0.62 * br.Area * Math.Sqrt(2 * Config.G * head) * dt);
+            if (c.Over > 0) c.Air += c.Vol - was;
         }
 
         foreach (var c in Comps)
         {
             if (c.Vol >= c.Cap) continue;
             // livet sous l'eau : elle l'embarque en grand, par toutes les ouvertures
-            Vec3d pw = Body.Quat.Rotate(new Vec3d(0, c.DeckY, c.Mid.Z)) + Body.Pos;
-            double over = ocean.Sample(pw.X, pw.Z, t) - pw.Y;
-            if (over > 0)
-                c.Vol = Math.Min(c.Cap, c.Vol + 0.25 * c.HalfB * Math.Sqrt(2 * Config.G * over) * dt);
+            if (c.Over > 0)
+            {
+                double was = c.Vol;
+                c.Vol = Math.Min(c.Cap, c.Vol + 0.25 * c.HalfB * Math.Sqrt(2 * Config.G * c.Over) * dt);
+                c.Air += c.Vol - was;
+            }
         }
 
         if (PumpOn)

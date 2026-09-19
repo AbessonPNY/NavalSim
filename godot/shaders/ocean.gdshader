@@ -57,7 +57,8 @@ uniform float u_cap_gain = 1.0;
 uniform float u_foam_gain = 1.0;
 uniform float u_jac_foam = 0.85;
 uniform float u_streak_gain = 1.0;
-uniform float u_kelvin_gain = 1.0;  // le V de Kelvin : relief et ombrage
+uniform float u_kelvin_gain = 1.0;
+uniform float u_submerged = 0.0;    // l'œil est sous la surface  // le V de Kelvin : relief et ombrage
 /* Les bras de Kelvin de chaque navire, tirés de la route de son étrave
    (OceanNode.Kelvin) : une rangée par bras, (x, z, âge en mètres, valide). */
 uniform sampler2D u_kelvin : filter_nearest, repeat_disable;
@@ -776,6 +777,33 @@ void fragment() {
 	   trois fois plus loin —, ce qui la fait passer au vert, puis au bleu, puis à
 	   rien, au lieu de griser comme ferait la brume. C'est ce qui adoucit la
 	   ligne de flottaison : sous la surface le bordé ne s'arrête pas, il s'enfonce. */
+	/* VUE DE DESSOUS : LA FENÊTRE DE SNELL.
+
+	   D'en dessous, tout l'hémisphère du dessus est resserré dans un cône
+	   d'environ 97° — tout, d'un horizon à l'autre, dans ce seul disque clair.
+	   Au-delà, plus rien n'entre : l'angle a passé la réflexion totale et la
+	   surface devient un miroir. Ce cercle, et son bord argenté bien net, sont
+	   ce qui fait lire une image comme étant SOUS l'eau plutôt que seulement
+	   bleue.
+
+	   refract() fait le travail et rend le vecteur nul en réflexion totale, ce
+	   qui est exactement le test pour être hors de la fenêtre ; la normale est
+	   retournée, la surface faisant face de l'autre côté. AVANT que la coque vue
+	   à travers l'eau ne soit mêlée : écrit après, il l'effacerait. */
+	if (u_submerged > 0.5 && !FRONT_FACING) {
+		vec3 Vv = normalize(v_world - eye);
+		vec3 refr = refract(Vv, -N, 1.333);
+		if (dot(refr, refr) < 0.0001) {
+			c = mix(u_shallow * 0.42, u_deep * 1.15, 0.6);            // le miroir
+		} else {
+			c = naval_sky(refr, u_sun, u_zenith, u_horizon, 0.0);
+			// le disque du soleil, que seul le dôme dessine et le dôme n'est pas là
+			c += vec3(1.0, 0.95, 0.85) * pow(max(dot(refr, u_sun), 0.0), 1400.0) * 4.0;
+		}
+		// le bord de la fenêtre, où la lumière s'entasse avant d'être coupée
+		c += vec3(0.80, 0.92, 1.00) * pow(1.0 - abs(dot(Vv, N)), 6.0) * 0.22;
+	}
+
 	vec2 base = SCREEN_UV;
 	float thick0 = max(view_depth(base, INV_PROJECTION_MATRIX) - (-VERTEX.z), 0.0);
 

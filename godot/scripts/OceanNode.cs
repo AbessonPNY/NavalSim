@@ -207,7 +207,11 @@ public partial class OceanNode : Node3D
             _shipHalf[i] = new Vector2((float)(p.Spec.L * 0.5),
                 (float)(_profs[i]?.MaxHalfB ?? p.Spec.B * 0.5));
             _shipSpeed[i] = (float)Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z);
-            _shipAfloat[i] = 1f;   // le naufrage n'est pas encore porté
+            /* CE QU'IL RESTE D'ELLE À LA SURFACE. Le solveur l'a déjà : le collier,
+               la gerbe d'étrave et le sillage appartiennent à une coque qui FEND
+               l'eau, et une épave n'en fend plus. Envoyé 1 quoi qu'il arrive, le
+               collier restait sur l'eau après le naufrage — signalé à l'usage. */
+            _shipAfloat[i] = (float)p.Afloat;
             // sans profil, ses extrémités sont celles de sa longueur hors tout
             if (_profs[i] == null)
                 _hullEnds[i] = new Vector2((float)(-p.Spec.L * 0.5), (float)(p.Spec.L * 0.5));

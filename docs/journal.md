@@ -6328,6 +6328,37 @@ Relevé, 1280×720, force 6, moitié basse de l'écran : de jour, luminance moye
 nuit (soleil à −30°), moyenne 0,041 → 0,031, écart inchangé. Coût : carte
 graphique 2,09 → 2,36 ms.
 
+## Le naufrage, et ce qu'on voit sous l'eau (Godot)
+
+Demandé (2026-09-20) : « les naufrages d'abord ».
+
+- **L'air chassé, dans le solveur.** `Compartment` porte `Air`, `Vent`, `Over`,
+  et `ShipPhysics` la poche `TrappedAir` (8 % du volume de coque, lâchée sur une
+  exponentielle de 20 s tant que son point haut est noyé) : chaque m³ d'eau qui
+  entre pendant que la sortie est noyée pousse un m³ d'air dehors. Le relevé du
+  haut de chaque compartiment est pris AVANT les voies d'eau, comme la page, si
+  bien qu'aucun chiffre du solveur ne bouge — banc de parité tenu, scénario
+  « envahissement » à 1e-15.
+- **L'air qui remonte** (`WreckAir`, noyau) : des gorgées taillées sur le débit,
+  qui montent à la vitesse de Davies et Taylor (0,71·√(g·r)) — d'où le délai —,
+  puis une gerbe basse et un bouillon dans le champ d'écume (canal r, seize par
+  image). Son dernier souffle est lu sur la coque VISIBLE, pas sur celle du
+  solveur.
+- **Les débris** (`FlotsamNode`) : planches et tonneaux, une bouteille sur six
+  naufrages (settings.json → wreck), avec sa bulle de savon (Fresnel, film mince,
+  paillettes) et son repère de loin ; dérive au vent (2,5 %), s'enfonce en fin de
+  vie ; repêchée à moins de 10 m et sous 1,03 m/s. La cargaison échouée attend le
+  monde.
+- **Le collier d'écume restait après le naufrage** (signalé à l'usage) :
+  `OceanNode` envoyait « à flot = 1 » en dur ; le solveur avait déjà `Afloat`.
+- **Sous l'eau** : la fenêtre de Snell de la page portée dans la mer
+  (`u_submerged`, face arrière), et une passe plein écran (`UnderwaterEffect`)
+  pour l'eau qui mange la lumière canal par canal et les rais de soleil intégrés
+  le long du rayon de vue — remonter jusqu'à la surface DANS la direction du
+  soleil et y lire des caustiques. Piège : la couleur d'eau prise au zénith
+  sortait délavée ; c'est l'eau profonde de la mer qu'il faut, au tiers. Deux
+  curseurs au panneau ⇧M.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

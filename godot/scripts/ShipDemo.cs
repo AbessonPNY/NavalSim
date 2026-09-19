@@ -93,6 +93,9 @@ public partial class ShipDemo : Node3D
         AddChild(_gunFx);
         _gunnery = new Gunnery(_gunRules);
         WireGuns();
+        _flotsam = new FlotsamNode();
+        AddChild(_flotsam);
+        WireWreck();
         _krakenNode.Build(_krakenRules.Glb == null ? null
             : System.IO.Path.GetFullPath(System.IO.Path.Combine(ProjectSettings.GlobalizePath("res://"), "..", _krakenRules.Glb)));
         _kraken = new Kraken(_krakenRules) { BodyR = _krakenNode.BodyR };
@@ -125,7 +128,9 @@ public partial class ShipDemo : Node3D
         _motionBlur = new MotionBlurEffect();
         _anamorphic = new AnamorphicDofEffect();
         // la profondeur de champ avant le flou de mouvement, comme dans l'objectif puis l'obturateur
-        _cam.Compositor = new Compositor { CompositorEffects = new Godot.Collections.Array<CompositorEffect> { _anamorphic, _motionBlur } };
+        _under = new UnderwaterEffect { Enabled = false };
+        // l'eau d'abord : les flous viennent sur l'image qu'elle a déjà teinte
+        _cam.Compositor = new Compositor { CompositorEffects = new Godot.Collections.Array<CompositorEffect> { _under, _anamorphic, _motionBlur } };
         _dofMarker = new DofMarker();
         AddChild(_dofMarker);
 
@@ -289,6 +294,7 @@ public partial class ShipDemo : Node3D
     Settings _settings = null!;
     CameraAttributesPractical _camAttr = null!;
     MotionBlurEffect _motionBlur = null!;
+    UnderwaterEffect _under = null!;
     AnamorphicDofEffect _anamorphic = null!;
     DofMarker _dofMarker = null!;
     readonly ColorRect[] _maskBars = { new() { Color = Colors.Black }, new() { Color = Colors.Black } };
@@ -415,6 +421,8 @@ public partial class ShipDemo : Node3D
             sm.SetShaderParameter("u_jac_foam", s.SeaJacobian);
             sm.SetShaderParameter("u_streak_gain", s.SeaStreaks);
             sm.SetShaderParameter("u_kelvin_gain", s.SeaKelvin);
+            _under.Shafts = s.SeaShafts;
+            _under.Density = s.SeaDensity;
         }
         if (_ship != null)
         {
@@ -805,6 +813,7 @@ public partial class ShipDemo : Node3D
             _gunnery.Rebase(-dx, -dz);
             foreach (var pr in _pirates.Values) pr.Rebase(-dx, -dz);
             _gunFx.Rebase(-dx, -dz);
+            _wreckAir.Rebase(-dx, -dz);
             // la seule chose qui ne suit PAS le navire : sans ceci elle resterait
             // à quinze cents mètres, à filmer de l'eau vide
             _anchor = new Vec3d(_anchor.X + dx, _anchor.Y, _anchor.Z + dz);
@@ -848,6 +857,7 @@ public partial class ShipDemo : Node3D
         FallTick(frame, dayBefore);
         StormTick(frame);
         GunTick(frame);
+        WreckTick(frame);
         TickSunPanel(frame);
         /* La lueur n'existe pas le jour — bloom.js saute sa passe tant que la nuit
            n'a pas passé 0,02 : le soleil sur la houle déborderait le seuil et
@@ -866,6 +876,29 @@ public partial class ShipDemo : Node3D
         int lamps = _ship.FillLamps(_sea.Lamps, _sea.LampRange, 0);
         foreach (var s in _others) lamps += s.FillLamps(_sea.Lamps, _sea.LampRange, lamps);
         _sea.PushLamps(lamps);
+        /* L'ŒIL SOUS LA SURFACE : la mer le dit à son shader, qui dessine alors sa
+           face de dessous — la fenêtre de Snell. */
+        var ce = _cam.GlobalPosition;
+        double seaY = _sea.Core.Sample(ce.X, ce.Z, _t);
+        bool under = seaY > ce.Y;
+        _sea.Material?.SetShaderParameter("u_submerged", under ? 1f : 0f);
+        // et la passe sous-marine, qui n'existe que là : l'eau qui éteint, les rais qui descendent
+        _under.Enabled = under;
+        if (under)
+        {
+            _under.SeaY = (float)seaY;
+            var sd = _sky.Core.SunDir;
+            _under.Sun = new Vector3((float)sd.X, (float)sd.Y, (float)sd.Z);
+            _under.SunLight = (float)Math.Max(0.05, _sky.Core.SunIntensity);
+            /* La couleur de l'eau profonde est celle de la MER (u_deep), pas celle
+               du ciel : prise au zénith, tout sortait délavé. Elle s'éteint avec la
+               lumière qui est dans l'eau, comme la mer vue de dessus. */
+            double wl = Math.Max(0.05, _sky.Core.WaterLight);
+            // un tiers de l'eau vue de dessus : sous la surface on regarde DANS elle,
+            // et ce qu'on y voit est ce qui a traversé, non ce qu'elle renvoie
+            _under.Water = new Color((float)(0.0015 * wl), (float)(0.0120 * wl), (float)(0.0240 * wl));
+            _under.Time = (float)_t;
+        }
         _sky.PushTo(_sea.Material);
         _sky.SetCloud(_sea.Material, _cloud, _t);
         foreach (var m in _ship.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
@@ -873,6 +906,7 @@ public partial class ShipDemo : Node3D
         foreach (var m in _cordage.Hazed) _sky.PushTo(m);
         foreach (var m in _splinters.Hazed) _sky.PushTo(m);
         foreach (var m in _gunFx.Hazed) _sky.PushTo(m);
+        foreach (var m in _flotsam.Hazed) _sky.PushTo(m);
         foreach (var s in _others)
             foreach (var m in s.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
         // l'embrun est aussi clair que ce qui l'éclaire : l'horizon, qui porte l'heure
@@ -1304,6 +1338,8 @@ public partial class ShipDemo : Node3D
             if (root.TryGetProperty("calendar", out var c) && c.TryGetProperty("start", out var s))
                 _calendar = new Calendar(s.GetString());
             if (root.TryGetProperty("ghosts", out var gh)) _ghosts.Rules = GhostRules.FromJson(gh);
+            if (root.TryGetProperty("wreck", out var wr) && wr.TryGetProperty("bottleOneIn", out var bo))
+                _bottleOneIn = bo.GetInt32();
             if (root.TryGetProperty("gunnery", out var gu)) _gunRules = GunnerySettings.FromJson(gu);
             if (root.TryGetProperty("storm", out var st))
             {
@@ -1570,6 +1606,8 @@ public partial class ShipDemo : Node3D
 
     Gunnery _gunnery = null!;
     GunFxNode _gunFx = null!;
+    /// <summary>Une bouteille sur combien de naufrages (settings.json → wreck).</summary>
+    int _bottleOneIn = 6;
     readonly Dictionary<ShipNode, ShotTarget> _targets = new();
     // les coques qu'on a provoquées : elles se retournent contre qui les a touchées
     readonly Dictionary<ShipNode, (ShipNode Foe, double Rearm)> _hostile = new();
@@ -2026,6 +2064,7 @@ public partial class ShipDemo : Node3D
                     _settings.SeaSkyBlur = dm.SeaSkyBlur; _settings.SeaRideGain = dm.SeaRideGain;
                     _settings.SeaCapGain = dm.SeaCapGain; _settings.SeaFoamGain = dm.SeaFoamGain;
                     _settings.SeaJacobian = dm.SeaJacobian; _settings.SeaStreaks = dm.SeaStreaks; _settings.SeaKelvin = dm.SeaKelvin;
+                    _settings.SeaShafts = dm.SeaShafts; _settings.SeaDensity = dm.SeaDensity;
                     ApplySettings();
                     break;
                 // une cible par le travers tribord, à cette distance : le premier navire de --flotte

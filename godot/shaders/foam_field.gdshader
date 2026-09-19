@@ -32,6 +32,21 @@ uniform float u_size = 620.0;
 uniform float u_texel = 0.0009765625;
 uniform float u_jac_foam = 0.85;     // le même seuil que la mer
 
+/* LES BOUILLONS D'UNE ÉPAVE : (x, z, rayon, force). Seize par image, un budget
+   et non une borne de la mer — le champ garde ce qu'on y a posé, donc un
+   bouillon laissé de côté une image n'est pas perdu. */
+#define NBOIL 16
+uniform vec4 u_boil[NBOIL];
+uniform int u_boil_count = 0;
+
+float boil_hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float boil_noise(vec2 p) {
+	vec2 i = floor(p), f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(boil_hash(i), boil_hash(i + vec2(1.0, 0.0)), f.x),
+	           mix(boil_hash(i + vec2(0.0, 1.0)), boil_hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+
 void fragment() {
 	vec2 wpos = u_origin + UV * u_size;      // XZ monde de ce texel
 
@@ -118,6 +133,26 @@ void fragment() {
 		lines = max(lines, two * at_stern * way * u_ship_afloat[i]);
 	}
 
+	/* --- ET LÀ OÙ L'AIR D'UNE ÉPAVE CRÈVE LA SURFACE ---
+	   Pas un disque : un bouillon est une plaque de cellules qui enflent, l'eau
+	   écartée par chaque poche d'air qui arrive. Deux octaves de bruit qui
+	   dérivent l'une contre l'autre lui donnent des cellules qui bouillonnent sur
+	   place, et le bord est déchiré parce que le bruit le mange. Ce qui reste est
+	   porté et fondu par le champ comme toute écume : le remous s'attarde là où
+	   elle a coulé, une fois l'air fini. */
+	float boil = 0.0;
+	for (int i = 0; i < NBOIL; i++) {
+		if (i >= u_boil_count) break;
+		float d = length(wpos - u_boil[i].xy) / max(u_boil[i].z, 0.01);
+		if (d < 1.0) {
+			float n = 0.65 * boil_noise(wpos * 0.55 + vec2(u_time * 0.35, -u_time * 0.21))
+			        + 0.35 * boil_noise(wpos * 1.40 - vec2(u_time * 0.60, u_time * 0.47));
+			float body = 1.0 - smoothstep(0.25, 1.0, d + (n - 0.5) * 0.55);
+			float cells = mix(1.0, smoothstep(0.28, 0.58, n), smoothstep(0.15, 0.75, d));
+			boil = max(boil, u_boil[i].w * body * cells);
+		}
+	}
+
 	// déposer, sans jamais accumuler au-delà de la saturation
-	COLOR = vec4(clamp(max(prev, max(breaking, hull)), 0.0, 1.0), clamp(lines, 0.0, 1.0), 0.0, 1.0);
+	COLOR = vec4(clamp(max(prev, max(max(breaking, hull), boil)), 0.0, 1.0), clamp(lines, 0.0, 1.0), 0.0, 1.0);
 }

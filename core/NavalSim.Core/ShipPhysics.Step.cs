@@ -46,6 +46,7 @@ public sealed partial class ShipPhysics
         // de gravité contre lesquels tout ce qui suit — la pesanteur, les
         // moments, l'inertie — sera ensuite pris.
         Flooding(dt, ocean, t);
+        TrappedBreath(dt, ocean, t);
 
         Vec3d force = Vec3d.Zero, torque = Vec3d.Zero;
         force.Y -= b.Mass * Config.G;         // la pesanteur au CdG ne fait aucun moment
@@ -288,6 +289,40 @@ public sealed partial class ShipPhysics
             b.Vel = Vec3d.Zero;
             b.AngVel = Vec3d.Zero;
             b.Quat = Quatd.Identity;
+        }
+    }
+
+    /* L'AIR SOUS SES BARROTS, qui travaille pendant qu'elle descend.
+       Les compartiments ne décrivent que le volume de carène : ils ont fini de
+       roter à l'instant où elle est dessous, ce qui est exactement l'inverse de
+       la vérité — une épave rote pendant des minutes. Ce qu'ils ne disent pas,
+       c'est l'air sous les barrots, dans les châteaux et les caissons, qui se
+       libère à mesure. Une poche, donc, lâchée sur une exponentielle tant que
+       son point le plus haut est noyé. Les HUIT POUR CENT de son volume de
+       coque et les vingt secondes sont CHOISIS, non mesurés — il n'y a rien
+       dans ce modèle contre quoi les mesurer —, et c'est dit ici plutôt que
+       laissé passer pour de la physique. */
+    void TrappedBreath(double dt, Ocean ocean, double t)
+    {
+        if (Foundered && !_trapFilled)
+        {
+            _trapFilled = true;
+            TrappedAir = 0.08 * HullVolume;
+        }
+        if (TrappedAir <= 1e-4) return;
+        Compartment? top = null;
+        double topY = double.NegativeInfinity;
+        foreach (var c in Comps)
+        {
+            Vec3d pw = Body.Quat.Rotate(new Vec3d(0, c.DeckY, c.Mid.Z)) + Body.Pos;
+            if (pw.Y > topY) { topY = pw.Y; top = c; _trapAt = pw; }
+        }
+        if (top != null && ocean.Sample(_trapAt.X, _trapAt.Z, t) > topY)
+        {
+            double outv = TrappedAir * (1 - Math.Exp(-dt / 20));
+            TrappedAir -= outv;
+            top.Air += outv;
+            top.Vent = _trapAt;
         }
     }
 

@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Collections.Generic;
 
 namespace NavalSim;
 
@@ -78,6 +79,20 @@ public partial class FoamField : Node
     /// ses DEUX ancres glissent avec lui — sans quoi l'image suivante lirait le
     /// recentrage comme un déplacement colossal et effacerait tout le champ.
     /// </summary>
+    /// <summary>Les bouillons d'épave de cette image, le plus fort d'abord (WreckAir).</summary>
+    public const int NBoil = 16;
+    readonly Vector4[] _boils = new Vector4[NBoil];
+    static readonly StringName UBoil = "u_boil", UBoilCount = "u_boil_count";
+
+    public void SetBoils(IReadOnlyList<NavalSim.Core.Boil> list)
+    {
+        int n = Math.Min(list.Count, NBoil);
+        for (int i = 0; i < n; i++)
+            _boils[i] = new Vector4((float)list[i].X, (float)list[i].Z, (float)list[i].R, (float)list[i].W);
+        for (int i = n; i < NBoil; i++) _boils[i] = Vector4.Zero;
+        foreach (var m in _mat) { m.SetNow(UBoil, _boils); m.SetShaderParameter(UBoilCount, n); }
+    }
+
     /// <summary>Le seuil du jacobien sous lequel une crête laisse son écume — le même que la mer.</summary>
     public void SetJacobianFoam(float j)
     {

@@ -75,6 +75,8 @@ public sealed class Settings
     public float SeaStreaks = 1f;
     /// <summary>Le V de Kelvin : ses crêtes, en relief et en ombre.</summary>
     public float SeaKelvin = 1f;
+    /// <summary>Sous l'eau : la force des rais de soleil, et combien l'eau mange la lumière.</summary>
+    public float SeaShafts = 1f, SeaDensity = 1f;
 
     // [navire]
     /// <summary>Le pavillon hissé sur le navire à la barre : l'id d'une nation de flags.json, vide pour celui de la fiche.</summary>
@@ -127,6 +129,8 @@ public sealed class Settings
         s.SeaJacobian = (float)cf.GetValue("mer", "seuil_jacobien", s.SeaJacobian);
         s.SeaStreaks = (float)cf.GetValue("mer", "stries", s.SeaStreaks);
         s.SeaKelvin = (float)cf.GetValue("mer", "kelvin", s.SeaKelvin);
+        s.SeaShafts = (float)cf.GetValue("mer", "rais_sous_eau", s.SeaShafts);
+        s.SeaDensity = (float)cf.GetValue("mer", "densite_de_l_eau", s.SeaDensity);
         s.ParallelSolvers = (bool)cf.GetValue("performance", "solveurs_paralleles", s.ParallelSolvers);
         return s;
     }
@@ -168,6 +172,8 @@ public sealed class Settings
         cf.SetValue("mer", "seuil_jacobien", SeaJacobian);
         cf.SetValue("mer", "stries", SeaStreaks);
         cf.SetValue("mer", "kelvin", SeaKelvin);
+        cf.SetValue("mer", "rais_sous_eau", SeaShafts);
+        cf.SetValue("mer", "densite_de_l_eau", SeaDensity);
         cf.SetValue("performance", "solveurs_paralleles", ParallelSolvers);
         Error e = cf.Save(Path);
         if (e != Error.Ok) GD.PushWarning($"réglages non enregistrés dans {Path} : {e}");
