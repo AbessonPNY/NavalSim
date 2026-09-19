@@ -112,6 +112,23 @@ public sealed class Sky
 
     public Sky() { SetSun(45, 135); }
 
+    /* UNE LUMIÈRE QUI NE MONTE PAS DE LA MER. L'astre choisi peut être sous
+       l'horizon — la lune qui se lève compte dès −1°, le soleil au crépuscule, et
+       sans lune la lueur du ciel prenait la direction d'un soleil à −60° — et une
+       lumière directionnelle venue d'en dessous éclairait les coques par la
+       quille, à travers l'eau. Elle vient donc au plus bas d'un rien au-dessus de
+       l'horizon, du côté de l'astre ; et ce qui n'est plus que la lueur du ciel,
+       à mesure que la nuit se fait sans lune, tombe d'en haut. */
+    static Vec3d AboveSea(Vec3d d, double toZenith)
+    {
+        const double MinY = 0.05;
+        double h = Math.Sqrt(d.X * d.X + d.Z * d.Z);
+        double k = Math.Sqrt(1 - MinY * MinY) / Math.Max(h, 1e-9);
+        var v = d.Y >= MinY || h < 1e-9 ? d : new Vec3d(d.X * k, MinY, d.Z * k);
+        if (toZenith <= 0) return v;
+        return (v * (1 - toZenith) + new Vec3d(0, toZenith, 0)).Normalized();
+    }
+
     /// <summary>
     /// Élévation et relèvement, en degrés. Un soleil BAS est ce qui étire son
     /// reflet en la longue route de scintillement qu'on voit sur une vraie mer ;
@@ -149,7 +166,8 @@ public sealed class Sky
            Une nouvelle lune ne donne presque rien, et c'est juste. */
         MoonLight = MoonOn ? MoonUp * (0.15 + 0.85 * MoonPhase) : 0;
         // la seule lumière directe de la scène : le soleil le jour, la lune la nuit quand elle est levée
-        LightDir = night > 0.5 && MoonOn && MoonUp > 0.05 ? MoonDir : SunDir;
+        bool byMoon = night > 0.5 && MoonOn && MoonUp > 0.05;
+        LightDir = AboveSea(byMoon ? MoonDir : SunDir, byMoon ? 0 : night);
 
         SunColor = new Rgb(
             1.0 - 0.55 * night,

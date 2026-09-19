@@ -562,7 +562,8 @@ Naval.Stage = class Stage {
        A new moon gives almost nothing, which is right. */
     const moonLight = M.on ? M.up*(0.15 + 0.85*M.phase) : 0;
     this.moonLight = moonLight;
-    this.lightDir.copy(night > 0.5 && M.on && M.up > 0.05 ? this.moonDir : this.sunDir);
+    const byMoon = night > 0.5 && M.on && M.up > 0.05;
+    Stage.aboveSea(this.lightDir.copy(byMoon ? this.moonDir : this.sunDir), byMoon ? 0 : night);
 
     this.sun.color.setRGB(
       1.0 - 0.55*night,
@@ -610,6 +611,23 @@ Naval.Stage = class Stage {
     M.phase = 0.2 + 0.8*Math.random();
     M.lag = (Math.random() < 0.5 ? -1 : 1)*(1 - M.phase)*9;     // hours
     if(this.onMoon) this.onMoon(M);
+  }
+
+  /* A LIGHT THAT DOES NOT RISE OUT OF THE SEA. The chosen body can be below the
+     horizon — a rising moon counts from −1°, the sun at dusk, and with no moon
+     the sky's glow took the direction of a sun at −60° — and a directional
+     light from below lit the hulls through the keel, through the water. So it
+     comes at lowest from just above the horizon, on the body's side; and what
+     is only the sky's glow, as a moonless night deepens, falls from above.
+     Rewrites `d` in place. */
+  static aboveSea(d, toZenith){
+    const MIN_Y = 0.05, h = Math.hypot(d.x, d.z);
+    if(d.y < MIN_Y && h > 1e-9){
+      const k = Math.sqrt(1 - MIN_Y*MIN_Y)/h;
+      d.set(d.x*k, MIN_Y, d.z*k);
+    }
+    if(toZenith > 0){ d.multiplyScalar(1 - toZenith); d.y += toZenith; d.normalize(); }
+    return d;
   }
 
   _placeMoon(){
