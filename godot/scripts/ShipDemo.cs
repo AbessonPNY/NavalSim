@@ -82,6 +82,10 @@ public partial class ShipDemo : Node3D
         AddChild(_lightning);
         _krakenNode = new KrakenNode();
         AddChild(_krakenNode);
+        _cordage = new CordageNode();
+        AddChild(_cordage);
+        _splinters = new SplinterNode();
+        AddChild(_splinters);
         _krakenNode.Build(_krakenRules.Glb == null ? null
             : System.IO.Path.GetFullPath(System.IO.Path.Combine(ProjectSettings.GlobalizePath("res://"), "..", _krakenRules.Glb)));
         _kraken = new Kraken(_krakenRules) { BodyR = _krakenNode.BodyR };
@@ -754,6 +758,8 @@ public partial class ShipDemo : Node3D
             _spray.Pool.Rebase(-dx, -dz);
             _kraken.Rebase(-dx, -dz);
             _lightning.Rebase(-dx, -dz);
+            _cordage.Rebase(-dx, -dz);
+            _splinters.Rebase(-dx, -dz);
             // la seule chose qui ne suit PAS le navire : sans ceci elle resterait
             // à quinze cents mètres, à filmer de l'eau vide
             _anchor = new Vec3d(_anchor.X + dx, _anchor.Y, _anchor.Z + dz);
@@ -815,6 +821,8 @@ public partial class ShipDemo : Node3D
         _sky.SetCloud(_sea.Material, _cloud, _t);
         foreach (var m in _ship.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
         if (_krakenNode.Visible) foreach (var m in _krakenNode.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
+        foreach (var m in _cordage.Hazed) _sky.PushTo(m);
+        foreach (var m in _splinters.Hazed) _sky.PushTo(m);
         foreach (var s in _others)
             foreach (var m in s.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
         // l'embrun est aussi clair que ce qui l'éclaire : l'horizon, qui porte l'heure
@@ -1279,6 +1287,9 @@ public partial class ShipDemo : Node3D
     // ------------------------------------------------------------------
 
     LightningNode _lightning = null!;
+    CordageNode _cordage = null!;
+    SplinterNode _splinters = null!;
+    readonly List<ShipNode> _allShips = new();
     KrakenNode _krakenNode = null!;
     Kraken _kraken = null!;
     LightningSettings _lightRules = new();
@@ -1336,6 +1347,8 @@ public partial class ShipDemo : Node3D
 
     void WireKraken()
     {
+        // les gerbes de ses bras qui crèvent la surface, et de ce qu'ils arrachent
+        _kraken.Splash = (at, water, speed, jet) => _spray.Pool.Burst(at, water, speed, jet);
         _kraken.Event = (kind, prey) =>
         {
             if (prey != null && KrakenSays.TryGetValue(kind, out var t)) KrakenSay(t, prey);
@@ -1381,6 +1394,14 @@ public partial class ShipDemo : Node3D
         foreach (var (prey, inten) in _orage)
             if (_stormRng.NextDouble() < _lightRules.StrikeChance(inten, dt)) Strike(_preyShip[prey]);
         _lightning.Step(dt);
+
+        // les bouts rompus de toute la flotte, et les éclats en l'air
+        _allShips.Clear();
+        _allShips.Add(_ship);
+        _allShips.AddRange(_others);
+        var h = _sky.Core.Horizon;
+        _cordage.Step(dt, _allShips, _sea.Core, _t, _cam, _sea.Core.WindVec, new Vec3d(h.R, h.G, h.B));
+        _splinters.Step(dt, _sea.Core, _t, _spray.Pool);
     }
 
     /* LA FOUDRE TOMBE SUR LA PLUS HAUTE TÊTE DE MÂT encore debout. L'éclair du
@@ -1392,6 +1413,8 @@ public partial class ShipDemo : Node3D
         if (s.Physics.Foundered || !s.HighestMasthead(out var w, out int fall)) return;
         _lightning.Strike(w);
         if (w.DistanceTo(_cam.GlobalPosition) < 3000) _sky.Strike();
+        // la pomme du mât vole en éclats, vers le bas
+        _splinters.Splinters(w, Vector3.Down, 0.6);
         string what = "La foudre frappe la mâture !";
         if (fall >= 0)
         {

@@ -626,11 +626,24 @@ public partial class ShipNode
             fall.AddChild(pivot);
 
             double share = 0;
+            /* OÙ UN BOUT COUPÉ PEUT PENDRE, relevé ici parce qu'ici seulement on le
+               sait : les vergues viennent d'être lues et rangées sur leur mât. Rien
+               par navire : un modèle de trois-mâts carré reçoit ses bras et ses
+               haubans pour rien, et une coque sans mât à elle n'en traîne aucun. */
+            var cords = new List<CordAnchor>();
             for (int i = 0; i < mast.Count; i++)
             {
                 var y = mast[i];
                 double half = y.Size.X * 0.5 * 0.97;
                 y.Mi.Reparent(pivot, true);              // brasse avec le mât, toile ou non
+                /* Les deux bouts de vergue portent les LONGS bouts : un bras court du
+                   bout à la lisse arrière et une balancine monte au chouquet, donc
+                   l'un ou l'autre coupé laisse plusieurs mètres se balancer au bout —
+                   le morceau que l'œil attrape, le plus loin du mât et qui bouge le
+                   plus. Tenus dans le PIVOT : un bras coupé brasse avec la vergue. */
+                double armLen = Math.Max(2.5, Math.Min(7, 0.22 * (y.Mid.Y - heel)));
+                cords.Add(new CordAnchor(pivot, new Vector3((float)(-half * 0.98), y.Mid.Y, y.Mid.Z - (float)z0), armLen));
+                cords.Add(new CordAnchor(pivot, new Vector3((float)(half * 0.98), y.Mid.Y, y.Mid.Z - (float)z0), armLen));
 
                 /* Une voile pend jusqu'un peu avant la vergue du dessous. La plus
                    basse emprunte l'écart du dessus ; aucune ne dépasse la moitié de
@@ -663,10 +676,18 @@ public partial class ShipNode
             /* Seul un mât qui est SON PROPRE maillage peut tomber. Sans lui, la toile
                tomberait d'un espar resté debout en l'air, ce qui est pire que rien :
                elle garde alors sa mâture, et le dit. */
+            /* Et les haubans, qui partent des JOTTEREAUX et non de la pomme : un bout
+               pendu à la pointe se lit comme une drisse de pavillon. COURTS, et c'est
+               mesuré à l'écran dans la page : seize mètres de corde pendent droit, et
+               une droite si longue se lit comme du FIL DE FER. Ce qui reste est ce qu'un
+               hauban laisse après avoir filé à travers tout ce qui le passait. */
+            double mh = pole != null ? pole.Size.Y : mast[0].Mid.Y - heel;
+            foreach (int sx in new[] { -1, 1 })
+                cords.Add(new CordAnchor(fall, new Vector3((float)(sx * Math.Min(1.4, 0.05 * mh)), (float)(mh * 0.78), 0),
+                    Math.Max(4, Math.Min(10, 0.26 * mh))));
             _damage.Add(new MastDamage
             {
-                Fall = fall, Heel = heel, Share = share, HasPole = pole != null,
-                Height = pole != null ? pole.Size.Y : mast[0].Mid.Y - heel
+                Fall = fall, Heel = heel, Share = share, HasPole = pole != null, Height = mh, Cords = cords
             });
             _rigs.Add(pivot);
         }

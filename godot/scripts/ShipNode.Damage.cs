@@ -22,7 +22,20 @@ public partial class ShipNode
         public bool HasPole;                     // un espar à lui : lui seul peut tomber
         public int Wounds;
         public Falling? Down;                    // en train de tomber, ou tombé
+        public List<CordAnchor> Cords = new();   // d'où un bout coupé peut pendre
     }
+
+    /// <summary>D'où un bout coupé peut pendre : un point dans le repère d'un nœud du gréement, et sa longueur.</summary>
+    public readonly record struct CordAnchor(Node3D Obj, Vector3 At, double Len);
+
+    /// <summary>Change à chaque radoub : les bouts qui pendaient ne pendent plus.</summary>
+    public int RigEpoch { get; private set; }
+
+    /// <summary>Les points d'attache du mât <paramref name="i"/>, et s'il est encore là (pas coulé).</summary>
+    public IReadOnlyList<CordAnchor> CordAnchors(int i) =>
+        i >= 0 && i < _damage.Count ? _damage[i].Cords : Array.Empty<CordAnchor>();
+
+    public bool MastVisible(int i) => i < 0 || i >= _damage.Count || _damage[i].Fall.Visible;
 
     sealed class Falling
     {
@@ -172,16 +185,20 @@ public partial class ShipNode
         return s / tot;
     }
 
-    /* Les bouts rompus qui pendraient d'un mât touché : un compte plutôt qu'une
-       liste. Les bouts eux-mêmes (cordage.js) ne sont pas encore portés ; le
-       compte est tenu pour eux. */
+    /* Les bouts rompus demandés et pas encore pendus : un COMPTE plutôt qu'une
+       liste de cordes, tirées au hasard parmi les attaches du mât par
+       CordageNode, qui vide cette liste — rien dehors n'a à se souvenir qu'il existe. */
     public readonly List<(int Mast, int N)> RigCuts = new();
-    void CutRigging(int i, int n) => RigCuts.Add((i, Math.Max(1, n)));
+    void CutRigging(int i, int n)
+    {
+        if (i >= 0 && i < _damage.Count && _damage[i].Cords.Count > 0) RigCuts.Add((i, Math.Max(1, n)));
+    }
 
     /// <summary>Un radoub : mâts replantés, toile renverguée, blessures effacées.</summary>
     public void RestoreMasts()
     {
         RigCuts.Clear();
+        RigEpoch++;
         foreach (var c in _canvases) { c.Split = false; c.Node.Visible = true; }
         foreach (var d in _damage)
         {
