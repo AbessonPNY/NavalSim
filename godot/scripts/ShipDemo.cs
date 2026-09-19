@@ -43,6 +43,8 @@ public partial class ShipDemo : Node3D
     // la machine imposee en ligne de commande ne doit pas etre effacee par la
     // lecture du clavier, qui la laisse ou elle est faute de touche pressee
     bool _drive;
+    // la barre tenue par la ligne de commande (--barre), pour un essai en virage
+    double? _heldRudder;
 
     List<string> _paths = new();
     // la flotte telle que la mer la voit : l'entrée 0 est le navire commandé
@@ -411,6 +413,8 @@ public partial class ShipDemo : Node3D
             sm.SetShaderParameter("u_cap_gain", s.SeaCapGain);
             sm.SetShaderParameter("u_foam_gain", s.SeaFoamGain);
             sm.SetShaderParameter("u_jac_foam", s.SeaJacobian);
+            sm.SetShaderParameter("u_streak_gain", s.SeaStreaks);
+            sm.SetShaderParameter("u_kelvin_gain", s.SeaKelvin);
         }
         if (_ship != null)
         {
@@ -791,6 +795,7 @@ public partial class ShipDemo : Node3D
         {
             double dx = -b.Pos.X, dz = -b.Pos.Z;
             _sea.Core.Rebase(-dx, -dz);
+            _sea.ShiftWakes((float)dx, (float)dz);
             _foam.Rebase((float)-dx, (float)-dz);
             _spray.Pool.Rebase(-dx, -dz);
             _kraken.Rebase(-dx, -dz);
@@ -1062,7 +1067,7 @@ public partial class ShipDemo : Node3D
         // la barre revient d'elle-même quand on la lâche, comme une roue qu'on rend
         c.Rudder = rud != 0
             ? Math.Clamp(c.Rudder + rud * dt * 1.6, -1, 1)
-            : c.Rudder * (1 - Math.Min(1, dt * 2.5));
+            : _heldRudder ?? c.Rudder * (1 - Math.Min(1, dt * 2.5));
 
         if (Physical(Key.W)) c.Throttle = Math.Min(1, c.Throttle + dt * 0.8);
         if (Physical(Key.S)) c.Throttle = Math.Max(-1, c.Throttle - dt * 0.8);
@@ -2005,6 +2010,12 @@ public partial class ShipDemo : Node3D
                 case "--pirate": SpawnPirate(args[i + 1].ToFloat()); break;
                 case "--fantomes": GoToGhosts(true); break;
                 case "--lunette": ToggleSpyglass(); break;
+                // l'œil tourné vers le soleil, un peu au-dessus de l'eau : pour juger sa route
+                case "--vers-soleil":
+                    var sdir = _sky.Core.SunDir;
+                    _fixEye = new Vector3(30, 6, 30);
+                    _fixLook = _fixEye.Value + new Vector3((float)sdir.X, 0, (float)sdir.Z).Normalized() * 300 + new Vector3(0, -6, 0);
+                    break;
                 // les instruments masqués, comme H : pour une capture de la scène seule
                 case "--masquer": _info.Visible = _sunPanel.Visible = args[i + 1] != "1"; break;
                 case "--panneau-mer": _seaPanel.Visible = args[i + 1] == "1"; break;
@@ -2014,7 +2025,7 @@ public partial class ShipDemo : Node3D
                     _settings.SeaRoughBase = dm.SeaRoughBase; _settings.SeaRoughWind = dm.SeaRoughWind;
                     _settings.SeaSkyBlur = dm.SeaSkyBlur; _settings.SeaRideGain = dm.SeaRideGain;
                     _settings.SeaCapGain = dm.SeaCapGain; _settings.SeaFoamGain = dm.SeaFoamGain;
-                    _settings.SeaJacobian = dm.SeaJacobian;
+                    _settings.SeaJacobian = dm.SeaJacobian; _settings.SeaStreaks = dm.SeaStreaks; _settings.SeaKelvin = dm.SeaKelvin;
                     ApplySettings();
                     break;
                 // une cible par le travers tribord, à cette distance : le premier navire de --flotte
@@ -2038,6 +2049,7 @@ public partial class ShipDemo : Node3D
                 // la machine en ligne de commande : une capture « en route » ne
                 // peut pas dependre du clavier, et un banc non plus
                 case "--throttle": _ship.Ctrl.Throttle = args[i + 1].ToFloat(); _drive = true; break;
+                case "--barre": _heldRudder = Math.Clamp(args[i + 1].ToFloat(), -1, 1); break;
                 // un oeil FIXE dans le monde, pour comparer au pixel avec la page
                 // d'origine : une camera qui suit une coque soulevee de quarante
                 // metres se retrouve dans la vague, et la comparaison ne vaut rien

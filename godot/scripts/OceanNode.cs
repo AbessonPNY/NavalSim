@@ -212,6 +212,7 @@ public partial class OceanNode : Node3D
             if (_profs[i] == null)
                 _hullEnds[i] = new Vector2((float)(-p.Spec.L * 0.5), (float)(p.Spec.L * 0.5));
         }
+        TrackWakes(fleet);
         if (_mat != null) PushShips(_mat);
     }
 
@@ -229,6 +230,7 @@ public partial class OceanNode : Node3D
         m.SetNow(U.HullEnds, _hullEnds);
         m.SetNow(U.ShipSpeed, _shipSpeed);
         m.SetNow(U.ShipAfloat, _shipAfloat);
+        if (_kelvinTex != null) m.SetShaderParameter("u_kelvin", _kelvinTex);
     }
 
     /// <summary>

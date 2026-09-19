@@ -55,7 +55,14 @@ uniform float u_sky_blur = 0.6;
 uniform float u_ride_gain = 1.0;
 uniform float u_cap_gain = 1.0;
 uniform float u_foam_gain = 1.0;
-uniform float u_jac_foam = 0.85;     // où l'écume commence : un jacobien sous ce seuil
+uniform float u_jac_foam = 0.85;
+uniform float u_streak_gain = 1.0;
+uniform float u_kelvin_gain = 1.0;  // le V de Kelvin : relief et ombrage
+/* Les bras de Kelvin de chaque navire, tirés de la route de son étrave
+   (OceanNode.Kelvin) : une rangée par bras, (x, z, âge en mètres, valide). */
+uniform sampler2D u_kelvin : filter_nearest, repeat_disable;
+const int KELVIN_N = 48;  // les stries qui suivent la pente
+uniform vec3  u_sun_col = vec3(1.0, 0.95, 0.86);   // SkyNode.PushTo : couleur × intensité × 0,5     // où l'écume commence : un jacobien sous ce seuil
 // hauteur de reference de la lueur de crete, a l echelle de l etat de mer :
 // le noyau la calcule deja (Ocean.AmpMax), on ne la redecide pas ici
 uniform float u_amp_max = 1.0;
@@ -314,6 +321,86 @@ vec4 hull_mirror(vec3 P, vec3 Rv, mat4 proj, mat4 inv_proj) {
 	return vec4(0.0);
 }
 
+/* LE V DE KELVIN, EN RELIEF. Un sillage de Kelvin n'est pas de l'écume — une
+   première version le dessinait en traits blancs, et c'était faux : ce sont de
+   petites VAGUES, de courtes crêtes posées en échelon le long de deux bras à
+   19,5° de la route, qu'on voit parce qu'elles prennent la lumière. Seule
+   l'étrave écume, et elle a déjà la sienne.
+
+   Les bras sont lus dans u_kelvin, tirés de la route PASSÉE de l'étrave
+   (OceanNode.Kelvin) : en virage ils se courbent avec elle. Le long de chacun,
+   une bande d'ondes DIVERGENTES : crêtes tournées d'environ 35° sur le bras,
+   de longueur d'onde réglée par la vitesse (l'onde transverse d'un navire à U
+   mesure 2πU²/g — dix mètres à 4 m/s —, les divergentes à peu près la moitié).
+   La bande s'élargit en vieillissant et s'éteint au loin.
+
+   ET ELLES SE LISENT PAR LEUR OMBRE. Sous un ciel uniforme, pencher la normale
+   ne change presque rien au ciel renvoyé : le premier relief ne se voyait pas.
+   Ce qui dessine un V sur une photo aérienne, ce sont des bandes claires et
+   sombres — la face d'une crête tournée vers le ciel, le dos à l'ombre de la
+   suivante. D'où un troisième terme : l'ombrage, comme le creux sombre et la
+   crête claire des grandes vagues.
+
+   Rend (∂h/∂x, ∂h/∂z, ombrage) : la pente à retirer de la normale, et de
+   combien éclaircir (positif) ou assombrir l'eau. */
+vec3 kelvin_slope(vec2 p, float pix) {
+	vec2 g = vec2(0.0);
+	float shade = 0.0;
+	for (int i = 0; i < NSHIP; i++) {
+		if (i >= u_ship_count) break;
+		vec2 rel = p - u_ship_pos[i].xz;
+		if (dot(rel, rel) > 150.0 * 150.0) continue;
+		float spd = u_ship_speed[i];
+		float way = clamp(spd / 3.0, 0.0, 1.0);
+		if (way < 0.02) continue;
+		float fast = clamp(spd / 6.0, 0.0, 1.0);
+		/* Pas sous trois mètres — un parti pris de dessin : à la vitesse d'un
+		   galion la loi en donne moins de deux, qui tombent sous le pixel et
+		   moirent en hachures au lieu de se lire en vagues —, et effacées là où
+		   l'écran ne les résout plus (pix : la taille d'un pixel sur l'eau). */
+		float lam = max(3.0, 0.5 * 6.2831853 * spd * spd / 9.81);
+		float kw = 6.2831853 / lam;
+		float resolved = 1.0 - smoothstep(lam * 0.12, lam * 0.3, pix);
+		if (resolved <= 0.0) continue;
+		for (int side = 0; side < 2; side++) {
+			int row = i * 2 + side;
+			float best = 0.0;
+			vec2 grad = vec2(0.0);
+			float wave = 0.0;
+			vec4 a0 = texelFetch(u_kelvin, ivec2(0, row), 0);
+			float run = 0.0;                             // mètres le long du bras
+			for (int j = 1; j < KELVIN_N; j++) {
+				vec4 a1 = texelFetch(u_kelvin, ivec2(j, row), 0);
+				if (a1.w < 0.5) break;
+				vec2 ab = a1.xy - a0.xy;
+				float len = max(length(ab), 1e-4);
+				vec2 t = ab / len, n = vec2(-t.y, t.x);
+				float tt = clamp(dot(p - a0.xy, t) / len, 0.0, 1.0);
+				float dk = length(p - (a0.xy + ab * tt));
+				float age = mix(a0.z, a1.z, tt);
+				// une bande qui s'évase : quelques mètres à l'étrave, des dizaines au loin
+				float w = 2.0 + 0.22 * age;
+				float env = exp(-(dk * dk) / (w * w)) * exp(-age / (45.0 + 90.0 * fast))
+				          * smoothstep(0.5, 5.0, age);
+				if (env > best) {
+					best = env;
+					float across = dot(p - a0.xy, n);
+					float along = run + tt * len;
+					vec2 dir = n * 0.82 + t * 0.57;      // la crête tournée de 35° sur le bras
+					float ph = kw * (across * 0.82 + along * 0.57);
+					grad = dir * kw * cos(ph);
+					wave = sin(ph);
+				}
+				run += len;
+				a0 = a1;
+			}
+			g += grad * best * 0.16 * way * resolved * u_kelvin_gain;
+			shade += wave * best * 0.22 * way * resolved * u_kelvin_gain;
+		}
+	}
+	return vec3(g, shade);
+}
+
 void fragment() {
 	vec3 eye = CAMERA_POSITION_WORLD;
 	vec3 V = normalize(eye - v_world);
@@ -334,6 +421,10 @@ void fragment() {
 	             * (1.0 - smoothstep(25.0, 350.0, dist));
 	vec3 rn = ride_normale(v_world.xz, r_fade);
 	N = normalize(vec3(N.x + rn.x, N.y, N.z + rn.z));
+
+	// le V de Kelvin, dans la pente de la surface : il prend la lumière comme elle
+	vec3 kg = kelvin_slope(v_world.xz, length(fwidth(v_world.xz)));
+	N = normalize(vec3(N.x - kg.x, N.y, N.z - kg.y));
 
 	// --- le miroir ---
 	vec3 R = reflect(-V, N);
@@ -420,6 +511,7 @@ void fragment() {
 		}
 	}
 	vec3 c = mix(body, sky, F);
+	c *= 1.0 + kg.z;                    // les crêtes du V : claires au ciel, sombres au dos
 	c *= mix(0.62, 1.0, mix(open, 1.0, far));
 
 	/* --- LA ROUTE DE SCINTILLEMENT ---
@@ -449,8 +541,20 @@ void fragment() {
 	   tuait le scintillement entièrement. */
 	float voh = max(dot(V, H), 0.0);
 	float Fs = 0.02 + 0.98 * pow(1.0 - voh, 5.0);
-	float shadow = max(dot(N, u_sun), 0.0);        // pas d'éclat sur une face au dos
-	c += vec3(1.0, 0.96, 0.86) * D * Fs * shadow * 2.4;
+	/* LE SOLEIL SE REFLÈTE DÈS QU'IL SE LÈVE. Le reflet était multiplié par N·L,
+	   l'éclairement d'une face : au ras de l'horizon, N·L ne vaut presque rien
+	   sur toute la mer, et la route de soleil n'apparaissait qu'une fois l'astre
+	   monté — relevé sur une capture de lever. Un reflet de micro-facettes n'a
+	   pas ce facteur (il se simplifie avec le dénominateur) ; il reste seulement
+	   qu'une face au dos du soleil ne le renvoie pas, et qu'un soleil couché ne
+	   se reflète plus. Le gain passe de 2,4 à 2,0 : sans ce facteur, qui valait
+	   0,7 à 0,9 sous un soleil haut, le plein jour aurait éclairci.
+
+	   Et le reflet prend la COULEUR du soleil — orangée à l'aube —, au lieu d'un
+	   blanc fixe : c'est la même lumière. */
+	float facing = smoothstep(-0.02, 0.06, dot(N, u_sun)) * smoothstep(-0.03, 0.02, u_sun.y);
+	vec3 sun_tint = u_sun_col / max(max(u_sun_col.r, max(u_sun_col.g, u_sun_col.b)), 1e-3);
+	c += sun_tint * D * Fs * facing * 2.0;
 
 	/* Le même lobe pour la lune, froid et faible : la nuit, c'est la seule route
 	   qu'il y ait. */
@@ -534,6 +638,28 @@ void fragment() {
 	float fine = (1.0 - smoothstep(0.8, 2.5, v_spacing)) * (1.0 - smoothstep(35.0, 140.0, dist));
 	float lc = mix(lace(v_world.xz, battue, fine), 0.4 * battue + 0.2, clamp(lace_far, 0.0, 1.0));
 	float crest_foam = clamp(lc * smoothstep(0.03, 0.3, battue) * (0.75 + 0.35 * fn) * u_foam_gain, 0.0, 1.0);
+	/* LES STRIES QUI SUIVENT LA PENTE. Sur la face d'une grosse vague, l'eau
+	   ruisselle et l'écume se déchire en longues traînées qui descendent, dans le
+	   sens de la plus grande pente — ce que montrent les images de tempête, et
+	   qui donne à une face de vague son grain. La pente est lue sur la normale des
+	   GRANDES vagues seules (sans les rides) : sa part horizontale pointe vers le
+	   bas. Les traînées sont les passages par zéro d'un Perlin étiré quinze fois
+	   le long de cette pente, comme les traits d'écume ; elles ne viennent que
+	   sur les faces raides, avec du vent, et cèdent de loin. */
+	vec3 Ng = normalize(v_nrm);
+	float slope = length(Ng.xz) / max(Ng.y, 0.05);
+	vec2 down = Ng.xz / max(length(Ng.xz), 1e-4);
+	vec2 across = vec2(-down.y, down.x);
+	// des traînées de quatre mètres en quatre mètres, épaisses d'une paume : plus
+	// fines, elles tombaient sous le pixel dès vingt mètres
+	vec2 sq = vec2(dot(v_world.xz, down) * 0.035, dot(v_world.xz, across) * 0.28)
+	        + vec2(0.0, u_time * 0.05);
+	float streak = 1.0 - smoothstep(0.06, 0.2, abs(perlin(sq) + 0.4 * perlin(sq * 2.1 + 5.0)));
+	float steep_face = smoothstep(0.12, 0.45, slope) * smoothstep(-0.6, 0.2, hrel);
+	float streaks = streak * steep_face * smoothstep(0.6, 1.8, u_ripple)
+	              * (1.0 - clamp(lace_far, 0.0, 1.0)) * 0.6 * u_streak_gain;
+	crest_foam = max(crest_foam, streaks);
+
 	/* ET CE QUI RESTE ENTRE LES CRÊTES : un voile de fils très fins, répandu par
 	   places sur l'eau libre, que laissent les déferlantes passées. Rien par
 	   petit temps ; il vient avec le vent (u_ripple le porte), par grandes
@@ -591,23 +717,9 @@ void fragment() {
 		/* Les navires n'ajoutent pas d'écume au-delà de la saturation, ils se
 		   la partagent : deux coques bord à bord font une tache blanche, pas une
 		   tache deux fois blanche. */
-		/* LE V DE KELVIN : deux bras fins qui partent de l'étrave et s'ouvrent à
-		   19,5° du cap — l'angle que prend le sillage de tout ce qui avance en eau
-		   profonde, quelle que soit sa vitesse. Dessinés ici, dans le repère du
-		   navire, et non déposés dans le champ d'écume : un V qui avance, déposé
-		   image après image, se remplirait en triangle. Un trait qui s'élargit en
-		   vieillissant, s'efface au loin, et se casse en tirets comme de l'écume. */
-		float lat_k = abs(dot(rel, r2));
-		float s_bow = max(u_hull_ends[i].y - along, 0.0);          // mètres derrière l'étrave
-		float arm_w = 0.35 + 0.025 * s_bow;
-		float arm = exp(-pow((lat_k - 0.354 * s_bow - 0.4) / arm_w, 2.0))
-		          * exp(-s_bow / (35.0 + 90.0 * fast)) * smoothstep(0.5, 4.0, s_bow)
-		          * step(0.0, gap_m) * way;          // un V se voit dès qu'on avance
-		// rompu, pas effacé : un seuil franc sur le bruit coupait le trait sur des dizaines de mètres
-		arm *= 0.55 + 0.45 * smoothstep(-0.4, 0.4, perlin(vec2(s_bow * 0.25, lat_k * 0.08) + float(i) * 7.0));
 
 		hull_foam = max(hull_foam,
-			clamp(collar * 0.70 + bow * (0.55 + 0.75 * fast) + arm * 0.9, 0.0, 1.0) * u_ship_afloat[i]);
+			clamp(collar * 0.70 + bow * (0.55 + 0.75 * fast), 0.0, 1.0) * u_ship_afloat[i]);
 	}
 	hull_foam *= (0.45 + 0.80 * fn);
 

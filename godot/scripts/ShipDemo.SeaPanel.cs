@@ -56,6 +56,8 @@ public partial class ShipDemo
         Slide("Seuil d'écume (jacobien)", 0.4, 1.0, 0.01, st.SeaJacobian, x => x.SeaJacobian, x => st.SeaJacobian = x);
         Slide("Moutons", 0, 2, 0.05, st.SeaCapGain, x => x.SeaCapGain, x => st.SeaCapGain = x);
         Slide("Écume en traits", 0, 2, 0.05, st.SeaFoamGain, x => x.SeaFoamGain, x => st.SeaFoamGain = x);
+        Slide("Stries de pente", 0, 3, 0.05, st.SeaStreaks, x => x.SeaStreaks, x => st.SeaStreaks = x);
+        Slide("Sillage de Kelvin", 0, 4, 0.05, st.SeaKelvin, x => x.SeaKelvin, x => st.SeaKelvin = x);
 
         var reset = new Button { Text = "Valeurs par défaut", FocusMode = Control.FocusModeEnum.None };
         reset.Pressed += () => { foreach (var (s, def) in sliders) s.Value = def(); };

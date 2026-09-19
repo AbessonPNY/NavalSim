@@ -71,6 +71,10 @@ public sealed class Settings
     public float SeaRideGain = 1f, SeaCapGain = 1f, SeaFoamGain = 1f;
     /// <summary>Le jacobien sous lequel l'eau écume : plus haut, plus de crêtes blanchissent.</summary>
     public float SeaJacobian = 0.85f;
+    /// <summary>Les stries qui descendent la face des vagues.</summary>
+    public float SeaStreaks = 1f;
+    /// <summary>Le V de Kelvin : ses crêtes, en relief et en ombre.</summary>
+    public float SeaKelvin = 1f;
 
     // [navire]
     /// <summary>Le pavillon hissé sur le navire à la barre : l'id d'une nation de flags.json, vide pour celui de la fiche.</summary>
@@ -121,6 +125,8 @@ public sealed class Settings
         s.SeaCapGain = (float)cf.GetValue("mer", "moutons", s.SeaCapGain);
         s.SeaFoamGain = (float)cf.GetValue("mer", "ecume", s.SeaFoamGain);
         s.SeaJacobian = (float)cf.GetValue("mer", "seuil_jacobien", s.SeaJacobian);
+        s.SeaStreaks = (float)cf.GetValue("mer", "stries", s.SeaStreaks);
+        s.SeaKelvin = (float)cf.GetValue("mer", "kelvin", s.SeaKelvin);
         s.ParallelSolvers = (bool)cf.GetValue("performance", "solveurs_paralleles", s.ParallelSolvers);
         return s;
     }
@@ -160,6 +166,8 @@ public sealed class Settings
         cf.SetValue("mer", "moutons", SeaCapGain);
         cf.SetValue("mer", "ecume", SeaFoamGain);
         cf.SetValue("mer", "seuil_jacobien", SeaJacobian);
+        cf.SetValue("mer", "stries", SeaStreaks);
+        cf.SetValue("mer", "kelvin", SeaKelvin);
         cf.SetValue("performance", "solveurs_paralleles", ParallelSolvers);
         Error e = cf.Save(Path);
         if (e != Error.Ok) GD.PushWarning($"réglages non enregistrés dans {Path} : {e}");

@@ -6285,6 +6285,34 @@ n'est pas en jeu, la physique ne voit rien.
   monte : il ne rencontre jamais le bas d'une coque. Limite : rien hors de
   l'image ; s'efface aux bords. Coût mesuré à 720p : +0,7 ms partout, **+0,3 ms**
   une fois borné au pied des navires (cinq demi-longueurs plus 10 m).
+- **Le V qui suit la route.** Dessiné dans le repère du navire, il pivotait d'un
+  bloc en virage pendant que les fils de poupe suivaient la route (relevé à
+  l'usage). Désormais (`OceanNode.Kelvin.cs`) chaque étrave retient sa route, un
+  point tous les 2 m sur 48 points ; chaque point pousse de part et d'autre une
+  crête perpendiculaire à son cap d'alors, à 0,354 fois la distance parcourue
+  depuis ; la mer lit les deux lignes brisées dans une petite texture
+  (x, z, âge, valide) et en mesure la distance, seulement à moins de 150 m d'un
+  navire. Ligne droite : le même V ; virage : des bras courbes. `--barre` tient
+  la barre pour l'essai.
+- **Le V n'est pas de l'écume** (Arnaud, d'après une photo aérienne). Un sillage
+  de Kelvin, ce sont de petites vagues en échelon, pas des traits blancs : les
+  bras ne déposent plus d'écume, ils portent des ondes DIVERGENTES dans la pente
+  de la surface (crêtes à ~35° du bras, longueur d'onde ½·2πU²/g, **jamais sous
+  3 m** — à la vitesse d'un galion la loi en donne 1,7, qui moiraient en
+  hachures —, effacées quand un pixel dépasse 0,12 à 0,3 longueur d'onde), dans
+  une bande qui s'évase (2 m + 0,22 × l'âge). Pencher la normale ne se voyait
+  pas sous un ciel uniforme : elles se lisent par un OMBRAGE (face au ciel
+  claire, dos sombre), comme les grandes vagues. Piège de banc : une capture à
+  15 m/s venait de la touche B pressée par Arnaud pendant l'essai.
+- **Le soleil se reflète dès son lever.** Le lobe était multiplié par N·L, qui ne
+  vaut presque rien au ras de l'horizon : la route n'apparaissait qu'une fois le
+  soleil monté. Un reflet de micro-facettes n'a pas ce facteur ; reste un test de
+  face (smoothstep sur N·L) et le soleil au-dessus de l'horizon, gain 2,4 → 2,0,
+  teinte du soleil (orangée à l'aube). `--vers-soleil` tourne l'œil vers lui.
+- **Les stries de pente.** Passages par zéro d'un Perlin étiré le long de la plus
+  grande pente des grandes vagues (normale sans les rides), sur les faces raides
+  et par vent ; espacées de 4 m, larges d'une paume — une première version plus
+  fine tombait sous le pixel dès vingt mètres. Curseur « Stries de pente ».
 - **Réglages de mise au point** (menu, section Mer, `reglages.ini` → `[mer]`) :
   rugosité de base, rugosité ajoutée par le vent (nouveau : la mer se ternit en
   montant), flou du ciel dans l'eau (une eau rugueuse reflète un ciel flou —
