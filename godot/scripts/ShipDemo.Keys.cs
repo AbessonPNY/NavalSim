@@ -106,7 +106,7 @@ public partial class ShipDemo : Node3D
         Key(a, "⇧G", "tirer de l'autre bord");
         Key(a, "Tab", "changer le bord en batterie");
         Section(a, "Avaries");
-        Key(a, "R", "radoub : mâture remise en état");
+        Key(a, "R", "réparer et renflouer");
         Key(a, "Y", "faire sauter la soute");
 
         var b = Column();

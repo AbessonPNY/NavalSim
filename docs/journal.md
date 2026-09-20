@@ -6595,6 +6595,87 @@ même abri. La parité a été refaite sur la fiche modifiée : elle tient.
 
 Reste de ce lot : la chaloupe.
 
+## Deux pannes muettes : la terre à l'envers, la coque assise sur le sable
+
+Signalées à l'essai, à un quart d'heure d'intervalle, et toutes deux invisibles
+en tant que telles — on ne voyait que leurs conséquences.
+
+**« LA TERRE EST ENCORE TROP SOUS L'EAU. »** Elle ne l'était pas : la sonde a
+rendu 9,3 m de haut à quarante mètres du navire, 928 sommets hors d'eau sur
+1 089 dans le carreau, celui-ci bâti, visible, bien placé (écart de 43 cm sur
+1 343 m, la précision du flottant), matériau opaque, couleur de sable juste.
+Tout était correct et on ne voyait rien. En cachant la mer : le ciel. En ôtant
+la passe de brume : le ciel encore. En passant le matériau en DOUBLE FACE : la
+côte, d'un coup, avec ses maisons et son môle.
+
+**three.js tient pour face avant les triangles en sens direct, Godot en sens
+HORAIRE.** Le relief était porté de `land.js` avec son ordre d'indices, donc
+Godot le voyait par l'envers et le supprimait dès qu'on le regardait d'en haut.
+Il ne restait qu'une mer plate avec des maisons posées dessus — ce qui se lit
+exactement comme une terre noyée. La toile et les pavillons retournaient déjà
+leurs triangles ; la côte était la seule à l'avoir manqué, et personne ne
+pouvait le deviner puisque le symptôme parlait de hauteur.
+
+**LEÇON : quand tout ce qu'on mesure est juste et que rien ne s'affiche, ce
+n'est plus une valeur qu'il faut interroger, c'est une CONVENTION.** Le culling
+désactivé est le test qui tranche en une capture.
+
+**« CERTAINS BATEAUX ONT UN COLLIER D'ÉCUME RECTANGULAIRE. »** Tous l'avaient :
+la sonde a rendu, pour chaque rangée de la texture de profils, des fractions de
+1,00 à 1,00 — c'est-à-dire le rectangle de secours de `HullProfile.Finish`,
+celui qui tient quand rien n'est mesurable. La bande de mesure tombait dix
+mètres SOUS le bordé : `bande −11,83 à −9,59` pour une coque dont le maillage
+va de −1,87 à +1,40.
+
+La cause est trois étages plus haut. `Settle()` repose la coque au zéro LOCAL
+et y fait tourner le vrai solveur, échouage compris — or au démarrage le zéro
+local est Port-Royal, **c'est-à-dire la langue de sable**. La coque s'asseyait
+donc sur le SOL : tirant d'eau 0,00 m, immersion 0,0 %, et pour « flottaison »
+la hauteur du terrain. Le chiffre qui l'a dénoncée : la même coque s'asseyait à
+7,92 m avant que la berge soit relevée et à 11,27 m après, sans qu'une ligne de
+la coque ait changé — une flottaison ne suit pas le relief.
+
+Le fond est maintenant décroché le temps qu'elle trouve ses lignes, et rendu
+aussitôt. Mesuré : chaland à **y = 0,19 m, tirant 1,55 m, immersion 38,5 %**,
+contour de 0,10 à 1,00 au lieu d'un rectangle plat ; frégate 5,64 m de tirant,
+corps de −34,5 à +24,6 m, l'étrave fine comme elle doit l'être.
+
+**LEÇON : un banc d'essai qui « réussit » avec un tirant d'eau de zéro n'a pas
+réussi.** `Settle` imprimait depuis toujours « tirant 0,00 m, immersion 0,0 % »
+et personne — moi compris — ne l'a lu comme l'aveu que c'était.
+
+**Ce que la page fait et qu'il fallait lire** : elle amarre AVANT de s'asseoir,
+et son journal le dit en toutes lettres. L'ordre inverse côté Godot était le
+vrai bug ; décrocher le fond est le remède qui n'impose pas un ordre.
+
+### Trois demandes de la même séance
+
+**`R` répare ET renfloue**, comme la page, et un bandeau « Votre navire a
+sombré ! » paraît quand il n'en dépasse plus rien. La page exige dix mètres
+d'eau au-dessus du point le plus haut ; deux suffisent ici, et il le FAUT : dans
+une rade de onze mètres une coque posée sur le sable n'a jamais dix mètres sur
+la tête, et le bandeau ne venait pas là où l'on s'échoue le plus souvent.
+
+**Le curseur d'écoute**, avec le repère doré du meilleur réglage : sans lui, un
+débutant lit « voiles établies », voit un nombre plausible de kilonewtons et
+n'apprend jamais que six fois cette force était à une touche de distance.
+
+**L'HORIZON DE LA MER.** La nappe fait sept kilomètres et on en voyait le bord
+en prenant de la hauteur. L'agrandir coûterait la finesse des vagues — le
+remaillage vers la caméra est calibré sur sa taille, un mètre le long de la
+coque — donc on lui coud un ANNEAU lisse de 3 000 à 40 000 m, un mètre et demi
+plus bas pour que la houle le recouvre sans couture ni scintillement. Il ne
+calcule rien : à trois kilomètres la brume éteint déjà 94 % du contraste, et
+une crête n'y vaut plus un pixel. Même fonction de brume que tout le reste,
+donc on ne voit pas où l'une finit et l'autre commence.
+
+**La berge relevée au passage** (2,5 → 6 m au trait de côte, 20 m à sept cents ;
+les Palisadoes de 90 à 130 m de large et de 6 à 9 m de haut). Elle avait été
+changée en croyant corriger la terre noyée ; une fois la vraie cause trouvée,
+les deux reliefs ont été comparés à la même capture, et le relevé tient mieux :
+une berge franche au lieu d'un dégradé, et quinze maisons de plus à Port-Royal
+(49 → 64). Gardé pour cela, et non pour la raison qui l'avait fait écrire.
+
 ## Les quêtes portées, et les rades de la Jamaïque (Godot)
 
 Demandé : le système de quêtes, et la première — celle qui apprend à jouer —

@@ -141,7 +141,18 @@ public partial class LandNode : Node3D
             vert[k * 3] = pos[k].X; vert[k * 3 + 1] = pos[k].Y; vert[k * 3 + 2] = pos[k].Z;
         }
         var nrm = new float[vert.Length];
-        NavalSim.Core.SailCloth.ComputeNormals(vert, nrm, idx.ToArray());
+        var tri = idx.ToArray();
+        NavalSim.Core.SailCloth.ComputeNormals(vert, nrm, tri);
+
+        /* LE SENS DES TRIANGLES, RETOURNÉ — la même règle que la toile et les
+           pavillons, et la côte était la seule à l'avoir manquée : three.js tient
+           pour face avant le sens direct, Godot le sens HORAIRE. Godot voyait
+           donc tout le relief par l'envers et le supprimait dès qu'on le
+           regardait d'en haut : il ne restait qu'une mer plate avec des maisons
+           posées dessus, ce qui se lisait comme une terre noyée. Les normales
+           sont calculées AVANT l'échange — c'est la même surface, on ne fait que
+           dire à Godot de quel côté elle regarde. */
+        for (int t = 0; t + 2 < tri.Length; t += 3) (tri[t + 1], tri[t + 2]) = (tri[t + 2], tri[t + 1]);
         var normals = new Vector3[pos.Count];
         for (int k = 0; k < pos.Count; k++)
             normals[k] = new Vector3(nrm[k * 3], nrm[k * 3 + 1], nrm[k * 3 + 2]);
@@ -151,7 +162,7 @@ public partial class LandNode : Node3D
         arr[(int)Mesh.ArrayType.Vertex] = pos.ToArray();
         arr[(int)Mesh.ArrayType.Normal] = normals;
         arr[(int)Mesh.ArrayType.Color] = col.ToArray();
-        arr[(int)Mesh.ArrayType.Index] = idx.ToArray();
+        arr[(int)Mesh.ArrayType.Index] = tri;
         var final = new ArrayMesh();
         final.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arr);
 

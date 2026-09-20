@@ -1,42 +1,424 @@
 {
-  "note": "Chaînes de montagnes pour tools/region-heightmap.js : une ligne de crête en [lat, lon], la hauteur réelle du sommet (m) et la demi-largeur réelle de la chaîne (km). Le script multiplie par region.vertical et region.scale. Régénérer la carte de hauteurs écrase les retouches faites à la main.",
-
-  "ridges": [
-    { "name": "Blue Mountains",          "height": 2256, "width": 8,  "line": [[18.06,-76.72],[18.05,-76.58],[18.02,-76.40]] },
-    { "name": "Port Royal Mountains",    "height": 1000, "width": 6,  "line": [[18.08,-76.88],[18.07,-76.76]] },
-    { "name": "Hautes terres de Jamaïque","height": 900,  "width": 18, "line": [[18.20,-77.95],[18.17,-77.40],[18.12,-77.00]] },
-    { "name": "Cockpit Country",          "height": 740,  "width": 9,  "line": [[18.30,-77.70],[18.28,-77.45]] },
-    { "name": "Dolphin Head",             "height": 540,  "width": 7,  "line": [[18.36,-78.20],[18.33,-78.05]] },
-
-    { "name": "Sierra Maestra",           "height": 1974, "width": 14, "line": [[19.93,-77.65],[20.00,-76.95],[20.01,-76.20]] },
-    { "name": "Monts de Baracoa",         "height": 1175, "width": 15, "line": [[20.35,-75.40],[20.30,-74.60]] },
-
-    { "name": "Massif de la Hotte",       "height": 2347, "width": 11, "line": [[18.38,-74.35],[18.40,-73.80]] },
-    { "name": "Massif de la Selle",       "height": 2680, "width": 13, "line": [[18.36,-72.40],[18.33,-71.70]] },
-    { "name": "Montagnes Noires",         "height": 1500, "width": 12, "line": [[19.15,-72.50],[19.05,-71.80]] },
-    { "name": "Massif du Nord",           "height": 1200, "width": 14, "line": [[19.65,-72.80],[19.45,-71.80]] },
-    { "name": "Cordillère centrale",      "height": 3098, "width": 24, "line": [[19.25,-71.60],[18.95,-70.90],[18.75,-70.40]] },
-    { "name": "Cordillère septentrionale","height": 1250, "width": 10, "line": [[19.65,-71.10],[19.45,-70.10]] },
-    { "name": "Île de la Tortue",         "height": 378,  "width": 3,  "line": [[20.06,-72.95],[20.05,-72.65]] },
-
-    { "name": "Sierra Nevada de Santa Marta", "height": 5700, "width": 24, "line": [[10.85,-73.95],[10.85,-73.50]] },
-    { "name": "Serranía de Perijá",       "height": 3600, "width": 14, "line": [[10.90,-72.90],[10.30,-72.95],[9.60,-73.15]] },
-    { "name": "Cordillère de Mérida",     "height": 3600, "width": 20, "line": [[9.20,-71.00],[9.70,-69.90]] },
-    { "name": "Cordillère de la Côte",    "height": 2400, "width": 12, "line": [[10.30,-68.40],[10.45,-67.00]] },
-    { "name": "Sierra de San Luis",       "height": 1500, "width": 10, "line": [[11.20,-69.90],[11.15,-69.50]] },
-    { "name": "Montes de María",          "height": 800,  "width": 12, "line": [[9.75,-75.40],[9.45,-75.20]] },
-    { "name": "Cordillère de Panamá",     "height": 900,  "width": 12, "line": [[9.35,-80.00],[9.25,-79.30],[9.20,-78.60]] },
-    { "name": "Mont Christoffel",         "height": 372,  "width": 4,  "line": [[12.34,-69.15],[12.32,-69.08]] },
-    { "name": "Serranía de Macuira",      "height": 865,  "width": 6,  "line": [[12.17,-71.45],[12.12,-71.30]] }
-  ],
-
-  "strips": [
-    { "name": "Palisadoes", "width": 90, "height": 6, "note": "la langue de sable qui ferme le port de Kingston ; Port-Royal à sa pointe",
-      "line": [[17.9375,-76.8425],[17.9352,-76.8200],[17.9350,-76.7900],[17.9362,-76.7650],[17.9440,-76.7350],[17.9500,-76.7200]] }
-  ],
-
-  "islets": [
-    { "name": "Lime Cay",    "lat": 17.9205, "lon": -76.8155, "radius": 25, "note": "position approchée" },
-    { "name": "Rackham Cay", "lat": 17.9245, "lon": -76.8445, "radius": 20, "note": "position approchée" }
-  ]
+ "note": "Chaînes de montagnes pour tools/region-heightmap.js : une ligne de crête en [lat, lon], la hauteur réelle du sommet (m) et la demi-largeur réelle de la chaîne (km). Le script multiplie par region.vertical et region.scale. Régénérer la carte de hauteurs écrase les retouches faites à la main.",
+ "ridges": [
+  {
+   "name": "Blue Mountains",
+   "height": 2256,
+   "width": 8,
+   "line": [
+    [
+     18.06,
+     -76.72
+    ],
+    [
+     18.05,
+     -76.58
+    ],
+    [
+     18.02,
+     -76.4
+    ]
+   ]
+  },
+  {
+   "name": "Port Royal Mountains",
+   "height": 1000,
+   "width": 6,
+   "line": [
+    [
+     18.08,
+     -76.88
+    ],
+    [
+     18.07,
+     -76.76
+    ]
+   ]
+  },
+  {
+   "name": "Hautes terres de Jamaïque",
+   "height": 900,
+   "width": 18,
+   "line": [
+    [
+     18.2,
+     -77.95
+    ],
+    [
+     18.17,
+     -77.4
+    ],
+    [
+     18.12,
+     -77
+    ]
+   ]
+  },
+  {
+   "name": "Cockpit Country",
+   "height": 740,
+   "width": 9,
+   "line": [
+    [
+     18.3,
+     -77.7
+    ],
+    [
+     18.28,
+     -77.45
+    ]
+   ]
+  },
+  {
+   "name": "Dolphin Head",
+   "height": 540,
+   "width": 7,
+   "line": [
+    [
+     18.36,
+     -78.2
+    ],
+    [
+     18.33,
+     -78.05
+    ]
+   ]
+  },
+  {
+   "name": "Sierra Maestra",
+   "height": 1974,
+   "width": 14,
+   "line": [
+    [
+     19.93,
+     -77.65
+    ],
+    [
+     20,
+     -76.95
+    ],
+    [
+     20.01,
+     -76.2
+    ]
+   ]
+  },
+  {
+   "name": "Monts de Baracoa",
+   "height": 1175,
+   "width": 15,
+   "line": [
+    [
+     20.35,
+     -75.4
+    ],
+    [
+     20.3,
+     -74.6
+    ]
+   ]
+  },
+  {
+   "name": "Massif de la Hotte",
+   "height": 2347,
+   "width": 11,
+   "line": [
+    [
+     18.38,
+     -74.35
+    ],
+    [
+     18.4,
+     -73.8
+    ]
+   ]
+  },
+  {
+   "name": "Massif de la Selle",
+   "height": 2680,
+   "width": 13,
+   "line": [
+    [
+     18.36,
+     -72.4
+    ],
+    [
+     18.33,
+     -71.7
+    ]
+   ]
+  },
+  {
+   "name": "Montagnes Noires",
+   "height": 1500,
+   "width": 12,
+   "line": [
+    [
+     19.15,
+     -72.5
+    ],
+    [
+     19.05,
+     -71.8
+    ]
+   ]
+  },
+  {
+   "name": "Massif du Nord",
+   "height": 1200,
+   "width": 14,
+   "line": [
+    [
+     19.65,
+     -72.8
+    ],
+    [
+     19.45,
+     -71.8
+    ]
+   ]
+  },
+  {
+   "name": "Cordillère centrale",
+   "height": 3098,
+   "width": 24,
+   "line": [
+    [
+     19.25,
+     -71.6
+    ],
+    [
+     18.95,
+     -70.9
+    ],
+    [
+     18.75,
+     -70.4
+    ]
+   ]
+  },
+  {
+   "name": "Cordillère septentrionale",
+   "height": 1250,
+   "width": 10,
+   "line": [
+    [
+     19.65,
+     -71.1
+    ],
+    [
+     19.45,
+     -70.1
+    ]
+   ]
+  },
+  {
+   "name": "Île de la Tortue",
+   "height": 378,
+   "width": 3,
+   "line": [
+    [
+     20.06,
+     -72.95
+    ],
+    [
+     20.05,
+     -72.65
+    ]
+   ]
+  },
+  {
+   "name": "Sierra Nevada de Santa Marta",
+   "height": 5700,
+   "width": 24,
+   "line": [
+    [
+     10.85,
+     -73.95
+    ],
+    [
+     10.85,
+     -73.5
+    ]
+   ]
+  },
+  {
+   "name": "Serranía de Perijá",
+   "height": 3600,
+   "width": 14,
+   "line": [
+    [
+     10.9,
+     -72.9
+    ],
+    [
+     10.3,
+     -72.95
+    ],
+    [
+     9.6,
+     -73.15
+    ]
+   ]
+  },
+  {
+   "name": "Cordillère de Mérida",
+   "height": 3600,
+   "width": 20,
+   "line": [
+    [
+     9.2,
+     -71
+    ],
+    [
+     9.7,
+     -69.9
+    ]
+   ]
+  },
+  {
+   "name": "Cordillère de la Côte",
+   "height": 2400,
+   "width": 12,
+   "line": [
+    [
+     10.3,
+     -68.4
+    ],
+    [
+     10.45,
+     -67
+    ]
+   ]
+  },
+  {
+   "name": "Sierra de San Luis",
+   "height": 1500,
+   "width": 10,
+   "line": [
+    [
+     11.2,
+     -69.9
+    ],
+    [
+     11.15,
+     -69.5
+    ]
+   ]
+  },
+  {
+   "name": "Montes de María",
+   "height": 800,
+   "width": 12,
+   "line": [
+    [
+     9.75,
+     -75.4
+    ],
+    [
+     9.45,
+     -75.2
+    ]
+   ]
+  },
+  {
+   "name": "Cordillère de Panamá",
+   "height": 900,
+   "width": 12,
+   "line": [
+    [
+     9.35,
+     -80
+    ],
+    [
+     9.25,
+     -79.3
+    ],
+    [
+     9.2,
+     -78.6
+    ]
+   ]
+  },
+  {
+   "name": "Mont Christoffel",
+   "height": 372,
+   "width": 4,
+   "line": [
+    [
+     12.34,
+     -69.15
+    ],
+    [
+     12.32,
+     -69.08
+    ]
+   ]
+  },
+  {
+   "name": "Serranía de Macuira",
+   "height": 865,
+   "width": 6,
+   "line": [
+    [
+     12.17,
+     -71.45
+    ],
+    [
+     12.12,
+     -71.3
+    ]
+   ]
+  }
+ ],
+ "strips": [
+  {
+   "name": "Palisadoes",
+   "width": 130,
+   "height": 9,
+   "note": "la langue de sable qui ferme le port de Kingston ; Port-Royal à sa pointe",
+   "line": [
+    [
+     17.9375,
+     -76.8425
+    ],
+    [
+     17.9352,
+     -76.82
+    ],
+    [
+     17.935,
+     -76.79
+    ],
+    [
+     17.9362,
+     -76.765
+    ],
+    [
+     17.944,
+     -76.735
+    ],
+    [
+     17.95,
+     -76.72
+    ]
+   ]
+  }
+ ],
+ "islets": [
+  {
+   "name": "Lime Cay",
+   "lat": 17.9205,
+   "lon": -76.8155,
+   "radius": 25,
+   "note": "position approchée"
+  },
+  {
+   "name": "Rackham Cay",
+   "lat": 17.9245,
+   "lon": -76.8445,
+   "radius": 20,
+   "note": "position approchée"
+  }
+ ]
 }

@@ -78,6 +78,7 @@ public partial class OceanNode : Node3D
             CastShadow = GeometryInstance3D.ShadowCastingSetting.Off
         };
         AddChild(_plane);
+        BuildFar();
 
         _mat.SetShaderParameter(U.Half, (float)Config.OceanSize * 0.5f);
         _mat.SetShaderParameter(U.Seg, (float)Config.OceanSeg);
@@ -96,6 +97,8 @@ public partial class OceanNode : Node3D
 
         var centre = new Vector3(eye.X, 0, eye.Z);
         _plane.Position = centre;
+        // l'anneau suit la nappe, un mètre et demi plus bas (voir BuildFar)
+        if (_far != null) _far.Position = new Vector3(centre.X, -1.5f, centre.Z);
         _mat.SetShaderParameter(U.Centre, centre);
         _mat.SetShaderParameter(U.Sharp, (float)Core.Sharp);
         _mat.SetShaderParameter(U.AmpMax, (float)Core.AmpMax);
@@ -257,5 +260,65 @@ public partial class OceanNode : Node3D
             _waveB[i] = Variant.From(new Vector2((float)w.Omega, (float)w.Q));
             _wavePhase[i] = (float)w.Phase;
         }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  L'HORIZON                                                          */
+    /* ------------------------------------------------------------------ */
+
+    MeshInstance3D? _far;
+    ShaderMaterial? _farMat;
+
+    /// <summary>Le matériau de l'horizon — il lit le ciel comme le reste.</summary>
+    public ShaderMaterial? FarMaterial => _farMat;
+
+    /// <summary>
+    /// UN ANNEAU JUSQU'À L'HORIZON. La nappe de houle fait sept kilomètres ; en
+    /// prenant de la hauteur on en voyait le bord. Agrandir la nappe coûterait la
+    /// finesse des vagues — le remaillage vers la caméra est calibré sur sa
+    /// taille —, donc on lui coud une mer LISSE autour, qui n'a rien à calculer :
+    /// à trois kilomètres la brume éteint déjà 94 % du contraste, et une crête n'y
+    /// vaut plus un pixel.
+    ///
+    /// Il part de TROIS mille mètres, bien à l'intérieur du bord de la nappe
+    /// (3 500 au plus court), et passe un mètre et demi plus bas : la houle le
+    /// recouvre donc partout où elle existe, et il n'y a ni couture ni
+    /// scintillement de profondeur. Un mètre et demi à trois kilomètres, c'est
+    /// trois centièmes de degré.
+    /// </summary>
+    void BuildFar()
+    {
+        const int seg = 128;
+        const float rIn = 3000, rOut = 40000;
+        var pos = new Vector3[seg * 2 + 2];
+        var idx = new int[seg * 6];
+        for (int i = 0; i <= seg; i++)
+        {
+            float a = i * Mathf.Tau / seg;
+            float c = Mathf.Cos(a), s2 = Mathf.Sin(a);
+            pos[i * 2] = new Vector3(c * rIn, 0, s2 * rIn);
+            pos[i * 2 + 1] = new Vector3(c * rOut, 0, s2 * rOut);
+        }
+        for (int i = 0; i < seg; i++)
+        {
+            int k = i * 2;
+            // sens horaire vu de dessus : la face avant regarde le ciel
+            idx[i * 6] = k; idx[i * 6 + 1] = k + 1; idx[i * 6 + 2] = k + 3;
+            idx[i * 6 + 3] = k; idx[i * 6 + 4] = k + 3; idx[i * 6 + 5] = k + 2;
+        }
+        var arr = new Godot.Collections.Array();
+        arr.Resize((int)Mesh.ArrayType.Max);
+        arr[(int)Mesh.ArrayType.Vertex] = pos;
+        arr[(int)Mesh.ArrayType.Index] = idx;
+        var mesh = new ArrayMesh();
+        mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arr);
+
+        _farMat = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/sea_far.gdshader"), RenderPriority = -2 };
+        _far = new MeshInstance3D
+        {
+            Mesh = mesh, MaterialOverride = _farMat,
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off
+        };
+        AddChild(_far);
     }
 }

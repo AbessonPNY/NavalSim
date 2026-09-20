@@ -14,6 +14,18 @@ public sealed class Stroke
     public int Ink;
 }
 
+/// <summary>
+/// UNE CROIX, portée d'après ce qu'on a APPRIS et non d'après ce qu'on a vu :
+/// la carte d'une bouteille, un lieu qu'un mourant a griffonné. Elle porte la
+/// clé de la chose qu'elle désigne, pour qu'on puisse la rayer le jour où on
+/// l'a ramassée.
+/// </summary>
+public sealed class Cross
+{
+    public double X, Z;
+    public string Text = "", Key = "";
+}
+
 /// <summary>Un mot écrit sur la carte, à l'endroit qu'il désigne.</summary>
 public sealed class Note
 {
@@ -46,6 +58,7 @@ public sealed class Logbook
     public readonly List<string> Ports = new();
     public readonly List<Stroke> Strokes = new();
     public readonly List<Note> Notes = new();
+    public readonly List<Cross> Crosses = new();
 
     /// <summary>Vrai si ce relevé a ajouté un point — donc si la carte a changé.</summary>
     public bool Sail(double x, double z)
@@ -73,6 +86,23 @@ public sealed class Logbook
         foreach (var (tx, tz) in Track)
             if ((x - tx) * (x - tx) + (z - tz) * (z - tz) < Sight * Sight) return true;
         return false;
+    }
+
+    /// <summary>Porter une croix. La même clé deux fois ne la porte qu'une.</summary>
+    public bool Mark(double x, double z, string text, string key)
+    {
+        if (key.Length > 0 && Crosses.Exists(c => c.Key == key)) return false;
+        Crosses.Add(new Cross { X = x, Z = z, Text = text, Key = key });
+        return true;
+    }
+
+    /// <summary>La rayer : ce qu'elle désignait a été trouvé.</summary>
+    public bool Strike(string key)
+    {
+        int i = Crosses.FindIndex(c => c.Key == key);
+        if (i < 0) return false;
+        Crosses.RemoveAt(i);
+        return true;
     }
 
     public Stroke Begin(int ink)
@@ -118,6 +148,13 @@ public sealed class Logbook
                   .Append(", ").Append(p[k].Z.ToString("F1", ci)).Append(']');
             sb.Append("] }");
         }
+        sb.Append("],\n  \"crosses\": [");
+        for (int i = 0; i < Crosses.Count; i++)
+            sb.Append(i > 0 ? ",\n    " : "\n    ")
+              .Append("{ \"x\": ").Append(Crosses[i].X.ToString("F1", ci))
+              .Append(", \"z\": ").Append(Crosses[i].Z.ToString("F1", ci))
+              .Append(", \"key\": ").Append(JsonSerializer.Serialize(Crosses[i].Key))
+              .Append(", \"text\": ").Append(JsonSerializer.Serialize(Crosses[i].Text)).Append(" }");
         sb.Append("],\n  \"notes\": [");
         for (int i = 0; i < Notes.Count; i++)
             sb.Append(i > 0 ? ",\n    " : "\n    ")
@@ -149,6 +186,15 @@ public sealed class Logbook
                         foreach (var p in pts.EnumerateArray()) one.Pts.Add((p[0].GetDouble(), p[1].GetDouble()));
                     if (one.Pts.Count > 0) b.Strokes.Add(one);
                 }
+            if (r.TryGetProperty("crosses", out var cr))
+                foreach (var c in cr.EnumerateArray())
+                    b.Crosses.Add(new Cross
+                    {
+                        X = c.GetProperty("x").GetDouble(),
+                        Z = c.GetProperty("z").GetDouble(),
+                        Key = c.TryGetProperty("key", out var ck) ? ck.GetString() ?? "" : "",
+                        Text = c.TryGetProperty("text", out var ct) ? ct.GetString() ?? "" : ""
+                    });
             if (r.TryGetProperty("notes", out var no))
                 foreach (var n in no.EnumerateArray())
                     b.Notes.Add(new Note

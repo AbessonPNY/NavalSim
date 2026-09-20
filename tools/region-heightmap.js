@@ -188,10 +188,17 @@ for(let j = 0; j < H; j++){
         for(let s = 0; s + 1 < g.pts.length; s++) m = Math.min(m, segDist(x, z, g.pts[s], g.pts[s + 1]));
         r = Math.max(r, g.h*Math.exp(-(m/g.w)*(m/g.w))*(0.78 + 0.44*fbm(x/900, z/900)));
       }
-      const plain = 2.5 + 10*ss(0, 700, d);
+      /* LA BERGE. Elle valait 2,5 m au trait de cote, et vue d en haut la terre
+         ne se distinguait pas d un haut-fond : pas d ombre, pas de talus, la
+         meme teinte que l eau par-dessus un fond clair. Six metres au bord et
+         vingt a sept cents, c est une COTE -- le relief se lit, et la limite de
+         l eau devient une ligne et non un degrade. Elle reste sous la garde du
+         talus sous-marin, qui plonge a douze metres en quarante : la plage tient
+         donc en un pixel, ce qui est deja tout ce que l image peut porter. */
+      const plain = 6 + 14*ss(0, 700, d);
       const hills = 45*fbm(x/1400 + 17, z/1400 - 5)*ss(150, 2500, d);
       h = plain + Math.max(hills, r*ss(0, 500, d));
-      h = Math.max(2.5, h, lift[k]);   // above a pixel's blur, or thin land sinks
+      h = Math.max(6, h, lift[k]);     // above a pixel's blur, or thin land sinks
     }else{
       /* Out from the shore: a steep first forty metres to twelve — so the
          narrow harbours of a reduced map still float a ship — then the shelf,

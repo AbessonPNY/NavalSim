@@ -33,6 +33,7 @@ switch (mode)
     case "canon": Canon(); break;
     case "ports": Ports(); break;
     case "quete": Quete(); break;
+    case "ville": Ville(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -367,5 +368,39 @@ void Quete()
             Console.WriteLine($"  {title,-32}{step.Goal.ToString().ToLowerInvariant(),-8}{step.R,6:F0} m{-bed,7:F1} m{shore,7:F0} m   {leg}");
             px = pl.X; pz = pl.Z; first = false;
         }
+    }
+}
+
+/* OU SE POSENT LES MAISONS, et a quelle hauteur. Une ville qui a l air de
+   flotter peut venir de trois endroits -- le semis, le relief, ou le rendu --
+   et ce mode repond pour les deux premiers. */
+void Ville()
+{
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    var region = RegionSpec.FromJson(File.ReadAllText(Path.Combine(root, "world", "caraibes.json")));
+    var (w, h, grey) = GreyPng.Decode(File.ReadAllBytes(Path.Combine(root, region.Relief.Image)));
+    var world = new World(region, w, h, grey);
+    string key = args.Length > 1 ? args[1] : "port-royal";
+    var isl = world.ByKey(key);
+    if (isl == null) { Console.WriteLine($"port inconnu : {key}"); return; }
+
+    var houses = Town.Plant(world, isl.X, isl.Z, 420, 150, 7920);
+    Console.WriteLine($"{isl.Name} : {houses.Count} maison(s)");
+    double lo = 1e9, hi = -1e9, sum = 0; int sous = 0;
+    foreach (var m in houses)
+    {
+        double bed = world.HeightAt(m.X, m.Z);
+        if (m.Y < lo) lo = m.Y;
+        if (m.Y > hi) hi = m.Y;
+        sum += m.Y;
+        if (m.Y < 1) sous++;
+    }
+    Console.WriteLine($"  hauteur des seuils : {lo:F2} a {hi:F2} m, moyenne {sum / Math.Max(1, houses.Count):F2} m, {sous} sous 1 m");
+    Console.WriteLine($"  {"maison",-8}{"x",10}{"z",10}{"seuil",8}{"relief",9}{"ecart",8}");
+    for (int i = 0; i < Math.Min(8, houses.Count); i++)
+    {
+        var m = houses[i];
+        double bed = world.HeightAt(m.X, m.Z);
+        Console.WriteLine($"  {i,-8}{m.X,10:F0}{m.Z,10:F0}{m.Y,8:F2}{bed,9:F2}{m.Y - bed,8:F2}");
     }
 }

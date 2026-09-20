@@ -203,8 +203,8 @@ public partial class ShipDemo : Node3D
         string title = a.Step.Title.Length > 0 ? a.Step.Title : $"Étape {a.Index + 1}";
         _aimLine.Text = $"{title} — {where}   ({a.Index + 1}/{a.Count})";
         _aimLine.Visible = _info.Visible;
-        // sous le bandeau, quelle que soit sa hauteur du moment
-        _aimLine.Position = new Vector2(18, _info.Position.Y + _info.Size.Y + 10);
+        // sous le bandeau ET sous le curseur d écoute, quelles que soient leurs hauteurs
+        _aimLine.Position = new Vector2(18, _info.Position.Y + _info.Size.Y + 10 + TrimHeight);
     }
 
     /* EN MÈTRES SOUS LE DEMI-MILLE, en milles au-delà : un capitaine ne dit pas

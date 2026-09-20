@@ -207,7 +207,9 @@ public partial class ShipDemo : Node3D
         BuildSeaPanel(layer);
         BuildKeys(layer);
         BuildChartView(layer);
+        BuildTrim(layer);
         BuildQuestView(layer);
+        BuildLost(layer);
         BuildSpyglass();
     }
 
@@ -249,7 +251,7 @@ public partial class ShipDemo : Node3D
             s.Physics.World = _world;
             s.Ctrl.SailsSet = true;
             s.Ctrl.Sheet = 0.6;
-            double y = s.Physics.Settle(_sea.Core, s.Ctrl);
+            double y = SettleAfloat(s, _sea.Core);
             var b = s.Physics.Body;
             b.Pos = new Vec3d((i % 6 - 2.5) * 140, b.Pos.Y, 160 + (i / 6) * 180);
             s.SyncTransform();
@@ -762,6 +764,32 @@ public partial class ShipDemo : Node3D
     /// était, ce que le noyau fait lui-même pour qu'aucun appelant n'ait à le
     /// savoir.
     /// </summary>
+    /// <summary>
+    /// ELLE S'ASSIED SUR L'EAU, PAS SUR LE SABLE.
+    ///
+    /// <c>Settle</c> repose la coque au zéro LOCAL et y fait tourner le vrai
+    /// solveur, échouage compris. Or au départ le zéro local est Port-Royal —
+    /// c'est-à-dire la LANGUE DE SABLE : la coque s'y posait sur le sol, trouvait
+    /// un tirant d'eau de zéro et rendait comme « flottaison » la hauteur du
+    /// terrain. Tout ce qui en découlait était faux, et silencieusement : le
+    /// contour à la flottaison était relevé dix mètres SOUS le bordé, donc vide,
+    /// donc remplacé par le rectangle de secours — d'où le collier d'écume
+    /// rectangulaire autour de chaque coque. La preuve par le chiffre : la même
+    /// coque s'asseyait à 7,92 m avant que la berge soit relevée et à 11,27 m
+    /// après, sans que rien de la coque ait changé.
+    ///
+    /// Le fond est donc décroché le temps qu'elle trouve ses lignes. Le solveur
+    /// le lui rend à l'image suivante, là où elle est vraiment.
+    /// </summary>
+    static double SettleAfloat(ShipNode s, NavalSim.Core.Ocean sea)
+    {
+        var ground = s.Physics.World;
+        s.Physics.World = null;
+        double y = s.Physics.Settle(sea, s.Ctrl);
+        s.Physics.World = ground;
+        return y;
+    }
+
     void Launch(int i)
     {
         if (_paths.Count == 0) { _info.Text = "aucune fiche trouvée"; return; }
@@ -782,7 +810,7 @@ public partial class ShipDemo : Node3D
         _ship.Ctrl.SailsSet = false;
         _ship.Ctrl.Sheet = 0.6;
 
-        double y = _ship.Physics.Settle(_sea.Core, _ship.Ctrl);
+        double y = _eqY = SettleAfloat(_ship, _sea.Core);
         _ship.SyncTransform();
         GD.Print($"{spec.Name} : assise à y = {y:F3} m, tirant {_ship.Physics.Draft:F2} m, "
                + $"immersion {_ship.Physics.SubmergedFrac * 100:F1} %");
@@ -803,6 +831,7 @@ public partial class ShipDemo : Node3D
                + $"corps {_prof.EndAft:F2} à {_prof.EndFwd:F2} m");
         RefitFleet();
         HoistNation();
+        Found();   // une coque neuve n est pas celle qu on vient de perdre
         /* LA COQUE QUI TAPE JETTE DE L'EAU — wireSplash : le solveur dit combien
            d'eau elle vient de chasser et à quelle vitesse, la réserve en fait une
            gerbe. Toute coque le fait, pas seulement la nôtre. */
@@ -1038,6 +1067,7 @@ public partial class ShipDemo : Node3D
         }
         DropletTick(frame, under);
         _sky.PushTo(_sea.Material);
+        _sky.PushTo(_sea.FarMaterial);      // l horizon se noie dans le meme ciel
         _sky.SetCloud(_sea.Material, _cloud, _t);
         foreach (var m in _ship.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
         if (_krakenNode.Visible) foreach (var m in _krakenNode.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
@@ -1061,6 +1091,7 @@ public partial class ShipDemo : Node3D
 
         _hudAcc += frame;
         if (_hudAcc > 0.15) { _hudAcc = 0; UpdateInfo(); AmbianceTick(); }
+        TrimTick();
 
         TickCapture();
         _ftWatch.Stop();
@@ -1404,7 +1435,7 @@ public partial class ShipDemo : Node3D
                 case Key.T: SetAutoWeather(!_weather.On); break;
                 case Key.J: GoToStorm(0); break;
                 // le radoub : mâts replantés, toile renverguée — pour recommencer un essai
-                case Key.R: _ship.RestoreMasts(); Say("Radoub : la mâture est remise en état."); break;
+                case Key.R: Salvage(); break;
                 // le kraken, tout de suite contre elle — pour le voir sans attendre une minute au cœur d'un grain
                 case Key.K:
                     // il ne vit qu'au cœur des dépressions : hors d'elles, il replongerait à l'image suivante
