@@ -737,6 +737,10 @@ void fragment() {
 			wake_lines = ft.g * smoothstep(0.0, 0.03, edge);
 		}
 	}
+	/* Gardée AVANT la dentelle pour la face du dessous : les bulles qui pendent
+	   sous une nappe se dispersent en descendant, et le nuage y est plus continu
+	   que le lacis qu'on voit d'en haut. */
+	float persist_deep = persist;
 	// la vieille écume est déchirée, en traînées de dentelle, pas un lavis uniforme
 	persist *= 0.25 + 0.95 * lace(v_world.xz, persist, fine) * (1.0 - clamp(lace_far, 0.0, 1.0)) + 0.4 * clamp(lace_far, 0.0, 1.0);
 
@@ -802,6 +806,42 @@ void fragment() {
 		}
 		// le bord de la fenêtre, où la lumière s'entasse avant d'être coupée
 		c += vec3(0.80, 0.92, 1.00) * pow(1.0 - abs(dot(Vv, N)), 6.0) * 0.22;
+
+		/* L'ÉCUME PAR EN DESSOUS, et c'est elle qui manquait : vue d'en bas, la
+		   mer n'était qu'une vitre. Un sillage est un nuage de BULLES, et une
+		   bulle renvoie la lumière des deux côtés — de dessous il est laiteux et
+		   il BOUCHE la fenêtre de Snell. C'est la première chose qu'on remarque
+		   d'un bateau qui passe au-dessus.
+
+		   La MÊME écume que la face supérieure (foam, foam_col) : une définition,
+		   deux usagers, donc le collier, les fils de poupe et la vieille dentelle
+		   y sont tous sans qu'on ait à les recompter. Un peu plus marquée qu'en
+		   haut, non par caprice : la rétrodiffusion des bulles ne dépend pas du
+		   côté d'où on regarde, mais le fond contre lequel on la voit est ici
+		   bien plus sombre. */
+		/* PAS LA MÊME ÉCUME QU'EN HAUT, et c'est une question d'ÉPAISSEUR. Un
+		   mouton de crête est une pellicule : vu de dessus il blanchit la mer, vu
+		   de dessous il ne vaut presque rien. Le sillage, le collier de la coque
+		   et la vieille écume sont des nuages de bulles qui PENDENT sous la
+		   surface — eux seuls se voient d'en bas. Peint avec le foam d'en haut,
+		   tout l'horizon devenait laiteux (vu au repère rouge). */
+		float under = clamp(max(max(max(persist, persist_deep * 0.7), wake_lines) * 1.5, hull_foam * 0.95)
+		                  + crest_foam * 0.18, 0.0, 1.0);
+		/* Et PLUS CLAIRE qu'en haut, pas moins : de dessous on la voit à
+		   contre-jour, éclairée par la lumière qu'elle diffuse en la traversant. */
+		/* SA COULEUR N'EST PAS CELLE D'EN HAUT. La passe sous-marine mange le
+		   rouge en premier : une écume peinte de sa couleur d'air ressort brune
+		   et sombre — vu au repère rouge, qui arrivait bordeaux. Physiquement
+		   c'est juste, et c'est ce qu'on voit en plongée : du blanc à quelques
+		   mètres sous la surface est CYAN. On garde donc sa clarté (la luminance
+		   de foam_col, une seule définition) et on la porte sur un blanc bleuté,
+		   qui traverse l'eau au lieu d'y disparaître.
+
+		   Et jamais plus sombre que ce qu'elle couvre : des bulles AJOUTENT de la
+		   diffusion, elles n'ôtent pas de la lumière. */
+		float lum = dot(foam_col, vec3(0.30, 0.59, 0.11));
+		vec3 milk = lum * vec3(0.72, 0.95, 1.10) * 1.8;
+		c = mix(c, max(c, milk), under * 0.95);
 	}
 
 	vec2 base = SCREEN_UV;

@@ -6487,6 +6487,29 @@ Demandé (2026-09-20) : « les naufrages d'abord ».
   viendrait vérifier. Pas de halo : le projet ne fait luire que la nuit, et cette
   règle-là tient.
 
+- **L'écume vue PAR EN DESSOUS** (demandé : « on ne voit que la transparence de
+  l'eau »). La branche sous-marine du shader REMPLACE la couleur par la fenêtre
+  de Snell, et effaçait donc l'écume calculée dix lignes plus haut : d'en bas, la
+  mer n'était qu'une vitre. Trois choses à comprendre, toutes mesurées au repère
+  coloré :
+  1. *quelle écume* — pas la même qu'en haut. Un mouton de crête est une
+     pellicule ; peint tel quel d'en dessous, tout l'horizon devenait laiteux
+     (repère ROUGE : il couvrait tout). Seul se voit d'en bas ce qui a de
+     l'ÉPAISSEUR — le sillage, le collier de la coque, la vieille écume —, et le
+     collier, vu de trois mètres, a fallu le ramener de 1,7 à 0,95 (repère VERT :
+     il emplissait le cadre) ;
+  2. *quelle couleur* — pas celle d'en haut non plus. La passe sous-marine mange
+     le rouge en premier : une écume peinte de sa couleur d'air ressort brune (le
+     repère rouge arrivait bordeaux). On garde donc sa CLARTÉ — la luminance de
+     `foam_col`, une seule définition — et on la porte sur un blanc bleuté. Du
+     blanc à quelques mètres sous la surface EST cyan, c'est ce qu'on voit en
+     plongée ;
+  3. *jamais plus sombre que ce qu'elle couvre* : `max(c, milk)`. Des bulles
+     ajoutent de la diffusion, elles n'ôtent pas de lumière.
+  Et la nappe profonde est prise AVANT la dentelle (`persist_deep`) : les bulles
+  qui pendent sous une écume se dispersent en descendant, le nuage y est plus
+  continu que le lacis de la surface.
+
 ## L'écran de titre (Godot)
 
 La page n'en a jamais eu : on n'y tombait pas dans un jeu, on y tombait dans une
