@@ -59,6 +59,8 @@ public partial class ShipDemo
         _foam.SetBoils(_wreckAir.Boils);
         _flotsam.Step(dt, _sea.Core, _allShipsForFlotsam(), _ship, _cam);
         _bubbles.Step(dt, _sea.Core, _t);
+        // l'or ne s'allume pas tout seul : il lui faut la course du soleil et sa couleur
+        _sky.PushTo(_coins.Material);
         _coins.Step(dt);
     }
 

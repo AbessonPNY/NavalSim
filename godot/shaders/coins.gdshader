@@ -12,7 +12,13 @@
  * un .glb d'écu doit être posé à plat de la même façon.
  */
 shader_type spatial;
-render_mode blend_mix, shadows_disabled, specular_schlick_ggx;
+/* depth_draw_always, ET C'EST INDISPENSABLE ICI. Un matériau en mélange n'écrit
+   pas sa profondeur : la passe sous-marine, qui lit le tampon de profondeur pour
+   savoir combien d'eau la lumière a traversée, prenait donc la distance de ce
+   qu'il y avait DERRIÈRE la pièce. Devant la coque elle restait dorée, devant
+   l'eau lointaine l'absorption l'effaçait d'un coup — on voyait les pièces
+   disparaître en franchissant la quille, sur une frontière nette. */
+render_mode blend_mix, depth_draw_always, shadows_disabled, specular_schlick_ggx;
 
 uniform vec3 u_gold : source_color = vec3(0.83, 0.62, 0.22);
 uniform vec3 u_edge : source_color = vec3(0.42, 0.30, 0.10);
@@ -22,11 +28,15 @@ uniform vec3 u_edge : source_color = vec3(0.42, 0.30, 0.10);
    plongeur qui remonte ses photos, faite à la source. */
 uniform vec3 u_glow : source_color = vec3(1.0, 0.44, 0.06);
 uniform sampler2D u_tex : source_color, filter_linear_mipmap;
+// SkyNode.PushTo : la course du soleil et sa couleur de l'heure
+uniform vec3 u_sun = vec3(0.0, 1.0, 0.0);
+uniform vec3 u_sun_col : source_color = vec3(1.0, 0.95, 0.86);
 uniform bool u_textured = false;   // vrai si le .glb de l'écu porte sa propre gravure
 
 varying float v_fade;
 varying float v_face;
 varying float v_flat;
+varying float v_glint;
 
 void vertex() {
 	v_fade = INSTANCE_CUSTOM.y;
@@ -35,7 +45,17 @@ void vertex() {
 	// de combien sa face regarde l'œil : c'est l'axe y de l'instance
 	vec3 n = normalize((MODEL_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
 	vec3 at = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-	v_face = abs(dot(n, normalize(CAMERA_POSITION_WORLD - at)));
+	vec3 V = normalize(CAMERA_POSITION_WORLD - at);
+	v_face = abs(dot(n, V));
+	/* LE VRAI REFLET. Une pièce ne brille pas parce qu'elle nous regarde, mais
+	   parce qu'elle nous renvoie le SOLEIL : sa face doit bissecter l'œil et
+	   l'astre. C'est le demi-vecteur, et l'exposant serré donne l'éclair bref
+	   d'une pièce qui tourne — deux fois par tour, comme une faux dans un champ.
+	   Sous l'eau la réfraction couche un peu la course du soleil ; à moins de
+	   quarante-huit degrés de la verticale l'écart ne se voit pas, et on garde
+	   la direction franche plutôt qu'un calcul que rien ne viendrait vérifier. */
+	vec3 H = normalize(normalize(u_sun) + V);
+	v_glint = pow(max(abs(dot(n, H)), 0.0), 60.0);
 }
 
 void fragment() {
@@ -54,6 +74,7 @@ void fragment() {
 	   trois pixels, et l'absorption lui a déjà pris son rouge — sans ce socle il
 	   ne reste qu'un grain verdâtre. C'est ce que montre une photo de trésor qui
 	   coule : on ne voit pas les pièces, on voit leurs éclats. */
-	EMISSION = u_glow * (0.30 + 2.6 * pow(v_face, 4.0)) * v_flat;
+	EMISSION = (u_glow * (0.30 + 2.2 * pow(v_face, 4.0))
+	          + u_sun_col * v_glint * 6.0) * v_flat;
 	ALPHA = v_fade;
 }

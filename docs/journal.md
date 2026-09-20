@@ -6467,6 +6467,64 @@ Demandé (2026-09-20) : « les naufrages d'abord ».
   Un compteur temporaire (nombre vivant, y extrêmes, y de la caméra) a réglé la
   question en une exécution, là où les captures ne répondaient pas.
 
+- **Les pièces disparaissaient en passant la quille** (signalé, capture à
+  l'appui : une frontière nette, or au-dessus, rien en dessous). Un matériau en
+  MÉLANGE n'écrit pas sa profondeur ; la passe sous-marine, qui lit le tampon de
+  profondeur pour savoir combien d'eau la lumière a traversée, prenait donc la
+  distance de ce qu'il y avait DERRIÈRE la pièce — la coque, proche, ou l'eau
+  lointaine. `depth_draw_always` règle tout. Le même piège guette toute chose
+  transparente vue sous l'eau ; les bulles y échappent parce qu'elles ne quittent
+  jamais le voisinage de la coque.
+
+- **Le vrai reflet** (demandé : « les pièces pourraient refléter la lumière et
+  créer un éclat ? »). L'éclat de départ s'allumait quand la face regardait
+  l'ŒIL ; une pièce brille quand elle renvoie le SOLEIL vers l'œil. C'est le
+  demi-vecteur, exposant 60 : l'éclair est bref et revient deux fois par tour,
+  comme une faux dans un champ. La couleur est celle de l'heure (`u_sun_col`,
+  poussée par SkyNode), et non un blanc de convention. Sous l'eau la réfraction
+  couche un peu la course du soleil ; sous quarante-huit degrés l'écart ne se
+  voit pas, et on garde la direction franche plutôt qu'un calcul que rien ne
+  viendrait vérifier. Pas de halo : le projet ne fait luire que la nuit, et cette
+  règle-là tient.
+
+## L'écran de titre (Godot)
+
+La page n'en a jamais eu : on n'y tombait pas dans un jeu, on y tombait dans une
+simulation déjà lancée. Demandé, avec une maquette — titre à gauche, entrées à
+droite, posées sur une capture sous-marine.
+
+**Son fond n'est pas une image, c'est la simulation.** L'œil est planté à six
+mètres et demi de la coque, deux mètres sous la flottaison, et fait le tour en
+moins de deux minutes ; la cale lâche vingt-six pièces toutes les 1,6 s, réglé
+pour tenir sous le plafond de `CoinNode` (huit par seconde contre une vie
+moyenne de trente-sept, soit trois cents en vol). Rien n'est arrêté derrière :
+la mer travaille, la coque roule. « Jouer » n'a donc qu'à rendre la caméra — le
+monde est déjà chaud, il n'y a pas de chargement.
+
+**Il ne redouble rien.** « Options » ouvre le menu d'Échap, qui existe et qui est
+complet ; un second jeu de réglages aurait dérivé du premier en trois semaines.
+
+**Il prend TOUTE l'entrée** : sans cela la barre et les canons répondraient
+derrière lui. Les boutons, eux, sont des `Control` et ont la souris avant
+`_UnhandledInput`. La souris ne fait pas son survol à elle : elle DÉPLACE le
+choix des flèches, pour qu'il n'y ait jamais deux états sélectionnés.
+
+**L'anglaise de la page sert de titre ici aussi** — Estonia, lue dans
+`css/fonts` hors du projet Godot : une fonte, deux versions. Sa licence (SIL
+OFL 1.1) voyage avec elle, dans les crédits, comme elle voyage dans la page.
+
+**Trois pièges, tous relevés à la capture :**
+- il se construisait AVANT la lecture de la ligne de commande, et son ouverture
+  rallumait un panneau que `--masquer` venait d'éteindre. Il se construit
+  maintenant en dernier, et ne s'ouvre que s'il doit s'ouvrir ;
+- sa couche naissait visible : une capture ordinaire portait le titre par-dessus
+  le jeu ;
+- il est posé sous le masque de cinéma (couche −1) et non au-dessus : le texte
+  tient dans le cadre du scope au lieu de déborder sur les bandes.
+
+`--titre 0` entre droit dans le jeu, `--titre 1` le force même en capture ;
+une capture ou une caméra imposée (`--eye`) le sautent d'elles-mêmes.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

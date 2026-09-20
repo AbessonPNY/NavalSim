@@ -111,6 +111,9 @@ public partial class ShipDemo : Node3D
         // les réglages du fichier d'abord ; la ligne de commande, lue ensuite, a le dernier mot
         ApplySettings();
         SetupCapture();
+        // en DERNIER : il ne s'ouvre que si la ligne de commande ne demande pas
+        // autre chose, et il ne touche donc jamais à ce qu'elle vient de régler
+        BuildTitle();
     }
 
     void BuildScene()
@@ -763,7 +766,8 @@ public partial class ShipDemo : Node3D
         double frame = Math.Min(0.05, delta);
         _t += frame;
 
-        ReadKeys(frame);
+        // au titre, la barre et les voiles ne répondent pas : l'œil fait sa ronde
+        if (_inTitle) TitleTick(frame); else ReadKeys(frame);
         // le temps AVANT le solveur : la coque et le shader liront la même mer
         WeatherTick(frame, _t - frame);
 
@@ -1216,6 +1220,16 @@ public partial class ShipDemo : Node3D
         /* G : UN APPUI, une pièce ; TENU, la bordée entière — la répétition du clavier
            le dit, et un loquet empêche un long appui de lâcher bordée sur bordée.
            ⇧ : l'autre bord, une fois. */
+        /* L ÉCRAN DE TITRE PREND TOUT : sans cela, la barre et les canons
+           répondraient derrière lui. Les boutons, eux, sont des Control : ils ont
+           déjà eu la souris avant qu on arrive ici. */
+        if (_inTitle)
+        {
+            if (e is InputEventKey tk && tk.Pressed && !tk.Echo)
+                TitleKey(tk.PhysicalKeycode != Key.None ? tk.PhysicalKeycode : tk.Keycode);
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         if (e is InputEventKey gk && (gk.PhysicalKeycode != Key.None ? gk.PhysicalKeycode : gk.Keycode) == Key.G)
         {
             if (!gk.Pressed) _salvo = false;
@@ -2079,7 +2093,9 @@ public partial class ShipDemo : Node3D
         for (int i = 0; i < args.Length - 1; i++)
             switch (args[i])
             {
-                case "--capture": _capturePath = args[i + 1]; if (_captureIn < 0) _captureIn = 60; break;
+                case "--capture": _capturePath = args[i + 1]; if (_captureIn < 0) _captureIn = 60; _askTitle ??= false; break;
+                // --titre 0 entre droit dans le jeu, --titre 1 le force même en capture
+                case "--titre": _askTitle = args[i + 1] != "0"; break;
                 // combien d images la laisser vivre avant de la photographier : une
                 // coque met du temps a prendre son erre, et une seconde de
                 // simulation ne montre qu une voilure a moitie etablie
@@ -2149,7 +2165,7 @@ public partial class ShipDemo : Node3D
                 // un oeil FIXE dans le monde, pour comparer au pixel avec la page
                 // d'origine : une camera qui suit une coque soulevee de quarante
                 // metres se retrouve dans la vague, et la comparaison ne vaut rien
-                case "--eye": _fixEye = ParseVec(args[i + 1]); break;
+                case "--eye": _fixEye = ParseVec(args[i + 1]); _planted = true; break;
                 case "--look": _fixLook = ParseVec(args[i + 1]); break;
                 case "--foamcheck": _foamCheckIn = args[i + 1].ToInt(); break;
                 // le profil de flottaison, station par station, à poser à côté de

@@ -14,20 +14,20 @@ namespace NavalSim;
 /// </summary>
 public partial class AnamorphicDofEffect : ScreenEffect
 {
-    public float Near, Far = DofRange.Infinity, Fade = 0.5f, Amount = 0.08f;
-    public int Quality = 1;
-    /// <summary>La largeur de l'ellipse sur sa hauteur : 0,5, le 2:1 vertical du scope.</summary>
-    public float Squeeze = 0.5f;
+	public float Near, Far = DofRange.Infinity, Fade = 0.5f, Amount = 0.08f;
+	public int Quality = 1;
+	/// <summary>La largeur de l'ellipse sur sa hauteur : 0,5, le 2:1 vertical du scope.</summary>
+	public float Squeeze = 0.5f;
 
-    static readonly int[] SamplesFor = { 16, 32, 48, 80 };
+	static readonly int[] SamplesFor = { 16, 32, 48, 80 };
 
-    public AnamorphicDofEffect() : base("res://shaders/anamorphic_dof.glsl", "naval_anamorphose", 96) { }
+	public AnamorphicDofEffect() : base("res://shaders/anamorphic_dof.glsl", "naval_anamorphose", 96) { }
 
-    protected override bool Prepare(RenderSceneData sd, Vector2I size)
-    {
-        Put(0, sd.GetCamProjection().Inverse());
-        Col(64, new Vector4(Near, Far, Fade, Amount * size.Y * 0.25f));
-        Col(80, new Vector4(SamplesFor[System.Math.Clamp(Quality, 0, 3)], Squeeze, size.X, size.Y));
-        return true;
-    }
+	protected override bool Prepare(RenderSceneData sd, Vector2I size)
+	{
+		Put(0, sd.GetCamProjection().Inverse());
+		Col(64, new Vector4(Near, Far, Fade, Amount * size.Y * 0.25f));
+		Col(80, new Vector4(SamplesFor[System.Math.Clamp(Quality, 0, 3)], Squeeze, size.X, size.Y));
+		return true;
+	}
 }

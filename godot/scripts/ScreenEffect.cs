@@ -23,151 +23,151 @@ namespace NavalSim;
 /// </summary>
 public abstract partial class ScreenEffect : CompositorEffect
 {
-    protected RenderingDevice? Rd;
-    Rid _copyShader, _copyPipeline, _shader, _linear, _nearest, _ubo;
-    protected readonly byte[] Params;
+	protected RenderingDevice? Rd;
+	Rid _copyShader, _copyPipeline, _shader, _linear, _nearest, _ubo;
+	protected readonly byte[] Params;
 
-    readonly RDUniform _cSrc = new() { UniformType = RenderingDevice.UniformType.SamplerWithTexture, Binding = 0 };
-    readonly RDUniform _cDst = new() { UniformType = RenderingDevice.UniformType.Image, Binding = 1 };
-    readonly RDUniform _cDepth = new() { UniformType = RenderingDevice.UniformType.SamplerWithTexture, Binding = 2 };
-    readonly RDUniform _cParams = new() { UniformType = RenderingDevice.UniformType.UniformBuffer, Binding = 3 };
-    readonly Godot.Collections.Array<RDUniform> _copySet = new();
-    readonly RDUniform _uColor = new() { UniformType = RenderingDevice.UniformType.SamplerWithTexture, Binding = 0 };
-    readonly RDUniform _uDepth = new() { UniformType = RenderingDevice.UniformType.SamplerWithTexture, Binding = 1 };
-    readonly RDUniform _uParams = new() { UniformType = RenderingDevice.UniformType.UniformBuffer, Binding = 2 };
-    readonly Godot.Collections.Array<RDUniform> _set = new();
-    readonly StringName _ctx, _tmp = "tampon";
-    static readonly StringName RB = "render_buffers", ColorName = "color", DepthName = "depth";
+	readonly RDUniform _cSrc = new() { UniformType = RenderingDevice.UniformType.SamplerWithTexture, Binding = 0 };
+	readonly RDUniform _cDst = new() { UniformType = RenderingDevice.UniformType.Image, Binding = 1 };
+	readonly RDUniform _cDepth = new() { UniformType = RenderingDevice.UniformType.SamplerWithTexture, Binding = 2 };
+	readonly RDUniform _cParams = new() { UniformType = RenderingDevice.UniformType.UniformBuffer, Binding = 3 };
+	readonly Godot.Collections.Array<RDUniform> _copySet = new();
+	readonly RDUniform _uColor = new() { UniformType = RenderingDevice.UniformType.SamplerWithTexture, Binding = 0 };
+	readonly RDUniform _uDepth = new() { UniformType = RenderingDevice.UniformType.SamplerWithTexture, Binding = 1 };
+	readonly RDUniform _uParams = new() { UniformType = RenderingDevice.UniformType.UniformBuffer, Binding = 2 };
+	readonly Godot.Collections.Array<RDUniform> _set = new();
+	readonly StringName _ctx, _tmp = "tampon";
+	static readonly StringName RB = "render_buffers", ColorName = "color", DepthName = "depth";
 
-    // la cible du tracé, refaite quand l'image change (fenêtre retaillée) ;
-    // le pipeline, refait quand son format change (anticrénelage basculé)
-    Rid _fb, _fbColor, _pipeline;
-    long _pipelineFormat = RenderingDevice.InvalidFormatId;
-    readonly Godot.Collections.Array<Rid> _fbTex = new();
-    static readonly Color[] NoClear = Array.Empty<Color>();
-    readonly string _shaderPath;
+	// la cible du tracé, refaite quand l'image change (fenêtre retaillée) ;
+	// le pipeline, refait quand son format change (anticrénelage basculé)
+	Rid _fb, _fbColor, _pipeline;
+	long _pipelineFormat = RenderingDevice.InvalidFormatId;
+	readonly Godot.Collections.Array<Rid> _fbTex = new();
+	static readonly Color[] NoClear = Array.Empty<Color>();
+	readonly string _shaderPath;
 
-    /// <param name="shaderPath">le shader de l'effet, #[vertex] + #[fragment]</param>
-    /// <param name="context">le nom de son tampon parmi ceux du rendu : un par effet</param>
-    /// <param name="paramBytes">la taille de son bloc de paramètres std140</param>
-    protected ScreenEffect(string shaderPath, string context, int paramBytes)
-    {
-        _shaderPath = shaderPath;
-        _ctx = context;
-        Params = new byte[paramBytes];
-        EffectCallbackType = EffectCallbackTypeEnum.PostTransparent;
-        /* Avec l'anticrénelage MSAA, l'image et la profondeur ne sont RÉSOLUES
-           qu'à la demande : sans ces deux-là, l'effet lisait des tampons pas encore
-           résolus. */
-        AccessResolvedColor = true;
-        AccessResolvedDepth = true;
-        _copySet.Add(_cSrc); _copySet.Add(_cDst); _copySet.Add(_cDepth); _copySet.Add(_cParams);
-        _set.Add(_uColor); _set.Add(_uDepth); _set.Add(_uParams);
-        RenderingServer.CallOnRenderThread(Callable.From(Init));
-    }
+	/// <param name="shaderPath">le shader de l'effet, #[vertex] + #[fragment]</param>
+	/// <param name="context">le nom de son tampon parmi ceux du rendu : un par effet</param>
+	/// <param name="paramBytes">la taille de son bloc de paramètres std140</param>
+	protected ScreenEffect(string shaderPath, string context, int paramBytes)
+	{
+		_shaderPath = shaderPath;
+		_ctx = context;
+		Params = new byte[paramBytes];
+		EffectCallbackType = EffectCallbackTypeEnum.PostTransparent;
+		/* Avec l'anticrénelage MSAA, l'image et la profondeur ne sont RÉSOLUES
+		   qu'à la demande : sans ces deux-là, l'effet lisait des tampons pas encore
+		   résolus. */
+		AccessResolvedColor = true;
+		AccessResolvedDepth = true;
+		_copySet.Add(_cSrc); _copySet.Add(_cDst); _copySet.Add(_cDepth); _copySet.Add(_cParams);
+		_set.Add(_uColor); _set.Add(_uDepth); _set.Add(_uParams);
+		RenderingServer.CallOnRenderThread(Callable.From(Init));
+	}
 
-    void Init()
-    {
-        Rd = RenderingServer.GetRenderingDevice();
-        if (Rd == null) return;
-        _copyShader = Rd.ShaderCreateFromSpirV(GD.Load<RDShaderFile>("res://shaders/screen_copy.glsl").GetSpirV());
-        _copyPipeline = Rd.ComputePipelineCreate(_copyShader);
-        _shader = Rd.ShaderCreateFromSpirV(GD.Load<RDShaderFile>(_shaderPath).GetSpirV());
-        _linear = Rd.SamplerCreate(new RDSamplerState
-        {
-            MinFilter = RenderingDevice.SamplerFilter.Linear, MagFilter = RenderingDevice.SamplerFilter.Linear,
-            RepeatU = RenderingDevice.SamplerRepeatMode.ClampToEdge, RepeatV = RenderingDevice.SamplerRepeatMode.ClampToEdge
-        });
-        _nearest = Rd.SamplerCreate(new RDSamplerState
-        {
-            RepeatU = RenderingDevice.SamplerRepeatMode.ClampToEdge, RepeatV = RenderingDevice.SamplerRepeatMode.ClampToEdge
-        });
-        _ubo = Rd.UniformBufferCreate((uint)Params.Length);
-    }
+	void Init()
+	{
+		Rd = RenderingServer.GetRenderingDevice();
+		if (Rd == null) return;
+		_copyShader = Rd.ShaderCreateFromSpirV(GD.Load<RDShaderFile>("res://shaders/screen_copy.glsl").GetSpirV());
+		_copyPipeline = Rd.ComputePipelineCreate(_copyShader);
+		_shader = Rd.ShaderCreateFromSpirV(GD.Load<RDShaderFile>(_shaderPath).GetSpirV());
+		_linear = Rd.SamplerCreate(new RDSamplerState
+		{
+			MinFilter = RenderingDevice.SamplerFilter.Linear, MagFilter = RenderingDevice.SamplerFilter.Linear,
+			RepeatU = RenderingDevice.SamplerRepeatMode.ClampToEdge, RepeatV = RenderingDevice.SamplerRepeatMode.ClampToEdge
+		});
+		_nearest = Rd.SamplerCreate(new RDSamplerState
+		{
+			RepeatU = RenderingDevice.SamplerRepeatMode.ClampToEdge, RepeatV = RenderingDevice.SamplerRepeatMode.ClampToEdge
+		});
+		_ubo = Rd.UniformBufferCreate((uint)Params.Length);
+	}
 
-    /* LIBÉRER AVANT QUE LE PÉRIPHÉRIQUE NE S'ÉTEIGNE. Une ressource Godot meurt
-       quand plus rien ne la tient, et l'effet est tenu par le compositeur de la
-       caméra jusqu'après l'arrêt du rendu : la démo l'appelle donc en sortant. */
-    public void Release() => RenderingServer.CallOnRenderThread(Callable.From(FreeAll));
+	/* LIBÉRER AVANT QUE LE PÉRIPHÉRIQUE NE S'ÉTEIGNE. Une ressource Godot meurt
+	   quand plus rien ne la tient, et l'effet est tenu par le compositeur de la
+	   caméra jusqu'après l'arrêt du rendu : la démo l'appelle donc en sortant. */
+	public void Release() => RenderingServer.CallOnRenderThread(Callable.From(FreeAll));
 
-    void FreeAll()
-    {
-        if (Rd == null) return;
-        // les dépendants d'abord : pipelines avant shaders
-        foreach (Rid r in new[] { _pipeline, _copyPipeline, _ubo, _linear, _nearest, _shader, _copyShader })
-            if (r.IsValid) Rd.FreeRid(r);
-        _pipeline = _copyPipeline = _ubo = _linear = _nearest = _shader = _copyShader = default;
-    }
+	void FreeAll()
+	{
+		if (Rd == null) return;
+		// les dépendants d'abord : pipelines avant shaders
+		foreach (Rid r in new[] { _pipeline, _copyPipeline, _ubo, _linear, _nearest, _shader, _copyShader })
+			if (r.IsValid) Rd.FreeRid(r);
+		_pipeline = _copyPipeline = _ubo = _linear = _nearest = _shader = _copyShader = default;
+	}
 
-    /// <summary>
-    /// Remplir <see cref="Params"/> pour cette image. Faux : rien à tracer cette
-    /// fois (la première image du flou de mouvement, qui n'a pas d'image d'avant).
-    /// </summary>
-    protected abstract bool Prepare(RenderSceneData scene, Vector2I size);
+	/// <summary>
+	/// Remplir <see cref="Params"/> pour cette image. Faux : rien à tracer cette
+	/// fois (la première image du flou de mouvement, qui n'a pas d'image d'avant).
+	/// </summary>
+	protected abstract bool Prepare(RenderSceneData scene, Vector2I size);
 
-    // std140 : quatre colonnes de vec4, écrites sans tableau intermédiaire
-    protected void Put(int at, Projection m) { Col(at, m.X); Col(at + 16, m.Y); Col(at + 32, m.Z); Col(at + 48, m.W); }
+	// std140 : quatre colonnes de vec4, écrites sans tableau intermédiaire
+	protected void Put(int at, Projection m) { Col(at, m.X); Col(at + 16, m.Y); Col(at + 32, m.Z); Col(at + 48, m.W); }
 
-    protected void Col(int at, Vector4 c)
-    {
-        BitConverter.TryWriteBytes(Params.AsSpan(at), c.X);
-        BitConverter.TryWriteBytes(Params.AsSpan(at + 4), c.Y);
-        BitConverter.TryWriteBytes(Params.AsSpan(at + 8), c.Z);
-        BitConverter.TryWriteBytes(Params.AsSpan(at + 12), c.W);
-    }
+	protected void Col(int at, Vector4 c)
+	{
+		BitConverter.TryWriteBytes(Params.AsSpan(at), c.X);
+		BitConverter.TryWriteBytes(Params.AsSpan(at + 4), c.Y);
+		BitConverter.TryWriteBytes(Params.AsSpan(at + 8), c.Z);
+		BitConverter.TryWriteBytes(Params.AsSpan(at + 12), c.W);
+	}
 
-    protected void Float(int at, float v) => BitConverter.TryWriteBytes(Params.AsSpan(at), v);
+	protected void Float(int at, float v) => BitConverter.TryWriteBytes(Params.AsSpan(at), v);
 
-    public override void _RenderCallback(int effectCallbackType, RenderData renderData)
-    {
-        if (Rd == null || !_copyPipeline.IsValid || !_shader.IsValid) return;
-        if (renderData.GetRenderSceneBuffers() is not RenderSceneBuffersRD rb) return;
-        Vector2I size = rb.GetInternalSize();
-        if (size.X == 0 || size.Y == 0) return;
-        if (!Prepare(renderData.GetRenderSceneData(), size)) return;
-        Rd.BufferUpdate(_ubo, 0, (uint)Params.Length, Params);
+	public override void _RenderCallback(int effectCallbackType, RenderData renderData)
+	{
+		if (Rd == null || !_copyPipeline.IsValid || !_shader.IsValid) return;
+		if (renderData.GetRenderSceneBuffers() is not RenderSceneBuffersRD rb) return;
+		Vector2I size = rb.GetInternalSize();
+		if (size.X == 0 || size.Y == 0) return;
+		if (!Prepare(renderData.GetRenderSceneData(), size)) return;
+		Rd.BufferUpdate(_ubo, 0, (uint)Params.Length, Params);
 
-        if (!rb.HasTexture(_ctx, _tmp))
-            rb.CreateTexture(_ctx, _tmp, RenderingDevice.DataFormat.R16G16B16A16Sfloat,
-                (uint)(RenderingDevice.TextureUsageBits.StorageBit | RenderingDevice.TextureUsageBits.SamplingBit),
-                RenderingDevice.TextureSamples.Samples1, size, 1, 1, true);
-        Rid color = rb.GetTexture(RB, ColorName), depth = rb.GetTexture(RB, DepthName), tmp = rb.GetTexture(_ctx, _tmp);
+		if (!rb.HasTexture(_ctx, _tmp))
+			rb.CreateTexture(_ctx, _tmp, RenderingDevice.DataFormat.R16G16B16A16Sfloat,
+				(uint)(RenderingDevice.TextureUsageBits.StorageBit | RenderingDevice.TextureUsageBits.SamplingBit),
+				RenderingDevice.TextureSamples.Samples1, size, 1, 1, true);
+		Rid color = rb.GetTexture(RB, ColorName), depth = rb.GetTexture(RB, DepthName), tmp = rb.GetTexture(_ctx, _tmp);
 
-        _cSrc.ClearIds(); _cSrc.AddId(_nearest); _cSrc.AddId(color);
-        _cDst.ClearIds(); _cDst.AddId(tmp);
-        _cDepth.ClearIds(); _cDepth.AddId(_nearest); _cDepth.AddId(depth);
-        _cParams.ClearIds(); _cParams.AddId(_ubo);
-        long cl = Rd.ComputeListBegin();
-        Rd.ComputeListBindComputePipeline(cl, _copyPipeline);
-        Rd.ComputeListBindUniformSet(cl, UniformSetCacheRD.GetCache(_copyShader, 0, _copySet), 0);
-        Rd.ComputeListDispatch(cl, (uint)((size.X + 7) / 8), (uint)((size.Y + 7) / 8), 1);
-        Rd.ComputeListEnd();
+		_cSrc.ClearIds(); _cSrc.AddId(_nearest); _cSrc.AddId(color);
+		_cDst.ClearIds(); _cDst.AddId(tmp);
+		_cDepth.ClearIds(); _cDepth.AddId(_nearest); _cDepth.AddId(depth);
+		_cParams.ClearIds(); _cParams.AddId(_ubo);
+		long cl = Rd.ComputeListBegin();
+		Rd.ComputeListBindComputePipeline(cl, _copyPipeline);
+		Rd.ComputeListBindUniformSet(cl, UniformSetCacheRD.GetCache(_copyShader, 0, _copySet), 0);
+		Rd.ComputeListDispatch(cl, (uint)((size.X + 7) / 8), (uint)((size.Y + 7) / 8), 1);
+		Rd.ComputeListEnd();
 
-        if (color != _fbColor || !Rd.FramebufferIsValid(_fb))
-        {
-            _fbTex.Clear(); _fbTex.Add(color);
-            _fb = Rd.FramebufferCreate(_fbTex);
-            _fbColor = color;
-        }
-        long fmt = Rd.FramebufferGetFormat(_fb);
-        if (fmt != _pipelineFormat || !_pipeline.IsValid)
-        {
-            if (_pipeline.IsValid) Rd.FreeRid(_pipeline);
-            var blend = new RDPipelineColorBlendState();
-            blend.Attachments.Add(new RDPipelineColorBlendStateAttachment());
-            _pipeline = Rd.RenderPipelineCreate(_shader, fmt, RenderingDevice.InvalidFormatId,
-                RenderingDevice.RenderPrimitive.Triangles, new RDPipelineRasterizationState(),
-                new RDPipelineMultisampleState(), new RDPipelineDepthStencilState(), blend);
-            _pipelineFormat = fmt;
-        }
+		if (color != _fbColor || !Rd.FramebufferIsValid(_fb))
+		{
+			_fbTex.Clear(); _fbTex.Add(color);
+			_fb = Rd.FramebufferCreate(_fbTex);
+			_fbColor = color;
+		}
+		long fmt = Rd.FramebufferGetFormat(_fb);
+		if (fmt != _pipelineFormat || !_pipeline.IsValid)
+		{
+			if (_pipeline.IsValid) Rd.FreeRid(_pipeline);
+			var blend = new RDPipelineColorBlendState();
+			blend.Attachments.Add(new RDPipelineColorBlendStateAttachment());
+			_pipeline = Rd.RenderPipelineCreate(_shader, fmt, RenderingDevice.InvalidFormatId,
+				RenderingDevice.RenderPrimitive.Triangles, new RDPipelineRasterizationState(),
+				new RDPipelineMultisampleState(), new RDPipelineDepthStencilState(), blend);
+			_pipelineFormat = fmt;
+		}
 
-        _uColor.ClearIds(); _uColor.AddId(_linear); _uColor.AddId(tmp);
-        _uDepth.ClearIds(); _uDepth.AddId(_nearest); _uDepth.AddId(depth);
-        _uParams.ClearIds(); _uParams.AddId(_ubo);
-        long dl = Rd.DrawListBegin(_fb, RenderingDevice.DrawFlags.DefaultAll, NoClear);
-        Rd.DrawListBindRenderPipeline(dl, _pipeline);
-        Rd.DrawListBindUniformSet(dl, UniformSetCacheRD.GetCache(_shader, 0, _set), 0);
-        Rd.DrawListDraw(dl, false, 1, 3);
-        Rd.DrawListEnd();
-    }
+		_uColor.ClearIds(); _uColor.AddId(_linear); _uColor.AddId(tmp);
+		_uDepth.ClearIds(); _uDepth.AddId(_nearest); _uDepth.AddId(depth);
+		_uParams.ClearIds(); _uParams.AddId(_ubo);
+		long dl = Rd.DrawListBegin(_fb, RenderingDevice.DrawFlags.DefaultAll, NoClear);
+		Rd.DrawListBindRenderPipeline(dl, _pipeline);
+		Rd.DrawListBindUniformSet(dl, UniformSetCacheRD.GetCache(_shader, 0, _set), 0);
+		Rd.DrawListDraw(dl, false, 1, 3);
+		Rd.DrawListEnd();
+	}
 }
