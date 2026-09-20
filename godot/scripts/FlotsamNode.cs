@@ -68,6 +68,8 @@ public partial class FlotsamNode : Node3D
     public Action<string?>? OnBottle;
     /// <summary>Un objet qui crève la surface en remontant : où, l'eau jetée, sa vitesse.</summary>
     public Action<Vec3d, double, double>? OnBreak;
+    /// <summary>Une coque vient de sombrer : à l'appelant de dire ce qu'elle emporte.</summary>
+    public Action<ShipNode>? OnWreck;
 
     public override void _Ready()
     {
@@ -217,6 +219,7 @@ public partial class FlotsamNode : Node3D
            propriété de l'objet — settings.json répond. */
         if (!player && BottleOneIn > 0 && _rng.Randf() * BottleOneIn < 1)
             Float("bottle", wx + (_rng.Randf() - 0.5) * 10, wz + (_rng.Randf() - 0.5) * 10, s.Spec.Name);
+        OnWreck?.Invoke(s);
     }
 
     void Float(string kind, double x, double z, string? from)

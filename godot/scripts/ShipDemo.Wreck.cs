@@ -16,6 +16,7 @@ public partial class ShipDemo
     readonly List<WreckHull> _wrecks = new();
     FlotsamNode _flotsam = null!;
     BubbleNode _bubbles = null!;
+    CoinNode _coins = null!;
 
     void WireWreck()
     {
@@ -27,6 +28,15 @@ public partial class ShipDemo
         _flotsam.BottleOneIn = _bottleOneIn;
         // ce qui crève la surface en remontant jette son peu d'eau, par la même réserve
         _flotsam.OnBreak = (at, water, speed) => _spray.Pool.Burst(at, water, speed);
+        /* CE QU'ELLE EMPORTE. Une cale qui s'ouvre lâche sa bourse : les pièces
+           descendent en voltigeant et l'eau les avale. Le compte suit sa taille —
+           un galion emporte plus qu'une chaloupe. */
+        _flotsam.OnWreck = s =>
+        {
+            var b = s.Physics.Body;
+            _coins.Spill(new Vector3((float)b.Pos.X, (float)b.Pos.Y, (float)b.Pos.Z),
+                s.Spec.L, s.Spec.B, (int)Math.Clamp(s.Spec.L * 10, 120, 500));
+        };
         // ce qu'elle contient regarde la page ; ici elle se nomme, en attendant la carte
         _flotsam.OnBottle = from => Say(from != null
             ? $"Une bouteille repêchée — elle vient du {from}"
@@ -49,6 +59,7 @@ public partial class ShipDemo
         _foam.SetBoils(_wreckAir.Boils);
         _flotsam.Step(dt, _sea.Core, _allShipsForFlotsam(), _ship, _cam);
         _bubbles.Step(dt, _sea.Core, _t);
+        _coins.Step(dt);
     }
 
     readonly List<ShipNode> _flotsamFleet = new();

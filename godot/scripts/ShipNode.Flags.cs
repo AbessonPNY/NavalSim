@@ -384,14 +384,19 @@ public partial class ShipNode
                sa longueur en retombant. Lu sur SA hauteur à lui, pas sur celle du
                navire : le grand pavillon de poupe touche l'eau bien avant les
                têtes de mât. */
-            double vApp = p.AppWindSpeed;
+            double vApp = p.AppWindSpeed, lift = 0;
             if (Sea != null)
             {
                 var w = f.Mount.GlobalPosition;
                 double over = w.Y - Sea.Sample(w.X, w.Z, t);
-                if (over < 1.5) vApp *= Math.Clamp(over / 1.5, 0, 1);
+                if (over < 1.5)
+                {
+                    double air = Math.Clamp(over / 1.5, 0, 1);
+                    vApp *= air;
+                    lift = 1 - air;          // ce qui est dans l'eau y est PORTÉ
+                }
             }
-            double yaw = f.Cloth.Stream(p.AppWindAngle, p.Tack, vApp, t);
+            double yaw = f.Cloth.Stream(p.AppWindAngle, p.Tack, vApp, t, lift);
             f.Pivot.Rotation = new Vector3(0, (float)yaw, 0);
             UploadFlag(f);
         }

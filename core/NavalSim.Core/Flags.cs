@@ -115,7 +115,12 @@ public sealed class FlagCloth
     /// cesse d'onduler et pend — il perd de sa longueur en retombant, et c'est ce
     /// qui dit d'un coup d'œil que le vent est parti. Rend le lacet du pivot.
     /// </summary>
-    public double Stream(double beta, double tack, double vApp, double t)
+    /// <param name="lift">
+    /// De 0 (dans l'air) à 1 (dans l'eau). Une étamine noyée ne pend pas : l'eau
+    /// la PORTE — elle ondule lentement, soulevée par en dessous, et son onde
+    /// s'étire d'autant. C'est le seul écart avec la page, qui n'a pas d'eau.
+    /// </param>
+    public double Stream(double beta, double tack, double vApp, double t, double lift = 0)
     {
         double yaw = Math.Atan2(tack * Math.Sin(beta), -Math.Cos(beta));
         double drive = Math.Min(1, vApp / 8);
@@ -125,9 +130,15 @@ public sealed class FlagCloth
             int i3 = k * 3;
             double u = U[k];
             // l'onde naît de rien sur la drisse et grandit vers le battant
-            p[i3] = (float)(Math.Sin(u * Wave - t * 6.5 + V[k] * 1.2 + Seed) * Hoist * 0.42 * drive * Math.Pow(u, 1.3));
-            p[i3 + 1] = (float)(Base[i3 + 1] - (1 - drive) * u * u * Fly * 0.55);
-            p[i3 + 2] = (float)(Base[i3 + 2] * (0.80 + 0.20 * drive));
+            double sway = Math.Sin(u * Wave - t * (6.5 - 5.3 * lift) + V[k] * 1.2 + Seed)
+                        * Hoist * 0.42 * Math.Pow(u, 1.3);
+            // dans l'air, le vent la fait claquer ; dans l'eau, un lent balancement qui ne s'arrête pas
+            p[i3] = (float)(sway * Math.Max(drive, 0.45 * lift));
+            // elle pend d'autant moins qu'elle est portée : dans l'eau, elle se SOULÈVE
+            double droop = (1 - drive) * (1 - lift) * u * u * Fly * 0.55;
+            double rise = lift * u * u * Fly * 0.22 * (0.6 + 0.4 * Math.Sin(t * 0.7 + Seed + u * 2.0));
+            p[i3 + 1] = (float)(Base[i3 + 1] - droop + rise);
+            p[i3 + 2] = (float)(Base[i3 + 2] * (0.80 + 0.20 * Math.Max(drive, 0.8 * lift)));
         }
         SailCloth.ComputeNormals(Positions, Normals, Indices);
         return yaw;

@@ -97,6 +97,8 @@ public partial class ShipDemo : Node3D
         AddChild(_flotsam);
         _bubbles = new BubbleNode();
         AddChild(_bubbles);
+        _coins = new CoinNode();
+        AddChild(_coins);
         WireWreck();
         _krakenNode.Build(_krakenRules.Glb == null ? null
             : System.IO.Path.GetFullPath(System.IO.Path.Combine(ProjectSettings.GlobalizePath("res://"), "..", _krakenRules.Glb)));
@@ -819,6 +821,7 @@ public partial class ShipDemo : Node3D
             _gunFx.Rebase(-dx, -dz);
             _wreckAir.Rebase(-dx, -dz);
             _bubbles.Rebase(dx, dz);
+            _coins.Rebase(dx, dz);
             // la seule chose qui ne suit PAS le navire : sans ceci elle resterait
             // à quinze cents mètres, à filmer de l'eau vide
             _anchor = new Vec3d(_anchor.X + dx, _anchor.Y, _anchor.Z + dz);
@@ -2093,6 +2096,14 @@ public partial class ShipDemo : Node3D
                 case "--lunette": ToggleSpyglass(); break;
                 // l'objectif mouillé d'emblée, pour juger les gouttes sans plonger
                 case "--gouttes": _wet = Math.Clamp(args[i + 1].ToFloat(), 0, 1); break;
+                // semer des pièces sous la coque, pour juger leur chute sans couler
+                case "--tresor":
+                {
+                    var pb = _ship.Physics.Body;
+                    _coins.Spill(new Vector3((float)pb.Pos.X, (float)pb.Pos.Y, (float)pb.Pos.Z),
+                        _ship.Spec.L, _ship.Spec.B, args[i + 1].ToInt());
+                    break;
+                }
                 case "--nappe": _sheet = Math.Clamp(args[i + 1].ToFloat(), 0, 1); break;
                 // l'œil tourné vers le soleil, un peu au-dessus de l'eau : pour juger sa route
                 case "--vers-soleil":

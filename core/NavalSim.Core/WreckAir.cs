@@ -227,7 +227,9 @@ public sealed class WreckAir
         _breath[ph] = true;
 
         // le plus gros de ce qui est enfermé, et jamais moins qu'une gorgée qui vaille
-        double V = Math.Max(6, 0.6 * ph.TrappedAir);
+        // le tiers de ce qui est enfermé, non les trois cinquièmes de la page :
+        // il doit lui en rester pour roter longtemps
+        double V = Math.Max(6, 0.33 * ph.TrappedAir);
         ph.TrappedAir = Math.Max(0, ph.TrappedAir - V);
 
         /* Une grande poussée là où elle a disparu, puis deux plus petites le long

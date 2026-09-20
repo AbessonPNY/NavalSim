@@ -6418,6 +6418,55 @@ Demandé (2026-09-20) : « les naufrages d'abord ».
 - **Gouttes encore réduites** (demandé) : les plus grosses ôtées (rayon max de
   0,39 à 0,23) et une case sur cinq seulement en porte une.
 
+- **Des bulles blanches, sous la coque, et plus longtemps** (demandé : « des
+  bulles blanches quasi opaques qui s'élèvent de dessous la coque … l'effet doit
+  durer plus longtemps et surtout rester subtil »). Trois changements, dont deux
+  dans le noyau : l'air emprisonné passe à 12 % du volume de carène (il était
+  bien plus maigre) et se dissipe en 45 s au lieu de quelques-unes, et le dernier
+  souffle ne prend plus qu'un tiers de ce qui reste — l'épave continue donc de
+  souffler longtemps après avoir disparu. Côté image : `blend_mix` et non plus
+  additif (une bulle CACHE ce qu'il y a derrière), blanc à 0,85 d'opacité, deux
+  à sept bulles par poche seulement, et le départ descendu de 0,6 à 1,8 m SOUS le
+  point de fuite — ce qui crèverait dans le contour de la coque serait de toute
+  façon caché par son bordé.
+
+- **Un pavillon noyé est PORTÉ** (demandé : « les drapeaux doivent flotter à
+  faible vitesse comme si du vent les poussait par dessous »). Le premier jet le
+  faisait pendre, ce qui était juste mais mort. `Stream` reçoit donc un
+  `lift` de 0 (dans l'air) à 1 (dans l'eau) : l'onde ralentit — 6,5 rad/s dans
+  l'air, 1,2 dans l'eau —, l'étamine cesse de retomber et se SOULÈVE d'un lent
+  balancement qui ne s'arrête jamais. C'est le seul écart assumé avec la page,
+  qui n'a pas d'eau ; la parité tient au bit près (`lift = 0` par défaut,
+  cinq coupes à 0,0E+000).
+
+- **Le trésor englouti** (demandé). Une pièce ne tombe pas comme une pierre :
+  elle est plate, l'eau la porte par le travers, et elle descend en VOLTIGEANT à
+  20–45 cm/s en basculant autour de son diamètre. Quatre corrections mesurées
+  avant que ça se lise :
+  1. *invisibles* — la nuée était semée sur toute la longueur ET la largeur : à
+     300 pièces cela fait un point tous les deux mètres, qu'on ne voit pas. Semée
+     serré vers le milieu (tirage au carré : l'or est dans la cale), et 120 à 500
+     selon la coque ;
+  2. *confettis* (signalé) — un panneau plat disparaît d'un coup de profil. Le
+     maillage est maintenant un cylindre bas, épaisseur 14 % du diamètre, et la
+     tranche est plus sombre que le champ ;
+  3. *vert citron* — sous l'eau, la passe d'absorption mange le rouge la
+     première : une émission couleur or ressort verte à quatre mètres. L'éclat
+     part donc trop chaud (1,0 / 0,44 / 0,06) pour arriver doré à l'œil, la
+     correction d'un plongeur faite à la source ;
+  4. *ternes* — à cinq mètres une pièce ne fait plus trois pixels. Un socle
+     d'émission plus un éclair en `pow(face, 4)` quand sa face passe à plat :
+     d'une photo de trésor qui coule, on ne voit pas les pièces, on voit leurs
+     éclats.
+  `--tresor n` en sème sans couler, pour juger. Le maillage de repli cède la
+  place à `props/ecu.glb` s'il existe (posé à plat, face vers +y, ramené au
+  diamètre 1, sa texture reprise).
+
+  Piège de mesure : quatre cadrages successifs n'ont rien montré parce que la
+  nappe DESCEND — à 10 s elle s'étage de −0,4 à −4,6 m, et l'œil était dessous.
+  Un compteur temporaire (nombre vivant, y extrêmes, y de la caméra) a réglé la
+  question en une exécution, là où les captures ne répondaient pas.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

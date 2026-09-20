@@ -298,7 +298,7 @@ public sealed partial class ShipPhysics
        la vérité — une épave rote pendant des minutes. Ce qu'ils ne disent pas,
        c'est l'air sous les barrots, dans les châteaux et les caissons, qui se
        libère à mesure. Une poche, donc, lâchée sur une exponentielle tant que
-       son point le plus haut est noyé. Les HUIT POUR CENT de son volume de
+       son point le plus haut est noyé. Les DOUZE POUR CENT de son volume de
        coque et les vingt secondes sont CHOISIS, non mesurés — il n'y a rien
        dans ce modèle contre quoi les mesurer —, et c'est dit ici plutôt que
        laissé passer pour de la physique. */
@@ -307,7 +307,7 @@ public sealed partial class ShipPhysics
         if (Foundered && !_trapFilled)
         {
             _trapFilled = true;
-            TrappedAir = 0.08 * HullVolume;
+            TrappedAir = 0.12 * HullVolume;
         }
         if (TrappedAir <= 1e-4) return;
         Compartment? top = null;
@@ -319,7 +319,9 @@ public sealed partial class ShipPhysics
         }
         if (top != null && ocean.Sample(_trapAt.X, _trapAt.Z, t) > topY)
         {
-            double outv = TrappedAir * (1 - Math.Exp(-dt / 20));
+            /* Quarante-cinq secondes, et non vingt comme la page : demandé, le
+               chapelet de bulles doit durer bien après qu'elle a disparu. */
+            double outv = TrappedAir * (1 - Math.Exp(-dt / 45));
             TrappedAir -= outv;
             top.Air += outv;
             top.Vent = _trapAt;

@@ -8,13 +8,14 @@
  * coule les cache quand elles passent derrière elle.
  */
 shader_type spatial;
-render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
+render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
 
 #include "res://shaders/sky.gdshaderinc"
 
-uniform vec3 u_color : source_color = vec3(0.88, 0.94, 0.98);
+uniform vec3 u_color : source_color = vec3(0.93, 0.96, 0.99);
 // vives : l'eau de la passe sous-marine en mange les trois quarts à dix mètres
-uniform float u_gain = 2.0;
+uniform float u_gain = 1.0;
+uniform float u_opacity = 0.85;   // presque opaque : de l'air dans de l'eau ne se traverse pas
 
 varying float v_seed;
 
@@ -33,11 +34,14 @@ void fragment() {
 	/* Le bord brille et le centre reste pâle : c'est ainsi qu'on voit une bulle.
 	   Un anneau trop mince et trop bleu la faisait lire comme du néon — relevé sur
 	   une capture ; le bord est donc plus large et le cœur moins vide. */
-	float rim = pow(r, 2.2) * smoothstep(1.0, 0.72, r);
-	float core = 0.16 * (1.0 - r * r);
-	// un reflet en haut à gauche, comme toutes en portent un
-	float glint = pow(max(0.0, 1.0 - length(d - vec2(-0.16, 0.16)) * 6.0), 2.0) * 0.5;
-	float a = rim * 0.9 + core + glint;
-	ALBEDO = naval_display(u_color * a * u_gain);
-	ALPHA = 1.0;
+	/* BLANCHE ET PRESQUE OPAQUE. Une bulle d'air dans l'eau n'est pas un verre
+	   qu'on traverse : sa paroi renvoie tout, et elle se lit comme une perle
+	   blanche — un peu plus sombre au bord, vive au milieu, avec le reflet que
+	   toutes portent en haut à gauche. Un premier jet additif en faisait des
+	   anneaux de néon. */
+	float edge = smoothstep(1.0, 0.86, r);
+	float body = 0.72 + 0.28 * (1.0 - r * r);
+	float glint = pow(max(0.0, 1.0 - length(d - vec2(-0.18, 0.18)) * 5.0), 2.0) * 0.5;
+	ALBEDO = naval_display(u_color * (body + glint) * u_gain);
+	ALPHA = edge * u_opacity;
 }

@@ -64,8 +64,9 @@ public partial class BubbleNode : Node3D
     /// </summary>
     public void Slug(Vector3 at, double volume, double rise, double travel)
     {
-        // une grosse poche se déchire en plus de bulles, jamais moins de trois
-        int n = Math.Clamp(3 + (int)(volume * 6), 3, 14);
+        /* Moins de bulles qu'une poche n'en ferait, et c'est voulu : l'effet doit
+           rester DISCRET — un chapelet qu'on remarque sans qu'il occupe l'image. */
+        int n = Math.Clamp(2 + (int)(volume * 3), 2, 7);
         for (int i = 0; i < n; i++)
         {
             ref Bubble b = ref _b[_next];
@@ -82,7 +83,10 @@ public partial class BubbleNode : Node3D
             b.R = (float)Math.Cbrt(volume / n) * (0.17f + 0.22f * _rng.Randf());
             b.Depth0 = (float)Math.Max(0.5, rise * travel);
             b.Seed = _rng.Randf() * 100;
-            b.From = at + new Vector3((_rng.Randf() - 0.5f) * 1.2f, 0, (_rng.Randf() - 0.5f) * 1.2f);
+            /* Elles sortent de DESSOUS la coque : l'air fuit par le bas d'une
+               épave qui s'enfonce, et ce qui crèverait dans son contour serait de
+               toute façon caché par son propre bordé. */
+            b.From = at + new Vector3((_rng.Randf() - 0.5f) * 1.6f, -0.6f - 1.2f * _rng.Randf(), (_rng.Randf() - 0.5f) * 1.6f);
         }
     }
 
