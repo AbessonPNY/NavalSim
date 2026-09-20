@@ -77,6 +77,29 @@ Le ponton va du rivage jusqu'à 9 m d'eau (150 m au plus). Un port dont le
 rivage est introuvable à 3 km dans ce relèvement est ignoré, avec un message
 dans la console.
 
+## Les villes
+
+Chaque **port** bâtit la sienne tout seul : on ne mouille pas devant un rivage
+désert. Pour un lieu habité SANS port — Kingston, sur la rive d'en face —,
+`world/caraibes.json` → `towns` :
+
+```json
+{ "key": "kingston", "name": "Kingston", "lat": 17.9715, "lon": -76.7935,
+  "radius": 820, "houses": 420 }
+```
+
+| champ | rôle |
+|---|---|
+| `lat`, `lon` | le cœur de la ville ; le semis part de là en spirale |
+| `radius` | jusqu'où elle s'étend (m de jeu) ; elle s'y effiloche |
+| `houses` | le nombre voulu — on en obtient moins si le terrain s'y refuse |
+
+Les maisons sont **à l'échelle du navire** : 5 à 9 m de large, 3 à 6 m au mur,
+un entrepôt jusqu'à 16 × 21. Elles ne se posent que sur du terrain à plus de
+1,2 m au-dessus de l'eau, à moins d'un sur quatre de pente, entre 11 et 700 m du
+rivage, et leur façade regarde l'eau. Rien à modéliser : deux maillages
+multipliés.
+
 ## Les modèles posés
 
 Dans `world/caraibes.json` → `assets` :

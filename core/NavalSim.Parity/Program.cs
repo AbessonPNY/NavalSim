@@ -222,4 +222,14 @@ Console.WriteLine(weatherFailures == 0
     ? "PARITE TENUE -- le C# et le JS font le meme temps."
     : $"{weatherFailures} DIVERGENCE(S) sur la meteo.");
 
-return failures == 0 && seaFailures == 0 && physFailures == 0 && sailFailures == 0 && weatherFailures == 0 ? 0 : 1;
+Console.WriteLine();
+string worldDump = Path.GetFullPath(Path.Combine(root, "..", "..", "..", "..", "parity-world.json"));
+string worldDir = Path.GetFullPath(Path.Combine(root, "..", "..", "..", "..", "..", "world"));
+int worldFailures = NavalSim.Parity.WorldParity.Run(worldDump, worldDir);
+Console.WriteLine();
+Console.WriteLine(worldFailures == 0
+    ? "PARITE TENUE -- le C# et le JS voient la meme terre."
+    : $"{worldFailures} DIVERGENCE(S) sur le monde.");
+
+return failures == 0 && seaFailures == 0 && physFailures == 0 && sailFailures == 0
+    && weatherFailures == 0 && worldFailures == 0 ? 0 : 1;

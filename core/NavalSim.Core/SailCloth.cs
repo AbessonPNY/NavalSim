@@ -224,8 +224,11 @@ public sealed class SailCloth
     /// </summary>
     void ComputeNormals() => ComputeNormals(Positions, Normals, Indices);
 
-    /// <summary>La même règle pour tout maillage de toile — la voile, le pavillon.</summary>
-    internal static void ComputeNormals(float[] p, float[] nr, int[] idx)
+    /// <summary>
+    /// La même règle pour tout maillage : la voile, le pavillon, et les carreaux
+    /// de terre — c'est computeVertexNormals de three.js, et il n'y en a qu'un.
+    /// </summary>
+    public static void ComputeNormals(float[] p, float[] nr, int[] idx)
     {
         Array.Clear(nr);
         for (int i = 0; i < idx.Length; i += 3)

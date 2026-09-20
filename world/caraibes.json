@@ -17,6 +17,9 @@
 
   "harbourDepth": 11,
 
+  "towns": [
+    { "key": "kingston", "name": "Kingston", "lat": 17.9715, "lon": -76.7935, "radius": 820, "houses": 420 }
+  ],
   "ports": [
     { "key": "port-royal", "name": "Port-Royal", "lat": 17.9425, "lon": -76.8330, "quay": 0,
       "start": true, "note": "au bout des Palisadoes, quais côté port" },

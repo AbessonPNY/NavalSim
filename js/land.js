@@ -5,8 +5,8 @@
  * range and kept afterwards — the relief never changes. Only tiles that hold
  * land or shoal water are built at all; the open sea is the sea's shader.
  * Near her a tile is drawn at the picture's own resolution, further off at a
- * quarter of it; a skirt hangs from every edge so the two never show a crack
- * where they meet.
+ * quarter of it. Nothing hangs below their edges: see _build for why the skirt
+ * was taken out.
  *
  * The vital part is still the placement. Each tile is built in its OWN frame
  * and merely POSITIONED at `tile.world − ocean.origin` every frame: the
@@ -74,23 +74,17 @@ Naval.Land = class Land {
       const k = b*(n + 1) + a;
       idx.push(k, k + n + 1, k + n + 2,  k, k + n + 2, k + 1);
     }
-    /* The skirt: every edge vertex again, thirty metres lower, stitched to its
-       original. Where a fine tile meets a coarse one the gap between their
-       edges is closed by this curtain rather than left as a slit of sky. */
-    const edge = [];
-    for(let a = 0; a <= n; a++) edge.push(a);                           // south
-    for(let b = 1; b <= n; b++) edge.push(b*(n + 1) + n);               // east
-    for(let a = n - 1; a >= 0; a--) edge.push(n*(n + 1) + a);           // north
-    for(let b = n - 1; b >= 1; b--) edge.push(b*(n + 1));               // west
-    const base = pos.length/3;
-    for(const k of edge){
-      pos.push(pos[k*3], pos[k*3 + 1] - 30, pos[k*3 + 2]);
-      col.push(col[k*3], col[k*3 + 1], col[k*3 + 2]);
-    }
-    for(let e = 0; e < edge.length; e++){
-      const a = edge[e], b = edge[(e + 1) % edge.length], a2 = base + e, b2 = base + (e + 1) % edge.length;
-      idx.push(a, b, a2,  b, b2, a2);          // facing out, like the top faces up
-    }
+    /* NO SKIRT. There was one, and it could not help being seen: a curtain
+       hanging below a tile's edge masks the foot of the slope behind it, and
+       thirty metres at three kilometres is six pixels — a net of ribbons laid
+       across the landscape. Found while porting the land to Godot, by painting
+       the skirt red.
+
+       It only ever closed the gaps between a fine tile and a coarse one, and
+       that boundary lies at 4.5 km, where the haze already takes 98 per cent of
+       the contrast. Two tiles of the SAME step share their edge exactly; there
+       was never a gap between those. */
+
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));

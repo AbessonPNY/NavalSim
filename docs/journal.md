@@ -6548,6 +6548,145 @@ OFL 1.1) voyage avec elle, dans les crédits, comme elle voyage dans la page.
 `--titre 0` entre droit dans le jeu, `--titre 1` le force même en capture ;
 une capture ou une caméra imposée (`--eye`) le sautent d'elles-mêmes.
 
+## Le monde porté (Godot)
+
+La terre était le dernier gros morceau qui n'existait que dans la page. Elle
+tient en deux fichiers — `world/caraibes.json` et une image de relief de neuf
+millions de pixels — et en une règle : **fonction pure de la position, en mètres
+VRAIS**, jamais dans les coordonnées locales du rendu.
+
+**Tout world.js est parti au NOYAU**, parce que tout y est arithmétique : le
+gris décodé en mètres, le dragage d'un bassin, le môle qui EST de la terre, le
+champ de distance au rivage (Felzenszwalb et Huttenlocher), les ports que la
+fiche fait naître en cherchant le rivage le long d'un relèvement. Seul le
+dessin est resté dehors. Une sixième part de parité le vérifie : **8 ports, 1360
+points de relief, pire écart 5,9e-9**.
+
+**IL A FALLU DEUX DÉCODEURS PNG**, un en Node pour le relevé, un en C# pour le
+banc et pour le jeu — sinon les deux côtés compareraient deux reliefs au lieu de
+deux formules. Le relevé porte donc une EMPREINTE du gris (la somme des neuf
+millions d'octets, plus 512 sondes) : si les décodeurs divergent, le banc le dit
+là, au lieu de laisser croire à une divergence de calcul. Celui du C# sert aussi
+au jeu — Godot sait lire un PNG, mais pas celui que le banc a vérifié.
+
+**Un seul écart de formule, et il valait le détour** : `toFixed` de JS arrondit
+au plus loin de zéro, `F1` de .NET arrondit au pair. 56,25 minutes de latitude
+sortaient à 56,2 là où la page écrit 56,3 — la position de Port-Royal, sur
+l'écran du navigateur.
+
+**Et trois pièges côté Godot, tous relevés à la capture :**
+- `new Color(0xc9, 0xb1, 0x83)` : le constructeur de Godot prend des
+  FLOTTANTS, donc 0xc9 y vaut 201. La côte sortait d'un blanc parfait, sable et
+  forêt confondus. `Color.Color8` ;
+- les couleurs de sommet sont prises pour LINÉAIRES : les teintes de la page
+  sont en sRGB, et sans la conversion la côte est délavée ;
+- `SurfaceTool` pour les normales était un aller-retour de trop ; le maillage
+  est livré complet d'un coup, normales comprises, par la fonction du noyau qui
+  sert déjà à la voile et au pavillon — computeVertexNormals de three.js, et il
+  n'y en a qu'un.
+
+Le chargement entier — lire l'image, la décoder, en tirer le champ de distance,
+faire naître les huit ports — prend **une centaine de millisecondes** au
+démarrage, une fois.
+
+**L'échouage n'a demandé qu'une ligne**, et c'est la preuve que le découpage
+était juste : `IGround` attendait dans le noyau depuis le portage du solveur,
+avec la bonne signature, et personne ne l'implémentait. `World : IGround` a
+suffi. La MÊME `HeightAt` sert au dessin de la côte, aux trois sondes de la
+quille et au bassin dragué : elle ne peut pas talonner sur un haut-fond qu'on ne
+voit pas.
+
+Mesuré : cap sur la plage, machine à fond, elle touche à dix secondes, **échouée
+de 0,15 m**, et sa vitesse tombe de 1,7 à 0,1 m/s ; à vingt secondes elle est
+enfoncée de 0,20 m et n'avance plus, machine toujours à un. Le fond la retient,
+et rien nulle part ne DÉCIDE qu'elle est échouée — ce sont les forces, comme
+rien ne décide qu'elle flotte.
+
+**Elle démarre à son poste** (`Berth`, dans le noyau avec les cotes du ponton,
+que le ponton lira) : l'origine flottante se place sur le poste, la coque reste
+à zéro. Port-Royal, 11 m d'eau — le bassin dragué. Le tableau de bord porte
+maintenant le fond sous la quille, et « ÉCHOUÉE · x m dans le fond » quand elle
+talonne, comme le bandeau d'avarie de la page.
+
+**Un défaut de la page trouvé en la portant** (signalé à l'écran : un
+quadrillage sombre en travers du paysage). Les triangles de la JUPE d'un carreau
+sont verticaux ; moyennés avec ceux du dessus par `computeVertexNormals`, ils
+couchent la normale de chaque sommet de bord et posent une bande d'ombrage le
+long de toutes les coutures. Les normales se calculent donc sur la surface
+SEULE, et la jupe reçoit ensuite celle de son original — elle est là pour
+boucher une fente, pas pour être éclairée pour elle-même. Corrigé des deux
+côtés, `js/land.js` compris.
+
+**LA JUPE DES CARREAUX EST PARTIE**, des deux côtés, et c'est le plus instructif
+de la journée. Signalée à l'écran comme « un souci d'affichage » : un réseau de
+rubans en travers du paysage, et des langues de terre qui traversaient la mer.
+
+Trois essais pour la coincer, chacun écartant une hypothèse :
+- les NORMALES d'abord — les triangles verticaux de la jupe couchent celles des
+  sommets de bord. Corrigé (surface seule, la jupe reprenant la normale de son
+  original), et les bandes sont passées de sombres à CLAIRES : symptôme changé,
+  cause intacte ;
+- le LOD ensuite : tous les carreaux forcés à la même finesse donnent la même
+  image. Ce n'était donc pas le raccord fin/grossier ;
+- la jupe peinte en ROUGE : toutes les bandes sont devenues rouges. Fin du
+  doute.
+
+Ce qu'elle a de vicieux : un rideau qui pend sous l'arête d'un carreau ne PEUT
+PAS ne pas se voir. Vu depuis le bas d'une pente, il masque le pied du versant
+d'en face sur toute sa hauteur — trente mètres à trois kilomètres font six
+pixels. Et sur la mer, il se voyait par transparence, l'eau montrant ce qui est
+dessous.
+
+Elle ne servait qu'aux fentes entre un carreau fin et un grossier, or cette
+frontière est à 4,5 km, où la brume éteint déjà **98 %** du contraste
+(1 − exp(−0,00085 × 4500)) : rien ne s'y voit, pas même une fente. Deux carreaux
+de même finesse partagent leur arête au bit près et n'ont jamais eu de fente
+entre eux. Retirée ici et dans `js/land.js`.
+
+**Le mémento des commandes (F1)**, demandé avec le retrait de ce que le tableau
+de bord portait. Les deux lignes de touches qui couraient d'un bord à l'autre de
+l'image sont devenues un panneau en trois colonnes, avec les sections du
+`#keysMenu` de la page — Manœuvre, Artillerie, Avaries, Le temps qu'il fait,
+Rencontres, Vues, Affichage. Un instrument qu'on lit d'un coup d'œil ne peut pas
+être aussi le mode d'emploi. Il ne reste au bas des instruments qu'une ligne :
+F1, la vue où l'on est, et si la météo se conduit seule. Les intitulés prennent
+l'anglaise du projet, les touches la chasse fixe — une cursive ne se balaie pas.
+
+Piège : le tableau de bord est dessiné PAR-DESSUS ce panneau (l'ordre des
+enfants du calque en décide, et il y est depuis le début). Plutôt que de jouer
+avec cet ordre, les instruments se rangent pendant qu'on lit la notice, et leur
+état d'avant leur est rendu à la fermeture — sinon H perdrait son effet.
+
+**DES VILLES, ce que la page n'a jamais eu** (demandé : des maisons à l'échelle
+du navire sur la bande de Port-Royal et sur la côte de Kingston). Elle n'avait
+que des modèles posés un à un ; ici le semis est une fonction pure du relief et
+d'une graine, dans le noyau — les maisons sont donc les mêmes d'une partie à
+l'autre, et la carte marine pourra les connaître.
+
+Les règles sont celles d'un lieu habité de cette côte : sur le PLAT (moins d'un
+sur quatre, mesuré sur douze mètres, la largeur d'une maison), à plus de 1,2 m
+au-dessus de l'eau, entre 11 et 700 m du rivage, façade vers la rade — le
+gradient du champ de distance donne la direction de la rue, et une maison sur
+six se met en travers, parce qu'une ville n'est pas un régiment. Le semis part
+du port EN SPIRALE et se vide vers les bords : un tirage uniforme dans un disque
+donne une banlieue, pas un port.
+
+À l'échelle, et c'est tout l'intérêt : 5 à 9 m de large, 3 à 6 m au mur, un
+entrepôt jusqu'à 16 × 21, quand la coque fait 28 m. Deux maillages multipliés —
+une boîte, un prisme —, teintés par leur couleur d'instance : 1 500 maisons
+coûtent deux appels de dessin par ville et **119 ms** à semer, une fois.
+
+Deux corrections vues à la capture : le toit se mesure sur la LARGEUR et non en
+mètres absolus (le même nombre de mètres donne une casquette à une halle et un
+clocher à une masure), et une maison se pose sur son point le PLUS BAS — lue au
+centre, elle était en porte-à-faux dès que le terrain penchait.
+
+Port-Royal n'obtient que 59 maisons sur les 150 demandées : sa langue de sable
+est trop étroite pour davantage. C'est le semis qui le dit, et c'est juste.
+
+Reste à porter : le ponton et le môle, l'abri dans les trois calculateurs de la
+mer, les modèles posés, la carte et les quêtes.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

@@ -99,6 +99,18 @@ public partial class ShipDemo : Node3D
         AddChild(_bubbles);
         _coins = new CoinNode();
         AddChild(_coins);
+        /* LA TERRE. Le monde est lu une fois — une image de neuf millions de
+           pixels et le champ de distance qui en sort — et rien après ne change :
+           c'est une fonction pure de la position, en mètres VRAIS. */
+        _world = WorldLoad.Load();
+        if (_world != null)
+        {
+            _land = new LandNode(_world);
+            AddChild(_land);
+            _town = new TownNode(_world);
+            AddChild(_town);
+            BuildTowns();
+        }
         WireWreck();
         _krakenNode.Build(_krakenRules.Glb == null ? null
             : System.IO.Path.GetFullPath(System.IO.Path.Combine(ProjectSettings.GlobalizePath("res://"), "..", _krakenRules.Glb)));
@@ -111,6 +123,9 @@ public partial class ShipDemo : Node3D
         // les réglages du fichier d'abord ; la ligne de commande, lue ensuite, a le dernier mot
         ApplySettings();
         SetupCapture();
+        // à son poste en DERNIER : --ship a pu changer la coque, et le dégagement
+        // du quai se mesure sur SON bau
+        Moor();
         // en DERNIER : il ne s'ouvre que si la ligne de commande ne demande pas
         // autre chose, et il ne touche donc jamais à ce qu'elle vient de régler
         BuildTitle();
@@ -172,6 +187,7 @@ public partial class ShipDemo : Node3D
         _settings = Settings.Load();
         BuildMenu(layer);
         BuildSeaPanel(layer);
+        BuildKeys(layer);
         BuildSpyglass();
     }
 
@@ -210,6 +226,7 @@ public partial class ShipDemo : Node3D
             var s = new ShipNode { LanternShadows = _settings.LanternShadows, WithMastLantern = _settings.MastLantern };
             AddChild(s);
             s.Build(spec);
+            s.Physics.World = _world;
             s.Ctrl.SailsSet = true;
             s.Ctrl.Sheet = 0.6;
             double y = s.Physics.Settle(_sea.Core, s.Ctrl);
@@ -716,6 +733,8 @@ public partial class ShipDemo : Node3D
         _ship.LanternShadows = _settings.LanternShadows;
         _ship.WithMastLantern = _settings.MastLantern;
         _ship.Build(spec);
+        // LE FOND, sans quoi elle ne touche jamais : le monde EST l'IGround du solveur
+        _ship.Physics.World = _world;
         _ship.Ctrl.SailsSet = false;
         _ship.Ctrl.Sheet = 0.6;
 
@@ -838,6 +857,22 @@ public partial class ShipDemo : Node3D
             }
             _ship.SyncTransform();
             GD.Print($"recentrage : origine désormais ({_sea.Core.Origin.X:F0}, {_sea.Core.Origin.Z:F0}) m");
+        }
+
+        /* La terre, contre l'origine du MOMENT — après le recentrage, sans quoi
+           elle serait en désaccord avec la mer d'exactement ce décalage. */
+        if (_land != null)
+        {
+            var wo = _sea.Core.Origin;
+            var here = new Vec3d(wo.X + b.Pos.X, 0, wo.Z + b.Pos.Z);
+            _land.Update(here, new Vec3d(wo.X, 0, wo.Z), _landEager);
+            _landEager = false;
+            foreach (var m in _land.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
+            if (_town != null)
+            {
+                _town.Update(here, new Vec3d(wo.X, 0, wo.Z));
+                foreach (var m in _town.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
+            }
         }
 
         UpdateCamera(frame);
@@ -1189,6 +1224,20 @@ public partial class ShipDemo : Node3D
         double speedKn = Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z) * Config.MsToKn;
         int bf = Mathf.Clamp((int)Math.Round(_sea.Core.SeaState), 0, 9);
 
+        /* LE FOND, qu'un marin regarde avant tout le reste près d'une côte : ce
+           qui lui reste d'eau sous la quille, et ce qu'elle a dans le fond quand
+           elle talonne. La page le dit dans son bandeau d'avarie ; ici, à sa
+           place parmi les instruments. */
+        string fond = "";
+        if (_world != null)
+        {
+            var wo = _sea.Core.Origin;
+            double bed = _world.HeightAt(wo.X + b.Pos.X, wo.Z + b.Pos.Z);
+            fond = p.Aground > 0
+                ? "fond       ÉCHOUÉE · " + p.Aground.ToString("F1") + " m dans le fond\n"
+                : "fond       " + (-bed).ToString("F1").PadLeft(6) + " m    sous quille "
+                  + (-bed - p.Draft).ToString("F1").PadLeft(5) + " m\n";
+        }
         string voiles = p.SetFrac > 0.99 ? "établies"
                       : p.SetFrac < 0.01 ? "ferlées"
                       : $"{p.SetFrac * 100:F0} %";
@@ -1201,6 +1250,7 @@ public partial class ShipDemo : Node3D
             $"cap        {hdg,6:F0}°      vitesse   {speedKn,5:F1} nds\n" +
             $"gîte       {heel,6:F1}°      assiette  {trim,5:F1}°\n" +
             $"tirant     {p.Draft,6:F2} m    immersion {p.SubmergedFrac * 100,5:F1} %\n" +
+            fond +
             $"déplacement{b.Mass / 1000,6:F0} t\n" +
             $"\n" +
             $"machine    {_ship.Ctrl.Throttle,6:F2}      barre     {_ship.Ctrl.Rudder,5:F2}\n" +
@@ -1210,9 +1260,12 @@ public partial class ShipDemo : Node3D
             $"air        {_climate.Word()}{(_fall.Amount > 0.004 ? (_fall.Snow ? " · il neige" : " · il pleut") : "")}   {_calendar.Date:dd/MM/yyyy}{(_ship.SnowCover > 0.01 ? $"   neige sur le pont {_ship.SnowCover * 100:F0} %" : "")}\n" +
             (_inSquall ? $"dépression {_squall.Dist / 1852,6:F1} mille(s) du centre · au cœur force {_squall.Storm.Peak:F1} · ici {_squall.Force:F1}\n" : "") +
             $"\n" +
-            $"W S machine   B élan   A D barre   Q E écoutes   V voiles\n" +
-            $"↑↓ force   ←→ vent   T météo {(_weather.On ? "auto" : "à la main")}   J gros temps   K kraken   R radoub   G feu (tenu : bordée, ⇧ : autre bord)   Tab bord   Y soute   U pirate   P fantômes   L lunette   ⇧M mer   PgUp/PgDn creux   N navire   F suivre   C vues ({CamName()})   X replanter   H masquer   Échap options\n" +
-            $"O occlusion {(_sky.Env.SsaoEnabled ? "oui" : "non")}   lumière indirecte au menu";
+            /* CE QUI RESTE DE LA NOTICE : une ligne. Les deux qui couraient ici
+               d'un bord à l'autre de l'image sont passées sous F1 — un instrument
+               qu'on lit d'un coup d'œil ne peut pas être aussi le mode d'emploi.
+               Ne restent que les deux états qu'on veut voir SANS ouvrir quoi que
+               ce soit : la vue où l'on est, et si la météo se conduit seule. */
+            $"F1 commandes      vue {CamName()}      météo {(_weather.On ? "d'elle-même" : "à la main")}";
     }
 
     public override void _UnhandledInput(InputEvent e)
@@ -1301,7 +1354,9 @@ public partial class ShipDemo : Node3D
                    cinéma, qui fait partie de l'image, reste en place. */
                 case Key.H: _info.Visible = _sunPanel.Visible = !_info.Visible; break;
                 // le menu d'options ; « Quitter » y est désormais
+                case Key.F1: ToggleKeys(); break;
                 case Key.Escape:
+                    if (CloseKeys()) break;
                     _chkOcclusion.SetPressedNoSignal(_settings.Occlusion);
                     _chkIndirect.SetPressedNoSignal(_settings.IndirectLight);
                     _menu.Visible = !_menu.Visible;
@@ -2083,6 +2138,58 @@ public partial class ShipDemo : Node3D
         UpdateInfo();
     }
 
+    /// <summary>Le monde et sa terre — nuls tant qu'une région n'a pas été lue.</summary>
+    public NavalSim.Core.World? _world;
+    LandNode? _land;
+    TownNode? _town;
+    /// <summary>La première image bâtit tout ce qui est à portée : on ne part pas d'un port à moitié dessiné.</summary>
+    bool _landEager = true;
+
+    /// <summary>
+    /// BÂTIR LES VILLES, une fois. Chaque port porte la sienne — on ne mouille
+    /// pas devant un rivage désert —, et la fiche peut en déclarer d'autres là
+    /// où il n'y a pas de ponton : Kingston, sur la rive d'en face.
+    /// </summary>
+    void BuildTowns()
+    {
+        if (_world == null || _town == null) return;
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        uint seed = 1;
+        foreach (var isl in _world.Isles)
+            _town.Build(isl.Name, isl.X, isl.Z, 420, 150, seed += 7919);
+        foreach (var t in _world.Region.Towns)
+        {
+            var g = _world.Geo.ToXZ(t.Lat, t.Lon);
+            _town.Build(t.Name, g.X, g.Z, t.Radius, t.Houses, seed += 7919);
+        }
+        GD.Print(FormattableString.Invariant($"villes bâties en {watch.Elapsed.TotalMilliseconds:F0} ms"));
+    }
+
+    /// <summary>
+    /// À SON POSTE. Le zéro local EST le poste : l'origine flottante s'y place,
+    /// la coque reste à zéro, et tout ce qui se calcule près d'elle garde sa
+    /// précision. C'est ce que fait la page au lancement.
+    /// </summary>
+    void Moor()
+    {
+        if (_world?.StartPort is not NavalSim.Core.Isle home) return;
+        var (x, z, heading) = NavalSim.Core.Berth.At(home, _ship.Spec.L, _ship.Spec.B);
+        if (_askHeading is double ask) heading = ask;
+        var o = _sea.Core.Origin;
+        _sea.Core.Rebase(x - o.X, z - o.Z);
+        var b = _ship.Physics.Body;
+        b.Pos = new Vec3d(0, b.Pos.Y, 0);
+        b.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), heading);
+        _ship.SyncTransform();
+        double bed = _world.HeightAt(x, z);
+        var fix = _world.Geo.Fix(x, z);
+        GD.Print(FormattableString.Invariant(
+            $"à quai : {home.Name}, {NavalSim.Core.Geo.Format(fix.Lat, true)} {NavalSim.Core.Geo.Format(fix.Lon, false)}, {-bed:F1} m d'eau"));
+    }
+
+    /// <summary>Le cap que --cap impose, s'il y en a un.</summary>
+    double? _askHeading;
+
     // --- la capture en ligne de commande, comme dans SeaDemo ---
     string _capturePath = "";
     int _captureIn = -1;
@@ -2110,6 +2217,8 @@ public partial class ShipDemo : Node3D
                 case "--pirate": SpawnPirate(args[i + 1].ToFloat()); break;
                 case "--fantomes": GoToGhosts(true); break;
                 case "--lunette": ToggleSpyglass(); break;
+                // le mémento ouvert d emblee, pour le juger a la capture
+                case "--commandes": if (args[i + 1] != "0") ToggleKeys(); break;
                 // l'objectif mouillé d'emblée, pour juger les gouttes sans plonger
                 case "--gouttes": _wet = Math.Clamp(args[i + 1].ToFloat(), 0, 1); break;
                 // semer des pièces sous la coque, pour juger leur chute sans couler
@@ -2162,6 +2271,10 @@ public partial class ShipDemo : Node3D
                 // peut pas dependre du clavier, et un banc non plus
                 case "--throttle": _ship.Ctrl.Throttle = args[i + 1].ToFloat(); _drive = true; break;
                 case "--barre": _heldRudder = Math.Clamp(args[i + 1].ToFloat(), -1, 1); break;
+                // un cap impose, en relevement vrai : pour jeter une coque a la cote
+                case "--cap":
+                    _askHeading = args[i + 1].ToFloat() * Math.PI / 180;
+                    break;
                 // un oeil FIXE dans le monde, pour comparer au pixel avec la page
                 // d'origine : une camera qui suit une coque soulevee de quarante
                 // metres se retrouve dans la vague, et la comparaison ne vaut rien
@@ -2374,7 +2487,12 @@ public partial class ShipDemo : Node3D
         if (img == null || img.GetWidth() < 8) { GD.PushError("capture vide"); GetTree().Quit(1); return; }
         Error err = img.SavePng(_capturePath);
         var cv = _ship.Physics.Body.Vel;
-        GD.Print(err == Error.Ok ? FormattableString.Invariant($"capture écrite : {_capturePath} (erre {Math.Sqrt(cv.X * cv.X + cv.Z * cv.Z):F1} m/s)") : $"capture ratée : {err}");
+        double ag = _ship.Physics.Aground;
+        string ago = ag > 0 ? FormattableString.Invariant($", ÉCHOUÉE de {ag:F2} m") : "";
+        GD.Print(err == Error.Ok
+            ? FormattableString.Invariant(
+                $"capture écrite : {_capturePath} (erre {Math.Sqrt(cv.X * cv.X + cv.Z * cv.Z):F1} m/s{ago})")
+            : $"capture ratée : {err}");
         GetTree().Quit(err == Error.Ok ? 0 : 1);
     }
 }
