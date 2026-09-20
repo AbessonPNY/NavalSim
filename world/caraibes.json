@@ -30,7 +30,25 @@
     { "key": "carthagene", "name": "Carthagène", "lat": 10.4150, "lon": -75.5450, "quay": 200 },
     { "key": "santa-marta", "name": "Santa Marta", "lat": 11.2450, "lon": -74.2150, "quay": 270 },
     { "key": "portobelo", "name": "Portobelo", "lat": 9.5550, "lon": -79.6550, "quay": 300 },
-    { "key": "curacao", "name": "Willemstad", "lat": 12.1050, "lon": -68.9350, "quay": 180 }
+    { "key": "curacao", "name": "Willemstad", "lat": 12.1050, "lon": -68.9350, "quay": 180 },
+
+    { "key": "passage-fort", "name": "Passage Fort", "lat": 17.9550, "lon": -76.8950, "quay": 120,
+      "note": "le débarcadère de St Jago de la Vega, au fond de la rade ; premier des ports de la Jamaïque, qu on suit ensuite dans le sens des aiguilles" },
+    { "key": "old-harbour", "name": "Old Harbour", "lat": 17.8850, "lon": -77.0850, "quay": 170,
+      "note": "Puerto de Esquivel des Espagnols" },
+    { "key": "withywood", "name": "Withywood", "lat": 17.7550, "lon": -77.2850, "quay": 180,
+      "note": "la baie de Carlisle, en Vere" },
+    { "key": "black-river", "name": "Black River", "lat": 18.0260, "lon": -77.8480, "quay": 190 },
+    { "key": "savanna-la-mar", "name": "Savanna-la-Mar", "lat": 18.2180, "lon": -78.1330, "quay": 180 },
+    { "key": "negril", "name": "Negril", "lat": 18.2700, "lon": -78.3500, "quay": 270,
+      "note": "la pointe de l'ouest, où l'on attend le vent" },
+    { "key": "lucea", "name": "Lucea", "lat": 18.4500, "lon": -78.1730, "quay": 350 },
+    { "key": "montego-bay", "name": "Montego Bay", "lat": 18.4720, "lon": -77.9200, "quay": 320 },
+    { "key": "dry-harbour", "name": "Dry Harbour", "lat": 18.4680, "lon": -77.4000, "quay": 0 },
+    { "key": "port-maria", "name": "Port Maria", "lat": 18.3680, "lon": -76.8900, "quay": 20 },
+    { "key": "port-antonio", "name": "Port Antonio", "lat": 18.1800, "lon": -76.4500, "quay": 350 },
+    { "key": "port-morant", "name": "Port Morant", "lat": 17.8950, "lon": -76.3300, "quay": 170 },
+    { "key": "yallahs", "name": "Yallahs", "lat": 17.8680, "lon": -76.5700, "quay": 180 }
   ],
 
   "assets": []

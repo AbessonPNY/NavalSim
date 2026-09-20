@@ -85,8 +85,11 @@ Naval.Quests = class Quests {
     const key = typeof a.port === 'string' ? a.port : a.island;
     const isl = key ? W.byKey(key) : null;
     if(key && !isl) console.warn('[quêtes] port inconnu : ' + key);
-    if(isl && (a.port || !(a.bearing != null || a.miles != null || a.distance != null)) && isl.port){
-      // the head of the jetty, out in the stream: where a ship is made fast
+    if(isl && !(a.bearing != null || a.miles != null || a.distance != null) && isl.port){
+      /* The head of the jetty, out in the stream: where a ship is made fast.
+         A bearing or a distance asks for an OFFSET from the port instead --
+         which `a.port ||` used to swallow, so the documented form
+         { port, bearing, miles } quietly gave the jetty. Found by porting. */
       x = isl.port.hx; z = isl.port.hz;
     }else if(isl){
       /* A bearing FROM the port, true degrees (0 north, 90 east — east is -x

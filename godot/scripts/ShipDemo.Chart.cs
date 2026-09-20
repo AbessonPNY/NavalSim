@@ -168,7 +168,7 @@ public partial class ShipDemo : Node3D
        qu'il a le foyer, et l'événement poursuit sa route jusqu'à lui. */
     public override void _Input(InputEvent e)
     {
-        if (ChartInput(e)) GetViewport().SetInputAsHandled();
+        if (ChartInput(e) || QuestInput(e)) GetViewport().SetInputAsHandled();
     }
 
     /// <summary>Rend vrai si la carte a pris l'événement.</summary>

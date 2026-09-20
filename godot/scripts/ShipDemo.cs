@@ -61,7 +61,7 @@ public partial class ShipDemo : Node3D
     const int MinSub = 4;
     const double MaxSubDt = 1.0 / 15;
 
-    public override void _ExitTree() { SaveBook(); _motionBlur?.Release(); _anamorphic?.Release(); }
+    public override void _ExitTree() { SaveBook(); SaveQuests(); _motionBlur?.Release(); _anamorphic?.Release(); }
 
     public override void _Ready()
     {
@@ -118,8 +118,9 @@ public partial class ShipDemo : Node3D
             _jetty = new JettyNode(_world);
             AddChild(_jetty);
             _book = LoadBook();
-            _chart = new ChartNode(_world, _book);
+            _chart = new ChartNode(_world, _book) { Aim = QuestPlace };
             AddChild(_chart);
+            LoadQuests();
             _anchor2 = new AnchorNode(_world, _sea)
             {
                 Splash = (at, water, speed, jet) => _spray.Pool.Burst(at, water, speed, jet),
@@ -206,6 +207,7 @@ public partial class ShipDemo : Node3D
         BuildSeaPanel(layer);
         BuildKeys(layer);
         BuildChartView(layer);
+        BuildQuestView(layer);
         BuildSpyglass();
     }
 
@@ -557,6 +559,16 @@ public partial class ShipDemo : Node3D
 
         var st = _settings;
         Title("Options", 20);
+        /* LE FIL QU'ON SUIT, en tête : le monde reste ouvert, une quête ne fait
+           que le traverser. Le menu ne paraît que s'il y a des fiches à lire. */
+        if (_quests != null && _quests.List.Count > 0)
+        {
+            Title("Quête", 15);
+            var qlabels = new List<string> { "Mode libre" };
+            foreach (var q in _quests.List) qlabels.Add(q.Title.Length > 0 ? q.Title : q.Id);
+            Choice("Scénario", qlabels.ToArray(),
+                _quests.Active == null ? 0 : _quests.List.IndexOf(_quests.Active) + 1, PickQuest);
+        }
         Title("Lanternes", 15);
         Check("Ombres des lanternes", st.LanternShadows, on => st.LanternShadows = on);
         Check("Lanterne du grand mât", st.MastLantern, on => st.MastLantern = on);
@@ -939,6 +951,7 @@ public partial class ShipDemo : Node3D
                         Say($"{isl.Name} portée sur la carte.");
                     }
             }
+            QuestTick(frame);
             if (_jetty != null)
             {
                 _jetty.Update(here, new Vec3d(wo.X, 0, wo.Z));
@@ -2400,6 +2413,10 @@ public partial class ShipDemo : Node3D
                 case "--carte": _overChart = args[i + 1] != "0"; break;
                 // la carte ouverte d emblee, pour la juger
                 case "--carte-ouverte": if (args[i + 1] != "0") ToggleChart(); break;
+                // une quete lancee d emblee, par son id : --quete apprendre-la-mer
+                case "--quete": _quests?.Start(args[i + 1]); break;
+                // et sauter droit au lieu de l etape, comme allerQuete() dans la console de la page
+                case "--etape": if (args[i + 1] != "0") GoToStep(); break;
                 case "--pont":
                     _camMode = 1; _deck = Math.Clamp(args[i + 1].ToInt(), 0, Math.Max(0, _ship.Spec.Decks.Count - 1));
                     EnterDeck();

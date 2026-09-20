@@ -31,6 +31,8 @@ switch (mode)
     case "parallele": Parallele(); break;
     case "embrun": Embrun(); break;
     case "canon": Canon(); break;
+    case "ports": Ports(); break;
+    case "quete": Quete(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -295,4 +297,75 @@ void Gale()
     Console.WriteLine($"  tangage         RMS {Math.Sqrt(p2 / m):F2} deg   max {tMax:F1} deg");
     Console.WriteLine($"  pilonnement     RMS {Math.Sqrt(Math.Max(0, y2 / m - yMean * yMean)):F2} m     amplitude {yHi - yLo:F2} m");
     Console.WriteLine($"  immersion       {subLo * 100:F1} a {subHi * 100:F1} %");
+}
+
+/* LES PORTS D UNE FICHE DE REGION : est-ce qu ils naissent, et ce qu on trouve
+   au bout de leur ponton. Un port se donne par un point de ville et le
+   RELEVEMENT que regarde le quai ; tout le reste -- le rivage, la longueur de
+   la jetee, l eau sous sa tete -- est trouve dans l image. Autant le lire avant
+   d ecrire une quete qui y envoie le joueur. */
+void Ports()
+{
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    string sheet = args.Length > 1 ? args[1] : Path.Combine(root, "world", "caraibes.json");
+    var region = RegionSpec.FromJson(File.ReadAllText(sheet));
+    var (w, h, grey) = GreyPng.Decode(File.ReadAllBytes(Path.Combine(root, region.Relief.Image)));
+    var world = new World(region, w, h, grey, m => Console.WriteLine("  ! " + m));
+
+    Console.WriteLine($"{region.Name} : {world.Isles.Count} port(s) nes de la fiche");
+    Console.WriteLine($"{"port",-18}{"lat/lon",-22}{"rivage",8}{"jetee",7}{"tete",8}{"abri",7}  plus proche");
+    foreach (var i in world.Isles)
+    {
+        var g = world.Geo.ToXZ(i.Lat, i.Lon);
+        double toShore = Math.Sqrt((i.X - g.X) * (i.X - g.X) + (i.Z - g.Z) * (i.Z - g.Z));
+        double head = world.HeightAt(i.Port.Hx, i.Port.Hz);
+        double shelter = world.Shelter(i.Port.Hx, i.Port.Hz);
+        string near = "";
+        double best = double.MaxValue;
+        foreach (var j in world.Isles)
+        {
+            if (ReferenceEquals(i, j)) continue;
+            double d = Math.Sqrt((i.X - j.X) * (i.X - j.X) + (i.Z - j.Z) * (i.Z - j.Z));
+            if (d < best) { best = d; near = j.Key; }
+        }
+        Console.WriteLine($"{i.Key,-18}{i.Lat,8:F3} {i.Lon,9:F3}    {toShore,6:F0} m{i.Port.Reach,6:F0} m{head,7:F1} m{shelter,6:F2}   {near} a {best / 1852:F1} M");
+    }
+}
+
+/* UNE QUETE, LUE SUR LE TERRAIN : ou tombe chaque etape, ce qu il y a d eau
+   dessous, et le chemin d une etape a la suivante. Une consigne peut etre
+   parfaitement ecrite et poser son cercle sur un haut-fond ou sur la terre --
+   personne ne le verrait avant d y envoyer un navire. */
+void Quete()
+{
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    var region = RegionSpec.FromJson(File.ReadAllText(Path.Combine(root, "world", "caraibes.json")));
+    var (w, h, grey) = GreyPng.Decode(File.ReadAllBytes(Path.Combine(root, region.Relief.Image)));
+    var world = new World(region, w, h, grey, m => Console.WriteLine("  ! " + m));
+    var Q = new Quests(world);
+
+    string dir = Path.Combine(root, "quests");
+    foreach (string f in Directory.GetFiles(dir, "*.json"))
+        if (Path.GetFileName(f) != "index.json")
+            Q.Add(QuestSpec.FromJson(File.ReadAllText(f)), m => Console.WriteLine("  ! " + m));
+
+    foreach (var q in Q.List)
+    {
+        if (args.Length > 1 && q.Id != args[1]) continue;
+        Console.WriteLine();
+        Console.WriteLine($"{q.Title} ({q.Id}) -- {q.Steps.Count} etape(s)");
+        Console.WriteLine($"  {"etape",-32}{"objectif",-8}{"rayon",7}{"fond",9}{"rivage",9}   du precedent");
+        double px = 0, pz = 0;
+        bool first = true;
+        foreach (var step in q.Steps)
+        {
+            var pl = Q.Place(step, m => Console.WriteLine("  ! " + m));
+            double bed = world.HeightAt(pl.X, pl.Z);
+            double shore = world.ShoreDistance(pl.X, pl.Z);
+            string leg = first ? "" : $"{Math.Sqrt((pl.X - px) * (pl.X - px) + (pl.Z - pz) * (pl.Z - pz)) / 1852,7:F2} M";
+            string title = step.Title.Length > 28 ? step.Title.Substring(0, 28) + "..." : step.Title;
+            Console.WriteLine($"  {title,-32}{step.Goal.ToString().ToLowerInvariant(),-8}{step.R,6:F0} m{-bed,7:F1} m{shore,7:F0} m   {leg}");
+            px = pl.X; pz = pl.Z; first = false;
+        }
+    }
 }

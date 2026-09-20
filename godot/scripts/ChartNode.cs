@@ -54,6 +54,11 @@ public partial class ChartNode : Node
     /// <summary>La texture à poser sur la feuille — et sur la grande carte.</summary>
     public Texture2D Texture => _vp.GetTexture();
 
+    /* LE LIEU DE L ÉTAPE EN COURS, si une quête est en train. La carte ne
+       connaît pas les quêtes : elle DEMANDE, et n'en garde rien. C'est ce qui
+       permet de jouer sans aucune quête sans qu'une ligne d'ici ne s'en doute. */
+    public Func<(double X, double Z, double R, string Name)?>? Aim;
+
     /// <summary>Le coin haut-gauche et l'étendue de la carte, en mètres monde.</summary>
     double _x0, _z0, _w, _h;
 
@@ -228,6 +233,20 @@ public partial class ChartNode : Node
                 var pts = new Vector2[s.Pts.Count];
                 for (int i = 0; i < pts.Length; i++) pts[i] = _c.ToChart(s.Pts[i].X, s.Pts[i].Z);
                 DrawPolyline(pts, Inks[Math.Clamp(s.Ink, 0, 2)], 2.2f * Q, true);
+            }
+            /* LE CERCLE DORÉ de l'étape en cours, par-dessus tout le reste : ce
+               qu'on cherche sur une carte doit se voir avant ce qu'on y a déjà
+               écrit. Son rayon est celui de l'objectif, en vraies toises. */
+            if (_c.Aim?.Invoke() is { } aim)
+            {
+                var p = _c.ToChart(aim.X, aim.Z);
+                float r = (float)Math.Max(6 * Q, aim.R / _c.MetresPerPixel);
+                var gold = new Color(0.86f, 0.70f, 0.28f);
+                DrawCircle(p, r, gold, false, 2.0f * Q);
+                DrawCircle(p, 2.4f * Q, gold);
+                if (aim.Name.Length > 0)
+                    DrawString(_c._font, p + new Vector2(r + 5 * Q, 4 * Q), aim.Name,
+                        HorizontalAlignment.Left, -1, 15, gold);
             }
             // et ses mots, à l'endroit qu'ils désignent
             foreach (var n in b.Notes)

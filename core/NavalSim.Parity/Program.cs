@@ -231,5 +231,13 @@ Console.WriteLine(worldFailures == 0
     ? "PARITE TENUE -- le C# et le JS voient la meme terre."
     : $"{worldFailures} DIVERGENCE(S) sur le monde.");
 
+Console.WriteLine();
+string questDump = Path.GetFullPath(Path.Combine(root, "..", "..", "..", "..", "parity-quests.json"));
+int questFailures = NavalSim.Parity.QuestParity.Run(questDump, worldDir);
+Console.WriteLine();
+Console.WriteLine(questFailures == 0
+    ? "PARITE TENUE -- le C# et le JS tendent le meme fil."
+    : $"{questFailures} DIVERGENCE(S) sur les quetes.");
+
 return failures == 0 && seaFailures == 0 && physFailures == 0 && sailFailures == 0
-    && weatherFailures == 0 && worldFailures == 0 ? 0 : 1;
+    && weatherFailures == 0 && worldFailures == 0 && questFailures == 0 ? 0 : 1;

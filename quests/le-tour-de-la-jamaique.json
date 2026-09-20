@@ -1,0 +1,55 @@
+{
+  "id": "le-tour-de-la-jamaique",
+  "title": "Le tour de la Jamaïque",
+  "summary": "Apprendre la manœuvre en portant le rôle de l'amirauté d'une rade à l'autre.",
+  "intro": "Vous prenez le commandement à Port-Royal. Avant de vous confier autre chose, l'amirauté veut voir si vous savez mener une coque : vous porterez son rôle à Passage Fort, puis le long de la côte jusqu'à Port Morant, et vous reviendrez le dire.\n\nTout ce qu'il faut est sur le pont. F1 rappelle les commandes à tout moment.",
+  "steps": [
+    {
+      "title": "Appareiller",
+      "brief": "Larguez les amarres avec M, établissez la toile avec V, puis gouvernez avec A et D. Bordez les écoutes avec E, choquez-les avec Q. Sortez de la rade : un demi-mille entre le ponton et vous.",
+      "at": { "port": "port-royal" },
+      "goal": "leave",
+      "radius": 900,
+      "message": "Le ponton s'éloigne. Le vent des alizés souffle de l'est presque toute l'année : vous l'aurez dans le nez pour aller vers Morant, et dans le dos pour revenir.\n\nCe que vous voyez devant vous, au fond de la rade, est Passage Fort — le débarcadère de St Jago de la Vega."
+    },
+    {
+      "title": "Accoster à Passage Fort",
+      "brief": "Traversez la rade et amarrez-vous au ponton de Passage Fort : approchez sous peu de toile (V pour ferler), et pressez M le long du ponton.\n\nLa touche I ouvre la carte du capitaine — elle ne montre que ce que ce bord a vu.",
+      "at": { "port": "passage-fort" },
+      "goal": "dock",
+      "message": "Le rôle est remis. Un commis vous regarde manœuvrer sans rien dire, ce qui vaut mieux qu'un compliment.\n\n« Vous redescendrez la rade et vous mettrez en panne au sud des Palisadoes. On veut voir si vous savez ATTENDRE. »"
+    },
+    {
+      "title": "Mettre en panne au sud des Palisadoes",
+      "brief": "Sortez de la rade, passez au sud de la langue de sable, et tenez-vous là sans erre : ferlez la toile avec V, ou mouillez avec M. Il faut rester dix secondes sous un nœud et demi.",
+      "at": { "port": "port-royal", "bearing": 180, "miles": 0.8 },
+      "goal": "stop",
+      "radius": 400,
+      "maxSpeed": 1.5,
+      "hold": 10,
+      "message": "La coque roule doucement sur la houle, toile ferlée. Un navire qui ne va nulle part travaille encore : la mer le prend par le travers et il dérive.\n\nCap à l'est maintenant, contre l'alizé — il faudra louvoyer."
+    },
+    {
+      "title": "Relâcher à Yallahs",
+      "brief": "Longez la côte vers l'est jusqu'à Yallahs et amarrez-vous. Vent debout, on ne va pas droit : tirez des bords, la barre d'un côté puis de l'autre, en gardant la côte à portée de vue.",
+      "at": { "port": "yallahs" },
+      "goal": "dock",
+      "message": "Yallahs, et ses salines. Vous avez gagné au vent, ce qui est toute la science du métier.\n\nPort Morant est à deux milles dans l'est : c'est la dernière rade avant la pointe."
+    },
+    {
+      "title": "Gagner Port Morant",
+      "brief": "Poussez jusqu'à Port Morant, au bout de la côte du sud-est, et amarrez-vous-y.",
+      "at": { "port": "port-morant" },
+      "goal": "dock",
+      "message": "Port Morant. Le rôle est complet, et votre carte porte maintenant trois rades que personne ne vous avait montrées.\n\nRentrez à Port-Royal — cette fois le vent est pour vous."
+    },
+    {
+      "title": "Rentrer à Port-Royal",
+      "brief": "Revenez à Port-Royal, vent arrière, et amarrez-vous au ponton.",
+      "at": { "port": "port-royal" },
+      "goal": "dock",
+      "message": "Les Palisadoes défilent, puis le môle, puis le ponton. Vous êtes rentré."
+    }
+  ],
+  "outro": "« Vous savez appareiller, louvoyer, mouiller et rentrer. » L'officier referme le rôle.\n\n« Le reste de l'île vous attend : Old Harbour, Withywood, Black River, Savanna-la-Mar, Negril, Lucea, Montego Bay, Dry Harbour, Port Maria, Port Antonio. Faites-en le tour quand vous voudrez — et portez-le sur votre carte. »"
+}

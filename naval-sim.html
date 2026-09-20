@@ -760,7 +760,8 @@ async function main(){
     let x = p.x, z = p.z;
     if(s.at && s.at.port){
       // just outside the jetty head, towards the open sea
-      const isl = world.byKey(s.at.island);
+      // « port » est le nom du champ ; « island » l ancien, et lui seul etait lu ici
+      const isl = world.byKey(s.at.port || s.at.island);
       x += Math.cos(isl.port.ang)*200; z += Math.sin(isl.port.ang)*200;
     }
     const X = physics.body.pos.x + ocean.origin.x, Z = physics.body.pos.z + ocean.origin.z;

@@ -74,8 +74,38 @@ propres mètres.
 
 `"island"` est encore compris à la place de `"port"` (ancien nom).
 
-Ports : `port-royal`, `santiago`, `tortue`, `petit-goave`, `carthagene`,
-`santa-marta`, `portobelo`, `curacao`.
+Ports de la Jamaïque, dans le sens des aiguilles depuis Port-Royal :
+`port-royal`, `passage-fort`, `old-harbour`, `withywood`, `black-river`,
+`savanna-la-mar`, `negril`, `lucea`, `montego-bay`, `dry-harbour`,
+`port-maria`, `port-antonio`, `port-morant`, `yallahs` — les rades que porte
+une carte anglaise de la fin du XVIIe siècle. Le reste de la mer :
+`santiago`, `tortue`, `petit-goave`, `carthagene`, `santa-marta`,
+`portobelo`, `curacao`.
+
+L'île entière tient dans neuf milles : de Port-Royal, Passage Fort est à
+0,3 M, Yallahs à 1,6 M, Port Morant à 2,9 M, Negril — la pointe de l'ouest —
+à 9,0 M.
+
+## Dans Godot
+
+Les mêmes fichiers, lus dans le même dossier : une quête écrite pour la page
+vaut pour le portage, et il n'y a rien à réimporter quand on en ajoute une.
+Les règles sont dans `core/NavalSim.Core/Quest.cs`, vérifiées contre
+`js/quests.js` par le banc de parité (`node tools/parity-quests.js` puis
+`dotnet run --project core/NavalSim.Parity`).
+
+- le scénario se choisit dans **Échap → Quête**, ou au lancement :
+  `-- --quete le-tour-de-la-jamaique` ;
+- `-- --etape 1` saute au lieu de l'étape en cours, comme `allerQuete()` ;
+- la progression est gardée en clair dans `user://quetes.json`, à côté du
+  carnet de la carte ;
+- l'objectif s'écrit en doré sous les instruments, et son lieu est cerclé de
+  doré sur la carte du capitaine (touche `I`).
+
+```bash
+dotnet run --project core/NavalSim.Lab -- quete          # où tombe chaque étape, et ce qu'il y a d'eau dessous
+dotnet run --project core/NavalSim.Lab -- ports          # les ports d'une fiche de région
+```
 
 ## Déboguer
 

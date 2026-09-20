@@ -67,6 +67,12 @@ function decodeGreyPng(buf) {
   return { w, h, data: grey };
 }
 
+/* Le decodeur sert aussi au releve des quetes, qui a besoin du monde pour
+   resoudre ses lieux : une definition, plusieurs usagers. Requis comme module,
+   ce fichier ne fait donc rien de plus que l offrir. */
+module.exports = { decodeGreyPng };
+if (require.main !== module) return;
+
 const region = JSON.parse(fs.readFileSync(path.join(root, 'world', 'caraibes.json'), 'utf8'));
 const img = decodeGreyPng(fs.readFileSync(path.join(root, region.relief.image)));
 const W = new Naval.World(region, img);

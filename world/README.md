@@ -77,6 +77,19 @@ Le ponton va du rivage jusqu'à 9 m d'eau (150 m au plus). Un port dont le
 rivage est introuvable à 3 km dans ce relèvement est ignoré, avec un message
 dans la console.
 
+**Les rades de la Jamaïque** — `passage-fort`, `old-harbour`, `withywood`,
+`black-river`, `savanna-la-mar`, `negril`, `lucea`, `montego-bay`,
+`dry-harbour`, `port-maria`, `port-antonio`, `port-morant`, `yallahs` — sont
+celles que porte une carte anglaise de la fin du XVIIe siècle, à leurs vraies
+latitudes. Elles font le tour de l'île dans le sens des aiguilles depuis
+Port-Royal ; l'île entière tient dans neuf milles à cette échelle.
+
+Avant d'écrire une fiche, on peut lire ce qu'elle donne :
+
+```bash
+dotnet run --project core/NavalSim.Lab -- ports          # rivage trouvé, longueur de la jetée, fond à la tête, abri
+```
+
 ## Les villes
 
 Chaque **port** bâtit la sienne tout seul : on ne mouille pas devant un rivage

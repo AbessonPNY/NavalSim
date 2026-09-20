@@ -6595,6 +6595,83 @@ même abri. La parité a été refaite sur la fiche modifiée : elle tient.
 
 Reste de ce lot : la chaloupe.
 
+## Les quêtes portées, et les rades de la Jamaïque (Godot)
+
+Demandé : le système de quêtes, et la première — celle qui apprend à jouer —
+menant d'une rade de la Jamaïque à l'autre, telles qu'une vieille carte
+anglaise les porte.
+
+**IL FALLAIT D'ABORD DES PORTS OÙ ALLER.** Treize rades ajoutées à
+`world/caraibes.json`, à leurs vraies latitudes : Passage Fort, Old Harbour,
+Withywood, Black River, Savanna-la-Mar, Negril, Lucea, Montego Bay, Dry
+Harbour, Port Maria, Port Antonio, Port Morant, Yallahs. Une rade coûte quatre
+nombres — le reste (le rivage, la longueur de la jetée, le bassin dragué) est
+trouvé dans l'image. Mesuré : 21 ports nés en 46 ms, jetées de 32 à 62 m, et
+les villes en 40 ms pour 3 170 maisons. Un mode de banc pour le dire avant
+d'écrire quoi que ce soit : `Lab -- ports`. C'est lui qui a fait descendre le
+ponton de Passage Fort de 150 m — la borne — à 36, en changeant son relèvement
+de quai de 100° à 120° : au fond de la rade, l'eau est ailleurs.
+
+Une ville sans port ne se bâtit que près de l'eau (les maisons se posent entre
+11 et 700 m du rivage) : **St Jago de la Vega**, qui est à dix kilomètres dans
+les terres, a donc été refusée par la règle et retirée de la fiche. Elle reste
+dans la quête, comme la ville dont Passage Fort est le débarcadère — ce qu'elle
+est.
+
+**LE PORTAGE A TROUVÉ DEUX DÉFAUTS DANS LA PAGE**, tous deux invisibles à
+l'œil, et c'est à peu près la raison d'être de ce banc :
+
+- `place()` écrivait `if(isl && (a.port || !(bearing…)) && isl.port)`. Le
+  premier terme avale les deux autres : dès que le champ s'appelle `port`,
+  c'est la tête du ponton qu'on obtient, et la forme documentée
+  `{ port, bearing, miles }` ne donnait jamais le point demandé. Elle ne
+  marchait qu'avec `island`, l'ancien nom.
+- `allerQuete()` lisait `world.byKey(s.at.island)` après avoir testé
+  `s.at.port` : sur une étape écrite avec le nom moderne, la console plantait.
+
+Les deux sont corrigés des deux côtés. Le premier n'aurait rien allumé : il
+aurait posé le cercle deux milles ailleurs, et le joueur aurait cherché.
+
+**LE BANC DE PARITÉ, SEPTIÈME PARTIE.** Une quête ne calcule presque rien, ce
+qui la rend mal vérifiable à l'œil : un lieu mal résolu n'éteint aucun voyant,
+une étape remplie un cran trop tôt fait sauter un message que personne ne
+reverra. Le relevé prend donc les deux : **dix-sept formes de lieu** — y compris
+celles qu'on n'écrirait pas soi-même, le port inconnu, le champ vide, l'ancien
+nom — et le **déroulé complet** d'une quête d'essai le long d'une route bâtie
+à partir des lieux eux-mêmes, deux cent quatre-vingt-dix pas à un dixième de
+seconde. On compare l'étape en cours, le compteur de `stop`, la distance, le
+relèvement, et **à quel pas exactement** chacun des sept messages s'affiche.
+La fiche d'essai voyage DANS le relevé : les deux côtés lisent la même, et un
+écart ne peut venir que du code. Pire écart : 4,6e-13 sur une distance.
+
+**CE QUE L'ÉCRAN EN MONTRE.** Une ligne dorée sous les instruments, qui se
+place d'après la hauteur du bandeau — laquelle change avec l'état du navire,
+si bien qu'un nombre écrit en dur s'en décrocherait au premier échouage. Les
+mots sont ceux de la page, jusqu'à la bascule des unités : en mètres sous le
+demi-mille (« 20 m sur 900 m »), en milles au-delà, « vous y êtes » dans le
+cercle. Les messages passent dans un cadre au milieu, en **file** et non en
+remplacement : une étape remplie affiche son message PUIS la consigne de la
+suivante, et écraser le premier par le second, c'est perdre la moitié de ce
+qu'on est venu chercher. Le cadre prend la hauteur de son texte.
+
+Le lieu de l'étape est **cerclé de doré sur la carte du capitaine**, et la
+carte ne connaît pas les quêtes : elle DEMANDE — un `Func` qu'on lui donne —
+et n'en garde rien. On peut jouer sans une seule quête sans qu'une ligne de la
+carte s'en doute.
+
+**LA PREMIÈRE QUÊTE, `le-tour-de-la-jamaique`** : appareiller (sortir du cercle
+de Port-Royal, ce qui apprend M, V, A/D, Q/E), accoster à Passage Fort en
+face, mettre en panne au sud des Palisadoes — 133 m d'eau, à un mille du
+rivage —, relâcher à Yallahs puis à Port Morant en louvoyant contre l'alizé,
+et rentrer vent arrière. Quatre milles en tout, les quatre sortes d'objectif
+dans l'ordre où elles se compliquent, et trois rades portées sur la carte au
+passage. L'outro nomme les dix autres, pour la suite.
+
+**Et une leçon de ligne de commande** : les options du jeu passent APRÈS
+`--`, sans quoi `OS.GetCmdlineUserArgs()` rend une liste vide et Godot avale
+tout en silence — trois lancements à chercher pourquoi la capture ne venait
+pas, alors que `--titre 0` n'était pas lu non plus.
+
 ## La carte du capitaine (Godot)
 
 Demandé comme un défi : dans la chambre, une carte VIERGE sur laquelle le joueur
