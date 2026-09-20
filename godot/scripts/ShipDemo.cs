@@ -118,9 +118,10 @@ public partial class ShipDemo : Node3D
             _jetty = new JettyNode(_world);
             AddChild(_jetty);
             _book = LoadBook();
-            _chart = new ChartNode(_world, _book) { Aim = QuestPlace };
+            _chart = new ChartNode(_world, _book) { Aim = QuestPlace, Marks = () => _flotsam.Marks() };
             AddChild(_chart);
             LoadQuests();
+            PlantCrosses();
             _anchor2 = new AnchorNode(_world, _sea)
             {
                 Splash = (at, water, speed, jet) => _spray.Pool.Burst(at, water, speed, jet),
@@ -1029,6 +1030,7 @@ public partial class ShipDemo : Node3D
             _dofMarker.Draw(_cam, _sea.Core, _t, _settings.DofNear, _settings.DofDistance, _settings.DofFade);
         // les feux et les fenêtres suivent la nuit du ciel, et s'effacent au loin
         _ship.SetLantern(_sky.Core.Night, _t, _cam.GlobalPosition, _sky.Core);
+        _town?.SetNight(_sky.Core.Night);     // les villes s allument avec les fanaux
         foreach (var s in _others) s.SetLantern(_sky.Core.Night, _t, _cam.GlobalPosition, _sky.Core);
         // après les feux : la scène lit la nuit par leur règle
         GhostTick(frame);

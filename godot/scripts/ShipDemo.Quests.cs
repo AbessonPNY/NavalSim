@@ -36,7 +36,7 @@ public partial class ShipDemo : Node3D
     void LoadQuests()
     {
         if (_world == null) return;
-        _quests = new Quests(_world) { OnShow = ShowQuest, OnChange = () => { AimLine(); SaveQuests(); } };
+        _quests = new Quests(_world) { OnShow = ShowNotice, OnChange = () => { AimLine(); SaveQuests(); } };
         string dir = System.IO.Path.Combine(WorldLoad.Folder, "quests");
         if (!System.IO.Directory.Exists(dir)) return;
 
@@ -137,7 +137,7 @@ public partial class ShipDemo : Node3D
        PUIS la consigne de la suivante, et la fin d'une quête son dernier mot puis
        l'outro. Écraser le premier par le second, c'est perdre la moitié de ce
        qu'on est venu chercher. */
-    void ShowQuest(string title, string text)
+    public void ShowNotice(string title, string text)
     {
         if (text.Length == 0) return;
         _msgs.Enqueue((title, text));

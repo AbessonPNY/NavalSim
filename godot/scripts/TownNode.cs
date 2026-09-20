@@ -34,6 +34,8 @@ public partial class TownNode : Node3D
     public double Range = 9000;
 
     StandardMaterial3D _mat = null!;
+    /// <summary>Le mur, qui sait s'allumer ; le toit garde le matériau ordinaire.</summary>
+    ShaderMaterial _walls = null!;
     Mesh _wall = null!, _roof = null!;
 
     public TownNode(World world) { _world = world; }
@@ -48,6 +50,15 @@ public partial class TownNode : Node3D
             NextPass = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") }
         };
         Hazed.Add((ShaderMaterial)_mat.NextPass);
+
+        /* LES MURS ONT LEUR PROPRE MATIÈRE parce qu'ils ont des fenêtres, et les
+           fenêtres s'allument (shaders/town.gdshader). Le toit, lui, n'a rien à
+           éclairer : il garde le matériau ordinaire, qui coûte moins. */
+        _walls = new ShaderMaterial
+        {
+            Shader = GD.Load<Shader>("res://shaders/town.gdshader"),
+            NextPass = _mat.NextPass
+        };
         _wall = new BoxMesh { Size = Vector3.One };
         _roof = Roof();
     }
@@ -141,16 +152,31 @@ public partial class TownNode : Node3D
             mmRoof.SetInstanceColor(i, Roofs[(int)(Rnd() * Roofs.Length) % Roofs.Length]);
         }
 
-        foreach (var mm in new[] { mmWall, mmRoof })
-            holder.AddChild(new MultiMeshInstance3D
-            {
-                Multimesh = mm, MaterialOverride = _mat,
-                CastShadow = GeometryInstance3D.ShadowCastingSetting.On,
-                ExtraCullMargin = 400
-            });
+        holder.AddChild(new MultiMeshInstance3D
+        {
+            Multimesh = mmWall, MaterialOverride = _walls,
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.On,
+            ExtraCullMargin = 400
+        });
+        holder.AddChild(new MultiMeshInstance3D
+        {
+            Multimesh = mmRoof, MaterialOverride = _mat,
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.On,
+            ExtraCullMargin = 400
+        });
 
         _towns.Add((new Vec3d(cx, 0, cz), holder));
         GD.Print($"{name} : {houses.Count} maison(s) bâtie(s)");
+    }
+
+    /// <summary>
+    /// LA NUIT TOMBE SUR LA VILLE : le même chiffre que les fanaux du bord, si
+    /// bien que les fenêtres s'allument quand les lanternes s'allument et non
+    /// quand un second seuil en décide.
+    /// </summary>
+    public void SetNight(double night)
+    {
+        _walls?.SetShaderParameter("u_night", (float)Math.Clamp(night, 0, 1));
     }
 
     /// <summary>Poser les villes contre l'origine du moment, et cacher celles qui sont loin.</summary>

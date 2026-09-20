@@ -36,6 +36,8 @@ public partial class FlotsamNode : Node3D
         public MeshInstance3D? Mark;
         public double MarkFrom;
         public string? From;              // le navire d'où vient la bouteille
+        public string Key = "";           // la cargaison : sa clé dans le carnet
+        public bool Fixed;                // posée sur le fond : elle ne dérive pas
     }
 
     sealed class Kind
@@ -53,8 +55,15 @@ public partial class FlotsamNode : Node3D
     {
         ["plank"] = new Kind { Draft = 0.02, Life = 900, Push = 9, Damp = 3.0 },
         ["barrel"] = new Kind { Draft = 0.12, Life = 900, Push = 6, Damp = 1.5 },
-        ["bottle"] = new Kind { Scale = 3, Draft = 0.05, Life = 1800, Push = 8, Damp = 2.6 }
+        ["bottle"] = new Kind { Scale = 3, Draft = 0.05, Life = 1800, Push = 8, Damp = 2.6 },
+        /* LA CARGAISON ÉCHOUÉE ne flotte pas : elle repose sur le haut-fond, le
+           dessus hors de l'eau, et se prend en venant près et en stoppant — comme
+           on enverrait une chaloupe, puisque le navire ne peut pas aller où elle
+           est sans toucher. */
+        ["cargo"] = new Kind { Life = double.PositiveInfinity, PickupRadius = 15, PickupSpeed = 1.0, Halo = false }
     };
+    /// <summary>Faut-il une embarcation à avirons pour la prendre ? (props/Props.json → cargo.needsBoat)</summary>
+    public bool CargoNeedsBoat = true;
     int _debrisMin = 1, _debrisMax = 2;
     /// <summary>Une bouteille sur combien de naufrages — settings.json → wreck.bottleOneIn.</summary>
     public int BottleOneIn = 6;
@@ -64,8 +73,13 @@ public partial class FlotsamNode : Node3D
     readonly RandomNumberGenerator _rng = new();
     double _clock;
 
+    /// <summary>Le monde : il dit où est le haut-fond sur lequel une cargaison s'échoue.</summary>
+    public World? World;
+
     /// <summary>Une bouteille repêchée : le navire d'où elle vient.</summary>
     public Action<string?>? OnBottle;
+    /// <summary>Une cargaison relevée : sa clé dans le carnet du capitaine.</summary>
+    public Action<string>? OnCargo;
     /// <summary>Un objet qui crève la surface en remontant : où, l'eau jetée, sa vitesse.</summary>
     public Action<Vec3d, double, double>? OnBreak;
     /// <summary>Une coque vient de sombrer : à l'appelant de dire ce qu'elle emporte.</summary>
@@ -144,6 +158,29 @@ public partial class FlotsamNode : Node3D
             var it = _items[i];
             it.Age += dt;
             if (it.Age > it.Life) { Remove(it); continue; }
+
+            /* CE QUI EST POSÉ NE DÉRIVE PAS et n'a pas d'âge : une caisse sur un
+               haut-fond attend qu'on vienne la chercher, aussi longtemps qu'il
+               faudra. On ne fait que la replacer contre l'origine du moment. */
+            if (it.Fixed)
+            {
+                it.Node.Position = new Vector3((float)(it.X - o.X), (float)it.Y, (float)(it.Z - o.Z));
+                var KC = _def["cargo"];
+                /* ON N Y VA QU EN CHALOUPE, et c est le TIRANT D EAU qui le dit,
+                   non un drapeau dans la fiche : elle est posée dans un mètre
+                   d eau, donc y vient qui peut y flotter. La page demandait des
+                   avirons ; la règle physique vaut mieux, et elle se vérifie
+                   toute seule le jour où un autre canot existera. */
+                bool boat = !CargoNeedsBoat || player.Physics.Draft < 1.2;
+                if (boat && pv < KC.PickupSpeed
+                    && Math.Sqrt((it.X - px) * (it.X - px) + (it.Z - pz) * (it.Z - pz)) < KC.PickupRadius)
+                {
+                    string key = it.Key;
+                    Remove(it);
+                    OnCargo?.Invoke(key);
+                }
+                continue;
+            }
             /* Il dérive au vent, quelques centièmes de lui — le plus qu'une chose
                qui flotte en prenne jamais — et tourne lentement en allant. */
             it.X += wind.X * 0.025 * dt;
@@ -222,6 +259,57 @@ public partial class FlotsamNode : Node3D
         OnWreck?.Invoke(s);
     }
 
+    /// <summary>
+    /// UNE CARGAISON SUR LE PLATEAU D'UNE ÎLE — le portage de <c>strand</c>.
+    ///
+    /// On cherche, depuis le port et dans une direction au hasard qui ne soit pas
+    /// celle de sa rade, la première eau d'un mètre de fond : la batture que le
+    /// relief met là où il la met. Le navire ne peut pas y aller — c'est tout
+    /// l'intérêt, et c'est ce qui donne son sens à la chaloupe.
+    /// </summary>
+    public (double X, double Z, double Ang)? Strand(Isle isl, string key)
+    {
+        if (World == null) return null;
+        for (int tries = 0; tries < 24; tries++)
+        {
+            double a = _rng.Randf() * Mathf.Tau;
+            // pas dans l'axe de son propre port : on l'aurait vue du ponton
+            double d = Math.Atan2(Math.Sin(a - isl.Port.Ang), Math.Cos(a - isl.Port.Ang));
+            if (Math.Abs(d) < 0.8) continue;
+            for (double outw = 0; outw < 4000; outw += 2)
+            {
+                double x = isl.X + Math.Cos(a) * outw, z = isl.Z + Math.Sin(a) * outw;
+                double h = World.HeightAt(x, z);
+                if (h >= -0.7 || h <= -1.6) continue;
+                Plant(x, z, h + 0.45, key);
+                return (x, z, a);
+            }
+        }
+        return null;
+    }
+
+    /// <summary>La reposer où le carnet dit qu'elle est — au chargement d'une partie.</summary>
+    public void Plant(double x, double z, double y, string key)
+    {
+        var K = _def["cargo"];
+        var it = new Item
+        {
+            Kind = "cargo", X = x, Z = z, Y = y, Yaw = _rng.Randf() * Mathf.Tau,
+            Life = K.Life, Key = key, Fixed = true
+        };
+        it.Node = Draw("cargo", K, it);
+        AddChild(it.Node);
+        _items.Add(it);
+    }
+
+    /// <summary>Ce que la carte doit marquer : les bouteilles à la dérive et les cargaisons.</summary>
+    public IEnumerable<(double X, double Z, bool Cargo)> Marks()
+    {
+        foreach (var it in _items)
+            if (it.Kind == "bottle" || it.Kind == "cargo")
+                yield return (it.X, it.Z, it.Kind == "cargo");
+    }
+
     void Float(string kind, double x, double z, string? from)
     {
         var K = _def[kind];
@@ -287,6 +375,17 @@ public partial class FlotsamNode : Node3D
             foreach (float x in new[] { -0.3f, 0.3f })
                 Add(new TorusMesh { InnerRadius = 0.313f, OuterRadius = 0.357f, RingSegments = 16, Rings = 5 },
                     Mat("#2a2522", 0.6f, 0.4f), new Vector3(x, 0, 0), new Vector3(0, 0, Mathf.Pi / 2));
+        }
+        else if (kind == "cargo")
+        {
+            // une caisse et un tonneau à côté, défoncés et laissés par la mer
+            Add(new BoxMesh { Size = new Vector3(1.5f, 1.0f, 1.1f) }, Mat("#5e4630", 0.9f),
+                Vector3.Zero, new Vector3(0, 0.2f, 0.08f));
+            foreach (float y in new[] { 0.3f, -0.3f })
+                Add(new BoxMesh { Size = new Vector3(1.56f, 0.08f, 1.16f) }, Mat("#8a6a44", 0.85f),
+                    new Vector3(0, y, 0), new Vector3(0, 0.2f, 0.08f));
+            Add(new CylinderMesh { TopRadius = 0.34f, BottomRadius = 0.34f, Height = 0.9f, RadialSegments = 12 },
+                Mat("#5e4630", 0.9f), new Vector3(1.3f, -0.1f, 0.6f), new Vector3(0.3f, 0, 0.2f));
         }
         else
         {

@@ -37,10 +37,10 @@ public partial class ShipDemo
             _coins.Spill(new Vector3((float)b.Pos.X, (float)b.Pos.Y, (float)b.Pos.Z),
                 s.Spec.L, s.Spec.B, (int)Math.Clamp(s.Spec.L * 10, 120, 500));
         };
-        // ce qu'elle contient regarde la page ; ici elle se nomme, en attendant la carte
-        _flotsam.OnBottle = from => Say(from != null
-            ? $"Une bouteille repêchée — elle vient du {from}"
-            : "Une bouteille repêchée");
+        // ce qu'elle contient : une page de journal, ou une carte (ShipDemo.Bottle.cs)
+        _flotsam.OnBottle = OpenBottle;
+        _flotsam.OnCargo = ClaimCargo;
+        _flotsam.World = _world;
         _wreckAir.OnLastBreath = (at, v) =>
         {
             var b = _ship.Physics.Body;

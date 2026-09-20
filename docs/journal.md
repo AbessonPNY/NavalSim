@@ -6595,6 +6595,58 @@ même abri. La parité a été refaite sur la fiche modifiée : elle tient.
 
 Reste de ce lot : la chaloupe.
 
+## Les cartes en bouteille, et les villes qui s'allument (Godot)
+
+Demandé : que les débris d'un naufrage rendent des cartes en bouteille.
+
+**LA BOUTEILLE FLOTTAIT DÉJÀ** — `flotsam.js` était porté avec son halo, sa
+prise en venant près et lentement, et un commentaire qui disait « ce qu'elle
+contient regarde la page ; ici elle se nomme, EN ATTENDANT LA CARTE ». La carte
+existait depuis la séance précédente ; il ne restait qu'à les joindre.
+
+Une fois sur trois une page de journal de bord — le dernier geste de quelqu'un.
+Deux fois sur trois une CARTE : une cargaison échouée sur la batture d'une île,
+cherchée depuis le port dans une direction au hasard qui ne soit pas celle de sa
+rade, à la première eau d'un mètre de fond. Mesuré : sur six bouteilles, deux
+cartes, chaque croix tombée dans 0,73 et 0,80 m d'eau.
+
+**LA CROIX VIT DANS LE CARNET, PAS DANS LES DÉBRIS**, et c'est le choix qui
+tient tout le reste. Un lieu qu'on a APPRIS n'est pas un lieu qu'on a VU : il
+doit survivre à la fermeture du jeu, alors qu'une caisse flottante est un objet
+de la séance. Le carnet garde donc la croix, sa clé et son libellé ; à
+l'ouverture, chaque croix repose sa caisse sur le fond. Une seule mémoire, rien
+à tenir d'accord — et la carte ne peut pas mentir sur ce qu'elle montre.
+
+**C'EST LE TIRANT D'EAU QUI DÉCIDE** qui peut aller la chercher, et non un
+drapeau dans la fiche. La page demandait des avirons (`needsBoat`) ; la caisse
+est posée dans un mètre d'eau, donc y vient qui peut y flotter. Mesuré :
+chaloupe 0,66 m, chaland 1,55 m, cotre 1,96 m — le seuil à 1,20 m sépare
+proprement. La règle est physique, elle se vérifiera toute seule le jour où la
+chaloupe se mettra à l'eau depuis le bord.
+
+**LA RÉCOMPENSE SE SENT À LA BARRE** : les épices vont au fond de la cale, au
+milieu — un fret d'un bord la ferait gîter. Mesuré 210 t puis 216 t pour six
+tonnes, et le tirant d'eau suit. C'est la seule récompense de ce jeu qui change
+la façon dont la coque se conduit.
+
+### Les villes la nuit
+
+**LES FENÊTRES SONT DESSINÉES DANS LE MUR LUI-MÊME.** Une ville est un
+MultiMesh de plusieurs centaines de boîtes ; y accrocher une lumière par maison
+recompilerait tout le rendu, ce que la règle « ne jamais ajouter une lumière en
+jeu » défend depuis three.js et que Godot ne supporterait pas mieux. Le shader
+perce deux fenêtres par face dans la moitié haute du mur, et le pignon n'en a
+pas — on ne perce pas un mur qui porte le faîtage.
+
+**TOUTES NE S'ALLUMENT PAS, ET AUCUNE COMME SA VOISINE** : le tirage vient de la
+POSITION de la maison, hachée dans le vertex. Rien à stocker, rien à passer par
+instance, et la même maison a la même fenêtre d'une partie à l'autre. Elles
+s'allument sur le MÊME chiffre que les fanaux du bord (`Sky.Night`) et non sur
+un second seuil : la ville et le navire passent la nuit ensemble.
+
+Le mur a donc sa matière et le toit garde l'ordinaire, qui coûte moins puisqu'il
+n'a rien à éclairer.
+
 ## Deux pannes muettes : la terre à l'envers, la coque assise sur le sable
 
 Signalées à l'essai, à un quart d'heure d'intervalle, et toutes deux invisibles

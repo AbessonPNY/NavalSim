@@ -59,6 +59,13 @@ public partial class ChartNode : Node
        permet de jouer sans aucune quête sans qu'une ligne d'ici ne s'en doute. */
     public Func<(double X, double Z, double R, string Name)?>? Aim;
 
+    /* CE QUI FLOTTE ET QUI VAUT QU'ON Y AILLE — une bouteille à la dérive. Même
+       règle que pour l'objectif : la carte DEMANDE, elle ne garde rien. Les
+       cargaisons, elles, ne passent pas par là : elles ont une croix dans le
+       carnet, parce qu'on les a APPRISES et qu'elles doivent survivre à la
+       fermeture du jeu. */
+    public Func<System.Collections.Generic.IEnumerable<(double X, double Z, bool Cargo)>>? Marks;
+
     /// <summary>Le coin haut-gauche et l'étendue de la carte, en mètres monde.</summary>
     double _x0, _z0, _w, _h;
 
@@ -221,6 +228,33 @@ public partial class ChartNode : Node
                 DrawString(_c._font, p + new Vector2(7 * Q, 4 * Q), isl.Name,
                     HorizontalAlignment.Left, -1, 15, new Color(0.26f, 0.18f, 0.11f));
             }
+            /* LES CROIX : ce qu'une carte de bouteille a appris. Une croix, pas
+               un rond — un rond est un lieu qu'on a relevé soi-même, une croix
+               est un lieu qu'on tient de quelqu'un d'autre. */
+            foreach (var x in b.Crosses)
+            {
+                var p = _c.ToChart(x.X, x.Z);
+                var gold = new Color(0.86f, 0.62f, 0.16f);
+                float r = 5f * Q;
+                DrawLine(p - new Vector2(r, r), p + new Vector2(r, r), gold, 2.2f * Q);
+                DrawLine(p + new Vector2(r, -r), p + new Vector2(-r, r), gold, 2.2f * Q);
+                if (x.Text.Length > 0)
+                    DrawString(_c._font, p + new Vector2(r + 4 * Q, 4 * Q), x.Text,
+                        HorizontalAlignment.Left, -1, 14, gold);
+            }
+
+            // une bouteille à la dérive : un point pâle et son cercle, car on ne
+            // sait jamais qu'à peu près où elle flotte
+            if (_c.Marks != null)
+                foreach (var m in _c.Marks())
+                {
+                    if (m.Cargo) continue;
+                    var p = _c.ToChart(m.X, m.Z);
+                    var pale = new Color(0.85f, 0.94f, 0.92f);
+                    DrawCircle(p, 2f * Q, pale);
+                    DrawCircle(p, 5f * Q, new Color(pale, 0.55f), false, 1f * Q);
+                }
+
             // les traits de plume
             foreach (var s in b.Strokes)
             {
