@@ -369,13 +369,29 @@ public partial class ShipNode
     /// connaît déjà. Chacun garde sa phase, sans quoi trois pavillons onduleraient
     /// comme un seul ; une longue flamme porte plus d'ondes.
     /// </summary>
+    /// <summary>La mer, pour savoir si un pavillon est encore dans le vent ou déjà dans l'eau.</summary>
+    public NavalSim.Core.Ocean? Sea;
+
     public void StreamFlags(double t)
     {
         var p = Physics;
         foreach (var f in _flags)
         {
             if (!f.Pivot.Visible || !f.Node.IsVisibleInTree()) continue;
-            double yaw = f.Cloth.Stream(p.AppWindAngle, p.Tack, p.AppWindSpeed, t);
+            /* UN PAVILLON NOYÉ NE DANSE PLUS. Sous l'eau il n'y a pas de vent :
+               l'étamine se colle à elle-même et pend le long de sa drisse — elle
+               se met en torche. Le même calcul le fait, avec un vent nul : il perd
+               sa longueur en retombant. Lu sur SA hauteur à lui, pas sur celle du
+               navire : le grand pavillon de poupe touche l'eau bien avant les
+               têtes de mât. */
+            double vApp = p.AppWindSpeed;
+            if (Sea != null)
+            {
+                var w = f.Mount.GlobalPosition;
+                double over = w.Y - Sea.Sample(w.X, w.Z, t);
+                if (over < 1.5) vApp *= Math.Clamp(over / 1.5, 0, 1);
+            }
+            double yaw = f.Cloth.Stream(p.AppWindAngle, p.Tack, vApp, t);
             f.Pivot.Rotation = new Vector3(0, (float)yaw, 0);
             UploadFlag(f);
         }

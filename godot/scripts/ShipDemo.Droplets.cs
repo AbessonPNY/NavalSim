@@ -15,7 +15,9 @@ namespace NavalSim;
 public partial class ShipDemo
 {
     ColorRect _dropRect = null!;
-    double _wet, _dropClock;
+    double _wet, _sheet, _dropClock;
+    /// <summary>Le temps que la nappe met à s'égoutter, en secondes.</summary>
+    const double SheetIn = 0.5;
     /// <summary>Le temps de séchage, en secondes.</summary>
     const double DryIn = 7;
 
@@ -33,10 +35,13 @@ public partial class ShipDemo
         _dropClock += dt;
         // sous l'eau, l'objectif est mouillé d'un coup ; dehors, il sèche
         _wet = under ? 1 : Math.Max(0, _wet - dt / DryIn);
-        _dropRect.Visible = !under && _wet > 0.001;
+        // la nappe : entière tant qu'on est dedans, égouttée en une demi-seconde dehors
+        _sheet = under ? 1 : Math.Max(0, _sheet - dt / SheetIn);
+        _dropRect.Visible = !under && (_wet > 0.001 || _sheet > 0.001);
         if (!_dropRect.Visible) return;
         var m = (ShaderMaterial)_dropRect.Material;
         m.SetShaderParameter("u_wet", (float)_wet);
+        m.SetShaderParameter("u_sheet", (float)_sheet);
         m.SetShaderParameter("u_time", (float)_dropClock);
         var vp = GetViewport().GetVisibleRect().Size;
         m.SetShaderParameter("u_aspect", vp.Y > 0 ? vp.X / vp.Y : 1.777f);

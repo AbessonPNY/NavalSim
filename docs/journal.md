@@ -6384,6 +6384,40 @@ Demandé (2026-09-20) : « les naufrages d'abord ».
   0,030 à 0,085 (les glissantes à 0,12). Un semis fin et serré se lit comme du
   verre dépoli ; de grosses perles qui plient fort se lisent comme de l'eau.
 
+- **La vue MI-EAU** (demandée, d'après une photo en coupe) : une quatrième vue
+  (C, ou `--mi-eau 1`), l'œil posé sur la houle LUE à sa place — la ligne de
+  partage reste donc au milieu quand la mer respire — et le regard à
+  l'horizontale. Relevé d'un rien au-dessus (`--mi-eau-haut`, 5 cm par défaut) :
+  à fleur d'eau exacte, la surface vue de l'œil même s'étale en bande sombre et
+  mange les deux moitiés. Et la passe sous-marine tranche alors PAR PIXEL, au
+  sens du rayon, au lieu d'être tout ou rien pour la caméra entière.
+
+- **Les gouttes reprises** (demandé, d'après une photo de pare-brise) : formes
+  et tailles AU HASARD — chaque perle a son allongement, son inclinaison et sa
+  pointe par le haut, la larme d'une goutte tirée par son poids —, et plus
+  grosses. Et, avant elles, une NAPPE : au sortir de l'eau l'objectif porte une
+  lame d'eau qui tire l'image vers le bas, la brouille, puis s'égoutte en une
+  demi-seconde en découvrant les perles. Piège : son bord festonné par un bruit
+  pris par bandes (`floor`) sortait en marches d'escalier — relevé sur capture,
+  remplacé par un bruit lissé. `--nappe x` la pose pour l'essai.
+
+- **Les bulles qu'on VOIT monter** (signalé : « il n'y a pas d'air qui
+  s'échappe »). Le solveur comptait l'air, WreckAir le faisait arriver en haut,
+  mais entre les deux il montait en silence. Le noyau annonce donc chaque poche
+  qui part (`OnSlug`), et un MultiMesh la montre : une GRAPPE qui tremble, à la
+  vitesse de Davies et Taylor, si bien qu'elle crève À L'INSTANT où paraissent
+  la gerbe et le bouillon — les deux bouts du même trajet. Petites au départ et
+  qui GROSSISSENT (demandé, et c'est Boyle) : le rayon suit la racine cubique du
+  rapport des pressions — de 12 m de fond, ×1,28 à 8 m, ×1,63 à 4 m, ×1,95 en
+  surface. Deux essais écartés : des anneaux bleu néon (bord trop mince, couleur
+  trop saturée), puis des bulles devenues invisibles à force d'être petites.
+- **Un pavillon noyé ne danse plus** (signalé). Sous l'eau il n'y a pas de vent :
+  le même calcul le fait retomber, avec un vent nul, et il perd sa longueur en
+  pendant. Lu sur SA hauteur à lui — le grand pavillon de poupe touche l'eau
+  bien avant les têtes de mât.
+- **Gouttes encore réduites** (demandé) : les plus grosses ôtées (rayon max de
+  0,39 à 0,23) et une case sur cinq seulement en porte une.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

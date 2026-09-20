@@ -15,11 +15,15 @@ public partial class ShipDemo
     readonly WreckAir _wreckAir = new();
     readonly List<WreckHull> _wrecks = new();
     FlotsamNode _flotsam = null!;
+    BubbleNode _bubbles = null!;
 
     void WireWreck()
     {
         // la gerbe basse que chaque poche soulève en crevant, et le bouillon qui reste
         _wreckAir.OnBurst = (at, water, speed, jet) => _spray.Pool.Burst(at, water, speed, jet);
+        // ce qu'on voit du trajet : la poche elle-même, qui monte en chapelet
+        _wreckAir.OnSlug = (at, v, rise, travel) =>
+            _bubbles.Slug(new Vector3((float)at.X, (float)at.Y, (float)at.Z), v, rise, travel);
         _flotsam.BottleOneIn = _bottleOneIn;
         // ce qui crève la surface en remontant jette son peu d'eau, par la même réserve
         _flotsam.OnBreak = (at, water, speed) => _spray.Pool.Burst(at, water, speed);
@@ -44,6 +48,7 @@ public partial class ShipDemo
         _wreckAir.Update(dt, _wrecks, _sea.Core, _t);
         _foam.SetBoils(_wreckAir.Boils);
         _flotsam.Step(dt, _sea.Core, _allShipsForFlotsam(), _ship, _cam);
+        _bubbles.Step(dt, _sea.Core, _t);
     }
 
     readonly List<ShipNode> _flotsamFleet = new();

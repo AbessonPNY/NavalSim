@@ -95,6 +95,8 @@ public partial class ShipDemo : Node3D
         WireGuns();
         _flotsam = new FlotsamNode();
         AddChild(_flotsam);
+        _bubbles = new BubbleNode();
+        AddChild(_bubbles);
         WireWreck();
         _krakenNode.Build(_krakenRules.Glb == null ? null
             : System.IO.Path.GetFullPath(System.IO.Path.Combine(ProjectSettings.GlobalizePath("res://"), "..", _krakenRules.Glb)));
@@ -282,6 +284,7 @@ public partial class ShipDemo : Node3D
             s.SyncTransform();
             var p = s.Physics;
             s.SetTrim(s.Ctrl.Sheet, p.Tack, p.SetFrac, p.Luffing, _t, p.SailLoad);
+            s.Sea = _sea.Core;
             s.StreamFlags(_t);
             s.SwingLanterns(frame);
         }
@@ -785,6 +788,7 @@ public partial class ShipDemo : Node3D
            le navire, sans seconde règle à tenir d'accord. */
         var ph = _ship.Physics;
         _ship.SetTrim(_ship.Ctrl.Sheet, ph.Tack, ph.SetFrac, ph.Luffing, _t, ph.SailLoad);
+        _ship.Sea = _sea.Core;
         _ship.StreamFlags(_t);
         // les lanternes pendues suivent le roulis en vrais pendules
         _ship.SwingLanterns(frame);
@@ -814,6 +818,7 @@ public partial class ShipDemo : Node3D
             foreach (var pr in _pirates.Values) pr.Rebase(-dx, -dz);
             _gunFx.Rebase(-dx, -dz);
             _wreckAir.Rebase(-dx, -dz);
+            _bubbles.Rebase(dx, dz);
             // la seule chose qui ne suit PAS le navire : sans ceci elle resterait
             // à quinze cents mètres, à filmer de l'eau vide
             _anchor = new Vec3d(_anchor.X + dx, _anchor.Y, _anchor.Z + dz);
@@ -880,7 +885,12 @@ public partial class ShipDemo : Node3D
            face de dessous — la fenêtre de Snell. */
         var ce = _cam.GlobalPosition;
         double seaY = _sea.Core.Sample(ce.X, ce.Z, _t);
-        bool under = seaY > ce.Y;
+        /* À CHEVAL SUR LA SURFACE : quand l'œil est à moins d'un demi-mètre de
+           l'eau, ce n'est plus dessus ou dessous mais les deux à la fois, et
+           c'est le PIXEL qui décide — la passe sous-marine regarde alors le sens
+           du rayon. */
+        float straddle = (float)Math.Max(0, 1 - Math.Abs(seaY - ce.Y) / 0.5);
+        bool under = seaY > ce.Y || straddle > 0.01f;
         _sea.Material?.SetShaderParameter("u_submerged", under ? 1f : 0f);
         // et la passe sous-marine, qui n'existe que là : l'eau qui éteint, les rais qui descendent
         _under.Enabled = under;
@@ -898,6 +908,7 @@ public partial class ShipDemo : Node3D
             // et ce qu'on y voit est ce qui a traversé, non ce qu'elle renvoie
             _under.Water = new Color((float)(0.0015 * wl), (float)(0.0120 * wl), (float)(0.0240 * wl));
             _under.Time = (float)_t;
+            _under.Straddle = straddle;
         }
         DropletTick(frame, under);
         _sky.PushTo(_sea.Material);
@@ -938,6 +949,8 @@ public partial class ShipDemo : Node3D
     // 0 orbite, 1 à bord (les vues de la fiche), 2 fixe — l'ordre du bouton de la page
     int _camMode;
     bool _fixed => _camMode == 2;
+    /// <summary>De combien l'œil de la vue mi-eau est relevé au-dessus de la houle locale.</summary>
+    float _splitLift = 0.05f;
     Vec3d _anchor;
     double _fixYaw, _fixPitch;
 
@@ -988,6 +1001,7 @@ public partial class ShipDemo : Node3D
     {
         1 => _ship.Spec.Decks[_deck].Name,
         2 => "Fixe",
+        3 => "Mi-eau",
         _ => "Orbite"
     };
 
@@ -1001,6 +1015,7 @@ public partial class ShipDemo : Node3D
         if (_camMode == 0) { _camMode = 1; _deck = 0; EnterDeck(); }
         else if (_camMode == 1 && _deck + 1 < _ship.Spec.Decks.Count) { _deck++; EnterDeck(); }
         else if (_camMode == 1) { _camMode = 2; SetLens(OutsideFov, OutsideNear); Plant(); }
+        else if (_camMode == 2) { _camMode = 3; SetLens(OutsideFov, OutsideNear); }
         else _camMode = 0;
         UpdateInfo();
     }
@@ -1063,6 +1078,26 @@ public partial class ShipDemo : Node3D
         if (_camMode == 1)
         {
             DeckCamera();
+            return;
+        }
+
+        /* MI-EAU : l'œil POSÉ SUR LA SURFACE, moitié dedans moitié dehors — la
+           vue en coupe des photographes sous-marins. La hauteur n'est pas
+           choisie, elle est LUE sur la houle à l'endroit de l'œil, si bien que la
+           ligne de partage reste au milieu de l'image quand la mer respire ; et
+           l'on regarde à l'horizontale, sans quoi la ligne file hors du cadre. */
+        if (_camMode == 3)
+        {
+            float r3 = Math.Max(12f, _dist * 0.35f);
+            var at = new Vector3(_ship.Position.X + Mathf.Sin(_orbit) * r3, 0, _ship.Position.Z + Mathf.Cos(_orbit) * r3);
+            /* UN QUART DE MÈTRE AU-DESSUS de la houle locale, et non dessus
+               exactement : à fleur d'eau, la surface vue de l'œil même s'étale en une
+               bande sombre au milieu de l'image et mange les deux moitiés. Relevée
+               d'un rien, elle redevient une LIGNE. */
+            at.Y = (float)_sea.Core.Sample(at.X, at.Z, _t) + _splitLift;
+            _cam.Position = at;
+            var look = _ship.Position;
+            _cam.LookAt(new Vector3(look.X, at.Y, look.Z), Vector3.Up);
             return;
         }
 
@@ -2058,6 +2093,7 @@ public partial class ShipDemo : Node3D
                 case "--lunette": ToggleSpyglass(); break;
                 // l'objectif mouillé d'emblée, pour juger les gouttes sans plonger
                 case "--gouttes": _wet = Math.Clamp(args[i + 1].ToFloat(), 0, 1); break;
+                case "--nappe": _sheet = Math.Clamp(args[i + 1].ToFloat(), 0, 1); break;
                 // l'œil tourné vers le soleil, un peu au-dessus de l'eau : pour juger sa route
                 case "--vers-soleil":
                     var sdir = _sky.Core.SunDir;
@@ -2119,6 +2155,9 @@ public partial class ShipDemo : Node3D
                     GD.Print(FormattableString.Invariant($"nuit {_sky.Core.Night:F2}, lune {(_sky.Core.MoonOn ? "oui" : "non")} phase {_sky.Core.MoonPhase:F2} levée {_sky.Core.MoonUp:F2}, lumière de l'eau {_sky.Core.WaterLight:F3}, lumière directe {_sky.Core.SunIntensity:F3}"));
                     break;
                 // ouvrir directement une vue à bord de la fiche
+                // l'œil posé sur la surface, moitié dedans moitié dehors
+                case "--mi-eau": _camMode = 3; SetLens(OutsideFov, OutsideNear); break;
+                case "--mi-eau-haut": _splitLift = args[i + 1].ToFloat(); break;
                 case "--vue": _camMode = 1; _deck = Math.Clamp(args[i + 1].ToInt(), 0, _ship.Spec.Decks.Count - 1); EnterDeck(); break;
                 case "--msaa": _settings.Msaa = args[i + 1].ToInt(); ApplySettings(); break;
                 case "--dofn": _settings.DofNear = args[i + 1].ToFloat(); ApplySettings(); break;

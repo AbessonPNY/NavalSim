@@ -46,6 +46,7 @@ layout(set = 0, binding = 2, std140) uniform Params {
 	vec4 sun;         // xyz : le soleil, monde ; w : sa force
 	vec4 water;       // rgb : la couleur de l'eau profonde ; a : le temps
 	vec4 misc;        // x : la mer sous l'œil (hauteur) ; y : force des rais ; z : portée ; w : densité
+	vec4 split;       // x : l'œil à cheval sur la surface (0 à 1)
 } p;
 
 float hash(vec2 q) { return fract(sin(dot(q, vec2(127.1, 311.7))) * 43758.5453); }
@@ -82,6 +83,16 @@ void main() {
 	float far = 400.0;
 	float dist = view_z > far * 0.5 ? p.misc.z * 2.0 : view_z / max(-view_dir.z, 1e-3);
 
+	/* À CHEVAL SUR LA SURFACE : la moitié basse de l'image est sous l'eau, la
+	   haute dehors, et c'est le SENS DU RAYON qui tranche — l'œil est sur la
+	   ligne, donc tout ce qui descend est dans l'eau. La bascule garde un cheveu
+	   de fondu, le temps qu'une vague passe devant l'objectif. */
+	float wet = p.split.x > 0.01 ? smoothstep(0.01, -0.01, dir.y) : 1.0;
+	if (wet <= 0.001) {
+		frag = vec4(src.rgb, 1.0);
+		return;
+	}
+
 	// --- l'eau mange la lumière : extinction par canal ---
 	vec3 k = vec3(0.34, 0.13, 0.085) * p.misc.w;
 	vec3 through = exp(-k * dist);
@@ -110,5 +121,5 @@ void main() {
 	// les rais sont de la lumière du soleil, bleuie par l'eau qu'elle a traversée
 	col += vec3(0.55, 0.85, 1.0) * shafts * 0.0022;
 
-	frag = vec4(col, 1.0);
+	frag = vec4(mix(src.rgb, col, wet), 1.0);
 }

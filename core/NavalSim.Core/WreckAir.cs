@@ -54,6 +54,8 @@ public sealed class WreckAir
     public Action<Vec3d, double, double, double>? OnBurst;
     /// <summary>Son dernier souffle : où, et combien de mètres cubes d'un coup.</summary>
     public Action<Vec3d, double>? OnLastBreath;
+    /// <summary>Une poche qui PART du fond : d'où (monde), son volume, sa vitesse de montée, et combien de temps elle a à monter.</summary>
+    public Action<Vec3d, double, double, double>? OnSlug;
 
     /// <summary>Les bouillons de cette image, le plus fort d'abord — à poser dans le champ d'écume.</summary>
     public IReadOnlyList<Boil> Boils => _list;
@@ -132,6 +134,8 @@ public sealed class WreckAir
                         z = b.Pos.Z + fz * ez * S.L * 0.5 * outr + sz * ex * S.B * 0.5 * outr;
                     }
                     _rising.Add(new Slug { X = x, Z = z, V = V, R = r, Rise = rise, Spread = spread, At = Clock + depth / rise });
+                    // et on la MONTRE : sans cela l'air ne se voyait qu'en crevant la surface
+                    OnSlug?.Invoke(new Vec3d(x, c.Vent.Y, z), V, rise, depth / rise);
                 }
                 if (s.Owed > 20) s.Owed = 20;      // jamais un arriéré qui éclate d'un coup
             }
@@ -237,12 +241,14 @@ public sealed class WreckAir
         foreach (var (off, share, delay) in shots)
         {
             double v = V * share, r = Math.Cbrt(3 * v / (4 * Math.PI));
+            double rise0 = 0.71 * Math.Sqrt(9.81 * r);
             _rising.Add(new Slug
             {
                 X = last.X + fx * off * L, Z = last.Z + fz * off * L,
-                V = v, R = r, Rise = 0.71 * Math.Sqrt(9.81 * r), Spread = 0.25 * L,
+                V = v, R = r, Rise = rise0, Spread = 0.25 * L,
                 At = Clock + delay, Big = true
             });
+            OnSlug?.Invoke(new Vec3d(last.X + fx * off * L, last.Y - 1.0, last.Z + fz * off * L), v, rise0, delay);
         }
         OnLastBreath?.Invoke(last, V);
     }
