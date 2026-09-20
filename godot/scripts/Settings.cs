@@ -82,6 +82,14 @@ public sealed class Settings
     /// <summary>Le pavillon hissé sur le navire à la barre : l'id d'une nation de flags.json, vide pour celui de la fiche.</summary>
     public string Nation = "";
 
+    // [son]
+    /// <summary>Les bruitages : la bordée, le bois qui casse, le tonnerre.</summary>
+    public bool Sound = true;
+    /// <summary>La musique d'ambiance. COUPÉE par défaut, comme dans la page.</summary>
+    public bool Music = false;
+    /// <summary>Le volume d'ensemble, du silence à un.</summary>
+    public float Volume = 0.9f;
+
     // [performance]
     /// <summary>Les solveurs des navires sur plusieurs cœurs : résultats identiques au bit près.</summary>
     public bool ParallelSolvers = true;
@@ -120,6 +128,9 @@ public sealed class Settings
         s.AutoExposureSpeed = (float)cf.GetValue("rendu", "exposition_auto_vitesse", s.AutoExposureSpeed);
         s.FilmMask = (bool)cf.GetValue("rendu", "masque_cinema", s.FilmMask);
         s.Nation = (string)cf.GetValue("navire", "pavillon", s.Nation);
+        s.Sound = (bool)cf.GetValue("son", "bruitages", s.Sound);
+        s.Music = (bool)cf.GetValue("son", "musique", s.Music);
+        s.Volume = (float)cf.GetValue("son", "volume", s.Volume);
         s.SeaRoughBase = (float)cf.GetValue("mer", "rugosite_base", s.SeaRoughBase);
         s.SeaRoughWind = (float)cf.GetValue("mer", "rugosite_vent", s.SeaRoughWind);
         s.SeaSkyBlur = (float)cf.GetValue("mer", "flou_du_reflet", s.SeaSkyBlur);
@@ -163,6 +174,9 @@ public sealed class Settings
         cf.SetValue("rendu", "exposition_auto_vitesse", AutoExposureSpeed);
         cf.SetValue("rendu", "masque_cinema", FilmMask);
         cf.SetValue("navire", "pavillon", Nation);
+        cf.SetValue("son", "bruitages", Sound);
+        cf.SetValue("son", "musique", Music);
+        cf.SetValue("son", "volume", Volume);
         cf.SetValue("mer", "rugosite_base", SeaRoughBase);
         cf.SetValue("mer", "rugosite_vent", SeaRoughWind);
         cf.SetValue("mer", "flou_du_reflet", SeaSkyBlur);

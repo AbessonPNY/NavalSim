@@ -22,7 +22,7 @@
   ],
   "ports": [
     { "key": "port-royal", "name": "Port-Royal", "lat": 17.9425, "lon": -76.8330, "quay": 0,
-      "start": true, "note": "au bout des Palisadoes, quais côté port" },
+      "start": true, "mole": true, "note": "au bout des Palisadoes, quais côté port" },
     { "key": "santiago", "name": "Santiago de Cuba", "lat": 20.0150, "lon": -75.8350, "quay": 200 },
     { "key": "tortue", "name": "La Tortue", "lat": 20.0350, "lon": -72.7800, "quay": 180,
       "note": "Cayonne, le repaire des boucaniers" },

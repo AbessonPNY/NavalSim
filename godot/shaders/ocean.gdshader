@@ -20,6 +20,7 @@ shader_type spatial;
 render_mode world_vertex_coords, cull_disabled, unshaded, depth_draw_always;
 
 #include "res://shaders/gerstner.gdshaderinc"
+#include "res://shaders/shelter.gdshaderinc"
 #include "res://shaders/sky.gdshaderinc"
 #include "res://shaders/haze.gdshaderinc"
 #include "res://shaders/hull_gap.gdshaderinc"
@@ -132,7 +133,8 @@ void vertex() {
 	v_spacing = spacing;
 
 	vec3 w0 = vec3(local.x + u_centre.x, 0.0, local.y + u_centre.z);
-	float shelter = 1.0;         // le havre n'est pas encore porté
+	// ce qui reste de la mer derrière un môle, en mètres MONDE
+	float shelter = shelter_at(w0.xz);
 
 	vec3 disp;
 	vec3 nrm_acc;

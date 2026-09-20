@@ -99,6 +99,7 @@ public partial class ShipDemo : Node3D
         Key(a, "Q  E", "choquer, border les écoutes");
         Key(a, "V", "établir ou ferler");
         Key(a, "B", "l'élan : en route d'un coup, ou stop");
+        Key(a, "M", "mouiller · virer au cabestan");
         Section(a, "Artillerie");
         Key(a, "G", "un coup de la pièce suivante");
         Key(a, "G tenu", "la bordée entière");

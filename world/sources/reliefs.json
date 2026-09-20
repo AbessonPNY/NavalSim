@@ -31,7 +31,7 @@
   ],
 
   "strips": [
-    { "name": "Palisadoes", "width": 30, "note": "la langue de sable qui ferme le port de Kingston ; Port-Royal à sa pointe",
+    { "name": "Palisadoes", "width": 90, "height": 6, "note": "la langue de sable qui ferme le port de Kingston ; Port-Royal à sa pointe",
       "line": [[17.9375,-76.8425],[17.9352,-76.8200],[17.9350,-76.7900],[17.9362,-76.7650],[17.9440,-76.7350],[17.9500,-76.7200]] }
   ],
 

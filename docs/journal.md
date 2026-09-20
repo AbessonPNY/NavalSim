@@ -6510,6 +6510,134 @@ Demandé (2026-09-20) : « les naufrages d'abord ».
   qui pendent sous une écume se dispersent en descendant, le nuage y est plus
   continu que le lacis de la surface.
 
+- **La langue de Port-Royal relevée** (signalé : « on est dans l'eau »). La
+  plaine côtière de l'outil fait pourtant déjà 2,5 m partout — mais
+  l'échantillonneur lit l'image **bilinéairement**, et une bande d'un pixel
+  entre deux pixels de haute mer se fait moyenner jusqu'à presque rien : le sol
+  mesurait **1,0 m** sous la ville, d'où des maisons qui paraissaient flotter.
+
+  Deux nombres, tous deux le prix d'un pixel de 450 m : la bande passe à 2,3 px
+  de large (au lieu de 1,5), ce qui lui garde un cœur que le flou n'atteint pas,
+  et `reliefs.json` peut désormais donner une **hauteur** à une bande — 6 m
+  pour les Palisadoes. Mesuré après coup : 3 m à 25 m du rivage, **6 m de 50 à
+  75 m**, l'eau à 100 m. Une vraie langue de sable fait deux ou trois mètres ;
+  ici il faut la dessiner plus haute pour qu'elle SE LISE comme telle, et c'est
+  l'honnêteté de le dire dans ce sens-là.
+
+  Le relief régénéré, la parité a été refaite sur la nouvelle image : elle tient.
+  Port-Royal bâtit 49 maisons au lieu de 59 — la bande a changé de forme, et
+  c'est le semis qui en décide.
+
+## Le ponton et l'ancre (Godot)
+
+**LE PONTON** — demandé pour le démarrage, et c'est la première chose qu'on voit
+en prenant la barre. Porté tel quel : un tablier de niveau, des planches EN
+TRAVERS (un ponton est ponté d'un bau à l'autre, les planches sont courtes et on
+remplace celle qui pourrit), une passerelle d'embarquement, du fret sur le quai,
+et trois bittes — deux au musoir, une à la racine, pour qu'une garde puisse
+revenir vers la plage.
+
+Ce qui le fait lire comme un ponton et non comme une planche sur l'eau, c'est
+qu'il se tient sur des JAMBES dans de l'eau d'une vraie profondeur : chaque pieu
+est coupé au fond qu'il touche, lu par la MÊME `HeightAt` que la quille
+talonne. L'ouvrage prend donc de la jambe à mesure qu'il marche vers le large —
+une rangée de poteaux égaux se lit comme une clôture. Ses cotes vivent dans
+`Berth`, avec le poste d'amarrage, pour qu'ils ne puissent pas se contredire.
+
+**L'ANCRE** — une ancre sur le fond est une AMARRE DONT LA BITTE PEUT BOUGER, et
+c'est pourquoi elle n'a presque rien coûté : `Mooring` portait déjà tout, y
+compris `Hold` (ce que le bout d'en face tient avant de céder) et
+`Dragging`. Ce nœud-ci ne possède que ce que le solveur n'a pas à savoir : la
+chute depuis le bossoir, la gerbe, la descente lente, le câble, le cabestan.
+
+La tenue sort de l'arithmétique : huit fois le poids du fer, fondu par la TOUÉE
+(`(scope − 1)/4`, borné). Mesuré au mouillage de Port-Royal : « Ancre au fond
+par 11 m · 38 m de câble » — une touée de 3,5, elle tient. En soixante-dix
+mètres d'eau avec deux cents de câble, elle chasserait, et c'est la vraie raison
+pour laquelle on mouillait en rade.
+
+**Le câble a demandé trois essais**, tous vus à la même capture sous-marine :
+1. intégré au pas de l'image, il s'entortillait en ressort. La page l'intègre à
+   PAS FIXE (1/60) avec quatorze passes de contraintes et le fond appliqué DANS
+   la boucle ; repris tel quel ;
+2. toujours en accordéon, parce qu'il partait TENDU et devait gagner d'un coup
+   vingt-quatre mètres de mou. Il est maintenant posé dans la forme qu'il a
+   vraiment — chaînette du bossoir jusqu'au toucher, puis TRAÎNE sur le fond
+   jusqu'à l'organeau, qui est d'ailleurs ce qui fait la tenue ;
+3. et cette pose n'avait aucun effet tant qu'on ne la refaisait pas au moment du
+   toucher : la chaîne avait été tendue pendant la chute et le restait.
+
+`M` mouille et vire au cabestan (par sa LETTRE, comme ⇧M : sur un AZERTY elle
+n'est pas à la place du QWERTY). `--ancre 1` mouille d'emblée, pour juger.
+
+**LE MÔLE**, demandé pour Port-Royal à l'essai — un drapeau dans la fiche, donc
+réversible d'un caractère. Bâti des MÊMES quatre nombres que `HeightAt` lit :
+centre, rayon, épaisseur et demi-angle de la passe. C'est la règle du plan de
+formes appliquée à la maçonnerie — ce qui arrête la coque est ce que l'œil voit
+l'arrêter. Et seulement là où il DÉPASSE du sol qui le porte : l'anneau continue
+dans la colline derrière le port, où un mur de trois mètres est simplement
+enterré, et l'y dessiner poserait un bandeau de pierre à flanc de coteau. Chaque
+tronçon demande donc au relief ce qu'il a dessous, ce qui lui donne du même coup
+ses racines sur la plage.
+
+**ET L'ABRI, dans les TROIS calculateurs** — sans quoi le môle n'aurait été
+qu'un mur dans la houle. La moitié du travail était déjà faite sans qu'on le
+sache : `gerstner_sum` prenait déjà un paramètre `shelter` (mis à 1 avec le
+commentaire « le havre n'est pas encore porté »), et `Ocean.Shelter` attendait
+dans le noyau. Il manquait la fonction elle-même : `shelter.gdshaderinc`, le
+jumeau exact de Naval.SHELTER_GLSL, inclus par le shader de la mer ET par la
+passe d'écume, avec le noyau pour troisième lecteur. Un seul havre à la fois,
+le plus proche, poussé à chaque image : on n'est jamais dans deux ports.
+
+Vérifié par une capture à **force 6** : la mer moutonne dehors, le bassin est
+lisse dedans, et l'écume s'arrête au mur — c'est la passe d'écume qui lit le
+même abri. La parité a été refaite sur la fiche modifiée : elle tient.
+
+Reste de ce lot : la chaloupe.
+
+## Le son porté (Godot)
+
+Demandé : le son des canons et l'ambiance. Tout l'intérêt de `sound.js` tient
+en une ligne — **le temps que le bruit met à venir** —, et c'est ce qu'aucun
+moteur ne fait pour vous.
+
+**CE QUE GODOT FAIT DÉJÀ, on le lui laisse.** `AudioStreamPlayer3D` porte
+l'atténuation en 1/r (`InverseDistance`, distance de référence 55 m comme la
+page), le panoramique, et il écoute par la caméra active — ce qui EST le choix
+de la page : on entend d'où l'on regarde, donc une vue plantée à deux cents
+mètres retarde votre propre bordée. Réécrire tout cela aurait été refaire moins
+bien ce qui existe.
+
+**CE QU'IL NE FAIT PAS est écrit ici**, et c'est exactement ce que la page
+avait de propre :
+- le RETARD : la distance divisée par 343 m/s, une liste d'attentes purgée à
+  chaque image. Mesuré : à 55 m, 0,16 s ; à 675 m, **1,97 s** ;
+- l'ABSORPTION DES AIGUS, dont la coupure est posée coup par coup sur la
+  distance (20 kHz × exp(−d/260), plancher 700 Hz). Mesuré : 16 kHz à 55 m,
+  **1,5 kHz à 675 m** — le claquement est parti, il ne reste que le ventre ;
+- la bascule d'échantillon à 400 m, que ce dégradé rend inaudible.
+
+**Une seule voie pour tout ce qui sonne**, comme dans la page : le retard et
+l'absorption sont des propriétés de la DISTANCE, pas du coup de canon. Le bois
+qui casse s'entend donc à la distance de la CIBLE, et arrive après la pièce sans
+qu'une ligne le dise.
+
+**Les deux bruits fabriqués** — le tonnerre d'un coup de foudre, le grondement
+du kraken — sont écrits dans un `AudioStreamWav` au premier usage puis joués
+par la même acoustique. Rien à charger.
+
+**La musique ne passe PAS par cette acoustique**, et ce n'est pas de la
+plomberie : une musique ne vient de nulle part — elle est dans la tête du
+commandant, pas sur l'eau. Elle suit la situation comme dans la page : une voile
+hostile à moins de 1 200 m ou du fer en l'air fait passer à l'action, et le
+calme revient quinze secondes après que tout s'est tu. Le seuil de retour est
+plus large (1 800 m) : sans cela une voile qui louvoie à la limite ferait
+clignoter la musique. Coupée par défaut, comme dans la page ; `--musique 1`
+pour l'entendre sans chercher la bagarre, `--feu n` pour lâcher une bordée.
+
+Trois réglages nouveaux dans `reglages.ini` : bruitages, musique, volume — ce
+dernier sur le bus maître, l'endroit qui vaut pour tout ce qui sonne.
+
 ## L'écran de titre (Godot)
 
 La page n'en a jamais eu : on n'y tombait pas dans un jeu, on y tombait dans une

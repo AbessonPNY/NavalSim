@@ -17,6 +17,7 @@ render_mode blend_disabled, unshaded;
 
 // les vagues : MÊMES uniformes que la mer, poussés par OceanNode.PushWaves
 #include "res://shaders/gerstner.gdshaderinc"
+#include "res://shaders/shelter.gdshaderinc"
 // la coque : MÊME contour que celui que la mer lit pour son collier
 #include "res://shaders/hull_gap.gdshaderinc"
 
@@ -72,12 +73,13 @@ void fragment() {
 
 	/* L'écume fraîche là où une crête déferle. Le profil NON affûté et sans
 	   borne de maille, comme l'original : c'est une question sur la mer, pas sur
-	   la façon dont un maillage la dessine. Le havre n'est pas encore porté,
-	   d'où un abri de 1. */
+	   la façon dont un maillage la dessine. */
 	vec3 jac = vec3(0.0);
+	// LE MÊME ABRI QUE LA MER : sans lui, un bassin calme moutonnerait quand même
+	float shelter = shelter_at(wpos);
 	for (int i = 0; i < NW_FOAM; i++) {
 		vec2 d = u_wave_a[i].xy;
-		float amp = u_wave_a[i].z;
+		float amp = u_wave_a[i].z * shelter;
 		float k = u_wave_a[i].w;
 		float omega = u_wave_b[i].x;
 		float Q = u_wave_b[i].y;

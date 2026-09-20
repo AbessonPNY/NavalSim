@@ -28,6 +28,9 @@ public partial class FoamField : Node
 
     readonly SubViewport[] _vp = new SubViewport[2];
     readonly ShaderMaterial[] _mat = new ShaderMaterial[2];
+
+    /// <summary>Poser un uniforme sur LES DEUX passes : elles alternent, et une seule réglée mentirait une image sur deux.</summary>
+    public void Set(string name, Variant value) { foreach (var m in _mat) m?.SetShaderParameter(name, value); }
     int _cur;
 
     /// <summary>Le coin du champ en XZ monde (local à l'origine flottante).</summary>

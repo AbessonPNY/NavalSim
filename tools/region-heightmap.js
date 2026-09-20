@@ -47,6 +47,8 @@ const gz = lat => (lat - E.south)*M_PER_DEG*S;
 
 /* ---- the land: every ring filled even-odd, row by row ---- */
 const land = new Uint8Array(W*H);
+// ce que les bandes imposent en plus de la plaine, en mètres
+const lift = new Float32Array(W*H);
 {
   const edges = [];
   for(const r of coast.rings)
@@ -72,10 +74,18 @@ const land = new Uint8Array(W*H);
   }
   /* Narrow strips of land the coastline data draws too thin to survive a pixel
      (the Palisadoes, a sand spit a few hundred metres wide): laid down with a
-     width of at least a pixel and a half, so the map never breaks them. */
+     width of at least TWO pixels and a bit, and with a height of their own.
+
+     Both numbers are the price of a 450-metre pixel. The sampler reads the
+     picture BILINEARLY, so a one-pixel strip between two pixels of open sea is
+     averaged away to almost nothing: the ground under Port-Royal measured one
+     metre, and its houses looked afloat. Widening the strip keeps a core the
+     blur cannot reach, and `height` in reliefs.json lifts that core clear of
+     the water. A real sand spit is two or three metres; here it must be drawn
+     taller to READ as two or three, which is the honest way round. */
   for(const st of reliefs.strips || []){
     const P = st.line.map(([lat, lon]) => [(lon - E.west)/(E.east - E.west)*W - 0.5, (E.north - lat)/(E.north - E.south)*H - 0.5]);
-    const hw = Math.max(0.75, st.width/px/2);
+    const hw = Math.max(1.15, st.width/px/2);
     for(let s = 0; s + 1 < P.length; s++){
       const [ax, ay] = P[s], [bx, by] = P[s + 1];
       for(let j = Math.floor(Math.min(ay, by) - hw - 1); j <= Math.ceil(Math.max(ay, by) + hw + 1); j++)
@@ -83,7 +93,10 @@ const land = new Uint8Array(W*H);
           if(i < 0 || j < 0 || i >= W || j >= H) continue;
           const dx = bx - ax, dy = by - ay;
           const u = Math.max(0, Math.min(1, ((i - ax)*dx + (j - ay)*dy)/(dx*dx + dy*dy || 1)));
-          if(Math.hypot(i - ax - u*dx, j - ay - u*dy) <= hw) land[j*W + i] = 1;
+          if(Math.hypot(i - ax - u*dx, j - ay - u*dy) > hw) continue;
+          land[j*W + i] = 1;
+          // sa hauteur à elle, si elle en demande une : le plus haut l'emporte
+          if(st.height) lift[j*W + i] = Math.max(lift[j*W + i], st.height);
         }
     }
   }
@@ -178,7 +191,7 @@ for(let j = 0; j < H; j++){
       const plain = 2.5 + 10*ss(0, 700, d);
       const hills = 45*fbm(x/1400 + 17, z/1400 - 5)*ss(150, 2500, d);
       h = plain + Math.max(hills, r*ss(0, 500, d));
-      h = Math.max(2.5, h);        // above a pixel's blur, or thin land sinks
+      h = Math.max(2.5, h, lift[k]);   // above a pixel's blur, or thin land sinks
     }else{
       /* Out from the shore: a steep first forty metres to twelve — so the
          narrow harbours of a reduced map still float a ship — then the shelf,

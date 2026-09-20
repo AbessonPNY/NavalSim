@@ -99,16 +99,30 @@ public partial class ShipDemo : Node3D
         AddChild(_bubbles);
         _coins = new CoinNode();
         AddChild(_coins);
+        _sound = new SoundNode();
+        AddChild(_sound);
         /* LA TERRE. Le monde est lu une fois — une image de neuf millions de
            pixels et le champ de distance qui en sort — et rien après ne change :
            c'est une fonction pure de la position, en mètres VRAIS. */
         _world = WorldLoad.Load();
         if (_world != null)
         {
+            /* LE TROISIÈME CALCULATEUR. La coque flotte sur la mer que le shader
+               dessine, abri compris : sans cette ligne, elle roulerait dans un
+               bassin que l'œil voit calme. */
+            _sea.Core.Shelter = (x, z) => _world.Shelter(x, z);
             _land = new LandNode(_world);
             AddChild(_land);
             _town = new TownNode(_world);
             AddChild(_town);
+            _jetty = new JettyNode(_world);
+            AddChild(_jetty);
+            _anchor2 = new AnchorNode(_world, _sea)
+            {
+                Splash = (at, water, speed, jet) => _spray.Pool.Burst(at, water, speed, jet),
+                OnSay = Say
+            };
+            AddChild(_anchor2);
             BuildTowns();
         }
         WireWreck();
@@ -356,6 +370,11 @@ public partial class ShipDemo : Node3D
     void ApplySettings()
     {
         var s = _settings;
+        /* LE SON SUIT SES RÉGLAGES. Le volume passe par le bus maître : c'est
+           l'endroit qui vaut pour tout ce qui sonne, bruitages comme musique, et
+           il n'y a donc pas deux volumes à tenir en accord. */
+        if (_sound != null) _sound.On = s.Sound;
+        AudioServer.SetBusVolumeDb(0, Mathf.LinearToDb(Math.Clamp(s.Volume, 0.001f, 1f)));
         _sky.Env.SsaoEnabled = s.Occlusion;
         _sky.Env.SsilEnabled = s.IndirectLight;
         DisplayServer.WindowSetVsyncMode(s.VSync ? DisplayServer.VSyncMode.Enabled : DisplayServer.VSyncMode.Disabled);
@@ -539,6 +558,14 @@ public partial class ShipDemo : Node3D
         Check("Lanterne du grand mât", st.MastLantern, on => st.MastLantern = on);
         Slide("Reflet sur la mer", 0, 6, 0.1, st.LampReflection, x => st.LampReflection = x);
         Slide("Lumière dans l'eau", 0, 2, 0.05, st.LampWater, x => st.LampWater = x);
+        Title("Son", 15);
+        Check("Bruitages", st.Sound, on => { st.Sound = on; if (_sound != null) _sound.On = on; });
+        Check("Musique d'ambiance", st.Music, on => st.Music = on);
+        Slide("Volume", 0, 1, 0.05, st.Volume, x =>
+        {
+            st.Volume = x;
+            AudioServer.SetBusVolumeDb(0, Mathf.LinearToDb(Math.Clamp(x, 0.001f, 1f)));
+        });
         Title("Rendu", 15);
         _chkOcclusion = Check("Occlusion ambiante", st.Occlusion, on => st.Occlusion = on);
         _chkIndirect = Check("Lumière indirecte", st.IndirectLight, on => st.IndirectLight = on);
@@ -845,6 +872,7 @@ public partial class ShipDemo : Node3D
             _wreckAir.Rebase(-dx, -dz);
             _bubbles.Rebase(dx, dz);
             _coins.Rebase(dx, dz);
+            _anchor2?.Rebase(-dx, -dz);
             // la seule chose qui ne suit PAS le navire : sans ceci elle resterait
             // à quinze cents mètres, à filmer de l'eau vide
             _anchor = new Vec3d(_anchor.X + dx, _anchor.Y, _anchor.Z + dz);
@@ -872,6 +900,17 @@ public partial class ShipDemo : Node3D
             {
                 _town.Update(here, new Vec3d(wo.X, 0, wo.Z));
                 foreach (var m in _town.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
+            }
+            if (_anchor2 != null)
+            {
+                _anchor2.Step(frame, _t);
+                foreach (var m in _anchor2.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
+            }
+            PushHarbour(here);
+            if (_jetty != null)
+            {
+                _jetty.Update(here, new Vec3d(wo.X, 0, wo.Z));
+                foreach (var m in _jetty.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
             }
         }
 
@@ -976,7 +1015,7 @@ public partial class ShipDemo : Node3D
                 new Vector2((float)(wv.X / ws), (float)(wv.Z / ws)));
 
         _hudAcc += frame;
-        if (_hudAcc > 0.15) { _hudAcc = 0; UpdateInfo(); }
+        if (_hudAcc > 0.15) { _hudAcc = 0; UpdateInfo(); AmbianceTick(); }
 
         TickCapture();
         _ftWatch.Stop();
@@ -1308,6 +1347,8 @@ public partial class ShipDemo : Node3D
                virgule — le panneau ne s'ouvrait pas. Les autres commandes tombent
                aux mêmes places sur les deux claviers. */
             if (k.ShiftPressed && k.Keycode == Key.M) { ToggleSeaPanel(); GetViewport().SetInputAsHandled(); return; }
+            // M seul : mouiller, ou virer au cabestan — par sa LETTRE, même raison
+            if (!k.ShiftPressed && k.Keycode == Key.M) { _anchor2?.Toggle(_ship, _t); GetViewport().SetInputAsHandled(); return; }
             switch (key)
             {
                 // une main sur la console reprend la main à la météo, comme le curseur de la page
@@ -1342,6 +1383,8 @@ public partial class ShipDemo : Node3D
                 case Key.U: SpawnPirate(900); break;
                 case Key.P: GoToGhosts(true); break;
                 case Key.L: ToggleSpyglass(); break;
+                // M par sa LETTRE comme ⇧M : sur un AZERTY il n'est pas à la place du QWERTY
+
                 /* L'ÉLAN : l'équivalent de `Naval.app.controls.state.throttle = 45`
                    dans la console d'origine. Le solveur ne borne pas la machine,
                    donc c'est quarante-cinq fois la poussée — de quoi voir une coque
@@ -1576,6 +1619,7 @@ public partial class ShipDemo : Node3D
     {
         // les gerbes de ses bras qui crèvent la surface, et de ce qu'ils arrachent
         _kraken.Splash = (at, water, speed, jet) => _spray.Pool.Burst(at, water, speed, jet);
+        _kraken.Growl = at => _sound?.Growl(at);
         _kraken.Event = (kind, prey) =>
         {
             if (prey != null && KrakenSays.TryGetValue(kind, out var t)) KrakenSay(t, prey);
@@ -1643,6 +1687,8 @@ public partial class ShipDemo : Node3D
         if (s.Physics.Foundered || !s.HighestMasthead(out var w, out int fall)) return;
         _lightning.Strike(w);
         if (w.DistanceTo(_cam.GlobalPosition) < 3000) _sky.Strike();
+        // on voit l'éclair, on compte, puis on entend : l'acoustique s'en charge
+        _sound?.Thunder(new Vec3d(w.X, w.Y, w.Z));
         // la pomme du mât vole en éclats, vers le bas
         _splinters.Splinters(w, Vector3.Down, 0.6);
         string what = "La foudre frappe la mâture !";
@@ -1747,7 +1793,11 @@ public partial class ShipDemo : Node3D
     void WireGuns()
     {
         _gunnery.OnFire = (at, dir, k, floor, ph) =>
+        {
             _gunFx.Gun(new Vector3((float)at.X, (float)at.Y, (float)at.Z), new Vector3((float)dir.X, (float)dir.Y, (float)dir.Z), k, floor);
+            // la flamme ici, le bruit quand il arrive : c'est le même événement
+            _sound?.Boom(at, k);
+        };
         /* Un boulet fait un trou ÉTROIT dans l'eau très vite : une colonne haute et
            mince, pas un dôme — le volume est borné par la réserve d'embrun, pour
            qu'une bordée de six y tienne sans que les dernières volent les premières. */
@@ -1773,6 +1823,8 @@ public partial class ShipDemo : Node3D
     void Struck(ShotTarget t, string kind, int index, double frac, double speed, double k, ShipPhysics from, Vec3d world, Vec3d dir)
     {
         if (t.Tag is not ShipNode s) return;
+        // le choc s'entend de là où le boulet a porté, donc plus tard que la pièce
+        _sound?.Crash(world, k, speed, kind);
         // qui a tiré : c'est ce qui permet à un navire de savoir contre qui se retourner
         ShipNode? shooter = null;
         foreach (var (node, tt) in _targets) if (tt.Physics == from) { shooter = node; break; }
@@ -2142,8 +2194,64 @@ public partial class ShipDemo : Node3D
     public NavalSim.Core.World? _world;
     LandNode? _land;
     TownNode? _town;
+    JettyNode? _jetty;
+    AnchorNode? _anchor2;
+    SoundNode? _sound;
     /// <summary>La première image bâtit tout ce qui est à portée : on ne part pas d'un port à moitié dessiné.</summary>
     bool _landEager = true;
+
+    /* LA MUSIQUE SUIT LA SITUATION, comme dans la page : une voile hostile en
+       vue OU du fer en l'air, et l'on passe à l'action ; le calme revient quinze
+       secondes après que tout s'est tu. Le seuil n'est pas le même dans les deux
+       sens — 1200 m pour s'échauffer, 1800 pour se rasseoir —, sans quoi une
+       voile qui louvoie à la limite ferait clignoter la musique. */
+    const string AmbNav = "Vivaldi for Focus & Energy  Fireplace Classical Music.ogg";
+    const string AmbAction = "Musique Action Epique - Musique avec Tension   Musique Libre de Droit.ogg";
+    const double EnVue = 1200, Lachee = 1800, Oubli = 15;
+    double _lastDanger = -1e9;
+
+    void AmbianceTick()
+    {
+        if (_sound == null) return;
+        if (!_settings.Music) { _sound.Ambiance(null); return; }
+
+        double near = double.MaxValue;
+        var me = _ship.Physics.Body.Pos;
+        foreach (var s in _others)
+        {
+            if (s.Physics.Foundered || !_pirates.ContainsKey(s)) continue;
+            var o = s.Physics.Body.Pos;
+            near = Math.Min(near, Math.Sqrt((o.X - me.X) * (o.X - me.X) + (o.Z - me.Z) * (o.Z - me.Z)));
+        }
+        bool hot = _sound.Playing == AmbAction;
+        if (near < (hot ? Lachee : EnVue) || _gunnery.Shots.Count > 0) _lastDanger = _t;
+        _sound.Ambiance(_t - _lastDanger < Oubli ? AmbAction : AmbNav);
+    }
+
+    /* UN SEUL HAVRE À LA FOIS, et c'est assez : on n'est jamais dans deux ports.
+       Le plus proche est poussé au shader de la mer ET à la passe d'écume — les
+       deux qui, avec l'échantillonneur du noyau, doivent lire le MÊME abri. */
+    void PushHarbour(Vec3d here)
+    {
+        if (_world == null) return;
+        Harbour? best = null;
+        double bestD = double.MaxValue;
+        foreach (var isl in _world.Isles)
+        {
+            if (isl.Port.Harbour is not Harbour H) continue;
+            double dx = H.Cx - here.X, dz = H.Cz - here.Z;
+            double d = dx * dx + dz * dz;
+            if (d < bestD) { bestD = d; best = H; }
+        }
+        var v = best is Harbour h && bestD < 4000 * 4000
+            ? new Vector4((float)h.Cx, (float)h.Cz, (float)(h.R + h.Wall), 1)
+            : Vector4.Zero;
+        var pass = best is Harbour h2 ? new Vector2((float)h2.Px, (float)h2.Pz) : Vector2.Zero;
+        _sea.Material?.SetShaderParameter("u_harbour", v);
+        _sea.Material?.SetShaderParameter("u_harbour_pass", pass);
+        _foam.Set("u_harbour", v);
+        _foam.Set("u_harbour_pass", pass);
+    }
 
     /// <summary>
     /// BÂTIR LES VILLES, une fois. Chaque port porte la sienne — on ne mouille
@@ -2217,8 +2325,13 @@ public partial class ShipDemo : Node3D
                 case "--pirate": SpawnPirate(args[i + 1].ToFloat()); break;
                 case "--fantomes": GoToGhosts(true); break;
                 case "--lunette": ToggleSpyglass(); break;
+                case "--feu": for (int n = args[i + 1].ToInt(); n > 0; n--) Fire(false, true); break;
                 // le mémento ouvert d emblee, pour le juger a la capture
                 case "--commandes": if (args[i + 1] != "0") ToggleKeys(); break;
+                // la musique tout de suite, pour l'entendre sans chercher la bagarre
+                case "--musique": _settings.Music = args[i + 1] != "0"; break;
+                // mouiller d emblee, pour juger l ancre a la capture
+                case "--ancre": if (args[i + 1] != "0") _anchor2?.Toggle(_ship, _t); break;
                 // l'objectif mouillé d'emblée, pour juger les gouttes sans plonger
                 case "--gouttes": _wet = Math.Clamp(args[i + 1].ToFloat(), 0, 1); break;
                 // semer des pièces sous la coque, pour juger leur chute sans couler
