@@ -207,6 +207,42 @@ public partial class ShipNode : Node3D
     /// comprise). Calculée à la main : le modèle n'est pas encore dans l'arbre,
     /// et une transformée globale n'y voudrait rien dire.
     /// </summary>
+    /// <summary>
+    /// HABILLER LA CARTE VIERGE que le modèle porte sur le bureau du capitaine.
+    /// On ne la reconnaît ni à sa forme ni à sa place, mais au NOM que l'artiste
+    /// a donné à son matériau — « map_free » —, ce qui la rend indépendante de la
+    /// coque : un autre modèle qui nomme ainsi sa feuille l'aura aussi.
+    ///
+    /// La surface reçoit un override plutôt qu'une retouche du matériau du .glb :
+    /// celui-ci reste celui de l'artiste, et rien n'est perdu si la carte est
+    /// retirée.
+    /// </summary>
+    /// <summary>La feuille, une fois trouvée : ce qui permet de s'y pencher dessus.</summary>
+    public MeshInstance3D? ChartSurface { get; private set; }
+
+    public bool DressChart(Texture2D tex)
+    {
+        if (ModelRoot == null) return false;
+        bool any = false;
+        foreach (var (mi, _) in Meshes(ModelRoot))
+            for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
+            {
+                var m = mi.Mesh.SurfaceGetMaterial(i);
+                if (m == null || !m.ResourceName.Contains(ChartNode.MapMaterial, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                mi.SetSurfaceOverrideMaterial(i, new StandardMaterial3D
+                {
+                    AlbedoTexture = tex,
+                    Roughness = 0.92f,
+                    // une feuille de papier ne reçoit pas d'ombre portée en relief
+                    SpecularMode = BaseMaterial3D.SpecularModeEnum.Disabled
+                });
+                any = true;
+                ChartSurface = mi;
+            }
+        return any;
+    }
+
     static IEnumerable<(MeshInstance3D, Transform3D)> Meshes(Node3D root)
     {
         var stack = new Stack<(Node, Transform3D)>();

@@ -133,6 +133,7 @@ public partial class ShipDemo : Node3D
         Key(c2, "H", "masquer les instruments");
         Key(c2, "⇧M", "la mer : mise au point");
         Key(c2, "O", "occlusion ambiante");
+        Key(c2, "I", "la carte du capitaine");
         Key(c2, "F1", "ce mémento");
         Key(c2, "Échap", "les options");
     }

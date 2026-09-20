@@ -211,6 +211,10 @@ public sealed class World : IGround
         Measure();
     }
 
+    /// <summary>Le gris BRUT d'un pixel — ce que la carte marine relit pour se dessiner.</summary>
+    public byte GreyByte(int i, int j) =>
+        _img[Math.Clamp(j, 0, ImgH - 1) * ImgW + Math.Clamp(i, 0, ImgW - 1)];
+
     /// <summary>La hauteur qu'un gris ENTIER vaut, prise dans la table — pour la carte.</summary>
     public double Lut(int v) => _lut[v < 0 ? 0 : v > 255 ? 255 : v];
 

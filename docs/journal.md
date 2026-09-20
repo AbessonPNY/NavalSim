@@ -6595,6 +6595,68 @@ même abri. La parité a été refaite sur la fiche modifiée : elle tient.
 
 Reste de ce lot : la chaloupe.
 
+## La carte du capitaine (Godot)
+
+Demandé comme un défi : dans la chambre, une carte VIERGE sur laquelle le joueur
+ajoute lui-même notes et dessins aux endroits visités.
+
+**LA FEUILLE EXISTAIT DÉJÀ**, et c'est le plus joli de l'affaire. Le modèle du
+navire porte un bureau dont le matériau s'appelle **`map_free`** — le
+modéliste avait prévu la place. On ne dessine donc aucun objet nouveau : on
+remplace ce que cette surface montre, en la retrouvant par le NOM de son
+matériau. Un autre navire qui nomme ainsi sa feuille l'aura aussi, sans une
+ligne de plus.
+
+**CE QU'ON GARDE, CE SONT LES TRAITS, PAS UNE IMAGE**, et en mètres du MONDE.
+Une carte annotée enregistrée en image serait lourde, liée à sa résolution et
+illisible par qui que ce soit ; une liste de polylignes se redessine nette à
+toute échelle, se corrige, et tient dans un `carnet.json` qu'on peut ouvrir.
+C'est aussi ce qui fait que le même trait est au même endroit sur la feuille du
+bureau et sur la carte ouverte : une définition, deux usagers.
+
+**LA CARTE NE MONTRE QUE CE QU'ON A VU.** Le carnet retient la route par points
+tous les 220 m ; chacun perce un voile de parchemin sur 2,6 km — l'horizon d'une
+vigie à cette échelle. Le bord de la découverte n'est pas net : un cartographe ne
+trace pas de frontière là où son regard s'arrête, donc le voile s'amincit et
+laisse un liseré brûlé. Un port touché à moins de 300 m s'inscrit avec son nom.
+
+Tout est dessiné dans un `SubViewport` : le fond de relief (le portage de
+`chartImage`, terre en chamois ombré du nord-ouest, hauts-fonds en bande pâle,
+grand fond laissé au papier), le voile, la route, les traits et les mots.
+
+**Deux corrections d'échelle, toutes deux vues à la capture :**
+- la feuille couvre les Caraïbes entières, où 2,6 km font vingt pixels : sans
+  loupe elle ne montrait RIEN de ce qu'on venait de relever. D'où le zoom à la
+  molette (3 à 260 km de large), qui s'ouvre sur sa position et zoome sous le
+  curseur ;
+- les lettres ne doivent PAS suivre la finesse de la feuille. Écrites avec le
+  même facteur que les traits, deux notes couvraient la Jamaïque : un nom de
+  port a sa taille sur le PAPIER, et doubler la résolution doit le rendre plus
+  fin, pas plus gros.
+
+**LA PLUME NE RECEVAIT PAS UN SEUL CLIC**, et la cause est un ordre, pas un
+calcul. Godot sert l'INTERFACE avant `_UnhandledInput` : le fond sombre et la
+feuille sont des `Control` qui arrêtent la souris, si bien que le clic était
+déjà marqué traité quand la carte le cherchait. La sonde l'a pris sur le fait,
+et de façon instructive : des événements fabriqués à la main touchaient parfois
+la plume — tant qu'aucun mouvement de souris n'avait dit à l'interface quel
+`Control` se tenait sous le curseur, le clic tombait jusqu'en bas. Dès le
+premier déplacement, plus rien ne passait ; en jeu, où la souris bouge toujours,
+plus rien ne passait jamais. La carte est donc servie dans `_Input`, qui vient
+avant tout le monde. **Une surcouche qui prend la main prend l'entrée EN AMONT
+de l'interface, pas en aval.** Mesuré ensuite par le chemin exact du joueur
+(titre, Entrée, `I`, clic glissé, `E`, clic droit) : un trait de 9 points,
+encre 0 → 1, champ de note ouvert et au foyer.
+
+Au passage, `E` marchait déjà — le clavier, lui, ne traverse pas l'interface —
+mais sans un trait à l'écran rien ne le disait. Et Échap pendant qu'on écrit
+annule désormais la note, au lieu d'ouvrir le menu du jeu derrière la carte.
+
+`I` ouvre la carte, clic pour tracer (trois encres), clic droit pour une note,
+retour arrière pour effacer le dernier trait. Ce qui reste à faire : la vérifier
+posée sur le bureau en 3D — la feuille est habillée, mais aucun cadrage n'a
+encore permis de la voir en place.
+
 ## Le son porté (Godot)
 
 Demandé : le son des canons et l'ambiance. Tout l'intérêt de `sound.js` tient

@@ -61,7 +61,7 @@ public partial class ShipDemo : Node3D
     const int MinSub = 4;
     const double MaxSubDt = 1.0 / 15;
 
-    public override void _ExitTree() { _motionBlur?.Release(); _anamorphic?.Release(); }
+    public override void _ExitTree() { SaveBook(); _motionBlur?.Release(); _anamorphic?.Release(); }
 
     public override void _Ready()
     {
@@ -117,6 +117,9 @@ public partial class ShipDemo : Node3D
             AddChild(_town);
             _jetty = new JettyNode(_world);
             AddChild(_jetty);
+            _book = LoadBook();
+            _chart = new ChartNode(_world, _book);
+            AddChild(_chart);
             _anchor2 = new AnchorNode(_world, _sea)
             {
                 Splash = (at, water, speed, jet) => _spray.Pool.Burst(at, water, speed, jet),
@@ -202,6 +205,7 @@ public partial class ShipDemo : Node3D
         BuildMenu(layer);
         BuildSeaPanel(layer);
         BuildKeys(layer);
+        BuildChartView(layer);
         BuildSpyglass();
     }
 
@@ -754,6 +758,7 @@ public partial class ShipDemo : Node3D
         if (spec == null) return;
 
         if (_ship != null) { RemoveChild(_ship); _ship.QueueFree(); }
+        _dressed = false;             // la nouvelle coque a sa propre feuille
 
         _ship = new ShipNode();
         AddChild(_ship);
@@ -907,6 +912,33 @@ public partial class ShipDemo : Node3D
                 foreach (var m in _anchor2.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
             }
             PushHarbour(here);
+            if (_chart != null)
+            {
+                // la feuille du bureau porte la carte dès que le modèle est là
+                if (!_dressed && _chart.Texture != null)
+                {
+                    _dressed = _ship.DressChart(_chart.Texture);
+                    // se PENCHER dessus : la vue se pose depuis la feuille elle-même
+                    if (_dressed && _overChart && _ship.ChartSurface is MeshInstance3D ms)
+                    {
+                        var ab = ms.GetAabb();
+                        var c = ms.GlobalTransform * (ab.Position + ab.Size * 0.5f);
+                        var up = ms.GlobalTransform.Basis.Y.Normalized();
+                        _fixLook = c;
+                        _fixEye = c + up * 0.42f - ms.GlobalTransform.Basis.Z.Normalized() * 0.12f;
+                        _planted = true;
+                    }
+                }
+                _chart.Sail(here.X, here.Z);
+                /* Un port touché quand on vient à moins de trois cents mètres de
+                   son quai : c'est la distance à laquelle on l'a vraiment vu. */
+                foreach (var isl in _world!.Near(here.X, here.Z, 300))
+                    if (_book!.Touch(isl.Key))
+                    {
+                        _chart.Refresh();
+                        Say($"{isl.Name} portée sur la carte.");
+                    }
+            }
             if (_jetty != null)
             {
                 _jetty.Update(here, new Vec3d(wo.X, 0, wo.Z));
@@ -1383,6 +1415,8 @@ public partial class ShipDemo : Node3D
                 case Key.U: SpawnPirate(900); break;
                 case Key.P: GoToGhosts(true); break;
                 case Key.L: ToggleSpyglass(); break;
+                // la carte du capitaine : I comme « inscrire »
+                case Key.I: ToggleChart(); break;
                 // M par sa LETTRE comme ⇧M : sur un AZERTY il n'est pas à la place du QWERTY
 
                 /* L'ÉLAN : l'équivalent de `Naval.app.controls.state.throttle = 45`
@@ -2195,6 +2229,11 @@ public partial class ShipDemo : Node3D
     LandNode? _land;
     TownNode? _town;
     JettyNode? _jetty;
+    ChartNode? _chart;
+    bool _dressed;
+    /// <summary>--carte : la vue se penche sur la feuille dès qu'elle est trouvée.</summary>
+    bool _overChart;
+    NavalSim.Core.Logbook? _book;
     AnchorNode? _anchor2;
     SoundNode? _sound;
     /// <summary>La première image bâtit tout ce qui est à portée : on ne part pas d'un port à moitié dessiné.</summary>
@@ -2226,6 +2265,26 @@ public partial class ShipDemo : Node3D
         bool hot = _sound.Playing == AmbAction;
         if (near < (hot ? Lachee : EnVue) || _gunnery.Shots.Count > 0) _lastDanger = _t;
         _sound.Ambiance(_t - _lastDanger < Oubli ? AmbAction : AmbNav);
+    }
+
+    /// <summary>
+    /// LE CARNET, à côté des réglages et en clair : un carnet qu'on ne peut pas
+    /// ouvrir dans un éditeur est un carnet dont on ne sait pas s'il a retenu.
+    /// </summary>
+    static string BookPath => "user://carnet.json";
+
+    static NavalSim.Core.Logbook LoadBook()
+    {
+        if (!FileAccess.FileExists(BookPath)) return new NavalSim.Core.Logbook();
+        using var f = FileAccess.Open(BookPath, FileAccess.ModeFlags.Read);
+        return f == null ? new NavalSim.Core.Logbook() : NavalSim.Core.Logbook.FromJson(f.GetAsText());
+    }
+
+    void SaveBook()
+    {
+        if (_book == null) return;
+        using var f = FileAccess.Open(BookPath, FileAccess.ModeFlags.Write);
+        f?.StoreString(_book.ToJson());
     }
 
     /* UN SEUL HAVRE À LA FOIS, et c'est assez : on n'est jamais dans deux ports.
@@ -2330,6 +2389,21 @@ public partial class ShipDemo : Node3D
                 case "--commandes": if (args[i + 1] != "0") ToggleKeys(); break;
                 // la musique tout de suite, pour l'entendre sans chercher la bagarre
                 case "--musique": _settings.Music = args[i + 1] != "0"; break;
+                // une vue de pont d emblee : 0 la passerelle, 1 la chambre
+                // regarder autour depuis une vue de pont : relèvement, site
+                case "--regard":
+                {
+                    var rv = ParseVec(args[i + 1] + ",0");
+                    _bridgeYaw = rv.X * Math.PI / 180; _bridgePitch = rv.Y * Math.PI / 180;
+                    break;
+                }
+                case "--carte": _overChart = args[i + 1] != "0"; break;
+                // la carte ouverte d emblee, pour la juger
+                case "--carte-ouverte": if (args[i + 1] != "0") ToggleChart(); break;
+                case "--pont":
+                    _camMode = 1; _deck = Math.Clamp(args[i + 1].ToInt(), 0, Math.Max(0, _ship.Spec.Decks.Count - 1));
+                    EnterDeck();
+                    break;
                 // mouiller d emblee, pour juger l ancre a la capture
                 case "--ancre": if (args[i + 1] != "0") _anchor2?.Toggle(_ship, _t); break;
                 // l'objectif mouillé d'emblée, pour juger les gouttes sans plonger
