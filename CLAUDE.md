@@ -66,6 +66,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `purse.js` | la bourse, le cours des épices, la poudre |
 
 Réglages de jeu : `settings.json` (son : musique d'ambiance, coupée par défaut ; rencontres, nuit, bloom, naufrage, tempête : foudre et kraken, fantômes, calendrier, climat, dauphins, rechargement des pièces, hommes sur le pont).
+Réglages d'aspect à l'œil (Godot, en tête de shader) : **`u_veil`** dans `godot/shaders/ocean.gdshader` — la part du dessous qui passe à travers la surface à épaisseur nulle, donc la netteté de la ligne d'eau sur le bordé (0,55 ; 1 = vitre, 0 = encre ; atténue aussi les hauts-fonds).
 Monde : `world/caraibes.json` + `world/caraibes-relief.png` (relief peint en gris), format dans `world/README.md` ; `tools/region-heightmap.js` repart des côtes réelles.
 Quêtes : `quests/*.json`, format dans `quests/README.md` (`Naval.app.allerQuete()` pour sauter à l'étape).
 Objets flottants : `props/Props.json`. Pavillons : `ships/textures/flags/flags.json`.
