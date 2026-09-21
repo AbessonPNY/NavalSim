@@ -99,6 +99,13 @@ uniform sampler2D u_screen : hint_screen_texture, filter_linear;
 uniform sampler2D u_depth : hint_depth_texture, filter_nearest;
 uniform vec3  u_absorb = vec3(0.34, 0.13, 0.085);
 uniform float u_refract = 1.0;
+/* LE VOILE DE SURFACE : la part de ce qui est dessous qui passe À ÉPAISSEUR
+   NULLE. L'extinction seule ne coupe rien au ras de la flottaison — sous dix
+   centimètres d'eau, exp(−0,34 × 0,1) laisse passer 97 % — et le bordé immergé
+   se lisait comme au travers d'une vitre (signalé). Une vraie surface diffuse
+   dès le premier centimètre : les rides brisent l'image, et une eau de rade
+   porte toujours sa part de particules. 1 : une vitre ; 0 : de l'encre. */
+uniform float u_veil = 0.55;
 // la décharge au-dessus éclaire l'eau comme le ciel
 uniform float u_flash = 0.0;
 
@@ -867,8 +874,24 @@ void fragment() {
 	   au regard droit. */
 	if (thick <= 0.0) { suv = base; thick = thick0; }
 	if (thick > 0.0) {
-		vec3 T = exp(-u_absorb * thick);
-		c = mix(c, naval_encode(textureLod(u_screen, suv, 0.0).rgb), clamp(T, 0.0, 1.0));
+		vec3 T = clamp(exp(-u_absorb * thick), 0.0, 1.0);
+		vec3 behind = naval_encode(textureLod(u_screen, suv, 0.0).rgb);
+		if (u_submerged > 0.5 && !FRONT_FACING) {
+			// par en dessous, ce qu'on voit à travers la fenêtre est EN L'AIR : rien à partager
+			c = mix(c, behind, T);
+		} else {
+			/* CE QUE L'EAU LAISSE PASSER NE REMPLACE QUE CE QU'ELLE DIFFUSE, PAS
+			   CE QU'ELLE RENVOIE. La surface est une somme : F de reflet — le ciel,
+			   la coque en miroir, le soleil, l'écume — et (1 − F) de ce qui sort de
+			   l'eau, soit le corps de la mer, soit ce qui est derrière, dans la
+			   proportion de l'extinction. Le mélange faisait passer le bordé
+			   immergé PAR-DESSUS le reflet aussi : sous une faible épaisseur
+			   d'eau, T ≈ 1 et la surface disparaissait tout à fait — on voyait la
+			   coque comme dans un aquarium, sans ligne d'eau (signalé). Ici le
+			   reflet reste en place, et la flottaison se découpe sur le bordé
+			   comme sur une vraie coque : de biais, presque tout est reflet. */
+			c += (1.0 - F) * T * u_veil * (behind - body);
+		}
 	}
 
 	ALBEDO = naval_display(c);

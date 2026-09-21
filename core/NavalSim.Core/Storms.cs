@@ -46,13 +46,7 @@ public sealed class Storms
         return u / 4294967296.0;
     }
 
-    // ToInt32 de JavaScript : troncature, puis le reste modulo 2^32, lu comme signé
-    static int ToInt32(double v)
-    {
-        double m = Math.Truncate(v) % 4294967296.0;
-        if (m < 0) m += 4294967296.0;
-        return unchecked((int)(uint)m);
-    }
+    static int ToInt32(double v) => Js.ToInt32(v);     // une seule définition : Js.cs
 
     // de −1 à 1 et retour, continûment : la dérive qui ne saute jamais
     static double Tri(double u)

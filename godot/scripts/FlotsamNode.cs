@@ -76,8 +76,8 @@ public partial class FlotsamNode : Node3D
     /// <summary>Le monde : il dit où est le haut-fond sur lequel une cargaison s'échoue.</summary>
     public World? World;
 
-    /// <summary>Une bouteille repêchée : le navire d'où elle vient.</summary>
-    public Action<string?>? OnBottle;
+    /// <summary>Une bouteille repêchée : le navire d'où elle vient, où on l'a prise, et depuis combien de temps elle flottait.</summary>
+    public Action<string?, double, double, double>? OnBottle;
     /// <summary>Une cargaison relevée : sa clé dans le carnet du capitaine.</summary>
     public Action<string>? OnCargo;
     /// <summary>Un objet qui crève la surface en remontant : où, l'eau jetée, sa vitesse.</summary>
@@ -234,7 +234,7 @@ public partial class FlotsamNode : Node3D
                 && Math.Sqrt((it.X - px) * (it.X - px) + (it.Z - pz) * (it.Z - pz)) < K.PickupRadius)
             {
                 Remove(it);
-                OnBottle?.Invoke(it.From);
+                OnBottle?.Invoke(it.From, it.X, it.Z, it.Age);
             }
         }
     }

@@ -239,5 +239,13 @@ Console.WriteLine(questFailures == 0
     ? "PARITE TENUE -- le C# et le JS tendent le meme fil."
     : $"{questFailures} DIVERGENCE(S) sur les quetes.");
 
+Console.WriteLine();
+string marketDump = Path.GetFullPath(Path.Combine(root, "..", "..", "..", "..", "parity-market.json"));
+int marketFailures = NavalSim.Parity.MarketParity.Run(marketDump, worldDir);
+Console.WriteLine();
+Console.WriteLine(marketFailures == 0
+    ? "PARITE TENUE -- le C# et le JS font le meme cours."
+    : $"{marketFailures} DIVERGENCE(S) sur le commerce.");
+
 return failures == 0 && seaFailures == 0 && physFailures == 0 && sailFailures == 0
-    && weatherFailures == 0 && worldFailures == 0 && questFailures == 0 ? 0 : 1;
+    && weatherFailures == 0 && worldFailures == 0 && questFailures == 0 && marketFailures == 0 ? 0 : 1;

@@ -9,10 +9,10 @@ namespace NavalSim;
 ///
 /// Le module des débris ne fait que flotter, dériver et dire quand le navire est
 /// venu assez près pour en prendre une à bord ; ce qu'elle contient regarde le
-/// jeu, et c'est ici. Une fois sur trois une page de journal de bord — le
-/// dernier geste de quelqu'un, et rien d'autre. Deux fois sur trois UNE CARTE :
-/// une cargaison échouée sur les hauts-fonds d'une île, portée d'une croix sur
-/// la carte du capitaine.
+/// jeu, et c'est ici. Trois tirages égaux, comme dans la page : une page de
+/// journal de bord — le dernier geste de quelqu'un ; une page de carnet de
+/// comptes — le cours d'un port, daté ; ou UNE CARTE — une cargaison échouée sur
+/// les hauts-fonds d'une île, portée d'une croix sur la carte du capitaine.
 ///
 /// LA CROIX VIT DANS LE CARNET, pas dans les débris : c'est un lieu qu'on a
 /// APPRIS et non qu'on a vu, donc il survit à la fermeture du jeu, et la
@@ -43,22 +43,51 @@ public partial class ShipDemo : Node3D
     /* « de Le Carénage » et « à Le Carénage » ne se disent pas : l'article se
        contracte avec la préposition. La règle vit avec les noms qu'elle
        gouverne, comme dans la page. */
+    static string ANom(string n) =>
+        n.StartsWith("Le ") ? "au " + n.Substring(3)
+        : n.StartsWith("Les ") ? "aux " + n.Substring(4)
+        : n.StartsWith("La ") ? "à la " + n.Substring(3)
+        : "à " + n;
+
     static string DeNom(string n) =>
         n.StartsWith("Le ") ? "du " + n.Substring(3)
         : n.StartsWith("Les ") ? "des " + n.Substring(4)
         : n.StartsWith("La ") ? "de la " + n.Substring(3)
+        // et « de » s élide devant une voyelle : d Old Harbour, d un navire inconnu
+        : n.Length > 0 && "AEIOUYÀÂÉÈÊÎÔÛaeiouyàâéèêîôû".IndexOf(n[0]) >= 0 ? "d’" + n
         : "de " + n;
 
     /// <summary>On la repêche : on l'ouvre.</summary>
-    void OpenBottle(string? from)
+    void OpenBottle(string? from, double bx, double bz, double age)
     {
         string nom = from != null && from.Length > 0 ? from : "un navire inconnu";
+        double draw = _bottleRng.Randf();
 
         // une page de journal : une fois sur trois, et toujours si le monde manque
-        if (_world == null || _book == null || _chart == null || _bottleRng.Randf() < 1.0 / 3)
+        if (_world == null || _book == null || _chart == null || draw < 1.0 / 3)
         {
             var j = Journal[(int)(_bottleRng.Randf() * Journal.Length) % Journal.Length];
-            ShowNotice("Bouteille à la mer", $"Journal de bord {DeNom(nom)} — « {j.A} {j.B} »");
+            ShowEncart("Bouteille à la mer", $"Journal de bord {DeNom(nom)} — « {j.A} {j.B} »");
+            return;
+        }
+
+        /* UNE PAGE DE CARNET DE COMPTES, une fois sur trois : ce qu'on payait
+           l'épice au port le plus proche, le jour où la bouteille a été jetée.
+           Un renseignement comme ceux du comptoir — exact, et DATÉ de l'âge de
+           la bouteille, parce qu'un chiffre sans son âge est un mensonge. */
+        if (draw < 2.0 / 3)
+        {
+            Isle? near = null;
+            double best = double.MaxValue;
+            foreach (var i in _world.Isles)
+            {
+                double d = (i.X - bx) * (i.X - bx) + (i.Z - bz) * (i.Z - bz);
+                if (d < best) { best = d; near = i; }
+            }
+            double tw = _sea.Core.Time - age;
+            ShowEncart("Bouteille à la mer", FormattableString.Invariant(
+                $"Carnet {DeNom(nom)} : {ANom(near!.Name)}, l'épice se payait {_market.BuyPrice(near.Key, tw):F0} la tonne ")
+                + FormattableString.Invariant($"et se revendait {_market.SellPrice(near.Key, tw):F0} — relevé {Market.Age(age)}."));
             return;
         }
 
@@ -86,10 +115,10 @@ public partial class ShipDemo : Node3D
             _book.Mark(c.X, c.Z, $"cargaison {aire} {DeNom(isl.Name)}", key);
             _chart.Refresh();
             SaveBook();
-            ShowNotice("Bouteille à la mer", text);
+            ShowEncart("Bouteille à la mer", text, 1);
             return;
         }
-        ShowNotice("Bouteille à la mer", "Une carte délavée, illisible.");
+        ShowEncart("Bouteille à la mer", "Une carte délavée, illisible.");
     }
 
     /// <summary>
@@ -105,7 +134,7 @@ public partial class ShipDemo : Node3D
         SaveBook();
         int t = 3 + (int)(_bottleRng.Randf() * 6);
         // au milieu, au ras des varangues : le fret d'un bord la ferait gîter
-        _ship.Physics.LoadCargo(Config.NComp / 2, 0.1, 0, t, "epice");
+        _ship.Physics.LoadCargo(Config.NComp / 2, HoldFloor, 0, t, "epice");
         Say($"Cargaison récupérée : {t} t d'épices portées dans la cale.");
     }
 

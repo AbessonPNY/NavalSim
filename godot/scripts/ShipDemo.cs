@@ -209,6 +209,8 @@ public partial class ShipDemo : Node3D
         BuildKeys(layer);
         BuildChartView(layer);
         BuildTrim(layer);
+        BuildMarket(layer);
+        BuildEncart(layer);
         BuildQuestView(layer);
         BuildLost(layer);
         BuildSpyglass();
@@ -982,6 +984,7 @@ public partial class ShipDemo : Node3D
                     }
             }
             QuestTick(frame);
+            RumourTick(frame);
             if (_jetty != null)
             {
                 _jetty.Update(here, new Vec3d(wo.X, 0, wo.Z));
@@ -1092,7 +1095,7 @@ public partial class ShipDemo : Node3D
                 new Vector2((float)(wv.X / ws), (float)(wv.Z / ws)));
 
         _hudAcc += frame;
-        if (_hudAcc > 0.15) { _hudAcc = 0; UpdateInfo(); AmbianceTick(); }
+        if (_hudAcc > 0.15) { _hudAcc = 0; UpdateInfo(); AmbianceTick(); MarketTick(); }
         TrimTick();
 
         TickCapture();
@@ -1374,6 +1377,7 @@ public partial class ShipDemo : Node3D
             $"écoutes    {_ship.Ctrl.Sheet,6:F2}      voiles    {voiles}\n" +
             $"vent       {_windNowDeg,6:F0}°      force     {_sea.Core.SeaState:F1} · {Config.Beaufort[bf].Name}{(_seaMaster != null ? " · " + _seaMaster : "")}\n" +
             GunLine() +
+            PurseLine() +
             $"air        {_climate.Word()}{(_fall.Amount > 0.004 ? (_fall.Snow ? " · il neige" : " · il pleut") : "")}   {_calendar.Date:dd/MM/yyyy}{(_ship.SnowCover > 0.01 ? $"   neige sur le pont {_ship.SnowCover * 100:F0} %" : "")}\n" +
             (_inSquall ? $"dépression {_squall.Dist / 1852,6:F1} mille(s) du centre · au cœur force {_squall.Storm.Peak:F1} · ici {_squall.Force:F1}\n" : "") +
             $"\n" +
@@ -2120,7 +2124,7 @@ public partial class ShipDemo : Node3D
                 if (ev == "abordage" && mine) Say("Le pirate cesse le feu — il vient vous aborder par l’arrière");
                 else if (ev == "pillage")
                 {
-                    if (mine) Say("Abordés ! Le pirate vous pille et s’éloigne");
+                    if (mine) Say(Pillage());
                     else if ((prey.Body.Pos - _ship.Physics.Body.Pos).Length < 3000)
                     {
                         string name = "un navire";
@@ -2448,6 +2452,9 @@ public partial class ShipDemo : Node3D
                 case "--carte-ouverte": if (args[i + 1] != "0") ToggleChart(); break;
                 // une quete lancee d emblee, par son id : --quete apprendre-la-mer
                 case "--quete": _quests?.Start(args[i + 1]); break;
+                /* un navire parlé tout de suite : une chose qu on ne peut éprouver
+                   qu en attendant huit minutes est une chose qu on n éprouve pas */
+                case "--parler": if (args[i + 1] != "0") Speak(); break;
                 // et sauter droit au lieu de l etape, comme allerQuete() dans la console de la page
                 case "--etape": if (args[i + 1] != "0") GoToStep(); break;
                 case "--pont":

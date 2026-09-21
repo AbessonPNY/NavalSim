@@ -6595,6 +6595,84 @@ même abri. La parité a été refaite sur la fiche modifiée : elle tient.
 
 Reste de ce lot : la chaloupe.
 
+## La ligne d'eau sur le bordé (Godot)
+
+Signalé : « la transparence de l'eau au niveau du bateau est trop importante ;
+l'eau doit se découper de manière plus visible sur la coque. »
+
+**LE REFLET ÉTAIT EFFACÉ AVEC LE RESTE.** Le shader mêlait la surface déjà
+composée — reflet du ciel, coque en miroir, soleil, écume — à l'image de ce qui
+est dessous, dans la proportion de l'extinction. Sous une faible épaisseur
+d'eau, T ≈ 1 : la surface disparaissait tout entière, reflet compris, et le
+bordé immergé se lisait comme dans un aquarium. Or une surface est une SOMME : F
+de reflet, et (1 − F) de ce qui sort de l'eau — le corps de la mer ou ce qui est
+derrière. La transmission ne remplace désormais que le corps. La page porte la
+même formule et le même défaut.
+
+**LE VOILE DE SURFACE (`u_veil = 0,55`).** Le reflet seul ne suffit pas vu d'en
+haut : à trente degrés, F vaut 4 %. L'extinction ne coupe rien au ras de la
+flottaison — sous dix centimètres, exp(−0,34 × 0,1) laisse passer 97 %. Une
+vraie surface diffuse dès le premier centimètre (les rides brisent l'image, une
+eau de rade porte ses particules) : le voile est la part qui passe à épaisseur
+nulle, avant que la profondeur n'éteigne le reste. Un seul nombre, 1 rend
+l'ancienne vitre. Pas appliqué par en dessous, où la fenêtre de Snell montre de
+l'air.
+
+Réglé par l'utilisateur à l'œil ; rien n'a été mesuré ici, et c'est voulu.
+
+## Le commerce porté (Godot)
+
+Demandé pour que les premières missions servent à apprendre la navigation ET à
+gagner de l'or.
+
+**LE NOYAU D'ABORD, ET AU BIT.** `core/NavalSim.Core/Market.cs` porte la bourse
+et le cours des épices de `purse.js`. Le cours est une fonction pure du port et
+de l'heure : il n'y a aucune raison qu'il diffère d'une pièce entre la page et
+Godot, et s'il diffère, l'une des deux ment au joueur. Le hachage multiplie en
+double au-delà de 2^53, comme celui des dépressions — d'où `Js.cs`, qui tient
+désormais pour les deux le ToInt32 et le `Math.round` de JavaScript (la demie
+qui monte toujours, là où `Math.Round` de C# arrondit au pair). HUITIÈME PARTIE
+du banc : 1 992 hachages au bit, 1 407 cours à la pièce, 240 nouvelles,
+12 âges et 189 rumeurs à la lettre, la bourse opération par opération.
+
+Le palier se recale sur le monde (`Tune(LongestLeg)`), comme la page : avec la
+Terre-Ferme dans la carte, il vaut 53 429 s — près de quinze heures. Un cours
+tient donc une session entière, ce qui est la leçon de la page (« un cours doit
+tenir le temps d'une traversée ») poussée par la taille de la mer.
+
+**LE COMPTOIR N'EXISTE QU'À QUAI**, et « à quai » se mesure : à moins de 220 m
+de la tête du ponton et sans erre (0,8 m/s). Il dit le cours, prend l'ordre par
+dizaines de tonnes, vend la poudre si le bord a des pièces, et liste ce qu'on
+sait des AUTRES ports — le chiffre ferme et son âge, les plus fraîches d'abord,
+dans un tableau qui défile : vingt ports ne tiennent pas sous le comptoir, et
+couper la liste cacherait justement les plus lointains.
+
+Mesuré à Port-Royal : achat de 10 t à 581, bourse 24 000 → 18 190, déplacement
+210 → 220 t, tirant 1,56 → 1,61 m ; revente à 457, bourse 22 760 — l'aller-retour
+sur place perd la marge, comme il doit. Les épices vont au fond, au milieu, au
+niveau 0,18 que le plan d'arrimage de la page dessine — une seule constante,
+que la cargaison des bouteilles emploie aussi.
+
+**CE QU'ON LIT EN MER, DANS UN ENCART** — le navire parlé et la bouteille, comme
+dans la page, et non dans le cadre du milieu des quêtes : il ne prend pas la
+barre, il se pose en bas à gauche et s'efface seul. Le navire parlé vient toutes
+les quatre à huit minutes, sous voiles et loin d'un port ; il dit vrai et sans
+chiffre, et le liseré se dore pour une bonne nouvelle, se rouille pour une
+mauvaise. La bouteille retrouve ses TROIS tirages : journal, carnet de comptes
+daté de l'âge de la bouteille, ou carte.
+
+**« De Old Harbour », « de un navire inconnu »** : la contraction de la page ne
+connaissait que « Le » et « Les » ; les rades anglaises de la Jamaïque ont fait
+paraître l'élision qui manquait. `DeNom` élide devant une voyelle.
+
+**Le pirate qui aborde** prend la moitié de la bourse et toutes les épices, ce
+que la page lui fait prendre. En Godot il pillait sans rien emporter : il n'y
+avait pas de bourse.
+
+**Ce qui n'est PAS gardé** : la bourse et la cale vivent le temps d'une séance,
+comme dans la page. Garder l'une sans l'autre serait pire que rien — de l'or
+qui survit à une cargaison qui s'évapore — et c'est un seul chantier.
+
 ## Les cartes en bouteille, et les villes qui s'allument (Godot)
 
 Demandé : que les débris d'un naufrage rendent des cartes en bouteille.
