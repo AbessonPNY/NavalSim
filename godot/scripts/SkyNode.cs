@@ -46,6 +46,23 @@ public partial class SkyNode : Node3D
     /// <summary>L'heure à laquelle la page commence sa journée.</summary>
     public const double StartHour = 9.5;
 
+    /* LA PROFONDEUR DES OMBRES SUR LES NAVIRES : ce que la lumière du ciel rend
+       aux faces que le soleil ne touche pas. Le moteur fait bien porter l'ombre
+       du soleil (mâts sur le pont, château sur le passavant, bordé au dos du
+       soleil), mais à 3,2 le ciel éclairait l'ombre presque autant que le soleil
+       la lumière, et elle ne se lisait plus (signalé). Plus bas : ombres plus
+       franches, et tout un peu plus sombre à l'ombre du jour ; plus haut : plus
+       doux. */
+    public const float AmbientGain = 1.0f;
+
+    /* LE SOLEIL DE LA PAGE, DANS L'UNITÉ DE GODOT. three.js (r160, éclairage
+       physique) divise l'éclairement direct par π — la réflectance de Lambert —,
+       Godot non : un soleil de 2,1 y éclairait π fois plus fort que dans la page.
+       Le bois au soleil brûlait au blanc (relevé : rouge à 1,00 sur le bordé,
+       0,71 une fois ramené) et le navire paraissait pâle, sans contraste
+       (signalé). La lumière du ciel, elle, était déjà dans la bonne mesure. */
+    public const float SunGain = 1f / Mathf.Pi;
+
     // --- l'éclair proche, et le grain lointain : DEUX choses différentes ---
     double _flashT;
     (double At, double A)[]? _flashQueue;
@@ -151,12 +168,12 @@ public partial class SkyNode : Node3D
         Sun.LookAt(Vector3.Zero, Mathf.Abs(dir.Y) > 0.999f ? Vector3.Forward : Vector3.Up);
 
         Sun.LightColor = new Color((float)Core.SunColor.R, (float)Core.SunColor.G, (float)Core.SunColor.B);
-        Sun.LightEnergy = (float)Core.SunIntensity;
+        Sun.LightEnergy = (float)(Core.SunIntensity * SunGain);
 
         /* L'ambiante est celle du ciel, mais son ÉNERGIE porte l'éclair : c'est
            ce qui fait que le pont et la toile l'attrapent. Un éclair qui
            n'éclairerait que le ciel se lit comme un fond d'écran qui clignote. */
-        Env.AmbientLightEnergy = (float)Math.Max(0.05, Core.HemiIntensity * 3.2);
+        Env.AmbientLightEnergy = (float)Math.Max(0.05, Core.HemiIntensity * AmbientGain);
 
         PushTo(_domeMat);
         // le disque de la lune et sa phase n'appartiennent qu'au dôme

@@ -6595,6 +6595,64 @@ même abri. La parité a été refaite sur la fiche modifiée : elle tient.
 
 Reste de ce lot : la chaloupe.
 
+## L'ombre des coques sur l'eau, et le soleil derrière le reflet (Godot)
+
+Demandé, retouche Photoshop à l'appui : une ombre du soleil plus visible sur
+l'eau. Signalé en même temps : la route de soleil passait au travers du navire.
+
+**LA MER NE RECEVAIT AUCUNE OMBRE** : elle est `unshaded`, donc hors des cartes
+d'ombre du moteur. L'ombre est calculée dans son shader (`hull_shadow`) : on
+remonte vers le soleil, et à huit hauteurs entre l'eau et les hauts de la coque
+on demande à `hull_gap` — le contour de flottaison que la mer connaît déjà —
+si le rayon est dedans. La coque est un prisme droit sur sa flottaison, la
+pénombre s'élargit avec la hauteur, l'ombre est bornée à six fois la hauteur au
+soleil rasant, s'efface la nuit et sous l'orage. Elle retire la lumière de
+l'eau (`u_shadow` = 0,5, en tête du shader) et le reflet du soleil ; le miroir
+du ciel reste, d'où une ombre plus franche vue d'en haut qu'à l'horizon.
+
+Les hauts sont mesurés sur le modèle (`HullProfile.Top` : moyenne des ponts par
+tranche tirée vers le plus haut) : barge 1,6 m, frégate 6,7 m, canot 0,6 m.
+
+**LE SOLEIL DERRIÈRE LE REFLET** : le reflet de la coque remplaçait bien le ciel
+dans le miroir, mais le reflet du soleil s'ajoutait après, sans masque — il
+brillait au travers de l'image renversée du navire. Il est maintenant éteint à
+proportion de ce que le reflet de la coque occupe.
+
+**Puis : l'ombre sur l'écume et sur le navire.** L'écume se composait après l'ombre et restait blanche dedans : sa couleur perd maintenant 0,65 × l'ombre (plus que l'eau, qui garde le miroir du ciel). Sur les modèles, le moteur portait déjà l'ombre du soleil, mais l'ambiante du ciel (gain 3,2) éclairait l'ombre presque autant que le soleil la lumière : le gain passe à 2,0 (`SkyNode.AmbientGain`), à juger à l'œil.
+
+**Puis : la forme de l'ombre.** Signalée étrange : une dalle trop longue aux bords en marches. La coque était un bloc de la hauteur de son château sur toute sa longueur, et huit hauteurs seulement se lisaient au soleil bas comme huit contours empilés. Les hauts sont maintenant relevés STATION PAR STATION sur le modèle (canal vert de la texture des profils) — frégate : 7,9 m au château, 4,3 m au milieu —, seize hauteurs, et une pénombre jamais plus fine que l'écart entre deux.
+
+**Puis : l'ombre en peigne.** Des dents dans le sens du soleil : une station relevée trop basse entre deux hautes (pas de sommet au plus haut de la tranche) laissait passer un rai de soleil sur toute la longueur de l'ombre. Les hauts sont comblés entre voisines, pris au plus haut à deux stations près, puis moyennés (frégate : milieu 4,8 m au lieu de 4,3), et leur bord dans le shader est aussi large que l'écart entre deux hauteurs.
+
+**Puis : les festons.** Au soleil bas, seize hauteurs tombaient à 3 m l'une de l'autre sur l'eau et chacune dessinait son contour de coque. Vingt-quatre hauteurs, une pénombre d'une fois et demie leur écart, et un décalage des hauteurs propre à chaque pixel (bruit à gradient entrelacé) : ce qui reste du motif devient grain.
+
+## Le navire pâle : le soleil π fois trop fort, la brume dans le mauvais espace (Godot)
+
+Signalé : « le bateau semble toujours très pâle, comme un manque de contraste ».
+
+**DEUX CAUSES, mesurées au pixel** (sonde lisant l'image rendue en des points
+du bordé, sans capture) :
+
+1. **Le soleil.** three.js r160 (éclairage physique) divise l'éclairement
+   direct par π — la réflectance de Lambert —, Godot non : le 2,1 de la page
+   éclairait π fois plus fort. Le bois au soleil saturait (rouge 1,00, vert
+   0,74) ; ramené par `SkyNode.SunGain` = 1/π : (0,71 ; 0,54 ; 0,40). La
+   lumière du ciel était déjà dans la bonne mesure une fois `AmbientGain` à 1,0
+   (réglé par Arnaud) : 0,28, contre 0,9/π dans la page. Piège de la mesure :
+   une seule caméra ne voit qu'un flanc — les points de l'autre flanc
+   retombaient sur le premier et semblaient insensibles à l'ambiante.
+2. **La brume.** La page la mélange APRÈS l'encodage sRGB ; le `blend_mix` de
+   la passe posée sur les modèles la mélangeait en linéaire, ce qui monte un
+   bois sombre sous 20 % de brume à 0,44 au lieu de 0,36 — au gros temps
+   (brume ×7,4), laiteux à 40 m quand l'eau à côté restait sombre. Premier
+   remède, RETIRÉ : relire l'image rendue (`hint_screen_texture`) et mélanger
+   soi-même, exactement. Cette image ne contient que l'opaque, et la passe
+   écrivait par-dessus tout ce qui est transparent : le verre des lanternes et
+   les vitres clignotaient selon l'ordre de tri (signalé), la neige et les
+   blessures du bordé — des passes posées avant la brume — disparaissaient.
+   Reste la brume à la puissance 1,5, sur les modèles comme sur la coque
+   procédurale : à 0,01 près du mélange de la page pour un bordé sombre.
+
 ## La Tortue, et les traversées d'une région à l'autre (Godot)
 
 Demandé : aller plus loin que la Jamaïque sans la rapetisser — option « B »,

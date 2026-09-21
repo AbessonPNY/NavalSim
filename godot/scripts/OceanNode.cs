@@ -164,6 +164,7 @@ public partial class OceanNode : Node3D
     readonly Vector2[] _hullEnds = new Vector2[Config.MaxShips];
     readonly float[] _shipSpeed = new float[Config.MaxShips];
     readonly float[] _shipAfloat = new float[Config.MaxShips];
+    readonly float[] _shipTop = new float[Config.MaxShips];
     int _shipCount;
 
     const int ProfCols = 64;
@@ -174,7 +175,8 @@ public partial class OceanNode : Node3D
         if (index < 0 || index >= Config.MaxShips) return;
         if (_profImg == null)
         {
-            _profImg = Image.CreateEmpty(ProfCols, Config.MaxShips, false, Image.Format.Rf);
+            // rouge : la demi-largeur ; vert : les hauts, pour l'ombre
+            _profImg = Image.CreateEmpty(ProfCols, Config.MaxShips, false, Image.Format.Rgf);
             _profImg.Fill(new Color(1, 1, 1, 1));
         }
         int n = prof.Fractions.Length;
@@ -182,7 +184,8 @@ public partial class OceanNode : Node3D
         {
             // un profil plus court est étiré sur la rangée plutôt que laissé blanc
             float f = prof.Fractions[Math.Min(n - 1, i * n / ProfCols)];
-            _profImg.SetPixel(i, index, new Color(f, 0, 0, 1));
+            float h = prof.Heights is { } hs ? hs[Math.Min(hs.Length - 1, i * hs.Length / ProfCols)] : 1f;
+            _profImg.SetPixel(i, index, new Color(f, h, 0, 1));
         }
         if (_profTex == null) _profTex = ImageTexture.CreateFromImage(_profImg);
         else _profTex.Update(_profImg);
@@ -215,6 +218,8 @@ public partial class OceanNode : Node3D
                l'eau, et une épave n'en fend plus. Envoyé 1 quoi qu'il arrive, le
                collier restait sur l'eau après le naufrage — signalé à l'usage. */
             _shipAfloat[i] = (float)p.Afloat;
+            // ses hauts au-dessus de l'eau, pour l'ombre ; sans mesure, le franc-bord de la fiche
+            _shipTop[i] = (float)(_profs[i] is { Top: > 0 } pr ? pr.Top : p.Spec.Hull.FreeboardMid);
             // sans profil, ses extrémités sont celles de sa longueur hors tout
             if (_profs[i] == null)
                 _hullEnds[i] = new Vector2((float)(-p.Spec.L * 0.5), (float)(p.Spec.L * 0.5));
@@ -237,6 +242,7 @@ public partial class OceanNode : Node3D
         m.SetNow(U.HullEnds, _hullEnds);
         m.SetNow(U.ShipSpeed, _shipSpeed);
         m.SetNow(U.ShipAfloat, _shipAfloat);
+        m.SetNow(U.ShipTop, _shipTop);
         if (_kelvinTex != null) m.SetShaderParameter("u_kelvin", _kelvinTex);
     }
 

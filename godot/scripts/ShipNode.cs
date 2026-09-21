@@ -308,7 +308,14 @@ public partial class ShipNode : Node3D
     /// </summary>
     public HullProfile MakeProfile(double waterlineY, int n = 64)
     {
-        if (ModelRoot == null) return HullProfile.Procedural(Spec, Lines, n);
+        if (ModelRoot == null)
+        {
+            var proc = HullProfile.Procedural(Spec, Lines, n);
+            var decks = new float[n];
+            for (int k = 0; k < n; k++) decks[k] = (float)Math.Max(0, Lines.DeckY((k + 0.5) / n) - waterlineY);
+            SetHeights(proc, decks);
+            return proc;
+        }
 
         // la coque : le plus volumineux, mesuré cette fois dans SON repère à elle
         MeshInstance3D? hull = null;
@@ -321,6 +328,7 @@ public partial class ShipNode : Node3D
             if (vol > best) { best = vol; hull = mi; hullT = rel; }
         }
         var raw = new float[n];
+        var tops = new float[n];
         if (hull != null)
         {
             double lo = HullProfile.BandLo(Spec, waterlineY), hi = HullProfile.BandHi(Spec, waterlineY);
@@ -331,8 +339,11 @@ public partial class ShipNode : Node3D
                 foreach (var v in verts)
                 {
                     var p = hullT * v;
+                    // ses hauts, à toute hauteur : ce qui porte l'ombre
+                    int st = HullProfile.Station(Spec, p.Z, n);
+                    tops[st] = Math.Max(tops[st], (float)(p.Y - waterlineY));
                     if (p.Y < lo || p.Y > hi) continue;
-                    int b = HullProfile.Station(Spec, p.Z, n);
+                    int b = st;
                     float x = Math.Abs(p.X);
                     /* UN SOMMET SUR L'AXE N'APPORTE AUCUNE LARGEUR. Sous three.js son
                        |x| vaut exactement zéro et la station reste vide, donc
@@ -346,7 +357,52 @@ public partial class ShipNode : Node3D
                 }
             }
         }
-        return HullProfile.Measured(raw, Spec);
+        var prof = HullProfile.Measured(raw, Spec);
+        SetHeights(prof, tops);
+        return prof;
+    }
+
+    /* SES HAUTS, pour l'ombre, STATION PAR STATION : la coque traitée en bloc de
+       la hauteur de son château sur toute sa longueur jetait une ombre en
+       dalle, trop longue et trop carrée (signalé). Les stations vides — au-delà
+       des extrémités — restent à zéro : rien n'y porte d'ombre. */
+    static void SetHeights(HullProfile prof, float[] raw)
+    {
+        /* LISSÉS, sans quoi l'ombre se peigne : un modèle léger n'a pas de sommet
+           au plus haut de chaque tranche, et une station relevée trop basse
+           entre deux hautes laisse passer un rai de soleil sur toute la longueur
+           de l'ombre — des dents, dans le sens du soleil (signalé). On comble
+           les trous entre voisines, on garde la plus haute à deux stations près
+           (un pavois reste un pavois), puis on moyenne. */
+        int n = raw.Length;
+        var fill = (float[])raw.Clone();
+        for (int i = 0; i < n; i++)
+        {
+            if (raw[i] > 0) continue;
+            int j = i - 1; while (j >= 0 && raw[j] <= 0) j--;
+            int k = i + 1; while (k < n && raw[k] <= 0) k++;
+            if (j >= 0 && k < n) fill[i] = raw[j] + (raw[k] - raw[j]) * (i - j) / (float)(k - j);
+        }
+        var peak = new float[n];
+        for (int i = 0; i < n; i++)
+            for (int d = -2; d <= 2; d++)
+                if (i + d >= 0 && i + d < n) peak[i] = Math.Max(peak[i], fill[i + d]);
+        var tops = new float[n];
+        for (int i = 0; i < n; i++)
+        {
+            float s = 0; int c = 0;
+            for (int d = -2; d <= 2; d++)
+                if (i + d >= 0 && i + d < n) { s += peak[i + d]; c++; }
+            // les bouts sans rien restent sans rien : pas d'ombre au-delà de l'étrave
+            tops[i] = fill[i] > 0 ? s / c : 0;
+        }
+        float max = 0;
+        foreach (var t in tops) max = Math.Max(max, t);
+        prof.Top = max;
+        if (max <= 0) return;
+        var f = new float[tops.Length];
+        for (int i = 0; i < f.Length; i++) f[i] = Math.Max(0, tops[i]) / max;
+        prof.Heights = f;
     }
 
     static ArrayMesh ToArrayMesh(in HullMesh hm)

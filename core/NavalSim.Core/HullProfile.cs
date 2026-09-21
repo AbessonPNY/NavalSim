@@ -26,6 +26,17 @@ public sealed class HullProfile
     /// <summary>Où le corps à la flottaison commence et finit, en mètres le long d'elle.</summary>
     public double EndAft { get; }
     public double EndFwd { get; }
+    /// <summary>
+    /// La hauteur de ses hauts au-dessus de la flottaison, en mètres : ce qui
+    /// porte l'ombre sur l'eau. Nulle, pas d'ombre. Posée par qui connaît le
+    /// modèle — le profil ne lit que la flottaison.
+    /// </summary>
+    public double Top { get; set; }
+    /// <summary>
+    /// Ses hauts STATION PAR STATION, en fractions de <see cref="Top"/> : le
+    /// château arrière monte, le passavant non. Nul : partout à <see cref="Top"/>.
+    /// </summary>
+    public float[]? Heights { get; set; }
 
     HullProfile(float[] f, double maxHalfB, double halfLen, double aft, double fwd)
     {

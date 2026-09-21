@@ -836,7 +836,7 @@ public partial class ShipDemo : Node3D
             ? $"modèle {spec.Model!.Glb}, échelle {_ship.ModelRoot.Scale.X:F4}"
             : "coque procédurale";
         GD.Print($"  {what} ; profil : demi-largeur {_prof.MaxHalfB:F3} m (fiche {spec.B * 0.5:F3}), "
-               + $"corps {_prof.EndAft:F2} à {_prof.EndFwd:F2} m");
+               + $"corps {_prof.EndAft:F2} à {_prof.EndFwd:F2} m, hauts à {_prof.Top:F1} m (milieu {(_prof.Heights is { } hh ? hh[hh.Length / 2] * _prof.Top : _prof.Top):F1}) sur l'eau");
         RefitFleet();
         HoistNation();
         Found();   // une coque neuve n est pas celle qu on vient de perdre

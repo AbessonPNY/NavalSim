@@ -70,6 +70,7 @@ public static class U
     public static readonly StringName ShipHalf = new("u_ship_half");
     public static readonly StringName ShipPos = new("u_ship_pos");
     public static readonly StringName ShipSpeed = new("u_ship_speed");
+    public static readonly StringName ShipTop = new("u_ship_top");
     public static readonly StringName Size = new("u_size");
     public static readonly StringName SkyTime = new("u_sky_time");
     public static readonly StringName Storm = new("u_storm");

@@ -46,7 +46,11 @@ void vertex() {
  * poser ciel·h en émission donne exactement cela — le reflet spéculaire,
  * lui, ne passe pas par l'albédo, d'où le même facteur sur SPECULAR. */
 void fragment() {
-	float hz = haze_along(CAMERA_POSITION_WORLD, v_world);
+	/* Le même mélange que les modèles (hull_haze) voudrait l'espace de l'écran ;
+	   ici la couleur éclairée n'est pas encore connue, et la puissance 1,5 est
+	   ce qui s'en approche le mieux pour un bordé sombre (relevé à 20, 50 et
+	   90 % de brume : 0,09, 0,34, 0,85 contre 0,09, 0,35, 0,85). */
+	float hz = pow(haze_along(CAMERA_POSITION_WORLD, v_world), 1.5);
 	// la neige sur la couleur, AVANT la brume : l'air est devant elle aussi
 	float sn = naval_snow(v_up, v_local, u_snow);
 	// ses blessures d'abord, la neige par-dessus, l'air devant

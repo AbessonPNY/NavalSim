@@ -106,6 +106,13 @@ uniform float u_refract = 1.0;
    dès le premier centimètre : les rides brisent l'image, et une eau de rade
    porte toujours sa part de particules. 1 : une vitre ; 0 : de l'encre. */
 uniform float u_veil = 0.55;
+/* L'OMBRE DES COQUES SUR L'EAU : la part de la lumière de l'eau qu'une coque
+   retire là où elle cache le soleil. 0 : pas d'ombre ; 1 : de l'encre. La mer
+   n'est pas éclairée par le moteur (unshaded) et ne reçoit donc aucune carte
+   d'ombre : l'ombre est calculée ici, contre le contour de flottaison que la
+   mer connaît déjà, élevé à la hauteur des hauts de chaque coque. */
+uniform float u_shadow = 0.5;
+uniform float u_ship_top[NSHIP];      // ses hauts au-dessus de la flottaison, mètres
 // la décharge au-dessus éclaire l'eau comme le ciel
 uniform float u_flash = 0.0;
 
@@ -411,6 +418,59 @@ vec3 kelvin_slope(vec2 p, float pix) {
 	return vec3(g, shade);
 }
 
+/* EST-ON DANS L'OMBRE D'UNE COQUE ? On remonte vers le soleil : à la hauteur h
+   au-dessus de l'eau, le rayon est passé de h / sin(élévation) en travers. Si,
+   à l'une des hauteurs de la coque, il tombe DANS son contour, le soleil est
+   caché. La coque est traitée en prisme droit sur sa flottaison — l'évasement
+   des hauts et les châteaux ne se voient pas dans une ombre douce —, et la
+   pénombre s'élargit avec la hauteur, comme celle d'un vrai soleil. */
+float hull_shadow(vec3 P, vec2 pix) {
+	/* Un décalage des hauteurs propre à chaque pixel (bruit à gradient
+	   entrelacé) : les contours que chaque hauteur dessine ne tombent plus au
+	   même endroit d'un pixel à l'autre, et ce qui reste du motif se fond en
+	   grain au lieu de se répéter (signalé). */
+	float jit = fract(52.9829189 * fract(dot(pix, vec2(0.06711056, 0.00583715))));
+	if (u_sun.y < 0.02) return 0.0;
+	// au ras de l'horizon l'ombre s'allongerait sans fin : bornée à six fois la hauteur
+	vec2 step_h = u_sun.xz / u_sun.y;
+	float slen = length(step_h);
+	if (slen > 6.0) step_h *= 6.0 / slen;
+	float s = 0.0;
+	for (int i = 0; i < NSHIP; i++) {
+		if (i >= u_ship_count) break;
+		float top = u_ship_top[i];
+		if (top <= 0.0 || u_ship_afloat[i] <= 0.0) continue;
+		vec2 rel = P.xz - u_ship_pos[i].xz;
+		// loin de la coque ET de son ombre : rien à chercher
+		vec2 mid = rel + step_h * top * 0.5;
+		float reach = u_ship_half[i].x + length(step_h) * top * 0.5 + 3.0;
+		if (dot(mid, mid) > reach * reach) continue;
+		vec2 f2 = normalize(u_ship_fwd[i]);
+		vec2 r2 = vec2(f2.y, -f2.x);
+		float row = (float(i) + 0.5) / float(NSHIP);
+		float here = 0.0;
+		/* Vingt-quatre hauteurs, et une pénombre d'une fois et demie l'écart
+		   entre deux : moins, et au soleil bas l'ombre se dessinait en
+		   festons — autant de contours de coque empilés. */
+		float sl = length(step_h);
+		float stride = top * sl / 24.0;
+		for (int k = 0; k < 24; k++) {
+			float h = top * (float(k) + jit) / 24.0;
+			float t_along;
+			float gap = hull_gap(rel + step_h * h, f2, r2, u_ship_half[i], u_hull_ends[i], row, t_along);
+			// la coque n'est haute là que si SES hauts, à cette station, dépassent h
+			float deck = top * texture(u_hull_prof, vec2(clamp(t_along * 0.5 + 0.5, 0.0, 1.0), row)).g;
+			float soft = 0.5 + 0.06 * h * sl + 1.5 * stride;
+			float inside = 1.0 - smoothstep(-0.4, soft, gap);
+			float band = max(0.25, top / 12.0);
+			here = max(here, inside * (1.0 - smoothstep(deck - band, deck + band, h)));
+		}
+		s = max(s, here * u_ship_afloat[i]);
+	}
+	// il faut un soleil pour une ombre : ni la nuit, ni sous un ciel d'orage
+	return s * smoothstep(0.02, 0.12, u_sun.y) * (1.0 - 0.7 * u_storm);
+}
+
 void fragment() {
 	vec3 eye = CAMERA_POSITION_WORLD;
 	vec3 V = normalize(eye - v_world);
@@ -504,6 +564,7 @@ void fragment() {
 	/* Et seulement au pied d'un navire : son reflet ne peut tomber qu'à moins de
 	   la hauteur de sa mâture de lui — deux longueurs et demie, avec de la marge.
 	   Ailleurs la recherche ne trouverait que du ciel, à 0,7 ms l'image. */
+	float mirror_a = 0.0;               // la part du miroir que tient une coque
 	bool near_ship = false;
 	for (int i = 0; i < NSHIP; i++) {
 		if (i >= u_ship_count) break;
@@ -517,10 +578,18 @@ void fragment() {
 		if (Rw.y > 0.0) {
 			vec3 Rv = normalize((VIEW_MATRIX * vec4(Rw, 0.0)).xyz);
 			vec4 hm = hull_mirror(VERTEX, Rv, PROJECTION_MATRIX, INV_PROJECTION_MATRIX);
-			sky = mix(sky, hm.rgb, hm.a * (1.0 - smoothstep(250.0, 400.0, dist)));
+			mirror_a = hm.a * (1.0 - smoothstep(250.0, 400.0, dist));
+			sky = mix(sky, hm.rgb, mirror_a);
 		}
 	}
 	vec3 c = mix(body, sky, F);
+	/* L'OMBRE DES COQUES : l'eau qu'elle couvre ne reçoit plus le soleil, donc
+	   n'en renvoie plus par-dessous — ce qui reste est le ciel. Le miroir, lui,
+	   garde son reflet : une ombre sur l'eau se voit dans l'eau, pas sur elle,
+	   et c'est pourquoi elle est plus franche vue d'en haut qu'à l'horizon. */
+	float shade = hull_shadow(v_world, FRAGCOORD.xy) * (1.0 - far);
+	float sun_lit = 1.0;
+	c = mix(c, c * (1.0 - u_shadow), shade * (1.0 - 0.6 * F));
 	c *= 1.0 + kg.z;                    // les crêtes du V : claires au ciel, sombres au dos
 	c *= mix(0.62, 1.0, mix(open, 1.0, far));
 
@@ -534,6 +603,13 @@ void fragment() {
 	   scintille par intermittence entre deux quadrilatères voisins. La rugosité
 	   tient lieu du détail de vague qu'on vient d'ôter. */
 	vec3 H = normalize(u_sun + V);
+	// dans l'ombre d'une coque, le soleil ne s'y reflète pas
+	sun_lit = 1.0 - shade;
+	/* ET LÀ OÙ L'EAU REFLÈTE UNE COQUE, elle ne reflète pas le soleil qui est
+	   derrière : la route de soleil passait AU TRAVERS du reflet du navire
+	   (signalé, soleil dans le dos de la coque). Le reflet de la coque
+	   remplaçait bien le ciel, mais le soleil s'ajoutait après, sans masque. */
+	sun_lit *= 1.0 - mirror_a;
 	float coarse = smoothstep(0.8, 6.0, v_spacing);
 	/* LA ROUTE DE SOLEIL GARDE SA PROPRE RUGOSITÉ. Celle des curseurs matifie
 	   l'eau et floute le ciel qu'elle renvoie ; appliquée au soleil, elle
@@ -564,7 +640,7 @@ void fragment() {
 	   blanc fixe : c'est la même lumière. */
 	float facing = smoothstep(-0.02, 0.06, dot(N, u_sun)) * smoothstep(-0.03, 0.02, u_sun.y);
 	vec3 sun_tint = u_sun_col / max(max(u_sun_col.r, max(u_sun_col.g, u_sun_col.b)), 1e-3);
-	c += sun_tint * D * Fs * facing * 2.0;
+	c += sun_tint * D * Fs * facing * 2.0 * sun_lit;
 
 	/* Le même lobe pour la lune, froid et faible : la nuit, c'est la seule route
 	   qu'il y ait. */
@@ -758,6 +834,10 @@ void fragment() {
 	float foam = clamp(max(max(crest_foam, persist), wake_lines) + hull_foam, 0.0, 1.0) * (1.0 - far * 0.85);
 	vec3 foam_col = body * 0.5 + u_horizon * 1.05 * (1.0 - 0.55 * u_storm)
 	              + lamp_foam * 0.8;          // l'écume prend la flamme comme un drap blanc
+	/* L'ÉCUME À L'OMBRE : un drap blanc qui ne prend plus le soleil. Elle perd
+	   plus que l'eau — l'eau garde le miroir du ciel, l'écume n'a que sa lumière
+	   diffuse, et le soleil en était la plus grande part. */
+	foam_col *= 1.0 - clamp(u_shadow * 1.3, 0.0, 0.9) * shade;
 	c = mix(c, foam_col, foam * 0.85);
 
 	/* ET LA BRUME EN DERNIER, parce que c'est l'air devant tout le reste. La mer
