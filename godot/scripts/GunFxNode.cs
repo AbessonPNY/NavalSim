@@ -29,7 +29,7 @@ public partial class GunFxNode : Node3D
     const int MaxAdd = 512, MaxPowder = 1536, MaxSoot = 256, MaxBalls = 96;
     const double Lag = 0.30;          // la part du vent qu'un nuage de poudre prend
 
-    enum Kind { Flash, Smoke, Fire, Soot, Spark }
+    enum Kind { Flash, Smoke, Fire, Soot, Spark, Mist }
 
     struct Puff
     {
@@ -191,6 +191,29 @@ public partial class GunFxNode : Node3D
         L.LightEnergy = (float)_gunLamp[li].Peak;
     }
 
+    /// <summary>
+    /// LE SOUFFLE D'UNE BALEINE : une gerbe de brume de quatre à cinq mètres,
+    /// jetée vite par l'évent puis suspendue, que le vent emporte en entier —
+    /// de la vapeur tiède et de l'eau pulvérisée, pas de la fumée froide. Les
+    /// mêmes bouffées que la poudre, blanches, et dans le vent tout entier.
+    /// </summary>
+    public void Spout(Vector3 at, Vector3 dir, double k = 1)
+    {
+        float fk = (float)k;
+        for (int i = 0; i < 14; i++)
+        {
+            float up = 0.35f + 0.65f * R();
+            Add(_powder, new Puff
+            {
+                K = Kind.Mist, T = -i * 0.03, Life = 3.5 + R() * 2.5,
+                P = at + dir * (0.3f * fk),
+                V = dir * ((7 + R() * 5) * up * fk) + new Vector3((R() - 0.5f) * 1.6f, (R() - 0.3f) * 1.2f, (R() - 0.5f) * 1.6f) * fk,
+                Drag = 1.6, Lift = 0.25, Spin = (R() - 0.5) * 0.8,
+                S0 = (0.5 + R() * 0.4) * k, S1 = (2.4 + R() * 1.6) * k, Rot = R() * 6.2832
+            }, MaxPowder);
+        }
+    }
+
     /* ------------------------------------------------------------------ */
     /*  LA SOUTE                                                           */
     /* ------------------------------------------------------------------ */
@@ -316,6 +339,13 @@ public partial class GunFxNode : Node3D
             if (p.T >= 0)
             {
                 if (p.Gravity) p.V.Y -= 9.81f * fdt;
+                else if (p.K == Kind.Mist)
+                {
+                    float kd = (float)Math.Min(1, p.Drag * dt);
+                    p.V.X += ((float)wind.X - p.V.X) * kd;
+                    p.V.Z += ((float)wind.Z - p.V.Z) * kd;
+                    p.V.Y += ((float)p.Lift - p.V.Y) * kd;
+                }
                 else if (p.K == Kind.Smoke || p.K == Kind.Flash)
                 {
                     /* Elle se relâche vers l'AIR, pas vers zéro — et vers une PART du
@@ -370,6 +400,13 @@ public partial class GunFxNode : Node3D
                 return (new Vector3(g, g * 0.97f, g * 0.92f), Math.Min(1, u * 4) * (1 - u) * 0.42);
             }
             case Kind.Spark: return (p.Col, Math.Pow(1 - u, 0.8) * 0.9);
+            case Kind.Mist:
+            {
+                // blanche, qui réfléchit le ciel ; dense à la sortie, puis elle se défait
+                double a = Math.Min(1, p.T / 0.15) * Math.Pow(1 - u, 1.3) * 0.42;
+                var L = _lit;
+                return (new Vector3(0.95f * L.X, 0.96f * L.Y, 0.98f * L.Z), a);
+            }
             default:
             {
                 /* MINCE PAR BOUFFÉE, épaisse par accumulation : une bordée seule est un

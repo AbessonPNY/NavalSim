@@ -45,6 +45,7 @@ public sealed class EngineSpec
 {
     [JsonPropertyName("topSpeed")]   public double TopSpeed { get; set; }
     [JsonPropertyName("sternPower")] public double? SternPower { get; set; }
+    [JsonPropertyName("speedLimit")] public double? SpeedLimit { get; set; }
 }
 
 public sealed class RudderSpec
@@ -253,6 +254,12 @@ public sealed class ShipSpec
     public double TopSpeed { get; }
     public double MaxThrust { get; }
     public double SternPower { get; }
+    /// <summary>
+    /// Le garde-fou du solveur, en m/s : au-delà, la vitesse est rabattue. 40
+    /// par défaut, celui de la page — un navire d'époque n'en approche pas, et
+    /// l'élan de débogage (B) s'y arrête. Une coque moderne peut le relever.
+    /// </summary>
+    public double SpeedLimit { get; }
 
     public double RudderK { get; }
     public double RudderMax { get; }
@@ -328,6 +335,7 @@ public sealed class ShipSpec
            la ferait avancer sur l'ordre « en arriere ». */
         double sp = json.Engine.SternPower ?? -0.6;
         SternPower = Math.Max(-1, Math.Min(0, sp));
+        SpeedLimit = Math.Max(1, json.Engine.SpeedLimit ?? 40);
 
         RudderK = json.Rudder.Power * lateralArea;
         RudderMax = json.Rudder.MaxAngle;

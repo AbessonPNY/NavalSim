@@ -98,7 +98,7 @@ public partial class ShipDemo : Node3D
         Key(a, "A  D", "barre à bâbord, à tribord");
         Key(a, "Q  E", "choquer, border les écoutes");
         Key(a, "V", "établir ou ferler");
-        Key(a, "B", "l'élan : en route d'un coup, ou stop");
+        Key(a, "B", "l'élan : en route d'un coup, ou stop (B B : vitesse doublée)");
         Key(a, "M", "mouiller · virer au cabestan");
         Section(a, "Artillerie");
         Key(a, "G", "un coup de la pièce suivante");
@@ -119,6 +119,7 @@ public partial class ShipDemo : Node3D
         Section(b, "Rencontres");
         Key(b, "U", "une voile sous pavillon noir");
         Key(b, "K", "le kraken, tout de suite");
+        Key(b, "⇧K", "une baleine, qui vient charger");
         Key(b, "P", "la flotte fantôme");
         Key(b, "N", "changer de navire");
 

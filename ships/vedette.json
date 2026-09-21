@@ -1,0 +1,65 @@
+{
+  "id": "vedette",
+  "name": "Vedette Albatros",
+  "note": "Vedette moderne pour le debogage : parcourir vite les distances de la carte. Anachronique exprès. Coque procedurale fine, avant eleve, tableau large ; 18 t, machine donnee pour 20 m/s (39 noeuds). engine.speedLimit releve le garde-fou du solveur (40 m/s ailleurs) : l elan de B y trouve de la place. Pas de modele de glissement : c est une coque a deplacement menee tres vite.",
+
+  "hull": {
+    "length": 15,
+    "beam": 4.2,
+    "freeboardMid": 1.5,
+    "sheerBow": 0.6,
+    "sheerStern": 0.0,
+    "keelDepth": 0.9,
+    "keelExtra": 0.1,
+
+    "dragAft": 0.0,
+    "forefootLift": 0.6,
+    "counterLift": 0.0,
+
+    "waterlinePower": 0.55,
+    "waterlineFull": 0.22,
+    "transomWidth": 0.95,
+
+    "sectionTuck": 0.35,
+    "sectionPower": 0.85
+  },
+
+  "displacementTonnes": 18,
+
+  "cog": { "yFracKeel": -0.45, "zFracLength": -0.08 },
+
+  "hydro": {
+    "resistance": 40,
+    "lateralGrip": 600,
+    "lateralQuad": 130,
+    "heaveDamp": 1400
+  },
+
+  "engine": { "topSpeed": 20, "sternPower": -0.5, "speedLimit": 60 },
+
+  "rudder": { "power": 120, "maxAngle": 0.55, "postZFrac": -0.48, "postY": -0.6 },
+
+  "rig": {
+    "type": "none",
+    "sailArea": 0,
+    "ceHeight": 1.5,
+    "ceZ": 0,
+    "maxSheet": 1.0,
+    "belly": 0,
+    "masts": [],
+    "jib": null,
+    "bowsprit": null
+  },
+
+  "deckhouse": { "beamFrac": 0.62, "height": 2.1, "lengthFrac": 0.30, "zFrac": 0.02 },
+
+  "appearance": {
+    "hull": "0x26303b",
+    "timber": "0x59616b",
+    "spar": "0x9aa3ab",
+    "house": "0xe4e7ea",
+    "canvas": "0xe8e0cf"
+  },
+
+  "camera": { "chaseDist": 30, "chaseHigh": 10, "orbitDist": 34, "helmZFrac": 0.0, "helmHeight": 3.2 }
+}

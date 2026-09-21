@@ -59,6 +59,8 @@ Naval.ShipSpec = class ShipSpec {
        positive value here would let the astern telegraph drive her forward. */
     const sp = json.engine.sternPower;
     this.sternPower = Math.max(-1, Math.min(0, sp != null ? sp : -0.6));
+    // the solver's safety clamp, m/s: 40 unless a modern hull raises it
+    this.speedLimit = Math.max(1, json.engine.speedLimit != null ? json.engine.speedLimit : 40);
 
     /* OARS, for a boat that is pulled rather than sailed or driven. The stroke
        rate is stated; the pull is not — it is the engine's thrust, spent in

@@ -238,7 +238,8 @@ public sealed partial class ShipPhysics
         b.Vel += force * (dt / b.Mass);
         b.Vel *= 1 - 0.02 * dt;                       // un amortissement global très faible
         double vl = b.Vel.Length;
-        if (vl > 40) b.Vel = b.Vel * (40 / vl);       // garde-fou
+        double cap = Spec.SpeedLimit;                 // garde-fou : 40, sauf fiche moderne
+        if (vl > cap) b.Vel = b.Vel * (cap / vl);
         b.Pos += b.Vel * dt;
 
         // --- intégration angulaire, dans le repère propre où l'inertie est diagonale ---

@@ -35,6 +35,8 @@ switch (mode)
     case "quete": Quete(); break;
     case "ville": Ville(); break;
     case "traversees": Traversees(); break;
+    case "elan": Elan(); break;
+    case "baleine": Baleine(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -440,4 +442,64 @@ void Traversees()
                 Console.WriteLine($"{home.Name} -> {b.Name}, vent du {wind:F0} : {p.Miles:F0} M au {p.Course:F0} ({Passage.ToPoint(p.Course)}), {p.Knots:F1} nd, {Passage.Say(p.Hours)} -- {p.At.Name}");
             }
         }
+}
+
+/* L ELAN DE B : la vitesse de regime a 45 et 180 fois la poussee, mer calme,
+   sans toile. Pour savoir ce qu un double appui fait vraiment.
+     dotnet run --project core/NavalSim.Lab -- elan frigate17e */
+void Elan()
+{
+    string name = args.Length > 1 ? args[1] : "frigate17e";
+    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    foreach (double thr in new[] { 1.0, 45.0, 180.0 })
+    {
+        var ocean = new Ocean { Swell = 1.0, Time = 0 };
+        ocean.SetSeaState(1, 210);
+        var p = new ShipPhysics(spec, new HullLines(spec));
+        var ctrl = new Controls { Throttle = thr, Rudder = 0, Sheet = 0.6, SailsSet = false };
+        p.Settle(ocean, ctrl);
+        double dt = 1.0 / 60, t = 0;
+        for (int k = 0; k < 60 * 480; k++) { p.Step(dt, ocean, ctrl, t); t += dt; }
+        var v = p.Body.Vel;
+        var fwd = p.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+        double pitch = Math.Asin(Math.Clamp(fwd.Y, -1, 1)) * 180 / Math.PI;
+        Console.WriteLine($"{name} poussee x{thr,4:F0} : {Math.Sqrt(v.X * v.X + v.Z * v.Z) / 0.5144,6:F1} noeuds apres 8 min, assiette {pitch:F1} deg, immersion {p.SubmergedFrac * 100:F0} %, y {p.Body.Pos.Y:F2} m");
+    }
+}
+
+/* LA BALEINE, EPROUVEE : une fregate en mer calme, une baleine de chaque
+   humeur appelee a 800 m, et ce qui arrive -- ses etats, son passage sous la
+   quille, le coup de boutoir (impulsion, voie d'eau).
+     dotnet run --project core/NavalSim.Lab -- baleine */
+void Baleine()
+{
+    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, "frigate17e.json")));
+    foreach (var mood in new[] { WhaleMood.Indifferent, WhaleMood.Curious, WhaleMood.Hostile })
+    {
+        var ocean = new Ocean { Swell = 1.0, Time = 0 };
+        ocean.SetSeaState(2, 210);
+        var p = new ShipPhysics(spec, new HullLines(spec));
+        var ctrl = new Controls { Throttle = 0, Rudder = 0, Sheet = 0.6, SailsSet = false };
+        p.Settle(ocean, ctrl);
+        var w = new Whale(new WhaleSettings { PerHour = 0 }, 7);
+        var st = w.State;
+        double t = 0, minD = 1e9, minUnder = 1e9;
+        w.Event = e => Console.WriteLine($"  {t,6:F0} s  evenement {e}");
+        w.Spout = (at, d) => { };
+        w.OnRam = r => Console.WriteLine($"  {t,6:F0} s  COUP : {r.Speed:F1} m/s, navire +{r.DeltaV:F2} m/s, voie d'eau {r.Area:F2} m2 au compartiment {r.Comp}");
+        w.Summon(p, mood, 800, null);
+        double dt = 1.0 / 60;
+        for (int k = 0; k < 60 * 600 && w.State != WhaleState.Absent; k++)
+        {
+            p.Step(dt, ocean, ctrl, t);
+            w.Update(dt, p, ocean, t, null, null);
+            t += dt;
+            if (w.State != st) { Console.WriteLine($"  {t,6:F0} s  {st} -> {w.State}, a {Dist():F0} m, profondeur {w.Y:F1} m"); st = w.State; }
+            double d = Dist();
+            if (d < minD) minD = d;
+            if (d < 20) minUnder = Math.Min(minUnder, w.Y);
+        }
+        double Dist() => Math.Sqrt(Math.Pow(w.Pos.X - p.Body.Pos.X, 2) + Math.Pow(w.Pos.Z - p.Body.Pos.Z, 2));
+        Console.WriteLine($"{mood} : au plus pres {minD:F0} m{(minUnder < 1e8 ? $", profondeur a l'aplomb {minUnder:F1} m" : "")}, coups {w.Rams}, voies d'eau {p.Breaches.Count}, fin a {t:F0} s\n");
+    }
 }

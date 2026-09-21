@@ -1172,7 +1172,7 @@ Naval.ShipPhysics = class ShipPhysics {
     // --- integrate linear ---
     b.vel.addScaledVector(force, dt/b.mass);
     b.vel.multiplyScalar(1 - 0.02*dt);                  // faint global damping
-    if(b.vel.length() > 40) b.vel.setLength(40);        // safety clamp
+    if(b.vel.length() > this.spec.speedLimit) b.vel.setLength(this.spec.speedLimit);   // safety clamp
     b.pos.addScaledVector(b.vel, dt);
 
     // --- integrate angular, in the body frame where inertia is diagonal ---

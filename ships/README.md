@@ -51,6 +51,10 @@ directement la course du chadburn vers l'arrière : à `-0.5`, le télégraphe n
 descend pas sous −50 %. Compter −0,5 pour un grand bâtiment, −0,7 pour un
 chaland qui manœuvre au port.
 
+`engine.speedLimit` (m/s, facultatif) relève le garde-fou du solveur, qui
+rabat toute vitesse au-delà : 40 par défaut, qu'aucun navire d'époque
+n'approche. La vedette de débogage (`vedette.json`) le porte à 60.
+
 ## Avirons et chaloupe
 
 Une embarcation menée à l'aviron déclare un bloc `oars` :

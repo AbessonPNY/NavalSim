@@ -138,6 +138,7 @@ public partial class ShipDemo : Node3D
             : System.IO.Path.GetFullPath(System.IO.Path.Combine(ProjectSettings.GlobalizePath("res://"), "..", _krakenRules.Glb)));
         _kraken = new Kraken(_krakenRules) { BodyR = _krakenNode.BodyR };
         WireKraken();
+        BuildWhale();
 
         _paths = ShipLibrary.Discover();
         GD.Print($"{_paths.Count} fiche(s) lue(s) dans {ShipLibrary.Folder}");
@@ -917,6 +918,7 @@ public partial class ShipDemo : Node3D
             _foam.Rebase((float)-dx, (float)-dz);
             _spray.Pool.Rebase(-dx, -dz);
             _kraken.Rebase(-dx, -dz);
+            _whale?.Rebase(-dx, -dz);
             _lightning.Rebase(-dx, -dz);
             _cordage.Rebase(-dx, -dz);
             _splinters.Rebase(-dx, -dz);
@@ -1082,6 +1084,7 @@ public partial class ShipDemo : Node3D
         _sky.SetCloud(_sea.Material, _cloud, _t);
         foreach (var m in _ship.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
         if (_krakenNode.Visible) foreach (var m in _krakenNode.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
+        if (_whaleNode != null && _whaleNode.Visible) foreach (var m in _whaleNode.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
         foreach (var m in _cordage.Hazed) _sky.PushTo(m);
         foreach (var m in _splinters.Hazed) _sky.PushTo(m);
         foreach (var m in _gunFx.Hazed) _sky.PushTo(m);
@@ -1449,6 +1452,8 @@ public partial class ShipDemo : Node3D
                 // le radoub : mâts replantés, toile renverguée — pour recommencer un essai
                 case Key.R: Salvage(); break;
                 // le kraken, tout de suite contre elle — pour le voir sans attendre une minute au cœur d'un grain
+                // ⇧K : la baleine, qui vient charger — pour la voir sans attendre au large
+                case Key.K when k.ShiftPressed: SummonWhale(); break;
                 case Key.K:
                     // il ne vit qu'au cœur des dépressions : hors d'elles, il replongerait à l'image suivante
                     if (!_inSquall || _squall.Inten < _krakenRules.MinInten) GoToStorm(0.2);
@@ -1485,8 +1490,22 @@ public partial class ShipDemo : Node3D
                    donc c'est quarante-cinq fois la poussée — de quoi voir une coque
                    lancée dans la houle sans attendre qu'elle prenne son erre. Un
                    second appui coupe, sans quoi elle filerait sans fin ; W et S
-                   la ramènent aussi dans leur plage en la touchant. */
-                case Key.B: _ship.Ctrl.Throttle = _ship.Ctrl.Throttle > 1 ? 0 : 45; break;
+                   la ramènent aussi dans leur plage en la touchant.
+
+                   DEUX APPUIS RAPPROCHÉS doublent la VITESSE de l'élan, pas sa
+                   poussée : la résistance d'une coque croît au moins comme le
+                   carré de sa vitesse, donc il faut quatre fois la poussée
+                   (180). Le premier des deux appuis a pu couper l'élan — le
+                   second le reprend, doublé. */
+                case Key.B:
+                {
+                    ulong now = Time.GetTicksMsec();
+                    bool twice = now - _boostTap < BoostTwice;
+                    _boostTap = now;
+                    _ship.Ctrl.Throttle = twice ? BoostThrust * 4 : _ship.Ctrl.Throttle > 1 ? 0 : BoostThrust;
+                    if (twice) Say("Élan doublé");
+                    break;
+                }
                 /* L'IMAGE SEULE : les commandes et le panneau du soleil s'effacent,
                    pour regarder ou filmer. Le menu reste sur Échap, et le masque de
                    cinéma, qui fait partie de l'image, reste en place. */
@@ -1591,6 +1610,7 @@ public partial class ShipDemo : Node3D
             if (root.TryGetProperty("calendar", out var c) && c.TryGetProperty("start", out var s))
                 _calendar = new Calendar(s.GetString());
             if (root.TryGetProperty("ghosts", out var gh)) _ghosts.Rules = GhostRules.FromJson(gh);
+            if (root.TryGetProperty("whale", out var wh)) _whaleRules = WhaleSettings.FromJson(wh);
             if (root.TryGetProperty("wreck", out var wr) && wr.TryGetProperty("bottleOneIn", out var bo))
                 _bottleOneIn = bo.GetInt32();
             if (root.TryGetProperty("gunnery", out var gu)) _gunRules = GunnerySettings.FromJson(gu);
@@ -1759,6 +1779,7 @@ public partial class ShipDemo : Node3D
         foreach (var it in _orage) if (!_preyShip[it.Prey].IsGhost) _orageKraken.Add(it);
         _kraken.Update(dt, _orageKraken, _sea.Core, _t, _alive ??= PreyAlive);
         _krakenNode.Sync(_kraken);
+        WhaleTick(dt);
 
         foreach (var (prey, inten) in _orage)
             if (_stormRng.NextDouble() < _lightRules.StrikeChance(inten, dt)) Strike(_preyShip[prey]);
@@ -2442,6 +2463,11 @@ public partial class ShipDemo : Node3D
             $"à quai : {home.Name}, {NavalSim.Core.Geo.Format(fix.Lat, true)} {NavalSim.Core.Geo.Format(fix.Lon, false)}, {-bed:F1} m d'eau"));
     }
 
+    /// <summary>L'élan de B, en fois la poussée de la machine ; et le délai d'un double appui, en ms.</summary>
+    const double BoostThrust = 45;
+    const ulong BoostTwice = 400;
+    ulong _boostTap;
+
     /// <summary>Le cap que --cap impose, s'il y en a un.</summary>
     double? _askHeading;
 
@@ -2478,6 +2504,8 @@ public partial class ShipDemo : Node3D
                     break;
                 case "--averse": _climate.StartShower(args[i + 1].ToFloat(), 1.0); break;
                 case "--kraken": _kraken.Summon(args[i + 1] == "1", PreyOf(_ship)); break;
+                // --baleine 0 : indifférente, 1 : curieuse, 2 : hostile
+                case "--baleine": SummonWhale((WhaleMood)Math.Clamp(args[i + 1].ToInt(), 0, 2)); break;
                 case "--foudre": Strike(_ship); break;
                 case "--bordee": _gunSide = args[i + 1].ToInt(); Fire(false, true); break;
                 case "--soute": BlowUp(_ship); break;

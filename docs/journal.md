@@ -6626,6 +6626,86 @@ proportion de ce que le reflet de la coque occupe.
 
 **Puis : les festons.** Au soleil bas, seize hauteurs tombaient à 3 m l'une de l'autre sur l'eau et chacune dessinait son contour de coque. Vingt-quatre hauteurs, une pénombre d'une fois et demie leur écart, et un décalage des hauteurs propre à chaque pixel (bruit à gradient entrelacé) : ce qui reste du motif devient grain.
 
+## La baleine, dans l'esprit de Moby Dick (Godot)
+
+Demandé : une baleine qu'on voit au loin à sa gerbe, qui passe sous le bateau
+(une ombre) et peut le percuter.
+
+**UN CACHALOT**, parce que c'est celui de Moby Dick et de l'Essex (1820,
+frappé deux fois, défoncé à l'avant, coulé). 15 m, 40 t. Modèle écrit par
+`tools/whale-glb.js` (le patron du dauphin), à retoucher dans Blender : tête en
+boîte sur un tiers de la longueur (sections en superellipse, exposant 3, qui
+s'arrondit à 2 derrière les nageoires), mâchoire étroite et pâle, bosse et
+crête, queue de 4,6 m sur sa charnière. Premier jet aux triangles retournés
+(normales vers l'intérieur) : contrôlé ensuite, 398 normales sur 398 vers
+l'extérieur.
+
+**LE NOYAU DÉCIDE** (`core/Whale.cs`) : au large seulement (1 km de jeu des
+côtes, 60 m de fond), deux rencontres par heure. Elle respire 35 à 60 s en
+surface, un souffle toutes les 7 à 12 s, puis sonde 45 à 90 s, queue haute (la
+queue sort parce que le nez pique : l'assiette suit la pente de sa route).
+L'humeur est tirée à la rencontre : indifférente (35 %), curieuse (45 %),
+hostile (20 %).
+- **La curieuse** vise le navire et passe son dos à deux mètres sous la quille
+  (axe au tirant + 3,6 m) : c'est la mer qui la montre, sombre, par
+  transparence. Premier jet : elle corrigeait sa route jusqu'au bout et tournait
+  autour de la coque (20 m au plus près, quatre minutes) ; elle tient
+  maintenant son cap dans les soixante derniers mètres — 0 m au plus près,
+  axe à 6,5 m sous une frégate.
+- **L'hostile** charge en surface à 6 m/s, 7,5 sur les 150 derniers mètres, et
+  frappe DE LA TÊTE. Le coup est une impulsion partagée entre les deux masses
+  (restitution 0,1), appliquée au point touché — il pousse, fait virer et
+  gîter — et une voie d'eau basse dans le compartiment touché, 0,05 m² par m/s.
+  Mesuré : frégate +0,94 à +1,23 m/s, 0,30 à 0,38 m². Elle revient une fois sur
+  deux (`ramAgain`), comme celui de l'Essex.
+
+**TROIS PIÈGES relevés dans Godot, pas au labo** — le labo n'a ni terre ni
+longue durée :
+1. Le `%` de C# garde le signe du dividende : passé un tour de cap, le calcul du
+   virage s'inversait et elle chargeait en s'éloignant. `Math.IEEERemainder`.
+2. L'évitement des hauts-fonds (36 m) la détournait à chaque approche d'un
+   navire au bord du plateau. Pendant une poursuite elle ne craint plus que
+   6 m ; en deçà, elle renonce, et le DIT (« elle n'ose pas les hauts-fonds »)
+   au lieu de laisser croire qu'on l'a distancée.
+3. Renoncer après 150 s coupait des charges qui gagnaient encore : elle renonce
+   quand la distance a crû de 100 m depuis le plus près, ou après 5 min.
+
+Vérifié dans Godot à l'atterrage de la Tortue (340 m de fond) : vue à 700 m,
+charge annoncée à 450, coup à 7,5 m/s, navire +1,23 m/s, voie d'eau 0,37 m²,
+puis seconde charge.
+
+**LE SOUFFLE** : des bouffées blanches du système des fumées de poudre
+(`GunFxNode.Spout`), jetées à 7–12 m/s en avant et à gauche, puis dans TOUT le
+vent (la poudre n'en prend qu'un tiers) : de la vapeur, pas de la fumée froide.
+Les messages disent d'où on la voit, relevée sur le navire (« par tribord
+avant »). ⇧K la fait venir et charger ; `--baleine 0|1|2`.
+
+## B B, et la vedette de débogage (Godot et page)
+
+Demandé : un double appui sur B qui double la vitesse de l'élan ; puis une
+vedette moderne et puissante pour parcourir vite la carte en débogage.
+
+**DOUBLER LA VITESSE, C'EST QUADRUPLER LA POUSSÉE** — la résistance croît au
+moins comme le carré de la vitesse. Deux appuis à moins de 400 ms : 180 fois
+la poussée au lieu de 45 (le premier appui a pu couper l'élan, le second le
+reprend). Mesuré au labo (`-- elan`, frégate, mer calme, 8 min) : 48,4 nœuds à
+×45, mais **77,8 à ×180 comme à ×720** — le garde-fou du solveur, 40 m/s,
+hérité de la page. Le double appui ne donne donc que ×1,6 sur un navire
+d'époque, et c'est voulu : le garde-fou est ce qui empêche une coque de partir
+à l'infini.
+
+**LE GARDE-FOU DEVIENT UNE LIGNE DE FICHE** : `engine.speedLimit` (m/s), 40
+par défaut, dans le noyau ET la page (`ship-spec.js`, `ship-physics.js`). Aucun
+navire existant ne change ; le banc de parité tient.
+
+**LA VEDETTE ALBATROS** (`ships/vedette.json`) : coque procédurale de 15 m sur
+4,2, 18 t, avant relevé, tableau large, une timonerie ; machine pour 20 m/s,
+garde-fou à 60. Mesuré : **36,6 nœuds** à pleine machine, assiette 0,9°,
+immersion 19 % ; **116,6 nœuds** sous l'élan (le garde-fou). Pas de modèle de
+glissement : c'est une coque à déplacement menée très vite, ce qui suffit à
+couvrir la Jamaïque (36 M d'une pointe à l'autre) en une minute sous B.
+Anachronique exprès — elle est dans la liste des navires, touche N.
+
 ## Le navire pâle : le soleil π fois trop fort, la brume dans le mauvais espace (Godot)
 
 Signalé : « le bateau semble toujours très pâle, comme un manque de contraste ».

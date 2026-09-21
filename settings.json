@@ -15,6 +15,27 @@
     "awayFromShore": 250,
     "glb": "creatures/dolphin.glb"
   },
+  "whale": {
+    "enabled": true,
+    "perHour": 2.0,
+    "awayFromShore": 1000,
+    "minDepth": 60,
+    "sight": [700, 1400],
+    "cruise": 2.0,
+    "surface": [35, 60],
+    "spout": [7, 12],
+    "dive": [45, 90],
+    "diveDepth": 25,
+    "curious": 0.45,
+    "hostile": 0.20,
+    "charge": 6.0,
+    "ramAgain": 0.5,
+    "massTonnes": 40,
+    "length": 15,
+    "whiteChance": 0.04,
+    "cooldown": 480,
+    "glb": "creatures/whale.glb"
+  },
   "climate": {
     "mean": 9.5,
     "seasonal": 9,

@@ -88,3 +88,32 @@ node tools/sailor-glb.js
   plusieurs matières possibles, textures incluses dans le `.glb`.
 - Pas d'armature ni d'animation à prévoir : tout est dans le shader.
 - Tous les hommes partagent le modèle ; la taille varie un peu (×0,93 à ×1,05).
+
+## La baleine — `creatures/whale.glb` (Godot)
+
+Un cachalot de 15 m, nommé par `settings.json` → `whale.glb`. Absent ou
+illisible : pas de baleine à voir (elle vit quand même, et peut frapper).
+Modèle de départ :
+
+```bash
+node tools/whale-glb.js
+```
+
+| nom | rôle |
+|---|---|
+| `queue` | la nageoire caudale. Son **origine est la charnière**, au pédoncule ; le jeu la fait battre autour de son axe X, plus vite et plus ample quand elle force. |
+| tout le reste | le corps (`corps`, `bosse`, `crete`, `machoire`, nageoires), **nez vers −Y** dans Blender (l'avant glTF est +Z), dos en haut, origine au milieu du corps. |
+
+- **Unités : le mètre**, nez à +7 m, pédoncule à −6,2 m.
+- La peau porte des couleurs de sommet (ardoise, plus pâle en bas). La
+  **baleine blanche** (`whiteChance`, 4 %) garde le modèle et remplace ces
+  couleurs par un blanc cassé.
+- L'évent est pris à gauche du bout de la tête : le souffle d'un cachalot part
+  en avant et à gauche, c'est ainsi qu'on le reconnaissait.
+
+Réglages (`settings.json` → `whale`) : `perHour` (rencontres par heure, au
+large), `awayFromShore` et `minDepth` (où elle vit), `sight` (où on l'aperçoit),
+`surface`, `spout`, `dive` (son rythme, en secondes), `curious` et `hostile`
+(ses humeurs), `charge` (m/s), `ramAgain`, `massTonnes`. En jeu : **⇧K** la fait
+venir, et charger ; `-- --baleine 0|1|2` (indifférente, curieuse, hostile).
+

@@ -79,7 +79,7 @@ Naval.Config = {
      folder: build.js compares the two and says so if they have drifted. */
   SHIPS: ['ships/barge.json', 'ships/bouee-canard.json', 'ships/chaloupe.json', 'ships/cotre.json',
           'ships/frigate.json', 'ships/frigate17e.json', 'ships/pirate.json',
-          'ships/schooner.json'],
+          'ships/schooner.json', 'ships/vedette.json'],
 
   BEAUFORT: [
     [0,'Calme','0.0'],[1,'Très légère','0.1'],[2,'Belle vaguelette','0.3'],
