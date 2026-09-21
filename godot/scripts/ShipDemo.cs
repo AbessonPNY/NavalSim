@@ -104,7 +104,10 @@ public partial class ShipDemo : Node3D
         /* LA TERRE. Le monde est lu une fois — une image de neuf millions de
            pixels et le champ de distance qui en sort — et rien après ne change :
            c'est une fonction pure de la position, en mètres VRAIS. */
-        _world = WorldLoad.Load();
+        _world = WorldLoad.Load(_regionSheet = PickRegion());
+        /* LE CIMETIÈRE DES GALIONS est un lieu de la Jamaïque, donné en mètres de
+           SA carte : ailleurs les mêmes chiffres tomberaient n'importe où. */
+        if (_world != null && _world.Region.Key != "caraibes") _ghosts.Rules.Enabled = false;
         if (_world != null)
         {
             /* LE TROISIÈME CALCULATEUR. La coque flotte sur la mer que le shader
@@ -138,13 +141,14 @@ public partial class ShipDemo : Node3D
 
         _paths = ShipLibrary.Discover();
         GD.Print($"{_paths.Count} fiche(s) lue(s) dans {ShipLibrary.Folder}");
-        Launch(0);
+        Launch(_arriving?.Ship ?? 0);
         // les réglages du fichier d'abord ; la ligne de commande, lue ensuite, a le dernier mot
         ApplySettings();
         SetupCapture();
         // à son poste en DERNIER : --ship a pu changer la coque, et le dégagement
         // du quai se mesure sur SON bau
-        Moor();
+        // ou à l'atterrage, si l'on arrive d'une traversée
+        if (!Arrive()) Moor();
         // en DERNIER : il ne s'ouvre que si la ligne de commande ne demande pas
         // autre chose, et il ne touche donc jamais à ce qu'elle vient de régler
         BuildTitle();
@@ -985,6 +989,7 @@ public partial class ShipDemo : Node3D
                     }
             }
             QuestTick(frame);
+            PassageTick();
             RumourTick(frame);
             if (_jetty != null)
             {
@@ -2249,23 +2254,46 @@ public partial class ShipDemo : Node3D
     /// <summary>
     /// EMMÈNE-MOI DANS LE GROS TEMPS — tempete() de la page : la dépression la plus
     /// proche, et la coque posée à <paramref name="fraction"/> de son rayon (0 : au
-    /// centre). Pas de terre dans cette démo, donc pas d'île où s'échouer : la
-    /// page, elle, cherche de l'eau sous le grain. Le transport déplace l'ORIGINE
-    /// — la coque reste où elle est, près de zéro, et le monde glisse sous elle —,
-    /// et elle arrive droite et sans erre.
+    /// centre). Le transport déplace l'ORIGINE — la coque reste où elle est, près
+    /// de zéro, et le monde glisse sous elle —, et elle arrive droite et sans erre.
+    ///
+    /// UN CENTRE DE DÉPRESSION N'EST PAS FORCÉMENT DE L'EAU : cette démo l'avait
+    /// oublié quand elle n'avait pas de terre, et depuis la Jamaïque la coque
+    /// arrivait au milieu de l'île. Comme la page : on CHOISIT le grain sur la
+    /// mer qu'il a sous lui (dans sa moitié intérieure, sinon on retient un grain
+    /// dont la seule eau est au bord, c'est-à-dire du calme), puis on l'y pose.
     /// </summary>
     void GoToStorm(double fraction)
     {
         var b = _ship.Physics.Body;
         var o = _sea.Core.Origin;
         double x = o.X + b.Pos.X, z = o.Z + b.Pos.Z;
-        if (!_storms.Nearest(x, z, _t, 12, null, out var s, out double dist))
+        double k0 = Math.Clamp(fraction, 0, 1);
+        double a0 = _stormRng.NextDouble() * 2 * Math.PI;
+        (double X, double Z)? WaterIn(Storm st, double lim)
         {
-            GD.Print("pas une dépression à portée");
+            if (_world == null) return (st.X + st.R * Math.Min(k0, 0.95), st.Z);
+            for (int step = 0; step < 12; step++)
+            {
+                double d = Math.Min(st.R * lim, k0 * st.R + step * Math.Max(120, st.R * 0.06));
+                for (int n = 0; n < 24; n++)
+                {
+                    double ang = a0 + n * 2 * Math.PI / 24;
+                    double wx = st.X + Math.Cos(ang) * d, wz = st.Z + Math.Sin(ang) * d;
+                    // vingt-cinq mètres sous la quille et pas une côte à six cents
+                    if (_world.HeightAt(wx, wz) < -25 && _world.ShoreDistance(wx, wz) > 600) return (wx, wz);
+                }
+            }
+            return null;
+        }
+        if (!_storms.Nearest(x, z, _t, 12, st => WaterIn(st, 0.55) != null, out var s, out double dist)
+            || WaterIn(s, 0.95) is not { } at)
+        {
+            Say("Pas une dépression à portée qui ait de la mer sous elle");
             return;
         }
-        double k = Math.Clamp(fraction, 0, 0.95);
-        double tx = s.X + s.R * k, tz = s.Z;
+        double tx = at.X, tz = at.Z;
+        _anchor2?.Weigh(_ship);
         _sea.Core.Time = _t;
         _sea.Core.Rebase(tx - x, tz - z);
         _foam.Rebase((float)(tx - x), (float)(tz - z));
@@ -2276,7 +2304,7 @@ public partial class ShipDemo : Node3D
         b.AngVel = new Vec3d(0, 0, 0);
         _storms.At(tx, tz, _t, out var q);
         GD.Print(FormattableString.Invariant(
-            $"dépression à {dist / 1852:F1} milles (rayon {s.R:F0} m, force {s.Peak:F1} au cœur) — force {q.Force:F1} ici"));
+            $"dépression à {dist / 1852:F1} milles (rayon {s.R:F0} m, force {s.Peak:F1} au cœur) — force {q.Force:F1} ici, fond {(_world == null ? double.NaN : -_world.HeightAt(tx, tz)):F0} m"));
         UpdateInfo();
     }
 
@@ -2327,9 +2355,13 @@ public partial class ShipDemo : Node3D
     /// LE CARNET, à côté des réglages et en clair : un carnet qu'on ne peut pas
     /// ouvrir dans un éditeur est un carnet dont on ne sait pas s'il a retenu.
     /// </summary>
-    static string BookPath => "user://carnet.json";
+    /* UN CARNET PAR RÉGION : ce qu'on y trace est en mètres de SA carte, et un
+       trait de la Jamaïque posé sur la Tortue passerait au travers des terres.
+       La Jamaïque garde l'ancien nom de fichier — ce qu'on y a déjà tracé reste. */
+    string BookPath => _world == null || _world.Region.Key is "" or "caraibes"
+        ? "user://carnet.json" : $"user://carnet-{_world.Region.Key}.json";
 
-    static NavalSim.Core.Logbook LoadBook()
+    NavalSim.Core.Logbook LoadBook()
     {
         if (!FileAccess.FileExists(BookPath)) return new NavalSim.Core.Logbook();
         using var f = FileAccess.Open(BookPath, FileAccess.ModeFlags.Read);
@@ -2432,6 +2464,18 @@ public partial class ShipDemo : Node3D
                 case "--after": _captureIn = args[i + 1].ToInt(); break;
                 case "--force": _force = args[i + 1].ToFloat(); Restate(); break;
                 case "--date": _calendar = new Calendar(args[i + 1]); break;
+                // une traversée tout de suite, une seule fois : l'arrivée relit la même ligne de commande
+                case "--traversee":
+                    if (!_cliVoyaged)
+                    {
+                        _cliVoyaged = true;
+                        // de quoi voir la malle passer : des épices au fond, du lest sur le pont
+                        _ship.Physics.LoadCargo(2, HoldFloor, 0, 12, "epice");
+                        _ship.Physics.LoadCargo(3, 0.85, 1, 5);
+                        GD.Print(FormattableString.Invariant($"départ : bourse {_purse.Sous} sous, cale {_ship.Physics.CargoTonnes:F1} t, poudre {_ship.Physics.Powder}, {_calendar.Date:yyyy-MM-dd} {_sky.Core.DayTime:F1} h"));
+                        SailTo(args[i + 1]);
+                    }
+                    break;
                 case "--averse": _climate.StartShower(args[i + 1].ToFloat(), 1.0); break;
                 case "--kraken": _kraken.Summon(args[i + 1] == "1", PreyOf(_ship)); break;
                 case "--foudre": Strike(_ship); break;

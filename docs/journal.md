@@ -6595,6 +6595,96 @@ même abri. La parité a été refaite sur la fiche modifiée : elle tient.
 
 Reste de ce lot : la chaloupe.
 
+## La Tortue, et les traversées d'une région à l'autre (Godot)
+
+Demandé : aller plus loin que la Jamaïque sans la rapetisser — option « B »,
+des régions séparées reliées par la carte, en commençant par la Tortue.
+
+**LA MER ENTRE DEUX CARTES N'EST PAS DESSINÉE, ELLE EST COMPTÉE.** Toute la mer
+des Caraïbes à 0,4 ferait 23 500 × 13 800 pixels — au-delà de la plus grande
+texture de Godot — et, surtout, Port-Royal – la Tortue à 0,4 fait 180 km de jeu :
+seize heures réelles à six nœuds. Chaque région garde donc sa carte à 0,4, et la
+traversée se calcule (`core/Passage.cs`) : les milles réels entre là où l'on
+quitte la carte et l'**atterrage** d'arrivée (le plus proche, déclaré dans la
+fiche, `approaches`), à la vitesse que le vent du départ permet sur cette route.
+Le calendrier avance d'autant.
+
+**LE VENT DÉCIDE.** La vitesse sur la route est une moyenne de journées de mer,
+pas une polaire : 2 nœuds au près (on louvoie), 3,6 à 60°, 5 de travers, 5,5
+grand largue, 4,6 plein vent arrière. Mesuré au labo (`-- traversees`) :
+Port-Royal → la Tortue, 235 M au 58°, **4 jours et 17 heures** par l'alizé
+(vent du 75°), 2 jours par vent contraire ; le retour, 1 jour et 21 heures.
+C'est la vraie dissymétrie de l'époque : Port-Royal se quitte plus vite qu'elle
+ne se rejoint.
+
+**LA TORTUE** (`world/tortue.json`, relief 1 456 × 740, 45 m par pixel comme la
+Jamaïque) : l'île et la côte nord de Saint-Domingue, du Môle Saint-Nicolas au
+Cap-Français. Cinq ports, lus au labo : Basse-Terre (la rade de Cayonne, départ),
+Port-de-Paix en face à 2,1 M de canal, Port-Margot, le Cap-Français à 5,1 M, le
+Môle à 12,8 M. Trois atterrages, tous en eau libre (340 à 357 m de fond, 5,4 à
+6,3 km de côte) ; ceux de la Jamaïque aussi (346 à 381 m, 6 à 9,4 km). Les
+Montagnes du Nord-Ouest ont été ajoutées à `reliefs.json` ; les autres chaînes y
+étaient depuis la carte au dixième.
+
+**CHANGER DE RÉGION RECHARGE LA SCÈNE.** Le monde est lu une fois et rien après
+ne change — c'est ce qui le rend sûr, et une trentaine de choses le tiennent (la
+terre, les villes, les pontons, la carte, l'abri de la mer, le solveur…). Plutôt
+que de toutes les rebrancher, la scène est rechargée, et le bord passe la
+frontière dans un objet statique : la coque, la bourse, la cale case par case,
+la poudre, l'horloge, le calendrier, le vent, la toile. Ne passent PAS : les
+avaries, l'ancre, les débris, les autres navires. Mesuré en ligne de commande
+(`--traversee tortue`, 12 t d'épices et 5 t de lest chargées) : 236 M en 45,7 h
+par le vent du départ, arrivée le surlendemain à 7,2 h, bourse, 17 t de cale
+dont 12 d'épices, tout retrouvé.
+
+**Piège : la malle relue par la scène qui la remplit.** Au premier essai
+l'arrivée se jouait dans la Jamaïque même — `SetSail` remplissait la malle et
+`Arrive`, appelée juste après au chargement, la vidait aussitôt. La malle est
+maintenant prise au tout début du chargement (`_arriving`), et seule la scène
+suivante la trouve.
+
+**Ce qui dépend de la région** : le carnet (un fichier par région — un trait de
+la Jamaïque passerait au travers des terres de la Tortue ; la Jamaïque garde
+`carnet.json`), les quêtes (champ `region` : ailleurs elles attendent, sans
+viser ni s'accomplir, et la ligne d'objectif dit « dans les eaux de la
+Jamaïque »), le Cimetière des Galions (en mètres de la Jamaïque : coupé
+ailleurs).
+
+**Au large** : à 3 km de jeu de toute côte (7,5 km réels), on le dit une fois,
+et la carte (I) propose « Faire route… ». Plus près de terre, le même panneau
+sert de raccourci de débogage, et il le dit.
+
+## J : de l'eau sous la dépression (Godot)
+
+Signalé : J menait au milieu de la Jamaïque. Le transport de la démo datait
+d'avant la terre et posait la coque au centre du grain. Porté de `tempete()` :
+on CHOISIT la dépression qui a de la mer dans sa moitié intérieure (25 m sous la
+quille, pas de côte à 600 m), puis on l'y pose ; l'ancre est rentrée d'un coup.
+Mesuré trois fois : force 7,2, 90 à 97 m de fond.
+
+## La chaîne de l'ancre (Godot)
+
+Signalé : la chaîne ne touchait pas le navire ; voulue plus fine, noir brillant.
+
+**DEUX JOURS, un à chaque bout.** Côté navire, elle partait du bossoir — posé
+EXPRÈS en dehors du bordé pour que l'ancre pende claire — donc à près d'un mètre
+de la coque. Côté fond, l'organeau était compté verge debout même quand l'ancre
+était couchée : la chaîne s'arrêtait 2,5 m au-dessus d'elle. Elle sort
+maintenant de l'**écubier**, sur le bordé, et l'ancre couchée pointe sa verge
+vers le navire, l'organeau au bout.
+
+**Le bordé se lit au RAYON, pas aux sommets** : un modèle léger n'a aucun sommet
+dans un mètre carré de son avant, et l'on retombait sur le plan de formes, plus
+large d'un mètre. Un rayon tiré en travers contre les triangles de la coque
+(`ShipNode.HalfAt`) : écubier à 1,53 m sur la barge (tranche 1,59), 2,04 m sur la
+frégate (tranche 3,00 : l'avant s'affine). Écart mesuré aux deux bouts : 0 à
+2 mm.
+
+**Des maillons**, un tore étiré, chacun tourné d'un quart sur le précédent : fer
+de 0,22 % de la longueur (6 cm sur 27 m, 3 à 9 cm), maillon de six fers sur
+trois et demi, 148 à 325 maillons pour une touée de 39 m. Noir de fumée graissé :
+albédo presque noir, rugosité 0,22, métal 0,9.
+
 ## Le plan d'arrimage (Godot)
 
 Demandé : la fenêtre de la page pour simuler le chargement de poids.

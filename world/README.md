@@ -140,6 +140,48 @@ Modélisez **à l'échelle du jeu** : les bâtiments et les navires sont à tail
 réelle, seules les distances entre les lieux sont réduites. Un fort de 60 m
 fait 60 m. `node build.js` embarque les modèles.
 
+## Les autres régions, et les traversées (Godot)
+
+Chaque fichier `world/*.json` est une **région** : sa carte, son relief, ses
+ports, à la même échelle (×0,4). Aujourd'hui : `caraibes` (la Jamaïque) et
+`tortue` (la Tortue et la côte nord de Saint-Domingue, du Môle au Cap-Français).
+
+La mer entre deux régions n'est pas dessinée : elle est **comptée**. Au large
+(à 3 km de jeu de toute côte), la carte (I) propose « Faire route… » : pour
+chaque autre région, les milles jusqu'à son atterrage le plus proche, la route,
+et la durée que donne le vent du moment — au près on louvoie (2 nœuds sur la
+route), grand largue on file (5,5). Le calendrier avance d'autant ; la coque, la
+bourse, la cale, la poudre et le vent passent, pas les avaries ni l'ancre.
+
+Les **atterrages** sont déclarés dans la fiche :
+
+```json
+"approaches": [
+  { "name": "l'entrée ouest du canal de la Tortue", "lat": 19.99, "lon": -73.30, "heading": 90 }
+]
+```
+
+| champ | rôle |
+|---|---|
+| `name` | dit à l'arrivée (« vous voici à… ») |
+| `lat`, `lon` | le point d'arrivée : de l'eau libre, à plus de 3 km de jeu des côtes |
+| `heading` | le cap à l'arrivée, degrés vrais (vers la terre) |
+
+**Ajouter une région** : copier `world/tortue.json`, changer le cadre
+(`relief` : `west`, `east`, `south`, `north` ; `height` ≈ 740 × l'écart de
+latitude / 0,75 pour garder 45 m par pixel), les ports et les atterrages, puis
+
+```bash
+node tools/region-heightmap.js world/ma-region.json      # le relief, depuis les côtes réelles
+dotnet run --project core/NavalSim.Lab -- ports world/ma-region.json
+dotnet run --project core/NavalSim.Lab -- traversees      # atterrages sur le terrain, durées d'une région à l'autre
+```
+
+Les côtes de `natural-earth-caraibes.json` couvrent de −80,3° à −66,7° de
+longitude et de 9° à 21,2° de latitude ; les chaînes de montagnes sont dans
+`world/sources/reliefs.json`. Pour démarrer dans une région :
+`-- --region tortue` ; pour essayer une traversée : `-- --traversee tortue`.
+
 ## Déboguer
 
 ```js

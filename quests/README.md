@@ -20,6 +20,7 @@ Pendant une quête :
 ```json
 {
   "id": "la-lettre-du-gouverneur",
+  "region": "caraibes",
   "title": "La lettre du gouverneur",
   "summary": "Une ligne de présentation.",
   "intro": "Affiché au lancement de la quête (sinon : summary).",
@@ -36,6 +37,11 @@ Pendant une quête :
   "outro": "Affiché à la fin de la quête (facultatif)."
 }
 ```
+
+`region` (Godot) : la carte où la quête se joue — le nom de la fiche de
+`world/`, `caraibes` pour la Jamaïque, `tortue` pour la Tortue. Ailleurs, la
+quête attend : elle ne vise rien et ne s'accomplit pas, et la ligne d'objectif
+dit « dans les eaux de la Jamaïque ». Absent : partout. La page l'ignore.
 
 | champ d'étape | rôle |
 |---|---|

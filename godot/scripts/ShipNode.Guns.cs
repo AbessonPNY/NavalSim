@@ -127,15 +127,7 @@ public partial class ShipNode
     public (double Half, double Deck, double Keel, double Z0, double Z1)[]? HullShell()
     {
         if (_shell != null || ModelRoot == null) return _shell;
-        var parts = ModelParts();
-        if (parts.Count == 0) return null;
-        Part hull = parts[0];
-        double best = -1;
-        foreach (var p in parts)
-        {
-            double v = (double)p.Size.X * p.Size.Y * p.Size.Z;
-            if (v > best) { best = v; hull = p; }
-        }
+        if (HullPart() is not { } hull) return null;
         int N = Config.NComp;
         double L = Spec.L, half = L * 0.5;
         var box = new (double Half, double Deck, double Keel, double Z0, double Z1)[N];
@@ -148,6 +140,57 @@ public partial class ShipNode
         }
         foreach (var b in box) if (!(b.Half > 0) || b.Deck <= b.Keel) return null;   // inutilisable
         return _shell = box;
+    }
+
+    /// <summary>La coque du modèle : sa plus grosse pièce.</summary>
+    Part? HullPart()
+    {
+        var parts = ModelParts();
+        if (parts.Count == 0) return null;
+        Part hull = parts[0];
+        double best = -1;
+        foreach (var p in parts)
+        {
+            double v = (double)p.Size.X * p.Size.Y * p.Size.Z;
+            if (v > best) { best = v; hull = p; }
+        }
+        return hull;
+    }
+
+    /// <summary>
+    /// La demi-largeur du bordé du modèle, côté tribord, à la station
+    /// <paramref name="z"/> et à la hauteur <paramref name="y"/> : un rayon tiré
+    /// en travers, contre les TRIANGLES de la coque. Pour poser ce qui doit
+    /// toucher le bordé — un écubier. Les sommets ne suffisaient pas : un modèle
+    /// léger n'en a aucun dans un mètre carré de son avant, et l'on retombait sur
+    /// le plan de formes, plus large que le modèle de près d'un mètre. Nul sans
+    /// modèle, ou si le rayon passe à côté.
+    /// </summary>
+    public double? HalfAt(double z, double y)
+    {
+        if (ModelRoot == null || HullPart() is not { } hull) return null;
+        var arrays = hull.Mi.Mesh.SurfaceGetArrays(0);
+        var src = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var idxV = arrays[(int)Mesh.ArrayType.Index];
+        int[] idx = idxV.VariantType == Variant.Type.Nil ? Array.Empty<int>() : idxV.AsInt32Array();
+        int n = idx.Length > 0 ? idx.Length : src.Length;
+        float Y = (float)y, Z = (float)z;
+        double best = -1;
+        for (int t = 0; t + 2 < n; t += 3)
+        {
+            var a = hull.Rel * src[idx.Length > 0 ? idx[t] : t];
+            var b = hull.Rel * src[idx.Length > 0 ? idx[t + 1] : t + 1];
+            var c = hull.Rel * src[idx.Length > 0 ? idx[t + 2] : t + 2];
+            // le triangle vu de côté, dans le plan (y, z) : le rayon le perce-t-il ?
+            float d = (b.Y - a.Y) * (c.Z - a.Z) - (c.Y - a.Y) * (b.Z - a.Z);
+            if (Math.Abs(d) < 1e-9f) continue;
+            float u = ((Y - a.Y) * (c.Z - a.Z) - (c.Y - a.Y) * (Z - a.Z)) / d;
+            float v = ((b.Y - a.Y) * (Z - a.Z) - (Y - a.Y) * (b.Z - a.Z)) / d;
+            if (u < 0 || v < 0 || u + v > 1) continue;
+            float x = a.X + u * (b.X - a.X) + v * (c.X - a.X);
+            if (x < 0) best = Math.Max(best, -x);           // tribord : −x
+        }
+        return best > 0 ? best : null;
     }
 
     /// <summary>Ses mâts debout, pour les boulets : pied, hauteur, station, indice. Seul un espar à lui peut être touché.</summary>

@@ -88,6 +88,7 @@ public partial class ShipDemo : Node3D
             unveil.Text = on ? "Rendre le voile" : "Tout dévoiler (débogage)";
         };
         root.AddChild(unveil);
+        BuildRoute(root);
     }
 
     void LayoutChart()
@@ -134,6 +135,7 @@ public partial class ShipDemo : Node3D
             _drawing = null;
             if (_chartEntry != null) { _chartEntry.Visible = false; _chartEntry.ReleaseFocus(); }
             SaveBook();                 // ce qu'on vient d'écrire ne se perd pas
+            CloseRoute();
         }
     }
 
@@ -189,6 +191,8 @@ public partial class ShipDemo : Node3D
     bool ChartInput(InputEvent e)
     {
         if (!_chartOpen || _chart == null || _book == null) return false;
+        // le panneau des traversées est posé sur la feuille : ses clics sont à lui
+        if (e is InputEventMouse em && OverRoute(em.Position)) return false;
         /* PENDANT QU ON ÉCRIT, le champ a la parole : la carte lui laisse ses
            touches. Échap y annule la note — sans cette ligne il tomberait
            jusqu au jeu et ouvrirait le menu par-dessus la carte. */

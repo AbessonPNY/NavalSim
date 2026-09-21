@@ -186,6 +186,14 @@ public partial class ShipDemo : Node3D
         var wo = _sea.Core.Origin;
         var b = _ship.Physics.Body;
         var aim = _quests.Aim(wo.X + b.Pos.X, wo.Z + b.Pos.Z);
+        // une quête d'une autre carte attend qu'on y retourne : on dit où
+        if (aim == null && !_quests.HereNow && _quests.Current is QuestStep far && (_msgBox == null || !_msgBox.Visible))
+        {
+            _aimLine.Text = $"{(far.Title.Length > 0 ? far.Title : "Quête")} — dans les eaux de {RegionName(_quests.Active!.Region)}";
+            _aimLine.Visible = _info.Visible;
+            _aimLine.Position = new Vector2(18, _info.Position.Y + _info.Size.Y + 10 + TrimHeight);
+            return;
+        }
         if (aim == null || (_msgBox != null && _msgBox.Visible))
         {
             _aimLine.Visible = false;

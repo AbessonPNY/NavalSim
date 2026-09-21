@@ -75,6 +75,12 @@ public sealed class QuestStep
 public sealed class QuestSpec
 {
     public string Id = "", Title = "", Summary = "", Intro = "", Outro = "";
+    /// <summary>
+    /// La région où elle se joue (le nom de sa fiche, « caraibes »), ou vide :
+    /// partout. Un port n'a de sens que sur sa carte — ailleurs la quête attend,
+    /// sans viser ni s'accomplir.
+    /// </summary>
+    public string Region = "";
     public readonly List<QuestStep> Steps = new();
 
     /// <summary>
@@ -98,7 +104,7 @@ public sealed class QuestSpec
         var q = new QuestSpec
         {
             Id = Str(r, "id"), Title = Str(r, "title"), Summary = Str(r, "summary"),
-            Intro = Str(r, "intro"), Outro = Str(r, "outro")
+            Intro = Str(r, "intro"), Outro = Str(r, "outro"), Region = Str(r, "region")
         };
         if (r.TryGetProperty("steps", out var steps) && steps.ValueKind == JsonValueKind.Array)
             foreach (var st in steps.EnumerateArray())
@@ -241,10 +247,13 @@ public sealed class Quests
     public QuestStep? Current => Active != null && Step < Active.Steps.Count ? Active.Steps[Step] : null;
 
     /// <summary>Ce que l'écran montre : l'étape, son lieu, à quelle distance et dans quel relèvement.</summary>
+    /// <summary>La quête en cours se joue-t-elle sur la carte chargée ?</summary>
+    public bool HereNow => Active == null || Active.Region.Length == 0 || Active.Region == _world.Region.Key;
+
     public Objective? Aim(double fromX, double fromZ)
     {
         var s = Current;
-        if (s == null || Active == null) return null;
+        if (s == null || Active == null || !HereNow) return null;
         var p = Place(s);
         double dx = p.X - fromX, dz = p.Z - fromZ;
         double brg = Math.Atan2(-dx, dz) * 180 / Math.PI;          // l'est est −x
@@ -257,7 +266,7 @@ public sealed class Quests
     public void Update(double dt, QuestState s)
     {
         var step = Current;
-        if (step == null || s.Lost) return;
+        if (step == null || s.Lost || !HereNow) return;
         var p = Place(step);
         double dx = p.X - s.X, dz = p.Z - s.Z;
         bool inside = Math.Sqrt(dx * dx + dz * dz) <= p.R;

@@ -179,6 +179,25 @@
    ]
   },
   {
+   "name": "Montagnes du Nord-Ouest",
+   "height": 900,
+   "width": 7,
+   "line": [
+    [
+     19.72,
+     -73.3
+    ],
+    [
+     19.8,
+     -72.98
+    ],
+    [
+     19.78,
+     -72.7
+    ]
+   ]
+  },
+  {
    "name": "Cordillère centrale",
    "height": 3098,
    "width": 24,

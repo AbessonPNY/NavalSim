@@ -40,10 +40,26 @@ public sealed class TownSpec
     public int Houses = 240;
 }
 
+/// <summary>
+/// UN ATTERRAGE : où l'on arrive au large d'une région en venant d'ailleurs, et
+/// d'où l'on en part. Un point d'eau libre, pas un port — une traversée finit en
+/// vue de terre, et c'est au capitaine d'entrer.
+/// </summary>
+public sealed class ApproachSpec
+{
+    public string Name = "";
+    public double Lat, Lon;
+    /// <summary>Le cap, en degrés vrais, où la coque arrive : vers la terre.</summary>
+    public double Heading;
+}
+
 /// <summary>La fiche de région entière : world/caraibes.json.</summary>
 public sealed class RegionSpec
 {
+    /// <summary>Le nom du fichier sans son extension : c'est ce qu'une traversée désigne.</summary>
+    public string Key = "";
     public string Name = "";
+    public readonly List<ApproachSpec> Approaches = new();
     public double Scale = 0.1, Vertical = 0.25, HarbourDepth = 11;
     public double OriginLat = 17.9375, OriginLon = -76.8411;
     public ReliefSpec Relief = new();
@@ -94,6 +110,12 @@ public sealed class RegionSpec
                     Lat = Num(t, "lat"), Lon = Num(t, "lon"),
                     Radius = t.TryGetProperty("radius", out var rr) ? rr.GetDouble() : 600,
                     Houses = t.TryGetProperty("houses", out var hh) ? hh.GetInt32() : 240
+                });
+        if (r.TryGetProperty("approaches", out var ap) && ap.ValueKind == JsonValueKind.Array)
+            foreach (var a in ap.EnumerateArray())
+                s.Approaches.Add(new ApproachSpec
+                {
+                    Name = Str(a, "name"), Lat = Num(a, "lat"), Lon = Num(a, "lon"), Heading = Num(a, "heading")
                 });
         if (r.TryGetProperty("assets", out var az) && az.ValueKind == JsonValueKind.Array)
             foreach (var a in az.EnumerateArray())

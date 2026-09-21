@@ -452,6 +452,7 @@ public partial class ShipNode
         public MeshInstance3D Mi = null!;
         public Vector3 Min, Max, Size, Mid;
         public Vector3[] Verts = null!;
+        public Transform3D Rel;
         public bool Taken;
     }
 
@@ -474,7 +475,7 @@ public partial class ShipNode
                 v[i] = rel * src[i];
                 lo = lo.Min(v[i]); hi = hi.Max(v[i]);
             }
-            parts.Add(new Part { Mi = mi, Min = lo, Max = hi, Size = hi - lo, Mid = (lo + hi) * 0.5f, Verts = v });
+            parts.Add(new Part { Mi = mi, Min = lo, Max = hi, Size = hi - lo, Mid = (lo + hi) * 0.5f, Verts = v, Rel = rel });
         }
         return parts;
     }

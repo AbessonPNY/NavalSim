@@ -1,0 +1,40 @@
+{
+  "name": "La Tortue",
+  "note": "L'île de la Tortue et la côte nord de Saint-Domingue, du Môle au Cap, formes réelles, distances et tailles ×0,4 (scale), hauteurs ×0,25 (vertical). Format : world/README.md.",
+
+  "scale": 0.4,
+  "vertical": 0.25,
+  "origin": { "lat": 20.0200, "lon": -72.7800 },
+
+  "relief": {
+    "image": "world/tortue-relief.png",
+    "west": -73.62, "east": -72.05, "south": 19.55, "north": 20.30, "height": 740,
+    "sea": 128,
+    "maxHeight": 1500,
+    "maxDepth": 400,
+    "curve": 2
+  },
+
+  "harbourDepth": 11,
+
+  "approaches": [
+    { "name": "l'entrée ouest du canal de la Tortue", "lat": 19.99, "lon": -73.30, "heading": 90 },
+    { "name": "le large, au nord de la Tortue", "lat": 20.22, "lon": -72.80, "heading": 180 },
+    { "name": "la baie du Cap, par l'est", "lat": 19.93, "lon": -72.25, "heading": 270 }
+  ],
+
+  "towns": [],
+  "ports": [
+    { "key": "basse-terre", "name": "Basse-Terre", "lat": 20.0230, "lon": -72.7800, "quay": 190, "start": true,
+      "note": "la rade de Cayonne, sous le fort de la Roche : le repaire des boucaniers" },
+    { "key": "port-de-paix", "name": "Port-de-Paix", "lat": 19.9330, "lon": -72.8300, "quay": 0,
+      "note": "en face, sur la Grande Terre, à deux lieues de canal" },
+    { "key": "port-margot", "name": "Port-Margot", "lat": 19.8000, "lon": -72.4300, "quay": 0 },
+    { "key": "cap-francais", "name": "Le Cap-Français", "lat": 19.7600, "lon": -72.2150, "quay": 60,
+      "note": "au fond de sa baie, derrière les récifs" },
+    { "key": "mole-saint-nicolas", "name": "Le Môle Saint-Nicolas", "lat": 19.8060, "lon": -73.3760, "quay": 330,
+      "note": "le mouillage du bout de l'île, qui garde le passage du Vent" }
+  ],
+
+  "assets": []
+}

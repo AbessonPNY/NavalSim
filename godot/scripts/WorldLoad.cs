@@ -37,6 +37,7 @@ public static class WorldLoad
         }
         var watch = System.Diagnostics.Stopwatch.StartNew();
         var region = RegionSpec.FromJson(System.IO.File.ReadAllText(path));
+        region.Key = System.IO.Path.GetFileNameWithoutExtension(path);
         string img = System.IO.Path.Combine(Folder, region.Relief.Image);
         if (!System.IO.File.Exists(img))
         {
@@ -49,5 +50,29 @@ public static class WorldLoad
         double make = watch.Elapsed.TotalMilliseconds - read;
         GD.Print(FormattableString.Invariant($"monde : {region.Name}, relief {w}×{h} lu en {read:F0} ms, {world.Isles.Count} port(s) en {make:F0} ms — un pixel vaut {world.Px:F0} m"));
         return world;
+    }
+
+    /// <summary>
+    /// TOUTES LES RÉGIONS de <c>world/</c>, fiches seules — ni image ni champ de
+    /// distance : de quoi calculer une traversée sans charger une terre qu'on
+    /// ne verra pas. Une fiche qui ne se lit pas est passée, avec un mot.
+    /// </summary>
+    public static System.Collections.Generic.List<RegionSpec> Regions()
+    {
+        var all = new System.Collections.Generic.List<RegionSpec>();
+        string dir = System.IO.Path.Combine(Folder, "world");
+        if (!System.IO.Directory.Exists(dir)) return all;
+        foreach (var f in System.IO.Directory.GetFiles(dir, "*.json"))
+        {
+            try
+            {
+                var r = RegionSpec.FromJson(System.IO.File.ReadAllText(f));
+                r.Key = System.IO.Path.GetFileNameWithoutExtension(f);
+                all.Add(r);
+            }
+            catch (Exception ex) { GD.PushWarning($"fiche de région illisible : {f} ({ex.Message})"); }
+        }
+        all.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
+        return all;
     }
 }

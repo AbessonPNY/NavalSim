@@ -20,7 +20,7 @@ namespace NavalSim;
 /// </summary>
 public partial class ShipDemo : Node3D
 {
-    readonly Purse _purse = new(Market.Depart);
+    Purse _purse = new(Market.Depart);
     readonly Market _market = new();
     Isle? _portHere;
 

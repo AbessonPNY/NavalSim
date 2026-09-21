@@ -34,6 +34,7 @@ switch (mode)
     case "ports": Ports(); break;
     case "quete": Quete(); break;
     case "ville": Ville(); break;
+    case "traversees": Traversees(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -403,4 +404,40 @@ void Ville()
         double bed = world.HeightAt(m.X, m.Z);
         Console.WriteLine($"  {i,-8}{m.X,10:F0}{m.Z,10:F0}{m.Y,8:F2}{bed,9:F2}{m.Y - bed,8:F2}");
     }
+}
+/* LES TRAVERSEES : chaque region de world/, ses atterrages lus sur le terrain
+   (de l eau libre, loin de la cote ?), puis ce que coute d aller de l une a
+   l autre par les alizes (vent d est-nord-est, 75°) et par le vent contraire.
+   Un atterrage pose sur un haut-fond ferait arriver le joueur echoue. */
+void Traversees()
+{
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    var regions = new List<(RegionSpec R, World W)>();
+    foreach (var f in Directory.GetFiles(Path.Combine(root, "world"), "*.json"))
+    {
+        var region = RegionSpec.FromJson(File.ReadAllText(f));
+        region.Key = Path.GetFileNameWithoutExtension(f);
+        var (w, h, grey) = GreyPng.Decode(File.ReadAllBytes(Path.Combine(root, region.Relief.Image)));
+        regions.Add((region, new World(region, w, h, grey, m => Console.WriteLine("  ! " + m))));
+    }
+    foreach (var (r, w) in regions)
+    {
+        Console.WriteLine($"{r.Name} ({r.Key}) : {r.Approaches.Count} atterrage(s)");
+        foreach (var a in r.Approaches)
+        {
+            var g = w.Geo.ToXZ(a.Lat, a.Lon);
+            Console.WriteLine($"  {a.Name,-44} fond {-w.HeightAt(g.X, g.Z),5:F0} m, cote a {w.ShoreDistance(g.X, g.Z),6:F0} m{(w.ShoreDistance(g.X, g.Z) < Passage.Offing ? "  ! EN DECA DU LARGE" : "")}");
+        }
+    }
+    foreach (var (a, wa) in regions)
+        foreach (var (b, _) in regions)
+        {
+            if (ReferenceEquals(a, b) || wa.StartPort is not { } home) continue;
+            foreach (double wind in new[] { 75.0, 255.0 })
+            {
+                var p = Passage.PlanTo(b, home.Lat, home.Lon, wind);
+                if (p == null) continue;
+                Console.WriteLine($"{home.Name} -> {b.Name}, vent du {wind:F0} : {p.Miles:F0} M au {p.Course:F0} ({Passage.ToPoint(p.Course)}), {p.Knots:F1} nd, {Passage.Say(p.Hours)} -- {p.At.Name}");
+            }
+        }
 }

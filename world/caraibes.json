@@ -17,6 +17,13 @@
 
   "harbourDepth": 11,
 
+  "approaches": [
+    { "name": "le large de la pointe Morant, à l'est", "lat": 17.90, "lon": -76.05, "heading": 255 },
+    { "name": "le large de Port Antonio, au nord-est", "lat": 18.40, "lon": -76.40, "heading": 200 },
+    { "name": "le large de Negril, à l'ouest", "lat": 18.30, "lon": -78.55, "heading": 90 },
+    { "name": "le large de Port-Royal, au sud", "lat": 17.70, "lon": -76.85, "heading": 0 }
+  ],
+
   "towns": [
     { "key": "kingston", "name": "Kingston", "lat": 17.9715, "lon": -76.7935, "radius": 820, "houses": 420 }
   ],

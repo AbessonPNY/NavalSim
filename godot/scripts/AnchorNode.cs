@@ -49,6 +49,11 @@ public partial class AnchorNode : Node3D
         public readonly double[] Ox = new double[N], Oy = new double[N], Oz = new double[N];
         public bool Strung;
         public double Acc, Tick2, FloorShip, FloorAt;
+        /// <summary>L'écubier, en repère du navire : SUR le bordé, mesuré une fois.</summary>
+        public Vec3d? Hole;
+        /// <summary>Le diamètre du fer d'un maillon, et le pas d'un maillon au suivant.</summary>
+        public double Bar, Pitch;
+        public int Links;
     }
 
     readonly World _world;
@@ -61,7 +66,7 @@ public partial class AnchorNode : Node3D
     public Action<string>? OnSay;
     public readonly List<ShaderMaterial> Hazed = new();
 
-    StandardMaterial3D _iron = null!, _wood = null!, _rope = null!;
+    StandardMaterial3D _iron = null!, _wood = null!, _chain = null!;
 
     public AnchorNode(World world, OceanNode sea) { _world = world; _sea = sea; }
 
@@ -80,7 +85,9 @@ public partial class AnchorNode : Node3D
         }
         _iron = Tone(0x24211e, 0.55f, 0.6f);
         _wood = Tone(0x4a3827, 0.85f, 0f);
-        _rope = Tone(0x6d6047, 0.95f, 0f);
+        /* LA CHAÎNE, noire et brillante : du fer passé au noir de fumée et
+           graissé, qui prend le reflet du ciel sur chaque maillon mouillé. */
+        _chain = Tone(0x0b0b0d, 0.22f, 0.9f);
     }
 
     /* L'ANCRE D'AMIRAUTÉ, dans ses propres proportions : la verge, l'organeau,
@@ -128,15 +135,23 @@ public partial class AnchorNode : Node3D
             CableMax = Math.Min(220, 6 * S.L),
             Mesh = AnchorMesh(size)
         };
-        double thick = Math.Clamp(0.006 * S.L, 0.10, 0.32);
+        /* DES MAILLONS, pas un tuyau : un fer de six centimètres sur une coque de
+           vingt-sept mètres, neuf au plus, le maillon six fers de long et trois
+           et demi de large, chacun tourné d'un quart sur le précédent. Un tore
+           unité étiré à ces mesures, en autant d'exemplaires que la touée en
+           demande — quelques centaines, une seule passe de rendu. */
+        it.Bar = Math.Clamp(0.0022 * S.L, 0.03, 0.09);
+        it.Pitch = 4 * it.Bar;
+        it.Links = Math.Min(2400, (int)Math.Ceiling((it.CableMax * 1.25 + 10) / it.Pitch));
         it.Cable = new MultiMesh
         {
             TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
-            Mesh = new CylinderMesh { TopRadius = (float)thick, BottomRadius = (float)thick, Height = 1, RadialSegments = 5 },
-            InstanceCount = N - 1
+            Mesh = new TorusMesh { InnerRadius = 0.445f, OuterRadius = 1f, Rings = 10, RingSegments = 6 },
+            InstanceCount = it.Links,
+            VisibleInstanceCount = 0
         };
         it.CableView = new MeshInstance3D { Mesh = null };
-        AddChild(new MultiMeshInstance3D { Multimesh = it.Cable, MaterialOverride = _rope, ExtraCullMargin = 300 });
+        AddChild(new MultiMeshInstance3D { Multimesh = it.Cable, MaterialOverride = _chain, ExtraCullMargin = 300 });
         it.Mesh.Visible = false;
         _items[ph] = it;
         return it;
@@ -169,6 +184,60 @@ public partial class AnchorNode : Node3D
         return b.Pos + b.Quat.Rotate(Hawse(it));
     }
 
+    /// <summary>
+    /// L'ÉCUBIER : le trou du bordé d'où sort la chaîne, sous le bossoir. La
+    /// chaîne partait du bossoir lui-même, un mètre EN DEHORS du bordé, et
+    /// flottait dans l'air à côté de la coque. Le bordé est lu sur le modèle à
+    /// cette station et cette hauteur précises — l'avant s'affine, et la largeur
+    /// d'une tranche entière laissait encore un jour —, sinon sur le plan de
+    /// formes.
+    /// </summary>
+    Vec3d HoleLocal(Item it)
+    {
+        if (it.Hole is Vec3d had) return had;
+        var cat = Hawse(it);
+        var S = it.Ph.Spec;
+        double half = it.Ship.HalfAt(cat.Z, cat.Y) ?? Lines(S, cat.Z, cat.Y);
+        // un doigt en dedans : le fer du maillon couvre la jointure
+        var h = new Vec3d(-Math.Max(0.05, half - 0.03), cat.Y, cat.Z);
+        it.Hole = h;
+        return h;
+
+        static double Lines(ShipSpec S, double z, double y)
+        {
+            var l = new HullLines(S);
+            double t = Math.Clamp(z / S.L + 0.5, 0, 1);
+            double deck = l.DeckY(t), keel = l.KeelY(t);
+            double s = Math.Clamp((deck - y) / Math.Max(1e-3, deck - keel), 0, 1);
+            return l.HalfB(t) * l.BeamFactor(s);
+        }
+    }
+
+    Vec3d HoleWorld(Item it)
+    {
+        var b = it.Ph.Body;
+        return b.Pos + b.Quat.Rotate(HoleLocal(it));
+    }
+
+    /// <summary>
+    /// La verge : debout quand l'ancre pend ou tombe, COUCHÉE sur le fond vers le
+    /// navire quand elle y est — c'est la chaîne qui la tire de ce côté-là.
+    /// </summary>
+    Vec3d Shank(Item it)
+    {
+        if (it.State is St.Down or St.Weigh)
+        {
+            var to = HoleWorld(it) - it.P;
+            var flat = new Vec3d(to.X, 0, to.Z);
+            double l = flat.Length;
+            if (l > 1e-3) return flat * (1 / l);
+        }
+        return new Vec3d(0, 1, 0);
+    }
+
+    /// <summary>L'organeau, où la chaîne est étalinguée : au bout de la verge, où qu'elle pointe.</summary>
+    Vec3d Ring(Item it) => it.P + Shank(it) * (it.Size * 1.05);
+
     /// <summary>M : mouiller, ou virer au cabestan. Le même geste dans les deux sens.</summary>
     public void Toggle(ShipNode ship, double t)
     {
@@ -194,6 +263,15 @@ public partial class AnchorNode : Node3D
                 OnSay?.Invoke("On stoppe de virer");
                 break;
         }
+    }
+
+    /// <summary>
+    /// Rentrée d'un coup, amarres comprises : pour un TRANSPORT, pas une
+    /// manœuvre — une ancre laissée au fond tiendrait la coque à des lieues.
+    /// </summary>
+    public void Weigh(ShipNode ship)
+    {
+        if (_items.TryGetValue(ship.Physics, out var it) && it.State != St.Stowed) Stow(it);
     }
 
     void Stow(Item it)
@@ -323,7 +401,7 @@ public partial class AnchorNode : Node3D
         double len = Math.Min(it.CableMax, Math.Max(reach * 1.02, 3.5 * depth));
         double scope = len / depth;
         double hold = it.Mass * 9.81 * 8 * Math.Clamp((scope - 1) / 4, 0.15, 1);
-        var h = Hawse(it);
+        var h = HoleLocal(it);
         it.Moor = new Mooring
         {
             Lx = h.X, Ly = h.Y, Lz = h.Z,
@@ -349,8 +427,8 @@ public partial class AnchorNode : Node3D
     /// </summary>
     void Cable(Item it, double dt, double t)
     {
-        var hawse = HawseWorld(it);
-        var ring = it.P + new Vec3d(0, it.Size * 1.05, 0);
+        var hawse = HoleWorld(it);
+        var ring = Ring(it);
         double reach = (hawse - ring).Length;
         double len = it.Moor != null ? Math.Max(it.Moor.Len, reach) : reach + 0.5;
         double seg = Math.Max(len, reach) / (N - 1);
@@ -465,30 +543,63 @@ public partial class AnchorNode : Node3D
             }
         }
 
-        for (int j = 0; j < N - 1; j++)
+        Links(it);
+    }
+
+    /* LES MAILLONS, égrenés le long de la ligne au pas d'un maillon : chacun
+       centré sur sa longueur d'arc, son grand axe sur la tangente, et tourné
+       d'un quart sur son voisin — c'est ce quart qui fait lire une chaîne. Le
+       repère d'un maillon suit celui du précédent (on reprojette sa normale),
+       sans quoi les maillons tourneraient sur eux-mêmes où la ligne passe à la
+       verticale. */
+    void Links(Item it)
+    {
+        float wide = (float)(1.8 * it.Bar), longHalf = (float)(3 * it.Bar);
+        double pitch = it.Pitch, along = pitch * 0.5, start = 0;
+        int k = 0;
+        Vector3 norm = Vector3.Up;
+        bool first = true;
+        for (int j = 0; j < N - 1 && k < it.Links; j++)
         {
             var a = new Vector3((float)it.Px[j], (float)it.Py[j], (float)it.Pz[j]);
             var b = new Vector3((float)it.Px[j + 1], (float)it.Py[j + 1], (float)it.Pz[j + 1]);
-            var mid = (a + b) * 0.5f;
             var dir = b - a;
             float l = dir.Length();
-            if (l < 1e-4f) { it.Cable.SetInstanceTransform(j, new Transform3D(Basis.Identity.Scaled(Vector3.Zero), mid)); continue; }
-            var up = dir / l;
-            var any = Math.Abs(up.Y) > 0.99f ? Vector3.Right : Vector3.Up;
-            var x = any.Cross(up).Normalized();
-            var z = up.Cross(x);
-            it.Cable.SetInstanceTransform(j, new Transform3D(new Basis(x, up * l, z), mid));
+            if (l < 1e-5f) continue;
+            var t = dir / l;
+            if (first)
+            {
+                norm = Math.Abs(t.Y) > 0.9f ? Vector3.Right : Vector3.Up;
+                first = false;
+            }
+            // la normale gardée d'un tronçon à l'autre, rendue perpendiculaire
+            var keep = norm - t * norm.Dot(t);
+            norm = keep.LengthSquared() > 1e-6f ? keep.Normalized() : t.Cross(Vector3.Right).Normalized();
+            var side = t.Cross(norm);
+            while (along <= start + l && k < it.Links)
+            {
+                var at = a + t * (float)(along - start);
+                bool odd = (k & 1) == 1;
+                var bx = (odd ? norm : side) * wide;
+                var by = (odd ? side : norm) * wide;
+                it.Cable.SetInstanceTransform(k, new Transform3D(new Basis(bx, by, t * longHalf), at));
+                k++;
+                along += pitch;
+            }
+            start += l;
         }
-        it.Cable.VisibleInstanceCount = N - 1;
+        it.Cable.VisibleInstanceCount = k;
     }
 
     void Pose(Item it)
     {
         it.Mesh.Position = new Vector3((float)it.P.X, (float)it.P.Y, (float)it.P.Z);
-        // couchée sur le fond, debout dans l'eau
-        it.Mesh.Rotation = it.State == St.Down
-            ? new Vector3(Mathf.Pi / 2, 0, 0)
-            : Vector3.Zero;
+        // couchée sur le fond, la verge vers le navire ; debout dans l'eau
+        var y = Shank(it);
+        if (y.Y > 0.99) { it.Mesh.Basis = Basis.Identity; return; }
+        var up = new Vector3((float)y.X, (float)y.Y, (float)y.Z);
+        var x = up.Cross(Vector3.Up).Normalized();
+        it.Mesh.Basis = new Basis(x, up, x.Cross(up));
     }
 
     /// <summary>L'origine flottante.</summary>
