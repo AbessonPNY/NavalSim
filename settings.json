@@ -15,6 +15,17 @@
     "awayFromShore": 250,
     "glb": "creatures/dolphin.glb"
   },
+  "reckoning": {
+    "enabled": true,
+    "glassMinutes": 30,
+    "logBias": 0.06,
+    "logNoise": 0.03,
+    "compassBias": 2.0,
+    "compassNoise": 1.0,
+    "growth": 0.07,
+    "noonError": 3.0,
+    "passageError": 0.04
+  },
   "whale": {
     "enabled": true,
     "perHour": 2.0,

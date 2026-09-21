@@ -97,14 +97,36 @@ public partial class ShipNode
         var spar = MakeHullMaterial(Hex(spec.Appearance.Spar), 0.62f);
         foreach (var m in spec.Masts)
         {
-            _rig.AddChild(new MeshInstance3D
+            /* CHAQUE MÂT DANS SON GROUPE, articulé à son pied — celui qui tombe.
+               Dessinés d'abord à même le gréement, les mâts d'une coque sans
+               modèle ne pouvaient pas tomber du tout : ni boulet, ni foudre, ni
+               soute n'en abattaient un sur le cotre ou la goélette (relevé). Le
+               mât, ses vergues ou sa bôme et sa toile passent dedans, et le
+               dommage est le même que sur un modèle. */
+            var fall = new Node3D { Position = new Vector3(0, (float)spec.DeckMid, (float)m.Z) };
+            _rig.AddChild(fall);
+            fall.AddChild(new MeshInstance3D
             {
                 Mesh = Cylinder(0.10 * sc, 0.17 * sc, m.Height, 10),
                 MaterialOverride = spar,
-                Position = new Vector3(0, (float)(spec.DeckMid + m.Height / 2), (float)m.Z)
+                Position = new Vector3(0, (float)(m.Height / 2), 0)
             });
-            _masts.Add(new MastAt(_rig, m.Z, spec.DeckMid, m.Height, 0.17 * sc));
-            _rigs.Add(spec.Rig.Type == "square" ? SquareRig(m, sc, spar) : GaffRig(m, sc, spar));
+            int index = _masts.Count, sails = _canvases.Count;
+            _masts.Add(new MastAt(fall, 0, 0, m.Height, 0.17 * sc));
+            var rig = spec.Rig.Type == "square" ? SquareRig(m, sc, spar) : GaffRig(m, sc, spar);
+            rig.Reparent(fall, true);
+            _rigs.Add(rig);
+            double share = 0;
+            for (int i = sails; i < _canvases.Count; i++) { _canvases[i].Mast = index; share += 1; }
+            var cords = new List<CordAnchor>();
+            foreach (int sx in new[] { -1, 1 })
+                cords.Add(new CordAnchor(fall, new Vector3((float)(sx * Math.Min(1.4, 0.05 * m.Height)), (float)(m.Height * 0.78), 0),
+                    Math.Max(4, Math.Min(10, 0.26 * m.Height))));
+            _damage.Add(new MastDamage
+            {
+                // sa part de la toile : comme le carré de sa hauteur, faute de mieux sans modèle
+                Fall = fall, Heel = spec.DeckMid, Share = share > 0 ? m.Height * m.Height : 0, HasPole = true, Height = m.Height, Cords = cords
+            });
         }
         if (spec.Rig.Jib != null)
         {
@@ -534,6 +556,113 @@ public partial class ShipNode
     /// voiles, si bien que brasser fait tourner espar et toile d'un bloc. Tourner
     /// la toile seule la ferait glisser hors de sa propre vergue.
     /// </summary>
+    /// <summary>
+    /// Couper un maillage en îlots de triangles — reliés par leurs indices OU par
+    /// des sommets à la même place (un cylindre exporté a ses sommets doublés aux
+    /// arêtes vives, pour les normales, et ne doit pas partir en lanières). Les
+    /// îlots remplacent l'original, même matière, même place, si l'un au moins
+    /// passe <paramref name="keep"/> ; sinon rien n'est touché.
+    /// </summary>
+    bool SplitIslands(MeshInstance3D mi, Func<Part, bool> keep)
+    {
+        var mesh = mi.Mesh;
+        var rel = RelOf(mi);
+        var made = new List<(ArrayMesh Mesh, Material? Mat, Part Box)>();
+        for (int s = 0; s < mesh.GetSurfaceCount(); s++)
+        {
+            var a = mesh.SurfaceGetArrays(s);
+            var v = a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var idxV = a[(int)Mesh.ArrayType.Index];
+            int[] idx = idxV.VariantType == Variant.Type.Nil ? Enumerable.Range(0, v.Length).ToArray() : idxV.AsInt32Array();
+            var parent = Enumerable.Range(0, v.Length).ToArray();
+            int Find(int x) { while (parent[x] != x) x = parent[x] = parent[parent[x]]; return x; }
+            void Join(int x, int y) { x = Find(x); y = Find(y); if (x != y) parent[x] = y; }
+            var at = new Dictionary<(int, int, int), int>();
+            for (int i = 0; i < v.Length; i++)
+            {
+                var key = ((int)Math.Round(v[i].X * 1000), (int)Math.Round(v[i].Y * 1000), (int)Math.Round(v[i].Z * 1000));
+                if (at.TryGetValue(key, out int j)) Join(i, j); else at[key] = i;
+            }
+            for (int t = 0; t + 2 < idx.Length; t += 3) { Join(idx[t], idx[t + 1]); Join(idx[t], idx[t + 2]); }
+            var groups = new Dictionary<int, List<int>>();
+            for (int t = 0; t + 2 < idx.Length; t += 3)
+            {
+                int g = Find(idx[t]);
+                if (!groups.TryGetValue(g, out var list)) groups[g] = list = new List<int>();
+                list.Add(t);
+            }
+            var mat = mi.GetActiveMaterial(s);
+            foreach (var tris in groups.Values)
+            {
+                // ses sommets, renumérotés, avec tout ce qu'ils portent
+                var map = new Dictionary<int, int>();
+                var order = new List<int>();
+                var ni = new int[tris.Count * 3];
+                for (int k = 0; k < tris.Count; k++)
+                    for (int c = 0; c < 3; c++)
+                    {
+                        int o = idx[tris[k] + c];
+                        if (!map.TryGetValue(o, out int n)) { n = map[o] = order.Count; order.Add(o); }
+                        ni[k * 3 + c] = n;
+                    }
+                var outA = new Godot.Collections.Array();
+                outA.Resize((int)Mesh.ArrayType.Max);
+                var vv = new Vector3[order.Count];
+                for (int k = 0; k < vv.Length; k++) vv[k] = v[order[k]];
+                outA[(int)Mesh.ArrayType.Vertex] = vv;
+                if (a[(int)Mesh.ArrayType.Normal].VariantType != Variant.Type.Nil)
+                {
+                    var src = a[(int)Mesh.ArrayType.Normal].AsVector3Array();
+                    var nn = new Vector3[order.Count];
+                    for (int k = 0; k < nn.Length; k++) nn[k] = src[order[k]];
+                    outA[(int)Mesh.ArrayType.Normal] = nn;
+                }
+                if (a[(int)Mesh.ArrayType.TexUV].VariantType != Variant.Type.Nil)
+                {
+                    var src = a[(int)Mesh.ArrayType.TexUV].AsVector2Array();
+                    var uu = new Vector2[order.Count];
+                    for (int k = 0; k < uu.Length; k++) uu[k] = src[order[k]];
+                    outA[(int)Mesh.ArrayType.TexUV] = uu;
+                }
+                if (a[(int)Mesh.ArrayType.Color].VariantType != Variant.Type.Nil)
+                {
+                    var src = a[(int)Mesh.ArrayType.Color].AsColorArray();
+                    var cc = new Color[order.Count];
+                    for (int k = 0; k < cc.Length; k++) cc[k] = src[order[k]];
+                    outA[(int)Mesh.ArrayType.Color] = cc;
+                }
+                outA[(int)Mesh.ArrayType.Index] = ni;
+                var am = new ArrayMesh();
+                am.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, outA);
+                // sa boîte, dans le repère du navire, pour l'épreuve
+                Vector3 lo = new(float.MaxValue, float.MaxValue, float.MaxValue), hi = -lo;
+                foreach (var x in vv) { var w = rel * x; lo = lo.Min(w); hi = hi.Max(w); }
+                made.Add((am, mat, new Part { Mi = mi, Min = lo, Max = hi, Size = hi - lo, Mid = (lo + hi) * 0.5f, Verts = Array.Empty<Vector3>(), Rel = rel }));
+            }
+        }
+        if (made.Count < 2 || !made.Any(m => keep(m.Box))) return false;
+        var host = mi.GetParent();
+        int n0 = 0;
+        foreach (var (am, mat, _) in made)
+        {
+            var piece = new MeshInstance3D { Mesh = am, Transform = mi.Transform, Name = $"{mi.Name}_ilot{n0++}" };
+            if (mat != null) piece.MaterialOverride = mat;
+            host.AddChild(piece);
+        }
+        host.RemoveChild(mi);
+        mi.QueueFree();
+        RigLog.Add($"{mi.Name} coupé en {made.Count} îlots");
+        return true;
+    }
+
+    /// <summary>La place d'un maillage dans le repère du navire.</summary>
+    Transform3D RelOf(Node3D n)
+    {
+        var t = n.Transform;
+        for (var q = n.GetParent() as Node3D; q != null && q != ModelRoot; q = q.GetParent() as Node3D) t = q.Transform * t;
+        return ModelRoot!.Transform * t;
+    }
+
     void RigModel()
     {
         var spec = Spec;
@@ -570,8 +699,40 @@ public partial class ShipNode
             double tall = p.Size.Y, thick = Math.Max(p.Size.X, p.Size.Z);
             return tall > 4 * thick && tall > 0.20 * spec.L && Math.Abs(p.Mid.X) < 0.12 * spec.B;
         }
+        /* LES PIÈCES SOUDÉES, SÉPARÉES. Un modèle importé range souvent
+           plusieurs espars dans UN objet : sur la frégate, le mât de misaine et
+           le beaupré ne font qu'un « Cylinder_001 » de dix-neuf mètres sur dix-neuf,
+           que ni l'épreuve du mât ni celle de la vergue ne reconnaissent — elle
+           n'avait qu'un mât sur trois qui pût tomber (relevé). Ce qui est un seul
+           objet n'est pas un seul morceau de bois : on le coupe en ÎLOTS de
+           triangles, et l'on ne garde la coupe que si l'un d'eux a la forme d'un
+           mât ou d'une vergue — le reste du modèle ne bouge pas d'un sommet. */
+        bool cut = false;
+        foreach (var q in parts)
+            if (Bois(q) && !FormeMat(q) && !FormeVergue(q) && q.Size.Y > 0.15 * spec.L
+                && SplitIslands(q.Mi, i => FormeMat(i) || FormeVergue(i))) cut = true;
+        if (cut) parts = ModelParts();
+
+        /* UN MÂT SOUDÉ À SA VERGUE LATINE : l'artimon du galion est un seul îlot,
+           mât et antenne en biais, 2,4 m sur 4,8 de large — ni mince ni vergue.
+           On le reconnaît à son ÂME : des sommets alignés sur une verticale, sur
+           la plus grande part de sa hauteur. Il tombe alors en entier, antenne
+           comprise, ce qui est exactement ce que fait un artimon. */
+        bool FormeMatSoude(Part p)
+        {
+            if (p.Size.Y < 0.20 * spec.L || Math.Abs(p.Mid.X) > 0.12 * spec.B || p.Verts.Length < 8) return false;
+            // la verticale : prise au pied, sur le cinquième le plus bas
+            double foot = p.Min.Y + 0.2 * p.Size.Y, cx = 0, cz = 0; int n = 0;
+            foreach (var v in p.Verts) if (v.Y <= foot) { cx += v.X; cz += v.Z; n++; }
+            if (n == 0) return false;
+            cx /= n; cz /= n;
+            double r = Math.Max(0.35, 0.02 * spec.L), lo = double.MaxValue, hi = double.MinValue;
+            foreach (var v in p.Verts)
+                if ((v.X - cx) * (v.X - cx) + (v.Z - cz) * (v.Z - cz) < r * r) { lo = Math.Min(lo, v.Y); hi = Math.Max(hi, v.Y); }
+            return hi - lo > 0.6 * p.Size.Y;
+        }
         var yards = parts.Where(p => FormeVergue(p) && Bois(p)).ToList();
-        var poles = parts.Where(p => FormeMat(p) && Bois(p)).ToList();
+        var poles = parts.Where(p => (FormeMat(p) || FormeMatSoude(p)) && Bois(p)).ToList();
         var refused = parts.Where(p => !Bois(p) && (FormeVergue(p) || FormeMat(p))).ToList();
         if (refused.Count > 0)
             GD.PushWarning($"[{spec.Id}] pièces de la forme d'un espar tenues hors du gréement "
@@ -691,6 +852,30 @@ public partial class ShipNode
                 Fall = fall, Heel = heel, Share = share, HasPole = pole != null, Height = mh, Cords = cords
             });
             _rigs.Add(pivot);
+        }
+
+        /* LES MÂTS SANS VERGUE CARRÉE — un artimon à antenne, un mât de flèche
+           nu : ils ne portent pas de toile ici (le gréement ne sait pendre que
+           du carré), mais ce sont des mâts, et ils tombent comme les autres. */
+        foreach (var pole in poles)
+        {
+            if (pole.Taken) continue;
+            /* un mât a son pied au-dessus de l'eau — le modèle a son origine sur la
+               flottaison : le safran, debout sur l'axe lui aussi, plonge dessous. Le
+               pont n'est pas le bon repère : l'artimon traverse une dunette haute. */
+            if (pole.Min.Y < 0.3) continue;
+            pole.Taken = true;
+            double z0 = pole.Mid.Z, heel = pole.Min.Y, mh = pole.Size.Y;
+            var fall = new Node3D { Position = new Vector3(0, (float)heel, (float)z0) };
+            AddChild(fall);
+            pole.Mi.Reparent(fall, true);
+            _masts.Add(new MastAt(fall, 0, 0, mh, Math.Min(pole.Size.X, pole.Size.Z) * 0.5));
+            var cords = new List<CordAnchor>();
+            foreach (int sx in new[] { -1, 1 })
+                cords.Add(new CordAnchor(fall, new Vector3((float)(sx * Math.Min(1.4, 0.05 * mh)), (float)(mh * 0.78), 0),
+                    Math.Max(4, Math.Min(10, 0.26 * mh))));
+            _damage.Add(new MastDamage { Fall = fall, Heel = heel, Share = 0, HasPole = true, Height = mh, Cords = cords });
+            RigLog.Add(FormattableString.Invariant($"mat z0 {z0:F2} pied {heel:F2} sans vergue carrée"));
         }
     }
 

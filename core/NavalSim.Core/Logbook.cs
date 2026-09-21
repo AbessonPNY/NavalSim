@@ -55,6 +55,13 @@ public sealed class Logbook
     public const double Sight = 2600;
 
     public readonly List<(double X, double Z)> Track = new();
+    /* DEUX ROUTES, et c'est voulu. Track est la route VRAIE : ce que la vigie a
+       vu, qui perce le voile — la côte qu'on a longée est à sa vraie place.
+       Estim est la route ESTIMÉE, celle que le capitaine porte à la plume : c'est
+       elle qu'on dessine, et elle s'écarte de l'autre (voir Reckoning). */
+    public readonly List<(double X, double Z)> Estim = new();
+    /// <summary>Le dernier point estimé et son incertitude, pour le reprendre au chargement.</summary>
+    public (double X, double Z, double SN, double SE)? Estimate;
     public readonly List<string> Ports = new();
     public readonly List<Stroke> Strokes = new();
     public readonly List<Note> Notes = new();
@@ -69,6 +76,18 @@ public sealed class Logbook
             if ((x - lx) * (x - lx) + (z - lz) * (z - lz) < Step * Step) return false;
         }
         Track.Add((x, z));
+        return true;
+    }
+
+    /// <summary>Porter le point estimé sur la route à la plume. Vrai si la carte a changé.</summary>
+    public bool Plot(double x, double z)
+    {
+        if (Estim.Count > 0)
+        {
+            var (lx, lz) = Estim[^1];
+            if ((x - lx) * (x - lx) + (z - lz) * (z - lz) < Step * Step) return false;
+        }
+        Estim.Add((x, z));
         return true;
     }
 
@@ -135,7 +154,17 @@ public sealed class Logbook
         for (int i = 0; i < Track.Count; i++)
             sb.Append(i > 0 ? ", " : "").Append('[').Append(Track[i].X.ToString("F1", ci))
               .Append(", ").Append(Track[i].Z.ToString("F1", ci)).Append(']');
-        sb.Append("],\n  \"ports\": [");
+        sb.Append("],\n  \"estim\": [");
+        for (int i = 0; i < Estim.Count; i++)
+            sb.Append(i > 0 ? ", " : "").Append('[').Append(Estim[i].X.ToString("F1", ci))
+              .Append(", ").Append(Estim[i].Z.ToString("F1", ci)).Append(']');
+        sb.Append(']');
+        if (Estimate is { } e)
+            sb.Append(",\n  \"estimate\": { \"x\": ").Append(e.X.ToString("F1", ci))
+              .Append(", \"z\": ").Append(e.Z.ToString("F1", ci))
+              .Append(", \"sn\": ").Append(e.SN.ToString("F1", ci))
+              .Append(", \"se\": ").Append(e.SE.ToString("F1", ci)).Append(" }");
+        sb.Append(",\n  \"ports\": [");
         for (int i = 0; i < Ports.Count; i++)
             sb.Append(i > 0 ? ", " : "").Append(JsonSerializer.Serialize(Ports[i]));
         sb.Append("],\n  \"strokes\": [");
@@ -175,6 +204,12 @@ public sealed class Logbook
             if (r.TryGetProperty("track", out var tr))
                 foreach (var p in tr.EnumerateArray())
                     b.Track.Add((p[0].GetDouble(), p[1].GetDouble()));
+            if (r.TryGetProperty("estim", out var es))
+                foreach (var p in es.EnumerateArray())
+                    b.Estim.Add((p[0].GetDouble(), p[1].GetDouble()));
+            if (r.TryGetProperty("estimate", out var em))
+                b.Estimate = (em.GetProperty("x").GetDouble(), em.GetProperty("z").GetDouble(),
+                              em.GetProperty("sn").GetDouble(), em.GetProperty("se").GetDouble());
             if (r.TryGetProperty("ports", out var po))
                 foreach (var p in po.EnumerateArray())
                     if (p.GetString() is string k) b.Ports.Add(k);

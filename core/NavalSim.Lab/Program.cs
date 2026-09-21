@@ -37,6 +37,7 @@ switch (mode)
     case "traversees": Traversees(); break;
     case "elan": Elan(); break;
     case "baleine": Baleine(); break;
+    case "estime": Estime(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -502,4 +503,40 @@ void Baleine()
         double Dist() => Math.Sqrt(Math.Pow(w.Pos.X - p.Body.Pos.X, 2) + Math.Pow(w.Pos.Z - p.Body.Pos.Z, 2));
         Console.WriteLine($"{mood} : au plus pres {minD:F0} m{(minUnder < 1e8 ? $", profondeur a l'aplomb {minUnder:F1} m" : "")}, coups {w.Rams}, voies d'eau {p.Breaches.Count}, fin a {t:F0} s\n");
     }
+}
+
+/* L ESTIME, EPROUVEE : cent navires tires au hasard (leurs instruments) courent
+   20 km de jeu a 3 m/s au 060, avec 4 degres de derive sous le vent. L erreur
+   vraie a l arrivee, comparee a l incertitude que l estime annonce : si elle
+   est honnete, deux tiers des erreurs tombent dans un ecart-type.
+     dotnet run --project core/NavalSim.Lab -- estime */
+void Estime()
+{
+    var rules = new ReckoningSettings();
+    double glass = 15, dt = 0.25, speed = 3, heading = 60, leeway = 4;
+    var errs = new List<double>();
+    double sig = 0;
+    int inside = 0;
+    for (int seed = 1; seed <= 100; seed++)
+    {
+        var r = new Reckoning(rules, seed);
+        r.Fix(0, 0);
+        double x = 0, z = 0, track = (heading + leeway) * Math.PI / 180;
+        double vx = -Math.Sin(track) * speed, vz = Math.Cos(track) * speed;
+        for (double t = 0; t < 20000 / speed; t += dt)
+        {
+            r.Step(dt, vx, vz, heading, glass);
+            x += vx * dt; z += vz * dt;
+        }
+        double e = Math.Sqrt((r.X - x) * (r.X - x) + (r.Z - z) * (r.Z - z));
+        sig = Math.Sqrt(r.SigN * r.SigN + r.SigE * r.SigE);
+        errs.Add(e);
+        if (e < sig) inside++;
+    }
+    errs.Sort();
+    Console.WriteLine($"20 km courus : erreur mediane {errs[50]:F0} m, 90e centile {errs[90]:F0} m, pire {errs[^1]:F0} m");
+    Console.WriteLine($"incertitude annoncee {sig:F0} m (les deux axes) ; {inside} erreurs sur 100 dedans");
+    // sans derive, pour la part des instruments seuls
+    var r2 = new Reckoning(rules, 3); r2.Fix(0, 0);
+    Console.WriteLine($"derive de {leeway} degres sur 20 km : {20000 * Math.Sin(leeway * Math.PI / 180):F0} m a elle seule");
 }

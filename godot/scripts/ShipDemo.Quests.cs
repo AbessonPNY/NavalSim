@@ -185,7 +185,9 @@ public partial class ShipDemo : Node3D
         if (_aimLine == null || _quests == null || _ship == null) return;
         var wo = _sea.Core.Origin;
         var b = _ship.Physics.Body;
-        var aim = _quests.Aim(wo.X + b.Pos.X, wo.Z + b.Pos.Z);
+        // compté depuis où l'on CROIT être : le pilote n'en sait pas davantage
+        var (ax, az) = Believed();
+        var aim = _quests.Aim(ax, az);
         // une quête d'une autre carte attend qu'on y retourne : on dit où
         if (aim == null && !_quests.HereNow && _quests.Current is QuestStep far && (_msgBox == null || !_msgBox.Visible))
         {

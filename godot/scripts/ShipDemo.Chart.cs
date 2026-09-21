@@ -89,6 +89,28 @@ public partial class ShipDemo : Node3D
         };
         root.AddChild(unveil);
         BuildRoute(root);
+
+        /* LA FLÈCHE RETOUR : le dernier trait effacé, puis celui d'avant — la
+           même chose que Retour arrière, sous la main pour qui tient la souris.
+           En haut à gauche, hors de la feuille : un clic dessus ne doit pas
+           commencer un trait. */
+        _undoButton = new Button
+        {
+            Text = "↶  Effacer le dernier trait", FocusMode = Control.FocusModeEnum.None,
+            OffsetLeft = 12, OffsetRight = 230, OffsetTop = 6, OffsetBottom = 34
+        };
+        _undoButton.Pressed += UndoStroke;
+        root.AddChild(_undoButton);
+        BuildNoonButton(root);
+    }
+
+    Button? _undoButton;
+
+    void UndoStroke()
+    {
+        if (_book == null || _chart == null || !_book.Undo()) return;
+        _chart.Refresh();
+        SaveBook();
     }
 
     void LayoutChart()
@@ -97,21 +119,46 @@ public partial class ShipDemo : Node3D
         var vp = GetViewport().GetVisibleRect().Size;
         var tex = _chart.Texture;
 
-        /* On ne montre qu'un MORCEAU de la feuille : celui qu'on regarde. Les
-           traits, eux, sont dessinés dans la feuille entière, donc ils suivent
-           la loupe sans qu'on ait à les toucher. */
+        /* On ne montre qu'un MORCEAU de la feuille : celui qu'on regarde. */
         float side = (float)(_chartSpan / _chart.MetresPerPixel);
         var half = new Vector2(side * 0.5f, side * 0.5f * vp.Y / Math.Max(1, vp.X));
+        var sheet = tex.GetSize();
+
+        /* JAMAIS HORS DE LA FEUILLE. Un morceau qui débordait faisait étirer à
+           la texture ses pixels de bord — des rayures, traits compris (signalé
+           comme « un souci de dépliage »). Le centre est tenu pour que la vue
+           reste dedans ; plus large que la feuille, elle la centre, et ce qui
+           dépasse n'est pas montré : le fond sombre l'entoure. */
+        for (int a = 0; a < 2; a++)
+            _chartAt[a] = half[a] * 2 < sheet[a] ? Math.Clamp(_chartAt[a], half[a], sheet[a] - half[a]) : sheet[a] * 0.5f;
         var region = new Rect2(_chartAt - half, half * 2);
+        float k = Math.Min(vp.X * 0.94f / Math.Max(1, region.Size.X), vp.Y * 0.88f / Math.Max(1, region.Size.Y));
+        var shown = region.Intersection(new Rect2(Vector2.Zero, sheet));
         _atlas ??= new AtlasTexture();
         _atlas.Atlas = tex;
-        _atlas.Region = region;
-        float k = Math.Min(vp.X * 0.94f / Math.Max(1, region.Size.X), vp.Y * 0.88f / Math.Max(1, region.Size.Y));
-        var size = region.Size * k;
+        _atlas.Region = shown;
         _chartView.Texture = _atlas;
-        _chartView.OffsetLeft = -size.X * 0.5f; _chartView.OffsetRight = size.X * 0.5f;
-        _chartView.OffsetTop = -size.Y * 0.5f; _chartView.OffsetBottom = size.Y * 0.5f;
+        // la vue entière, centrée à l'écran ; la feuille n'en occupe que sa part
+        var view0 = -region.Size * k * 0.5f;
+        var at = view0 + (shown.Position - region.Position) * k;
+        _chartView.OffsetLeft = at.X; _chartView.OffsetRight = at.X + shown.Size.X * k;
+        _chartView.OffsetTop = at.Y; _chartView.OffsetBottom = at.Y + shown.Size.Y * k;
+        _chartK = k;
+
+        // l'encre, retracée à l'écran dans le repère de la feuille montrée
+        if (_chartInk == null)
+        {
+            _chartInk = _chart.ScreenInk();
+            _chartView.ClipContents = true;
+            _chartView.AddChild(_chartInk);
+        }
+        var origin = shown.Position;
+        _chart.SetScreenInk(p => (p - origin) * k, k, _chartOpen);
     }
+
+    Control? _chartInk;
+    /// <summary>Pixels d'écran par pixel de feuille, à la loupe du moment.</summary>
+    float _chartK = 1;
 
     void ToggleChart()
     {
@@ -123,7 +170,8 @@ public partial class ShipDemo : Node3D
             // elle s'ouvre sur SA position : c'est ce qu'un capitaine regarde d'abord
             var wo = _sea.Core.Origin;
             var b = _ship.Physics.Body;
-            _chartAt = _chart.ToChart(wo.X + b.Pos.X, wo.Z + b.Pos.Z);
+            var (bx, bz) = Believed();
+            _chartAt = _chart.ToChart(bx, bz);
             LayoutChart();
             Hint();
             /* La souris DOIT être visible pour dessiner : la barre la capture
@@ -136,6 +184,7 @@ public partial class ShipDemo : Node3D
             if (_chartEntry != null) { _chartEntry.Visible = false; _chartEntry.ReleaseFocus(); }
             SaveBook();                 // ce qu'on vient d'écrire ne se perd pas
             CloseRoute();
+            _chart.SetScreenInk(p => p, 1, false);
         }
     }
 
@@ -192,7 +241,7 @@ public partial class ShipDemo : Node3D
     {
         if (!_chartOpen || _chart == null || _book == null) return false;
         // le panneau des traversées est posé sur la feuille : ses clics sont à lui
-        if (e is InputEventMouse em && OverRoute(em.Position)) return false;
+        if (e is InputEventMouse em && (OverRoute(em.Position) || OverNoon(em.Position) || (_undoButton != null && _undoButton.GetGlobalRect().HasPoint(em.Position)))) return false;
         /* PENDANT QU ON ÉCRIT, le champ a la parole : la carte lui laisse ses
            touches. Échap y annule la note — sans cette ligne il tomberait
            jusqu au jeu et ouvrirait le menu par-dessus la carte. */
@@ -273,11 +322,13 @@ public partial class ShipDemo : Node3D
             var at = Under(mm.Position);
             if (at != null)
             {
-                /* Un point tous les quelques mètres : la plume suit la main sans
-                   noyer le carnet sous dix mille points pour un seul trait. */
+                /* Un point tous les TROIS PIXELS D'ÉCRAN : la plume suit la main
+                   sans noyer le carnet, et une courbe tracée à la loupe reste une
+                   courbe (à vingt mètres fixes, elle se lisait en facettes). */
                 var last = _drawing.Pts[^1];
                 double dx = at.Value.X - last.X, dz = at.Value.Z - last.Z;
-                if (dx * dx + dz * dz > 400) { _drawing.Pts.Add(at.Value); _chart.Refresh(); }
+                double step = Math.Max(2, 3 * _chart.MetresPerPixel / Math.Max(1e-3, _chartK));
+                if (dx * dx + dz * dz > step * step) { _drawing.Pts.Add(at.Value); _chart.Refresh(); }
             }
             return true;
         }
@@ -289,7 +340,7 @@ public partial class ShipDemo : Node3D
                 case Key.Escape: ToggleChart(); return true;
                 case Key.E: _ink = (_ink + 1) % InkNames.Length; Hint(); return true;
                 case Key.Backspace:
-                    if (_book.Undo()) { _chart.Refresh(); SaveBook(); }
+                    UndoStroke();
                     return true;
             }
         }

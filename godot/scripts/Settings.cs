@@ -82,6 +82,10 @@ public sealed class Settings
     /// <summary>Le pavillon hissé sur le navire à la barre : l'id d'une nation de flags.json, vide pour celui de la fiche.</summary>
     public string Nation = "";
 
+    // [carte]
+    /// <summary>La largeur du bec de la plume, en unités de carte : le plein d'un trait fait le double.</summary>
+    public float PenWidth = 1.5f;
+
     // [son]
     /// <summary>Les bruitages : la bordée, le bois qui casse, le tonnerre.</summary>
     public bool Sound = true;
@@ -128,6 +132,7 @@ public sealed class Settings
         s.AutoExposureSpeed = (float)cf.GetValue("rendu", "exposition_auto_vitesse", s.AutoExposureSpeed);
         s.FilmMask = (bool)cf.GetValue("rendu", "masque_cinema", s.FilmMask);
         s.Nation = (string)cf.GetValue("navire", "pavillon", s.Nation);
+        s.PenWidth = (float)cf.GetValue("carte", "epaisseur_plume", s.PenWidth);
         s.Sound = (bool)cf.GetValue("son", "bruitages", s.Sound);
         s.Music = (bool)cf.GetValue("son", "musique", s.Music);
         s.Volume = (float)cf.GetValue("son", "volume", s.Volume);
@@ -174,6 +179,7 @@ public sealed class Settings
         cf.SetValue("rendu", "exposition_auto_vitesse", AutoExposureSpeed);
         cf.SetValue("rendu", "masque_cinema", FilmMask);
         cf.SetValue("navire", "pavillon", Nation);
+        cf.SetValue("carte", "epaisseur_plume", PenWidth);
         cf.SetValue("son", "bruitages", Sound);
         cf.SetValue("son", "musique", Music);
         cf.SetValue("son", "volume", Volume);

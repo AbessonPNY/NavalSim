@@ -6626,6 +6626,119 @@ proportion de ce que le reflet de la coque occupe.
 
 **Puis : les festons.** Au soleil bas, seize hauteurs tombaient à 3 m l'une de l'autre sur l'eau et chacune dessinait son contour de coque. Vingt-quatre hauteurs, une pénombre d'une fois et demie leur écart, et un décalage des hauteurs propre à chaque pixel (bruit à gradient entrelacé) : ce qui reste du motif devient grain.
 
+## L'estime : où l'on croit être (Godot)
+
+Demandé : savoir où l'on est sur la carte par une méthode de vraie navigation.
+Proposé, et retenu : l'estime et la hauteur de midi d'abord, les relèvements
+ensuite.
+
+**LE POINT ESTIMÉ** (`core/Reckoning.cs`) : à chaque sablier — une demi-heure
+de jeu, quinze secondes à l'allure du ciel —, on file le loch (la vitesse) et
+on lit le compas (le cap), et l'on porte la distance courue dans cette
+direction. Le loch a son erreur propre (6 %, tirée par navire) et une erreur
+de lecture (3 %), le compas la sienne (2°) et une d'embardée (1°). La DÉRIVE
+n'y est pas écrite : le compas lit le cap, pas la route, et au près le navire
+glisse — elle sort de la physique. Un changement d'allure entre deux lectures
+est une erreur de plus : la vedette échouée net a vu son estime courir 230 m
+trop loin, le loch comptant encore seize mètres par seconde jusqu'au sablier.
+
+**L'INCERTITUDE** croît AVEC la distance (7 %), pas comme sa racine : une
+erreur de loch est la même d'un sablier à l'autre. En somme quadratique pas à
+pas, elle annonçait 9 m après 20 km quand l'erreur vraie en faisait 1 800
+(labo `-- estime`, cent navires, 4° de dérive) ; linéaire, 2 150 m, et 56
+erreurs sur 100 dedans — l'écart-type qu'on attend.
+
+**CE QUI RECALE** : un port à 300 m (on le reconnaît : exact) ; la HAUTEUR DE
+MIDI, de 11 h 30 à 12 h 30, soleil visible, une fois par jour — la latitude au
+quadrant de Davis, à 3 minutes d'arc près (2,2 km de jeu), et elle seule : la
+longitude attend le chronomètre (1760) ; l'ATTERRAGE d'une traversée, à 4 % de
+sa longueur (236 M → 7 km ; mesuré à l'arrivée à la Tortue : 8,2 km d'erreur).
+Le point estimé est tiré autour du vrai, pas l'inverse.
+
+**CE QUI A CHANGÉ À LA CARTE** : le carnet garde DEUX routes. `Track`, la vraie,
+perce le voile — la vigie voit la vraie côte — et ne se dessine plus ; `Estim`,
+l'estimée, est la route à la plume. Le navire est une croix de plume dans son
+ellipse (un écart-type, nord-sud et est-ouest) ; la vérité, un point rouge,
+seulement quand tout est dévoilé (débogage). La carte s'ouvre sur le point
+estimé, la ligne d'objectif compte depuis lui, et le carnet le garde d'une
+session à l'autre. Réglages : `settings.json` → `reckoning`.
+
+## La carte nette à la loupe, et bornée à sa feuille (Godot)
+
+Signalé : les dessins très pixelisés ; « un souci de dépliage UV » sur les
+bords.
+
+**LA PIXELISATION** : la feuille est une image de 2 048 pixels pour 122 km, un
+pixel pour soixante mètres ; à la loupe la plus forte (3 km de large) il en
+restait cinquante sur tout l'écran. L'encre (route, ports, croix, traits,
+notes, objectif) est maintenant RETRACÉE à l'écran sur la carte ouverte, par la
+même plume (`Pen`) : `Map` porte les pixels de feuille vers l'écran, `K` est
+leur rapport. Les traits grossissent avec la loupe jusqu'à 1,5 fois, les
+lettres entre 0,7 et 1,3 fois. Pendant ce temps la feuille se dessine sans
+encre, sinon elle doublerait chaque trait, pixelisée dessous ; le bureau la
+retrouve à la fermeture. Et un trait prend un point tous les trois pixels
+d'écran au lieu de vingt mètres fixes : à la loupe, une courbe restait une
+suite de facettes.
+
+**LES BORDS** : la vue débordait de la feuille et la texture étirait ses
+pixels de bord — les rayures, traits compris. Le centre est maintenant tenu
+pour que la vue reste dans la feuille ; plus large qu'elle, elle la centre, et
+seul ce qui est sur la feuille est montré.
+
+## Trois mâts qui tombent (Godot)
+
+Demandé : un navire doit pouvoir perdre ses trois mâts.
+
+**MESURÉ** (sonde : mâts recensés, cassables, puis la soute qui les prend
+tous) : frégate, galion et pirate n'en avaient qu'**un** de cassable sur trois ;
+le cotre et la goélette, **aucun**. Trois causes :
+
+1. **Pièces soudées** : sur les modèles, le mât de misaine et le beaupré ne
+   font qu'un objet (19 m sur 19), que ni l'épreuve du mât ni celle de la
+   vergue ne reconnaissent. On coupe désormais les pièces composites en îlots
+   de triangles (reliés par leurs indices ou par des sommets à la même place,
+   sans quoi un cylindre partirait en lanières), et l'on ne garde la coupe que
+   si un îlot a la forme d'un espar.
+2. **L'artimon latin** : mât et antenne en biais forment un seul îlot, 2,4 m
+   sur 4,8 de large. Reconnu à son ÂME — des sommets alignés sur une verticale
+   sur 60 % de sa hauteur —, il tombe entier, antenne comprise. Et un mât sans
+   vergue carrée n'était pas un mât du tout (les mâts se trouvaient par leurs
+   vergues) : les espars debout restés sans vergue deviennent des mâts à part.
+   Le troisième « mât » reconnu jusque-là était la vergue de civadière, sous le
+   beaupré. Piège : le safran est lui aussi debout sur l'axe ; écarté parce que
+   son pied plonge sous la flottaison (le pont n'était pas le bon repère :
+   l'artimon de la frégate traverse une dunette haute).
+3. **Les coques sans modèle** dessinaient leurs mâts à même le gréement, sans
+   groupe qui tombe : chaque mât a maintenant le sien, articulé au pied, avec
+   ses vergues ou sa bôme et sa toile.
+
+Résultat : frégate, galion et pirate 3 sur 3, goélette 2 sur 2 — et la soute
+les prend tous.
+
+## La carte à la plume : trait biseauté, flèche retour, notes en Estonia (Godot)
+
+Demandé : une flèche retour qui efface les derniers traits ; un trait plus fin,
+en biseau, façon calligraphie ; les notes dans la police Estonia.
+
+**LA PLUME BISEAUTÉE** : un bec de 2,2 unités de carte tenu à 45°, qui ne
+tourne pas avec la main. Chaque segment est le parallélogramme que ce bec
+balaie : plein en travers du biseau, un cheveu dans son fil, sans rien calculer
+d'autre. Un filet de 0,45 dessous pour que le trait ne se rompe pas. Piège :
+`DrawColoredPolygon` triangule, et un parallélogramme presque plat la faisait
+échouer (« Invalid polygon data ») ; `DrawPrimitive` à quatre sommets ne
+triangule pas.
+
+Puis le bec élargi de 1,1 à 1,5 à la demande, et rendu réglable au menu (Carte → Épaisseur de la plume, 0,5 à 4 ; `reglages.ini` → `[carte] epaisseur_plume`) : la carte se redessine sous le curseur.
+
+**LA FLÈCHE RETOUR** : un bouton « ↶ Effacer le dernier trait » en haut à
+gauche, hors de la feuille, qui fait ce que faisait déjà Retour arrière
+(`Logbook.Undo`) ; ses clics ne commencent pas de trait.
+
+**ESTONIA** (Robert Leuschke, licence OFL) : lue à l'exécution dans
+`godot/fonts/Estonia-Regular.ttf` par `FontFile.LoadDynamicFont`, sans import ;
+absente, les notes gardent la police du moteur. Corps 22 : une anglaise se lit
+plus petite qu'une linéale au même corps.
+
 ## La baleine, dans l'esprit de Moby Dick (Godot)
 
 Demandé : une baleine qu'on voit au loin à sa gerbe, qui passe sous le bateau

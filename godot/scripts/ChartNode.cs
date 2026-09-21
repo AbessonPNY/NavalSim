@@ -50,6 +50,15 @@ public partial class ChartNode : Node
     Image _mask = null!;
     ImageTexture _maskTex = null!;
     Font _font = null!;
+    /// <summary>
+    /// La demi-largeur du bec, en unités de carte : réglée au menu (Carte →
+    /// Épaisseur de la plume), 1,5 par défaut. Plein d'un trait : le double ;
+    /// délié : le filet de dessous.
+    /// </summary>
+    public float PenWidth = 1.5f;
+
+    /// <summary>La main qui écrit les notes ; la police du moteur si le fichier manque.</summary>
+    Font? _hand;
 
     /// <summary>La texture à poser sur la feuille — et sur la grande carte.</summary>
     public Texture2D Texture => _vp.GetTexture();
@@ -65,6 +74,11 @@ public partial class ChartNode : Node
        carnet, parce qu'on les a APPRISES et qu'elles doivent survivre à la
        fermeture du jeu. */
     public Func<System.Collections.Generic.IEnumerable<(double X, double Z, bool Cargo)>>? Marks;
+
+    /// <summary>Le point estimé et son incertitude (un écart-type, nord-sud et est-ouest) — nul sans estime.</summary>
+    public Func<(double X, double Z, double SN, double SE)?>? Where;
+    /// <summary>La position vraie : dessinée au débogage seulement, quand tout est dévoilé.</summary>
+    public Func<(double X, double Z)?>? Truth;
 
     /// <summary>Le coin haut-gauche et l'étendue de la carte, en mètres monde.</summary>
     /// <summary>La largeur de la région en mètres de jeu : l'image, pixel pour pixel.</summary>
@@ -103,6 +117,16 @@ public partial class ChartNode : Node
         _vp.AddChild(_land);
 
         _font = ThemeDB.FallbackFont;
+        /* L'ÉCRITURE DU CAPITAINE, en Estonia (Robert Leuschke, licence OFL) :
+           une anglaise à la plume, comme on écrivait un livre de bord. Lue à
+           l'exécution, sans import ; absente, les notes gardent la police du
+           moteur. */
+        string hand = ProjectSettings.GlobalizePath("res://fonts/Estonia-Regular.ttf");
+        if (System.IO.File.Exists(hand))
+        {
+            var f = new FontFile();
+            if (f.LoadDynamicFont(hand) == Error.Ok) { _hand = f; GD.Print("carte : les notes s'écrivent en Estonia"); }
+        }
         _ink = new Pen(this) { Size = new Vector2(Side, hgt) };
         _vp.AddChild(_ink);
 
@@ -223,6 +247,30 @@ public partial class ChartNode : Node
     {
         _maskTex.Update(_mask);
         _ink.QueueRedraw();
+        _screenInk?.QueueRedraw();
+    }
+
+    Pen? _screenInk;
+
+    /// <summary>
+    /// L'encre de la carte OUVERTE, tracée à l'écran : un calque à poser sur la
+    /// vue, que <paramref name="map"/> et <paramref name="k"/> tiennent à la loupe.
+    /// Tant qu'il est là, la feuille se dessine sans encre — elle serait sinon
+    /// dessous, pixelisée, et doublerait chaque trait.
+    /// </summary>
+    public Control ScreenInk()
+    {
+        _screenInk ??= new Pen(this) { AnchorRight = 1, AnchorBottom = 1 };
+        return _screenInk;
+    }
+
+    public void SetScreenInk(Func<Vector2, Vector2> map, float k, bool on)
+    {
+        if (_screenInk == null) return;
+        _screenInk.Map = map;
+        _screenInk.K = k;
+        _screenInk.QueueRedraw();
+        if (_ink.Visible == on) _ink.Visible = !on;
     }
 
     /* LA PLUME. Tout ce que le capitaine ajoute est dessiné ici, par-dessus la
@@ -232,6 +280,20 @@ public partial class ChartNode : Node
     {
         readonly ChartNode _c;
         public Pen(ChartNode c) { _c = c; MouseFilter = MouseFilterEnum.Ignore; }
+
+        /* LA MÊME ENCRE À DEUX ÉCHELLES. Sur la feuille (le bureau, la texture),
+           rien ne change : Map est l'identité. Sur la carte OUVERTE, elle est
+           retracée à la résolution de l'écran — agrandie depuis une feuille de
+           2 048 pixels, où un pixel vaut soixante mètres, elle se lisait en
+           escaliers à la loupe (signalé). Map porte les pixels de feuille vers
+           ceux de l'écran ; K est leur rapport. Les traits grossissent avec la
+           loupe, mais pas au-delà d'une fois et demie : une plume n'est pas un
+           pinceau. Les lettres de même, entre 0,7 et 1,3. */
+        public Func<Vector2, Vector2> Map = p => p;
+        public float K = 1;
+        float Wk => Math.Min(K, 1.5f);
+        int Fs(int n) => Math.Max(10, (int)Math.Round(n * Math.Clamp(K, 0.7f, 1.3f)));
+        Vector2 At(double x, double z) => Map(_c.ToChart(x, z));
 
         static readonly Color[] Inks =
         {
@@ -243,36 +305,38 @@ public partial class ChartNode : Node
         public override void _Draw()
         {
             var b = _c.Book;
-            // la route parcourue, au trait fin : c'est elle qui justifie le reste
-            if (b.Track.Count > 1)
+            /* LA ROUTE PORTÉE À LA PLUME, au trait fin : la route ESTIMÉE. La vraie
+               (Track) ne se dessine pas — elle ne sert qu'à percer le voile. */
+            var route = b.Estim.Count > 1 ? b.Estim : null;
+            if (route != null)
             {
-                var pts = new Vector2[b.Track.Count];
-                for (int i = 0; i < pts.Length; i++) pts[i] = _c.ToChart(b.Track[i].X, b.Track[i].Z);
-                DrawPolyline(pts, new Color(0.30f, 0.22f, 0.16f, 0.55f), 1.5f * Q, true);
+                var pts = new Vector2[route.Count];
+                for (int i = 0; i < pts.Length; i++) pts[i] = At(route[i].X, route[i].Z);
+                DrawPolyline(pts, new Color(0.30f, 0.22f, 0.16f, 0.55f), 1.5f * Q * Wk, true);
             }
             // les ports touchés, d'un rond et de leur nom
             foreach (string key in b.Ports)
             {
                 var isl = _c._world.ByKey(key);
                 if (isl == null) continue;
-                var p = _c.ToChart(isl.X, isl.Z);
-                DrawCircle(p, 4.5f * Q, new Color(0.28f, 0.19f, 0.12f), false, 1.6f * Q);
-                DrawString(_c._font, p + new Vector2(7 * Q, 4 * Q), isl.Name,
-                    HorizontalAlignment.Left, -1, 15, new Color(0.26f, 0.18f, 0.11f));
+                var p = At(isl.X, isl.Z);
+                DrawCircle(p, 4.5f * Q * Wk, new Color(0.28f, 0.19f, 0.12f), false, 1.6f * Q * Wk);
+                DrawString(_c._font, p + new Vector2(7 * Q * Wk, 4 * Q * Wk), isl.Name,
+                    HorizontalAlignment.Left, -1, Fs(15), new Color(0.26f, 0.18f, 0.11f));
             }
             /* LES CROIX : ce qu'une carte de bouteille a appris. Une croix, pas
                un rond — un rond est un lieu qu'on a relevé soi-même, une croix
                est un lieu qu'on tient de quelqu'un d'autre. */
             foreach (var x in b.Crosses)
             {
-                var p = _c.ToChart(x.X, x.Z);
+                var p = At(x.X, x.Z);
                 var gold = new Color(0.86f, 0.62f, 0.16f);
-                float r = 5f * Q;
-                DrawLine(p - new Vector2(r, r), p + new Vector2(r, r), gold, 2.2f * Q);
-                DrawLine(p + new Vector2(r, -r), p + new Vector2(-r, r), gold, 2.2f * Q);
+                float r = 5f * Q * Wk;
+                DrawLine(p - new Vector2(r, r), p + new Vector2(r, r), gold, 2.2f * Q * Wk);
+                DrawLine(p + new Vector2(r, -r), p + new Vector2(-r, r), gold, 2.2f * Q * Wk);
                 if (x.Text.Length > 0)
-                    DrawString(_c._font, p + new Vector2(r + 4 * Q, 4 * Q), x.Text,
-                        HorizontalAlignment.Left, -1, 14, gold);
+                    DrawString(_c._font, p + new Vector2(r + 4 * Q * Wk, 4 * Q * Wk), x.Text,
+                        HorizontalAlignment.Left, -1, Fs(14), gold);
             }
 
             // une bouteille à la dérive : un point pâle et son cercle, car on ne
@@ -281,10 +345,10 @@ public partial class ChartNode : Node
                 foreach (var m in _c.Marks())
                 {
                     if (m.Cargo) continue;
-                    var p = _c.ToChart(m.X, m.Z);
+                    var p = At(m.X, m.Z);
                     var pale = new Color(0.85f, 0.94f, 0.92f);
-                    DrawCircle(p, 2f * Q, pale);
-                    DrawCircle(p, 5f * Q, new Color(pale, 0.55f), false, 1f * Q);
+                    DrawCircle(p, 2f * Q * Wk, pale);
+                    DrawCircle(p, 5f * Q * Wk, new Color(pale, 0.55f), false, 1f * Q * Wk);
                 }
 
             // les traits de plume
@@ -293,35 +357,89 @@ public partial class ChartNode : Node
                 if (s.Pts.Count < 2)
                 {
                     if (s.Pts.Count == 1)
-                        DrawCircle(_c.ToChart(s.Pts[0].X, s.Pts[0].Z), 2f * Q, Inks[Math.Clamp(s.Ink, 0, 2)]);
+                        DrawCircle(At(s.Pts[0].X, s.Pts[0].Z), 2f * Q * Wk, Inks[Math.Clamp(s.Ink, 0, 2)]);
                     continue;
                 }
                 var pts = new Vector2[s.Pts.Count];
-                for (int i = 0; i < pts.Length; i++) pts[i] = _c.ToChart(s.Pts[i].X, s.Pts[i].Z);
-                DrawPolyline(pts, Inks[Math.Clamp(s.Ink, 0, 2)], 2.2f * Q, true);
+                for (int i = 0; i < pts.Length; i++) pts[i] = At(s.Pts[i].X, s.Pts[i].Z);
+                Nib(pts, Inks[Math.Clamp(s.Ink, 0, 2)]);
             }
             /* LE CERCLE DORÉ de l'étape en cours, par-dessus tout le reste : ce
                qu'on cherche sur une carte doit se voir avant ce qu'on y a déjà
                écrit. Son rayon est celui de l'objectif, en vraies toises. */
             if (_c.Aim?.Invoke() is { } aim)
             {
-                var p = _c.ToChart(aim.X, aim.Z);
-                float r = (float)Math.Max(6 * Q, aim.R / _c.MetresPerPixel);
+                var p = At(aim.X, aim.Z);
+                float r = (float)Math.Max(6 * Q * Wk, aim.R / _c.MetresPerPixel * K);
                 var gold = new Color(0.86f, 0.70f, 0.28f);
-                DrawCircle(p, r, gold, false, 2.0f * Q);
-                DrawCircle(p, 2.4f * Q, gold);
+                DrawCircle(p, r, gold, false, 2.0f * Q * Wk);
+                DrawCircle(p, 2.4f * Q * Wk, gold);
                 if (aim.Name.Length > 0)
-                    DrawString(_c._font, p + new Vector2(r + 5 * Q, 4 * Q), aim.Name,
-                        HorizontalAlignment.Left, -1, 15, gold);
+                    DrawString(_c._font, p + new Vector2(r + 5 * Q * Wk, 4 * Q * Wk), aim.Name,
+                        HorizontalAlignment.Left, -1, Fs(15), gold);
             }
+            /* OÙ L'ON CROIT ÊTRE : une petite croix de plume, et l'ellipse de ce
+               qu'on n'en sait pas — un écart-type, plus large en longitude qu'en
+               latitude dès qu'on a pris la hauteur. */
+            if (_c.Where?.Invoke() is { } w)
+            {
+                var p = At(w.X, w.Z);
+                var ink = new Color(0.28f, 0.19f, 0.12f);
+                float rx = (float)(w.SE / _c.MetresPerPixel * K), ry = (float)(w.SN / _c.MetresPerPixel * K);
+                if (rx > 3 || ry > 3)
+                {
+                    var ring = new Vector2[49];
+                    for (int i = 0; i < ring.Length; i++)
+                    {
+                        float a = i * Mathf.Tau / 48;
+                        ring[i] = p + new Vector2(Mathf.Cos(a) * Math.Max(rx, 1), Mathf.Sin(a) * Math.Max(ry, 1));
+                    }
+                    DrawPolyline(ring, new Color(ink, 0.55f), 1.2f * Q * Wk, true);
+                }
+                float c = 4.5f * Q * Wk;
+                DrawLine(p - new Vector2(c, 0), p + new Vector2(c, 0), ink, 1.6f * Q * Wk);
+                DrawLine(p - new Vector2(0, c), p + new Vector2(0, c), ink, 1.6f * Q * Wk);
+                DrawCircle(p, 1.6f * Q * Wk, ink);
+            }
+            // la vérité, au débogage : un point rouge
+            if (_c.Unveiled && _c.Truth?.Invoke() is { } t)
+                DrawCircle(At(t.X, t.Z), 3f * Q * Wk, new Color(0.85f, 0.12f, 0.08f));
+
             // et ses mots, à l'endroit qu'ils désignent
             foreach (var n in b.Notes)
             {
-                var p = _c.ToChart(n.X, n.Z);
-                DrawString(_c._font, p + new Vector2(6 * Q, 5 * Q), n.Text,
-                    HorizontalAlignment.Left, -1, 16, new Color(0.24f, 0.16f, 0.10f));
-                DrawLine(p, p + new Vector2(4 * Q, 3 * Q), new Color(0.24f, 0.16f, 0.10f), 1.4f * Q);
+                var p = At(n.X, n.Z);
+                DrawString(_c._hand ?? _c._font, p + new Vector2(6 * Q * Wk, 6 * Q * Wk), n.Text,
+                    HorizontalAlignment.Left, -1, Fs(_c._hand != null ? 22 : 16), new Color(0.24f, 0.16f, 0.10f));
+                DrawLine(p, p + new Vector2(4 * Q * Wk, 3 * Q * Wk), new Color(0.24f, 0.16f, 0.10f), 1.4f * Q * Wk);
             }
+        }
+
+        /* LA PLUME BISEAUTÉE : un bec large tenu à 45°, qui ne tourne pas avec
+           la main. Chaque segment est le parallélogramme que balaie ce bec — plein
+           quand on trace en travers du biseau, un cheveu quand on trace dans son
+           fil. C'est tout le secret de la calligraphie, et il n'y a rien d'autre à
+           calculer. Un filet dessous, pour que le trait ne se rompe jamais. */
+        Color[]? _one4;
+
+        void Nib(Vector2[] pts, Color ink)
+        {
+            var half = new Vector2(1, -1).Normalized() * (_c.PenWidth * Q * Wk);
+            var quad = new Vector2[4];
+            for (int i = 0; i + 1 < pts.Length; i++)
+            {
+                var a = pts[i];
+                var c = pts[i + 1];
+                if (a.DistanceSquaredTo(c) < 1e-6f) continue;
+                quad[0] = a - half; quad[1] = a + half; quad[2] = c + half; quad[3] = c - half;
+                /* En primitive à quatre sommets, qui ne triangule pas : un
+                   parallélogramme presque plat (tracé dans le fil du bec) faisait
+                   échouer la triangulation de DrawColoredPolygon. */
+                _one4 ??= new Color[4];
+                _one4[0] = _one4[1] = _one4[2] = _one4[3] = ink;
+                DrawPrimitive(quad, _one4, null);
+            }
+            DrawPolyline(pts, ink, 0.45f * Q * Wk, true);
         }
     }
 }

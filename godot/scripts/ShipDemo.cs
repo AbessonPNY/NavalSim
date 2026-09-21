@@ -121,7 +121,14 @@ public partial class ShipDemo : Node3D
             _jetty = new JettyNode(_world);
             AddChild(_jetty);
             _book = LoadBook();
-            _chart = new ChartNode(_world, _book) { Aim = QuestPlace, Marks = () => _flotsam.Marks() };
+            _chart = new ChartNode(_world, _book)
+            {
+                PenWidth = _settings.PenWidth,
+                Aim = QuestPlace, Marks = () => _flotsam.Marks(),
+                // où l'on croit être, et — au débogage seulement — où l'on est
+                Where = () => _reck != null && _reck.Known && _reckRules.Enabled ? (_reck.X, _reck.Z, _reck.SigN, _reck.SigE) : null,
+                Truth = () => _ship == null ? null : TruePos()
+            };
             AddChild(_chart);
             LoadQuests();
             PlantCrosses();
@@ -139,6 +146,7 @@ public partial class ShipDemo : Node3D
         _kraken = new Kraken(_krakenRules) { BodyR = _krakenNode.BodyR };
         WireKraken();
         BuildWhale();
+        BuildReckoning();
 
         _paths = ShipLibrary.Discover();
         GD.Print($"{_paths.Count} fiche(s) lue(s) dans {ShipLibrary.Folder}");
@@ -585,6 +593,12 @@ public partial class ShipDemo : Node3D
         Check("Lanterne du grand mât", st.MastLantern, on => st.MastLantern = on);
         Slide("Reflet sur la mer", 0, 6, 0.1, st.LampReflection, x => st.LampReflection = x);
         Slide("Lumière dans l'eau", 0, 2, 0.05, st.LampWater, x => st.LampWater = x);
+        Title("Carte", 15);
+        Slide("Épaisseur de la plume", 0.5, 4, 0.1, st.PenWidth, x =>
+        {
+            st.PenWidth = x;
+            if (_chart != null) { _chart.PenWidth = x; _chart.Refresh(); }
+        });
         Title("Son", 15);
         Check("Bruitages", st.Sound, on => { st.Sound = on; if (_sound != null) _sound.On = on; });
         Check("Musique d'ambiance", st.Music, on => st.Music = on);
@@ -992,6 +1006,7 @@ public partial class ShipDemo : Node3D
             }
             QuestTick(frame);
             PassageTick();
+            ReckonTick(frame);
             RumourTick(frame);
             if (_jetty != null)
             {
@@ -1611,6 +1626,7 @@ public partial class ShipDemo : Node3D
                 _calendar = new Calendar(s.GetString());
             if (root.TryGetProperty("ghosts", out var gh)) _ghosts.Rules = GhostRules.FromJson(gh);
             if (root.TryGetProperty("whale", out var wh)) _whaleRules = WhaleSettings.FromJson(wh);
+            if (root.TryGetProperty("reckoning", out var rk)) _reckRules = ReckoningSettings.FromJson(rk);
             if (root.TryGetProperty("wreck", out var wr) && wr.TryGetProperty("bottleOneIn", out var bo))
                 _bottleOneIn = bo.GetInt32();
             if (root.TryGetProperty("gunnery", out var gu)) _gunRules = GunnerySettings.FromJson(gu);
@@ -2392,6 +2408,7 @@ public partial class ShipDemo : Node3D
     void SaveBook()
     {
         if (_book == null) return;
+        KeepEstimate();
         using var f = FileAccess.Open(BookPath, FileAccess.ModeFlags.Write);
         f?.StoreString(_book.ToJson());
     }
