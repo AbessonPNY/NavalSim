@@ -6595,6 +6595,36 @@ même abri. La parité a été refaite sur la fiche modifiée : elle tient.
 
 Reste de ce lot : la chaloupe.
 
+## Le plan d'arrimage (Godot)
+
+Demandé : la fenêtre de la page pour simuler le chargement de poids.
+
+Trois hauteurs (pont 0,85, entre 0,50, fond 0,18) et cinq cales — les
+compartiments de l'envahissement, donc de vrais morceaux de coque. Clic : du lest
+chargé, clic droit : déchargé, au pas choisi (1 à 100 t) et du bord choisi. La
+grille montre tout ce que porte chaque case, lest et épices : c'est le poids qui
+compte pour la coque. « Vider » jette TOUT, épices comprises, comme dans la
+page — la cale fait foi — mais le dit (« 6,0 t d'épices par-dessus bord »).
+
+**Une seule définition pour les niveaux** : le fond du plan EST `HoldFloor`,
+celui où le comptoir range ses épices ; une cargaison chargée à un niveau que la
+grille ne connaît pas serait invisible — le bug que la page a connu.
+
+**LA TOUCHE** : aucune lettre partagée par AZERTY et QWERTY n'était libre. Reste
+l'emplacement Z d'un QWERTY, qui est le W d'un AZERTY : lu par son EMPLACEMENT,
+pour ne jamais tomber sur la machine, et nommé par
+`DisplayServer.KeyboardGetKeycodeFromPhysical` — le mémento et le panneau disent
+la lettre du clavier qu'on a sous les doigts (« W » ici), au lieu d'un nom de
+QWERTY.
+
+Le clic droit est lu sur le bouton lui-même (`GuiInput`) : un `Button` ne dit
+pas quel bouton l'a pressé.
+
+Mesuré par sonde, sur le vrai chemin des événements (chaland de 210 t) : touche
+→ panneau ouvert ; 10 t au fond → 220 t, tirant 1,74 → 1,82 m ; clic droit →
+210 t, case vide ; 20 t sur le pont à tribord → 230 t, gîte 3,1° du bon bord ;
+« Vider » → 210 t, tirant 1,73 m, gîte 0,0°.
+
 ## La Jamaïque seule, à 0,4
 
 Signalé : « la distance entre Port-Royal et la côte de la Jamaïque est bien trop

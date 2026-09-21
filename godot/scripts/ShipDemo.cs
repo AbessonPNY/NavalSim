@@ -210,6 +210,7 @@ public partial class ShipDemo : Node3D
         BuildChartView(layer);
         BuildTrim(layer);
         BuildMarket(layer);
+        BuildStow(layer);
         BuildEncart(layer);
         BuildQuestView(layer);
         BuildLost(layer);
@@ -1095,7 +1096,7 @@ public partial class ShipDemo : Node3D
                 new Vector2((float)(wv.X / ws), (float)(wv.Z / ws)));
 
         _hudAcc += frame;
-        if (_hudAcc > 0.15) { _hudAcc = 0; UpdateInfo(); AmbianceTick(); MarketTick(); }
+        if (_hudAcc > 0.15) { _hudAcc = 0; UpdateInfo(); AmbianceTick(); MarketTick(); StowTick(); }
         TrimTick();
 
         TickCapture();
@@ -1458,6 +1459,11 @@ public partial class ShipDemo : Node3D
                 case Key.F: _follow = !_follow; break;
                 case Key.C: CycleCamera(); break;
                 case Key.X: if (_fixed) Plant(); break;
+                /* LE PLAN D'ARRIMAGE, sur la seule place de lettre qui ne servait à
+                   rien : le Z d'un QWERTY, le W d'un AZERTY. Par son EMPLACEMENT,
+                   pour ne jamais tomber sur la machine ; le mémento et le panneau
+                   disent la lettre du clavier qu'on a sous les doigts. */
+                case Key.Z: ToggleStow(); break;
                 // l'occlusion ambiante et l'illumination globale, pour juger à l'œil
                 case Key.O: _settings.Occlusion = !_settings.Occlusion; Changed(); break;
                 case Key.Tab: CycleGunSide(); break;
