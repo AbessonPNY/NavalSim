@@ -67,20 +67,18 @@ public partial class ChartNode : Node
     public Func<System.Collections.Generic.IEnumerable<(double X, double Z, bool Cargo)>>? Marks;
 
     /// <summary>Le coin haut-gauche et l'étendue de la carte, en mètres monde.</summary>
-    double _x0, _z0, _w, _h;
+    /// <summary>La largeur de la région en mètres de jeu : l'image, pixel pour pixel.</summary>
+    double _w;
 
     public ChartNode(World world, Logbook book) { _world = world; Book = book; }
 
     public override void _Ready()
     {
-        // la carte couvre toute la région : c'est la feuille du bord, pas un détail
-        var E = _world.Relief;
-        var a = _world.Geo.ToXZ(E.North, E.West);
-        var b = _world.Geo.ToXZ(E.South, E.East);
-        _x0 = Math.Min(a.X, b.X); _z0 = Math.Min(a.Z, b.Z);
-        _w = Math.Abs(b.X - a.X); _h = Math.Abs(b.Z - a.Z);
-
-        int hgt = (int)Math.Round(Side * _h / Math.Max(1, _w));
+        /* la carte couvre toute la région : c'est la feuille du bord, pas un
+           détail — et elle en a les PROPORTIONS DE L'IMAGE, dont les pixels sont
+           carrés au milieu de la région, pour que le relief n'y soit pas étiré */
+        _w = _world.Px * _world.ImgW;
+        int hgt = (int)Math.Round((double)Side * _world.ImgH / _world.ImgW);
         _vp = new SubViewport
         {
             Size = new Vector2I(Side, hgt),
@@ -152,13 +150,47 @@ public partial class ChartNode : Node
     /// <summary>Combien de mètres du monde vaut un pixel de la feuille.</summary>
     public double MetresPerPixel => _w / _vp.Size.X;
 
-    /// <summary>Monde → pixels de la carte.</summary>
-    public Vector2 ToChart(double x, double z) =>
-        new((float)((x - _x0) / _w * _vp.Size.X), (float)((z - _z0) / _h * _vp.Size.Y));
+    /* MONDE → FEUILLE PAR LA CONVERSION MÊME DU RELIEF, et non par une seconde.
+       La carte avait la sienne, un rectangle de mètres pris entre deux coins —
+       avec l'est à GAUCHE (l'est est −x, et le plus petit x était pris pour le
+       bord gauche) et le sud en HAUT. Tout ce qu'elle posait — la route, les
+       ports, le voile percé, la plume, les croix — tournait donc d'un demi-tour
+       par rapport à l'île qu'elle dessinait, et restait d'accord avec lui-même :
+       rien ne clochait tant qu'on ne comparait pas une marque au rivage (signalé :
+       « Port-Royal et Passage Fort au mauvais endroit »). Le relief, lui, est
+       peint pixel à pixel par World.PixelAt ; les marques passent maintenant par
+       elle, si bien qu'elles ne peuvent plus se séparer de la côte. */
 
-    /// <summary>Et l'inverse : où la plume a touché la feuille.</summary>
-    public (double X, double Z) ToWorld(Vector2 p) =>
-        (_x0 + p.X / _vp.Size.X * _w, _z0 + p.Y / _vp.Size.Y * _h);
+    /// <summary>Monde → pixels de la carte.</summary>
+    public Vector2 ToChart(double x, double z)
+    {
+        var (pi, pj) = _world.PixelAt(x, z);
+        return new((float)(pi / _world.ImgW * _vp.Size.X), (float)(pj / _world.ImgH * _vp.Size.Y));
+    }
+
+    /// <summary>Et l'inverse : où la plume a touché la feuille — l'inverse exact de PixelAt, puis de Geo.Fix.</summary>
+    public (double X, double Z) ToWorld(Vector2 p)
+    {
+        var E = _world.Relief;
+        double lon = E.West + p.X / _vp.Size.X * (E.East - E.West);
+        double lat = E.North - p.Y / _vp.Size.Y * (E.North - E.South);
+        return _world.Geo.ToXZ(lat, lon);
+    }
+
+    /// <summary>
+    /// DÉBOGAGE : toute l'île dévoilée, ou le voile rendu à ce que ce bord a vu.
+    /// Rien n'est écrit dans le carnet — c'est un regard de l'auteur, pas une
+    /// découverte du capitaine, et le rouvrir le lendemain rend la carte honnête.
+    /// </summary>
+    public bool Unveiled { get; private set; }
+
+    public void Unveil(bool on)
+    {
+        Unveiled = on;
+        _mask.Fill(on ? new Color(1, 1, 1) : new Color(0, 0, 0));
+        if (!on) foreach (var (x, z) in Book.Track) Reveal(x, z);
+        Refresh();
+    }
 
     /// <summary>Percer le voile autour d'un point de route.</summary>
     void Reveal(double x, double z)
@@ -183,7 +215,7 @@ public partial class ChartNode : Node
     public void Sail(double x, double z)
     {
         if (!Book.Sail(x, z)) return;
-        Reveal(x, z);
+        if (!Unveiled) Reveal(x, z);
         Refresh();
     }
 

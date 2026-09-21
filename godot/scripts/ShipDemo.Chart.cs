@@ -74,6 +74,20 @@ public partial class ShipDemo : Node3D
         };
         _chartEntry.TextSubmitted += WriteNote;
         root.AddChild(_chartEntry);
+
+        /* DÉBOGAGE : toute la Jamaïque sans voile, pour juger la carte sans
+           avoir à en faire le tour. Hors de la feuille, en haut à droite. */
+        var unveil = new Button
+        {
+            Text = "Tout dévoiler (débogage)", ToggleMode = true, FocusMode = Control.FocusModeEnum.None,
+            AnchorLeft = 1, AnchorRight = 1, OffsetLeft = -230, OffsetRight = -12, OffsetTop = 6, OffsetBottom = 34
+        };
+        unveil.Toggled += on =>
+        {
+            _chart?.Unveil(on);
+            unveil.Text = on ? "Rendre le voile" : "Tout dévoiler (débogage)";
+        };
+        root.AddChild(unveil);
     }
 
     void LayoutChart()
@@ -195,13 +209,16 @@ public partial class ShipDemo : Node3D
             var at = Under(mb.Position);
             if (mb.ButtonIndex == MouseButton.Left)
             {
-                if (mb.Pressed && at != null) { _drawing = _book.Begin(_ink); _drawing.Pts.Add(at.Value); }
-                else if (!mb.Pressed)
-                {
-                    // un trait d'un seul point est une croix, pas une erreur : on le garde
-                    _drawing = null;
-                    SaveBook();
-                }
+                /* HORS DE LA FEUILLE, le clic n'est pas à la plume : il va à
+                   l'interface — le bouton de débogage, et ce qui viendra. La carte
+                   est servie AVANT l'interface ; si elle gardait tout, rien d'autre
+                   sur cet écran ne recevrait jamais un clic. */
+                if (mb.Pressed && at == null) return false;
+                if (mb.Pressed) { _drawing = _book.Begin(_ink); _drawing.Pts.Add(at!.Value); return true; }
+                if (_drawing == null) return false;
+                // un trait d'un seul point est une croix, pas une erreur : on le garde
+                _drawing = null;
+                SaveBook();
                 return true;
             }
             if (mb.ButtonIndex == MouseButton.WheelUp || mb.ButtonIndex == MouseButton.WheelDown)
