@@ -6626,6 +6626,10 @@ proportion de ce que le reflet de la coque occupe.
 
 **Puis : les festons.** Au soleil bas, seize hauteurs tombaient à 3 m l'une de l'autre sur l'eau et chacune dessinait son contour de coque. Vingt-quatre hauteurs, une pénombre d'une fois et demie leur écart, et un décalage des hauteurs propre à chaque pixel (bruit à gradient entrelacé) : ce qui reste du motif devient grain.
 
+## Le curseur de l'heure (Godot)
+
+Signalé : « le soleil se couche mais ne se lève pas ». Le cycle était juste (mesuré sur un jour accéléré : coucher à 18 h 20, lever à 5 h 50, image revenue à la même luminosité le lendemain) ; c'était le curseur « Hauteur du soleil » : il réglait la hauteur à relèvement fixe, ne pouvait pas faire passer le soleil du lever au coucher, et le toucher arrêtait le jour — posé le soir, le soleil ne se relevait plus. Remplacé par un curseur « Heure », de 0 à 24 h : la vraie course (est, sud, ouest, lune et feux la nuit), l'étiquette dit l'heure et la hauteur (« 06:18 · soleil 7° », « crépuscule », « nuit »). Le jour REPART de l'heure choisie ; seul « Défilement du jour » à zéro l'arrête.
+
 ## L'estime : où l'on croit être (Godot)
 
 Demandé : savoir où l'on est sur la carte par une méthode de vraie navigation.

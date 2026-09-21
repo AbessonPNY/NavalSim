@@ -697,23 +697,27 @@ public partial class ShipDemo : Node3D
         layer.AddChild(panel);
         _sunPanel = panel;
 
-        _sunVal = Row(box, "Hauteur du soleil");
-        /* Jusqu'à −40 : à cette latitude le soleil descend vraiment aussi bas, et
-           un curseur arrêté à −10 montrerait une nuit figée au crépuscule. */
-        _sunElev = Slider(box, -40, 80, 1, _sky.Core.SunElevDeg);
+        _sunVal = Row(box, "Heure");
+        /* L'HEURE, ET NON LA HAUTEUR. Le curseur réglait la hauteur du soleil à
+           relèvement fixe : il ne pouvait pas le faire passer du lever au coucher,
+           et le toucher arrêtait le jour — un soleil posé le soir ne se relevait
+           plus (signalé). L'heure, elle, donne la vraie course : l'est au lever,
+           le sud à midi, l'ouest au coucher, la lune et les feux la nuit. */
+        _sunElev = Slider(box, 0, 24, 0.05, _sky.Core.DayTime);
         _sunSpeedVal = Row(box, "Défilement du jour");
         _sunSpeed = Slider(box, 0, 16, 0.5, _sky.DayRate);
 
-        /* PRENDRE LE SOLEIL EN MAIN ARRÊTE L'HORLOGE, pour la même raison que la
-           mer : être réécrit un cinquième de seconde plus tard n'est pas une
-           interface. La hauteur change, le relèvement reste le sien. */
-        _sunElev.DragStarted += () => { _sky.DayRate = 0; _sunSpeed.SetValueNoSignal(0); ShowSunSpeed(); };
+        /* Le jour REPART de l'heure choisie : on ne l'arrête plus en y touchant
+           (« Défilement du jour » à zéro le fait). Pendant qu'on tient le
+           curseur, l'horloge ne le réécrit pas sous la main. */
+        _sunElev.DragStarted += () => _sunHeld = true;
+        _sunElev.DragEnded += _ => _sunHeld = false;
         _sunElev.ValueChanged += v =>
         {
-            _sky.DayRate = 0; _sunSpeed.SetValueNoSignal(0); ShowSunSpeed();
-            _sky.Core.SetSun(v, _sky.Core.SunBearingDeg);
+            _sky.Core.SetTimeOfDay(v % 24, _sky.Latitude);
             _sky.Apply();
-            ShowSun(v);
+            ShowSun(_sky.Core.SunElevDeg);
+            ShowSunSpeed();
         };
         _sunSpeed.ValueChanged += v => { _sky.DayRate = v; ShowSunSpeed(); };
         ShowSun(_sky.Core.SunElevDeg);
@@ -749,8 +753,15 @@ public partial class ShipDemo : Node3D
         return s;
     }
 
-    void ShowSun(double e) =>
-        _sunVal.Text = e < 0 ? $"nuit {Math.Round(e)}°" : $"{Math.Round(e)}°";
+    bool _sunHeld;
+
+    /// <summary>L'heure, et ce qu'elle fait du soleil : sa hauteur, ou la nuit.</summary>
+    void ShowSun(double e)
+    {
+        double h = _sky.Core.DayTime;
+        string clock = $"{(int)h:00}:{(int)((h - (int)h) * 60):00}";
+        _sunVal.Text = e < -6 ? $"{clock} · nuit" : e < 0 ? $"{clock} · crépuscule" : $"{clock} · soleil {Math.Round(e)}°";
+    }
 
     /// <summary>
     /// Le taux ÉNONCÉ : « ×2 » ne veut rien dire si « ×1 » ne dit pas quoi —
@@ -759,10 +770,8 @@ public partial class ShipDemo : Node3D
     void ShowSunSpeed()
     {
         double v = _sky.DayRate;
-        double h = _sky.Core.DayTime;
-        string clock = $"{(int)h:00}:{(int)((h - (int)h) * 60):00}";
-        _sunSpeedVal.Text = v <= 0 ? $"arrêt · {clock}"
-            : $"×{(v % 1 != 0 ? v.ToString("F1") : v.ToString("F0"))} · {Math.Round(24 / v)} min/jour · {clock}";
+        _sunSpeedVal.Text = v <= 0 ? "arrêt"
+            : $"×{(v % 1 != 0 ? v.ToString("F1") : v.ToString("F0"))} · {Math.Round(24 / v)} min/jour";
     }
 
     /// <summary>Le curseur suit le soleil quand le jour tourne, quatre fois par seconde.</summary>
@@ -771,11 +780,8 @@ public partial class ShipDemo : Node3D
         _sunTick += dt;
         if (_sunTick < 0.25) return;
         _sunTick = 0;
-        if (_sky.DayRunning)
-        {
-            _sunElev.SetValueNoSignal(Math.Round(_sky.Core.SunElevDeg));
-            ShowSun(_sky.Core.SunElevDeg);
-        }
+        if (_sky.DayRunning && !_sunHeld) _sunElev.SetValueNoSignal(_sky.Core.DayTime);
+        ShowSun(_sky.Core.SunElevDeg);
         ShowSunSpeed();
     }
 
