@@ -9,7 +9,7 @@ public sealed class GhostRules
 {
     public bool Enabled = true;
     public string Name = "Le Cimetière des Galions";
-    public double X = -9000, Z = 6000;          // mètres VRAIS : le large, 70 m de fond, 5,7 km de toute côte
+    public double X = -6000, Z = -14000;        // mètres VRAIS : le large au sud, 394 m de fond, 11,6 km de toute côte
     public double Radius = 2500;                // le lieu, tel que la carte le trace
     public double LingerBefore = 90;            // secondes de nuit passées dedans avant qu'ils viennent
     public double AggroRange = 350;             // plus près que cela de l'un d'eux, et il se retourne contre vous

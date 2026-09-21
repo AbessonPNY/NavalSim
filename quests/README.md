@@ -9,7 +9,7 @@ un fil d'un lieu à l'autre.
 
 Pendant une quête :
 - l'objectif s'écrit en doré sous la date et le temps, avec la distance et le
-  cap à suivre (« Accoster à Petit-Goâve — 22,7 M au 073° ») ;
+  cap à suivre (« Accoster à Port Morant — 11,6 M au 096° ») ;
 - son lieu est cerclé de doré sur la carte (touche `O` pour la grande carte) ;
 - quand une étape est remplie, son `message` s'affiche au milieu de l'écran
   (un clic le ferme), puis la consigne de l'étape suivante ;
@@ -25,9 +25,9 @@ Pendant une quête :
   "intro": "Affiché au lancement de la quête (sinon : summary).",
   "steps": [
     {
-      "title": "Accoster à Petit-Goâve",
+      "title": "Accoster à Port Morant",
       "brief": "Consigne affichée quand l'étape commence (facultatif).",
-      "at": { "port": "petit-goave" },
+      "at": { "port": "port-morant" },
       "goal": "dock",
       "radius": 450,
       "message": "Affiché quand l'étape est remplie.\nUn saut de ligne avec \\n."
@@ -67,7 +67,7 @@ propres mètres.
 
 | forme | sens |
 |---|---|
-| `{ "port": "petit-goave" }` | la tête du ponton de ce port |
+| `{ "port": "port-morant" }` | la tête du ponton de ce port |
 | `{ "port": "port-royal", "bearing": 180, "miles": 2 }` | à 2 milles de la carte du port, dans le relèvement 180° (0 nord, 90 est). `distance` en mètres au lieu de `miles` |
 | `{ "lat": 19.85, "lon": -73.62 }` | latitude et longitude réelles, comme la carte les affiche |
 | `{ "x": -4000, "z": 9000 }` | mètres du monde (0 = Port-Royal) |
@@ -78,13 +78,11 @@ Ports de la Jamaïque, dans le sens des aiguilles depuis Port-Royal :
 `port-royal`, `passage-fort`, `old-harbour`, `withywood`, `black-river`,
 `savanna-la-mar`, `negril`, `lucea`, `montego-bay`, `dry-harbour`,
 `port-maria`, `port-antonio`, `port-morant`, `yallahs` — les rades que porte
-une carte anglaise de la fin du XVIIe siècle. Le reste de la mer :
-`santiago`, `tortue`, `petit-goave`, `carthagene`, `santa-marta`,
-`portobelo`, `curacao`.
+une carte anglaise de la fin du XVIIe siècle.
 
-L'île entière tient dans neuf milles : de Port-Royal, Passage Fort est à
-0,3 M, Yallahs à 1,6 M, Port Morant à 2,9 M, Negril — la pointe de l'ouest —
-à 9,0 M.
+À l'échelle 0,4, de Port-Royal : Passage Fort 1,3 M, Old Harbour 5,9 M,
+Yallahs 6,2 M, Port Morant 11,6 M, Negril — la pointe de l'ouest — 35,5 M.
+Compter une heure pour six milles, davantage contre l'alizé.
 
 ## Dans Godot
 

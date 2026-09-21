@@ -33,7 +33,7 @@ const W = new Naval.World(region, img);
 const places = [
   { title: 'le ponton', at: { port: 'port-royal' } },
   { title: 'le ponton, autre port', at: { port: 'port-antonio' } },
-  { title: 'ancien nom', at: { island: 'petit-goave' } },
+  { title: 'ancien nom', at: { island: 'yallahs' } },
   { title: 'deux milles au sud', at: { port: 'port-royal', bearing: 180, miles: 2 } },
   { title: 'un mille a l est', at: { port: 'port-royal', bearing: 90, miles: 1 } },
   { title: 'en metres, plein nord', at: { port: 'yallahs', bearing: 0, distance: 900 } },

@@ -24,7 +24,7 @@ window.Naval = window.Naval || {};
 Naval.GHOSTS = {
   enabled: true,
   name: 'Le Cimetière des Galions',
-  x: -9000, z: 6000,       // true metres: open water, 70 m deep, 5.7 km from any shore
+  x: -6000, z: -14000,     // true metres: open water off the south coast, 394 m deep, 11.6 km from any shore
   radius: 2500,            // the place, as the chart draws it
   lingerBefore: 90,        // seconds of night spent inside it before they come
   aggroRange: 350,         // closer than this to one of them, and it turns on you

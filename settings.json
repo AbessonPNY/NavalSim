@@ -63,8 +63,8 @@
   "ghosts": {
     "enabled": true,
     "name": "Le Cimetière des Galions",
-    "x": -9000,
-    "z": 6000,
+    "x": -6000,
+    "z": -14000,
     "radius": 2500,
     "lingerBefore": 90,
     "aggroRange": 350,

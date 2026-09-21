@@ -49,7 +49,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `ocean.js` | houle de Gerstner : shader GPU **et** échantillonnage CPU |
 | `foam.js` · `ssao.js` | champ d'écume persistant · occlusion ambiante du navire |
 | `underwater.js` | la coque vue à travers l'eau |
-| `world.js` · `land.js` | la mer des Caraïbes lue dans `world/` (relief, ports, modèles posés, `Naval.Geo`) · le relief en carreaux |
+| `world.js` · `land.js` | la Jamaïque (×0,4) lue dans `world/` (relief, ports, modèles posés, `Naval.Geo`) · le relief en carreaux |
 | `jetty.js` | le ponton d'un port |
 | `chart.js` | la carte marine |
 | `quests.js` | les quêtes : étapes, lieux, objectifs (`quests/*.json`) |

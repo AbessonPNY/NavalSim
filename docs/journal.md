@@ -6595,6 +6595,44 @@ même abri. La parité a été refaite sur la fiche modifiée : elle tient.
 
 Reste de ce lot : la chaloupe.
 
+## La Jamaïque seule, à 0,4
+
+Signalé : « la distance entre Port-Royal et la côte de la Jamaïque est bien trop
+courte, tout cela ressemble à un petit port breton. »
+
+**CE N'ÉTAIT PAS LA PEINTURE, C'ÉTAIT L'ÉCHELLE.** Au dixième, la rade de
+Kingston tenait en trois cents mètres (Port-Royal – Kingston 0,28 M) ; repeindre
+la côte n'y pouvait rien, puisque chaque distance est une latitude et une
+longitude multipliées par `scale`. Deux voies chiffrées avant de toucher à rien :
+toute la mer à 0,2 (la côte deux fois plus grossière, 90 m par pixel, ou 830 Mo
+en pointe pour garder la finesse), ou la Jamaïque seule, recadrée. Choisi : la
+Jamaïque à **0,4**, image 2 720 × 1 580, **toujours 45 m par pixel**, 21 Mo de
+relief tenu au lieu de 45. Le monde se charge en 46 ms au lieu de 95.
+
+Mesuré sur la nouvelle carte : Port-Royal – Passage Fort 1,3 M, Old Harbour
+5,9 M, Yallahs 6,2 M, Port Morant 11,6 M au 096°, Negril 35,5 M ; la plus longue
+traversée 47,5 M, d'où un palier de cours de 34 176 s (9,5 h). Port-Royal bâtit
+maintenant ses 150 maisons — elle n'en trouvait que 64 sur une langue de sable
+de trois pixels ramenée au dixième.
+
+**CE QUI A DÛ SUIVRE, et qui ne suivait pas de lui-même** — tout ce qui était
+écrit en mètres du monde plutôt qu'en latitude :
+- le Cimetière des Galions (`settings.json`, `ghosts.js`, `Ghosts.cs`) serait
+  tombé sur une colline de 534 m : porté à (−6 000, −14 000), 394 m de fond,
+  11,6 km de toute côte ;
+- les sept ports hors de l'île ont quitté la fiche, et la quête qui allait à
+  Petit-Goâve a été ramenée en Jamaïque — le pli va au fort de Port Morant, la
+  Sainte-Anne a disparu après avoir doublé la pointe Morant (293 m de fond,
+  3,9 km de côte) ;
+- le tour d'apprentissage aurait duré quatre heures, dont six milles contre
+  l'alizé : il s'arrête à Old Harbour, vent portant, 8,7 M en tout ;
+- le banc de parité testait l'ancien nom `island` sur Petit-Goâve : il le teste
+  sur Yallahs.
+
+Ce qui a suivi SEUL : les ports, leurs pontons et leurs villes, les lieux des
+quêtes (écrits en ports et en latitudes), la carte du capitaine, le palier des
+cours. C'est la raison d'écrire un lieu en latitude plutôt qu'en mètres.
+
 ## La ligne d'eau sur le bordé (Godot)
 
 Signalé : « la transparence de l'eau au niveau du bateau est trop importante ;

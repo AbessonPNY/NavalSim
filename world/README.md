@@ -1,9 +1,14 @@
-# Le monde : la mer des Caraïbes
+# Le monde : la Jamaïque
 
-Le monde est la vraie géographie autour de la Jamaïque, **formes réelles,
-distances et tailles ÷ 10**, **hauteurs × 0,25** (à pleine échelle, une
-traversée vers Carthagène dure quatre jours ; au dixième, une soirée). La
-carte marine affiche les vraies latitudes et longitudes.
+Le monde est la vraie Jamaïque, **formes réelles, distances et tailles × 0,4**,
+**hauteurs × 0,25**. La carte marine affiche les vraies latitudes et longitudes.
+
+Elle a d'abord été toute la mer des Caraïbes au dixième, et la rade de Kingston
+y tenait en trois cents mètres — « un petit port breton ». À 0,4 et recadrée
+sur l'île, la rade fait un vrai mille (Port-Royal – Passage Fort 1,3 M), l'île
+entière 36 M d'une pointe à l'autre, pour la même finesse de côte (45 m par
+pixel) et deux fois moins de mémoire. Cuba, Hispaniola et la Terre-Ferme en
+sont sorties ; elles reviendraient comme d'autres régions.
 
 Tout vient de deux fichiers, et rien d'autre dans le jeu ne connaît la forme
 de la terre :
@@ -35,7 +40,7 @@ Ouvrez `world/caraibes-relief.png` dans Photoshop, GIMP ou Krita, en
 (`hauteur = 1500 × ((gris−128)/127)²`, `profondeur = −400 × ((128−gris)/128)²`,
 réglables dans `relief` : `maxHeight`, `maxDepth`, `curve`.)
 
-- Un pixel vaut **45 m de jeu** (450 m réels). Une langue de terre plus fine
+- Un pixel vaut **45 m de jeu** (112 m réels). Une langue de terre plus fine
   qu'un pixel et demi disparaît : peignez-la d'au moins 2 pixels.
 - Les **fonds** comptent pour la navigation : 12 m à 40 m du rivage, puis le
   plateau ; les profondeurs ne sont **pas** réduites (une quille est une
@@ -82,7 +87,8 @@ dans la console.
 `dry-harbour`, `port-maria`, `port-antonio`, `port-morant`, `yallahs` — sont
 celles que porte une carte anglaise de la fin du XVIIe siècle, à leurs vraies
 latitudes. Elles font le tour de l'île dans le sens des aiguilles depuis
-Port-Royal ; l'île entière tient dans neuf milles à cette échelle.
+Port-Royal. De Port-Royal : Passage Fort 1,3 M, Old Harbour 5,9 M, Yallahs
+6,2 M, Port Morant 11,6 M, Negril — la pointe de l'ouest — 35,5 M.
 
 Avant d'écrire une fiche, on peut lire ce qu'elle donne :
 
