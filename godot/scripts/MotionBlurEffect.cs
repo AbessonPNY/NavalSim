@@ -24,7 +24,7 @@ public partial class MotionBlurEffect : ScreenEffect
     public float MaxLength = 0.06f;       // fraction de l'écran
 
     // std140 : voir Params dans motion_blur.glsl
-    public const int MaxShips = 8;
+    public const int MaxShips = NavalSim.Core.Config.MaxShips;   // et les tableaux de motion_blur.glsl, à la main
     const int OffMisc = 192, OffToLocal = 208, OffPrevModel = OffToLocal + 64 * MaxShips,
               OffMin = OffPrevModel + 64 * MaxShips, OffMax = OffMin + 16 * MaxShips, Size = OffMax + 16 * MaxShips;
 

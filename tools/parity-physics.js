@@ -169,7 +169,8 @@ for (const sc of scenarios) {
   const phys = new Naval.ShipPhysics(spec, lines);
   const ocean = makeOcean(sc.force, sc.deg, 0);
 
-  if (sc.breach) { phys.breach(1, 0.30, 0.20); phys.breach(3, 0.18, 0.35); }
+  // deux trous de boulet, un par bord, que le charpentier bouche : un tampon toutes les 4 s pour tenir dans l essai
+  if (sc.breach) { phys.breach(1, 0.30, 0.20); phys.breach(3, 0.18, 0.35); phys.breach(2, 0.025, 0.45, 1); phys.breach(0, 0.025, 0.40, -1); phys.plugEvery = 4; }
   let grips = null;
   if (sc.grips) {
     const rails = [0.28, -0.05, -0.32, 0.12, -0.2, 0.4];

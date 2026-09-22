@@ -70,7 +70,10 @@ public sealed class Breach
 {
     public int Comp;
     public double Area;     // en m²
-    public double Y, Z;     // où elle est, dans le repère du navire
+    /// <summary>Où elle est, dans le repère du navire : X est le BORD touché (0 : dans l'axe, un échouage).</summary>
+    public double X, Y, Z;
+    /// <summary>La charge d'eau sur elle au dernier pas, en m (négative : au-dessus de l'eau).</summary>
+    public double Head;
 }
 
 /// <summary>Un colis arrimé. Du poids MORT : il n'apporte aucune carène liquide.</summary>
@@ -178,6 +181,16 @@ public sealed partial class ShipPhysics
     /// </summary>
     public double? Glide;
     public bool PumpOn = true;
+    /// <summary>
+    /// LE CHARPENTIER ET SON ÉQUIPE : une brèche bouchée toutes les PlugEvery
+    /// secondes — un tampon de bois conique enfoncé dans le trou d'un boulet, une
+    /// feuille de plomb clouée par-dessus —, la plus dangereuse d'abord : la plus
+    /// large sous la plus forte charge d'eau. Au-delà de PlugMax (m²) un trou ne
+    /// se bouche plus à la main : un échouage, une soute qui saute. Rien sans
+    /// équipage (pompes soufflées) ni sur une épave.
+    /// </summary>
+    public double PlugEvery = 40, PlugMax = 0.12;
+    double _plugT;
     /// <summary>Ce qui reste à roter une fois dessous, en m³ : l'air des châteaux et sous les barrots.</summary>
     public double TrappedAir;
     bool _trapFilled;
@@ -452,7 +465,7 @@ public sealed partial class ShipPhysics
     /// compte : un trou au-dessus n'admet rien tant qu'elle ne s'assoit pas
     /// dessus.
     /// </summary>
-    public Breach? MakeBreach(int index, double area = 0.35, double heightFrac = 0.25)
+    public Breach? MakeBreach(int index, double area = 0.35, double heightFrac = 0.25, double side = 0)
     {
         if (index < 0 || index >= Comps.Length) return null;
         var c = Comps[index];
@@ -461,6 +474,8 @@ public sealed partial class ShipPhysics
         {
             Comp = index,
             Area = area,
+            // au bordé du côté touché : c'est ce bord qui s'enfonce qui l'embarque
+            X = Math.Sign(side) * c.HalfB,
             Y = c.KeelY + (c.DeckY - c.KeelY) * heightFrac,
             Z = c.Mid.Z
         };
@@ -509,6 +524,7 @@ public sealed partial class ShipPhysics
            poliment commencer à embarquer depuis zéro. Un cinquième de son volume
            entre avec le souffle. */
         foreach (var c in Comps) c.Vol = Math.Max(c.Vol, c.Cap * 0.20);
+        _plugT = 0;
         UpdateMass();
     }
 
@@ -518,6 +534,7 @@ public sealed partial class ShipPhysics
         Breaches.Clear();
         foreach (var c in Comps) { c.Vol = 0; c.Air = 0; }
         TrappedAir = 0; _trapFilled = false;
+        _plugT = 0;
         Foundered = false;
         Standing = 1;      // et ses mâts sont replantés
         Whole = 1;         // et sa toile renvergée
@@ -565,9 +582,11 @@ public sealed partial class ShipPhysics
         foreach (var br in Breaches)
         {
             var c = Comps[br.Comp];
+            br.Head = 0;
             if (c.Vol >= c.Cap) continue;
-            Vec3d pw = Body.Quat.Rotate(new Vec3d(0, br.Y, br.Z)) + Body.Pos;
+            Vec3d pw = Body.Quat.Rotate(new Vec3d(br.X, br.Y, br.Z)) + Body.Pos;
             double head = ocean.Sample(pw.X, pw.Z, t) - pw.Y;
+            br.Head = head;
             if (head <= 0) continue;
             double was = c.Vol;
             c.Vol = Math.Min(c.Cap, c.Vol + 0.62 * br.Area * Math.Sqrt(2 * Config.G * head) * dt);
@@ -602,10 +621,36 @@ public sealed partial class ShipPhysics
             }
         }
 
+        Plug(dt);
+
         UpdateMass();
         // le débit net : positif veut dire que la mer gagne, et c'est le seul
         // nombre qui dise si la situation est sous contrôle
         FloodRate = dt > 0 ? (FloodVol - before) / dt : 0;
+    }
+
+    /// <summary>
+    /// LE CHARPENTIER : son travail avance tant qu'il y a un trou à sa mesure, et
+    /// le trou qu'il bouche est choisi quand le tampon est prêt — celui qui fait
+    /// entrer le plus d'eau à ce moment-là (aire × √charge ; un trou au-dessus de
+    /// l'eau passe après, il ne compte que si elle gîte dessus).
+    /// </summary>
+    void Plug(double dt)
+    {
+        if (!PumpOn || Foundered || PlugEvery <= 0) { _plugT = 0; return; }
+        Breach? pick = null;
+        double best = -1;
+        foreach (var br in Breaches)
+        {
+            if (br.Area > PlugMax) continue;
+            double score = br.Area * Math.Sqrt(Math.Max(0, br.Head) + 0.25);
+            if (score > best) { best = score; pick = br; }
+        }
+        if (pick == null) { _plugT = 0; return; }
+        _plugT += dt;
+        if (_plugT < PlugEvery) return;
+        Breaches.Remove(pick);
+        _plugT = 0;
     }
 
     /// <summary>

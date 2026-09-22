@@ -91,6 +91,9 @@ public static class PhysicsParity
             {
                 phys.MakeBreach(1, 0.30, 0.20);
                 phys.MakeBreach(3, 0.18, 0.35);
+                phys.MakeBreach(2, 0.025, 0.45, 1);
+                phys.MakeBreach(0, 0.025, 0.40, -1);
+                phys.PlugEvery = 4;
             }
             if (sc.TryGetProperty("grips", out var jg) && jg.ValueKind == JsonValueKind.Array)
                 foreach (var g in jg.EnumerateArray())

@@ -31,10 +31,10 @@ layout(set = 0, binding = 2, std140) uniform Params {
 	mat4 view_to_world;   // la caméra de cette image
 	mat4 prev_vp;         // monde -> écran de l'image précédente
 	vec4 misc;            // x : part d'obturateur ; y : échantillons ; z : longueur max (fraction d'écran) ; w : navires
-	mat4 to_local[8];     // monde -> repère du navire, cette image
-	mat4 prev_model[8];   // repère du navire -> monde, image précédente
-	vec4 bmin[8];         // sa boîte, dans son repère
-	vec4 bmax[8];
+	mat4 to_local[16];    // monde -> repère du navire, cette image (MotionBlurEffect.MaxShips)
+	mat4 prev_model[16];  // repère du navire -> monde, image précédente
+	vec4 bmin[16];        // sa boîte, dans son repère
+	vec4 bmax[16];
 } p;
 
 void main() {

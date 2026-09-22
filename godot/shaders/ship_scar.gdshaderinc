@@ -15,8 +15,12 @@
  * quand la fiche en donne (appearance.impactMaps), les impacts PEINTS : une
  * variante par marque, trois stades de l'éraflure à la plaie ouverte.
  *
- * `w` est le poids de la marque : rien à voir jusqu'au deuxième boulet dans une
- * travée, tout au huitième.
+ * `w` est le poids de la marque : un boulet de plein calibre en vaut 2, un
+ * demi-calibre 1. LE PREMIER BOULET SE VOIT — une éraflure —, et la marque
+ * s'aggrave jusqu'à la plaie ouverte vers le septième poids. Elle ne se voyait
+ * qu'au-delà de 2 : les demi-calibres de la Roter Löwe (poids 1 par coup)
+ * devaient frapper trois fois à moins d'un mètre, et six coups au but ne
+ * laissaient rien (signalé, relevé).
  */
 
 const int NSCAR = 24;
@@ -35,14 +39,14 @@ void ship_scars(vec3 P, out float raw, out float lip, out vec4 paint) {
 	raw = 0.0; lip = 0.0; paint = vec4(0.0);
 	for (int i = 0; i < NSCAR; i++) {
 		if (i >= u_scar_count) break;
-		float e = clamp((u_scar[i].w - 2.0) / 6.0, 0.0, 1.0);
+		float e = clamp((u_scar[i].w - 0.5) / 6.0, 0.0, 1.0);
 		vec3 c = u_scar[i].xyz;
 		float R = (0.45 + 0.75 * e) * u_scar_k;
 		// le bord où elle est : le flanc court le long de z, le tableau en travers de x
 		bool flank = abs(c.x) > 0.18 * (abs(c.z) + 1.0);
 		vec2 q = flank ? vec2(P.z - c.z, P.y - c.y) : vec2(P.x - c.x, P.y - c.y);
 		float sw = u_scar[i].w;
-		if (u_scar_maps > 0.5 && sw > 2.0) {
+		if (u_scar_maps > 0.5 && sw > 0.5) {
 			// PEINTE : une variante par marque, quelques degrés hors du fil, sa taille et sa main
 			float h1 = scar_hash(c * 1.7 + vec3(1.0)), h2 = scar_hash(c * 2.9 + vec3(2.0)), h3 = scar_hash(c * 3.7 + vec3(3.0));
 			float S = (1.1 + 0.5 * h1) * u_scar_k;
@@ -52,15 +56,15 @@ void ship_scars(vec3 P, out float raw, out float lip, out vec4 paint) {
 			if (h3 > 0.5) uv.x = 1.0 - uv.x;
 			if (uv.x > 0.0 && uv.x < 1.0 && uv.y > 0.0 && uv.y < 1.0) {
 				float variant = floor(h1 * u_scar_grid.y * 0.999);
-				// le premier stade au troisième boulet, le deuxième au cinquième, le dernier au septième
-				float st = clamp((sw - 3.0) / 2.0, 0.0, u_scar_grid.x - 1.0);
+				// le premier stade dès le premier boulet, le deuxième vers le poids 4, le dernier vers 6,5
+				float st = clamp((sw - 1.5) / 2.5, 0.0, u_scar_grid.x - 1.0);
 				float s0 = floor(st), s1 = min(s0 + 1.0, u_scar_grid.x - 1.0), tt = st - s0;
 				vec2 cell = 1.0 / u_scar_grid;
 				// droite dans sa case, et gardée à deux texels de son bord
 				vec2 inset = vec2(uv.x, 1.0 - uv.y) * (1.0 - 4.0 / 512.0) + 2.0 / 512.0;
 				vec4 T = mix(texture(u_scar_tex, (vec2(s0, variant) + inset) * cell),
 				             texture(u_scar_tex, (vec2(s1, variant) + inset) * cell), tt);
-				float a = T.a * clamp(sw - 2.0, 0.0, 1.0);
+				float a = T.a * clamp(sw, 0.0, 1.0);
 				paint = vec4(mix(paint.rgb, T.rgb, a), max(paint.a, a));
 			}
 		}

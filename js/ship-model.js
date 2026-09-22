@@ -3315,8 +3315,11 @@ Naval.applyScars = function(mat, u){
           '{ float gRaw = 0.0, gLip = 0.0;',
           '  for(int i = 0; i < NSCAR; i++){',
           '    if(i < uScarCount){',
-          // nothing to see for the first two balls in a bay: 0 up to the second hit, 1 by the eighth
-          '      float e = clamp((uScar[i].w - 2.0)/6.0, 0.0, 1.0);',
+          /* THE FIRST BALL SHOWS, a graze, and the scar worsens toward an open wound
+             by a weight of about seven (a full-calibre ball weighs 2, a half-calibre 1).
+             It used to show only past 2: the Roter Löwe's half-calibre guns had to hit
+             three times within a metre, and six hits left nothing (reported). */
+          '      float e = clamp((uScar[i].w - 0.5)/6.0, 0.0, 1.0);',
           '      vec3 c = uScar[i].xyz;',
           '      float R = (0.45 + 0.75*e)*uScarK;',
           // the side it is on: the flank runs along z, the transom across x
@@ -3325,9 +3328,9 @@ Naval.applyScars = function(mat, u){
           '      float sw = uScar[i].w;',
           /* PAINTED: one variant per scar, a few degrees off the grain, its own
              size and handedness, all from hashes of where it is — so it is the
-             same mark every frame. Stage 1 at the third ball, stage 2 by the
-             fifth, stage 3 by the seventh, cross-faded in between. */
-          '      if(uScarMaps > 0.5 && sw > 2.0){',
+             same mark every frame. Stage 1 from the first ball, stage 2 near a
+             weight of 4, stage 3 near 6.5, cross-faded in between. */
+          '      if(uScarMaps > 0.5 && sw > 0.5){',
           '        float h1 = scarHash(c*1.7 + vec3(1.0)), h2 = scarHash(c*2.9 + vec3(2.0)), h3 = scarHash(c*3.7 + vec3(3.0));',
           '        float S = (1.1 + 0.5*h1)*uScarK;',
           '        float ang = (h2 - 0.5)*0.45;',
@@ -3336,14 +3339,14 @@ Naval.applyScars = function(mat, u){
           '        if(h3 > 0.5) uv.x = 1.0 - uv.x;',
           '        if(uv.x > 0.0 && uv.x < 1.0 && uv.y > 0.0 && uv.y < 1.0){',
           '          float variant = floor(h1*uScarGrid.y*0.999);',
-          '          float st = clamp((sw - 3.0)/2.0, 0.0, uScarGrid.x - 1.0);',
+          '          float st = clamp((sw - 1.5)/2.5, 0.0, uScarGrid.x - 1.0);',
           '          float s0 = floor(st), s1 = min(s0 + 1.0, uScarGrid.x - 1.0), tt = st - s0;',
           '          vec2 cell = 1.0/uScarGrid;',
           // upright in its cell, and kept two texels off the cell border
           '          vec2 inset = vec2(uv.x, 1.0 - uv.y)*(1.0 - 4.0/512.0) + 2.0/512.0;',
           '          vec4 T = mix(texture2D(uScarTex, (vec2(s0, variant) + inset)*cell),',
           '                       texture2D(uScarTex, (vec2(s1, variant) + inset)*cell), tt);',
-          '          diffuseColor.rgb = mix(diffuseColor.rgb, T.rgb, T.a*clamp(sw - 2.0, 0.0, 1.0));',
+          '          diffuseColor.rgb = mix(diffuseColor.rgb, T.rgb, T.a*clamp(sw, 0.0, 1.0));',
           '        }',
           '      }',
           '      if(uScarMaps < 0.5 && e > 0.0 && distance(vScarP, c) < R){',

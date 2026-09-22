@@ -40,6 +40,7 @@ switch (mode)
     case "estime": Estime(); break;
     case "serpent": Serpent(); break;
     case "latine": Latine(); break;
+    case "bordee": Bordee(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -616,5 +617,46 @@ void Latine()
             line += $"  {name} {Math.Sqrt(v.X * v.X + v.Z * v.Z) / 0.5144,5:F2} nd (barre {ctrl.Rudder,5:F2}{(name == "avec" ? $", latine a {p.LateenAngle * 180 / Math.PI:F0} deg" : "")})";
         }
         Console.WriteLine(line);
+    }
+}
+
+/* DEUX BORDÉES REÇUES : vingt-quatre coups au flanc d'une frégate du XVIIe, en
+   mer calme, aux hauteurs où un boulet frappe un bordé (tirées au hasard, graine
+   fixe). On relève l'eau embarquée et la gîte, minute par minute, pour
+   plusieurs tailles de trou.
+     dotnet run --project core/NavalSim.Lab -c Release -- bordee */
+void Bordee()
+{
+    string json = File.ReadAllText(Path.Combine(shipsDir, "frigate17e.json"));
+    var spec = ShipSpec.FromJson(json);
+    foreach (double area in new[] { 0.10, 0.025 })
+    foreach (bool plug in new[] { false, true })
+    {
+        var ocean = new Ocean { Swell = 1.0, Time = 0 };
+        ocean.SetSeaState(3, 0);
+        var p = new ShipPhysics(spec, new HullLines(spec));
+        var ctrl = new Controls { Throttle = 0, Rudder = 0, Sheet = 0.6, SailsSet = false };
+        p.Settle(ocean, ctrl);
+        if (!plug) p.PlugEvery = 0;
+        var rng = new Random(7);
+        int below = 0;
+        for (int i = 0; i < 24; i++)
+        {
+            int c = rng.Next(p.Comps.Length);
+            // de trente centimètres sous l eau au pont : la muraille qu un boulet tiré à hauteur de batterie trouve
+            var cc = p.Comps[c];
+            double yHit = -0.3 - p.Body.Pos.Y + (cc.DeckY + 0.3 + p.Body.Pos.Y) * rng.NextDouble();
+            double frac = (yHit - cc.KeelY) / (cc.DeckY - cc.KeelY);
+            var br = p.MakeBreach(c, area, frac, 1);
+            if (br != null && br.Y < 0) below++;
+        }
+        Console.WriteLine($"trou {area:F3} m2, charpentier {(plug ? "oui" : "non")} : {p.Breaches.Count} breches, {below} sous la flottaison, pompes {p.PumpRate * 60:F1} m3/min, {p.Comps.Length} compartiments");
+        double dt = 1.0 / 60, t = 0;
+        for (int m = 1; m <= 10; m++)
+        {
+            for (int k = 0; k < 60 * 60; k++) { p.Step(dt, ocean, ctrl, t); t += dt; }
+            var up = p.Body.Quat.Rotate(new Vec3d(0, 1, 0));
+            Console.WriteLine($"  {m,2} min : {p.Breaches.Count,2} breches, eau {p.FloodTonnes,6:F1} t, debit {p.FloodRate * 60,6:F1} m3/min, gite {Math.Asin(Math.Clamp(up.X, -1, 1)) * 180 / Math.PI,6:F1} deg, y {p.Body.Pos.Y,6:F2}{(p.Foundered ? " COULE" : "")}");
+        }
     }
 }

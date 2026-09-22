@@ -542,7 +542,14 @@ async function main(){
        in a hull of an eighth the displacement is four times the wound. Measured
        before the fix, five holes sank a 240-tonne ship in four minutes where
        six took a quarter of an hour to condemn one of 2 000. */
-    e.physics.breach(index, 0.10*(k||1)*(k||1), Math.max(0, Math.min(1, local)));
+    /* 0,025 m² now, not a tenth: the ball (12 cm for a twelve-pounder, 0.011 m²)
+       and the wood it tears out around it. A tenth was a 36 cm hole, and two
+       broadsides laid a frigate on her side in two minutes, where ships of the
+       line took hundreds of hits. On the side that was HIT, and the carpenter
+       plugs it (ShipPhysics._plug). A fresh vector: the side is read once. */
+    const sideX = world ? new THREE.Vector3().copy(world).sub(e.body.pos)
+                            .applyQuaternion(e.body.quat.clone().invert()).x : 0;
+    e.physics.breach(index, 0.025*(k||1)*(k||1), Math.max(0, Math.min(1, local)), sideX);
 
     // la marque dans le bordé, qui s'aggrave si l'on retape au même endroit
     if(e.ship && e.ship.scar) e.ship.scar(world, k);

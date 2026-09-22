@@ -7746,6 +7746,77 @@ le dit. Aussi : la pose prend la hauteur de la mer À L'ENDROIT (`Sample`),
 l'équilibre de `Settle` étant pris sur une mer aplatie. **La page a le même
 défaut** (`launch()` ne regarde pas le fond).
 
+## Deux bordées couchaient une frégate : le trou, le charpentier, le bord
+
+Signalé : deux bordées reçues, et la Roter Löwe d'en face se couchait sur le
+flanc. Le labo (`bordee`, 24 coups au flanc de la frégate 17e, mer calme) :
+chaque boulet de plein calibre ouvrait **0,1 m²**, un trou de 36 cm ; à ce
+compte elle coulait en moins de deux minutes, ses pompes (2,6 m³/min)
+valant un centième de ce qui entrait. Couchée plutôt que coulée droite : les
+compartiments à moitié pleins (carène liquide) laissent l'eau courir au bord
+bas et y rester — la houle choisit le bord.
+
+Or les vaisseaux de l'époque encaissaient des centaines de coups sans sombrer :
+des trous petits, presque tous au-dessus de l'eau, et **le charpentier** qui y
+enfonçait des tampons coniques. Trois changements, noyau et page :
+
+- **Le trou à la taille du boulet** : 0,025 m² × k² (un douze livres fait
+  12 cm, 0,011 m², plus le bois arraché autour).
+- **Le charpentier** (`Plug`, `plugEvery` 40 s, `plugMax` 0,12 m²) : une
+  brèche bouchée à la fois, celle qui fait entrer le plus d'eau au moment où le
+  tampon est prêt (aire × √charge). Rien au-delà de 0,12 m² (échouage, soute),
+  rien sans équipage (pompes soufflées) ni sur une épave.
+- **Le bord** : une brèche est posée au bordé du côté touché (`X`), sa charge
+  se lit là. Ce que cela change : un trou du bord qui s'enfonce embarque plus.
+  Ce que cela NE change pas, et il faut le savoir : l'eau d'un compartiment
+  reste répartie sur toute sa largeur (une cale ouverte se remplit d'un bord à
+  l'autre en quelques secondes), donc le bord touché ne fait pas gîter à lui
+  seul ; c'est toujours la carène liquide qui choisit.
+
+Mesuré, coups tirés de 30 cm sous l'eau au pont (11 sur 24 sous la flottaison) :
+
+| trou | charpentier | eau à 3 min | à 10 min |
+|---|---|---|---|
+| 0,10 m² | non | 640 t, coulée | — |
+| 0,10 m² | oui | 383 t | coulée à 5 min |
+| 0,025 m² | non | 44 t | coulée vers 10 min |
+| 0,025 m² | oui | 26 t | 24 t, 10 brèches, les pompes gagnent |
+
+Parité : le scénario `envahissement` porte deux trous de boulet, un par bord,
+et un tampon toutes les 4 s pour que le charpentier travaille dans l'essai.
+
+**Et les marques ne se voyaient pas** (signalé : « les impacts doivent marquer la coque »). La passe s'affichait bien (peinte en rouge, elle couvrait la silhouette). Mais une marque ne paraissait qu'au-delà d'un poids de 2, et un coup en ajoute 2 × k : les demi-calibres de la Roter Löwe (k = 0,5) en ajoutent 1, et il fallait trois boulets à moins de 85 cm. Relevé en combat réel : 6 coups au but, 6 marques de poids 1, toutes invisibles. Le premier boulet laisse maintenant une éraflure (seuil 0,5 ; stades à 1,5, ~4 et ~6,5 ; opacité pleine dès le poids 1), dans `ship_scar.gdshaderinc` et dans le shader de la page — la même règle aux deux endroits. Piège de mesure : au début d'une partie les pièces sont en rechargement (26 s) ; une bordée tirée avant ne part pas.
+
+## Seize coques (Godot)
+
+Demandé : monter la flotte de huit à seize. Le plafond vivait à quatre endroits
+— `Config.MaxShips` (rangées de profils, sillages, panneau Flotte, fantômes),
+`NSHIP` dans `hull_gap.gdshaderinc` (mer et écume), les tableaux de
+`motion_blur.glsl` et `MotionBlurEffect.MaxShips` (qui lit maintenant
+`Config`). Les boucles des shaders s'arrêtent à `u_ship_count` : le plafond ne
+coûte rien, seules les coques présentes coûtent. La page garde huit.
+
+Mesuré (frégates 17e mises à l'eau par `LaunchBeside`, `--vsync 0`, 20 s après
+décantation, temps mural par image et chronos du moteur) :
+
+| coques | ms/image | GPU | rendu CPU | solveurs | appels de dessin |
+|---|---|---|---|---|---|
+| 1 | 2,75 | 2,17 | 0,32 | — | — |
+| 8 | 8,6 | 5,2 | 0,62 | 1,86 | 243 |
+| 16 | 16,8 | 5,8 | 1,66 | 2,56 | 928 |
+
+Seize tiennent à soixante images par seconde. La carte graphique n'est pas la
+limite (5,8 ms) ; les solveurs non plus (2,6 ms, sur plusieurs cœurs). Il
+reste environ une milliseconde par coque sur le fil principal, non encore
+attribuée — `Performance.TimeProcess` échantillonné à la cadence du tableau de
+bord tombe sur les images qui le mettent à jour, et ment (18 à 26 ms) ; à
+chronométrer bloc par bloc dans `_Process` le jour où il faudra gagner.
+
+En passant : `--flotte` désignait la frégate 17e par son NUMÉRO (5), que
+l'ajout de la caisse avait fait glisser sur la grande frégate — cherchée
+désormais par son fichier. Et l'éventail du panneau prend un cercle de plus
+toutes les six coques : seize sur un seul cercle de 110 m se touchaient.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

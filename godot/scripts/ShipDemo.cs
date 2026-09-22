@@ -247,7 +247,10 @@ public partial class ShipDemo : Node3D
        profil — au-delà de Config.MaxShips la mer ne les voit plus, mais elles
        flottent et se dessinent. */
     readonly List<ShipNode> _others = new();
-    int _flotteShip = 5;    // la frégate du XVIIe : modèle, toile, feux, lanterne pendue
+    /* la frégate du XVIIe : modèle, toile, feux, lanterne pendue — cherchée par son
+       FICHIER, un numéro glisse dès qu'une fiche s'ajoute (la caisse l'avait fait
+       passer à la grande frégate) */
+    int _flotteShip = -1;
 
     /* LE MÉNAGE AU CHARGEMENT. Mettre une coque à l'eau laisse derrière soi des
        dizaines de mégaoctets morts — sommets relus, images de rugosité, tableaux
@@ -2045,15 +2048,18 @@ public partial class ShipDemo : Node3D
             s.WoundMast(index);
             return;
         }
-        /* Un dixième de mètre carré pour une pièce de plein calibre, et comme le CARRÉ
-           du calibre — un trou est une surface. Petit devant les pompes : un navire
-           n'est pas perdu sur un coup heureux, il l'est d'être percé encore et encore. */
-        s.Physics.MakeBreach(index, 0.10 * k * k, Math.Clamp(frac, 0, 1));
+        /* LE TROU D'UN BOULET, et comme le CARRÉ du calibre — un trou est une
+           surface. 0,025 m² au plein calibre : le boulet (12 cm pour un douze
+           livres, 0,011 m²) et le bois qu'il arrache autour. Il valait 0,1 m², un
+           trou de 36 cm : deux bordées couchaient une frégate en deux minutes
+           (signalé), quand des vaisseaux encaissaient des centaines de coups. Au
+           bordé du côté TOUCHÉ, et le charpentier le bouchera (ShipPhysics.Plug). */
+        var b = s.Physics.Body;
+        var local = b.Quat.Inverted().Rotate(world - b.Pos);
+        s.Physics.MakeBreach(index, 0.025 * k * k, Math.Clamp(frac, 0, 1), local.X);
         // la marque dans le bordé, qui s'aggrave si l'on retape au même endroit
         s.Scar(w, k);
         // et les pièces qui étaient derrière le bordé
-        var b = s.Physics.Body;
-        var local = b.Quat.Inverted().Rotate(world - b.Pos);
         var down = s.Battery.Wound(local, k, s.Spec.L);
         if (down.Count > 0 && s == _ship)
         {
@@ -2752,7 +2758,10 @@ public partial class ShipDemo : Node3D
                 case "--dof": _settings.Dof = args[i + 1] == "1"; ApplySettings(); break;
                 case "--flou": _settings.MotionBlur = args[i + 1] == "1"; ApplySettings(); break;
                 case "--parallele": _settings.ParallelSolvers = args[i + 1] == "1"; break;
-                case "--flotte": SpawnFleet(args[i + 1].ToInt(), _flotteShip); break;
+                case "--flotte":
+                    SpawnFleet(args[i + 1].ToInt(), _flotteShip >= 0 ? _flotteShip
+                        : Math.Max(0, _paths.FindIndex(p => System.IO.Path.GetFileName(p) == "frigate17e.json")));
+                    break;
                 case "--flotte-navire": _flotteShip = args[i + 1].ToInt(); break;
                 case "--dumprig":
                     foreach (var l in _ship.RigLog) GD.Print("gréement " + l);

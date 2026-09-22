@@ -11,7 +11,7 @@
  * devant l'étrave, ce qui gonflait justement le collier à ses extrémités.
  */
 
-#define NSHIP 8
+#define NSHIP 16
 
 /* Une RANGÉE par navire : ses demi-largeurs de l'arrière à l'étrave, en
    fractions de sa plus grande demi-largeur (HullProfile, dans le noyau). En

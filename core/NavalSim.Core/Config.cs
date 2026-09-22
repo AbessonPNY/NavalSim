@@ -26,12 +26,14 @@ public static class Config
     /// lignes de la texture de profils de coque. L'augmenter coûte un peu de travail
     /// dans CHAQUE fragment de mer, que les coques soient là ou non.
     ///
-    /// Huit est où la mesure a mis le plafond côté JavaScript. Le portage en C#
-    /// rend de la marge — 0,534 ms par coque contre 0,882 — mais le chiffre reste
-    /// à re-mesurer sous Godot avant d'être relevé : c'est le rendu qui décidera,
-    /// et il n'a pas encore été mesuré une seule fois.
+    /// Huit est où la mesure a mis le plafond côté JavaScript (la page le garde).
+    /// Sous Godot, mesuré avant de le relever à seize (journal, « Seize coques ») :
+    /// 2,75 ms par image pour une frégate, 8,6 pour huit, 16,8 pour seize — la
+    /// carte graphique n'en prend que 5,8 ms, la mer ne boucle que sur les coques
+    /// présentes ; c'est le processeur qui paie, à peu près une milliseconde par
+    /// coque. Relevé aussi dans hull_gap.gdshaderinc (NSHIP) et motion_blur.glsl.
     /// </summary>
-    public const int MaxShips = 8;
+    public const int MaxShips = 16;
 
     /// <summary>
     /// CE QUE LA TOILE SUPPORTE, en newtons par mètre carré. Une mesure et non un

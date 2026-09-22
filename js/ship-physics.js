@@ -118,6 +118,12 @@ Naval.ShipPhysics = class ShipPhysics {
     this._trapFilled = false;
     this._trapAt = new THREE.Vector3();
     this.pumpOn = true;
+    /* THE CARPENTER AND HIS MATES: one breach plugged every plugEvery seconds
+       (a tapered shot plug driven in, a sheet of lead nailed over), the most
+       dangerous first. Beyond plugMax (m²) a hole is past a plug: a grounding, a
+       magazine. Nothing without a crew (pumps blown) and nothing on a wreck. */
+    this.plugEvery = 40; this.plugMax = 0.12;
+    this._plugT = 0;
     /* Pumps are sized so that ONE modest hole is just beatable and two are not
        — that is the whole tension, and it has to be measured rather than
        guessed, the inflow depending on how deep she settles onto the hole.
@@ -323,14 +329,34 @@ Naval.ShipPhysics = class ShipPhysics {
   /* Open a hole. Area in m², at a height given as a fraction of the
      compartment's depth — 0 at the keel, 1 at the deck. Below the waterline is
      what matters: a hole above it admits nothing until she settles onto it. */
-  breach(index, area, heightFrac){
+  breach(index, area, heightFrac, side){
     const c = this.comps[index];
     if(!c || c.cap <= 0) return null;
     const h = heightFrac == null ? 0.25 : heightFrac;
-    const br = { comp:index, area:area || 0.35,
-                 y: c.keelY + (c.deckY - c.keelY)*h, z:c.mid.z };
+    // at the planking on the side that was hit: that side going down is what takes it in
+    const br = { comp:index, area:area || 0.35, x: Math.sign(side || 0)*c.halfB,
+                 y: c.keelY + (c.deckY - c.keelY)*h, z:c.mid.z, head:0 };
     this.breaches.push(br);
     return br;
+  }
+
+  /* The carpenter's work goes on while there is a hole he can plug, and which
+     hole is chosen when the plug is ready: the one letting in the most water
+     right then (area × √head); a hole above water comes after, it only counts
+     if she heels onto it. */
+  _plug(dt){
+    if(!this.pumpOn || this.foundered || this.plugEvery <= 0){ this._plugT = 0; return; }
+    let pick = null, best = -1;
+    for(const br of this.breaches){
+      if(br.area > this.plugMax) continue;
+      const score = br.area*Math.sqrt(Math.max(0, br.head || 0) + 0.25);
+      if(score > best){ best = score; pick = br; }
+    }
+    if(!pick){ this._plugT = 0; return; }
+    this._plugT += dt;
+    if(this._plugT < this.plugEvery) return;
+    this.breaches.splice(this.breaches.indexOf(pick), 1);
+    this._plugT = 0;
   }
 
   /* Water in, water out, and where it lies.
@@ -367,9 +393,11 @@ Naval.ShipPhysics = class ShipPhysics {
 
     for(const br of this.breaches){
       const c = this.comps[br.comp];
+      br.head = 0;
       if(c.vol >= c.cap) continue;
-      this._pw.set(0, br.y, br.z).applyQuaternion(b.quat).add(b.pos);
+      this._pw.set(br.x || 0, br.y, br.z).applyQuaternion(b.quat).add(b.pos);
       const head = ocean.sample(this._pw.x, this._pw.z, t) - this._pw.y;
+      br.head = head;
       if(head <= 0) continue;
       const was = c.vol;
       c.vol = Math.min(c.cap, c.vol + 0.62*br.area*Math.sqrt(2*C.G*head)*dt);
@@ -397,6 +425,8 @@ Naval.ShipPhysics = class ShipPhysics {
         worst.vol -= take; left -= take;
       }
     }
+
+    this._plug(dt);
 
     this._updateMass();
     // net m³/s: positive means the sea is winning, and that is the one number
@@ -778,6 +808,7 @@ Naval.ShipPhysics = class ShipPhysics {
     this.breaches.length = 0;
     for(let i=0;i<this.comps.length;i++) this.breach(i, 2.4, 0.05);
     this.pumpOn = false;
+    this._plugT = 0;
     /* And she is already open to the sea: an explosion does not politely start
        her filling from empty. A fifth of her volume goes in with the blast. */
     for(const c of this.comps) c.vol = Math.max(c.vol, c.cap*0.20);
@@ -790,6 +821,7 @@ Naval.ShipPhysics = class ShipPhysics {
     for(const c of this.comps){ c.vol = 0; c.air = 0; }
     this.foundered = false;
     this.trappedAir = 0; this._trapFilled = false;
+    this._plugT = 0;
     this.standing = 1;                    // and her masts are stepped again
     this.whole = 1;                       // et sa toile est renvergée
     this._updateMass();

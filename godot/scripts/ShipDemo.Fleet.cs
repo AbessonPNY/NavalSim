@@ -95,7 +95,8 @@ public partial class ShipDemo
         var b = s.Physics.Body;
         var me = _ship.Physics.Body;
         double ang = _fleet.Count * 2.2;
-        double reach = 2.4 * (_ship.Spec.L + s.Spec.L);
+        // un cercle de plus toutes les six coques : seize sur un seul cercle se touchaient
+        double reach = 2.4 * (_ship.Spec.L + s.Spec.L) * (1 + (_fleet.Count - 2) / 6);
         /* À LA HAUTEUR DE LA MER LÀ OÙ ON LA POSE : l'équilibre est pris sur une mer
            aplatie (Settle), et la houle à cent mètres n'est pas celle de l'origine.
            Une frégate encaisse le mètre de trop ; une caisse vide de 0,2 t, qui

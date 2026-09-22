@@ -80,7 +80,9 @@ L'entrée 0 est le navire commandé ; l'indice dans la flotte **est** la ligne d
 la texture de profils (tout retrait réécrit les profils). Les commandes (`ctrl`)
 sont passées à chaque image, jamais retenues. Mettre une coque à l'eau passe
 par `launch()` (atmosphère, éclairage, `settle()` avant de positionner, profil).
-`MAX_SHIPS` = 8, mesuré : c'est un plafond, six est le confort.
+`MAX_SHIPS` = 8 dans la page, mesuré : c'est un plafond, six est le confort.
+Godot : `Config.MaxShips` = 16, mesuré (16,8 ms/image à seize) ; le relever
+touche aussi `NSHIP` (`hull_gap.gdshaderinc`) et les tableaux de `motion_blur.glsl`.
 
 **Un seul plan de formes.** `hull-lines.js` sert au maillage visible et à la
 grille de sondes. Plus généralement : **une définition, plusieurs usagers**
