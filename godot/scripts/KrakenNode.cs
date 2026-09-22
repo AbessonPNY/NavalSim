@@ -20,6 +20,7 @@ namespace NavalSim;
 public partial class KrakenNode : Node3D
 {
     Node3D _head = null!;
+    static readonly StringName UAlbedoTex = "u_albedo_tex";
     Mesh _armMesh = null!;
     float _armY0, _armLen = 16, _armR = 0.95f;
     readonly MeshInstance3D[] _arms = new MeshInstance3D[Kraken.MaxArms];
@@ -168,6 +169,9 @@ public partial class KrakenNode : Node3D
                         outA.Resize((int)Mesh.ArrayType.Max);
                         outA[(int)Mesh.ArrayType.Vertex] = vv;
                         if (nn.Length == vv.Length) outA[(int)Mesh.ArrayType.Normal] = nn;
+                        // les UV suivent : sans elles, la texture du modèle ne va que sur le corps
+                        if (a[(int)Mesh.ArrayType.TexUV].AsVector2Array() is { } uv && uv.Length == vv.Length)
+                            outA[(int)Mesh.ArrayType.TexUV] = uv;
                         outA[(int)Mesh.ArrayType.Index] = a[(int)Mesh.ArrayType.Index];
                         arm.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, outA);
                         armMat ??= mi.GetActiveMaterial(s);
@@ -225,6 +229,7 @@ public partial class KrakenNode : Node3D
             sm.SetShaderParameter(U.Albedo, abm.AlbedoColor);
             sm.SetShaderParameter(U.Roughness, abm.Roughness);
             sm.SetShaderParameter(UMetallic, abm.Metallic);
+            if (abm.AlbedoTexture != null) sm.SetShaderParameter(UAlbedoTex, abm.AlbedoTexture);
         }
         for (int i = 0; i < Kraken.MaxArms; i++) _armMats[i] = (ShaderMaterial)sm.Duplicate();
         GD.Print($"[kraken] modèle chargé : corps {body.GetChildCount()} pièce(s), bras de {_armLen:F1} m");

@@ -27,6 +27,8 @@ uniform float u_len = 16.0;   // sa longueur
 uniform float u_k = 1.0;      // son épaisseur, rayon voulu sur rayon modelé
 
 uniform vec3 u_albedo : source_color = vec3(0.290, 0.106, 0.141);   // 0x4a1b24
+// la texture du modèle (blanc : la couleur seule, pour le tube dessiné)
+uniform sampler2D u_albedo_tex : source_color, hint_default_white, filter_linear_mipmap, repeat_enable;
 uniform float u_roughness = 0.34;
 uniform float u_metallic = 0.04;
 
@@ -53,7 +55,7 @@ void vertex() {
 
 void fragment() {
 	float hz = haze_along(CAMERA_POSITION_WORLD, v_world);
-	ALBEDO = u_albedo * (1.0 - hz);
+	ALBEDO = u_albedo * texture(u_albedo_tex, UV).rgb * (1.0 - hz);
 	SPECULAR = 0.5 * (1.0 - hz);
 	EMISSION = ship_haze_colour(CAMERA_POSITION_WORLD, v_world) * hz;
 	ROUGHNESS = u_roughness;
