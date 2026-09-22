@@ -120,6 +120,7 @@ public partial class ShipDemo : Node3D
         Key(b, "U", "une voile sous pavillon noir");
         Key(b, "K", "le kraken, tout de suite");
         Key(b, "⇧K", "une baleine, qui vient charger");
+        Key(b, "⇧J", "une averse, et le serpent de mer");
         Key(b, "P", "la flotte fantôme");
         Key(b, "N", "changer de navire");
 

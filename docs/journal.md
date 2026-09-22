@@ -6626,6 +6626,50 @@ proportion de ce que le reflet de la coque occupe.
 
 **Puis : les festons.** Au soleil bas, seize hauteurs tombaient à 3 m l'une de l'autre sur l'eau et chacune dessinait son contour de coque. Vingt-quatre hauteurs, une pénombre d'une fois et demie leur écart, et un décalage des hauteurs propre à chaque pixel (bruit à gradient entrelacé) : ce qui reste du motif devient grain.
 
+## Le serpent de mer (Godot)
+
+Choix d'Arnaud : il FRAPPE ET PLONGE (plutôt qu'enserrer ou chavirer), dans la
+BRUME ET LA PLUIE, et il PEUT COULER le navire s'il n'est pas repoussé.
+
+**LE NOYAU** (`core/SeaSerpent.cs`) : il ne vient qu'au large (1 km de côte,
+40 m de fond) et sous la pluie — l'averse ou le grain, pas la neige —, trois
+rencontres par heure de pluie. On l'ENTEND d'abord (un sifflement, le
+grondement du kraken qui porte sur l'eau), puis ses anneaux crèvent la surface
+à 180 m et tournent autour du navire, 15 à 30 s. Il fonce sous l'eau (11 m/s)
+vers un point par le travers, DRESSE la tête à 7 m et frappe au sommet de sa
+course : la TÊTE (voie d'eau à la flottaison, 0,10 à 0,22 m²), la QUEUE (plus
+bas, 0,18 à 0,32 m², un choc plus fort), ou la MORSURE d'un mât (la blessure
+des mâts : trois l'abattent). Le choc est une impulsion de 12 t partagée au
+point touché, comme la baleine. Il replonge, resurgit 10 à 25 s plus tard.
+Les boulets le blessent sur toute la longueur de son corps (10 points de vie) ;
+touché, il plonge ; à bout, il fuit ; trente secondes sans pluie et il s'en va.
+
+**LE CORPS SUIT LE CHEMIN DE LA TÊTE** : la tête laisse une trace, et les
+quarante-huit points du corps sont pris le long d'elle à pas égal — chaque
+anneau passe où la tête est passée, ce qui fait un serpent et non un tuyau. En
+rôdant, une onde verticale fait sortir ses bosses ; dressé, le cou descend en
+parabole sur ses douze premiers mètres. Contrôlé au labo (`-- serpent`) : 40,0 m
+de corps à toute image. Premier jet du rééchantillonnage trop tortueux pour
+être sûr : réécrit en simple marche le long de la trace.
+
+**PIÈGES** : à 2,5 m de profondeur, sa charge traversait la quille d'une
+frégate (tirant 2,9) — il passe sous le tirant + 2,5 m à moins de 30 m. Appelé
+par la ligne de commande, il cherchait le navire AVANT que la traversée ne l'ait
+posé à l'atterrage (« pas assez d'eau ») : l'appel est différé d'une seconde.
+Et l'averse qu'il déclenche doit durer : `StartShower` compte en minutes de JEU,
+vingt minutes n'en faisaient que dix secondes, la pluie cessait et il fuyait
+sans frapper — quatre heures de jeu. Une « erreur fatale du CLR » en fin
+d'essai était le processus tué par la limite de temps : sorti proprement
+(`--quit-after`), code 0.
+
+**LE RENDU** (`SerpentNode`) : un tube de 48 anneaux × 14 côtés refait à chaque
+image, crête sur le dos, dos vert sombre et ventre pâle, peau mouillée
+(rugosité 0,32) ; la tête en fuseau aplati, comme un congre, deux yeux vert
+jaune qui luisent à peine ; la brume des navires par-dessus. Vérifié dans
+Godot à l'atterrage de la Tortue : entendu, vu, coup de tête (+0,30 m/s,
+0,13 m²), coup de queue (+0,40 m/s, 0,21 m²), fuite. ⇧J : une averse et le
+serpent ; `--serpent 1`. Réglages : `settings.json` → `serpent`.
+
 ## L'écran de titre : le navire au large, et quatre entrées (Godot)
 
 Demandé : le navire par beau temps au milieu de l'océan, la profondeur de champ mise au point à 2 m de la caméra — le navire flou dans le lointain —, et à la place de « Jouer » : Jeu libre, Histoire, Missions, Options.

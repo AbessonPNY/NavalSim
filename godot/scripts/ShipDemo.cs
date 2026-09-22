@@ -148,6 +148,7 @@ public partial class ShipDemo : Node3D
         _kraken = new Kraken(_krakenRules) { BodyR = _krakenNode.BodyR };
         WireKraken();
         BuildWhale();
+        BuildSerpent();
         BuildReckoning();
 
         _paths = ShipLibrary.Discover();
@@ -880,10 +881,11 @@ public partial class ShipDemo : Node3D
     }
 
     /// <summary>--chavirer : la coque retournée une seconde après la mise à quai, qui la redresserait.</summary>
-    double _flipIn = -1;
+    double _flipIn = -1, _serpentIn = -1;
 
     public override void _Process(double delta)
     {
+        if (_serpentIn > 0 && (_serpentIn -= delta) <= 0) SummonSerpent();
         if (_flipIn > 0 && (_flipIn -= delta) <= 0)
         {
             _ship.Physics.CastOff();
@@ -952,6 +954,7 @@ public partial class ShipDemo : Node3D
             _spray.Pool.Rebase(-dx, -dz);
             _kraken.Rebase(-dx, -dz);
             _whale?.Rebase(-dx, -dz);
+            _serpent?.Rebase(-dx, -dz);
             _lightning.Rebase(-dx, -dz);
             _cordage.Rebase(-dx, -dz);
             _splinters.Rebase(-dx, -dz);
@@ -1121,6 +1124,7 @@ public partial class ShipDemo : Node3D
         foreach (var m in _ship.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
         if (_krakenNode.Visible) foreach (var m in _krakenNode.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
         if (_whaleNode != null && _whaleNode.Visible) foreach (var m in _whaleNode.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
+        if (_serpentNode != null && _serpentNode.Visible) foreach (var m in _serpentNode.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
         foreach (var m in _cordage.Hazed) _sky.PushTo(m);
         foreach (var m in _splinters.Hazed) _sky.PushTo(m);
         foreach (var m in _gunFx.Hazed) _sky.PushTo(m);
@@ -1484,6 +1488,8 @@ public partial class ShipDemo : Node3D
                 case Key.Left: _weather.On = false; _windDeg = (_windDeg - 15 + 360) % 360; Restate(); break;
                 case Key.Right: _weather.On = false; _windDeg = (_windDeg + 15) % 360; Restate(); break;
                 case Key.T: SetAutoWeather(!_weather.On); break;
+                // ⇧J : une averse et le serpent de mer, qui ne vit que dans la pluie
+                case Key.J when k.ShiftPressed: SummonSerpent(); break;
                 case Key.J: GoToStorm(0); break;
                 // le radoub : mâts replantés, toile renverguée — pour recommencer un essai
                 case Key.R: Salvage(); break;
@@ -1647,6 +1653,7 @@ public partial class ShipDemo : Node3D
                 _calendar = new Calendar(s.GetString());
             if (root.TryGetProperty("ghosts", out var gh)) _ghosts.Rules = GhostRules.FromJson(gh);
             if (root.TryGetProperty("whale", out var wh)) _whaleRules = WhaleSettings.FromJson(wh);
+            if (root.TryGetProperty("serpent", out var sp)) _serpentRules = SerpentSettings.FromJson(sp);
             if (root.TryGetProperty("reckoning", out var rk)) _reckRules = ReckoningSettings.FromJson(rk);
             if (root.TryGetProperty("wreck", out var wr) && wr.TryGetProperty("bottleOneIn", out var bo))
                 _bottleOneIn = bo.GetInt32();
@@ -1817,6 +1824,7 @@ public partial class ShipDemo : Node3D
         _kraken.Update(dt, _orageKraken, _sea.Core, _t, _alive ??= PreyAlive);
         _krakenNode.Sync(_kraken);
         WhaleTick(dt);
+        SerpentTick(dt);
 
         foreach (var (prey, inten) in _orage)
             if (_stormRng.NextDouble() < _lightRules.StrikeChance(inten, dt)) Strike(_preyShip[prey]);
@@ -1957,11 +1965,21 @@ public partial class ShipDemo : Node3D
         _gunnery.OnSplash = (at, water, speed, jet) => _spray.Pool.Burst(at, water, speed, jet);
         _gunnery.OnCreature = (a, b, shot) =>
         {
-            if (!_kraken.HitShot(a, b, out double u, out var arm)) return false;
-            var hit = a + (b - a) * u;
-            _spray.Pool.Burst(hit, 10, 7, 1.4);
-            _kraken.Wound(arm, shot.K);
-            return true;
+            if (_kraken.HitShot(a, b, out double u, out var arm))
+            {
+                var hit = a + (b - a) * u;
+                _spray.Pool.Burst(hit, 10, 7, 1.4);
+                _kraken.Wound(arm, shot.K);
+                return true;
+            }
+            // le serpent aussi se touche : sur toute la longueur de son corps
+            if (_serpent != null && _serpent.HitShot(a, b, out double us))
+            {
+                _spray.Pool.Burst(a + (b - a) * us, 10, 7, 1.4);
+                _serpent.Wound(shot.K);
+                return true;
+            }
+            return false;
         };
         _gunnery.OnStrike = Struck;
         // un spectre ne se touche que par un spectre, ou par celui qui s'est retourné contre vous
@@ -2569,6 +2587,8 @@ public partial class ShipDemo : Node3D
                 case "--kraken": _kraken.Summon(args[i + 1] == "1", PreyOf(_ship)); break;
                 // --baleine 0 : indifférente, 1 : curieuse, 2 : hostile
                 case "--baleine": SummonWhale((WhaleMood)Math.Clamp(args[i + 1].ToInt(), 0, 2)); break;
+                // une seconde après la mise à l'eau : une traversée pose le navire APRÈS la ligne de commande
+                case "--serpent": _serpentIn = args[i + 1] != "0" ? 1.0 : -1; break;
                 case "--foudre": Strike(_ship); break;
                 case "--bordee": _gunSide = args[i + 1].ToInt(); Fire(false, true); break;
                 case "--soute": BlowUp(_ship); break;

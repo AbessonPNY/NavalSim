@@ -26,6 +26,24 @@
     "noonError": 3.0,
     "passageError": 0.04
   },
+  "serpent": {
+    "enabled": true,
+    "perHour": 3.0,
+    "minRain": 0.15,
+    "awayFromShore": 1000,
+    "minDepth": 40,
+    "length": 40,
+    "girth": 0.9,
+    "circle": 180,
+    "swim": 5,
+    "dash": 11,
+    "stalk": [15, 30],
+    "dive": [10, 25],
+    "rise": 7,
+    "hp": 10,
+    "cooldown": 600,
+    "massTonnes": 12
+  },
   "whale": {
     "enabled": true,
     "perHour": 2.0,

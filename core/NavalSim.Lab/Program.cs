@@ -38,6 +38,7 @@ switch (mode)
     case "elan": Elan(); break;
     case "baleine": Baleine(); break;
     case "estime": Estime(); break;
+    case "serpent": Serpent(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -539,4 +540,40 @@ void Estime()
     // sans derive, pour la part des instruments seuls
     var r2 = new Reckoning(rules, 3); r2.Fix(0, 0);
     Console.WriteLine($"derive de {leeway} degres sur 20 km : {20000 * Math.Sin(leeway * Math.PI / 180):F0} m a elle seule");
+}
+
+/* LE SERPENT, EPROUVE : une fregate immobile sous la pluie, le serpent appele,
+   trois minutes -- ses etats, ses coups, les voies d eau, la longueur de son
+   corps (qui doit rester sa longueur), et la pluie qui cesse.
+     dotnet run --project core/NavalSim.Lab -- serpent */
+void Serpent()
+{
+    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, "frigate17e.json")));
+    var ocean = new Ocean { Swell = 1.0, Time = 0 };
+    ocean.SetSeaState(3, 210);
+    var p = new ShipPhysics(spec, new HullLines(spec));
+    var ctrl = new Controls { Throttle = 0, Rudder = 0, Sheet = 0.6, SailsSet = false };
+    p.Settle(ocean, ctrl);
+    var s = new SeaSerpent(new SerpentSettings(), 11);
+    double t = 0;
+    var st = s.State;
+    s.Event = e => Console.WriteLine($"  {t,6:F0} s  evenement {e}");
+    s.OnStrike = k => Console.WriteLine($"  {t,6:F0} s  COUP {k.Kind} : navire +{k.DeltaV:F2} m/s, voie d'eau {k.Area:F2} m2");
+    s.Summon(p, null);
+    double dt = 1.0 / 60, minD = 1e9, maxRise = -1e9;
+    for (int k = 0; k < 60 * 240 && s.State != SerpentState.Absent; k++)
+    {
+        double wet = t < 180 ? 0.8 : 0;          // la pluie cesse a trois minutes
+        p.Step(dt, ocean, ctrl, t);
+        s.Update(dt, p, ocean, t, wet, null, null);
+        t += dt;
+        if (s.State != st) { Console.WriteLine($"  {t,6:F0} s  {st} -> {s.State}"); st = s.State; }
+        double d = Math.Sqrt(Math.Pow(s.Head.X - p.Body.Pos.X, 2) + Math.Pow(s.Head.Z - p.Body.Pos.Z, 2));
+        minD = Math.Min(minD, d);
+        maxRise = Math.Max(maxRise, s.Head.Y);
+        if (double.IsNaN(s.Head.X) || double.IsNaN(s.Spine[^1].X)) { Console.WriteLine("  NaN !"); break; }
+    }
+    double len = 0;
+    for (int i = 1; i < SeaSerpent.N; i++) len += (s.Spine[i] - s.Spine[i - 1]).Length;
+    Console.WriteLine($"au plus pres {minD:F0} m, tete au plus haut {maxRise:F1} m, voies d'eau {p.Breaches.Count}, corps {len:F1} m, fin {s.State} a {t:F0} s");
 }
