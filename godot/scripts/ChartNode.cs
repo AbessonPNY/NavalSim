@@ -227,6 +227,20 @@ public partial class ChartNode : Node
             }
     }
 
+    /// <summary>
+    /// CE QUE LE VOILE LAISSE VOIR à ce point du monde, de 0 (rien) à 1 (à
+    /// découvert). Lu dans le masque lui-même : la carte ne tient pas une
+    /// seconde liste de ce qui a été vu.
+    /// </summary>
+    public float Seen(double x, double z)
+    {
+        var c = ToChart(x, z);
+        int px = (int)(c.X * MaskSide / _vp.Size.X);
+        int py = (int)(c.Y * _mask.GetHeight() / _vp.Size.Y);
+        if (px < 0 || py < 0 || px >= MaskSide || py >= _mask.GetHeight()) return 0;
+        return _mask.GetPixel(px, py).R;
+    }
+
     /// <summary>Un relevé de position : si la carte gagne un point, elle se redessine.</summary>
     public void Sail(double x, double z)
     {
@@ -312,15 +326,34 @@ public partial class ChartNode : Node
                 for (int i = 0; i < pts.Length; i++) pts[i] = At(route[i].X, route[i].Z);
                 DrawPolyline(pts, new Color(0.30f, 0.22f, 0.16f, 0.55f), 1.5f * Q * Wk, true);
             }
-            // les ports touchés, d'un rond et de leur nom
-            foreach (string key in b.Ports)
+            /* LES LIEUX, ET LEUR NOM. Un port TOUCHÉ est relevé de sa main : rond
+               plein d'encre et nom net. Un lieu seulement APERÇU — le voile percé
+               en passant au large — est écrit plus pâle, sans rond : on sait qu'il
+               est là, on n'y a pas mouillé. Sans les noms, une carte dévoilée n'est
+               qu'une côte, et l'on ne sait plus où sont les ports (signalé). */
+            foreach (var isl in _c._world.Isles)
             {
-                var isl = _c._world.ByKey(key);
-                if (isl == null) continue;
+                bool been = b.Ports.Contains(isl.Key);
+                float seen = been ? 1 : _c.Seen(isl.X, isl.Z);
+                if (seen < 0.25f) continue;
                 var p = At(isl.X, isl.Z);
-                DrawCircle(p, 4.5f * Q * Wk, new Color(0.28f, 0.19f, 0.12f), false, 1.6f * Q * Wk);
+                var ink = new Color(0.28f, 0.19f, 0.12f, been ? 1f : 0.55f + 0.35f * seen);
+                if (been) DrawCircle(p, 4.5f * Q * Wk, ink, false, 1.6f * Q * Wk);
+                else DrawCircle(p, 2.2f * Q * Wk, ink);
                 DrawString(_c._font, p + new Vector2(7 * Q * Wk, 4 * Q * Wk), isl.Name,
-                    HorizontalAlignment.Left, -1, Fs(15), new Color(0.26f, 0.18f, 0.11f));
+                    HorizontalAlignment.Left, -1, Fs(been ? 15 : 13), ink);
+            }
+            // les villes sans port — Kingston derrière les Palisadoes — de même
+            foreach (var tw in _c._world.Region.Towns)
+            {
+                var at = _c._world.Geo.ToXZ(tw.Lat, tw.Lon);
+                float seen = _c.Seen(at.X, at.Z);
+                if (seen < 0.25f) continue;
+                var p = At(at.X, at.Z);
+                var ink = new Color(0.28f, 0.19f, 0.12f, 0.5f + 0.4f * seen);
+                DrawCircle(p, 2.2f * Q * Wk, ink);
+                DrawString(_c._font, p + new Vector2(7 * Q * Wk, 4 * Q * Wk), tw.Name,
+                    HorizontalAlignment.Left, -1, Fs(13), ink);
             }
             /* LES CROIX : ce qu'une carte de bouteille a appris. Une croix, pas
                un rond — un rond est un lieu qu'on a relevé soi-même, une croix
