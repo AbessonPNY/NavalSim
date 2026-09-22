@@ -117,16 +117,8 @@ public partial class ChartNode : Node
         _vp.AddChild(_land);
 
         _font = ThemeDB.FallbackFont;
-        /* L'ÉCRITURE DU CAPITAINE, en Estonia (Robert Leuschke, licence OFL) :
-           une anglaise à la plume, comme on écrivait un livre de bord. Lue à
-           l'exécution, sans import ; absente, les notes gardent la police du
-           moteur. */
-        string hand = ProjectSettings.GlobalizePath("res://fonts/Estonia-Regular.ttf");
-        if (System.IO.File.Exists(hand))
-        {
-            var f = new FontFile();
-            if (f.LoadDynamicFont(hand) == Error.Ok) { _hand = f; GD.Print("carte : les notes s'écrivent en Estonia"); }
-        }
+        // l'écriture du capitaine, lue une fois pour tous ses usagers (HandFont)
+        _hand = HandFont.Get();
         _ink = new Pen(this) { Size = new Vector2(Side, hgt) };
         _vp.AddChild(_ink);
 

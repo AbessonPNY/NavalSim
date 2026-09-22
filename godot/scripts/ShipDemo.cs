@@ -1443,16 +1443,14 @@ public partial class ShipDemo : Node3D
             $"\n" +
             $"machine    {_ship.Ctrl.Throttle,6:F2}      barre     {_ship.Ctrl.Rudder,5:F2}\n" +
             $"écoutes    {_ship.Ctrl.Sheet,6:F2}      voiles    {voiles}\n" +
-            $"vent       {_windNowDeg,6:F0}°      force     {_sea.Core.SeaState:F1} · {Config.Beaufort[bf].Name}{(_seaMaster != null ? " · " + _seaMaster : "")}\n" +
             (_ship.SnowCover > 0.01 ? $"neige sur le pont {_ship.SnowCover * 100:F0} %\n" : "") +
-            (_inSquall ? $"dépression {_squall.Dist / 1852,6:F1} mille(s) du centre · au cœur force {_squall.Storm.Peak:F1} · ici {_squall.Force:F1}\n" : "") +
             $"\n" +
             /* CE QUI RESTE DE LA NOTICE : une ligne. Les deux qui couraient ici
                d'un bord à l'autre de l'image sont passées sous F1 — un instrument
                qu'on lit d'un coup d'œil ne peut pas être aussi le mode d'emploi.
                Ne restent que les deux états qu'on veut voir SANS ouvrir quoi que
                ce soit : la vue où l'on est, et si la météo se conduit seule. */
-            $"F1 commandes      vue {CamName()}      météo {(_weather.On ? "d'elle-même" : "à la main")}      ⇧H instruments";
+            $"F1 commandes      vue {CamName()}      ⇧H instruments";
     }
 
     public override void _UnhandledInput(InputEvent e)

@@ -636,6 +636,14 @@ Naval.Kraken = class Kraken {
         }
         this._hold(a);
       }
+      /* THE MAST IT HELD IS GONE — struck by lightning, or torn off by itself:
+         it TAKES ITS ARM BACK rather than stay coiled around nothing, and comes
+         looking again a few seconds later (that choice then puts the anchor on
+         the rail, the mast being down). */
+      if(a.line && a.anchor.mast && a.anchor.fall >= 0){
+        const fl = this.ship.falls[a.anchor.fall];
+        if(fl && fl.userData.fall){ this._let(a); a.recoil = 2 + Math.random()*2; a.want = 0; }
+      }
       if(a.line && (a.grow < 0.8 || this.state !== 'grip')) this._let(a);
       this._gripLine(a, t, ocean, b.quat, b.pos);
       if(this.state === 'dive') for(const p of a.C) p.y -= this.stateT*1.5*(1 - a.grow);

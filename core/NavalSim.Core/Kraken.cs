@@ -474,6 +474,16 @@ public sealed class Kraken
                 }
                 Hold(a);
             }
+            /* LE MÂT QU'IL TENAIT N'EST PLUS — foudroyé, ou arraché par lui : il
+               RETIRE son bras au lieu de rester enroulé autour du vide, et revient
+               en chercher un autre quelques secondes plus tard (le choix d'alors
+               ramène l'ancrage à la lisse, le mât étant tombé). */
+            if (a.Line != null && a.Anchor is { Mast: true, Fall: >= 0 } held)
+            {
+                bool fallen = true;
+                foreach (var m in v.Tops()) if (m.Fall == held.Fall) { fallen = m.Gone; break; }
+                if (fallen) { Let(a); a.Recoil = 2 + _random() * 2; a.Want = 0; }
+            }
             if (a.Line != null && (a.Grow < 0.8 || State != KrakenState.Grip)) Let(a);
             GripLine(a, t, ocean, b.Quat, b.Pos);
             if (State == KrakenState.Dive)

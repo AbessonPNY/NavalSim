@@ -46,7 +46,14 @@ public partial class ShipDemo
         }
 
         _navLine = Plate(20, HudInk, HorizontalAlignment.Center);
-        _skyLine = Plate(15, HudDim, HorizontalAlignment.Right);
+        /* LE TEMPS QU'IL FAIT, DE LA MAIN DU CAPITAINE : la même Estonia que ses
+           notes sur la carte — c'est ce qu'il écrirait sur son livre de bord, pas
+           un instrument. Plus grande, l'anglaise étant fine ; sans elle, la police
+           du moteur et la taille des autres plaques. */
+        var hand = HandFont.Get();
+        _skyLine = Plate(hand != null ? 26 : 15, HudInk, HorizontalAlignment.Right);
+        if (hand != null) _skyLine.AddThemeFontOverride("font", hand);
+        _skyLine.AddThemeConstantOverride("line_spacing", hand != null ? -4 : 0);
 
         /* LA BOURSE derrière un écu dessiné : une pièce de monnaie ne se trouve
            dans aucune police qu'on puisse supposer présente, et le projet dessine
@@ -100,10 +107,12 @@ public partial class ShipDemo
         string tombe = _fall.Amount > 0.004 ? (_fall.Snow ? " · il neige" : " · il pleut") : "";
         if (_seaFog != null && _seaFog.Amount > 0.3) tombe += " · brume";
         _skyLine.Text =
-            $"vent {_windNowDeg:F0}°   force {_sea.Core.SeaState:F1} · {Config.Beaufort[bf].Name}\n" +
+            $"vent {_windNowDeg:F0}°   force {_sea.Core.SeaState:F1} · {Config.Beaufort[bf].Name}"
+            + (_seaMaster != null ? " · " + _seaMaster : "") + "\n" +
             $"{_climate.Word()}{tombe}\n" +
+            (_inSquall ? $"dépression à {_squall.Dist / 1852:F1} mille(s) du centre\n" : "") +
             $"{_calendar.Date:dd/MM/yyyy}   {(int)h:00}:{(int)((h - Math.Floor(h)) * 60):00}";
-        _skyLine.Size = new Vector2(260, 0);
+        _skyLine.Size = new Vector2(320, 0);
         float skyRight = s.X - right - 14 - (_sunPanel != null && _sunPanel.Visible ? _sunPanel.Size.X + 12 : 0);
         _skyLine.Position = new Vector2(skyRight - _skyLine.Size.X, top + 14);
 
