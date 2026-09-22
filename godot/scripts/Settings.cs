@@ -82,6 +82,9 @@ public sealed class Settings
     /// <summary>Le pavillon hissé sur le navire à la barre : l'id d'une nation de flags.json, vide pour celui de la fiche.</summary>
     public string Nation = "";
 
+    // [lumiere] — l'étude de la lumière du soleil (voir SkyNode)
+    public float SunStrength = 1.25f, SunWarmth = 0.35f, SkyShade = 0.85f;
+
     // [carte]
     /// <summary>La largeur du bec de la plume, en unités de carte : le plein d'un trait fait le double.</summary>
     public float PenWidth = 1.5f;
@@ -133,6 +136,9 @@ public sealed class Settings
         s.FilmMask = (bool)cf.GetValue("rendu", "masque_cinema", s.FilmMask);
         s.Nation = (string)cf.GetValue("navire", "pavillon", s.Nation);
         s.PenWidth = (float)cf.GetValue("carte", "epaisseur_plume", s.PenWidth);
+        s.SunStrength = (float)cf.GetValue("lumiere", "force_du_soleil", s.SunStrength);
+        s.SunWarmth = (float)cf.GetValue("lumiere", "chaleur_du_soleil", s.SunWarmth);
+        s.SkyShade = (float)cf.GetValue("lumiere", "lumiere_du_ciel_dans_l_ombre", s.SkyShade);
         s.Sound = (bool)cf.GetValue("son", "bruitages", s.Sound);
         s.Music = (bool)cf.GetValue("son", "musique", s.Music);
         s.Volume = (float)cf.GetValue("son", "volume", s.Volume);
@@ -180,6 +186,9 @@ public sealed class Settings
         cf.SetValue("rendu", "masque_cinema", FilmMask);
         cf.SetValue("navire", "pavillon", Nation);
         cf.SetValue("carte", "epaisseur_plume", PenWidth);
+        cf.SetValue("lumiere", "force_du_soleil", SunStrength);
+        cf.SetValue("lumiere", "chaleur_du_soleil", SunWarmth);
+        cf.SetValue("lumiere", "lumiere_du_ciel_dans_l_ombre", SkyShade);
         cf.SetValue("son", "bruitages", Sound);
         cf.SetValue("son", "musique", Music);
         cf.SetValue("son", "volume", Volume);

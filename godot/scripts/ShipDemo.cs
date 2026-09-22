@@ -405,6 +405,8 @@ public partial class ShipDemo : Node3D
         if (_sound != null) _sound.On = s.Sound;
         AudioServer.SetBusVolumeDb(0, Mathf.LinearToDb(Math.Clamp(s.Volume, 0.001f, 1f)));
         _sky.Env.SsaoEnabled = s.Occlusion;
+        _sky.SunStrength = s.SunStrength; _sky.SunWarmth = s.SunWarmth; _sky.SkyShade = s.SkyShade;
+        _sky.Apply();
         _sky.Env.SsilEnabled = s.IndirectLight;
         DisplayServer.WindowSetVsyncMode(s.VSync ? DisplayServer.VSyncMode.Enabled : DisplayServer.VSyncMode.Disabled);
         /* Le lointain devient flou passé cette distance, sur une transition de la
@@ -598,6 +600,10 @@ public partial class ShipDemo : Node3D
         Check("Lanterne du grand mât", st.MastLantern, on => st.MastLantern = on);
         Slide("Reflet sur la mer", 0, 6, 0.1, st.LampReflection, x => st.LampReflection = x);
         Slide("Lumière dans l'eau", 0, 2, 0.05, st.LampWater, x => st.LampWater = x);
+        Title("Lumière", 15);
+        Slide("Force du soleil", 0.5, 5, 0.05, st.SunStrength, x => st.SunStrength = x);
+        Slide("Chaleur du soleil", 0, 1, 0.05, st.SunWarmth, x => st.SunWarmth = x);
+        Slide("Éclairage ambiant", 0, 1.5, 0.05, st.SkyShade, x => st.SkyShade = x);
         Title("Carte", 15);
         Slide("Épaisseur de la plume", 0.5, 4, 0.1, st.PenWidth, x =>
         {
@@ -1427,7 +1433,7 @@ public partial class ShipDemo : Node3D
             $"vent       {_windNowDeg,6:F0}°      force     {_sea.Core.SeaState:F1} · {Config.Beaufort[bf].Name}{(_seaMaster != null ? " · " + _seaMaster : "")}\n" +
             GunLine() +
             PurseLine() +
-            $"air        {_climate.Word()}{(_fall.Amount > 0.004 ? (_fall.Snow ? " · il neige" : " · il pleut") : "")}   {_calendar.Date:dd/MM/yyyy}{(_ship.SnowCover > 0.01 ? $"   neige sur le pont {_ship.SnowCover * 100:F0} %" : "")}\n" +
+            $"air        {_climate.Word()}{(_fall.Amount > 0.004 ? (_fall.Snow ? " · il neige" : " · il pleut") : "")}{(_seaFog != null && _seaFog.Amount > 0.3 ? " · brume" : "")}   {_calendar.Date:dd/MM/yyyy}{(_ship.SnowCover > 0.01 ? $"   neige sur le pont {_ship.SnowCover * 100:F0} %" : "")}\n" +
             (_inSquall ? $"dépression {_squall.Dist / 1852,6:F1} mille(s) du centre · au cœur force {_squall.Storm.Peak:F1} · ici {_squall.Force:F1}\n" : "") +
             $"\n" +
             /* CE QUI RESTE DE LA NOTICE : une ligne. Les deux qui couraient ici
@@ -1487,6 +1493,8 @@ public partial class ShipDemo : Node3D
                 case Key.Down: _weather.On = false; _force = Math.Max(0, _force - 0.5); Restate(); break;
                 case Key.Left: _weather.On = false; _windDeg = (_windDeg - 15 + 360) % 360; Restate(); break;
                 case Key.Right: _weather.On = false; _windDeg = (_windDeg + 15) % 360; Restate(); break;
+                // ⇧T : la brume de surface, tout de suite, pour trois heures de jeu
+                case Key.T when k.ShiftPressed: (_seaFog ??= new SeaFog(_fogRules)).Force(3); Say("La brume monte sur l'eau"); break;
                 case Key.T: SetAutoWeather(!_weather.On); break;
                 // ⇧J : une averse et le serpent de mer, qui ne vit que dans la pluie
                 case Key.J when k.ShiftPressed: SummonSerpent(); break;
@@ -1636,6 +1644,24 @@ public partial class ShipDemo : Node3D
 
     PrecipNode _precip = null!;
     Calendar _calendar = new();
+    SeaFogSettings _fogRules = new();
+    SeaFog? _seaFog;
+    bool _saidFog;
+
+    /* LA BRUME DE SURFACE : tirée au soir, montée et levée en heures de jeu, et
+       posée sur le ciel, qui la mêle à la brume de tout le monde. Dite quand elle
+       monte et quand elle se lève — une nappe qui vous prend sans un mot se lit
+       comme un défaut d'affichage. */
+    void FogTick(double hours, double dayTime)
+    {
+        _seaFog ??= new SeaFog(_fogRules);
+        _seaFog.Update(hours, dayTime, _sea.Core.SeaState, 6.0);
+        _sky.Core.Fog = _seaFog.Amount;
+        _sky.Core.FogDensity = _fogRules.Density;
+        _sky.Core.FogHeight = _fogRules.Height;
+        if (!_saidFog && _seaFog.Amount > 0.3) { _saidFog = true; if (!_inTitle) Say("La brume monte sur l'eau"); }
+        else if (_saidFog && _seaFog.Amount < 0.1) { _saidFog = false; if (!_inTitle) Say("La brume se lève"); }
+    }
     Climate _climate = new();
     (double Amount, bool Snow) _fall;
 
@@ -1654,6 +1680,7 @@ public partial class ShipDemo : Node3D
             if (root.TryGetProperty("ghosts", out var gh)) _ghosts.Rules = GhostRules.FromJson(gh);
             if (root.TryGetProperty("whale", out var wh)) _whaleRules = WhaleSettings.FromJson(wh);
             if (root.TryGetProperty("serpent", out var sp)) _serpentRules = SerpentSettings.FromJson(sp);
+            if (root.TryGetProperty("fog", out var fg)) _fogRules = SeaFogSettings.FromJson(fg);
             if (root.TryGetProperty("reckoning", out var rk)) _reckRules = ReckoningSettings.FromJson(rk);
             if (root.TryGetProperty("wreck", out var wr) && wr.TryGetProperty("bottleOneIn", out var bo))
                 _bottleOneIn = bo.GetInt32();
@@ -1681,6 +1708,7 @@ public partial class ShipDemo : Node3D
         if (dayAfter < dayBefore) _calendar.NextDay();          // minuit passé
         double hours = (dayAfter - dayBefore + 24) % 24;
         _climate.Update(hours, _calendar, dayAfter, _sky.Core.Storm);
+        FogTick(hours, dayAfter);
 
         double wet = Math.Clamp((_sea.Core.SeaState - 5.5) / 2.8, 0, 1);
         _fall = _climate.Precipitation(wet);
@@ -2588,6 +2616,7 @@ public partial class ShipDemo : Node3D
                 // --baleine 0 : indifférente, 1 : curieuse, 2 : hostile
                 case "--baleine": SummonWhale((WhaleMood)Math.Clamp(args[i + 1].ToInt(), 0, 2)); break;
                 // une seconde après la mise à l'eau : une traversée pose le navire APRÈS la ligne de commande
+                case "--brume": if (args[i + 1] != "0") (_seaFog ??= new SeaFog(_fogRules)).Force(args[i + 1].ToFloat() > 1 ? args[i + 1].ToFloat() : 6); break;
                 case "--serpent": _serpentIn = args[i + 1] != "0" ? 1.0 : -1; break;
                 case "--foudre": Strike(_ship); break;
                 case "--bordee": _gunSide = args[i + 1].ToInt(); Fire(false, true); break;

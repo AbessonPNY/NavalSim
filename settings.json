@@ -26,6 +26,16 @@
     "noonError": 3.0,
     "passageError": 0.04
   },
+  "fog": {
+    "enabled": true,
+    "chance": 0.35,
+    "from": 21,
+    "afterDawn": 1.5,
+    "maxWind": 4.5,
+    "density": 0.02,
+    "height": 12,
+    "rate": 1.0
+  },
   "serpent": {
     "enabled": true,
     "perHour": 3.0,

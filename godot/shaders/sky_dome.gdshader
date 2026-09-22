@@ -19,6 +19,10 @@ uniform float u_moon_phase = -1.0;
 
 // 1 : le soleil à sa vraie luminance, pour l'exposition automatique ; 0 : celui de la page
 uniform float u_dazzle = 0.0;
+/* L'ÉCLAIRAGE AMBIANT (menu → Lumière) : ce que la passe cubemap donne à la
+   lumière — l'ambiante ET les reflets du ciel sur les surfaces. Le ciel qu'on
+   VOIT n'en est pas touché : seule la lumière qu'il rend l'est. */
+uniform float u_env_gain = 1.0;
 
 /* LE SOLEIL ÉBLOUISSANT. Le ciel et la mer sont calibrés comme la page, jamais
    plus clairs que le blanc ; le vrai soleil est des milliers de fois plus
@@ -84,5 +88,5 @@ void sky() {
 
 	// le fond est VU, donc desencode ; la passe cubemap nourrit la lumiere
 	// ambiante et garde les valeurs brutes — sans l'eblouissement, qui n'eclaire rien
-	COLOR = AT_CUBEMAP_PASS ? c : naval_display(c) + u_dazzle * naval_glare(normalize(dir));
+	COLOR = AT_CUBEMAP_PASS ? c * u_env_gain : naval_display(c) + u_dazzle * naval_glare(normalize(dir));
 }

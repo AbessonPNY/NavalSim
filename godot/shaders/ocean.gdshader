@@ -762,6 +762,7 @@ void fragment() {
 	   hull_gap donne la distance à sa VRAIE flottaison, en mètres — négative
 	   dedans, positive dehors. */
 	float hull_foam = 0.0;
+	float near_hull = 1e9;              // la plus proche flottaison, pour laisser les coques à leur collier
 	for (int i = 0; i < NSHIP; i++) {
 		if (i >= u_ship_count) break;
 		vec2 rel = v_world.xz - u_ship_pos[i].xz;
@@ -770,6 +771,7 @@ void fragment() {
 		float t_along;
 		float gap_m = hull_gap(rel, f2, r2, u_ship_half[i], u_hull_ends[i],
 		                       (float(i) + 0.5) / float(NSHIP), t_along);
+		near_hull = min(near_hull, gap_m);
 		float way = clamp(u_ship_speed[i] / 3.0, 0.0, 1.0);
 
 		/* Seuls le collier net et la vague d'étrave restent instantanés — ils
@@ -831,7 +833,29 @@ void fragment() {
 
 	// les fils de poupe restent des fils : pas de dentelle, à peine rompus
 	wake_lines = smoothstep(0.15, 0.6, wake_lines) * (0.75 + 0.35 * fn);
-	float foam = clamp(max(max(crest_foam, persist), wake_lines) + hull_foam, 0.0, 1.0) * (1.0 - far * 0.85);
+	/* L'ÉCUME DU RIVAGE : là où l'eau n'a plus qu'un mètre au-dessus du sable.
+	   La hauteur d'eau se lit dans l'image déjà rendue : le point de la scène
+	   derrière ce pixel de mer — le fond, la plage, un pilier de ponton — est
+	   reconstitué en monde, et l'on compare sa hauteur à celle de la surface.
+	   C'est la terre qu'on VOIT qui décide, donc l'écume suit exactement le
+	   rivage dessiné. Comme la surface monte et descend avec la houle et le
+	   fond non, la bande va et vient d'elle-même sur la plage ; une onde lente
+	   la pousse un peu plus. Les coques gardent leur collier : rien à moins de
+	   deux mètres et demi d'une flottaison. */
+	float shore_foam = 0.0;
+	if (dist < 600.0 && near_hull > 2.5) {
+		float scene_z = view_depth(SCREEN_UV, INV_PROJECTION_MATRIX);
+		float frag_z = -VERTEX.z;
+		// du fond ou de la terre juste derrière — pas le ciel, pas le large
+		if (scene_z < frag_z + 40.0) {
+			vec3 sw = (INV_VIEW_MATRIX * vec4(VERTEX * (scene_z / max(frag_z, 1e-3)), 1.0)).xyz;
+			float over = v_world.y - sw.y;                 // l'eau au-dessus du sable, en mètres
+			float swash = 0.35 + 0.35 * sin(u_time * 1.1 + dot(v_world.xz, vec2(0.05, 0.03)));
+			float band = (1.0 - smoothstep(0.0, 0.9 + swash, over)) * smoothstep(-0.2, 0.05, over);
+			shore_foam = band * (0.55 + 0.45 * lace(v_world.xz * 0.9 + 17.0, 0.0, fine)) * (1.0 - smoothstep(350.0, 600.0, dist));
+		}
+	}
+	float foam = clamp(max(max(max(crest_foam, persist), wake_lines), shore_foam) + hull_foam, 0.0, 1.0) * (1.0 - far * 0.85);
 	vec3 foam_col = body * 0.5 + u_horizon * 1.05 * (1.0 - 0.55 * u_storm)
 	              + lamp_foam * 0.8;          // l'écume prend la flamme comme un drap blanc
 	/* L'ÉCUME À L'OMBRE : un drap blanc qui ne prend plus le soleil. Elle perd

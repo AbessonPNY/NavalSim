@@ -247,7 +247,24 @@ public sealed class Sky
         Haze = 0.00085 * (1 + 6.4 * st * st);
         // et elle remplit la hauteur aussi, ou le ciel reste clair au-dessus de la crasse
         HazeHeight = 150.0 * (1 + 2.4 * st);
+
+        /* LA BRUME DE SURFACE (SeaFog) : la même loi, une couche basse et dense.
+           La densité au ras de l'eau monte vers celle de la brume, la hauteur
+           descend vers la sienne — si bien qu'à pleine brume on ne voit plus à
+           deux cents mètres sur l'eau, et qu'au-dessus de quinze mètres l'air est
+           clair : la mâture sort, les étoiles restent. Un seul couple densité–
+           hauteur, et donc tous les lecteurs de la brume la voient. */
+        if (Fog > 0)
+        {
+            double f = Fog * Fog * (3 - 2 * Fog);
+            Haze += (Math.Max(Haze, FogDensity) - Haze) * f;
+            HazeHeight += (FogHeight - HazeHeight) * f;
+        }
     }
+
+    /// <summary>La brume de surface, de 0 à 1 — posée par l'appelant avant SetSeaState.</summary>
+    public double Fog;
+    public double FogDensity = 0.02, FogHeight = 12;
 
     /// <summary>
     /// OÙ SE TROUVE LE SOLEIL À UNE HEURE DONNÉE.

@@ -28,8 +28,15 @@ public partial class ShipDemo : Node3D
         };
     }
 
-    /// <summary>La pluie qui compte pour lui : l'averse ou le grain, pas la neige.</summary>
-    double Wet() => Math.Max(_fall.Snow ? 0 : _fall.Amount, _inSquall ? _squall.Inten : 0);
+    /// <summary>
+    /// Ce qui le fait venir : l'averse ou le grain, pas la neige — et la BRUME de
+    /// surface, où il est chez lui : on ne le voit qu'à cent mètres, et on l'entend.
+    /// </summary>
+    double Wet() => Math.Max(Math.Max(_fall.Snow ? 0 : _fall.Amount, _inSquall ? _squall.Inten : 0),
+                             (_seaFog?.Amount ?? 0) * 0.8);
+
+    /// <summary>« dans la brume » ou « dans la pluie », selon ce qui le cache.</summary>
+    string Veil() => (_seaFog?.Amount ?? 0) > 0.3 ? "dans la brume" : "dans la pluie";
 
     void SerpentTick(double dt)
     {
@@ -58,12 +65,12 @@ public partial class ShipDemo : Node3D
             // on l'entend avant de le voir : le sifflement, et le grondement qui porte sur l'eau
             case "heard":
                 _sound?.Growl(_serpent.Head);
-                Say("Un sifflement dans la pluie… quelque chose tourne autour de nous");
+                Say($"Un sifflement {Veil()}… quelque chose tourne autour de nous");
                 break;
             case "seen": Say($"Serpent de mer ! Ses anneaux crèvent l'eau {SerpentBearing()}"); break;
             case "charge": Say($"Il plonge — il vient sur nous, {SerpentBearing()} !"); break;
             case "wounded": Say("Touché ! Le serpent plonge"); break;
-            case "flees": Say("Le serpent de mer s'enfuit dans la pluie"); break;
+            case "flees": Say($"Le serpent de mer s'enfuit {Veil()}"); break;
         }
     }
 

@@ -55,6 +55,20 @@ public partial class SkyNode : Node3D
        doux. */
     public const float AmbientGain = 1.0f;
 
+    /* L'ÉTUDE DE LA LUMIÈRE (menu → Lumière) : trois facteurs sur les valeurs
+       de la page, réglés à l'œil et gardés dans reglages.ini.
+       SunStrength multiplie le soleil ; SunWarmth le tire vers un jaune chaud
+       (celui d'une fin d'après-midi) sans toucher à sa luminance, et le jour
+       seulement — la lune garde sa lumière froide ; SkyShade multiplie la
+       lumière du ciel dans l'ombre : plus bas, plus de contraste.
+
+       SkyShade est l'ÉCLAIRAGE AMBIANT tout entier : l'énergie ambiante seule
+       ne changeait presque rien (signalé) — l'ombre était éclairée surtout par
+       les REFLETS du ciel et la lumière renvoyée (SSIL), qu'elle ne touche pas.
+       Il règle donc aussi la radiance du dôme (sa passe cubemap, qui nourrit
+       ambiante et reflets) et l'intensité du SSIL. */
+    public float SunStrength = 1.25f, SunWarmth = 0.35f, SkyShade = 0.85f;
+
     /* LE SOLEIL DE LA PAGE, DANS L'UNITÉ DE GODOT. three.js (r160, éclairage
        physique) divise l'éclairement direct par π — la réflectance de Lambert —,
        Godot non : un soleil de 2,1 y éclairait π fois plus fort que dans la page.
@@ -167,13 +181,26 @@ public partial class SkyNode : Node3D
         // une lune au zénith rendrait « haut » colinéaire à la visée : autre repère alors
         Sun.LookAt(Vector3.Zero, Mathf.Abs(dir.Y) > 0.999f ? Vector3.Forward : Vector3.Up);
 
-        Sun.LightColor = new Color((float)Core.SunColor.R, (float)Core.SunColor.G, (float)Core.SunColor.B);
-        Sun.LightEnergy = (float)(Core.SunIntensity * SunGain);
+        var col = new Color((float)Core.SunColor.R, (float)Core.SunColor.G, (float)Core.SunColor.B);
+        if (Core.SunElevDeg > 0)
+        {
+            // un jaune chaud à luminance égale : la couleur change, pas la force
+            var warm = new Color(1.0f, 0.80f, 0.52f);
+            float l0 = 0.2126f * col.R + 0.7152f * col.G + 0.0722f * col.B;
+            var tinted = new Color(col.R * warm.R, col.G * warm.G, col.B * warm.B);
+            float l1 = Math.Max(1e-4f, 0.2126f * tinted.R + 0.7152f * tinted.G + 0.0722f * tinted.B);
+            tinted = new Color(tinted.R * l0 / l1, tinted.G * l0 / l1, tinted.B * l0 / l1);
+            col = col.Lerp(tinted, Math.Clamp(SunWarmth, 0, 1));
+        }
+        Sun.LightColor = col;
+        Sun.LightEnergy = (float)(Core.SunIntensity * SunGain * (Core.SunElevDeg > 0 ? SunStrength : 1));
 
         /* L'ambiante est celle du ciel, mais son ÉNERGIE porte l'éclair : c'est
            ce qui fait que le pont et la toile l'attrapent. Un éclair qui
            n'éclairerait que le ciel se lit comme un fond d'écran qui clignote. */
-        Env.AmbientLightEnergy = (float)Math.Max(0.05, Core.HemiIntensity * AmbientGain);
+        Env.AmbientLightEnergy = (float)Math.Max(0.02, Core.HemiIntensity * AmbientGain * SkyShade);
+        Env.SsilIntensity = Math.Max(0, SkyShade);
+        _domeMat.SetShaderParameter("u_env_gain", Math.Max(0, SkyShade));
 
         PushTo(_domeMat);
         // le disque de la lune et sa phase n'appartiennent qu'au dôme

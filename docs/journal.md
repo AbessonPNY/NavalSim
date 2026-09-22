@@ -6626,6 +6626,32 @@ proportion de ce que le reflet de la coque occupe.
 
 **Puis : les festons.** Au soleil bas, seize hauteurs tombaient à 3 m l'une de l'autre sur l'eau et chacune dessinait son contour de coque. Vingt-quatre hauteurs, une pénombre d'une fois et demie leur écart, et un décalage des hauteurs propre à chaque pixel (bruit à gradient entrelacé) : ce qui reste du motif devient grain.
 
+## La lumière du soleil, à l'étude (Godot)
+
+Demandé : étudier une lumière du soleil plus franche sur la coque, jaune et chaude, pour plus de contraste. Trois curseurs au menu (Lumière), gardés dans `reglages.ini` → `[lumiere]`, appliqués sur les valeurs de la page : **force du soleil** (×1,25 par défaut), **chaleur du soleil** (0,35 : la couleur tirée vers un jaune d'après-midi, 1,0/0,80/0,52, À LUMINANCE ÉGALE — la couleur change, pas la force ; le jour seulement, la lune garde sa lumière froide), **lumière du ciel dans l'ombre** (×0,85 : plus bas, plus de contraste). Relevé au démarrage : soleil (1,07 ; 0,94 ; 0,76) à 0,84 au lieu de 0,67, ciel 0,24 au lieu de 0,28.
+
+Puis : la force du soleil jusqu'à ×5 (« juste mais suffisant » au maximum de 2,5), et le troisième curseur, qui « ne change pas grand-chose », devient l'**éclairage ambiant** tout entier. L'énergie ambiante seule ne touchait presque rien : l'ombre était éclairée surtout par les REFLETS du ciel et la lumière renvoyée (SSIL). Il règle maintenant aussi la passe cubemap du dôme (`u_env_gain`, qui nourrit ambiante et reflets — le ciel vu n'en change pas) et l'intensité du SSIL, de 0 à 1,5. Mesuré sur les deux tiers bas de l'image (surtout de la mer, qui n'en dépend pas) : 0,386 à 1,0, 0,357 à 0,5, 0,317 à 0.
+
+## L'écume du rivage (Godot)
+
+Demandé : détecter la bande de sable au contact de l'eau pour y faire, là aussi, un collier d'écume.
+
+La mer ne connaît pas le relief, mais elle lit déjà l'image de profondeur de la scène (pour la coque vue à travers l'eau). Le point de la scène derrière chaque pixel de mer — le fond, la plage, un pilier de ponton — y est reconstitué en monde, et sa hauteur comparée à celle de la surface : sous un mètre environ d'eau, une bande d'écume, dans la dentelle de l'écume du large. C'est la terre DESSINÉE qui décide, donc l'écume suit exactement le rivage qu'on voit. La surface montant et descendant avec la houle quand le fond reste, la bande va et vient d'elle-même sur la plage ; une onde lente la pousse un peu plus. Les coques gardent leur collier (rien à moins de 2,5 m d'une flottaison) ; jusqu'à 600 m de l'œil, fondue dès 350. Vérifié à la compilation seulement : l'aspect se juge à l'œil.
+
+## La brume de surface, la nuit (Godot)
+
+Demandé : une météo qui n'existait pas, une brume de surface nocturne — et le serpent avec.
+
+**UNE NAPPE, PAS UN BROUILLARD** : par nuit calme sous les tropiques, l'air qui refroidit au-dessus d'une mer restée tiède condense au ras de l'eau une couche de dix ou quinze mètres ; au-dessus, les étoiles, et la pomme des mâts qui en sort. C'est la loi de brume qui existait déjà (densité au ras de l'eau, décroissance exponentielle en hauteur) avec une couche basse et dense : à pleine brume, 0,02 par mètre et 12 m d'échelle au lieu de 0,00085 et 150. Le ciel la mêle (`Sky.Fog`), et tous ses lecteurs la voient sans une ligne de plus : la mer, les coques, la terre, les feux qui s'éteignent au loin, le masquage des coques lointaines.
+
+Mesuré à pleine brume, œil à 2 m : **3 %** de la lumière passe à 200 m au ras de l'eau (on y voit à 150 m), **65 %** vers une tête de mât à 30 m de haut et 60 m de distance — la mâture sort de la nappe.
+
+**LE CYCLE** (`core/SeaFog.cs`) : tirée au soir, une nuit sur trois ; elle monte à partir de 21 h, s'épaissit en une heure de jeu, tient jusqu'à une heure et demie après l'aube ; au-delà de force 4,5 le vent la déchire, deux fois plus vite. Premier seuil à 3,5 : la mer par défaut est à force 4, et la brume n'aurait jamais paru. « La brume monte sur l'eau », « La brume se lève » ; « · brume » à l'instrument de l'air.
+
+**LE SERPENT** y vient comme sous la pluie (la brume compte pour 0,8 de pluie), et ses messages disent « dans la brume ».
+
+⇧T : la brume tout de suite, trois heures de jeu ; `--brume 6`. Piège : la brume n'était créée qu'à sa première mise à jour, et `--brume`, lu avant, tombait dans le vide. Réglages : `settings.json` → `fog`.
+
 ## Le serpent de mer (Godot)
 
 Choix d'Arnaud : il FRAPPE ET PLONGE (plutôt qu'enserrer ou chavirer), dans la
