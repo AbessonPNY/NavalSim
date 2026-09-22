@@ -467,10 +467,14 @@ public partial class ShipNode
             for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
             {
                 if ((mi.GetSurfaceOverrideMaterial(s) ?? mi.Mesh.SurfaceGetMaterial(s)) is not BaseMaterial3D mat) continue;
-                if (!seen.Add(mat)) continue;
                 bool byName = GlowNames.IsMatch(mat.ResourceName ?? "");
-                // le verre et les fanaux laissent passer la lumière : pas d'ombre
+                /* le verre et les fanaux laissent passer la lumière : pas d'ombre — et
+                   CHAQUE objet qui en porte, pas le premier seulement. Le test « déjà
+                   vue » passait avant : deux vitres sur quatre du Roter Löwe, qui
+                   partagent la matière « glass », faisaient encore ombre, et le soleil
+                   n'entrait plus dans la chambre du capitaine (signalé). */
                 if (byName) mi.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
+                if (!seen.Add(mat)) continue;
                 bool hasMap = mat.EmissionTexture != null;
                 if (!hasMap && !byName) continue;
                 /* Une carte émissive est MULTIPLIÉE par la couleur émissive, que

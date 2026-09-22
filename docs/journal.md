@@ -6626,6 +6626,10 @@ proportion de ce que le reflet de la coque occupe.
 
 **Puis : les festons.** Au soleil bas, seize hauteurs tombaient à 3 m l'une de l'autre sur l'eau et chacune dessinait son contour de coque. Vingt-quatre hauteurs, une pénombre d'une fois et demie leur écart, et un décalage des hauteurs propre à chaque pixel (bruit à gradient entrelacé) : ce qui reste du motif devient grain.
 
+## Le soleil par les fenêtres de la chambre (Godot)
+
+Signalé : la lumière du soleil ne filtrait plus par les fenêtres de la cabine du capitaine. Relevé sur le Roter Löwe : quatre objets en verre, deux faisant encore ombre (`Plane_008_1`, `Plane_4`). `FindNightGlow` coupait bien l'ombre du verre, mais APRÈS le test « matière déjà vue » : seul le premier objet de chaque matière était traité, et les vitres qui partagent la matière « glass » (le modèle mis à jour en a plusieurs) bouchaient les fenêtres. L'ombre est maintenant coupée pour chaque objet qui porte du verre.
+
 ## L'ombre au couchant (Godot)
 
 Signalé : l'ombre des coques sur l'eau s'estompait vers 18 h, soleil à 3°, quand elle devrait être encore là. Deux bornes l'effaçaient : elle s'éteignait sous 7° (smoothstep de 0,02 à 0,12 sur la hauteur du soleil — à 3°, un quart), et sa longueur était bornée à six fois la hauteur de la coque quand un soleil à 3° en donne dix-neuf. Elle ne s'éteint plus que dans les deux derniers degrés, et s'allonge jusqu'à vingt fois la hauteur ; la pénombre, qui suit l'écart entre les hauteurs échantillonnées, s'élargit d'elle-même avec la longueur.
