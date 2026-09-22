@@ -38,6 +38,8 @@ Pendant une quête :
 }
 ```
 
+`kind` et `chapter` (Godot) : `"kind": "story"` fait de la quête un chapitre de l'**Histoire** (écran de titre → Histoire lance le premier chapitre pas encore fini, dans l'ordre de `chapter`) ; sinon c'est une **mission**, qu'on choisit dans la liste (Missions). Absent : mission.
+
 `region` (Godot) : la carte où la quête se joue — le nom de la fiche de
 `world/`, `caraibes` pour la Jamaïque, `tortue` pour la Tortue. Ailleurs, la
 quête attend : elle ne vise rien et ne s'accomplit pas, et la ligne d'objectif

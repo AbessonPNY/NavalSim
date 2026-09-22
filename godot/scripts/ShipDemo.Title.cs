@@ -1,6 +1,8 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using NavalSim.Core;
 
 namespace NavalSim;
 
@@ -8,10 +10,15 @@ namespace NavalSim;
 /// L'ÉCRAN DE TITRE — ce que la page n'a jamais eu : on n'y tombait pas dans un
 /// jeu, on y tombait dans une simulation déjà lancée.
 ///
-/// Son fond n'est pas une image : c'est la simulation elle-même, vue de sous la
-/// quille, avec le trésor qui descend en travers du cadre. Rien n'est arrêté
-/// derrière — la mer travaille, la coque roule, les pièces voltigent —, si bien
-/// que « Jouer » n'a qu'à rendre la caméra et le monde est déjà chaud.
+/// Son fond n'est pas une image : c'est la simulation elle-même — le navire
+/// sous voiles, par beau temps, au milieu de l'océan, vu de loin et au ras de
+/// l'eau, la mise au point à deux mètres de l'objectif : l'eau toute proche est
+/// nette, le navire flou dans le lointain. Rien n'est arrêté derrière, si bien
+/// qu'entrer dans le jeu n'a qu'à rendre la caméra.
+///
+/// JEU LIBRE : le port de départ, sans quête. HISTOIRE : le premier chapitre
+/// qu'on n'a pas fini (les fiches `kind: story`, dans l'ordre de `chapter`).
+/// MISSIONS : la liste des autres, à choisir.
 ///
 /// Il ne redouble RIEN : « Options » ouvre le menu d'Échap, qui existe et qui
 /// est complet. Un second jeu de réglages aurait dérivé du premier en trois
@@ -23,8 +30,13 @@ public partial class ShipDemo : Node3D
     const string GameTitle = "NavalSim";
     const string GameSub = "une simulation à la voile";
 
+    /// <summary>Le navire de l'affiche : sa fiche dans ships/.</summary>
+    const string TitleShip = "frigate17e";
+    int _beforeTitle = -1;
     CanvasLayer? _titleLayer;
     readonly List<Button> _titleItems = new();
+    VBoxContainer? _titleBox;
+    FontFile? _titleFont;
     Label? _credits;
     int _titlePick;
     bool _inTitle;
@@ -83,7 +95,7 @@ public partial class ShipDemo : Node3D
         root.AddChild(sub);
 
         // les entrées, à droite comme sur la maquette
-        var box = new VBoxContainer
+        var box = _titleBox = new VBoxContainer
         {
             AnchorLeft = 1, AnchorRight = 1, AnchorTop = 0.5f, AnchorBottom = 0.5f,
             OffsetLeft = -420, OffsetRight = -110, OffsetTop = -40, OffsetBottom = 160,
@@ -92,32 +104,8 @@ public partial class ShipDemo : Node3D
         box.AddThemeConstantOverride("separation", 4);
         root.AddChild(box);
 
-        void Item(string text, Action go)
-        {
-            var b = new Button
-            {
-                Text = text, Flat = true, FocusMode = Control.FocusModeEnum.None,
-                Alignment = HorizontalAlignment.Right
-            };
-            if (font != null) b.AddThemeFontOverride("font", font);
-            b.AddThemeFontSizeOverride("font_size", 44);
-            foreach (var s in new[] { "font_color", "font_hover_color", "font_pressed_color", "font_focus_color" })
-                b.AddThemeColorOverride(s, new Color(0.96f, 0.96f, 0.94f));
-            b.AddThemeColorOverride("font_outline_color", new Color(0, 0.02f, 0.04f, 0.9f));
-            b.AddThemeConstantOverride("outline_size", 8);
-            int me = _titleItems.Count;
-            // la souris DÉPLACE le choix au lieu d'avoir son propre survol : un
-            // seul état sélectionné, que la souris et les flèches partagent
-            b.MouseEntered += () => { _titlePick = me; ShowPick(); };
-            b.Pressed += go;
-            box.AddChild(b);
-            _titleItems.Add(b);
-        }
-
-        Item("Jouer", Play);
-        Item("Options", () => { _menu.Visible = true; });
-        Item("Crédits", () => { if (_credits != null) _credits.Visible = !_credits.Visible; });
-        Item("Quitter", () => GetTree().Quit());
+        _titleFont = font;
+        MainItems();
 
         /* La licence de l'anglaise VOYAGE AVEC ELLE : c'est la condition de la
            SIL OFL, et l'oublier est la manière discrète de ne pas la respecter.
@@ -144,10 +132,134 @@ public partial class ShipDemo : Node3D
         if (_askTitle ?? !_planted) Open();
     }
 
-    /// <summary>Le titre paraît : le tableau de bord s'efface et l'œil plonge sous la quille.</summary>
+    /// <summary>Une entrée du titre : grande, en anglaise, à droite.</summary>
+    void Item(string text, Action go, int size = 44)
+    {
+        var box = _titleBox!;
+        var font = _titleFont;
+        {
+            var b = new Button
+            {
+                Text = text, Flat = true, FocusMode = Control.FocusModeEnum.None,
+                Alignment = HorizontalAlignment.Right
+            };
+            if (font != null) b.AddThemeFontOverride("font", font);
+            b.AddThemeFontSizeOverride("font_size", size);
+            foreach (var s in new[] { "font_color", "font_hover_color", "font_pressed_color", "font_focus_color" })
+                b.AddThemeColorOverride(s, new Color(0.96f, 0.96f, 0.94f));
+            b.AddThemeColorOverride("font_outline_color", new Color(0, 0.02f, 0.04f, 0.9f));
+            b.AddThemeConstantOverride("outline_size", 8);
+            int me = _titleItems.Count;
+            // la souris DÉPLACE le choix au lieu d'avoir son propre survol : un
+            // seul état sélectionné, que la souris et les flèches partagent
+            b.MouseEntered += () => { _titlePick = me; ShowPick(); };
+            b.Pressed += go;
+            box.AddChild(b);
+            _titleItems.Add(b);
+        }
+    }
+
+    void ClearItems()
+    {
+        foreach (var b in _titleItems) b.QueueFree();
+        _titleItems.Clear();
+        _titlePick = 0;
+    }
+
+    void MainItems()
+    {
+        ClearItems();
+        Item("Jeu libre", FreePlay);
+        Item("Histoire", Story);
+        Item("Missions", MissionItems);
+        Item("Options", () => { _menu.Visible = true; });
+        Item("Crédits", () => { if (_credits != null) _credits.Visible = !_credits.Visible; });
+        Item("Quitter", () => GetTree().Quit());
+        ShowPick();
+    }
+
+    /// <summary>La liste des missions, à la place des entrées — et le retour.</summary>
+    void MissionItems()
+    {
+        ClearItems();
+        if (_quests != null)
+            foreach (var q in _quests.List)
+            {
+                if (q.Kind == "story") continue;
+                var id = q.Id;
+                string done = _quests.Done.Contains(id) ? "  ✓" : "";
+                Item((q.Title.Length > 0 ? q.Title : q.Id) + done, () => StartQuest(id), 30);
+            }
+        if (_titleItems.Count == 0) Item("Aucune mission", () => { }, 30);
+        Item("Retour", MainItems, 34);
+        ShowPick();
+    }
+
+    /// <summary>Jeu libre : au port de départ, sans quête.</summary>
+    void FreePlay()
+    {
+        _quests?.Stop();
+        SaveQuests();
+        Home();
+        Play();
+    }
+
+    /// <summary>L'histoire : le premier chapitre qu'on n'a pas fini, sinon le dernier.</summary>
+    void Story()
+    {
+        if (_quests == null) { FreePlay(); return; }
+        QuestSpec? next = null, last = null;
+        foreach (var q in _quests.List.OrderBy(q => q.Chapter))
+        {
+            if (q.Kind != "story") continue;
+            last = q;
+            if (next == null && !_quests.Done.Contains(q.Id)) next = q;
+        }
+        var pick = next ?? last;
+        if (pick == null) { FreePlay(); return; }
+        StartQuest(pick.Id);
+    }
+
+    void StartQuest(string id)
+    {
+        if (_quests == null) return;
+        _msgs.Clear();
+        if (_msgBox != null) _msgBox.Visible = false;
+        Home();
+        _quests.Start(id);
+        SaveQuests();
+        Play();
+    }
+
+    /* RETOUR AU PORT : l'affiche a posé le navire au large ; on le remet à son
+       poste, droit et sans erre, avec le temps qu'il fait. */
+    void Home()
+    {
+        // le navire du joueur, si l'affiche en avait mis un autre
+        if (_beforeTitle >= 0 && _beforeTitle != _index) Launch(_beforeTitle);
+        _beforeTitle = -1;
+        var b = _ship.Physics.Body;
+        b.Vel = Vec3d.Zero;
+        b.AngVel = Vec3d.Zero;
+        b.Pos = new Vec3d(b.Pos.X, _eqY, b.Pos.Z);
+        _ship.Ctrl.SailsSet = false;
+        _ship.Ctrl.Throttle = 0;
+        Moor();
+        _reck?.Fix(TruePos().X, TruePos().Z);
+    }
+
+    /// <summary>Le titre paraît : le tableau de bord s'efface, le navire est au large.</summary>
     void Open()
     {
         _inTitle = true;
+        /* LE ROTER LÖWE POUR L'AFFICHE, quel que soit le navire du joueur : le
+           galion de 1597, sa toile carrée et ses châteaux. Le navire du joueur lui
+           est rendu à l'entrée dans le jeu. */
+        _beforeTitle = _index;
+        int lion = _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == TitleShip);
+        if (lion >= 0 && lion != _index) Launch(lion);
+        Offshore();
+        TitleDof();
         _titleLayer!.Visible = true;
         // rien du tableau de bord : le titre n'est pas une partie en cours
         _info.Visible = false;
@@ -157,10 +269,11 @@ public partial class ShipDemo : Node3D
         ShowPick();
     }
 
-    /// <summary>« Jouer » : la caméra est rendue, et le monde tourne déjà.</summary>
+    /// <summary>Entrer dans le jeu : la caméra est rendue, et le monde tourne déjà.</summary>
     void Play()
     {
         _inTitle = false;
+        ApplySettings();               // la mise au point du joueur, pas celle de l'affiche
         if (_titleLayer != null) _titleLayer.Visible = false;
         _info.Visible = true;
         _sunPanel.Visible = true;
@@ -195,43 +308,85 @@ public partial class ShipDemo : Node3D
             case Key.Escape:
                 if (_menu.Visible) _menu.Visible = false;
                 else if (_credits != null && _credits.Visible) _credits.Visible = false;
+                else if (_titleItems.Count > 0 && _titleItems[^1].Text == "Retour") MainItems();
                 return true;
         }
         return false;
     }
 
+    /* AU LARGE, PAR BEAU TEMPS : l'atterrage de la région le plus proche du
+       port de départ — de l'eau libre, loin des côtes, choisie pour cela. La
+       mer tombe à force 3, le ciel se dégage, il est dix heures. */
+    void Offshore()
+    {
+        if (_world != null && _world.StartPort is NavalSim.Core.Isle home)
+        {
+            NavalSim.Core.ApproachSpec? best = null;
+            double bd = double.MaxValue;
+            foreach (var a in _world.Region.Approaches)
+            {
+                var g = _world.Geo.ToXZ(a.Lat, a.Lon);
+                double d = (g.X - home.X) * (g.X - home.X) + (g.Z - home.Z) * (g.Z - home.Z);
+                if (d < bd) { bd = d; best = a; }
+            }
+            if (best != null)
+            {
+                var at = _world.Geo.ToXZ(best.Lat, best.Lon);
+                var o = _sea.Core.Origin;
+                _sea.Core.Rebase(at.X - o.X, at.Z - o.Z);
+                var b = _ship.Physics.Body;
+                b.Pos = new Vec3d(0, _eqY, 0);
+                b.Vel = Vec3d.Zero;
+                b.AngVel = Vec3d.Zero;
+                // le vent à cent dix degrés de l'étrave, par bâbord : une allure portante, qui avance
+                b.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), -(75 - 110) * Math.PI / 180);
+                _ship.SyncTransform();
+            }
+        }
+        _weather.On = false;
+        _force = 3; _windDeg = 75;
+        _cloud = 0.06;
+        Restate();
+        _sky.Core.SetTimeOfDay(10, _sky.Latitude);
+        _sky.Apply();
+        /* il fait route, lentement : sous voiles bordées, ou à la machine pour une
+           coque qui n'a pas de toile — le chaland restait planté (relevé : 0,0 m/s) */
+        bool sails = _ship.Spec.SailArea > 0;
+        _ship.Ctrl.SailsSet = sails;
+        _ship.Ctrl.Sheet = 0.6;
+        _ship.Ctrl.Throttle = sails ? 0 : 0.5;
+    }
+
+    /* LA MISE AU POINT DE L'AFFICHE : à deux mètres de l'objectif, et tout ce qui
+       est au-delà s'estompe — le navire, à cent mètres, n'est plus qu'une forme.
+       Posée sur la caméra le temps du titre ; les réglages du joueur la
+       reprennent à l'entrée dans le jeu. */
+    void TitleDof()
+    {
+        _camAttr.DofBlurNearEnabled = false;
+        _camAttr.DofBlurFarEnabled = true;
+        _camAttr.DofBlurFarDistance = 2.0f;
+        _camAttr.DofBlurFarTransition = 6.0f;
+        _camAttr.DofBlurAmount = 0.12f;
+        _anamorphic.Enabled = false;
+    }
+
     /// <summary>
-    /// Une image de titre : l'œil fait lentement le tour de l'étrave par en
-    /// dessous, et la cale lâche son or par poignées. Le semis est réglé pour
-    /// tenir sous le plafond de CoinNode — huit pièces par seconde contre une
-    /// vie moyenne de trente-sept, soit trois cents en vol.
+    /// Une image de titre : l'œil, au ras de l'eau à cent mètres du navire,
+    /// en fait lentement le tour — un tour en cinq minutes.
     /// </summary>
     void TitleTick(double dt)
     {
         var b = _ship.Physics.Body;
-        _titleAng += dt * 0.055;                       // un tour en moins de deux minutes
-/* PRÈS de la coque, et c'est tout le réglage : à onze mètres, les pièces
-           qui tombent de la cale sont déjà mangées par l'absorption avant d'avoir
-           traversé le cadre. À six, elles passent grandes et dorées entre l'œil
-           et le bordé. */
-        double r = 6.5, depth = 2.2;
+        _titleAng += dt * 0.021;
+        double r = 95;
+        float sea = (float)_sea.Core.Sample(b.Pos.X + Math.Cos(_titleAng) * r, b.Pos.Z + Math.Sin(_titleAng) * r, _t);
         var eye = new Vector3(
             (float)(b.Pos.X + Math.Cos(_titleAng) * r),
-            (float)(b.Pos.Y - depth),
+            sea + 1.6f,
             (float)(b.Pos.Z + Math.Sin(_titleAng) * r));
-        // le regard porte sur la coque, un peu au-dessus de l'œil : on voit la
-        // quille se découper sur la fenêtre de Snell
         _fixEye = eye;
-        // un peu plus bas que l'œil : la quille se découpe en haut du cadre et
-        // laisse toute la moitié basse à la colonne de pièces qui descend
-        _fixLook = new Vector3((float)b.Pos.X, (float)(b.Pos.Y - 3.6), (float)b.Pos.Z);
-
-        _titleSow += dt;
-        if (_titleSow > 1.6)
-        {
-            _titleSow = 0;
-            _coins.Spill(new Vector3((float)b.Pos.X, (float)b.Pos.Y, (float)b.Pos.Z),
-                _ship.Spec.L, _ship.Spec.B, 26);
-        }
+        // le regard sur la coque, un peu au-dessus de la flottaison : la mâture dans le cadre
+        _fixLook = new Vector3((float)b.Pos.X, (float)(b.Pos.Y + 0.25 * _ship.Spec.L), (float)b.Pos.Z);
     }
 }

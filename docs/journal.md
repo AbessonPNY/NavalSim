@@ -6626,6 +6626,16 @@ proportion de ce que le reflet de la coque occupe.
 
 **Puis : les festons.** Au soleil bas, seize hauteurs tombaient à 3 m l'une de l'autre sur l'eau et chacune dessinait son contour de coque. Vingt-quatre hauteurs, une pénombre d'une fois et demie leur écart, et un décalage des hauteurs propre à chaque pixel (bruit à gradient entrelacé) : ce qui reste du motif devient grain.
 
+## L'écran de titre : le navire au large, et quatre entrées (Godot)
+
+Demandé : le navire par beau temps au milieu de l'océan, la profondeur de champ mise au point à 2 m de la caméra — le navire flou dans le lointain —, et à la place de « Jouer » : Jeu libre, Histoire, Missions, Options.
+
+Le fond était une vue sous la quille avec l'or qui tombait de la cale. Maintenant : le navire posé à l'ATTERRAGE de la région le plus proche du port de départ (7 km de côte, 363 m de fond pour Port-Royal), force 3, ciel dégagé, dix heures, faisant route — sous voiles bordées, ou à la machine pour une coque sans toile (le chaland, navire par défaut, restait planté à 0,0 m/s) ; l'œil au ras de l'eau à 95 m, un tour en cinq minutes ; flou au-delà de 2 m sur 6 de transition. La mise au point du joueur est reprise à l'entrée dans le jeu. Pendant le titre, ni route au carnet ni port touché : l'affiche ne doit pas percer le voile.
+
+Le navire de l'affiche est toujours le Roter Löwe (`frigate17e`, demandé), mis à l'eau à l'ouverture du titre ; celui du joueur lui est rendu à l'entrée dans le jeu.
+
+**Jeu libre** : le port de départ, sans quête (le navire y est remis droit et sans erre). **Histoire** : le premier chapitre non fini (`kind: story`, ordre de `chapter` ; le tour de la Jamaïque est le chapitre 1). **Missions** : la liste des autres, ✓ pour les finies, et Retour (ou Échap). Éprouvé : Jeu libre → à quai, aucune quête, mise au point rendue ; Histoire → à quai, « Le tour de la Jamaïque ».
+
 ## Chavirée : le bandeau, et R qui redresse (Godot)
 
 Signalé : le navire se retrouve parfois la tête en bas, le jeu ne le voit pas, et R ne le redresse pas. Le bandeau n'attendait qu'un NAUFRAGE, et R ne remettait droite qu'une épave : une coque retournée flotte sur l'air de ses fonds, ni coulée ni droite. Chavirée maintenant quand le haut du navire passe sous 0,17 (couchée au-delà de 80°) pendant trois secondes, pour ne pas crier au chavirage sur un coup de roulis : bandeau « Votre navire a chaviré ! — R pour le redresser ». R redresse À SON CAP (gîte et assiette effacées, lacet gardé ; elle était reposée cap au nord, d'un bloc), pompe, replante la mâture. Éprouvé : `--chavirer 1` (la coque retournée une seconde après la mise à quai, qui la redresserait) → bandeau ; R → haut à 1,00, bandeau parti.

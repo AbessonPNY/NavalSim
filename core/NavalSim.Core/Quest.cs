@@ -81,6 +81,12 @@ public sealed class QuestSpec
     /// sans viser ni s'accomplir.
     /// </summary>
     public string Region = "";
+    /// <summary>
+    /// « story » : un chapitre de l'HISTOIRE, joués dans l'ordre de leur
+    /// `chapter` ; sinon une MISSION, qu'on choisit dans la liste (Godot).
+    /// </summary>
+    public string Kind = "mission";
+    public int Chapter;
     public readonly List<QuestStep> Steps = new();
 
     /// <summary>
@@ -106,6 +112,8 @@ public sealed class QuestSpec
             Id = Str(r, "id"), Title = Str(r, "title"), Summary = Str(r, "summary"),
             Intro = Str(r, "intro"), Outro = Str(r, "outro"), Region = Str(r, "region")
         };
+        if (Str(r, "kind") is { Length: > 0 } kind) q.Kind = kind;
+        if (r.TryGetProperty("chapter", out var ch) && ch.ValueKind == JsonValueKind.Number) q.Chapter = ch.GetInt32();
         if (r.TryGetProperty("steps", out var steps) && steps.ValueKind == JsonValueKind.Array)
             foreach (var st in steps.EnumerateArray())
                 q.Steps.Add(QuestStep.FromJson(st));

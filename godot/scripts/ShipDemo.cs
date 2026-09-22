@@ -510,6 +510,7 @@ public partial class ShipDemo : Node3D
     void Changed()
     {
         ApplySettings();
+        if (_inTitle) TitleDof();
         _settings.Save();
         UpdateInfo();
     }
@@ -1012,10 +1013,11 @@ public partial class ShipDemo : Node3D
                         _planted = true;
                     }
                 }
-                _chart.Sail(here.X, here.Z);
+                // pas pendant le titre : le navire y est posé au large pour l'affiche
+                if (!_inTitle) _chart.Sail(here.X, here.Z);
                 /* Un port touché quand on vient à moins de trois cents mètres de
                    son quai : c'est la distance à laquelle on l'a vraiment vu. */
-                foreach (var isl in _world!.Near(here.X, here.Z, 300))
+                if (!_inTitle) foreach (var isl in _world!.Near(here.X, here.Z, 300))
                     if (_book!.Touch(isl.Key))
                     {
                         _chart.Refresh();
