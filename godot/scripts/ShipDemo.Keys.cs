@@ -124,6 +124,7 @@ public partial class ShipDemo : Node3D
         Key(b, "⇧T", "la brume de surface, tout de suite");
         Key(b, "P", "la flotte fantôme");
         Key(b, "N", "changer de navire");
+        Key(b, "⇧N", "la flotte : mettre à l'eau, retirer");
 
         var c2 = Column();
         Section(c2, "Vues");

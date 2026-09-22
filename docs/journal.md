@@ -7724,6 +7724,28 @@ modelée. Antenne et toile tournent d'un bloc autour de l'axe du mât, de
 dessine pas encore.
 
 
+## Le panneau Flotte (Godot)
+
+⇧N (toutes les lettres étaient prises ; N change de navire) : le panneau de la
+page — les coques à flot et leur vitesse (« coulé » pour une épave), une croix
+pour en retirer une, une liste des fiches et « Mettre à l'eau ». Rien de neuf
+dessous : `SpawnFleet` met à l'eau entière (profil, gerbes, humeur de pirate si
+tête de mort), `RemoveShip` retire et réécrit les profils ; `LaunchBeside` ne
+fait que POSER, en éventail à 2,4 fois les deux longueurs, au cap du navire
+commandé. La liste n'est refaite que quand la flotte change (sinon les boutons
+sous le pointeur disparaissent) ; les fiches sont lues après la construction
+des panneaux, la liste de choix se remplit donc à la première ouverture.
+
+**Posée à terre, une caisse s'envole.** Premier essai au port : la caisse
+(0,2 t) montait à dix-sept mètres. Seule, elle flottait sagement (force 0 et 4) ;
+la cause était le fond — posée quarante-six mètres dans les terres, sur un sol
+à +9,3 m. Une frégate se serait échouée ; une caisse qui déplace dix fois son
+poids en est éjectée. L'éventail tourne donc par huitièmes, puis s'éloigne
+(×2, ×3), jusqu'à trouver 5 m d'eau ; faute de quoi la coque est retirée et on
+le dit. Aussi : la pose prend la hauteur de la mer À L'ENDROIT (`Sample`),
+l'équilibre de `Settle` étant pris sur une mer aplatie. **La page a le même
+défaut** (`launch()` ne regarde pas le fond).
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

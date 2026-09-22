@@ -227,6 +227,7 @@ public partial class ShipDemo : Node3D
         BuildChartView(layer);
         BuildTrim(layer);
         BuildMarket(layer);
+        BuildFleetPanel(layer);
         BuildStow(layer);
         BuildEncart(layer);
         BuildQuestView(layer);
@@ -1153,7 +1154,7 @@ public partial class ShipDemo : Node3D
                 new Vector2((float)(wv.X / ws), (float)(wv.Z / ws)));
 
         _hudAcc += frame;
-        if (_hudAcc > 0.15) { _hudAcc = 0; UpdateInfo(); AmbianceTick(); MarketTick(); StowTick(); }
+        if (_hudAcc > 0.15) { _hudAcc = 0; UpdateInfo(); AmbianceTick(); MarketTick(); StowTick(); FleetTick(); }
         TrimTick();
 
         TickCapture();
@@ -1518,6 +1519,7 @@ public partial class ShipDemo : Node3D
                 case Key.Pageup: _swell = Math.Min(2.6, _swell + 0.15); Restate(); break;
                 case Key.Pagedown: _swell = Math.Max(0.4, _swell - 0.15); Restate(); break;
                 case Key.V: _ship.Ctrl.SailsSet = !_ship.Ctrl.SailsSet; break;
+                case Key.N when k.ShiftPressed: ToggleFleetPanel(); break;
                 case Key.N: Launch(_index + 1); break;
                 case Key.F: _follow = !_follow; break;
                 case Key.C: CycleCamera(); break;
