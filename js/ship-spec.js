@@ -108,9 +108,19 @@ Naval.ShipSpec = class ShipSpec {
     const r = json.rig;
     this.rig = r;
     this.sailArea = r.sailArea;
+    /* The lateen mizzen: a fore-and-aft sail, taken OUT of the total. Its own
+       area, centre of effort, and how far the crew can ease it (radians). */
+    const la = r.lateen;
+    this.lateenArea = la ? Math.max(0, Math.min(r.sailArea, la.area)) : 0;
+    this.squareArea = this.sailArea - this.lateenArea;
+    this.lateenCeHeight = la ? la.ceHeight : 0;
+    this.lateenCeZ = la ? la.ceZ : 0;
+    this.lateenMax = la && la.maxSheet != null ? la.maxSheet : 1.45;
     this.ceHeight = r.ceHeight;
     this.ceZ = r.ceZ;
     this.maxSheet = r.maxSheet;
+    // the brace stop: square yards cannot come closer to the centreline than this
+    this.minSheet = Math.max(0, r.minSheet != null ? r.minSheet : 0);
 
     this.camera = json.camera;
     this.appearance = json.appearance;

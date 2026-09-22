@@ -217,6 +217,13 @@ public sealed partial class ShipPhysics
     public double SetFrac = 1;
     /// <summary>La part de gréement encore debout, écrite par le modèle.</summary>
     public double Standing = 1;
+    /// <summary>
+    /// La latine est-elle gréée ? Faux quand son mât est tombé — l'hôte le dit :
+    /// le solveur ne sait pas quel mât porte quoi.
+    /// </summary>
+    public bool LateenUp = true;
+    /// <summary>L'angle où l'équipage l'a écartée de l'axe, radians (0 : pas de latine).</summary>
+    public double LateenAngle;
     /// <summary>La part de toile encore ENTIÈRE. Un mât debout dont la voile a
     /// éclaté n'est pas un mât tombé, et seul le second se répare en replantant
     /// un espar.</summary>
@@ -236,6 +243,7 @@ public sealed partial class ShipPhysics
     double _underFor;
 
     Vec3d _dryCom;
+    readonly Vec3d _ceL;
     readonly Vec3d _ce;
 
     public ShipPhysics(ShipSpec spec, HullLines lines)
@@ -243,6 +251,7 @@ public sealed partial class ShipPhysics
         Spec = spec;
         Lines = lines;
         _ce = new Vec3d(0, spec.CeHeight, spec.CeZ);
+        _ceL = new Vec3d(0, spec.LateenCeHeight, spec.LateenCeZ);
 
         BuildProbes();
         spec.CheckFlotation(HullVolume, Config.Rho);

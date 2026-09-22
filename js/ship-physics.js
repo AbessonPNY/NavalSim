@@ -229,6 +229,10 @@ Naval.ShipPhysics = class ShipPhysics {
     this._app=new THREE.Vector3(); this._lift=new THREE.Vector3(); this._sailF=new THREE.Vector3();
     this._arm=new THREE.Vector3(); this._fVec=new THREE.Vector3(); this._mom=new THREE.Vector3();
     this._ce=new THREE.Vector3(0, spec.ceHeight, spec.ceZ);
+    this._ceL=new THREE.Vector3(0, spec.lateenCeHeight, spec.lateenCeZ);
+    this._latF=new THREE.Vector3();
+    this.lateenUp = true;          // false once her mizzen is down (the host says so)
+    this.lateenAngle = 0;
     this._dryCom = this.body.com.clone();
     this._down=new THREE.Vector3(); this._wc=new THREE.Vector3();
     this._com=new THREE.Vector3();
@@ -1260,18 +1264,20 @@ Naval.ShipPhysics = class ShipPhysics {
        Clamped to what her rig can actually do: a square-rigger cannot brace as
        far round as a boomed gaff sail swings, so before the wind the mark sits
        at her stop rather than at an angle she can never reach. */
-    this.optSheet = Math.max(0, Math.min(S.maxSheet,
+    this.optSheet = Math.max(S.minSheet, Math.min(S.maxSheet,
                       beta - Naval.ShipPhysics.optimalAoA(beta)));
 
-    const aoa = beta - ctrl.sheet;
+    this.lateenAngle = 0;
+    // the brace stop: sheeted closer, the yards stay against their shrouds
+    const aoa = beta - Math.max(ctrl.sheet, S.minSheet);
     // nothing left aloft to speak of
-    if(this.setFrac*this.standing*this.whole < 0.01) return;
-    if(aoa <= 0.02){ this.luffing = true; return; }          // over-eased, or in irons
+    if(this.setFrac*this.standing*this.whole < 0.01){ this._lateen(beta, vApp, cog, force, torque, fwd); return; }
+    if(aoa <= 0.02){ this.luffing = true; this._lateen(beta, vApp, cog, force, torque, fwd); return; }          // over-eased, or in irons
 
     const CL = F.KL*Math.sin(2*aoa);
     const CD = F.CD0 + F.KD*Math.sin(aoa)*Math.sin(aoa);
     // area actually spread, which is what the wind has to push against
-    const q  = 0.5*C.RHO_AIR*vApp*vApp*S.sailArea*this.setFrac*this.standing*this.whole;
+    const q  = 0.5*C.RHO_AIR*vApp*vApp*S.squareArea*this.setFrac*this.standing*this.whole;
 
     this._sailF.copy(this._app).multiplyScalar(CD*q/vApp);   // drag along the wind
     this._lift.set(this._app.z, 0, -this._app.x).normalize();
@@ -1290,7 +1296,33 @@ Naval.ShipPhysics = class ShipPhysics {
        exactement la même pression qu'avant — ce qui est le fait physique, et ce
        qui fait qu'une voile qui éclate n'en sauve aucune autre. */
     this.sailLoad = this._sailF.length()
-                  / (S.sailArea*Math.max(0.05, this.standing*this.whole));
+                  / (S.squareArea*Math.max(0.05, this.standing*this.whole));
+    this._lateen(beta, vApp, cog, force, torque, fwd);
+  }
+
+  /* The lateen mizzen: a fore-and-aft sail the crew trims on their own — the
+     same foil, eased off the centreline by just the optimal angle of attack
+     (5 degrees to lateenMax), where a square sail cannot be braced so close.
+     Its centre of effort is far aft: it pushes the stern to leeward, so she
+     luffs up — which is why they carried it. It only goes with its mast. */
+  _lateen(beta, vApp, cog, force, torque, fwd){
+    const C = this.C, S = this.spec, b = this.body, F = Naval.SAIL_FOIL;
+    if(S.lateenArea <= 0 || !this.lateenUp || this.setFrac*this.whole < 0.01) return;
+    const lat = Math.max(0.08, Math.min(S.lateenMax, beta - Naval.ShipPhysics.optimalAoA(beta)));
+    this.lateenAngle = lat;
+    const aoa = beta - lat;
+    if(aoa <= 0.02) return;                                  // head to wind: she luffs
+    const CL = F.KL*Math.sin(2*aoa);
+    const CD = F.CD0 + F.KD*Math.sin(aoa)*Math.sin(aoa);
+    const q = 0.5*C.RHO_AIR*vApp*vApp*S.lateenArea*this.setFrac*this.whole;
+    this._latF.copy(this._app).multiplyScalar(CD*q/vApp);
+    this._lift.set(this._app.z, 0, -this._app.x).normalize();
+    if(this._lift.dot(fwd) < 0) this._lift.negate();
+    this._latF.addScaledVector(this._lift, CL*q);
+    force.add(this._latF);
+    this._arm.copy(this._ceL).applyQuaternion(b.quat).add(b.pos).sub(cog);
+    torque.add(this._mom.crossVectors(this._arm, this._latF));
+    this.sailDrive += this._latF.dot(fwd);
   }
 
   /* Let her find her own flotation in FLAT water, so the recorded equilibrium

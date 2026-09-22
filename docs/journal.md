@@ -7682,6 +7682,42 @@ est trop étroite pour davantage. C'est le semis qui le dit, et c'est juste.
 Reste à porter : le ponton et le môle, l'abri dans les trois calculateurs de la
 mer, les modèles posés, la carte et les quêtes.
 
+## La latine d'artimon (Godot et page)
+
+Demande : rendre jouable la voile latine que portent à l'artimon la
+frégate 17e, le pirate et la frégate. Choix du joueur : **l'équipage la règle
+seul**, aucune touche de plus — elle monte et descend avec le reste (V).
+
+**Physique (partagée, parité tenue).** Le solveur n'avait qu'une aile
+équivalente. La latine devient une seconde aile, EN LONG : `rig.lateen`
+(surface prise sur `sailArea`, son propre centre de voilure loin sur
+l'arrière), même profil `SailFoil`, écartée de l'axe de l'incidence optimale
+(`OptimalAoA`, de 0,08 rad à `maxSheet`). `LateenAngle` dit où l'équipage l'a
+mise ; `LateenUp` (dit par l'hôte : le solveur ne sait pas quel mât porte
+quoi) l'éteint quand son mât tombe. Fiches : 45 m² à 7,5 m / −10 m pour la 17e
+et le pirate, 245 m² à 16 m / −23 m pour la frégate.
+
+**Ce que le labo a montré (`latine`).** Au près, AVEC 4,83 nd, SANS 5,08 : elle
+ne fait pas aller plus vite — le solveur laissait déjà brasser les carrés
+jusqu'à l'axe, comme des voiles en long. Ce qu'elle apporte est l'**équilibre** :
+barre −0,09 contre −0,26 sans elle ; centrée (`ceZ` au maître-couple), on
+retombe sur SANS. C'est d'ailleurs pour cela qu'on la portait. Une butée de
+brasseyage (`minSheet` 0,45) rendait au carré sa mauvaise remontée au vent,
+mais coûtait 13 % au près sur toutes les fiches : retirée des fiches, gardée
+dans le code (0 par défaut).
+
+**Le dessin (`ShipNode.Rig.cs`, `LateenOn`).** Sur les trois modèles,
+l'antenne est une pièce à part (`Cylinder_003`), **déjà écartée** de 23 à 27°
+autour du mât — large en travers : un filtre « mince en x » la rejetait, et
+un premier filtre sans le pont prenait le safran. On la retient si elle est au
+pont ou au-dessus, longue (≥ 0,15 L), près de l'artimon, en biais. Pic = son
+bout le plus haut, amure = l'autre, écoute sous le pic à 1,6 m au-dessus du
+pont ; la toile est un triangle taillé comme un foc, dans le plan de l'antenne
+modelée. Antenne et toile tournent d'un bloc autour de l'axe du mât, de
+`angle voulu − angle modelé` : vent portant, 83° (la butée). La page ne la
+dessine pas encore.
+
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

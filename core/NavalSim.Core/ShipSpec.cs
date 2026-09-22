@@ -86,9 +86,24 @@ public sealed class RigSpec
     [JsonPropertyName("ceHeight")] public double CeHeight { get; set; }
     [JsonPropertyName("ceZ")]      public double CeZ { get; set; }
     [JsonPropertyName("maxSheet")] public double MaxSheet { get; set; }
+    [JsonPropertyName("minSheet")] public double? MinSheet { get; set; }
     [JsonPropertyName("belly")]    public double Belly { get; set; }
     [JsonPropertyName("masts")]    public List<MastSpec> Masts { get; set; } = new();
     [JsonPropertyName("jib")]      public JibSpec? Jib { get; set; }
+    [JsonPropertyName("lateen")]   public LateenSpec? Lateen { get; set; }
+}
+
+/// <summary>
+/// La voile latine d'artimon : une voile EN LONG, prise sur la voilure totale.
+/// Sa surface, son centre de voilure (hauteur et station, comme ceux du
+/// gréement), et jusqu'où l'équipage peut l'écarter de l'axe (radians).
+/// </summary>
+public sealed class LateenSpec
+{
+    [JsonPropertyName("area")]     public double Area { get; set; }
+    [JsonPropertyName("ceHeight")] public double CeHeight { get; set; }
+    [JsonPropertyName("ceZ")]      public double CeZ { get; set; }
+    [JsonPropertyName("maxSheet")] public double? MaxSheet { get; set; }
 }
 
 /// <summary>
@@ -268,6 +283,17 @@ public sealed class ShipSpec
 
     public RigSpec Rig { get; }
     public double SailArea { get; }
+    /// <summary>La voilure carrée : le total, moins la latine s'il y en a une.</summary>
+    public double SquareArea { get; }
+    public double LateenArea { get; }
+    /// <summary>
+    /// La butée de brasseyage, radians : un carré ne se brasse pas plus près de
+    /// l'axe — les vergues viennent sur les haubans. 0 : pas de butée.
+    /// </summary>
+    public double MinSheet { get; }
+    public double LateenCeHeight { get; }
+    public double LateenCeZ { get; }
+    public double LateenMax { get; }
     public double CeHeight { get; }
     public double CeZ { get; }
     public double MaxSheet { get; }
@@ -345,9 +371,15 @@ public sealed class ShipSpec
         var r = json.Rig;
         Rig = r;
         SailArea = r.SailArea;
+        LateenArea = r.Lateen != null ? Math.Max(0, Math.Min(r.SailArea, r.Lateen.Area)) : 0;
+        SquareArea = SailArea - LateenArea;
+        LateenCeHeight = r.Lateen?.CeHeight ?? 0;
+        LateenCeZ = r.Lateen?.CeZ ?? 0;
+        LateenMax = r.Lateen?.MaxSheet ?? 1.45;
         CeHeight = r.CeHeight;
         CeZ = r.CeZ;
         MaxSheet = r.MaxSheet;
+        MinSheet = Math.Max(0, r.MinSheet ?? 0);
 
         foreach (var m in r.Masts) m.Z = m.ZFrac * L;
         Masts = r.Masts;

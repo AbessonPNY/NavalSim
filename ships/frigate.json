@@ -47,6 +47,7 @@
     "ceHeight": 19.5,
     "ceZ": -1.0,
     "maxSheet": 1.30,
+    "lateen": { "area": 245, "ceHeight": 16, "ceZ": -23, "maxSheet": 1.45 },
     "belly": 3.3,
     "masts": [
       { "zFrac": 0.26,  "height": 34, "yards": [0.30, 0.52, 0.72], "yardSpan": 0.98 },

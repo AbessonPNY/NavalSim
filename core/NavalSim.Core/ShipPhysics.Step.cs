@@ -383,17 +383,22 @@ public sealed partial class ShipPhysics
            ne peut pas brasser aussi loin qu'une bôme d'aurique s'écarte, donc
            vent arrière le repère se pose à sa butée plutôt qu'à un angle qu'elle
            n'atteindra jamais. */
-        OptSheet = Math.Max(0, Math.Min(S.MaxSheet, beta - OptimalAoA(beta)));
+        OptSheet = Math.Max(S.MinSheet, Math.Min(S.MaxSheet, beta - OptimalAoA(beta)));
 
-        double aoa = beta - ctrl.Sheet;
+        LateenAngle = 0;
+        /* LA BUTÉE DES VERGUES : bordées plus près, elles restent à leur butée —
+           c'est ce qui fait qu'un carré remonte mal au vent, et qu'on gréait une
+           latine à l'artimon (sans elle, le solveur laissait brasser les carrés
+           jusqu'à l'axe, comme des voiles en long). */
+        double aoa = beta - Math.Max(ctrl.Sheet, S.MinSheet);
         // plus rien en l'air dont il vaille la peine de parler
-        if (SetFrac * Standing * Whole < 0.01) return;
-        if (aoa <= 0.02) { Luffing = true; return; }      // trop choqué, ou en panne
+        if (SetFrac * Standing * Whole < 0.01) { Lateen(beta, vApp, app, cog, ref force, ref torque, fwd); return; }
+        if (aoa <= 0.02) { Luffing = true; Lateen(beta, vApp, app, cog, ref force, ref torque, fwd); return; }      // trop choqué, ou en panne
 
         double CL = SailFoil.KL * Math.Sin(2 * aoa);
         double CD = SailFoil.CD0 + SailFoil.KD * Math.Sin(aoa) * Math.Sin(aoa);
         // la surface réellement établie, qui est ce contre quoi le vent pousse
-        double q = 0.5 * Config.RhoAir * vApp * vApp * S.SailArea * SetFrac * Standing * Whole;
+        double q = 0.5 * Config.RhoAir * vApp * vApp * S.SquareArea * SetFrac * Standing * Whole;
 
         Vec3d sailF = app * (CD * q / vApp);              // la traînée, le long du vent
         Vec3d lift = new Vec3d(app.Z, 0, -app.X).Normalized();
@@ -424,8 +429,39 @@ public sealed partial class ShipPhysics
            valeur voulue, et il suffit qu'un jour la console l'affiche ou qu'un
            terme le multiplie pour qu'il se répande sans rien dire. Zéro est la
            réponse juste : sans toile, il n'y a aucune pression sur la toile. */
-        double canvas = S.SailArea * Math.Max(0.05, Standing * Whole);
+        double canvas = S.SquareArea * Math.Max(0.05, Standing * Whole);
         SailLoad = canvas > 1e-9 ? sailF.Length / canvas : 0;
+        Lateen(beta, vApp, app, cog, ref force, ref torque, fwd);
+    }
+
+    /// <summary>
+    /// LA LATINE D'ARTIMON : une voile en long, que l'équipage borde seul. Le
+    /// même profil que le carré, mais elle s'écarte de l'axe de la seule quantité
+    /// qu'il faut — l'incidence optimale, de 5° à LateenMax — là où un carré ne
+    /// se brasse pas si près : au près, elle porte encore quand les carrés
+    /// faseyent. Son centre de voilure est à l'artimon, loin sur l'arrière : elle
+    /// pousse la poupe sous le vent, donc fait lofer — c'est pour cela qu'on la
+    /// portait. Elle ne tombe qu'avec son mât (LateenUp).
+    /// </summary>
+    void Lateen(double beta, double vApp, in Vec3d app, in Vec3d cog, ref Vec3d force, ref Vec3d torque, in Vec3d fwd)
+    {
+        var S = Spec; var b = Body;
+        if (S.LateenArea <= 0 || !LateenUp || SetFrac * Whole < 0.01) return;
+        double lat = Math.Max(0.08, Math.Min(S.LateenMax, beta - OptimalAoA(beta)));
+        LateenAngle = lat;
+        double aoa = beta - lat;
+        if (aoa <= 0.02) return;                          // vent debout : elle fasèye
+        double CL = SailFoil.KL * Math.Sin(2 * aoa);
+        double CD = SailFoil.CD0 + SailFoil.KD * Math.Sin(aoa) * Math.Sin(aoa);
+        double q = 0.5 * Config.RhoAir * vApp * vApp * S.LateenArea * SetFrac * Whole;
+        Vec3d f = app * (CD * q / vApp);
+        Vec3d lift = new Vec3d(app.Z, 0, -app.X).Normalized();
+        if (lift.Dot(fwd) < 0) lift = -lift;
+        f += lift * (CL * q);
+        force += f;
+        Vec3d arm = b.Quat.Rotate(_ceL) + b.Pos - cog;
+        torque += arm.Cross(f);
+        SailDrive += f.Dot(fwd);
     }
 
     /* ------------------------------------------------------------------ */

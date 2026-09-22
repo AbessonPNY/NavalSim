@@ -242,6 +242,21 @@ chargement — c'est une erreur de fiche, pas de physique.
 Le solveur ne modélise **qu'une seule aile équivalente** (`sailArea`, `ceHeight`),
 pas chaque voile séparément — le gréement est une représentation visuelle.
 
+**Une exception : la latine d'artimon.** `rig.lateen` en fait une seconde aile,
+en long, prise **sur** `sailArea` (le carré garde le reste) :
+
+```json
+"lateen": { "area": 45, "ceHeight": 7.5, "ceZ": -10, "maxSheet": 1.45 }
+```
+
+`area` en m², `ceHeight`/`ceZ` son centre de voilure, `maxSheet` jusqu'où
+l'équipage peut la choquer (radians, 1,45 par défaut). Elle est établie et
+serrée avec le reste (V), bordée **seule** à l'incidence optimale, et ne tombe
+qu'avec son mât. Godot pend la toile sur l'antenne du modèle (l'espar en biais
+près du mât le plus en arrière) ; sans antenne trouvée, elle porte sans être
+dessinée. `rig.minSheet` (radians, 0 par défaut) est la butée de brasseyage
+des vergues carrées — essayée à 0,45, retirée des fiches : voir le journal.
+
 ## Mettre en ligne (OVH, Apache, nginx, GitHub Pages…)
 
 **Lancez `node build.js` avant de téléverser.** Il écrit `ships/index.json`, la

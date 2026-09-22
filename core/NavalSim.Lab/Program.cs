@@ -39,6 +39,7 @@ switch (mode)
     case "baleine": Baleine(); break;
     case "estime": Estime(); break;
     case "serpent": Serpent(); break;
+    case "latine": Latine(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -576,4 +577,44 @@ void Serpent()
     double len = 0;
     for (int i = 1; i < SeaSerpent.N; i++) len += (s.Spine[i] - s.Spine[i - 1]).Length;
     Console.WriteLine($"au plus pres {minD:F0} m, tete au plus haut {maxRise:F1} m, voies d'eau {p.Breaches.Count}, corps {len:F1} m, fin {s.State} a {t:F0} s");
+}
+
+/* LA LATINE, EPROUVEE : le Roter Lowe, avec et sans sa latine d artimon, a
+   plusieurs angles du vent vrai, ecoutes des carres a leur reglage optimal ;
+   la vitesse apres quatre minutes, et l angle ou l equipage a mis la latine.
+     dotnet run --project core/NavalSim.Lab -- latine */
+void Latine()
+{
+    string json = File.ReadAllText(Path.Combine(shipsDir, "frigate17e.json"));
+    var with = ShipSpec.FromJson(json);
+    var without = ShipSpec.FromJson(System.Text.RegularExpressions.Regex.Replace(json, "\"lateen\":[^}]*},", ""));
+    var centred = ShipSpec.FromJson(json.Replace("\"ceHeight\": 7.5, \"ceZ\": -10", "\"ceHeight\": 9.75, \"ceZ\": -0.5"));
+    foreach (double off in new[] { 50.0, 60.0, 75.0, 90.0, 120.0 })
+    {
+        string line = $"vent a {off,3:F0} deg :";
+        foreach (var (name, spec) in new[] { ("avec", with), ("sans", without), ("centree", centred) })
+        {
+            var ocean = new Ocean { Swell = 1.0, Time = 0 };
+            ocean.SetSeaState(5, 0);                  // le vent vient du nord
+            var p = new ShipPhysics(spec, new HullLines(spec));
+            var ctrl = new Controls { Throttle = 0, Rudder = 0, Sheet = 0.3, SailsSet = true };
+            p.Settle(ocean, ctrl);
+            // le cap : off degres du lit du vent, l est est -x
+            double yaw = -off * Math.PI / 180;
+            p.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), yaw);
+            double dt = 1.0 / 60, t = 0;
+            for (int k = 0; k < 60 * 240; k++)
+            {
+                if (p.OptSheet is double o) ctrl.Sheet = o;
+                // la barre tient le cap : ce qui compte est la vitesse, pas la derive de route
+                var f = p.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+                double hdg = Math.Atan2(f.X, f.Z);
+                ctrl.Rudder = Math.Clamp(-(Math.IEEERemainder(yaw - hdg, 2 * Math.PI)) * 3, -1, 1);
+                p.Step(dt, ocean, ctrl, t); t += dt;
+            }
+            var v = p.Body.Vel;
+            line += $"  {name} {Math.Sqrt(v.X * v.X + v.Z * v.Z) / 0.5144,5:F2} nd (barre {ctrl.Rudder,5:F2}{(name == "avec" ? $", latine a {p.LateenAngle * 180 / Math.PI:F0} deg" : "")})";
+        }
+        Console.WriteLine(line);
+    }
 }

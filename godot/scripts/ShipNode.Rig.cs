@@ -48,6 +48,12 @@ public partial class ShipNode
     readonly List<Node3D> _rigs = new();
     Node3D? _jibRig;
     readonly BraceTrim _trim = new();
+    /* LA LATINE D'ARTIMON dessinée : son pivot autour du mât, son propre suivi
+       d'angle (l'équipage la borde seul, voir ShipPhysics.Lateen), et l'entrée
+       de dommage de son mât — elle tombe avec lui. */
+    Node3D? _latPivot;
+    readonly BraceTrim _latTrim = new();
+    int _latMast = -1;
     ShaderMaterial? _canvasMat;
     readonly Dictionary<string, ShaderMaterial> _painted = new();
 
@@ -70,6 +76,9 @@ public partial class ShipNode
 
     void ClearRig()
     {
+        _latPivot = null;
+        _latYard = null;
+        _latMast = -1;
         _canvases.Clear();
         _rigs.Clear();
         _masts.Clear();
@@ -335,6 +344,13 @@ public partial class ShipNode
            mâts. */
         foreach (var rig in _rigs)
             rig.Rotation = new Vector3(0, (float)(rig == _jibRig ? angle * 0.75 : angle), 0);
+        if (_latPivot != null)
+        {
+            // le signe des vergues (voir BraceTrim) : l'angle voulu, moins celui du modèle
+            _latPivot.Rotation = new Vector3(0, (float)(_latTrim.Update(Physics.LateenAngle, tack, false, t) - _latModelled), 0);
+            // son mât tombé, elle n'est plus gréée : le solveur ne la compte plus
+            Physics.LateenUp = _latMast < 0 || _latMast >= _damage.Count || _damage[_latMast].Down == null;
+        }
         foreach (var c in _canvases)
         {
             if (c.Split) continue;                       // partie : plus rien à former
@@ -655,6 +671,96 @@ public partial class ShipNode
         return true;
     }
 
+    double _latZ, _latModelled;
+    MeshInstance3D? _latYard;
+
+    /// <summary>
+    /// LA TOILE DE LA LATINE, pendue à l'antenne du modèle. L'antenne est ce qui,
+    /// dans la pièce de l'artimon, s'écarte de l'axe du mât : son bout le plus
+    /// haut est le PIC, l'autre bout l'AMURE ; le point d'écoute est sous le pic,
+    /// un peu au-dessus du pont. Un triangle, taillé comme un foc.
+    /// </summary>
+    void LateenOn(Part pole, Node3D fall, double heel, double z0, Func<double, double> deckAt, List<Part> parts)
+    {
+        // l'axe du mât, pris au pied
+        double foot = pole.Min.Y + 0.2 * pole.Size.Y, cx = 0, cz = 0; int n = 0;
+        foreach (var v in pole.Verts) if (v.Y <= foot) { cx += v.X; cz += v.Z; n++; }
+        if (n == 0) return;
+        cx /= n; cz /= n;
+        double r = Math.Max(0.35, 0.02 * Spec.L);
+        Vector3? peak = null, tack = null;
+        foreach (var v in pole.Verts)
+        {
+            double d2 = (v.X - cx) * (v.X - cx) + (v.Z - cz) * (v.Z - cz);
+            if (d2 < r * r) continue;                                  // le mât, pas l'antenne
+            if (peak == null || v.Y > peak.Value.Y) peak = v;
+        }
+        if (peak != null)
+            foreach (var v in pole.Verts)
+            {
+                double d2 = (v.X - cx) * (v.X - cx) + (v.Z - cz) * (v.Z - cz);
+                if (d2 < r * r) continue;
+                if (tack == null || (v - peak.Value).LengthSquared() > (tack.Value - peak.Value).LengthSquared()) tack = v;
+            }
+        /* L'ANTENNE À PART : sur d'autres modèles le mât est seul, et l'antenne
+           est sa propre pièce, en biais — ni mât ni vergue pour les épreuves de
+           forme. On la cherche près de l'artimon : longue, mince en travers, sur
+           l'axe ; ses deux sommets les plus éloignés sont ses deux bouts. */
+        if (peak == null || tack == null || (tack.Value - peak.Value).Length() < 1)
+        {
+            Part? yard = null;
+            foreach (var q in parts)
+            {
+                // l'antenne du modèle est déjà ÉCARTÉE autour du mât (25 à 30°) : large en travers, pas mince
+                if (q == pole || q.Taken || Math.Abs(q.Mid.X) > 1.5) continue;
+                // au-dessus du pont, et jusqu'à mi-hauteur du mât au moins : le safran est long, mince et en biais lui aussi
+                if (q.Min.Y < deckAt(q.Mid.Z) - 0.5 || q.Max.Y < heel + 0.5 * pole.Size.Y) continue;
+                if (Math.Max(q.Size.Y, q.Size.Z) < 0.15 * Spec.L || Math.Abs(q.Mid.Z - cz) > 0.2 * Spec.L) continue;
+                if (q.Size.Y < 0.2 * Math.Max(q.Size.Y, q.Size.Z) || q.Size.Z < 0.2 * Math.Max(q.Size.Y, q.Size.Z)) continue;   // en biais
+                if (yard == null || q.Size.Y + q.Size.Z > yard.Size.Y + yard.Size.Z) yard = q;
+            }
+            if (yard == null || yard.Verts.Length < 2)
+            {
+                return;       // pas d'antenne : pas de latine dessinée
+            }
+            Vector3 a0 = yard.Verts[0], b0 = yard.Verts[0];
+            float best = -1;
+            foreach (var u in yard.Verts)
+                foreach (var w in yard.Verts)
+                {
+                    float d = (u - w).LengthSquared();
+                    if (d > best) { best = d; a0 = u; b0 = w; }
+                }
+            peak = a0.Y >= b0.Y ? a0 : b0;
+            tack = a0.Y >= b0.Y ? b0 : a0;
+            yard.Taken = true;
+            _latYard = yard.Mi;
+        }
+        if (tack == null || (tack.Value - peak.Value).Length() < 1) return;
+        var P = peak.Value; var T = tack.Value;
+        /* L'ANGLE MODELÉ : l'antenne pend déjà écartée autour du mât. On pend la
+           toile dessus telle qu'elle est, puis on fait tourner antenne et toile
+           d'un bloc pour que cet angle devienne celui que l'équipage donne. */
+        double ux = T.X - P.X, uz = T.Z - P.Z;
+        if (uz < 0) { ux = -ux; uz = -uz; }                          // l'antenne vers l'avant
+        _latModelled = Math.Atan2(ux, uz);
+        double clewY = Math.Max(deckAt(P.Z) + 1.6, Math.Min(P.Y, T.Y) - 0.2 * Math.Abs(P.Y - T.Y));
+        _latPivot = new Node3D { Position = new Vector3((float)cx, 0, (float)(cz - z0)) };
+        fall.AddChild(_latPivot);
+        Vec3d L(Vector3 v, double y) => new(v.X - cx, y - heel, v.Z - cz);
+        // la normale de son plan : horizontale, en travers de l'antenne
+        double un = Math.Sqrt(ux * ux + uz * uz);
+        var side = new Vec3d(uz / un, 0, -ux / un);
+        _latPivot.AddChild(SailSurface(new[] { L(T, T.Y), L(P, clewY), L(P, P.Y) },
+            side, new SailCut { Kind = "jib", UPeak = 0.40, VPeak = 0.34, VPin0 = true, Crown = 0.80 }));
+        // l'antenne tourne avec sa toile, et tombe avec son mât
+        _latYard?.Reparent(_latPivot, true);
+        _latMast = _damage.Count - 1;
+        _canvases[^1].Mast = _latMast;
+        _latZ = z0;
+        RigLog.Add(FormattableString.Invariant($"latine : pic y {P.Y:F2} z {P.Z:F2}, amure y {T.Y:F2} z {T.Z:F2}, écoute y {clewY:F2}"));
+    }
+
     /// <summary>La place d'un maillage dans le repère du navire.</summary>
     Transform3D RelOf(Node3D n)
     {
@@ -876,6 +982,8 @@ public partial class ShipNode
                     Math.Max(4, Math.Min(10, 0.26 * mh))));
             _damage.Add(new MastDamage { Fall = fall, Heel = heel, Share = 0, HasPole = true, Height = mh, Cords = cords });
             RigLog.Add(FormattableString.Invariant($"mat z0 {z0:F2} pied {heel:F2} sans vergue carrée"));
+            // l'artimon, le plus en arrière : s'il porte une antenne et que la fiche a une latine, on la grée
+            if (spec.LateenArea > 0 && z0 < 0 && (_latPivot == null || z0 < _latZ)) LateenOn(pole, fall, heel, z0, deckAt, parts);
         }
     }
 
