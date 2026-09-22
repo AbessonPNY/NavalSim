@@ -133,7 +133,7 @@ public partial class ShipDemo : Node3D
     {
         if (_mkPanel == null) return;
         _portHere = _inTitle ? null : PortInFront();
-        _mkPanel.Visible = _portHere != null && _info.Visible;
+        _mkPanel.Visible = _portHere != null && _hudOn && !_inTitle;
         if (_portHere == null) return;
 
         double t = _sea.Core.Time;

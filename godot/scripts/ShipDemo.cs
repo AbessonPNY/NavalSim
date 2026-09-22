@@ -202,7 +202,8 @@ public partial class ShipDemo : Node3D
         var layer = new CanvasLayer();
         AddChild(layer);
         _hud = layer;
-        _info = new Label { Position = new Vector2(18, 14) };
+        // LE PAVÉ DE DÉBOGAGE : fermé au départ, ouvert par H (voir ShipDemo.Hud.cs)
+        _info = new Label { Position = new Vector2(18, 14), Visible = false };
         _info.AddThemeFontSizeOverride("font_size", 15);
         _info.AddThemeColorOverride("font_color", new Color(0.94f, 0.96f, 0.98f));
         _info.AddThemeColorOverride("font_outline_color", new Color(0, 0, 0, 0.85f));
@@ -229,6 +230,7 @@ public partial class ShipDemo : Node3D
         BuildMarket(layer);
         BuildFleetPanel(layer);
         BuildGunSide(layer);
+        BuildHud(layer);
         BuildStow(layer);
         BuildEncart(layer);
         BuildQuestView(layer);
@@ -1160,7 +1162,9 @@ public partial class ShipDemo : Node3D
         _hudAcc += frame;
         if (_hudAcc > 0.15) { _hudAcc = 0; UpdateInfo(); AmbianceTick(); MarketTick(); StowTick(); FleetTick(); }
         TrimTick();
+        HitsTick();
         GunSideTick();
+        HudTick();
 
         TickCapture();
         _ftWatch.Stop();
@@ -1440,9 +1444,7 @@ public partial class ShipDemo : Node3D
             $"machine    {_ship.Ctrl.Throttle,6:F2}      barre     {_ship.Ctrl.Rudder,5:F2}\n" +
             $"écoutes    {_ship.Ctrl.Sheet,6:F2}      voiles    {voiles}\n" +
             $"vent       {_windNowDeg,6:F0}°      force     {_sea.Core.SeaState:F1} · {Config.Beaufort[bf].Name}{(_seaMaster != null ? " · " + _seaMaster : "")}\n" +
-            GunLine() +
-            PurseLine() +
-            $"air        {_climate.Word()}{(_fall.Amount > 0.004 ? (_fall.Snow ? " · il neige" : " · il pleut") : "")}{(_seaFog != null && _seaFog.Amount > 0.3 ? " · brume" : "")}   {_calendar.Date:dd/MM/yyyy}{(_ship.SnowCover > 0.01 ? $"   neige sur le pont {_ship.SnowCover * 100:F0} %" : "")}\n" +
+            (_ship.SnowCover > 0.01 ? $"neige sur le pont {_ship.SnowCover * 100:F0} %\n" : "") +
             (_inSquall ? $"dépression {_squall.Dist / 1852,6:F1} mille(s) du centre · au cœur force {_squall.Storm.Peak:F1} · ici {_squall.Force:F1}\n" : "") +
             $"\n" +
             /* CE QUI RESTE DE LA NOTICE : une ligne. Les deux qui couraient ici
@@ -1450,7 +1452,7 @@ public partial class ShipDemo : Node3D
                qu'on lit d'un coup d'œil ne peut pas être aussi le mode d'emploi.
                Ne restent que les deux états qu'on veut voir SANS ouvrir quoi que
                ce soit : la vue où l'on est, et si la météo se conduit seule. */
-            $"F1 commandes      vue {CamName()}      météo {(_weather.On ? "d'elle-même" : "à la main")}";
+            $"F1 commandes      vue {CamName()}      météo {(_weather.On ? "d'elle-même" : "à la main")}      ⇧H instruments";
     }
 
     public override void _UnhandledInput(InputEvent e)
@@ -1569,7 +1571,8 @@ public partial class ShipDemo : Node3D
                 /* L'IMAGE SEULE : les commandes et le panneau du soleil s'effacent,
                    pour regarder ou filmer. Le menu reste sur Échap, et le masque de
                    cinéma, qui fait partie de l'image, reste en place. */
-                case Key.H: _info.Visible = _sunPanel.Visible = !_info.Visible; break;
+                case Key.H when k.ShiftPressed: _hudOn = !_hudOn; _sunPanel.Visible = _hudOn; break;
+                case Key.H: _info.Visible = !_info.Visible; break;
                 // le menu d'options ; « Quitter » y est désormais
                 case Key.F1: ToggleKeys(); break;
                 case Key.Escape:
@@ -1776,6 +1779,20 @@ public partial class ShipDemo : Node3D
     double _noteLeft;
 
     /// <summary>Dire une phrase, et la laisser s'effacer — dire() de la page.</summary>
+    /* « ENNEMI TOUCHÉ ! » — une bordée porte plusieurs coups, et autant de lignes
+       serait illisible : on les compte et on ne parle qu une fois le tir retombé
+       (un demi-quart de seconde sans touche), avec le compte s il y en a eu
+       plusieurs. */
+    int _hits;
+    double _hitsAt = double.NegativeInfinity;
+
+    void HitsTick()
+    {
+        if (_hits == 0 || _t - _hitsAt < 0.5) return;
+        Say(_hits > 1 ? $"Ennemi touché ! {_hits} coups au but" : "Ennemi touché !");
+        _hits = 0;
+    }
+
     void Say(string text)
     {
         _note.Text = text;
@@ -2032,6 +2049,8 @@ public partial class ShipDemo : Node3D
     void Struck(ShotTarget t, string kind, int index, double frac, double speed, double k, ShipPhysics from, Vec3d world, Vec3d dir)
     {
         if (t.Tag is not ShipNode s) return;
+        // un coup au but PORTÉ PAR NOUS : compté ici, dit une fois la bordée finie
+        if (from == _ship.Physics && s != _ship) { _hits++; _hitsAt = _t; }
         // le choc s'entend de là où le boulet a porté, donc plus tard que la pièce
         _sound?.Crash(world, k, speed, kind);
         // qui a tiré : c'est ce qui permet à un navire de savoir contre qui se retourner
@@ -2121,6 +2140,7 @@ public partial class ShipDemo : Node3D
         }
         Say("En batterie : " + GunNames[_gunSide]);
         GunSideTick();
+        HudTick();
     }
 
     /* SERVIR LES PIÈCES d'une coque provoquée. Le bord est choisi sur le relèvement :
@@ -2575,7 +2595,7 @@ public partial class ShipDemo : Node3D
     void CompassTick()
     {
         if (_compass == null || _chart == null) return;
-        _compass.Visible = _info.Visible && !_chartOpen && !_inTitle;
+        _compass.Visible = _hudOn && !_chartOpen && !_inTitle;
         if (!_compass.Visible) return;
         var s = GetViewport().GetVisibleRect().Size;
         float bottom = 0, right = 0;

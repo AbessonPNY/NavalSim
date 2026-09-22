@@ -30,9 +30,9 @@ public partial class ShipDemo : Node3D
     void TrimTick()
     {
         if (_trim == null) return;
-        _trim.Visible = _info.Visible && !_inTitle;
+        _trim.Visible = _hudOn && !_inTitle;
         if (!_trim.Visible) return;
-        _trim.Position = new Vector2(18, _info.Position.Y + _info.Size.Y + 8);
+        _trim.Position = new Vector2(18, HudTop);
         _trim.QueueRedraw();
     }
 

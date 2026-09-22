@@ -192,8 +192,8 @@ public partial class ShipDemo : Node3D
         if (aim == null && !_quests.HereNow && _quests.Current is QuestStep far && (_msgBox == null || !_msgBox.Visible))
         {
             _aimLine.Text = $"{(far.Title.Length > 0 ? far.Title : "Quête")} — dans les eaux de {RegionName(_quests.Active!.Region)}";
-            _aimLine.Visible = _info.Visible;
-            _aimLine.Position = new Vector2(18, _info.Position.Y + _info.Size.Y + 10 + TrimHeight);
+            _aimLine.Visible = _hudOn && !_inTitle;
+            _aimLine.Position = new Vector2(18, HudTop + TrimHeight + GunBarHeight);
             return;
         }
         if (aim == null || (_msgBox != null && _msgBox.Visible))
@@ -212,9 +212,9 @@ public partial class ShipDemo : Node3D
             : FormattableString.Invariant($"{Mille(a.Dist)} au {(int)Math.Round(a.Bearing) % 360:D3}°");
         string title = a.Step.Title.Length > 0 ? a.Step.Title : $"Étape {a.Index + 1}";
         _aimLine.Text = $"{title} — {where}   ({a.Index + 1}/{a.Count})";
-        _aimLine.Visible = _info.Visible;
+        _aimLine.Visible = _hudOn && !_inTitle;
         // sous le bandeau ET sous le curseur d écoute, quelles que soient leurs hauteurs
-        _aimLine.Position = new Vector2(18, _info.Position.Y + _info.Size.Y + 10 + TrimHeight);
+        _aimLine.Position = new Vector2(18, HudTop + TrimHeight + GunBarHeight);
     }
 
     /* EN MÈTRES SOUS LE DEMI-MILLE, en milles au-delà : un capitaine ne dit pas

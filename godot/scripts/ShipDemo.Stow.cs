@@ -191,7 +191,7 @@ public partial class ShipDemo : Node3D
     void StowTick()
     {
         if (_stowPanel == null || !_stowPanel.Visible) return;
-        if (!_info.Visible || _inTitle) { _stowPanel.Visible = false; return; }
+        if (!_hudOn || _inTitle) { _stowPanel.Visible = false; return; }
         var cargo = _ship.Physics.Cargo;
         foreach (var (b, hold, level, deck) in _stowCells)
         {

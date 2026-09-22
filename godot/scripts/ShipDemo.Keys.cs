@@ -134,7 +134,8 @@ public partial class ShipDemo : Node3D
         Key(c2, "L", "la lunette");
         Key(c2, "molette", "ouvrir ou fermer la focale");
         Section(c2, "Affichage");
-        Key(c2, "H", "masquer les instruments");
+        Key(c2, "H", "le pavé de débogage : tirant, fond, déplacement");
+        Key(c2, "⇧H", "masquer les instruments");
         Key(c2, "⇧M", "la mer : mise au point");
         Key(c2, "O", "occlusion ambiante");
         Key(c2, "I", "la carte du capitaine");
@@ -170,14 +171,14 @@ public partial class ShipDemo : Node3D
         if (_keys == null) return;
         if (on && !_keys.Visible)
         {
-            _hidWhenKeys = _info.Visible;
-            _info.Visible = false;
+            _hidWhenKeys = _hudOn;
+            _hudOn = false;
             _sunPanel.Visible = false;
             _menu.Visible = false;              // un panneau à la fois
         }
         else if (!on && _keys.Visible && _hidWhenKeys)
         {
-            _info.Visible = true;
+            _hudOn = true;
             _sunPanel.Visible = true;
         }
         _keys.Visible = on;

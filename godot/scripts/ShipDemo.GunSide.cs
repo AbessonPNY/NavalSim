@@ -14,6 +14,7 @@ namespace NavalSim;
 public partial class ShipDemo
 {
     HBoxContainer? _gunBar;
+    Label? _gunPowder;
     readonly Dictionary<int, Button> _gunButtons = new();
 
     static readonly Color GunPicked = new(0.92f, 0.78f, 0.36f);   // l'or du bord choisi
@@ -36,7 +37,17 @@ public partial class ShipDemo
             _gunBar.AddChild(b);
             _gunButtons[s] = b;
         }
+        // ce qu'il reste en soute : une bordée qui n'a plus de poudre ne part pas
+        _gunPowder = new Label { VerticalAlignment = VerticalAlignment.Center };
+        _gunPowder.AddThemeFontSizeOverride("font_size", 12);
+        _gunPowder.AddThemeColorOverride("font_color", GunIdle);
+        _gunPowder.AddThemeColorOverride("font_outline_color", new Color(0, 0, 0, 0.85f));
+        _gunPowder.AddThemeConstantOverride("outline_size", 4);
+        _gunBar.AddChild(_gunPowder);
     }
+
+    /// <summary>La hauteur que la rangée occupe : la ligne de quête se range dessous.</summary>
+    float GunBarHeight => _gunBar != null && _gunBar.Visible ? _gunBar.Size.Y + 6 : 0;
 
     /// <summary>Choisir un bord au doigt. Le même chemin que Tab, jusqu'au mot dit.</summary>
     void PickGunSide(int side)
@@ -52,9 +63,9 @@ public partial class ShipDemo
     {
         if (_gunBar == null) return;
         var bat = _ship.Battery;
-        _gunBar.Visible = _info.Visible && !_inTitle && bat.Guns.Count > 0;
+        _gunBar.Visible = _hudOn && !_inTitle && bat.Guns.Count > 0;
         if (!_gunBar.Visible) return;
-        _gunBar.Position = new Vector2(18, _info.Position.Y + _info.Size.Y + 8 + TrimHeight);
+        _gunBar.Position = new Vector2(18, HudTop + TrimHeight);
         foreach (var (side, b) in _gunButtons)
         {
             bool has = bat.Has(side);
@@ -66,6 +77,14 @@ public partial class ShipDemo
             b.Text = $"{GunNames[side]} {l.Ready}/{Math.Max(ok, l.All)}"
                    + (ok < all ? $" ({all - ok} démontée{(all - ok > 1 ? "s" : "")})" : "");
             b.AddThemeColorOverride("font_color", side == _gunSide ? GunPicked : l.Ready > 0 ? GunIdle : GunSpent);
+        }
+        if (_gunPowder != null)
+        {
+            var here = _gunnery.Loaded(bat, _gunSide);
+            int p = _ship.Physics.Powder;
+            _gunPowder.Text = $"· {p} charge{(p > 1 ? "s" : "")}"
+                + (here.Ready == 0 && double.IsFinite(here.Next) ? $" · prête dans {Math.Ceiling(here.Next):F0} s" : "");
+            _gunPowder.AddThemeColorOverride("font_color", p > 0 ? GunIdle : GunSpent);
         }
     }
 }
