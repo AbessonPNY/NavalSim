@@ -12,6 +12,12 @@ public sealed class Stroke
     public readonly List<(double X, double Z)> Pts = new();
     /// <summary>L'encre : 0 la sépia du bord, 1 le rouge du danger, 2 le bleu d'une route.</summary>
     public int Ink;
+    /// <summary>
+    /// La demi-largeur du bec, en mètres de carte, prise au moment du tracé : le
+    /// trait grossit et maigrit avec la loupe comme ses lettres. 0 : un trait
+    /// d'un ancien carnet, tracé à la largeur du moment.
+    /// </summary>
+    public double W;
 }
 
 /// <summary>
@@ -170,7 +176,9 @@ public sealed class Logbook
         sb.Append("],\n  \"strokes\": [");
         for (int i = 0; i < Strokes.Count; i++)
         {
-            sb.Append(i > 0 ? ",\n    " : "\n    ").Append("{ \"ink\": ").Append(Strokes[i].Ink).Append(", \"pts\": [");
+            sb.Append(i > 0 ? ",\n    " : "\n    ").Append("{ \"ink\": ").Append(Strokes[i].Ink);
+            if (Strokes[i].W > 0) sb.Append(", \"w\": ").Append(Strokes[i].W.ToString("F1", ci));
+            sb.Append(", \"pts\": [");
             var p = Strokes[i].Pts;
             for (int k = 0; k < p.Count; k++)
                 sb.Append(k > 0 ? ", " : "").Append('[').Append(p[k].X.ToString("F1", ci))
@@ -217,6 +225,7 @@ public sealed class Logbook
                 foreach (var s in st.EnumerateArray())
                 {
                     var one = new Stroke { Ink = s.TryGetProperty("ink", out var ik) ? ik.GetInt32() : 0 };
+                    if (s.TryGetProperty("w", out var wv)) one.W = wv.GetDouble();
                     if (s.TryGetProperty("pts", out var pts))
                         foreach (var p in pts.EnumerateArray()) one.Pts.Add((p[0].GetDouble(), p[1].GetDouble()));
                     if (one.Pts.Count > 0) b.Strokes.Add(one);

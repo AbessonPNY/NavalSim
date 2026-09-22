@@ -264,6 +264,12 @@ public partial class ChartNode : Node
         return _screenInk;
     }
 
+    /// <summary>
+    /// La demi-largeur du bec en mètres de carte, pour un trait commencé à la
+    /// loupe <paramref name="k"/> : ce que la plume donne à l'écran à ce moment.
+    /// </summary>
+    public double NibMetres(float k) => PenWidth * Q * Math.Min(k, 1.5f) / Math.Max(k, 1e-3f) * MetresPerPixel;
+
     public void SetScreenInk(Func<Vector2, Vector2> map, float k, bool on)
     {
         if (_screenInk == null) return;
@@ -362,7 +368,7 @@ public partial class ChartNode : Node
                 }
                 var pts = new Vector2[s.Pts.Count];
                 for (int i = 0; i < pts.Length; i++) pts[i] = At(s.Pts[i].X, s.Pts[i].Z);
-                Nib(pts, Inks[Math.Clamp(s.Ink, 0, 2)]);
+                Nib(pts, Inks[Math.Clamp(s.Ink, 0, 2)], s.W);
             }
             /* LE CERCLE DORÉ de l'étape en cours, par-dessus tout le reste : ce
                qu'on cherche sur une carte doit se voir avant ce qu'on y a déjà
@@ -423,9 +429,14 @@ public partial class ChartNode : Node
            calculer. Un filet dessous, pour que le trait ne se rompe jamais. */
         Color[]? _one4;
 
-        void Nib(Vector2[] pts, Color ink)
+        void Nib(Vector2[] pts, Color ink, double w)
         {
-            var half = new Vector2(1, -1).Normalized() * (_c.PenWidth * Q * Wk);
+            /* UN TRAIT GARDE SA PLUME : sa largeur est celle du tracé, en mètres de
+               carte, et suit la loupe comme ses lettres. Tracée à la loupe du
+               moment, une écriture fine faite de près tournait au pâté de loin
+               (signalé). */
+            float h = w > 0 ? (float)(w / _c.MetresPerPixel * K) : _c.PenWidth * Q * Wk;
+            var half = new Vector2(1, -1).Normalized() * h;
             var quad = new Vector2[4];
             for (int i = 0; i + 1 < pts.Length; i++)
             {
@@ -440,7 +451,7 @@ public partial class ChartNode : Node
                 _one4[0] = _one4[1] = _one4[2] = _one4[3] = ink;
                 DrawPrimitive(quad, _one4, null);
             }
-            DrawPolyline(pts, ink, 0.45f * Q * Wk, true);
+            DrawPolyline(pts, ink, w > 0 ? Math.Max(0.35f, 0.3f * h) : 0.45f * Q * Wk, true);
         }
     }
 }

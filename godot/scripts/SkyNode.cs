@@ -89,12 +89,25 @@ public partial class SkyNode : Node3D
          à l'ambiante, la moitié aux reflets du dôme).
        L'ombre des coques sur l'eau s'efface avec le soleil (u_sunlit). */
     public const float OvercastSun = 0.75f, OvercastSky = 1.8f;
+    /* SEUL UN CIEL VRAIMENT FERMÉ AGIT : rien sous OvercastFrom, tout à OvercastFull,
+       une marche douce entre. Linéaire, une petite pluie à 30 % ramenait déjà une
+       Force du soleil de 5 vers 3,8 et ôtait 40 % du soleil (signalé). */
+    public const float OvercastFrom = 0.4f, OvercastFull = 0.9f;
     /// <summary>Ce qui ferme le ciel en plus de l'orage : pluie, grain, brume, couverture. 0 à 1, posé par l'hôte.</summary>
     public double Overcast;
     /// <summary>Le ciel fermé retenu : l'orage du noyau ou ce que l'hôte a posé.</summary>
     public double Gloom => Math.Clamp(Math.Max(Core.Storm, Overcast), 0, 1);
+    /// <summary>Ce qui en agit sur la lumière : 0 tant que le ciel n'est pas vraiment fermé.</summary>
+    public double Closed
+    {
+        get
+        {
+            double x = Math.Clamp((Gloom - OvercastFrom) / (OvercastFull - OvercastFrom), 0, 1);
+            return x * x * (3 - 2 * x);
+        }
+    }
     /// <summary>La part du soleil qui passe encore, pour l'ombre des coques sur l'eau.</summary>
-    public double Sunlit => 1 - OvercastSun * Gloom;
+    public double Sunlit => 1 - OvercastSun * Closed;
 
     // --- l'éclair proche, et le grain lointain : DEUX choses différentes ---
     double _flashT;
@@ -212,7 +225,7 @@ public partial class SkyNode : Node3D
             col = col.Lerp(tinted, Math.Clamp(SunWarmth, 0, 1));
         }
         Sun.LightColor = col;
-        double g = Core.SunElevDeg > 0 ? Gloom : 0;
+        double g = Core.SunElevDeg > 0 ? Closed : 0;
         double strength = Core.SunElevDeg > 0 ? SunStrength + (1 - SunStrength) * g : 1;
         Sun.LightEnergy = (float)(Core.SunIntensity * SunGain * strength * (1 - OvercastSun * g));
 

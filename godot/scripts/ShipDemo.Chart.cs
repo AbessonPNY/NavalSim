@@ -267,7 +267,13 @@ public partial class ShipDemo : Node3D
                    est servie AVANT l'interface ; si elle gardait tout, rien d'autre
                    sur cet écran ne recevrait jamais un clic. */
                 if (mb.Pressed && at == null) return false;
-                if (mb.Pressed) { _drawing = _book.Begin(_ink); _drawing.Pts.Add(at!.Value); return true; }
+                if (mb.Pressed)
+                {
+                    _drawing = _book.Begin(_ink);
+                    _drawing.W = _chart.NibMetres((float)_chartK);
+                    _drawing.Pts.Add(at!.Value);
+                    return true;
+                }
                 if (_drawing == null) return false;
                 // un trait d'un seul point est une croix, pas une erreur : on le garde
                 _drawing = null;

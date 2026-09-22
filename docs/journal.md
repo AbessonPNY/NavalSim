@@ -6642,6 +6642,8 @@ Puis : la force du soleil jusqu'à ×5 (« juste mais suffisant » au maximum de
 
 **Le ciel fermé (signalé : par gros temps, la coque restait éclairée comme par beau temps).** Le noyau rabattait bien le soleil de 62 % en pleine tempête, mais la Force du soleil de l'étude passait par-dessus, et l'ambiante baissait AVEC l'orage (−55 %). `SkyNode.Gloom` = max(orage, ce que l'hôte pose dans `Overcast` : averse, grain, brume, couverture au-delà de 55 %). Le soleil perd `OvercastSun` (0,75) de sa force et la Force du soleil revient vers 1 ; l'ambiante gagne `OvercastSky` (1,8 : +180 %, la moitié sur les reflets du dôme) ; l'ombre des coques sur l'eau s'efface avec (`u_sunlit`). Mesuré à 45° : beau temps soleil 3,31 / ambiante 0,070 ; force 6,5 : 0,95 / 0,081 ; force 8 : 0,10 / 0,091 ; averse d'une heure : 0,56 / 0,166 (l'averse ne ferme pas le couvercle du noyau, son ambiante n'est pas rabattue d'abord). Piège de mesure : `--sun` arrête l'horloge, donc aussi les averses.
 
+**Seul un ciel vraiment fermé agit.** Linéaire, une petite pluie qui fermait le ciel à 30 % ramenait une Force du soleil de 5 vers 3,8 et ôtait 40 % du soleil. Le ciel fermé passe donc par une marche douce (`Closed`) : rien sous 0,4 (`OvercastFrom`), tout à 0,9 (`OvercastFull`). Part du soleil gardée, Force à 5 : 1,00 à 0,3 ; 0,85 à 0,5 ; 0,29 à 0,68 ; 0,05 à 0,94.
+
 ## L'écume du rivage (Godot)
 
 Demandé : détecter la bande de sable au contact de l'eau pour y faire, là aussi, un collier d'écume.
@@ -7463,6 +7465,8 @@ annule désormais la note, au lieu d'ouvrir le menu du jeu derrière la carte.
 retour arrière pour effacer le dernier trait. Ce qui reste à faire : la vérifier
 posée sur le bureau en 3D — la feuille est habillée, mais aucun cadrage n'a
 encore permis de la voir en place.
+
+**Un trait garde sa plume.** La largeur du bec suivait la loupe du MOMENT (plafonnée à ×1,5), les lettres la loupe tout court : une écriture fine faite de près tournait au pâté de loin (signalé). Chaque trait retient donc sa demi-largeur en mètres de carte au moment du tracé (`Stroke.W`, `"w"` dans le carnet, `ChartNode.NibMetres`), et se dessine à `W / MetresPerPixel × K` ; le filet dessous en suit 30 %, jamais sous 0,35 px. La glissière Épaisseur de la plume ne vaut plus que pour les traits à venir. Les traits des anciens carnets (sans `w`) gardent l'ancienne règle.
 
 ## Le son porté (Godot)
 
