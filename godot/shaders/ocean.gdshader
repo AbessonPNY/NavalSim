@@ -430,11 +430,13 @@ float hull_shadow(vec3 P, vec2 pix) {
 	   même endroit d'un pixel à l'autre, et ce qui reste du motif se fond en
 	   grain au lieu de se répéter (signalé). */
 	float jit = fract(52.9829189 * fract(dot(pix, vec2(0.06711056, 0.00583715))));
-	if (u_sun.y < 0.02) return 0.0;
-	// au ras de l'horizon l'ombre s'allongerait sans fin : bornée à six fois la hauteur
-	vec2 step_h = u_sun.xz / u_sun.y;
+	if (u_sun.y < 0.0) return 0.0;
+	/* au ras de l'horizon l'ombre s'allongerait sans fin : bornée à VINGT fois la
+	   hauteur — un soleil à 3° en donne dix-neuf ; bornée à six, elle était coupée
+	   court au couchant, justement quand elle est la plus belle (signalé) */
+	vec2 step_h = u_sun.xz / max(u_sun.y, 1e-3);
 	float slen = length(step_h);
-	if (slen > 6.0) step_h *= 6.0 / slen;
+	if (slen > 20.0) step_h *= 20.0 / slen;
 	float s = 0.0;
 	for (int i = 0; i < NSHIP; i++) {
 		if (i >= u_ship_count) break;
@@ -468,7 +470,8 @@ float hull_shadow(vec3 P, vec2 pix) {
 		s = max(s, here * u_ship_afloat[i]);
 	}
 	// il faut un soleil pour une ombre : ni la nuit, ni sous un ciel d'orage
-	return s * smoothstep(0.02, 0.12, u_sun.y) * (1.0 - 0.7 * u_storm);
+	// il faut un soleil : elle ne s'éteint que dans ses deux derniers degrés sur l'horizon
+	return s * smoothstep(0.0, 0.035, u_sun.y) * (1.0 - 0.7 * u_storm);
 }
 
 void fragment() {

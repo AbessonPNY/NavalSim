@@ -6626,6 +6626,10 @@ proportion de ce que le reflet de la coque occupe.
 
 **Puis : les festons.** Au soleil bas, seize hauteurs tombaient à 3 m l'une de l'autre sur l'eau et chacune dessinait son contour de coque. Vingt-quatre hauteurs, une pénombre d'une fois et demie leur écart, et un décalage des hauteurs propre à chaque pixel (bruit à gradient entrelacé) : ce qui reste du motif devient grain.
 
+## L'ombre au couchant (Godot)
+
+Signalé : l'ombre des coques sur l'eau s'estompait vers 18 h, soleil à 3°, quand elle devrait être encore là. Deux bornes l'effaçaient : elle s'éteignait sous 7° (smoothstep de 0,02 à 0,12 sur la hauteur du soleil — à 3°, un quart), et sa longueur était bornée à six fois la hauteur de la coque quand un soleil à 3° en donne dix-neuf. Elle ne s'éteint plus que dans les deux derniers degrés, et s'allonge jusqu'à vingt fois la hauteur ; la pénombre, qui suit l'écart entre les hauteurs échantillonnées, s'élargit d'elle-même avec la longueur.
+
 ## La lumière du soleil, à l'étude (Godot)
 
 Demandé : étudier une lumière du soleil plus franche sur la coque, jaune et chaude, pour plus de contraste. Trois curseurs au menu (Lumière), gardés dans `reglages.ini` → `[lumiere]`, appliqués sur les valeurs de la page : **force du soleil** (×1,25 par défaut), **chaleur du soleil** (0,35 : la couleur tirée vers un jaune d'après-midi, 1,0/0,80/0,52, À LUMINANCE ÉGALE — la couleur change, pas la force ; le jour seulement, la lune garde sa lumière froide), **lumière du ciel dans l'ombre** (×0,85 : plus bas, plus de contraste). Relevé au démarrage : soleil (1,07 ; 0,94 ; 0,76) à 0,84 au lieu de 0,67, ciel 0,24 au lieu de 0,28.
