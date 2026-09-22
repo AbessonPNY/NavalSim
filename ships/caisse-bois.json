@@ -1,0 +1,79 @@
+{
+  "id": "caisse-bois",
+  "name": "Caisse en bois",
+  "note": "Objet d essai : une caisse cubique de 1,59 m de cote, fermee, qui flotte. Coque en boite (sections carrees, flottaison pleine, ni tonture ni releve). Le modele est pose a 16,9 m de l origine dans Blender : offset le ramene au centre. Une caisse n a ni machine ni safran ; on lui en laisse un filet (0,8 m/s) pour pouvoir la deplacer pendant les essais. 0,2 t : le poids d une caisse vide de cette taille (six faces de 2,5 m2 en planches de 2,5 cm, 230 kg). Elle s assied alors 3 cm sous sa flottaison de fiche, 43 % de sa hauteur dans l eau. Une vraie boite vide ne s enfoncerait que de 8 cm : la carene procedurale se pince vers le fond, meme reglee en boite, et porte moins qu un vrai cube.",
+  "hull": {
+    "length": 1.59,
+    "beam": 1.59,
+    "freeboardMid": 0.94,
+    "sheerBow": 0,
+    "sheerStern": 0,
+    "keelDepth": 0.65,
+    "keelExtra": 0,
+    "dragAft": 0,
+    "forefootLift": 0,
+    "counterLift": 0,
+    "waterlinePower": 0.1,
+    "waterlineFull": 1,
+    "transomWidth": 1,
+    "sectionTuck": 1,
+    "sectionPower": 0.1
+  },
+  "displacementTonnes": 0.2,
+  "cog": {
+    "yFracKeel": -0.3,
+    "zFracLength": 0
+  },
+  "hydro": {
+    "resistance": 120,
+    "lateralGrip": 650,
+    "lateralQuad": 130,
+    "heaveDamp": 1100
+  },
+  "engine": {
+    "topSpeed": 0.8,
+    "sternPower": -0.6
+  },
+  "rudder": {
+    "power": 60,
+    "maxAngle": 0.61,
+    "postZFrac": -0.46,
+    "postY": -0.1
+  },
+  "rig": {
+    "type": "none",
+    "sailArea": 0,
+    "ceHeight": 0.5,
+    "ceZ": 0,
+    "maxSheet": 1.0,
+    "belly": 0,
+    "masts": [],
+    "jib": null,
+    "bowsprit": null
+  },
+  "deckhouse": {
+    "beamFrac": 0.3,
+    "height": 0.02,
+    "lengthFrac": 0.1,
+    "zFrac": 0
+  },
+  "appearance": {
+    "hull": "0x8a6a44",
+    "timber": "0x6a5034",
+    "spar": "0x8f7a55",
+    "house": "0x8a6a44",
+    "canvas": "0xf2ebdc"
+  },
+  "camera": {
+    "chaseDist": 4,
+    "chaseHigh": 2,
+    "orbitDist": 5,
+    "helmZFrac": -0.44
+  },
+  "model": {
+    "glb": "ships/models/caissebois.glb",
+    "lengthAxis": "z",
+    "offset": [0.084, 0.176, 16.896],
+    "rotationY": 0
+  }
+}
