@@ -83,7 +83,15 @@ public static class WorldParity
         }
         if (badProbe > 0) { Console.Error.WriteLine($"  ECART image : {badProbe} sonde(s) differente(s)"); failures++; }
 
-        var world = new World(region, w, h, grey);
+        var patches = new System.Collections.Generic.List<World.PatchImage>();
+        foreach (var p in region.Patches)
+        {
+            string pi = Path.GetFullPath(Path.Combine(worldDir, "..", p.Image));
+            if (!File.Exists(pi)) continue;
+            var (pw, ph, pg) = GreyPng.Decode(File.ReadAllBytes(pi));
+            patches.Add(new World.PatchImage(p, pw, ph, pg));
+        }
+        var world = new World(region, w, h, grey, null, patches);
 
         // --- la geographie ---
         var g = d.GetProperty("geo");

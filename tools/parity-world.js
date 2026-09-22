@@ -23,59 +23,24 @@ const root = path.join(__dirname, '..');
 global.window = global;
 eval(fs.readFileSync(path.join(root, 'js', 'world.js'), 'utf8'));
 
-/* Le PNG, decode a la main : en-tete, IDAT concatenes, inflate, defiltrage.
-   Node porte zlib, et c est tout ce qui manquait. */
-function decodeGreyPng(buf) {
-  if (buf.readUInt32BE(0) !== 0x89504e47) throw new Error('ce n est pas un PNG');
-  let p = 8, w = 0, h = 0, bits = 0, color = 0;
-  const idat = [];
-  while (p + 8 <= buf.length) {
-    const len = buf.readUInt32BE(p);
-    const type = buf.toString('ascii', p + 4, p + 8);
-    const at = p + 8;
-    if (type === 'IHDR') {
-      w = buf.readUInt32BE(at); h = buf.readUInt32BE(at + 4);
-      bits = buf[at + 8]; color = buf[at + 9];
-      if (buf[at + 12] !== 0) throw new Error('PNG entrelace non gere');
-      if (bits !== 8) throw new Error('PNG ' + bits + ' bits non gere');
-      if (color === 3) throw new Error('PNG palettise non gere');
-    } else if (type === 'IDAT') idat.push(buf.subarray(at, at + len));
-    else if (type === 'IEND') break;
-    p = at + len + 4;
-  }
-  const raw = zlib.inflateSync(Buffer.concat(idat));
-  const bpp = color === 0 ? 1 : color === 2 ? 3 : color === 4 ? 2 : 4;
-  const stride = w * bpp;
-  const grey = new Uint8Array(w * h);
-  let prev = Buffer.alloc(stride);
-  for (let y = 0; y < h; y++) {
-    const f = raw[y * (stride + 1)];
-    const cur = Buffer.from(raw.subarray(y * (stride + 1) + 1, y * (stride + 1) + 1 + stride));
-    for (let i = 0; i < stride; i++) {
-      const a = i >= bpp ? cur[i - bpp] : 0, b = prev[i], c = i >= bpp ? prev[i - bpp] : 0;
-      if (f === 1) cur[i] = (cur[i] + a) & 255;
-      else if (f === 2) cur[i] = (cur[i] + b) & 255;
-      else if (f === 3) cur[i] = (cur[i] + ((a + b) >> 1)) & 255;
-      else if (f === 4) {
-        const pp = a + b - c, pa = Math.abs(pp - a), pb = Math.abs(pp - b), pc = Math.abs(pp - c);
-        cur[i] = (cur[i] + (pa <= pb && pa <= pc ? a : pb <= pc ? b : c)) & 255;
-      } else if (f !== 0) throw new Error('filtre PNG inconnu : ' + f);
-    }
-    for (let x = 0; x < w; x++) grey[y * w + x] = cur[x * bpp];
-    prev = cur;
-  }
-  return { w, h, data: grey };
-}
+/* Le PNG : lu par tools/grey-png.js, qui sert aussi aux patches de relief et
+   a la refonte des cotes — une definition, plusieurs usagers. Les deux cotes du
+   banc doivent partir des MEMES octets, sinon on comparerait deux reliefs au
+   lieu de deux formules. */
+const { decodeGreyPng } = require('./grey-png.js');
 
-/* Le decodeur sert aussi au releve des quetes, qui a besoin du monde pour
-   resoudre ses lieux : une definition, plusieurs usagers. Requis comme module,
-   ce fichier ne fait donc rien de plus que l offrir. */
 module.exports = { decodeGreyPng };
 if (require.main !== module) return;
 
 const region = JSON.parse(fs.readFileSync(path.join(root, 'world', 'caraibes.json'), 'utf8'));
 const img = decodeGreyPng(fs.readFileSync(path.join(root, region.relief.image)));
-const W = new Naval.World(region, img);
+/* Les reliefs LOCAUX : le banc doit les lire comme le jeu, sinon il compare
+   deux terres au lieu de deux formules. */
+const patches = (region.patches || []).map(p => {
+  const f = path.join(root, p.image);
+  return fs.existsSync(f) ? Object.assign({}, p, { img: decodeGreyPng(fs.readFileSync(f)) }) : null;
+}).filter(Boolean);
+const W = new Naval.World(region, img, patches);
 
 /* L empreinte du gris : la somme de tous les octets, et un echantillonnage
    regulier. Si les deux decodeurs ne rendent pas la meme image, le banc le dit
@@ -98,6 +63,17 @@ for (const isl of W.isles)
   for (let a = 0; a < 8; a++) {
     const r = 40 + 55 * a;
     pts.push([isl.x + r * Math.cos(a * 0.9), isl.z + r * Math.sin(a * 0.9)]);
+  }
+
+/* DANS CHAQUE RELIEF LOCAL, une grille serree et son BORD : c est la que la
+   loi du patch se joue — le gris fin au milieu, le fondu au bord, le grand
+   relief au-dela. Sans ces points, le banc ne verrait jamais un patch. */
+for (const p of region.patches || [])
+  for (let j = -2; j <= 14; j++) for (let i = -2; i <= 14; i++) {
+    const lat = p.south + (p.north - p.south) * i / 12;
+    const lon = p.west + (p.east - p.west) * j / 12;
+    const g = Naval.Geo.toXZ(lat, lon);
+    pts.push([g.x, g.z]);
   }
 
 const samples = pts.map(([x, z]) => {

@@ -49,6 +49,50 @@ réglables dans `relief` : `maxHeight`, `maxDepth`, `curve`.)
   `harbourDepth` (11 m) jusqu'au quai.
 - Rechargez la page : le jeu relit l'image. `node build.js` l'embarque.
 
+### Un relief LOCAL, plus fin (patch)
+
+Un pixel de la grande image vaut 45 m : une pointe de sable de 300 m y tient en
+sept pixels, et aucun port ne peut être fidèle à ce compte. On pose donc une
+SECONDE image, fine, sur un bout de la région :
+
+```bash
+node tools/relief-patch.js port-royal 2048 2000    # 2048 px pour 2000 m : ~1 m/px
+```
+
+Elle est peinte d'après le relief actuel — un patch neuf ne change donc RIEN —
+et son entrée est ajoutée à `world/caraibes.json` :
+
+```json
+"patches": [
+  { "key": "port-royal", "image": "world/port-royal-relief.png",
+    "west": -76.856648, "east": -76.809353, "south": 17.915345, "north": 17.960341,
+    "feather": 80 }
+]
+```
+
+Le gris s'y lit par la **même loi** que la grande image, et se **fond** dans
+elle sur `feather` mètres au bord : aucune marche au bord du carré. Tout ce qui
+lit la terre suit — flottaison, échouage, écume du rivage, carte marine.
+
+Deux façons de la travailler :
+
+- **À la peinture**, comme la grande image (mêmes gris, mêmes règles).
+- **À la sculpture**, dans Blender : sortez le terrain, sculptez, rendez-le.
+
+```bash
+node tools/zone-glb.js port-royal 1800 1400          # le terrain en .glb (pas = la finesse du patch)
+# … sculptez l'objet « terre » dans Blender, exportez au même endroit …
+node tools/relief-bake.js world/models/port-royal-zone.glb port-royal
+```
+
+L'aller-retour a été mesuré : 3,6 cm d'écart moyen sur la rade. Ce que le
+maillage ne couvre pas garde son gris, donc on peut sculpter un coin seulement.
+
+**Ce que ça coûte.** Godot bâtit la terre aussi fine que sa source, borné par
+`LandNode.FineMax` (288 segments par carreau de 1440 m, soit 5 m). Relevé à
+Port-Royal : 4,26 ms par image et 1 169 k triangles avec le patch, contre
+3,12 ms et 514 k sans. La page publiée embarque l'image locale comme la grande.
+
 ### Repartir des côtes réelles
 
 ```bash

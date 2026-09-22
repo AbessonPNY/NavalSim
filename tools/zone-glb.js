@@ -31,7 +31,7 @@ eval(fs.readFileSync(path.join(root, 'js', 'world.js'), 'utf8'));
 const key = process.argv[2] || 'port-royal';
 const WIDE = Number(process.argv[3] || 1800);
 const DEEP = Number(process.argv[4] || 1400);
-const STEP = Number(process.argv[5] || 4);
+let STEP = Number(process.argv[5] || 0);
 
 const region = JSON.parse(fs.readFileSync(path.join(root, 'world', 'caraibes.json'), 'utf8'));
 const img = decodeGreyPng(fs.readFileSync(path.join(root, region.relief.image)));
@@ -47,6 +47,20 @@ const at = isle ? { x: isle.x, z: isle.z, name: isle.name } : (() => {
   const p = Naval.Geo.toXZ(town.lat, town.lon);
   return { x: p.x, z: p.z, name: town.name };
 })();
+
+/* LE PAS, PAR DÉFAUT CELUI DE LA SOURCE : échantillonner plus fin que le relief
+   ne donne que des triangles qui interpolent (signalé). S'il y a un relief local
+   ici, c'est lui qui décide — sans descendre sous deux mètres, faute de quoi un
+   carré de deux kilomètres pèserait deux cents mégaoctets. */
+if (!(STEP > 0)) {
+  const p = (region.patches || []).find(p =>
+    at.x !== undefined && (() => { const g = Naval.Geo.fix(at.x, at.z);
+      return g.lon > p.west && g.lon < p.east && g.lat > p.south && g.lat < p.north; })());
+  const fine = p ? (p.north - p.south) * Naval.Geo.M_PER_MIN * 60 * region.scale
+                   / require('./grey-png.js').decodeGreyPng(fs.readFileSync(path.join(root, p.image))).h
+                 : W.px;
+  STEP = Math.max(2, Math.round(fine * 100) / 100);
+}
 
 // ---------------------------------------------------------------- les maillages
 

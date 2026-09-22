@@ -12,6 +12,19 @@ public sealed class ReliefSpec
     public double Sea = 128, MaxHeight = 1500, MaxDepth = 400, Curve = 2;
 }
 
+/// <summary>
+/// UN PATCH DE RELIEF : une seconde image, plus fine, sur un bout de la région —
+/// une rade, une pointe, un port qu'on veut vrai. Le gris s'y lit par la même
+/// loi, et se FOND dans celui de la grande image sur <c>Feather</c> mètres, pour
+/// qu'aucune marche ne paraisse au bord du carré.
+/// </summary>
+public sealed class PatchSpec
+{
+    public string Key = "", Image = "";
+    public double West, East, South, North;
+    public double Feather = 80;
+}
+
 /// <summary>Un port de la fiche, tel qu'elle l'écrit (world/README.md).</summary>
 public sealed class PortSpec
 {
@@ -66,6 +79,7 @@ public sealed class RegionSpec
     public readonly List<PortSpec> Ports = new();
     public readonly List<AssetSpec> Assets = new();
     public readonly List<TownSpec> Towns = new();
+    public readonly List<PatchSpec> Patches = new();
 
     public static RegionSpec FromJson(string json)
     {
@@ -94,6 +108,15 @@ public sealed class RegionSpec
             if (e.TryGetProperty("maxDepth", out x)) E.MaxDepth = x.GetDouble();
             if (e.TryGetProperty("curve", out x)) E.Curve = x.GetDouble();
         }
+        if (r.TryGetProperty("patches", out var pz) && pz.ValueKind == JsonValueKind.Array)
+            foreach (var p in pz.EnumerateArray())
+                s.Patches.Add(new PatchSpec
+                {
+                    Key = Str(p, "key"), Image = Str(p, "image"),
+                    West = Num(p, "west"), East = Num(p, "east"),
+                    South = Num(p, "south"), North = Num(p, "north"),
+                    Feather = p.TryGetProperty("feather", out var ff) ? ff.GetDouble() : 80
+                });
         if (r.TryGetProperty("ports", out var ps) && ps.ValueKind == JsonValueKind.Array)
             foreach (var p in ps.EnumerateArray())
                 s.Ports.Add(new PortSpec
@@ -213,11 +236,18 @@ public sealed class World : IGround
 
     /// <param name="grey">L'image, un octet par pixel, lignes de haut en bas.</param>
     /// <param name="warn">Ce qui se dit à la console quand un port n'a pas de rivage.</param>
-    public World(RegionSpec region, int w, int h, byte[] grey, Action<string>? warn = null)
+    /// <summary>Un patch lu : sa fiche et ses pixels.</summary>
+    public readonly record struct PatchImage(PatchSpec Spec, int W, int H, byte[] Grey);
+
+    readonly List<PatchImage> _patches = new();
+
+    public World(RegionSpec region, int w, int h, byte[] grey, Action<string>? warn = null,
+                 IReadOnlyList<PatchImage>? patches = null)
     {
         Region = region;
         Relief = region.Relief;
         _img = grey; ImgW = w; ImgH = h;
+        if (patches != null) _patches.AddRange(patches);
         HarbourDepth = region.HarbourDepth;
         Geo = new Geo(region.OriginLat, region.OriginLon, region.Scale);
 
@@ -231,6 +261,29 @@ public sealed class World : IGround
             if (isle != null) Isles.Add(isle);
         }
         Measure();
+    }
+
+    /// <summary>
+    /// LA FINESSE DU RELIEF SUR UN CARRÉ DU MONDE, en mètres par pixel : celle
+    /// du grand relief, ou celle du patch le plus fin qui le recouvre. Ce que la
+    /// terre dessinée doit suivre — bâtir un carreau plus fin que sa source ne
+    /// donne que des triangles vides (signalé sur le .glb exporté).
+    /// </summary>
+    public double ReliefPx(double x0, double z0, double x1, double z1)
+    {
+        double px = Px;
+        foreach (var p in _patches)
+        {
+            var s = p.Spec;
+            var a = Geo.Fix(x0, z0);
+            var b = Geo.Fix(x1, z1);
+            double west = Math.Min(a.Lon, b.Lon), east = Math.Max(a.Lon, b.Lon);
+            double south = Math.Min(a.Lat, b.Lat), north = Math.Max(a.Lat, b.Lat);
+            if (east < s.West || west > s.East || north < s.South || south > s.North) continue;
+            double m = (s.North - s.South) * Core.Geo.MPerMin * 60 * Region.Scale / p.H;
+            px = Math.Min(px, m);
+        }
+        return px;
     }
 
     /// <summary>Le gris BRUT d'un pixel — ce que la carte marine relit pour se dessiner.</summary>
@@ -265,14 +318,54 @@ public sealed class World : IGround
     /// <summary>Le gris en un point, bilinéaire entre centres de pixels. Hors de l'image, la haute mer.</summary>
     public double Grey(double x, double z)
     {
-        var (pi, pj) = PixelAt(x, z);
+        double g = GreyOf(_img, ImgW, ImgH, Relief.West, Relief.East, Relief.South, Relief.North, x, z);
+        /* LE PATCH PAR-DESSUS, fondu sur son bord : le gris local l'emporte au
+           milieu, celui de la grande image au bord, et rien ne marche entre les
+           deux. On fond les GRIS et non les hauteurs — la loi est la même, et
+           deux gris qui se mêlent restent un gris. */
+        foreach (var p in _patches)
+        {
+            double k2 = PatchWeight(p.Spec, x, z);
+            if (k2 <= 0) continue;
+            double pg = GreyOf(p.Grey, p.W, p.H, p.Spec.West, p.Spec.East, p.Spec.South, p.Spec.North, x, z);
+            g += (pg - g) * k2;
+        }
+        return g;
+    }
+
+    /// <summary>Le gris d'une image quelconque, cadrée en degrés — la grande ou un patch.</summary>
+    double GreyOf(byte[] img, int w, int h, double west, double east, double south, double north,
+                  double x, double z)
+    {
+        var g = Geo.Fix(x, z);
+        double pi = (g.Lon - west) / (east - west) * w;
+        double pj = (north - g.Lat) / (north - south) * h;
         double fi = pi - 0.5, fj = pj - 0.5;
         int i = (int)Math.Floor(fi), j = (int)Math.Floor(fj);
-        if (i < 0 || j < 0 || i >= ImgW - 1 || j >= ImgH - 1) return 0;
+        if (i < 0 || j < 0 || i >= w - 1 || j >= h - 1) return 0;
         double a = fi - i, b = fj - j;
-        int k = j * ImgW + i;
-        return (_img[k] * (1 - a) + _img[k + 1] * a) * (1 - b)
-             + (_img[k + ImgW] * (1 - a) + _img[k + ImgW + 1] * a) * b;
+        int k = j * w + i;
+        return (img[k] * (1 - a) + img[k + 1] * a) * (1 - b)
+             + (img[k + w] * (1 - a) + img[k + w + 1] * a) * b;
+    }
+
+    /// <summary>
+    /// CE QUE LE PATCH PÈSE ICI : 1 au milieu, 0 hors de son cadre, une marche
+    /// douce sur <see cref="PatchSpec.Feather"/> mètres au bord. Le calcul se
+    /// fait en degrés, convertis en mètres par la latitude du cadre.
+    /// </summary>
+    double PatchWeight(PatchSpec p, double x, double z)
+    {
+        var g = Geo.Fix(x, z);
+        if (g.Lon <= p.West || g.Lon >= p.East || g.Lat <= p.South || g.Lat >= p.North) return 0;
+        double mPerLat = Core.Geo.MPerMin * 60 * Region.Scale;
+        double mPerLon = mPerLat * Math.Cos((p.North + p.South) * 0.5 * Math.PI / 180);
+        double dx = Math.Min(g.Lon - p.West, p.East - g.Lon) * mPerLon;
+        double dz = Math.Min(g.Lat - p.South, p.North - g.Lat) * mPerLat;
+        double d = Math.Min(dx, dz);
+        double f = Math.Max(1e-6, p.Feather);
+        double u = Math.Clamp(d / f, 0, 1);
+        return u * u * (3 - 2 * u);
     }
 
     /// <summary>

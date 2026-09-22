@@ -30,8 +30,11 @@ window.Naval = window.Naval || {};
 Naval.World = class World {
   /* `region` is the sheet, `relief` the picture as { w, h, data } — one byte
      per pixel, the grey. Built by World.load; the constructor does no I/O. */
-  constructor(region, relief){
+  constructor(region, relief, patches){
     this.region = region;
+    this.scale = region.scale;
+    // the local, finer pictures: { img, west, east, south, north, feather }
+    this.patches = (patches || []).filter(p => p && p.img);
     const E = this.relief = Object.assign({ sea:128, maxHeight:1500, maxDepth:400, curve:2 }, region.relief);
     this.img = relief;
     this.harbourDepth = region.harbourDepth || 11;   // a 2000-ton ship draws 6 to 8 m (see _dredge)
@@ -71,7 +74,25 @@ Naval.World = class World {
     const rgba = cx.getImageData(0, 0, cv.width, cv.height).data;
     const data = new Uint8Array(cv.width*cv.height);
     for(let i = 0, k = 0; k < data.length; i += 4, k++) data[k] = rgba[i];   // the red channel is the grey
-    return new Naval.World(region, { w:cv.width, h:cv.height, data });
+    /* The local patches, read the same way. A patch that will not load is
+       simply not there: the coast stays the one the big picture draws. */
+    const patches = [];
+    for(const p of region.patches || []){
+      try {
+        const pi = new Image();
+        pi.src = p.image;
+        await pi.decode();
+        const pc = document.createElement('canvas');
+        pc.width = pi.naturalWidth; pc.height = pi.naturalHeight;
+        const px = pc.getContext('2d', { willReadFrequently:true });
+        px.drawImage(pi, 0, 0);
+        const prgba = px.getImageData(0, 0, pc.width, pc.height).data;
+        const pd = new Uint8Array(pc.width*pc.height);
+        for(let i = 0, k = 0; k < pd.length; i += 4, k++) pd[k] = prgba[i];
+        patches.push(Object.assign({}, p, { img:{ w:pc.width, h:pc.height, data:pd } }));
+      } catch(e){ console.warn('relief local illisible : ' + p.image); }
+    }
+    return new Naval.World(region, { w:cv.width, h:cv.height, data }, patches);
   }
 
   /* GREY TO METRES, the one formula — tools/region-heightmap.js writes with its
@@ -92,13 +113,43 @@ Naval.World = class World {
   /* The grey at a world point, bilinear between pixel centres. Off the picture
      it is the open sea. */
   _grey(x, z){
-    const I = this.img;
-    const [pi, pj] = this.pixelAt(x, z);
+    const E = this.relief;
+    let g = this._greyOf(this.img, E.west, E.east, E.south, E.north, x, z);
+    /* A LOCAL PATCH ON TOP, feathered at its edge: the fine grey wins in the
+       middle, the big picture at the rim, and nothing steps in between. GREYS
+       are mixed, not heights — one law, and two greys that mix are still a
+       grey. */
+    for(const p of this.patches){
+      const k = this._patchWeight(p, x, z);
+      if(k <= 0) continue;
+      g += (this._greyOf(p.img, p.west, p.east, p.south, p.north, x, z) - g)*k;
+    }
+    return g;
+  }
+
+  /* The grey of any picture framed in degrees — the region's, or a patch's. */
+  _greyOf(I, west, east, south, north, x, z){
+    const g = Naval.Geo.fix(x, z);
+    const pi = (g.lon - west)/(east - west)*I.w;
+    const pj = (north - g.lat)/(north - south)*I.h;
     const fi = pi - 0.5, fj = pj - 0.5;
     const i = Math.floor(fi), j = Math.floor(fj);
     if(i < 0 || j < 0 || i >= I.w - 1 || j >= I.h - 1) return 0;
     const a = fi - i, b = fj - j, d = I.data, k = j*I.w + i;
     return (d[k]*(1 - a) + d[k + 1]*a)*(1 - b) + (d[k + I.w]*(1 - a) + d[k + I.w + 1]*a)*b;
+  }
+
+  /* What a patch weighs here: 1 inside, 0 outside its frame, a smooth step over
+     its feather, in metres, at the rim. */
+  _patchWeight(p, x, z){
+    const g = Naval.Geo.fix(x, z);
+    if(g.lon <= p.west || g.lon >= p.east || g.lat <= p.south || g.lat >= p.north) return 0;
+    const mPerLat = Naval.Geo.M_PER_MIN*60*this.scale;
+    const mPerLon = mPerLat*Math.cos((p.north + p.south)*0.5*Math.PI/180);
+    const dx = Math.min(g.lon - p.west, p.east - g.lon)*mPerLon;
+    const dz = Math.min(g.lat - p.south, p.north - g.lat)*mPerLat;
+    const u = Math.max(0, Math.min(1, Math.min(dx, dz)/Math.max(1e-6, p.feather)));
+    return u*u*(3 - 2*u);
   }
 
   /* Height of the land at a world point, in metres relative to sea level.

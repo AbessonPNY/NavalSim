@@ -315,6 +315,12 @@ if (fs.existsSync(REGION)) {
   if (!fs.existsSync(img)) throw new Error('carte de hauteurs absente : ' + regionData.relief.image + ' (node tools/region-heightmap.js)');
   const bytes = fs.readFileSync(img);
   regionData.relief.image = 'data:image/png;base64,' + bytes.toString('base64');
+  // les reliefs LOCAUX, embarqués de même : sans eux la côte perdrait sa finesse
+  for (const p of regionData.patches || []) {
+    const pi = path.join(ROOT, p.image);
+    if (!fs.existsSync(pi)) throw new Error('relief local absent : ' + p.image + ' (node tools/relief-patch.js)');
+    p.image = 'data:image/png;base64,' + fs.readFileSync(pi).toString('base64');
+  }
   console.log('  embedded ' + path.relative(ROOT, img) + '  (relief, ' + (bytes.length/1024).toFixed(0) + ' KB)');
   // the models set down on the land travel in the page too
   for(const a of regionData.assets || []){

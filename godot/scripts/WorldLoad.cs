@@ -45,10 +45,24 @@ public static class WorldLoad
             return null;
         }
         var (w, h, grey) = GreyPng.Decode(System.IO.File.ReadAllBytes(img));
+        /* LES RELIEFS LOCAUX (world/README.md, « un relief local ») : des images
+           plus fines sur un bout de la région. Une qui manque est simplement
+           absente — la côte reste celle du grand relief. */
+        var patches = new System.Collections.Generic.List<World.PatchImage>();
+        foreach (var p in region.Patches)
+        {
+            string pi = System.IO.Path.Combine(Folder, p.Image);
+            if (!System.IO.File.Exists(pi)) { GD.PushWarning($"relief local introuvable : {p.Image}"); continue; }
+            var (pw, ph, pg) = GreyPng.Decode(System.IO.File.ReadAllBytes(pi));
+            patches.Add(new World.PatchImage(p, pw, ph, pg));
+        }
         double read = watch.Elapsed.TotalMilliseconds;
-        var world = new World(region, w, h, grey, GD.PushWarning);
+        var world = new World(region, w, h, grey, GD.PushWarning, patches);
         double make = watch.Elapsed.TotalMilliseconds - read;
         GD.Print(FormattableString.Invariant($"monde : {region.Name}, relief {w}×{h} lu en {read:F0} ms, {world.Isles.Count} port(s) en {make:F0} ms — un pixel vaut {world.Px:F0} m"));
+        foreach (var p in patches)
+            GD.Print(FormattableString.Invariant(
+                $"  relief local {p.Spec.Key} : {p.W}×{p.H} px, fondu {p.Spec.Feather:F0} m"));
         return world;
     }
 

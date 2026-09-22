@@ -30,6 +30,8 @@ public partial class LandNode : Node3D
     public double Range = 14000;
     /// <summary>En deçà, le plein détail.</summary>
     public double NearRange = 4500;
+    /// <summary>Le plus fin qu'un carreau se bâtit : 1440 m en 288 vaut cinq mètres.</summary>
+    public int FineMax = 288;
     /// <summary>Le côté d'un carreau : 32 pixels du relief au départ.</summary>
     public double Tile = 1440;
 
@@ -205,7 +207,14 @@ public partial class LandNode : Node3D
                 if (fine && t.Near == null)
                 {
                     if (!eager && built++ > 3) continue;
-                    t.Near = Build(i, j, (int)Math.Round(Tile / World.Px));
+                    /* AUSSI FIN QUE LA SOURCE, et pas plus : un carreau bâti plus
+                       fin que le relief qui le nourrit n'ajoute que des triangles
+                       qui interpolent. Un relief LOCAL (un port modelé à la main)
+                       vaut donc des carreaux serrés, bornés à FineMax pour qu'une
+                       rade ne coûte pas un million de sommets. */
+                    double px = World.ReliefPx(i * Tile, j * Tile, (i + 1) * Tile, (j + 1) * Tile);
+                    int n = (int)Math.Round(Tile / px);
+                    t.Near = Build(i, j, Math.Clamp(n, 8, FineMax));
                 }
                 if (!fine && t.Far == null)
                 {

@@ -7843,6 +7843,39 @@ boîtes**, 282 appels de dessin contre 203, 514 k triangles contre 385 k. Le
 surcoût est d'un tiers de milliseconde ; les boîtes restent en repli si un
 modèle manque.
 
+## Un relief local, pour un port qui soit vrai
+
+Signalé, en regardant le terrain exporté : « beaucoup de polygones
+sous-exploités, cette carte reflétant la réalité est très pixelisée à cette
+échelle ». Relevé : la grande image fait 2720 × 1580 px pour 122 km, soit
+**45 m par pixel** ; le sol dessiné est bâti à cette résolution exactement
+(carreau de 1440 m en 32 segments), et j'avais exporté le .glb au pas de 4 m —
+cent vingt fois trop de triangles, qui n'interpolaient rien.
+
+**Un patch de relief** : une seconde image, fine, cadrée en degrés sur un bout
+de la région (`patches` dans la fiche). Le gris s'y lit par la MÊME loi et se
+fond dans la grande sur `feather` mètres. Ce sont les GRIS qu'on mêle, pas les
+hauteurs : une seule loi, et deux gris mêlés restent un gris. Port-Royal :
+2048² px pour 2000 m, **0,98 m par pixel**, quarante-cinq fois plus fin.
+
+Ce qu'il a fallu toucher : `World.Grey` des deux côtés (C# et page, parité
+tenue avec 289 points relevés dans le patch et sur son bord), le chargement
+(Godot, page, `build.js` qui l'embarque), et `LandNode`, qui bâtit désormais
+un carreau aussi fin que sa source — `World.ReliefPx` le lui dit —, borné par
+`FineMax` (288 segments, 5 m).
+
+Trois outils : `relief-patch.js` (créer le patch, peint d'après l'existant, donc
+sans rien changer), `zone-glb.js` (sortir le terrain pour Blender, au pas de la
+source désormais) et `relief-bake.js` (rendre la sculpture dans l'image, par
+rastérisation des triangles ; ce qui n'est pas couvert garde son gris).
+
+Mesures : aller-retour export → cuisson, **3,6 cm d'écart moyen** (pire 9,9 m,
+par cent mètres de fond, où un cran de gris vaut plusieurs mètres — la loi
+donne ses nuances aux premiers mètres, et c'est voulu). Coût du sol fin à
+Port-Royal : **4,26 ms/image et 1 169 k triangles, contre 3,12 ms et 514 k** —
+une milliseconde pour quarante-cinq fois la finesse, et seulement là où un
+patch existe.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code
