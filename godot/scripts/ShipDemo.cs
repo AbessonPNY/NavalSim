@@ -1070,6 +1070,8 @@ public partial class ShipDemo : Node3D
            coque respire sa brume, le dôme le dessine — et c est SkyNode qui
            écrit les trois, faute de quoi ils dériveraient en silence. */
         double dayBefore = _sky.Core.DayTime;
+        // ce qui ferme le ciel en plus de l'orage : l'averse, le grain, la brume, la couverture
+        _sky.Overcast = Math.Max(Wet(), 0.7 * Math.Clamp((_cloud - 0.55) / 0.45, 0, 1));
         _sky.UpdateWeather(frame, _sea.Core.SeaState);
         FallTick(frame, dayBefore);
         StormTick(frame);
@@ -1125,6 +1127,7 @@ public partial class ShipDemo : Node3D
         }
         DropletTick(frame, under);
         _sky.PushTo(_sea.Material);
+        _sea.Material.SetShaderParameter("u_sunlit", (float)_sky.Sunlit);
         _sky.PushTo(_sea.FarMaterial);      // l horizon se noie dans le meme ciel
         _sky.SetCloud(_sea.Material, _cloud, _t);
         foreach (var m in _ship.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }

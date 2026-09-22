@@ -112,6 +112,8 @@ uniform float u_veil = 0.55;
    d'ombre : l'ombre est calculée ici, contre le contour de flottaison que la
    mer connaît déjà, élevé à la hauteur des hauts de chaque coque. */
 uniform float u_shadow = 0.5;
+// la part du soleil qui passe encore (SkyNode.Sunlit) : sous un ciel fermé, plus d'ombre franche
+uniform float u_sunlit = 1.0;
 uniform float u_ship_top[NSHIP];      // ses hauts au-dessus de la flottaison, mètres
 // la décharge au-dessus éclaire l'eau comme le ciel
 uniform float u_flash = 0.0;
@@ -590,7 +592,7 @@ void fragment() {
 	   n'en renvoie plus par-dessous — ce qui reste est le ciel. Le miroir, lui,
 	   garde son reflet : une ombre sur l'eau se voit dans l'eau, pas sur elle,
 	   et c'est pourquoi elle est plus franche vue d'en haut qu'à l'horizon. */
-	float shade = hull_shadow(v_world, FRAGCOORD.xy) * (1.0 - far);
+	float shade = hull_shadow(v_world, FRAGCOORD.xy) * (1.0 - far) * u_sunlit;
 	float sun_lit = 1.0;
 	c = mix(c, c * (1.0 - u_shadow), shade * (1.0 - 0.6 * F));
 	c *= 1.0 + kg.z;                    // les crêtes du V : claires au ciel, sombres au dos

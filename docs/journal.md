@@ -6640,6 +6640,8 @@ Demandé : étudier une lumière du soleil plus franche sur la coque, jaune et c
 
 Puis : la force du soleil jusqu'à ×5 (« juste mais suffisant » au maximum de 2,5), et le troisième curseur, qui « ne change pas grand-chose », devient l'**éclairage ambiant** tout entier. L'énergie ambiante seule ne touchait presque rien : l'ombre était éclairée surtout par les REFLETS du ciel et la lumière renvoyée (SSIL). Il règle maintenant aussi la passe cubemap du dôme (`u_env_gain`, qui nourrit ambiante et reflets — le ciel vu n'en change pas) et l'intensité du SSIL, de 0 à 1,5. Mesuré sur les deux tiers bas de l'image (surtout de la mer, qui n'en dépend pas) : 0,386 à 1,0, 0,357 à 0,5, 0,317 à 0.
 
+**Le ciel fermé (signalé : par gros temps, la coque restait éclairée comme par beau temps).** Le noyau rabattait bien le soleil de 62 % en pleine tempête, mais la Force du soleil de l'étude passait par-dessus, et l'ambiante baissait AVEC l'orage (−55 %). `SkyNode.Gloom` = max(orage, ce que l'hôte pose dans `Overcast` : averse, grain, brume, couverture au-delà de 55 %). Le soleil perd `OvercastSun` (0,75) de sa force et la Force du soleil revient vers 1 ; l'ambiante gagne `OvercastSky` (1,8 : +180 %, la moitié sur les reflets du dôme) ; l'ombre des coques sur l'eau s'efface avec (`u_sunlit`). Mesuré à 45° : beau temps soleil 3,31 / ambiante 0,070 ; force 6,5 : 0,95 / 0,081 ; force 8 : 0,10 / 0,091 ; averse d'une heure : 0,56 / 0,166 (l'averse ne ferme pas le couvercle du noyau, son ambiante n'est pas rabattue d'abord). Piège de mesure : `--sun` arrête l'horloge, donc aussi les averses.
+
 ## L'écume du rivage (Godot)
 
 Demandé : détecter la bande de sable au contact de l'eau pour y faire, là aussi, un collier d'écume.

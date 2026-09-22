@@ -77,6 +77,25 @@ public partial class SkyNode : Node3D
        (signalé). La lumière du ciel, elle, était déjà dans la bonne mesure. */
     public const float SunGain = 1f / Mathf.Pi;
 
+    /* LE CIEL FERMÉ (Overcast, 0 à 1) : sous un couvercle noir le soleil
+       n'arrive plus en faisceau, il arrive DIFFUS — tout le ciel éclaire un peu,
+       plus rien n'éclaire franchement. Le noyau rabattait déjà le soleil de 62 %
+       en pleine tempête, mais la Force du soleil (jusqu'à ×5) passait par-dessus,
+       et l'ambiante baissait avec l'orage : la coque restait éclairée comme par
+       beau temps sous un ciel d'encre (signalé). Ciel fermé, donc :
+       - OvercastSun : la part du soleil qui s'en va (0,75 : il en reste le quart),
+         et la Force du soleil revient vers 1 — on ne renforce pas un soleil caché ;
+       - OvercastSky : ce que gagne la lumière du ciel en contrepartie (+180 %
+         à l'ambiante, la moitié aux reflets du dôme).
+       L'ombre des coques sur l'eau s'efface avec le soleil (u_sunlit). */
+    public const float OvercastSun = 0.75f, OvercastSky = 1.8f;
+    /// <summary>Ce qui ferme le ciel en plus de l'orage : pluie, grain, brume, couverture. 0 à 1, posé par l'hôte.</summary>
+    public double Overcast;
+    /// <summary>Le ciel fermé retenu : l'orage du noyau ou ce que l'hôte a posé.</summary>
+    public double Gloom => Math.Clamp(Math.Max(Core.Storm, Overcast), 0, 1);
+    /// <summary>La part du soleil qui passe encore, pour l'ombre des coques sur l'eau.</summary>
+    public double Sunlit => 1 - OvercastSun * Gloom;
+
     // --- l'éclair proche, et le grain lointain : DEUX choses différentes ---
     double _flashT;
     (double At, double A)[]? _flashQueue;
@@ -193,14 +212,16 @@ public partial class SkyNode : Node3D
             col = col.Lerp(tinted, Math.Clamp(SunWarmth, 0, 1));
         }
         Sun.LightColor = col;
-        Sun.LightEnergy = (float)(Core.SunIntensity * SunGain * (Core.SunElevDeg > 0 ? SunStrength : 1));
+        double g = Core.SunElevDeg > 0 ? Gloom : 0;
+        double strength = Core.SunElevDeg > 0 ? SunStrength + (1 - SunStrength) * g : 1;
+        Sun.LightEnergy = (float)(Core.SunIntensity * SunGain * strength * (1 - OvercastSun * g));
 
         /* L'ambiante est celle du ciel, mais son ÉNERGIE porte l'éclair : c'est
            ce qui fait que le pont et la toile l'attrapent. Un éclair qui
            n'éclairerait que le ciel se lit comme un fond d'écran qui clignote. */
-        Env.AmbientLightEnergy = (float)Math.Max(0.02, Core.HemiIntensity * AmbientGain * SkyShade);
+        Env.AmbientLightEnergy = (float)Math.Max(0.02, Core.HemiIntensity * AmbientGain * SkyShade * (1 + OvercastSky * g));
         Env.SsilIntensity = Math.Max(0, SkyShade);
-        _domeMat.SetShaderParameter("u_env_gain", Math.Max(0, SkyShade));
+        _domeMat.SetShaderParameter("u_env_gain", (float)Math.Max(0, SkyShade * (1 + 0.5 * OvercastSky * g)));
 
         PushTo(_domeMat);
         // le disque de la lune et sa phase n'appartiennent qu'au dôme
