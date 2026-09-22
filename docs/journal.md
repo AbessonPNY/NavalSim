@@ -6626,6 +6626,18 @@ proportion de ce que le reflet de la coque occupe.
 
 **Puis : les festons.** Au soleil bas, seize hauteurs tombaient à 3 m l'une de l'autre sur l'eau et chacune dessinait son contour de coque. Vingt-quatre hauteurs, une pénombre d'une fois et demie leur écart, et un décalage des hauteurs propre à chaque pixel (bruit à gradient entrelacé) : ce qui reste du motif devient grain.
 
+## Chavirée : le bandeau, et R qui redresse (Godot)
+
+Signalé : le navire se retrouve parfois la tête en bas, le jeu ne le voit pas, et R ne le redresse pas. Le bandeau n'attendait qu'un NAUFRAGE, et R ne remettait droite qu'une épave : une coque retournée flotte sur l'air de ses fonds, ni coulée ni droite. Chavirée maintenant quand le haut du navire passe sous 0,17 (couchée au-delà de 80°) pendant trois secondes, pour ne pas crier au chavirage sur un coup de roulis : bandeau « Votre navire a chaviré ! — R pour le redresser ». R redresse À SON CAP (gîte et assiette effacées, lacet gardé ; elle était reposée cap au nord, d'un bloc), pompe, replante la mâture. Éprouvé : `--chavirer 1` (la coque retournée une seconde après la mise à quai, qui la redresserait) → bandeau ; R → haut à 1,00, bandeau parti.
+
+Et le N de la boussole passe en blanc, comme les autres (demandé).
+
+## La boussole, et les notes à taille fixe (Godot)
+
+Demandé : la boussole en bas à droite, avec la carte en surimpression transparente. Un disque de 230 px (`CompassNode`) : la carte du capitaine vue par un shader (`compass_map.gdshader`) centrée sur le point ESTIMÉ, à 55 % d'opacité, bord fondu ; par-dessus, la rose — nord en haut comme la carte (une rose qui tournerait avec le navire serait un GPS de voiture), N en rouge, trente-deux aires —, le navire au centre à son cap, le vent en flèche sur le bord, d'où il souffle, et le rayon en milles. Molette : de 900 m à 18 km de jeu. Posée dans l'image, au-dessus de la bande du masque de cinéma ; cachée avec les instruments, sous la carte ouverte et au titre.
+
+Et les notes de la carte : corps FIXE (28 en Estonia), qui ne suit plus la loupe — elles rétrécissaient au dézoom jusqu'à l'illisible.
+
 ## Le curseur de l'heure (Godot)
 
 Signalé : « le soleil se couche mais ne se lève pas ». Le cycle était juste (mesuré sur un jour accéléré : coucher à 18 h 20, lever à 5 h 50, image revenue à la même luminosité le lendemain) ; c'était le curseur « Hauteur du soleil » : il réglait la hauteur à relèvement fixe, ne pouvait pas faire passer le soleil du lever au coucher, et le toucher arrêtait le jour — posé le soir, le soleil ne se relevait plus. Remplacé par un curseur « Heure », de 0 à 24 h : la vraie course (est, sud, ouest, lune et feux la nuit), l'étiquette dit l'heure et la hauteur (« 06:18 · soleil 7° », « crépuscule », « nuit »). Le jour REPART de l'heure choisie ; seul « Défilement du jour » à zéro l'arrête.

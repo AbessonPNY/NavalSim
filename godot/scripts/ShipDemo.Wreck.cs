@@ -78,10 +78,10 @@ public partial class ShipDemo
         });
         var box = new VBoxContainer();
         box.AddThemeConstantOverride("separation", 8);
-        var title = new Label { Text = "Votre navire a sombré !", HorizontalAlignment = HorizontalAlignment.Center };
+        var title = _lostTitle = new Label { Text = "Votre navire a sombré !", HorizontalAlignment = HorizontalAlignment.Center };
         title.AddThemeFontSizeOverride("font_size", 22);
         title.AddThemeColorOverride("font_color", new Color(0.95f, 0.82f, 0.78f));
-        var how = new Label
+        var how = _lostHow = new Label
         {
             Text = "Elle repose par le fond.   R pour la renflouer.",
             HorizontalAlignment = HorizontalAlignment.Center
@@ -106,11 +106,35 @@ public partial class ShipDemo
     /// traverse du regard, et voir sa propre coque posée sur le sable est ce que
     /// le naufrage a de plus juste.
     /// </summary>
+    Label? _lostTitle, _lostHow;
+    double _capsizedFor;
+
+    /* CHAVIRÉE : la tête en bas, ou couchée au-delà de quatre-vingts degrés,
+       sans avoir coulé — une coque retournée flotte sur l'air de ses fonds, et
+       le jeu ne le voyait pas : le bandeau attendait un naufrage, et R ne
+       redressait qu'une épave (signalé). Trois secondes, pour ne pas crier au
+       chavirage sur un coup de roulis. */
+    bool Capsized() => _ship.Physics.Body.Quat.Rotate(new Vec3d(0, 1, 0)).Y < 0.17;
+
     void LostTick()
     {
         if (_lostBox == null) return;
+        _capsizedFor = Capsized() && !_ship.Physics.Foundered ? _capsizedFor + (double)GetProcessDeltaTime() : 0;
+        if (_capsizedFor > 3)
+        {
+            if (!_lost)
+            {
+                _lost = true;
+                _lostTitle!.Text = "Votre navire a chaviré !";
+                _lostHow!.Text = "Il flotte la quille en l'air.   R pour le redresser.";
+                _lostBox.Visible = true;
+            }
+            return;
+        }
         if (!_ship.Physics.Foundered) { if (_lost) Found(); return; }
         if (_lost) return;
+        _lostTitle!.Text = "Votre navire a sombré !";
+        _lostHow!.Text = "Elle repose par le fond.   R pour la renflouer.";
         var b = _ship.Physics.Body;
         var box = _ship.LocalBounds();
         double top = b.Pos.Y + box.End.Y;
@@ -134,17 +158,28 @@ public partial class ShipDemo
     void Salvage()
     {
         bool sunk = _lost || _ship.Physics.Foundered;
+        bool capsized = Capsized();
         _ship.Physics.Salvage();
         _ship.RestoreMasts();
-        if (!sunk) { Say("Radoub : la mâture est remise en état."); return; }
+        if (!sunk && !capsized) { Say("Radoub : la mâture est remise en état."); return; }
         var b = _ship.Physics.Body;
+        /* REDRESSÉE À SON CAP : la gîte et l'assiette effacées, le lacet gardé —
+           elle était posée face à l'identité (cap au nord), ce qui la faisait
+           pivoter d'un bloc. L'étrave projetée à plat, ou le travers si elle
+           pointait droit en l'air. */
+        var f = b.Quat.Rotate(new Vec3d(0, 0, 1));
+        var flat = new Vec3d(f.X, 0, f.Z);
+        if (flat.Length < 0.2) { var x = b.Quat.Rotate(new Vec3d(1, 0, 0)); flat = new Vec3d(-x.Z, 0, x.X); }
+        double yaw = Math.Atan2(flat.X, flat.Z);
         b.Pos = new Vec3d(b.Pos.X, _eqY, b.Pos.Z);
         b.Vel = Vec3d.Zero;
         b.AngVel = Vec3d.Zero;
-        b.Quat = Quatd.Identity;
+        b.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), yaw);
         _ship.SyncTransform();
+        _capsizedFor = 0;
         Found();
-        Say("Renflouée : les pompes ont eu raison de l'eau, la mâture est replantée.");
+        Say(sunk ? "Renflouée : les pompes ont eu raison de l'eau, la mâture est replantée."
+                 : "Redressée : l'équipage a remis la coque sur sa quille, la mâture est replantée.");
     }
 
     /// <summary>Une image de naufrage : l'air de chaque coque, les bouillons dans l'écume, les débris.</summary>

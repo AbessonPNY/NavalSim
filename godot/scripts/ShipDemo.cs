@@ -130,6 +130,8 @@ public partial class ShipDemo : Node3D
                 Truth = () => _ship == null ? null : TruePos()
             };
             AddChild(_chart);
+            _compass = new CompassNode();
+            _hud.AddChild(_compass);
             LoadQuests();
             PlantCrosses();
             _anchor2 = new AnchorNode(_world, _sea)
@@ -198,6 +200,7 @@ public partial class ShipDemo : Node3D
 
         var layer = new CanvasLayer();
         AddChild(layer);
+        _hud = layer;
         _info = new Label { Position = new Vector2(18, 14) };
         _info.AddThemeFontSizeOverride("font_size", 15);
         _info.AddThemeColorOverride("font_color", new Color(0.94f, 0.96f, 0.98f));
@@ -875,8 +878,17 @@ public partial class ShipDemo : Node3D
         UpdateInfo();
     }
 
+    /// <summary>--chavirer : la coque retournée une seconde après la mise à quai, qui la redresserait.</summary>
+    double _flipIn = -1;
+
     public override void _Process(double delta)
     {
+        if (_flipIn > 0 && (_flipIn -= delta) <= 0)
+        {
+            _ship.Physics.CastOff();
+            _ship.Physics.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 0, 1), Math.PI) * _ship.Physics.Body.Quat;
+            _ship.SyncTransform();
+        }
         FrameStats(delta);
         _ftWatch.Restart();
         long ap0 = GC.GetAllocatedBytesForCurrentThread();
@@ -1012,6 +1024,7 @@ public partial class ShipDemo : Node3D
             }
             QuestTick(frame);
             PassageTick();
+            CompassTick();
             ReckonTick(frame);
             RumourTick(frame);
             if (_jetty != null)
@@ -2491,6 +2504,31 @@ public partial class ShipDemo : Node3D
     const ulong BoostTwice = 400;
     ulong _boostTap;
 
+    CanvasLayer _hud = null!;
+    CompassNode? _compass;
+
+    /* LA BOUSSOLE, en bas à droite, DANS l'image : au-dessus de la bande du
+       masque de cinéma quand il est mis. Cachée avec les instruments, sous la
+       carte ouverte (elle la répète) et à l'écran de titre. */
+    void CompassTick()
+    {
+        if (_compass == null || _chart == null) return;
+        _compass.Visible = _info.Visible && !_chartOpen && !_inTitle;
+        if (!_compass.Visible) return;
+        var s = GetViewport().GetVisibleRect().Size;
+        float bottom = 0, right = 0;
+        if (_settings?.FilmMask == true)
+        {
+            if (s.X / s.Y < FilmAspect) bottom = (s.Y - s.X / FilmAspect) * 0.5f;
+            else right = (s.X - s.Y * FilmAspect) * 0.5f;
+        }
+        _compass.Position = new Vector2(s.X - right - _compass.Size.X - 18, s.Y - bottom - _compass.Size.Y - 18);
+        var (x, z) = Believed();
+        var f = _ship.Physics.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+        double heading = (Math.Atan2(-f.X, f.Z) * 180 / Math.PI + 360) % 360;   // l'est est −x
+        _compass.Show(_chart, x, z, heading, _windNowDeg, _compass.Radius / MetresPerMinute);   // une minute d arc est un mille
+    }
+
     /// <summary>Le cap que --cap impose, s'il y en a un.</summary>
     double? _askHeading;
 
@@ -2603,6 +2641,8 @@ public partial class ShipDemo : Node3D
                         _others[0].SyncTransform();
                     }
                     break;
+                // la coque retournée, pour éprouver le chavirage et R
+                case "--chavirer": _flipIn = args[i + 1] != "0" ? 1.0 : -1; break;
                 case "--demater": _ship.DropMast(args[i + 1].ToInt()); break;
                 case "--meteo": SetAutoWeather(args[i + 1] == "1"); break;
                 case "--tempete": GoToStorm(args[i + 1].ToFloat()); break;

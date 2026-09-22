@@ -410,7 +410,8 @@ public partial class ChartNode : Node
             {
                 var p = At(n.X, n.Z);
                 DrawString(_c._hand ?? _c._font, p + new Vector2(6 * Q * Wk, 6 * Q * Wk), n.Text,
-                    HorizontalAlignment.Left, -1, Fs(_c._hand != null ? 22 : 16), new Color(0.24f, 0.16f, 0.10f));
+                    // les notes à TAILLE FIXE : lisibles à toute loupe, elles ne rétrécissent pas au dézoom
+                    HorizontalAlignment.Left, -1, _c._hand != null ? 28 : 20, new Color(0.24f, 0.16f, 0.10f));
                 DrawLine(p, p + new Vector2(4 * Q * Wk, 3 * Q * Wk), new Color(0.24f, 0.16f, 0.10f), 1.4f * Q * Wk);
             }
         }
