@@ -28,3 +28,6 @@ godot/bin/
 # Un MOTIF et non trois noms : chaque nouveau banc en dépose un de plus, et
 # nommer les fichiers un par un garantit d en oublier un.
 core/parity*.json
+
+# le relief exporte pour Blender : il se regenere (node tools/zone-glb.js)
+world/models/*-zone.glb

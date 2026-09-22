@@ -119,6 +119,52 @@ un entrepôt jusqu'à 16 × 21. Elles ne se posent que sur du terrain à plus de
 rivage, et leur façade regarde l'eau. Rien à modéliser : deux maillages
 multipliés.
 
+### Bâtir un port à la main
+
+Pour modeler une ville fidèle — Port-Royal — sortez le terrain du jeu et
+travaillez dessus :
+
+```bash
+node tools/zone-glb.js                     # Port-Royal, 1800 × 1400 m au pas de 4 m
+node tools/zone-glb.js port-royal 2400 1800 3
+node tools/zone-glb.js kingston
+```
+
+Écrit `world/models/<lieu>-zone.glb` (hors dépôt : il se regénère) avec quatre
+objets — `terre` (le relief exact, lu par la même loi que le jeu), `mer` (le
+niveau zéro), `ponton` et `mole` (l ouvrage du port, à sa place et à son cap).
+L ORIGINE DU FICHIER EST LE LIEU : ce que vous poserez dessus se replace dans le
+jeu aux mêmes coordonnées, par `assets`. Relevé pour Port-Royal : relief de
+−103 m à +18 m, le lieu à x −342,5, z 15,2 (17,9378° N, 76,8330° O).
+
+### Les bâtiments (Godot)
+
+Trois modèles dans `world/models`, écrits par `node tools/town-glb.js` et
+modifiables dans Blender :
+
+| fichier | ce que c'est | emprise |
+|---|---|---|
+| `eglise.glb` | nef, clocher, flèche et croix — **une seule par ville**, sur la plus grande parcelle près du centre | 9 × 18 m, croix à 18 m |
+| `maison-a.glb` | case basse à véranda | 7 × 5 m |
+| `maison-b.glb` | maison de ville à étage et balcon | 6 × 6 m |
+
+Conventions : **origine au sol**, au milieu de l'emprise, **façade vers +z**,
+mètres vrais. Le jeu met chaque bâtiment à l'échelle de sa parcelle **sans le
+déformer** (le plus petit des deux rapports), et le tire au sort d'après sa
+position : la même maison au même endroit d'une partie à l'autre.
+
+Ce qui compte est le **nom des matières**, car chacune devient un MultiMesh :
+
+| matière | rôle |
+|---|---|
+| `mur` | le crépi ; il prend la teinte de la maison (une par instance) |
+| `toit` · `bois` · `pierre` | gardent la couleur du modèle |
+| `fenetre` | s'allume la nuit, comme les fanaux (`shaders/town_glass.gdshader`) |
+
+Un modèle manquant ou illisible : la ville retombe sur ses boîtes et le dit en
+console.  Mesuré à Port-Royal : 5,13 ms par image avec les modèles contre 4,80
+en boîtes, 282 appels de dessin contre 203.
+
 ## Les modèles posés
 
 Dans `world/caraibes.json` → `assets` :

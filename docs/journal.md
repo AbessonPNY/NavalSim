@@ -7817,6 +7817,32 @@ l'ajout de la caisse avait fait glisser sur la grande frégate — cherchée
 désormais par son fichier. Et l'éventail du panneau prend un cercle de plus
 toutes les six coques : seize sur un seul cercle de 110 m se touchaient.
 
+## Une église et deux maisons (Godot)
+
+Demandé : trois .glb d'habitations, l'église une seule fois par ville. Écrits
+par `tools/town-glb.js` — des boîtes, des toits à deux et à quatre pentes, une
+flèche, des baies posées à deux centimètres du mur — dans `world/models`. Deux
+cent cinquante sommets chacun, quatorze kilo-octets.
+
+**Une ville reste un MultiMesh par matière**, et c'est tout le sujet : trois
+cents maisons en nœuds séparés coûteraient trois cents dessins. Chaque .glb
+apporte donc ses surfaces (une par matière), chacune devient un MultiMesh que
+toutes les maisons de ce modèle partagent, et le nom de la matière décide du
+traitement — `mur` prend la teinte d'instance, `fenetre` s'allume la nuit par
+la règle de `town.gdshader` portée dans `town_glass.gdshader` (le tirage vient
+de la position de l'instance, rien n'est stocké).
+
+**À l'échelle de la parcelle, sans déformer** : le plus petit des deux rapports
+(largeur, profondeur), sinon un bâtiment étiré dans un seul axe se lit comme un
+décor. L'église va à la plus grande parcelle proche du centre (relevé :
+15 × 20 m contre 7,5 m pour une maison ordinaire), ce qui lui donne dix mètres
+de nef et son clocher à vingt.
+
+Mesuré à Port-Royal, 150 bâtiments : **5,13 ms par image contre 4,80 en
+boîtes**, 282 appels de dessin contre 203, 514 k triangles contre 385 k. Le
+surcoût est d'un tiers de milliseconde ; les boîtes restent en repli si un
+modèle manque.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

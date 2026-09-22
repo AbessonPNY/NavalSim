@@ -37,6 +37,7 @@ public partial class TownNode : Node3D
     /// <summary>Le mur, qui sait s'allumer ; le toit garde le matériau ordinaire.</summary>
     ShaderMaterial _walls = null!;
     Mesh _wall = null!, _roof = null!;
+    bool _modelled;
 
     public TownNode(World world) { _world = world; }
 
@@ -61,6 +62,8 @@ public partial class TownNode : Node3D
         };
         _wall = new BoxMesh { Size = Vector3.One };
         _roof = Roof();
+        // les bâtiments modelés, s ils sont là ; sinon la ville garde ses boîtes
+        _modelled = LoadModels();
     }
 
     /// <summary>
@@ -119,6 +122,13 @@ public partial class TownNode : Node3D
         }
         var holder = new Node3D();
         AddChild(holder);
+        if (_modelled)
+        {
+            BuildFromModels(holder, houses, cx, cz);
+            _towns.Add((new Vec3d(cx, 0, cz), holder));
+            GD.Print($"{name} : {houses.Count} bâtiment(s), une église");
+            return;
+        }
 
         var mmWall = new MultiMesh
         {
@@ -176,7 +186,9 @@ public partial class TownNode : Node3D
     /// </summary>
     public void SetNight(double night)
     {
-        _walls?.SetShaderParameter("u_night", (float)Math.Clamp(night, 0, 1));
+        float n = (float)Math.Clamp(night, 0, 1);
+        _walls?.SetShaderParameter("u_night", n);
+        _glass?.SetShaderParameter("u_night", n);
     }
 
     /// <summary>Poser les villes contre l'origine du moment, et cacher celles qui sont loin.</summary>
