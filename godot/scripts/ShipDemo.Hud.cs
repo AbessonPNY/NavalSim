@@ -53,6 +53,8 @@ public partial class ShipDemo
         var hand = HandFont.Get();
         _skyLine = Plate(hand != null ? 26 : 15, HudInk, HorizontalAlignment.Right);
         if (hand != null) _skyLine.AddThemeFontOverride("font", hand);
+        // sans liseré : l'anglaise est une écriture, pas un instrument (demandé)
+        if (hand != null) _skyLine.AddThemeConstantOverride("outline_size", 0);
         _skyLine.AddThemeConstantOverride("line_spacing", hand != null ? -4 : 0);
 
         /* LA BOURSE derrière un écu dessiné : une pièce de monnaie ne se trouve
