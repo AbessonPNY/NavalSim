@@ -29,6 +29,9 @@ uniform float u_k = 1.0;      // son épaisseur, rayon voulu sur rayon modelé
 uniform vec3 u_albedo : source_color = vec3(0.290, 0.106, 0.141);   // 0x4a1b24
 // la texture du modèle (blanc : la couleur seule, pour le tube dessiné)
 uniform sampler2D u_albedo_tex : source_color, hint_default_white, filter_linear_mipmap, repeat_enable;
+// son relief : la normal map du modèle (plate par défaut : le tube dessiné n'en a pas)
+uniform sampler2D u_normal_tex : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform float u_normal_depth = 1.0;
 uniform float u_roughness = 0.34;
 uniform float u_metallic = 0.04;
 
@@ -48,6 +51,9 @@ void vertex() {
 	vec3 c = mix(u_ctn[i0 * 3], u_ctn[i1 * 3], u);
 	vec3 p = c + N * (VERTEX.x * u_k) + M * (VERTEX.z * u_k) + T * ex;
 	NORMAL = normalize(N * NORMAL.x + T * NORMAL.y + M * NORMAL.z);
+	// le repère de la normal map tourne avec le bras, sinon le relief s'éclairerait du mauvais côté
+	TANGENT = normalize(N * TANGENT.x + T * TANGENT.y + M * TANGENT.z + 1e-6);
+	BINORMAL = normalize(N * BINORMAL.x + T * BINORMAL.y + M * BINORMAL.z + 1e-6);
 	// posé à l'origine, transformée identité : les coordonnées sont celles du monde local
 	VERTEX = p;
 	v_world = p;
@@ -58,6 +64,8 @@ void fragment() {
 	ALBEDO = u_albedo * texture(u_albedo_tex, UV).rgb * (1.0 - hz);
 	SPECULAR = 0.5 * (1.0 - hz);
 	EMISSION = ship_haze_colour(CAMERA_POSITION_WORLD, v_world) * hz;
+	NORMAL_MAP = texture(u_normal_tex, UV).rgb;
+	NORMAL_MAP_DEPTH = u_normal_depth;
 	ROUGHNESS = u_roughness;
 	METALLIC = u_metallic;
 }

@@ -20,7 +20,7 @@ namespace NavalSim;
 public partial class KrakenNode : Node3D
 {
     Node3D _head = null!;
-    static readonly StringName UAlbedoTex = "u_albedo_tex";
+    static readonly StringName UAlbedoTex = "u_albedo_tex", UNormalTex = "u_normal_tex", UNormalDepth = "u_normal_depth";
     Mesh _armMesh = null!;
     float _armY0, _armLen = 16, _armR = 0.95f;
     readonly MeshInstance3D[] _arms = new MeshInstance3D[Kraken.MaxArms];
@@ -173,6 +173,17 @@ public partial class KrakenNode : Node3D
                         if (a[(int)Mesh.ArrayType.TexUV].AsVector2Array() is { } uv && uv.Length == vv.Length)
                             outA[(int)Mesh.ArrayType.TexUV] = uv;
                         outA[(int)Mesh.ArrayType.Index] = a[(int)Mesh.ArrayType.Index];
+                        /* LES TANGENTES, refaites sur le bras déjà posé : la normal map en a
+                           besoin, et celles du fichier (s'il en a) sont dans l'ancien repère.
+                           Le shader les courbe ensuite avec le bras, comme les normales. */
+                        if (outA[(int)Mesh.ArrayType.TexUV].VariantType != Variant.Type.Nil
+                            && outA[(int)Mesh.ArrayType.Normal].VariantType != Variant.Type.Nil)
+                        {
+                            var st = new SurfaceTool();
+                            st.CreateFromArrays(outA);
+                            st.GenerateTangents();
+                            outA = st.CommitToArrays();
+                        }
                         arm.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, outA);
                         armMat ??= mi.GetActiveMaterial(s);
                     }
@@ -230,6 +241,12 @@ public partial class KrakenNode : Node3D
             sm.SetShaderParameter(U.Roughness, abm.Roughness);
             sm.SetShaderParameter(UMetallic, abm.Metallic);
             if (abm.AlbedoTexture != null) sm.SetShaderParameter(UAlbedoTex, abm.AlbedoTexture);
+            // le relief cuit dans Blender (Normal Map du Principled BSDF → normalTexture du glTF)
+            if (abm.NormalEnabled && abm.NormalTexture != null)
+            {
+                sm.SetShaderParameter(UNormalTex, abm.NormalTexture);
+                sm.SetShaderParameter(UNormalDepth, abm.NormalScale);
+            }
         }
         for (int i = 0; i < Kraken.MaxArms; i++) _armMats[i] = (ShaderMaterial)sm.Duplicate();
         GD.Print($"[kraken] modèle chargé : corps {body.GetChildCount()} pièce(s), bras de {_armLen:F1} m");

@@ -31,6 +31,12 @@ Ouvrez-le dans Blender, modifiez, puis **Fichier → Exporter → glTF 2.0**, fo
   modelées à part, par exemple).
 - Matières : celles du fichier, textures comprises. L'émission est conservée
   (les yeux luisent la nuit).
+- **Le relief : une normal map, pas un déplacement.** Le glTF n'a pas de canal
+  de déplacement, l'export de Blender le jette sans rien dire. Cuire le relief
+  (Cycles → Bake → Normal) et brancher l'image dans le « Normal Map » du
+  Principled BSDF : le corps la prend tel quel, les bras la courbent avec eux
+  (tangentes refaites au chargement ; la force du nœud Normal Map est reprise).
+  Seules la couleur et la normal map passent sur les bras.
 - Pas d'animation ni d'armature à prévoir : la courbure est calculée.
 - Le rayon de touche du corps suit la taille du modèle.
 
