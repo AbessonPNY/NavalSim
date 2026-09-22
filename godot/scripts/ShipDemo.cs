@@ -228,6 +228,7 @@ public partial class ShipDemo : Node3D
         BuildTrim(layer);
         BuildMarket(layer);
         BuildFleetPanel(layer);
+        BuildGunSide(layer);
         BuildStow(layer);
         BuildEncart(layer);
         BuildQuestView(layer);
@@ -1159,6 +1160,7 @@ public partial class ShipDemo : Node3D
         _hudAcc += frame;
         if (_hudAcc > 0.15) { _hudAcc = 0; UpdateInfo(); AmbianceTick(); MarketTick(); StowTick(); FleetTick(); }
         TrimTick();
+        GunSideTick();
 
         TickCapture();
         _ftWatch.Stop();
@@ -2118,6 +2120,7 @@ public partial class ShipDemo : Node3D
             if (_ship.Battery.Has(s)) { _gunSide = s; break; }
         }
         Say("En batterie : " + GunNames[_gunSide]);
+        GunSideTick();
     }
 
     /* SERVIR LES PIÈCES d'une coque provoquée. Le bord est choisi sur le relèvement :
