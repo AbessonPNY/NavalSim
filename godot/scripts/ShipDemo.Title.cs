@@ -244,6 +244,11 @@ public partial class ShipDemo : Node3D
         b.Pos = new Vec3d(b.Pos.X, _eqY, b.Pos.Z);
         _ship.Ctrl.SailsSet = false;
         _ship.Ctrl.Throttle = 0;
+        /* LE VENT DU DÉPART, TOUJOURS LE MÊME : belle brise (force 4) par 105°,
+           ce qui donne du vent pour sortir du môle sans que ce soit une leçon de
+           louvoyage à chaque partie. La météo d'elle-même reprend ensuite. */
+        _force = 4; _windDeg = 105;
+        Restate();
         Moor();
         _reck?.Fix(TruePos().X, TruePos().Z);
     }

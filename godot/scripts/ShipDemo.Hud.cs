@@ -98,7 +98,8 @@ public partial class ShipDemo
             var f = b.Quat.Rotate(new Vec3d(0, 0, 1));
             double hdg = (Math.Atan2(-f.X, f.Z) * 180 / Math.PI + 360) % 360;      // l'est est −x
             double kn = Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z) * Config.MsToKn;
-            _navLine.Text = $"cap {hdg:F0}°    {kn:F1} nds";
+            // et, s'il est amené, ce que tout le monde voit d'abord : pas de couleurs
+            _navLine.Text = $"cap {hdg:F0}°    {kn:F1} nds" + (_colours ? "" : "\nsans pavillon");
             _navLine.Size = new Vector2(_compass.Size.X, 0);
             _navLine.Position = new Vector2(_compass.Position.X, _compass.Position.Y - _navLine.Size.Y - 4);
         }

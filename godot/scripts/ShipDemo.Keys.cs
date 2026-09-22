@@ -98,6 +98,7 @@ public partial class ShipDemo : Node3D
         Key(a, "A  D", "barre à bâbord, à tribord");
         Key(a, "Q  E", "choquer, border les écoutes");
         Key(a, "V", "établir ou ferler");
+        Key(a, "⇧V", "prendre un ris : huniers, bas ris, tout serré");
         Key(a, "B", "l'élan : en route d'un coup, ou stop (B B : vitesse doublée)");
         Key(a, "M", "mouiller · virer au cabestan");
         Section(a, "Artillerie");
@@ -123,6 +124,7 @@ public partial class ShipDemo : Node3D
         Key(b, "⇧J", "une averse, et le serpent de mer");
         Key(b, "⇧T", "la brume de surface, tout de suite");
         Key(b, "P", "la flotte fantôme");
+        Key(b, "⇧P", "amener ou hisser le pavillon");
         Key(b, "N", "changer de navire");
         Key(b, "⇧N", "la flotte : mettre à l'eau, retirer");
 

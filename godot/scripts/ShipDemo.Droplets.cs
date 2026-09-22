@@ -29,6 +29,13 @@ public partial class ShipDemo
         layer.AddChild(_dropRect);
     }
 
+    /// <summary>
+    /// L'OBJECTIF ESSUYÉ D'UN COUP : on change de caméra, donc d'objectif — les
+    /// perles de celui qui sortait de l'eau n'ont rien à faire devant la
+    /// chambre du capitaine (signalé).
+    /// </summary>
+    void DryLens() { _wet = 0; _sheet = 0; _dropRect.Visible = false; }
+
     /// <summary>Une image : l'eau qui reste sur l'objectif, et qui sèche.</summary>
     void DropletTick(double dt, bool under)
     {

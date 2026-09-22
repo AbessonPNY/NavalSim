@@ -55,7 +55,8 @@ public static class PhysicsParity
                 Throttle = jc.GetProperty("throttle").GetDouble(),
                 Rudder = jc.GetProperty("rudder").GetDouble(),
                 Sheet = jc.GetProperty("sheet").GetDouble(),
-                SailsSet = jc.GetProperty("sailsSet").GetBoolean()
+                SailsSet = jc.GetProperty("sailsSet").GetBoolean(),
+                Canvas = jc.TryGetProperty("canvas", out var jcv) ? jcv.GetDouble() : 1
             };
 
             // --- ce qui est BÂTI, avant qu'on intègre quoi que ce soit ---

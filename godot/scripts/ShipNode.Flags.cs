@@ -42,8 +42,47 @@ public partial class ShipNode
     (Texture2D? Map, Color Color, bool Painted)? _ensign0;
     static readonly StringName UEmissiveK = "u_emissive_k";
 
+    /* AMENER LES COULEURS PREND LE TEMPS QUE ÇA PREND : le pavillon descend le
+       long de sa drisse — il rapetisse à mesure qu'il coule vers la poulie, puis
+       disparaît ; hissé, il refait le chemin en sens inverse. Une seconde et
+       demie, le temps qu'un homme hale. <paramref name="now"/> pour les cas où
+       l'étoffe doit être là ou pas là tout de suite (un spectre qui paraît). */
+    double _colourWant = 1, _colourNow = 1;
+    ulong _colourT;
+    const double ColourRate = 1 / 1.5;
+
     /// <summary>Hisser ou amener : tous ses pavillons ensemble.</summary>
-    public void ShowColours(bool on) { foreach (var f in _flags) f.Pivot.Visible = on; }
+    public void ShowColours(bool on, bool now = false)
+    {
+        _colourWant = on ? 1 : 0;
+        if (now) { _colourNow = _colourWant; ApplyColours(); }
+    }
+
+    /// <summary>Sont-elles hissées (l'ordre donné, non l'étoffe en chemin) ?</summary>
+    public bool ColoursUp => _colourWant > 0.5;
+
+    /* L'HORLOGE DU MOTEUR, et non celle de la houle : cette dernière est réduite
+       modulo 2π (syncPhase) et sauterait en arrière au milieu de la manœuvre. */
+    void ColourTick()
+    {
+        ulong now = Time.GetTicksMsec();
+        double dt = _colourT == 0 ? 0 : Math.Clamp((now - _colourT) / 1000.0, 0, 0.1);
+        _colourT = now;
+        if (Math.Abs(_colourWant - _colourNow) < 1e-4) return;
+        double step = ColourRate * dt;
+        _colourNow += Math.Max(-step, Math.Min(step, _colourWant - _colourNow));
+        ApplyColours();
+    }
+
+    void ApplyColours()
+    {
+        float k = (float)Math.Max(0.001, _colourNow);
+        foreach (var f in _flags)
+        {
+            f.Pivot.Scale = new Vector3(k, k, k);
+            f.Pivot.Visible = _colourNow > 0.02;
+        }
+    }
 
     /// <summary>A-t-elle un pavillon où hisser des couleurs ?</summary>
     public bool HasFlag => _flags.Count > 0;
@@ -375,6 +414,7 @@ public partial class ShipNode
     public void StreamFlags(double t)
     {
         var p = Physics;
+        ColourTick();
         foreach (var f in _flags)
         {
             if (!f.Pivot.Visible || !f.Node.IsVisibleInTree()) continue;

@@ -25,7 +25,8 @@ public partial class ShipDemo : Node3D
     Label _info = null!;
 
     double _t;
-    double _force = 4, _windDeg = 210, _cloud = 0.06;   // 6 %, le reglage par defaut de la page d'origine
+    // le vent du départ à Port-Royal : belle brise par 105°, de quoi sortir du môle
+    double _force = 4, _windDeg = 105, _cloud = 0.06;   // nuages : 6 %, le reglage par defaut de la page
     /// <summary>
     /// LE CREUX, et il manquait — ce qui a coute une fausse piste entiere.
     ///
@@ -1242,6 +1243,7 @@ public partial class ShipDemo : Node3D
     /// </summary>
     void CycleCamera()
     {
+        DryLens();
         if (_camMode == 0) { _camMode = 1; _deck = 0; EnterDeck(); }
         else if (_camMode == 1 && _deck + 1 < _ship.Spec.Decks.Count) { _deck++; EnterDeck(); }
         else if (_camMode == 1) { _camMode = 2; SetLens(OutsideFov, OutsideNear); Plant(); }
@@ -1257,6 +1259,7 @@ public partial class ShipDemo : Node3D
     {
         var v = _ship.Spec.Decks[_deck];
         _bridgeYaw = 0; _bridgePitch = 0;
+        DryLens();
         SetLens((float)(v.Fov ?? OutsideFov), (float)(v.Near ?? OutsideNear));
     }
 
@@ -1442,7 +1445,7 @@ public partial class ShipDemo : Node3D
             $"déplacement{b.Mass / 1000,6:F0} t\n" +
             $"\n" +
             $"machine    {_ship.Ctrl.Throttle,6:F2}      barre     {_ship.Ctrl.Rudder,5:F2}\n" +
-            $"écoutes    {_ship.Ctrl.Sheet,6:F2}      voiles    {voiles}\n" +
+            $"écoutes    {_ship.Ctrl.Sheet,6:F2}      voiles    {voiles} · {ReefName()}\n" +
             (_ship.SnowCover > 0.01 ? $"neige sur le pont {_ship.SnowCover * 100:F0} %\n" : "") +
             $"\n" +
             /* CE QUI RESTE DE LA NOTICE : une ligne. Les deux qui couraient ici
@@ -1523,7 +1526,8 @@ public partial class ShipDemo : Node3D
                 // AZERTY entierement.
                 case Key.Pageup: _swell = Math.Min(2.6, _swell + 0.15); Restate(); break;
                 case Key.Pagedown: _swell = Math.Max(0.4, _swell - 0.15); Restate(); break;
-                case Key.V: _ship.Ctrl.SailsSet = !_ship.Ctrl.SailsSet; break;
+                case Key.V when k.ShiftPressed: ReefStep(); break;
+                case Key.V: _ship.Ctrl.SailsSet = !_ship.Ctrl.SailsSet; _ship.Ctrl.Canvas = 1; _reef = 0; break;
                 case Key.N when k.ShiftPressed: ToggleFleetPanel(); break;
                 case Key.N: Launch(_index + 1); break;
                 case Key.F: _follow = !_follow; break;
@@ -1539,6 +1543,7 @@ public partial class ShipDemo : Node3D
                 case Key.Tab: CycleGunSide(); break;
                 case Key.Y: BlowUp(_ship); break;
                 case Key.U: SpawnPirate(900); break;
+                case Key.P when k.ShiftPressed: ToggleColours(); break;
                 case Key.P: GoToGhosts(true); break;
                 case Key.L: ToggleSpyglass(); break;
                 // la carte du capitaine : I comme « inscrire »
@@ -2258,6 +2263,7 @@ public partial class ShipDemo : Node3D
     {
         if (_pirates.TryGetValue(s, out var p))
         {
+            Unknown(p);
             var h = HelmOf(s);
             var prey = p.Cible;
             _sails.Clear();
@@ -2283,6 +2289,8 @@ public partial class ShipDemo : Node3D
             h.Update(dt, _sea.Core, s.Ctrl);
             return;
         }
+        // sans pavillon, les honnêtes gens s'écartent avant tout le reste
+        if (Wary(s, dt)) return;
         if (s.IsGhost)
         {
             // droit sur l'ennemi que la scène lui donne ; la bataille finie, il garde sa route

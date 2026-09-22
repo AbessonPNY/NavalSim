@@ -1829,8 +1829,13 @@ async function main(){
        se range donc le long du quai comme un navire s'y range. Borné à la moitié
        de la longueur du ponton, faute de quoi une grande coque irait chercher le
        fond en remontant vers la plage. */
-    const rentre = Math.min((specs[0].L || 28)*0.45, p.reach*0.5);
-    const R = p.shoreR + p.reach - rentre;
+    /* ET SA POUPE RESTE DANS L'EAU : rentrée de 45 % de sa longueur, une coque
+       de trente mètres finissait sur le sable au Môle de Port-Royal, dont le
+       ponton ne fait que vingt-huit mètres. Elle garde huit mètres entre sa
+       poupe et le rivage — ou la moitié du ponton s'il est plus court. */
+    const L0 = specs[0].L || 28;
+    const rentre = Math.min(L0*0.45, p.reach*0.5);
+    const R = p.shoreR + Math.max(p.reach - rentre, Math.min(8, p.reach*0.5) + L0*0.5);
     ocean.rebase(home.x + ca*R - sa*off, home.z + sa*R + ca*off);   // le zéro local EST le poste
     startHeading = Math.atan2(ca, sa);              // étrave au large, le long du ponton
     startPort = home;

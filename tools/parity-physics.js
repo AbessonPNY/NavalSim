@@ -146,7 +146,8 @@ const scenarios = [
   { id: 'barre',        ship: 'barge',    force: 3, deg: 90,  steps: 900,
     ctrl: { throttle: 1, rudder: 0.8, sheet: 0, sailsSet: false } },
   { id: 'voiles',       ship: 'schooner', force: 4, deg: 200, steps: 900,
-    ctrl: { throttle: 0, rudder: 0, sheet: 0.55, sailsSet: true } },
+    // la toile par paliers : un ris pris, pour que canvas soit éprouvé des deux côtés
+    ctrl: { throttle: 0, rudder: 0, sheet: 0.55, sailsSet: true, canvas: 0.6 } },
   { id: 'gros-temps',   ship: 'pirate',   force: 8, deg: 45,  steps: 600,
     ctrl: { throttle: 0, rudder: -0.4, sheet: 0.9, sailsSet: true } },
   { id: 'envahissement', ship: 'frigate', force: 4, deg: 120, steps: 900,

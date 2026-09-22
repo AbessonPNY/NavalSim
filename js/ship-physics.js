@@ -894,7 +894,8 @@ Naval.ShipPhysics = class ShipPhysics {
     // Water in and out FIRST: it sets the mass and the centre of gravity that
     // everything below — gravity, moments, inertia — is then taken against.
     /* Canvas in or out, before anything asks how much drive she has. */
-    const wantSet = ctrl.sailsSet ? 1 : 0;
+    // the canvas she is ordered to carry (reefs): 1 when the caller says nothing
+    const wantSet = ctrl.sailsSet ? Math.max(0, Math.min(1, ctrl.canvas != null ? ctrl.canvas : 1)) : 0;
     const stepSet = this.setRate*dt;
     this.setFrac += Math.max(-stepSet, Math.min(stepSet, wantSet - this.setFrac));
 

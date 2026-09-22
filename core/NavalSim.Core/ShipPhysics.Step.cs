@@ -38,7 +38,7 @@ public sealed partial class ShipPhysics
 
         // La toile rentre ou sort AVANT que quoi que ce soit demande quelle
         // poussée elle a.
-        double wantSet = ctrl.SailsSet ? 1 : 0;
+        double wantSet = ctrl.SailsSet ? Math.Clamp(ctrl.Canvas, 0, 1) : 0;
         double stepSet = SetRate * dt;
         SetFrac += Math.Max(-stepSet, Math.Min(stepSet, wantSet - SetFrac));
 

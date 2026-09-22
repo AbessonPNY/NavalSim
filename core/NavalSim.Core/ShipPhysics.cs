@@ -19,10 +19,18 @@ public sealed class Controls
     public double Rudder;        // -1 à 1
     public double Sheet;         // l'angle d'écoute, en radians
     public bool SailsSet = true; // voiles établies ou ferlées
+    /// <summary>
+    /// LA TOILE QU'ON ORDONNE DE PORTER, de 0 à 1 : toute la toile, les huniers,
+    /// les huniers au bas ris. Un navire ne réduisait pas en ferlant tout — il
+    /// prenait des ris, et c'est ce qui rend une sortie de port et un coup de
+    /// vent manœuvrables. 1 par défaut : une fiche qui l'ignore se conduit comme
+    /// avant.
+    /// </summary>
+    public double Canvas = 1;
 
     public Controls Clone() => new()
     {
-        Throttle = Throttle, Rudder = Rudder, Sheet = Sheet, SailsSet = SailsSet
+        Throttle = Throttle, Rudder = Rudder, Sheet = Sheet, SailsSet = SailsSet, Canvas = Canvas
     };
 }
 
