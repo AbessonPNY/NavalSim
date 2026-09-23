@@ -24,6 +24,15 @@
 	  "poupe": "ships/textures/flags/cristobal_colombus_rect.jpg",
       "poids": 1
     },
+	{
+      "id": "angleterre",
+      "image": "ships/textures/flags/flag_small_flag_british.jpg",
+      "pays": "Angleterre",
+      "nationalite": "anglais",
+	  "streamer": "ships/textures/flags/streamer_british.jpg",
+	  "poupe": "ships/textures/flags/flag_british_1630_1702.jpg",
+	  "poids": 1
+    },
     {
       "id": "jolly-roger",
       "image": "ships/textures/flags/jolly_roger_1690.jpg",
