@@ -61,6 +61,8 @@ public partial class ShipDemo : Node3D
         _arriving = _voyage;
         _voyage = null;
         if (_arriving != null) return _arriving.Sheet;
+        // une partie reprise dit sa région avant tout le reste
+        if (_loading is { } sv) return $"world/{sv.Region}.json";
         var args = OS.GetCmdlineUserArgs();
         for (int i = 0; i < args.Length - 1; i++)
             if (args[i] == "--region") return $"world/{args[i + 1]}.json";

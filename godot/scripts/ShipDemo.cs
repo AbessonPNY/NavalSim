@@ -154,14 +154,21 @@ public partial class ShipDemo : Node3D
 
         _paths = ShipLibrary.Discover();
         GD.Print($"{_paths.Count} fiche(s) lue(s) dans {ShipLibrary.Folder}");
-        Launch(_arriving?.Ship ?? 0);
+        // le navire : celui d une traversée, celui d une partie reprise, sinon le premier
+        int first = _arriving?.Ship ?? 0;
+        if (_loading is { } sv && sv.Navire.Length > 0)
+        {
+            int k = _paths.FindIndex(q => System.IO.Path.GetFileName(q) == sv.Navire);
+            if (k >= 0) first = k;
+        }
+        Launch(first);
         // les réglages du fichier d'abord ; la ligne de commande, lue ensuite, a le dernier mot
         ApplySettings();
         SetupCapture();
         // à son poste en DERNIER : --ship a pu changer la coque, et le dégagement
         // du quai se mesure sur SON bau
         // ou à l'atterrage, si l'on arrive d'une traversée
-        if (!Arrive()) Moor();
+        if (!Resume() && !Arrive()) Moor();
         // en DERNIER : il ne s'ouvre que si la ligne de commande ne demande pas
         // autre chose, et il ne touche donc jamais à ce qu'elle vient de régler
         BuildTitle();
@@ -232,6 +239,7 @@ public partial class ShipDemo : Node3D
         BuildFleetPanel(layer);
         BuildGunSide(layer);
         BuildHud(layer);
+        BuildPause(layer);
         BuildStow(layer);
         BuildEncart(layer);
         BuildQuestView(layer);
@@ -1580,9 +1588,11 @@ public partial class ShipDemo : Node3D
                 case Key.F1: ToggleKeys(); break;
                 case Key.Escape:
                     if (CloseKeys()) break;
+                    // les réglages se ferment d abord ; sinon c est le menu d Échap
+                    if (_menu.Visible) { _menu.Visible = false; break; }
                     _chkOcclusion.SetPressedNoSignal(_settings.Occlusion);
                     _chkIndirect.SetPressedNoSignal(_settings.IndirectLight);
-                    _menu.Visible = !_menu.Visible;
+                    TogglePause();
                     break;
             }
         }

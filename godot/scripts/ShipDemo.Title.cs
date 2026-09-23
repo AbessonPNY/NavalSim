@@ -170,7 +170,7 @@ public partial class ShipDemo : Node3D
     {
         ClearItems();
         Item("Jeu libre", FreePlay);
-        Item("Histoire", Story);
+        Item("Histoire", StoryItems);
         Item("Missions", MissionItems);
         Item("Options", () => { _menu.Visible = true; });
         Item("Crédits", () => { if (_credits != null) _credits.Visible = !_credits.Visible; });
