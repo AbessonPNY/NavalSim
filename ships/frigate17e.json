@@ -132,7 +132,8 @@
     "decks": [
       { "name": "Passerelle", "x": 0, "y": 8, "zFrac": -0.4, "yaw": 0, "pitch": 0, "fov": 35 },
       { "name": "Chambre du capitaine", "x": 0, "y": 4.0, "zFrac": -0.33, "yaw": 0, "pitch": -4, "fov": 50, "near": 0.08 },
-      { "name": "Pont de batterie", "x": 0, "y": 4.3, "z": 0.4, "yaw": 0, "pitch": -2, "fov": 55, "near": 0.08 }
+      { "name": "Pont de batterie", "x": 0, "y": 4.3, "z": 5.4, "yaw": 0, "pitch": -2, "fov": 55, "near": 0.08 },
+      { "name": "Vigie", "x": 0, "y": 13.3, "z": 0.4, "yaw": 0, "pitch": -2, "fov": 55, "near": 0.08 }
     ]
   },
   "model": {
