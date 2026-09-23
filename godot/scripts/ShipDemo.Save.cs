@@ -288,17 +288,50 @@ public partial class ShipDemo
     //  LES ENTRÉES DE MENU
     // ------------------------------------------------------------------
 
-    /// <summary>L'Histoire : reprendre une partie, ou en commencer une neuve.</summary>
+    /// <summary>L'Histoire : reprendre une partie, en commencer une neuve, ou en effacer une.</summary>
     void StoryItems()
     {
+        _eraseId = "";
         ClearItems();
-        foreach (var s in Saves())
+        var list = Saves();
+        foreach (var s in list)
         {
             var save = s;
             Item($"{s.Nom}   ({s.Ecrit})", () => LoadGame(save), 28);
         }
         Item("Nouvelle partie", NewGame, 34);
+        if (list.Count > 0) Item("Effacer une partie", EraseItems, 28);
         Item("Retour", MainItems, 34);
+        ShowPick();
+    }
+
+    /// <summary>La partie qu'on s'apprête à effacer : le premier appui demande, le second fait.</summary>
+    string _eraseId = "";
+
+    /// <summary>
+    /// EFFACER, EN DEUX TEMPS. Une partie effacée ne revient pas : le premier
+    /// appui met la ligne en garde, le second seulement emporte le fichier.
+    /// </summary>
+    void EraseItems()
+    {
+        ClearItems();
+        foreach (var s in Saves())
+        {
+            var save = s;
+            bool armed = _eraseId == s.Id;
+            Item(armed ? $"Effacer pour de bon : {s.Nom} ?" : $"{s.Nom}   ({s.Ecrit})",
+                 () =>
+                 {
+                     if (_eraseId != save.Id) { _eraseId = save.Id; EraseItems(); return; }
+                     DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(PathOf(save.Id)));
+                     GD.Print($"partie effacée : {save.Nom}");
+                     if (_gameId == save.Id) _gameId = "";
+                     _eraseId = "";
+                     EraseItems();
+                 }, 28);
+        }
+        if (_titleItems.Count == 0) Item("Plus aucune partie", () => { }, 28);
+        Item("Retour", StoryItems, 34);
         ShowPick();
     }
 
