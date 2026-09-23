@@ -35,6 +35,9 @@ public partial class ShipNode
 
     /// <summary>Ce que la braguier laisse filer, en mètres : le calibre du navire, borné.</summary>
     double Kick => Math.Clamp(0.05 * Spec.L, 0.4, 1.4);
+    /* LE TEMPS DU MOUVEMENT, à l'unité de vitesse — settings.json → gunnery →
+       recoilSpeed les divise. Ces deux-là sont la première mise au point, celle
+       qu'on a trouvée trop molle (signalé) ; le réglage vaut 2 par défaut. */
     const double OutIn = 0.35;        // le recul lui-même, en secondes
     const double RunOut = 1.8;        // le retour à la batterie, à la fin du rechargement
 
@@ -222,8 +225,14 @@ public partial class ShipNode
         _gunPieces[i].Until = g.ReadyAt;
     }
 
-    public void RecoilTick(double clock)
+    /// <summary>
+    /// Où en sont les pièces qui ont tiré, à cette seconde de jeu. <paramref
+    /// name="speed"/> est la vivacité voulue : elle divise le temps du recul et
+    /// celui du retour, sans toucher à ce que le rechargement dure.
+    /// </summary>
+    public void RecoilTick(double clock, double speed = 2)
     {
+        double outIn = OutIn / Math.Max(0.1, speed), runOut = RunOut / Math.Max(0.1, speed);
         for (int i = 0; i < _gunPieces.Count && i < Battery.Guns.Count; i++)
         {
             var g = Battery.Guns[i];
@@ -233,8 +242,8 @@ public partial class ShipNode
             double t = clock - p.Fired, all = Math.Max(0.5, p.Until - p.Fired);
             double back;
             if (t < 0 || t > all) { back = 0; p.Fired = -1; }
-            else if (t < OutIn) { double u = t / OutIn; back = u * u * (3 - 2 * u); }
-            else if (t > all - RunOut) { double u = Math.Clamp((all - t) / RunOut, 0, 1); back = u * u * (3 - 2 * u); }
+            else if (t < outIn) { double u = t / outIn; back = u * u * (3 - 2 * u); }
+            else if (t > all - runOut) { double u = Math.Clamp((all - t) / runOut, 0, 1); back = u * u * (3 - 2 * u); }
             else back = 1;
             p.Pivot.Position = p.Home + p.Back * (float)(back * Kick);
         }

@@ -379,7 +379,7 @@ public partial class ShipDemo : Node3D
             s.SetTrim(s.Ctrl.Sheet, p.Tack, p.SetFrac, p.Luffing, _t, p.SailLoad);
             s.Sea = _sea.Core;
             s.StreamFlags(_t);
-            s.RecoilTick(_gunnery.Clock);
+            s.RecoilTick(_gunnery.Clock, _gunRules.RecoilSpeed);
             s.SwingLanterns(frame);
         }
     }
@@ -967,7 +967,7 @@ public partial class ShipDemo : Node3D
         _ship.SetTrim(_ship.Ctrl.Sheet, ph.Tack, ph.SetFrac, ph.Luffing, _t, ph.SailLoad);
         _ship.Sea = _sea.Core;
         _ship.StreamFlags(_t);
-        _ship.RecoilTick(_gunnery.Clock);
+        _ship.RecoilTick(_gunnery.Clock, _gunRules.RecoilSpeed);
         // les lanternes pendues suivent le roulis en vrais pendules
         _ship.SwingLanterns(frame);
         StepOthers(frame);

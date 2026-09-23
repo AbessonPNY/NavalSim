@@ -71,6 +71,8 @@ Naval.powderTexture = function(){
 /* Game rules, overridden by settings.json → gunnery. */
 Naval.GUNNERY = {
   reload: [30, 60]        // seconds a piece is out after firing, drawn per shot
+  // gunnery.recoilSpeed belongs to the Godot build: the page does not run a
+  // piece back and forth yet, so it has nothing to speed up.
 };
 
 Naval.Guns = class Guns {

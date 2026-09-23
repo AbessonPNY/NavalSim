@@ -5,7 +5,7 @@
   "crew": { "enabled": false, "count": 4, "minLength": 12, "farHide": 350,
             "upright": 0.68, "lag": 0.35, "stanceFrom": 3, "stanceFull": 14, "braceFrom": 6, "braceFull": 18,
             "glb": "creatures/sailor.glb" },
-  "gunnery": { "reload": [30, 60] },
+  "gunnery": { "reload": [30, 60], "recoilSpeed": 2 },
   "dolphins": {
     "enabled": true,
     "perDay": 4,

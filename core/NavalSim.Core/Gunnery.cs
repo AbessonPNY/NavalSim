@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json;
 
 namespace NavalSim.Core;
@@ -85,11 +86,22 @@ public sealed class GunnerySettings
 {
     public double ReloadLo = 30, ReloadHi = 60;     // secondes qu'une pièce est hors d'usage après le coup
 
+    /// <summary>
+    /// LA VIVACITÉ DU RECUL — un facteur, pas des secondes : 1 était la première
+    /// mise au point, 2 (par défaut) va deux fois plus vite, le temps de recul et
+    /// celui du retour à la batterie divisés d'autant. C'est un réglage à l'œil,
+    /// et il n'appartient qu'au moteur qui fait bouger les pièces : la page ne
+    /// les fait pas encore reculer et l'ignore donc sans dommage.
+    /// </summary>
+    public double RecoilSpeed = 2;
+
     public static GunnerySettings FromJson(JsonElement j)
     {
         var s = new GunnerySettings();
         if (j.TryGetProperty("reload", out var r) && r.ValueKind == JsonValueKind.Array && r.GetArrayLength() == 2)
         { s.ReloadLo = r[0].GetDouble(); s.ReloadHi = r[1].GetDouble(); }
+        if (j.TryGetProperty("recoilSpeed", out var v) && v.ValueKind == JsonValueKind.Number)
+            s.RecoilSpeed = Math.Max(0.1, v.GetDouble());
         return s;
     }
 }
