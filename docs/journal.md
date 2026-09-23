@@ -7938,6 +7938,12 @@ sept coques sur onze embarquant de l'eau en moins de quatre minutes**, la
 formation tenue entre 70 et 270 m. C'est la distance à laquelle on se battait,
 et ce n'est pas un hasard : c'est celle où le boulet arrive encore droit.
 
+Laissée courir neuf minutes, la même bataille donne **391 charges, dix coques
+sur onze percées et le tableau à six contre quatre** : un camp perd, ce que
+l'ancienne garde n'obtenait pas en deux fois plus de poudre. Une escadre de
+douze ne se règle pas en trois minutes, et c'est très bien ainsi — un vaisseau
+se perd d'être battu encore et encore, jamais d'un coup heureux.
+
 ## La fin d'une escarmouche, et qui l'emporte
 
 Un panneau, et le mot en grand : **Victoire** quand le camp du joueur reste
