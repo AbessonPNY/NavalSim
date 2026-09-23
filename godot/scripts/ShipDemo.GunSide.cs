@@ -55,8 +55,10 @@ public partial class ShipDemo
         if (!_ship.Battery.Has(side) || _gunSide == side) return;
         _gunSide = side;
         Say("En batterie : " + GunNames[side]);
-        // et l'œil derrière la pièce quand c'est une pièce de chasse
-        SetGunPost(Math.Abs(side) >= 2 ? side : (int?)null);
+        /* L ŒIL DERRIÈRE LA PIÈCE, mais pour la PROUE seulement : une pièce de
+           poupe se sert depuis la chambre, qui n a pas de vue vers l arrière
+           (signalé) — on la choisit sans que la caméra bouge. */
+        SetGunPost(side <= -2 ? side : (int?)null);
         GunSideTick();
     }
 

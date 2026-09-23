@@ -1293,6 +1293,9 @@ public partial class ShipDemo : Node3D
     /// </summary>
     void CycleCamera()
     {
+        /* LA LUNETTE TIENT LA VUE : elle est à l œil, et changer de poste sous la
+           lunette reviendrait à se téléporter le verre collé à l œil (signalé). */
+        if (_glassUp) { Say("Baissez d abord la lunette"); return; }
         SetGunPost(null);                 // changer de vue quitte la pièce
         DryLens();
         if (_camMode == 0) { _camMode = 1; _deck = 0; EnterDeck(); }
@@ -2253,8 +2256,8 @@ public partial class ShipDemo : Node3D
             if (_ship.Battery.Has(s)) { _gunSide = s; break; }
         }
         Say("En batterie : " + GunNames[_gunSide]);
-        // une pièce de chasse se sert à l œil : la caméra va derrière elle
-        SetGunPost(Math.Abs(_gunSide) >= 2 ? _gunSide : (int?)null);
+        // la proue se sert à l œil ; la poupe ne déplace pas la caméra
+        SetGunPost(_gunSide <= -2 ? _gunSide : (int?)null);
         GunSideTick();
         HudTick();
     }
