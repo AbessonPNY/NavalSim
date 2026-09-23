@@ -90,14 +90,15 @@ public partial class SoundNode : Node3D
        Deux choses ensemble, parce que c'est ce que fait une cloison : elle BAISSE
        et elle ÉTOUFFE — les aigus passent moins bien que les graves, et c'est
        l'étouffement, plus que la baisse, qui fait entendre qu'on est dedans. La
-       coupure descend de 20 kHz à 700 Hz, ce qui laisse le canon gronder et
-       emporte le claquement de la toile. */
+       coupure descend de 20 kHz à 900 Hz, ce qui laisse le canon gronder et
+       emporte le claquement de la toile. Neuf cents et non sept : à sept, ce qui
+       venait de loin ne passait plus du tout. */
     public void Indoors(double k)
     {
         _indoorsNow = Math.Clamp(k, 0, 1);
         if (_muffle != null)
-            _muffle.CutoffHz = (float)(20500 * Math.Pow(700.0 / 20500, _indoorsNow));
-        AudioServer.SetBusVolumeDb(_outIdx, (float)(-11 * _indoorsNow));
+            _muffle.CutoffHz = (float)(20500 * Math.Pow(900.0 / 20500, _indoorsNow));
+        AudioServer.SetBusVolumeDb(_outIdx, (float)(-9 * _indoorsNow));
     }
 
     public override void _Ready()
@@ -178,7 +179,12 @@ public partial class SoundNode : Node3D
        redise : le retard et l'absorption de l'air sont des propriétés de la
        DISTANCE, pas du coup de canon. Les écrire une seconde fois pour le bois
        qui casse, ce serait se donner deux acoustiques à tenir en accord. */
-    void Play(string key, Vec3d at, double rate, double vol)
+    /* CE QUI SE FAIT À BORD NE PASSE PAS PAR LA CLOISON. Un boulet dans votre
+       muraille, ce sont les bois de la chambre elle-même qui craquent : l'étouffer
+       comme un bruit du large, c'est le supprimer (signalé). Ces voix-là restent
+       au Master, quoi qu'on ferme. Le reste — les autres navires, la mer, le
+       tonnerre — arrive du dehors et passe par le bus qui filtre. */
+    void Play(string key, Vec3d at, double rate, double vol, bool aboard = false)
     {
         if (!On || !_buf.TryGetValue(key, out var stream)) return;
         var cam = GetViewport().GetCamera3D();
@@ -189,6 +195,7 @@ public partial class SoundNode : Node3D
 
         var p = Free();
         if (p == null) return;                       // le plafond de voix : ce coup-ci ne se fera pas
+        p.Bus = aboard ? "Master" : OutBus;
         p.Stream = stream;
         p.GlobalPosition = pos;
         p.PitchScale = (float)Math.Clamp(rate, 0.6, 1.6);
@@ -206,7 +213,7 @@ public partial class SoundNode : Node3D
     /// grosse pièce sonne plus GRAVE. Rendu par la vitesse de lecture plutôt que
     /// par un troisième échantillon, ce qui allonge du même coup la détente.
     /// </summary>
-    public void Boom(Vec3d at, double k)
+    public void Boom(Vec3d at, double k, bool aboard = false)
     {
         var cam = GetViewport().GetCamera3D();
         if (cam == null) return;
@@ -214,7 +221,7 @@ public partial class SoundNode : Node3D
         string key = d > Loin ? (_buf.ContainsKey("loin") ? "loin" : "pres")
                               : (_buf.ContainsKey("pres") ? "pres" : "loin");
         // jamais deux fois le même coup : la charge était dosée à la main
-        Play(key, at, (1.15 - 0.30 * k) * (1 + (_rng.Randf() - 0.5) * 0.06), 1);
+        Play(key, at, (1.15 - 0.30 * k) * (1 + (_rng.Randf() - 0.5) * 0.06), 1, aboard);
     }
 
     /* UN SON QU'ON FABRIQUE, faute d'échantillon : écrit une fois dans un tampon,
@@ -304,14 +311,14 @@ public partial class SoundNode : Node3D
     /// mât n'est pas une muraille : même bois, plus léger et plus sec, donc le
     /// même échantillon monté d'un ton.
     /// </summary>
-    public void Crash(Vec3d at, double k, double speed, string what)
+    public void Crash(Vec3d at, double k, double speed, string what, bool aboard = false)
     {
         string key = _rng.Randf() < 0.5 ? "bois1" : "bois2";
         if (!_buf.ContainsKey(key)) key = key == "bois1" ? "bois2" : "bois1";
         // un boulet arrivé à bout de course cogne moins fort ; 300 m/s est le plein fouet
         double fort = Math.Clamp((speed > 0 ? speed : 200) / 300, 0.3, 1);
         double aigu = what == "mast" ? 1.18 : 1.0;
-        Play(key, at, aigu * (1.15 - 0.30 * k) * (1 + (_rng.Randf() - 0.5) * 0.10), 0.85 * fort);
+        Play(key, at, aigu * (1.15 - 0.30 * k) * (1 + (_rng.Randf() - 0.5) * 0.10), 0.85 * fort, aboard);
     }
 
     // ------------------------------------------------------------------

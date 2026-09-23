@@ -2179,7 +2179,8 @@ public partial class ShipDemo : Node3D
         {
             _gunFx.Gun(new Vector3((float)at.X, (float)at.Y, (float)at.Z), new Vector3((float)dir.X, (float)dir.Y, (float)dir.Z), k, floor);
             // la flamme ici, le bruit quand il arrive : c'est le même événement
-            _sound?.Boom(at, k);
+            // votre propre bordee part de sous vos pieds : aucune cloison entre elle et vous
+            _sound?.Boom(at, k, ph == _ship.Physics);
             /* ET LA PIÈCE PART EN ARRIÈRE AU COUP, pas à l'ordre : une bordée
                s'égrène le long du bord, et c'est la mèche qui fait reculer, pas
                la main sur G (signalé). */
@@ -2228,7 +2229,8 @@ public partial class ShipDemo : Node3D
             _hitsAt = _t;
         }
         // le choc s'entend de là où le boulet a porté, donc plus tard que la pièce
-        _sound?.Crash(world, k, speed, kind);
+        // touchée chez SOI : le bois qui éclate est celui de la chambre où l'on est
+        _sound?.Crash(world, k, speed, kind, s == _ship);
         // qui a tiré : c'est ce qui permet à un navire de savoir contre qui se retourner
         ShipNode? shooter = null;
         foreach (var (node, tt) in _targets) if (tt.Physics == from) { shooter = node; break; }

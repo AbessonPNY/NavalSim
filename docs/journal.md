@@ -7931,6 +7931,23 @@ quel que soit le pont d'où l'on regarde.
 Mesuré en headless : 20 500 Hz sur le pont, 700 Hz dans la chambre, et le
 retour au plein air quand on en sort.
 
+## Ce qui se fait à bord ne passe pas par la cloison (Godot)
+
+Le bruit du bois qui éclate sous un boulet ne parvenait plus dans la chambre
+(signalé) — et c'était juste, au sens où le filtre faisait exactement ce qu'on
+lui avait demandé, et faux au sens où il n'aurait pas dû s'appliquer là. Un
+boulet dans SA muraille, ce sont les bois de la chambre où l'on est assis qui
+craquent : il n'y a aucune cloison entre ce bruit et l'oreille. L'étouffer,
+c'est le supprimer.
+
+Les voix ont donc leur bus **à la voix près** : ce qui se fait à bord — un coup
+dans son propre bordé, sa propre bordée qui part de sous ses pieds — reste au
+Master quoi qu'on ferme ; le reste arrive du dehors et passe par le filtre.
+
+Et la cloison mangeait trop : la coupure passe de 700 à 900 Hz et la baisse de
+11 à 9 dB. À sept cents hertz, ce qui venait de loin ne passait plus du tout,
+et une chambre n'est pas une cave.
+
 ## Des voiles sur la mer, et parfois deux aux prises (Godot)
 
 La page croisait des voiles ; le portage n'en croisait aucune, et cette mer
