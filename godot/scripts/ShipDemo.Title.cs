@@ -238,12 +238,28 @@ public partial class ShipDemo : Node3D
         // le navire du joueur, si l'affiche en avait mis un autre
         if (_beforeTitle >= 0 && _beforeTitle != _index) Launch(_beforeTitle);
         _beforeTitle = -1;
+        /* UNE PARTIE NEUVE PART SEULE. Revenir au menu principal depuis une partie
+           laissait les coques à flot, et le jeu libre les retrouvait — un pirate au
+           mouillage dès le premier jour (signalé). On rend donc le bord à son état
+           du premier matin : personne autour, la bourse pleine, dix heures, la
+           coque saine, la toile serrée et les couleurs hautes. */
+        foreach (var other in new List<ShipNode>(_others)) RemoveShip(other);
+        _purse = new Purse(Market.Depart);
+        _gameId = "";
         var b = _ship.Physics.Body;
         b.Vel = Vec3d.Zero;
         b.AngVel = Vec3d.Zero;
         b.Pos = new Vec3d(b.Pos.X, _eqY, b.Pos.Z);
+        _ship.Physics.Salvage();
+        _ship.Physics.Powder = _ship.Physics.PowderMax;
+        _ship.Physics.ClearCargo();
         _ship.Ctrl.SailsSet = false;
         _ship.Ctrl.Throttle = 0;
+        _ship.Ctrl.Canvas = 1;
+        _reef = 0;
+        _colours = true;
+        _ship.ShowColours(true, true);
+        _sky.Core.SetTimeOfDay(10, _sky.Latitude);
         /* LE VENT DU DÉPART, TOUJOURS LE MÊME : belle brise (force 4) par 105°,
            ce qui donne du vent pour sortir du môle sans que ce soit une leçon de
            louvoyage à chaque partie. La météo d'elle-même reprend ensuite. */
