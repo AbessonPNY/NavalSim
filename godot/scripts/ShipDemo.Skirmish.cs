@@ -31,20 +31,30 @@ public partial class ShipDemo
     bool _skirmish;
     /// <summary>Qui vise qui : gardé tant que la proie flotte.</summary>
     readonly Dictionary<ShipNode, ShipNode> _melee = new();
-    /// <summary>Le compte des deux camps, dit une fois quand l'un d'eux disparaît.</summary>
+    /// <summary>La fin est dite une fois : le panneau ne revient pas à chaque image.</summary>
     bool _meleeDone;
+    /// <summary>Les deux camps ont-ils été à flot en même temps ? Sans quoi une ligne
+    /// à demi mise à l'eau se déclarerait vainqueur avant que l'autre existe.</summary>
+    bool _meleeJoined;
     Label? _meleeLine;
     Nation? _campA, _campB;
 
     /// <summary>Douze coques : ce que l'utilisateur a demandé, sous le plafond de seize (mesuré).</summary>
     const int SkirmishHulls = 12;
 
-    /* CE QUI PEUT SE BATTRE. Une escarmouche ne met pas un chaland ni une caisse
-       en ligne : on prend les coques qui portent de la toile ET une batterie.
-       Nommées ici plutôt que devinées, parce que la batterie ne se lit qu'une fois
-       le modèle chargé — trop tard pour choisir qui mettre à l'eau. */
+    /* CE QUI PEUT SE BATTRE — ET ON LE VÉRIFIE, on ne le suppose pas (demandé).
+       Une batterie ne se lit qu'une fois le modèle chargé : on ne peut donc pas
+       la demander AVANT de mettre une coque à l'eau. Une fiche est donc essayée,
+       et renvoyée au port si elle n'a pas un canon — une fois pour toutes, la
+       fiche stérile étant retenue pour ne pas la rappeler onze fois.
+
+       La liste n'est qu'un ORDRE DE PRÉFÉRENCE : elle dit par quoi commencer, et
+       le reste du dossier suit si elle ne suffit pas. */
     static readonly string[] Combatants =
         { "frigate17e.json", "frigate.json", "pirate.json", "schooner.json", "cotre.json" };
+
+    /// <summary>Les fiches essayées qui n'avaient pas de batterie : jamais rappelées.</summary>
+    readonly HashSet<int> _barren = new();
 
     // ------------------------------------------------------------------
     //  LES CAMPS
@@ -117,7 +127,9 @@ public partial class ShipDemo
         Home();                      // une ligne neuve : personne autour, la bourse pleine
         Offshore();                  // et de l'eau libre, loin des côtes
         _melee.Clear();
+        _barren.Clear();              // un modèle a pu recevoir sa batterie depuis
         _meleeDone = false;
+        _meleeJoined = false;
         _skirmish = true;
 
         // deux pavillons différents, tirés parmi les nations — jamais le noir
@@ -131,10 +143,14 @@ public partial class ShipDemo
            premier combattant. On ne peut pas jouer une escarmouche dans un navire
            qui ne peut pas tirer, et le navire courant est celui qu on avait. */
         if (_ship.Battery.Guns.Count == 0)
-        {
-            int k = _paths.FindIndex(p => System.IO.Path.GetFileName(p) == Combatants[0]);
-            if (k >= 0) { Launch(k); Offshore(); }
-        }
+            foreach (var name in Combatants)
+            {
+                int k = _paths.FindIndex(p => System.IO.Path.GetFileName(p) == name);
+                if (k < 0) continue;
+                Launch(k);
+                Offshore();
+                if (_ship.Battery.Guns.Count > 0) break;
+            }
 
         // le vôtre : vous menez la première ligne
         _ship.SetEnsign(_campA.Image, _campA);
@@ -148,13 +164,15 @@ public partial class ShipDemo
         _ship.SyncTransform();
 
         int perSide = SkirmishHulls / 2;
+        // les préférées d'abord, puis tout le reste du dossier : c'est l'essai qui tranche
         var specs = new List<int>();
         foreach (var name in Combatants)
         {
             int k = _paths.FindIndex(p => System.IO.Path.GetFileName(p) == name);
             if (k >= 0) specs.Add(k);
         }
-        if (specs.Count == 0) { Say("Aucun navire de combat dans ships/"); _skirmish = false; Play(); return; }
+        for (int k = 0; k < _paths.Count; k++) if (!specs.Contains(k)) specs.Add(k);
+        if (specs.Count == 0) { Say("Aucune fiche de navire"); _skirmish = false; Play(); return; }
 
         // vous comptez pour un : onze coques à mettre à l'eau, cinq à vous, six en face
         int born = 0;
@@ -162,9 +180,18 @@ public partial class ShipDemo
         {
             bool mine = n < perSide - 1;
             int rank = mine ? n + 1 : n - (perSide - 1);
-            if (!Line(specs[(n + 1) % specs.Count], mine, rank)) continue;
-            born++;
+            // on descend la liste jusqu'à une coque qui porte des pièces
+            for (int t = 0; t < specs.Count; t++)
+            {
+                int idx = specs[(n + 1 + t) % specs.Count];
+                if (_barren.Contains(idx)) continue;
+                if (!Line(idx, mine, rank)) continue;
+                born++;
+                break;
+            }
         }
+        if (born < SkirmishHulls - 1)
+            GD.PushWarning($"escarmouche : {born} coque(s) armee(s) seulement sur {SkirmishHulls - 1} demandees");
 
         var c = MeleeCount();
         GD.Print(FormattableString.Invariant(
@@ -190,6 +217,19 @@ public partial class ShipDemo
         SpawnFleet(1, specIndex, arm: false);
         if (_others.Count == before) return false;
         var s = _others[^1];
+
+        /* PAS DE COQUE DÉSARMÉE DANS LA LIGNE (demandé). Un navire sans pièce ne
+           peut que servir de cible : il fausse le compte des camps et fait durer
+           une bataille qu'il ne peut pas conclure. On la remet au port, et on
+           retient la fiche pour ne pas la rappeler. */
+        if (s.Battery.Guns.Count == 0)
+        {
+            _barren.Add(specIndex);
+            GD.Print($"escarmouche : {s.Spec.Name} n a pas de batterie, ecartee de la ligne");
+            RemoveShip(s);
+            return false;
+        }
+
         var b = s.Physics.Body;
 
         /* EN LIGNE DE FILE, l'une derrière l'autre à cent trente mètres — deux
@@ -230,9 +270,98 @@ public partial class ShipDemo
         if (!_skirmish) return;
         var (a, b) = MeleeCount();
         _meleeLine.Text = $"{CampName(_campA)} {a}   ·   {CampName(_campB)} {b}";
-        if (_meleeDone || (a > 0 && b > 0)) return;
+        if (a > 0 && b > 0) { _meleeJoined = true; return; }
+        if (_meleeDone || !_meleeJoined) return;
         _meleeDone = true;
-        Say(a > 0 ? "La journée est à " + CampName(_campA) + " !"
-                  : b > 0 ? CampName(_campB) + " reste maître de la mer" : "Plus personne à flot");
+        EndMelee(a, b);
+    }
+
+    // ------------------------------------------------------------------
+    //  LE MOT DE LA FIN
+    // ------------------------------------------------------------------
+
+    PanelContainer? _meleePanel;
+    Label? _meleeTitle, _meleeSay;
+
+    /* LE PANNEAU DE LA FIN. Il ne met rien en pause — la mer continue derrière
+       lui, comme le menu d'Échap : une bataille gagnée se regarde depuis le pont,
+       pas depuis un écran noir. Deux sorties seulement : rester en mer sur le
+       champ de bataille, ou rentrer au menu. */
+    void BuildMelee(CanvasLayer layer)
+    {
+        _meleePanel = new PanelContainer
+        {
+            AnchorLeft = 0.5f, AnchorRight = 0.5f, AnchorTop = 0.5f, AnchorBottom = 0.5f,
+            OffsetLeft = -260, OffsetRight = 260, OffsetTop = -140,
+            Visible = false
+        };
+        _meleePanel.AddThemeStyleboxOverride("panel", new StyleBoxFlat
+        {
+            BgColor = new Color(0.04f, 0.06f, 0.09f, 0.94f),
+            BorderColor = new Color(0.55f, 0.44f, 0.20f, 0.9f),
+            BorderWidthLeft = 1, BorderWidthRight = 1, BorderWidthTop = 1, BorderWidthBottom = 1,
+            CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
+            CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
+            ContentMarginLeft = 26, ContentMarginRight = 26, ContentMarginTop = 18, ContentMarginBottom = 20
+        });
+        var box = new VBoxContainer();
+        box.AddThemeConstantOverride("separation", 12);
+        _meleePanel.AddChild(box);
+        layer.AddChild(_meleePanel);
+
+        /* VICTOIRE ou DÉFAITE dans l'anglaise du titre : c'est le seul mot de tout
+           le jeu qu'on veut lire de loin et sans chercher. */
+        _meleeTitle = new Label { HorizontalAlignment = HorizontalAlignment.Center };
+        _meleeTitle.AddThemeFontSizeOverride("font_size", HandFont.Get() != null ? 64 : 40);
+        if (HandFont.Get() is { } hand) _meleeTitle.AddThemeFontOverride("font", hand);
+        box.AddChild(_meleeTitle);
+
+        _meleeSay = new Label
+        {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart
+        };
+        _meleeSay.AddThemeFontSizeOverride("font_size", 16);
+        _meleeSay.AddThemeColorOverride("font_color", new Color(0.93f, 0.92f, 0.88f));
+        box.AddChild(_meleeSay);
+
+        void Entry(string text, Action go)
+        {
+            var b = new Button { Text = text, FocusMode = Control.FocusModeEnum.None, Flat = true };
+            b.AddThemeFontSizeOverride("font_size", 18);
+            b.Pressed += go;
+            box.AddChild(b);
+        }
+        Entry("Rester en mer", () => { if (_meleePanel != null) _meleePanel.Visible = false; });
+        Entry("Menu principal", () => { if (_meleePanel != null) _meleePanel.Visible = false; Open(); MainItems(); });
+    }
+
+    /// <summary>
+    /// QUI A GAGNÉ : le camp du joueur, et non le joueur. Sa coque peut être au
+    /// fond pendant que sa ligne balaie la mer — c'est une victoire, et c'est bien
+    /// ainsi qu'une bataille se compte.
+    /// </summary>
+    void EndMelee(int a, int b)
+    {
+        if (_meleePanel == null || _meleeTitle == null || _meleeSay == null) return;
+        var mine = _ship.Ensign?.Id == _campB?.Id ? _campB : _campA;
+        var his = mine == _campA ? _campB : _campA;
+        int left = mine == _campA ? a : b, gone = mine == _campA ? b : a;
+        bool won = left > 0 && gone == 0;
+
+        _meleeTitle.Text = won ? "Victoire" : gone > 0 ? "Défaite" : "Sans vainqueur";
+        _meleeTitle.AddThemeColorOverride("font_color",
+            won ? new Color(0.95f, 0.84f, 0.42f) : new Color(0.80f, 0.42f, 0.38f));
+        _meleeSay.Text = won
+            ? $"{CampName(his)} n'a plus une coque à flot. {CampName(mine)} reste maître de la mer "
+              + $"avec {left} navire{(left > 1 ? "s" : "")}"
+              + (_ship.Physics.Foundered ? " — mais vous n'êtes plus du nombre." : ".")
+            : gone > 0
+              ? $"{CampName(mine)} n'a plus une coque à flot. {CampName(his)} reste maître de la mer "
+                + $"avec {gone} navire{(gone > 1 ? "s" : "")}."
+              : "Les deux lignes sont au fond. La mer n'est à personne.";
+        _meleePanel.Visible = true;
+        GD.Print($"escarmouche finie : {CampName(_campA)} {a} contre {CampName(_campB)} {b} — "
+               + (won ? "victoire" : gone > 0 ? "defaite" : "sans vainqueur"));
     }
 }

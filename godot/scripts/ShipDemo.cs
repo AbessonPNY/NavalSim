@@ -169,6 +169,7 @@ public partial class ShipDemo : Node3D
         // du quai se mesure sur SON bau
         // ou à l'atterrage, si l'on arrive d'une traversée
         if (!Resume() && !Arrive()) Moor();
+        if (_wantMelee) Skirmish();
         // en DERNIER : il ne s'ouvre que si la ligne de commande ne demande pas
         // autre chose, et il ne touche donc jamais à ce qu'elle vient de régler
         BuildTitle();
@@ -240,6 +241,7 @@ public partial class ShipDemo : Node3D
         BuildGunSide(layer);
         BuildHud(layer);
         BuildPause(layer);
+        BuildMelee(layer);
         BuildStow(layer);
         BuildEncart(layer);
         BuildQuestView(layer);
@@ -1641,8 +1643,12 @@ public partial class ShipDemo : Node3D
                 case Key.Pagedown: _swell = Math.Max(0.4, _swell - 0.15); Restate(); break;
                 case Key.V when k.ShiftPressed: ReefStep(); break;
                 case Key.V: _ship.Ctrl.SailsSet = !_ship.Ctrl.SailsSet; _ship.Ctrl.Canvas = 1; _reef = 0; break;
+                /* N SEUL NE SERT PLUS (demandé). Elle passait à la fiche suivante,
+                   ce qui était bon quand le jeu était un banc d essai de coques : on
+                   choisit désormais son navire au menu, et changer de monture en
+                   pleine mer n était plus qu un moyen de se perdre. ⇧N garde le
+                   panneau de flotte, qui est autre chose. */
                 case Key.N when k.ShiftPressed: ToggleFleetPanel(); break;
-                case Key.N: Launch(_index + 1); break;
                 case Key.F: _follow = !_follow; break;
                 case Key.C: CycleCamera(); break;
                 case Key.X: if (_fixed) Plant(); break;
@@ -2764,6 +2770,9 @@ public partial class ShipDemo : Node3D
         _compass.Show(_chart, x, z, heading, _windNowDeg, _compass.Radius / MetresPerMinute);   // une minute d arc est un mille
     }
 
+    /// <summary>--escarmouche, tenu jusqu apres la mise a quai.</summary>
+    bool _wantMelee;
+
     /// <summary>Le cap que --cap impose, s'il y en a un.</summary>
     double? _askHeading;
 
@@ -2810,8 +2819,11 @@ public partial class ShipDemo : Node3D
                 case "--soute": BlowUp(_ship); break;
                 case "--pirate": SpawnPirate(args[i + 1].ToFloat()); break;
                 case "--fantomes": GoToGhosts(true); break;
-                // la bataille montee d un bloc, sans passer par le menu : elle se mesure aussi
-                case "--escarmouche": Skirmish(); break;
+                /* La bataille montee d un bloc, sans passer par le menu. APRES la
+                   mise a quai et non ici : le mouillage de depart passe apres la
+                   ligne de commande et reposerait le joueur a Port-Royal pendant
+                   que sa ligne attend au large. */
+                case "--escarmouche": _wantMelee = args[i + 1] != "0"; break;
                 case "--lunette": ToggleSpyglass(); break;
                 case "--feu": for (int n = args[i + 1].ToInt(); n > 0; n--) Fire(false, true); break;
                 // le mémento ouvert d emblee, pour le juger a la capture

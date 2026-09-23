@@ -7893,6 +7893,51 @@ ambiguïté (`materials[].normalTexture`), l'œil dans le jeu beaucoup moins : u
 coque plate ressemble à une coque dont la carte est trop faible. Lire le JSON du
 modèle avant de chercher un bogue dans le moteur.
 
+## La fin d'une escarmouche, et qui l'emporte
+
+Un panneau, et le mot en grand : **Victoire** quand le camp du joueur reste
+seul à flot, **Défaite** quand c'est l'autre, « Sans vainqueur » quand les deux
+lignes sont au fond. Il ne met rien en pause — la mer court derrière lui, comme
+le menu d'Échap : une bataille gagnée se regarde depuis le pont. Deux sorties,
+rester en mer ou rentrer au menu.
+
+C'est le **camp** qui gagne, pas le joueur : sa coque peut être au fond pendant
+que sa ligne balaie la mer, et le panneau le dit alors — « mais vous n'êtes plus
+du nombre ». C'est ainsi qu'une bataille se compte.
+
+Une garde qui a l'air de rien : la fin n'est déclarée que si les deux camps ont
+été à flot EN MÊME TEMPS au moins une fois. Sans elle, une ligne à demi mise à
+l'eau se serait proclamée vainqueur avant que l'autre existe.
+
+Les deux chemins ont été joués en headless, en coulant un camp à la sonde :
+« Espagne 6 contre France 0 — victoire », puis « Espagne 0 contre
+Provinces-Unies 6 — defaite ».
+
+## Seules les coques armées entrent en ligne
+
+Une batterie ne se lit qu'une fois le modèle chargé : on ne peut donc pas la
+demander AVANT de mettre une coque à l'eau. La liste des combattants nommés
+n'était qu'une promesse, et la mesure l'a démentie — sur dix fiches, **huit**
+n'ont pas un canon, la Frégate Belliqueuse et la Goélette comprises. Une fiche
+est donc essayée, et renvoyée au port si elle n'a pas de pièce ; la fiche
+stérile est retenue pour ne pas la rappeler onze fois. La liste nommée n'est
+plus qu'un ordre de préférence, et tout le dossier suit derrière.
+
+Restent en ligne le Roter Löwe et le galion pirate — six contre six, tous armés.
+
+**Et un vecteur d'essai qui mentait.** `--escarmouche` était exécuté dans
+`SetupCapture()`, or la mise à quai passe APRÈS la ligne de commande : le joueur
+était reposé à Port-Royal pendant que sa ligne attendait au large. L'argument ne
+lève plus qu'un drapeau, et la bataille se monte après `Moor()`. Une ligne de
+commande qui ne reproduit pas ce que fait le menu ne mesure rien.
+
+## La touche N ne sert plus
+
+Elle passait à la fiche suivante, ce qui était bon quand le jeu était un banc
+d'essai de coques. On choisit son navire au menu désormais, et changer de
+monture en pleine mer n'était plus qu'un moyen de se perdre (demandé). ⇧N garde
+le panneau de flotte, qui est autre chose.
+
 ## Un coup à bout portant vaut deux coups de loin
 
 La distance ne comptait pas : `onStrike` recevait bien la vitesse du boulet —
