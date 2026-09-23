@@ -1123,6 +1123,7 @@ public partial class ShipDemo : Node3D
         StormTick(frame);
         GunTick(frame);
         EncounterTick(frame);
+        CabinTick(frame);
         WreckTick(frame);
         TickSunPanel(frame);
         /* La lueur n'existe pas le jour — bloom.js saute sa passe tant que la nuit
@@ -1930,6 +1931,25 @@ public partial class ShipDemo : Node3D
             : ennemi.Length > 0 ? ennemi : ami);
         _hits = 0;
         _friendly = 0;
+    }
+
+    /* LA PORTE DE LA CHAMBRE — et elle ne claque pas : un huitième de seconde
+       pour aller de l'un à l'autre, sans quoi le changement de vue fait un à-coup
+       dans le son. Une vue enfermée est celle que la fiche dit `closed` ; servir
+       une pièce de chasse est un poste de PONT, donc dehors quoi qu'en dise le
+       pont d'où l'on regarde. */
+    double _indoors;
+
+    void CabinTick(double dt)
+    {
+        if (_sound == null || _ship == null) return;
+        bool inside = _gunPost == null && _camMode == 1
+                   && _deck >= 0 && _deck < _ship.Spec.Decks.Count
+                   && _ship.Spec.Decks[_deck].Closed;
+        double want = inside ? 1 : 0;
+        double step = dt / 0.125;
+        _indoors += Math.Clamp(want - _indoors, -step, step);
+        _sound.Indoors(_indoors);
     }
 
     void Say(string text)

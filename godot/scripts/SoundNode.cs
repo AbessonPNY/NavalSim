@@ -57,8 +57,52 @@ public partial class SoundNode : Node3D
     /// <summary>Les bruitages, qu'on peut couper sans couper la musique.</summary>
     public bool On = true;
 
+    /* LE DEHORS SUR SON PROPRE BUS. Tout partait au Master, si bien qu'il n'y
+       avait aucun endroit où poser une main sur les bruits du large sans toucher
+       aussi à la musique. Un bus à eux, avec un passe-bas, et une chambre peut
+       enfin fermer sa porte. Bâti à la volée plutôt que dans un
+       default_bus_layout.tres : deux réglages ne valent pas un fichier de plus,
+       et celui-ci se lirait mal à côté du code qui s'en sert. */
+    public const string OutBus = "Dehors";
+    AudioEffectLowPassFilter? _muffle;
+    int _outIdx = 0;
+    double _indoorsNow;
+
+    void MakeOutBus()
+    {
+        for (int i = 0; i < AudioServer.BusCount; i++)
+            if (AudioServer.GetBusName(i) == OutBus) { _outIdx = i; break; }
+        if (_outIdx == 0)
+        {
+            AudioServer.AddBus();
+            _outIdx = AudioServer.BusCount - 1;
+            AudioServer.SetBusName(_outIdx, OutBus);
+            AudioServer.SetBusSend(_outIdx, "Master");
+        }
+        for (int e = AudioServer.GetBusEffectCount(_outIdx) - 1; e >= 0; e--)
+            AudioServer.RemoveBusEffect(_outIdx, e);
+        _muffle = new AudioEffectLowPassFilter { CutoffHz = 20500 };
+        AudioServer.AddBusEffect(_outIdx, _muffle);
+        Indoors(0);
+    }
+
+    /* DERRIÈRE UNE CLOISON DE CHÊNE. `k` va de zéro (sur le pont) à un (enfermé).
+       Deux choses ensemble, parce que c'est ce que fait une cloison : elle BAISSE
+       et elle ÉTOUFFE — les aigus passent moins bien que les graves, et c'est
+       l'étouffement, plus que la baisse, qui fait entendre qu'on est dedans. La
+       coupure descend de 20 kHz à 700 Hz, ce qui laisse le canon gronder et
+       emporte le claquement de la toile. */
+    public void Indoors(double k)
+    {
+        _indoorsNow = Math.Clamp(k, 0, 1);
+        if (_muffle != null)
+            _muffle.CutoffHz = (float)(20500 * Math.Pow(700.0 / 20500, _indoorsNow));
+        AudioServer.SetBusVolumeDb(_outIdx, (float)(-11 * _indoorsNow));
+    }
+
     public override void _Ready()
     {
+        MakeOutBus();
         for (int i = 0; i < MaxVivants; i++)
         {
             var p = new AudioStreamPlayer3D
@@ -69,7 +113,8 @@ public partial class SoundNode : Node3D
                 MaxDb = 3,
                 // le filtre de l'air : sa coupure est posée coup par coup, sur la distance
                 AttenuationFilterDb = -24,
-                Bus = "Master"
+                // le large a son bus : une chambre peut l'étouffer sans toucher à la musique
+                Bus = OutBus
             };
             AddChild(p);
             _pool.Add(p);

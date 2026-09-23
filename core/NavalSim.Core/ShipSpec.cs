@@ -183,6 +183,15 @@ public sealed class DeckView
     /// quand le modèle bouge.
     /// </summary>
     [JsonPropertyName("gun")]   public int? Gun { get; set; }
+
+    /// <summary>
+    /// UNE VUE ENFERMÉE — une chambre, une soute, un entrepont. Le dehors s'y
+    /// entend à travers un bordé de chêne : les bruits du large y sont étouffés et
+    /// leurs aigus mangés. C'est la FICHE qui le dit, parce qu'elle seule sait
+    /// laquelle de ses vues a un toit ; le deviner sur le nom d'un pont serait
+    /// juste jusqu'au premier navire qui nomme les siens autrement.
+    /// </summary>
+    [JsonPropertyName("closed")] public bool Closed { get; set; }
 }
 
 /// <summary>Les distances de prise de vue, propres à chaque navire, et ses vues à bord.</summary>

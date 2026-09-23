@@ -7908,6 +7908,29 @@ de son bord avant de l apprendre du sien. Les quatre tournures, jouées :
 - « Un boulet dans un navire de votre pavillon ! »
 - « 3 coups dans un navire de votre pavillon ! »
 
+## Le dehors, étouffé depuis la chambre (Godot)
+
+Dans la chambre du capitaine on entendait la mer comme sur le pont (demandé).
+Le vrai obstacle n'était pas le filtre mais l'ABSENCE D'ENDROIT OÙ LE POSER :
+tout partait au bus Master, musique comprise, donc rien ne permettait de poser
+la main sur les bruits du large sans toucher aussi à l'ambiance. Les voix 3D
+ont maintenant leur bus, bâti à la volée — deux réglages ne valent pas un
+`default_bus_layout.tres` de plus, qui se lirait mal loin du code qui s'en sert.
+
+Ce qu'une cloison de chêne fait, elle le fait DEUX FOIS : elle baisse (−11 dB)
+et elle étouffe (passe-bas de 20 kHz à 700 Hz). C'est le second qui s'entend —
+le canon garde son grondement, le claquement de la toile disparaît. Un huitième
+de seconde pour aller de l'un à l'autre, sans quoi changer de vue fait un
+à-coup dans le son.
+
+Et c'est la FICHE qui dit quelle vue a un toit (`"closed": true`), pas le code :
+deviner sur le nom d'un pont serait juste jusqu'au premier navire qui nomme les
+siens autrement. Servir une pièce de chasse reste un poste de PONT, donc dehors,
+quel que soit le pont d'où l'on regarde.
+
+Mesuré en headless : 20 500 Hz sur le pont, 700 Hz dans la chambre, et le
+retour au plein air quand on en sort.
+
 ## Des voiles sur la mer, et parfois deux aux prises (Godot)
 
 La page croisait des voiles ; le portage n'en croisait aucune, et cette mer
