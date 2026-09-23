@@ -95,13 +95,15 @@
     "spawnMax": 5000,
     "despawn": 9000,
     "pirateChance": 0.25,
+    "battleChance": 0.18,
+    "battleGap": 160,
     "noticeDistance": 600,
     "spyglassRange": 7000,
     "spyglassField": 0.8,
     "landDistance": 2500,
     "spawnFromLand": 1500,
     "clearWater": 400,
-    "exclude": ["bouee-canard", "chaloupe", "cotre", "chaland", "schooner"]
+    "exclude": ["bouee-canard", "chaloupe", "cotre", "barge", "schooner", "caisse-bois", "vedette"]
   },
   "night": {
     "glow": 2.6,

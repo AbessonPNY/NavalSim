@@ -42,7 +42,12 @@ public partial class ShipDemo
        pirate garde le sien — il paraît ici sous le noir, sans ruse d'emprunt. */
     void Colours(ShipNode s)
     {
-        if (!s.HasFlag || IsJolly(s)) return;
+        /* LE PAVILLON D'ABORD, L'ÉTOFFE ENSUITE — la nation se pose même sur une
+           coque qui n'a nulle part où la hisser. Sans cela, une Vedette sans tête
+           de mât croisée en mer n'était d'aucun pays : la vigie l'annonçait comme
+           « un marchand » faute de savoir le dire, et un camp ne l'aurait pas
+           reconnue pour sienne. */
+        if (IsJolly(s)) return;
         if (_nations.Draw(_flagRng.NextDouble) is { } n) s.SetEnsign(n.Image, n);
     }
 }

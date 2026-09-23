@@ -92,6 +92,7 @@ public partial class ShipDemo : IGhostHost
         var angry = new List<ShipNode>();
         foreach (var (k, v) in _hostile) if (v.Foe == s) angry.Add(k);
         foreach (var k in angry) _hostile.Remove(k);
+        _met.Remove(s); _noticed.Remove(s); _bound.Remove(s);
         // et dans la melee : ceux qui la visaient se choisiront quelqu un d autre
         _melee.Remove(s);
         var lost = new List<ShipNode>();

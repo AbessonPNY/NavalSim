@@ -1122,6 +1122,7 @@ public partial class ShipDemo : Node3D
         FallTick(frame, dayBefore);
         StormTick(frame);
         GunTick(frame);
+        EncounterTick(frame);
         WreckTick(frame);
         TickSunPanel(frame);
         /* La lueur n'existe pas le jour — bloom.js saute sa passe tant que la nuit
@@ -1822,6 +1823,7 @@ public partial class ShipDemo : Node3D
             if (root.TryGetProperty("wreck", out var wr) && wr.TryGetProperty("bottleOneIn", out var bo))
                 _bottleOneIn = bo.GetInt32();
             if (root.TryGetProperty("gunnery", out var gu)) _gunRules = GunnerySettings.FromJson(gu);
+            if (root.TryGetProperty("encounters", out var ec)) _metRules = EncounterSettings.FromJson(ec);
             if (root.TryGetProperty("storm", out var st))
             {
                 if (st.TryGetProperty("lightning", out var li)) _lightRules = LightningSettings.FromJson(li);
@@ -2474,6 +2476,19 @@ public partial class ShipDemo : Node3D
         {
             var h = HelmOf(s);
             h.Target = quarry.Body.Pos;
+            h.Update(dt, _sea.Core, s.Ctrl);
+            return;
+        }
+        /* ET UN MARCHAND VA QUELQUE PART. Son but est en mètres VRAIS et la barre
+           travaille en local : l'origine flottante glisse sous lui, donc on le
+           ramène à chaque image plutôt que de retenir un point qui se périmerait
+           au premier déplacement du zéro. */
+        if (_bound.TryGetValue(s, out var port))
+        {
+            var o = _sea.Core.Origin;
+            var h = HelmOf(s);
+            h.Standoff = 0;                         // il va AU port, il ne tourne pas autour
+            h.Target = new Vec3d(port.X - o.X, 0, port.Z - o.Z);
             h.Update(dt, _sea.Core, s.Ctrl);
         }
     }

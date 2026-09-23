@@ -261,6 +261,8 @@ public partial class ShipDemo : Node3D
         foreach (var other in new List<ShipNode>(_others)) RemoveShip(other);
         // et la bataille s'arrête avec eux : on ne repart pas en escarmouche sans le demander
         _skirmish = false; _melee.Clear(); _meleeDone = false;
+        // les voiles croisées s'en vont aussi, et la pendule repart de zéro
+        _met.Clear(); _noticed.Clear(); _bound.Clear(); _nextSail = -1;
         _purse = new Purse(Market.Depart);
         _gameId = "";
         var b = _ship.Physics.Body;

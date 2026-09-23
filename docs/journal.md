@@ -7908,6 +7908,47 @@ de son bord avant de l apprendre du sien. Les quatre tournures, jouées :
 - « Un boulet dans un navire de votre pavillon ! »
 - « 3 coups dans un navire de votre pavillon ! »
 
+## Des voiles sur la mer, et parfois deux aux prises (Godot)
+
+La page croisait des voiles ; le portage n'en croisait aucune, et cette mer
+était vide. Le système est repris tel quel — settings.json → `encounters`, les
+mêmes chiffres que la page lit déjà, `pirateChance` en tête à un quart — avec
+ce qu'il fallait pour Godot et **un ajout demandé**.
+
+Ce qui paraît : loin (4 à 5 km), jamais à moins de 2,5 km d'une côte — on croise
+des voiles AU LARGE, et la pendule attend sans se vider tant qu'on est au port.
+Un marchand va vers un port dont la route est claire d'un bout à l'autre ; un
+pirate vient sur vous. Semée au-delà de neuf kilomètres, la voile est rendue à
+la mer.
+
+**ET PARFOIS DEUX, AUX PRISES.** Une part des rencontres (`battleChance`) n'est
+pas une voile mais une affaire déjà commencée : un pirate qui canonne un navire
+d'une nation, trouvés à cent soixante mètres l'un de l'autre — la distance où
+l'on se bat pour de bon, mesurée pour l'escarmouche. On arrive dessus et l'on
+choisit : passer au large, secourir, ou attendre que l'un ait fini l'autre.
+Rien n'a été inventé pour cela : c'est l'hostilité d'une PAIRE, celle qui
+existe depuis qu'un boulet reçu fait un ennemi, posée d'avance DANS LES DEUX
+SENS — sans quoi le marchand se laisserait battre sans riposter.
+
+Un pirate solitaire, lui, est simplement ARMÉ : choisir sa proie, la chasser,
+cesser le feu pour venir à couple est son métier et il le sait déjà. Mais le
+pirate d'une affaire ne l'est PAS — lui en laisser choisir une autre le ferait
+quitter sa prise pour courir après vous.
+
+**Deux bogues trouvés en la faisant tourner**, et l'un est dans la page aussi :
+la liste d'exclusion disait `chaland` quand l'identifiant de la fiche est
+`barge` — un chaland de port croisait donc l'océan. `caisse-bois` et `vedette`
+la rejoignent. Et `Colours()` ne posait de pavillon que sur une coque qui avait
+où le hisser : une Vedette sans tête de mât n'était d'aucun pays, et la vigie
+l'annonçait comme « un marchand » faute de savoir le dire. Le pavillon se pose
+maintenant d'abord, l'étoffe ensuite — la même correction que l'escarmouche
+avait déjà demandée pour les camps.
+
+Mesuré en headless (pendule ramenée à 4–9 s) : pirates en chasse, marchands en
+route vers leur port, et les paires échangeant des bordées — six, dix, quatorze
+charges brûlées de part et d'autre pendant qu'on les regarde de quatre
+kilomètres.
+
 ## Elles se rangeaient en file au lieu de se battre (Godot)
 
 Capture à l'appui : les douze coques se suivaient sagement et rien ne se
