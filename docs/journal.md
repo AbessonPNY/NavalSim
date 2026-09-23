@@ -7939,10 +7939,10 @@ leurs deux fiches ont la MÊME carène au champ près — 30 m, 7,25 m de bau, 2
 contre 119, 5,95 m³ d'eau contre 6,88. Pas plus résistant, donc. Mais bien plus
 grand, et voici pourquoi.
 
-Le moteur met un  à l'échelle sans rien demander : il prend le maillage de
+Le moteur met un `.glb` à l'échelle sans rien demander : il prend le maillage de
 PLUS GROS VOLUME, mesure son étendue le long de l'axe de longueur, et multiplie
-tout pour que cette étendue vaille la longueur de la fiche (). Les
-deux modèles font gagner le bon maillage — la coque, nommée  chez l'un
+tout pour que cette étendue vaille la longueur de la fiche (`HullScale`). Les
+deux modèles font gagner le bon maillage — la coque, nommée `Plane` chez l'un
 comme chez l'autre. Et là est la surprise :
 
 | | coque dans le fichier | échelle | bau obtenu |
@@ -7959,7 +7959,7 @@ proportions.
 
 Le rapport que la fiche demande est 30/7,25 = 4,138 ; les deux coques valent
 4,374 et 3,841. Pour 6,29 de large, la longueur juste est 26,03 — au pirate
-+7,7 %, à la Roter Löwe −5,4 %.  dit tout cela d'un fichier :
++7,7 %, à la Roter Löwe −5,4 %. `tools/glb-scale.js` dit tout cela d'un fichier :
 qui gagne, de combien, et ce que l'ensemble devient une fois à l'échelle.
 
 ## Ce qui se fait à bord ne passe pas par la cloison (Godot)
