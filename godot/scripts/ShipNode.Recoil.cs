@@ -1,0 +1,209 @@
+using Godot;
+using System;
+using System.Collections.Generic;
+using NavalSim.Core;
+
+namespace NavalSim;
+
+/// <summary>
+/// LE RECUL DES PIÈCES — une bordée qui part et douze tonnes qui reculent.
+///
+/// Les canons d'un modèle vivent dans UN seul maillage : pour qu'une pièce
+/// bouge seule, il faut d'abord la détacher. C'est fait une fois à la mise à
+/// l'eau : les triangles de chaque groupe (ceux que <see cref="FindGuns"/> a
+/// déjà reconnus) passent dans leur propre maillage, posé sur un pivot au
+/// milieu de la pièce ; ce qui reste du bordé garde le sien. Le prix est en
+/// APPELS DE DESSIN — un par pièce —, jamais en calcul : reculer est une
+/// translation par image, et seulement pour celles qui ont tiré.
+///
+/// Le mouvement suit ce que le rechargement dit déjà : elle part en arrière de
+/// ce que la braguier lui laisse, reste là pendant qu'on l'écouvillonne et la
+/// charge, puis revient à la batterie dans les dernières secondes.
+/// </summary>
+public partial class ShipNode
+{
+    sealed class GunPiece
+    {
+        public Node3D Pivot = null!;
+        public Vector3 Home;          // sa place, à la batterie
+        public Vector3 Back;          // le sens du recul, unitaire
+        public double Was = -1;       // l'heure de disponibilité vue au tour d'avant
+        public double Fired = -1, Until = -1;
+    }
+
+    readonly List<GunPiece> _gunPieces = new();
+
+    /// <summary>Ce que la braguier laisse filer, en mètres : le calibre du navire, borné.</summary>
+    double Kick => Math.Clamp(0.05 * Spec.L, 0.4, 1.4);
+    const double OutIn = 0.35;        // le recul lui-même, en secondes
+    const double RunOut = 1.8;        // le retour à la batterie, à la fin du rechargement
+
+    /// <summary>
+    /// Détacher les pièces du maillage qui les porte. Les boîtes sont celles des
+    /// groupes reconnus ; un triangle va à la pièce qui contient son milieu.
+    /// </summary>
+    void SplitGuns(List<(Vector3 Lo, Vector3 Hi)> pieces)
+    {
+        _gunPieces.Clear();
+        if (ModelRoot == null || pieces.Count == 0) return;
+
+        /* SI LE MODÈLE LES A DÉJÀ SÉPARÉES, on ne découpe rien : un maillage dont
+           le NOM dit canon est une pièce, telle quelle. C'est la bonne façon de
+           modeler une batterie — rien à deviner, et l'affût peut venir avec. */
+        var named = new List<MeshInstance3D>();
+        foreach (var (mi, _) in new List<(MeshInstance3D, Transform3D)>(Meshes(ModelRoot)))
+            if (GunNames.IsMatch(mi.Name.ToString())) named.Add(mi);
+        if (named.Count >= pieces.Count && named.Count > 0)
+        {
+            named.Sort((a, b) => (b.GlobalTransform.Origin.Z).CompareTo(a.GlobalTransform.Origin.Z));
+            foreach (var mi in named)
+            {
+                var bb = mi.GetAabb();
+                var centre = mi.Transform * bb.GetCenter();
+                var pivot = new Node3D { Position = centre };
+                AddChild(pivot);
+                mi.Reparent(pivot, true);
+                _gunPieces.Add(new GunPiece { Pivot = pivot, Home = centre });
+            }
+            for (int i = 0; i < Battery.Guns.Count && i < _gunPieces.Count; i++)
+            {
+                var d = Battery.Guns[i].Dir;
+                _gunPieces[i].Back = new Vector3((float)-d.X, 0, (float)-d.Z).Normalized();
+            }
+            RigLog.Add($"batterie : {named.Count} pièce(s) déjà séparées dans le modèle");
+            return;
+        }
+
+        // une pièce par groupe, dans l'ordre où Battery les a rangées
+        var box = new List<(Vector3 Lo, Vector3 Hi)>(pieces);
+        var tris = new List<List<int>>();              // indices, par pièce
+        var mine = new List<(List<Vector3> P, List<Vector3> N, List<Vector2> U)>();
+        for (int i = 0; i < box.Count; i++) { tris.Add(new List<int>()); mine.Add((new(), new(), new())); }
+
+        foreach (var (mi, rel) in new List<(MeshInstance3D, Transform3D)>(Meshes(ModelRoot)))
+        {
+            if (mi.Mesh is not ArrayMesh && mi.Mesh == null) continue;
+            var src = mi.Mesh;
+            bool touched = false;
+            var kept = new List<(Godot.Collections.Array Arrays, Material? Mat)>();
+            for (int s = 0; s < src.GetSurfaceCount(); s++)
+            {
+                var mat = mi.GetActiveMaterial(s);
+                var arr = src.SurfaceGetArrays(s);
+                var V = arr[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                var idxv = arr[(int)Mesh.ArrayType.Index];
+                if (mat == null || !GunNames.IsMatch(mat.ResourceName ?? "") || V.Length == 0 || idxv.VariantType == Variant.Type.Nil)
+                {
+                    kept.Add((arr, mat));
+                    continue;
+                }
+                var N = arr[(int)Mesh.ArrayType.Normal].AsVector3Array();
+                var U = arr[(int)Mesh.ArrayType.TexUV].AsVector2Array();
+                var I = idxv.AsInt32Array();
+                var left = new List<int>();
+                for (int t = 0; t + 2 < I.Length; t += 3)
+                {
+                    var a = rel * V[I[t]]; var b = rel * V[I[t + 1]]; var c = rel * V[I[t + 2]];
+                    var mid = (a + b + c) / 3;
+                    int who = -1;
+                    for (int k = 0; k < box.Count; k++)
+                    {
+                        var (lo, hi) = box[k];
+                        if (mid.X < lo.X - 0.1f || mid.X > hi.X + 0.1f) continue;
+                        if (mid.Y < lo.Y - 0.1f || mid.Y > hi.Y + 0.1f) continue;
+                        if (mid.Z < lo.Z - 0.1f || mid.Z > hi.Z + 0.1f) continue;
+                        who = k; break;
+                    }
+                    if (who < 0) { left.Add(I[t]); left.Add(I[t + 1]); left.Add(I[t + 2]); continue; }
+                    touched = true;
+                    var (P, NN, UU) = mine[who];
+                    for (int e = 0; e < 3; e++)
+                    {
+                        int k2 = I[t + e];
+                        P.Add(rel * V[k2]);
+                        NN.Add(N.Length == V.Length ? (rel.Basis * N[k2]).Normalized() : Vector3.Up);
+                        UU.Add(U.Length == V.Length ? U[k2] : Vector2.Zero);
+                    }
+                    tris[who].Add(mat != null ? 1 : 0);
+                }
+                if (left.Count > 0)
+                {
+                    var outA = new Godot.Collections.Array();
+                    outA.Resize((int)Mesh.ArrayType.Max);
+                    outA[(int)Mesh.ArrayType.Vertex] = V;
+                    if (N.Length == V.Length) outA[(int)Mesh.ArrayType.Normal] = N;
+                    if (U.Length == V.Length) outA[(int)Mesh.ArrayType.TexUV] = U;
+                    outA[(int)Mesh.ArrayType.Index] = left.ToArray();
+                    kept.Add((outA, mat));
+                }
+            }
+            if (!touched) continue;
+            // le maillage d'origine, refait sans les pièces
+            var rebuilt = new ArrayMesh();
+            for (int k = 0; k < kept.Count; k++)
+            {
+                rebuilt.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, kept[k].Arrays);
+                if (kept[k].Mat != null) rebuilt.SurfaceSetMaterial(rebuilt.GetSurfaceCount() - 1, kept[k].Mat);
+            }
+            mi.Mesh = rebuilt;
+        }
+
+        // chaque pièce, sur son pivot, dans le repère du navire
+        for (int k = 0; k < box.Count; k++)
+        {
+            var (P, N, U) = mine[k];
+            if (P.Count < 3) { _gunPieces.Add(new GunPiece { Pivot = new Node3D() }); continue; }
+            var centre = (box[k].Lo + box[k].Hi) * 0.5f;
+            var pos = new Vector3[P.Count];
+            var idx = new int[P.Count];
+            for (int i = 0; i < P.Count; i++) { pos[i] = P[i] - centre; idx[i] = i; }
+            var arrays = new Godot.Collections.Array();
+            arrays.Resize((int)Mesh.ArrayType.Max);
+            arrays[(int)Mesh.ArrayType.Vertex] = pos;
+            arrays[(int)Mesh.ArrayType.Normal] = N.ToArray();
+            arrays[(int)Mesh.ArrayType.TexUV] = U.ToArray();
+            arrays[(int)Mesh.ArrayType.Index] = idx;
+            var mesh = new ArrayMesh();
+            mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
+            var pivot = new Node3D { Position = centre };
+            AddChild(pivot);
+            pivot.AddChild(new MeshInstance3D { Mesh = mesh, MaterialOverride = GunMat });
+            _gunPieces.Add(new GunPiece { Pivot = pivot, Home = centre });
+        }
+
+        // le sens du recul : à l'opposé de la bouche, une fois la batterie rangée
+        for (int i = 0; i < Battery.Guns.Count && i < _gunPieces.Count; i++)
+        {
+            var d = Battery.Guns[i].Dir;
+            _gunPieces[i].Back = new Vector3((float)-d.X, 0, (float)-d.Z).Normalized();
+        }
+    }
+
+    /// <summary>La matière des tubes, retenue au passage pour les pièces détachées.</summary>
+    Material? GunMat;
+
+    /// <summary>
+    /// Une image de recul. Rien ne bouge tant qu'aucune pièce n'a tiré : on ne
+    /// touche qu'à celles dont le rechargement court.
+    /// </summary>
+    public void RecoilTick(double clock)
+    {
+        for (int i = 0; i < _gunPieces.Count && i < Battery.Guns.Count; i++)
+        {
+            var g = Battery.Guns[i];
+            var p = _gunPieces[i];
+            if (p.Pivot == null || !IsInstanceValid(p.Pivot)) continue;
+            // elle vient de tirer : son heure de disponibilité a sauté en avant
+            if (g.ReadyAt > p.Was + 0.01) { p.Fired = clock; p.Until = g.ReadyAt; }
+            p.Was = g.ReadyAt;
+            if (p.Fired < 0) continue;
+            double t = clock - p.Fired, all = Math.Max(0.5, p.Until - p.Fired);
+            double back;
+            if (t < 0 || t > all) { back = 0; p.Fired = -1; }
+            else if (t < OutIn) { double u = t / OutIn; back = u * u * (3 - 2 * u); }
+            else if (t > all - RunOut) { double u = Math.Clamp((all - t) / RunOut, 0, 1); back = u * u * (3 - 2 * u); }
+            else back = 1;
+            p.Pivot.Position = p.Home + p.Back * (float)(back * Kick);
+        }
+    }
+}

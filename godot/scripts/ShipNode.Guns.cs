@@ -43,6 +43,7 @@ public partial class ShipNode
             {
                 var mat = mi.GetActiveMaterial(s);
                 if (mat == null || !GunNames.IsMatch(mat.ResourceName ?? "")) continue;
+                GunMat ??= mat;
                 foreach (var v0 in mi.Mesh.SurfaceGetArrays(s)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
                 {
                     var v = rel * v0;
@@ -114,6 +115,9 @@ public partial class ShipNode
         }
         // la pièce de l'avant d'abord, dans l'ordre où elles tirent
         Battery.Guns.Sort((a, b) => b.P.Z.CompareTo(a.P.Z));
+        // et chacune détachée du bordé, pour pouvoir reculer (ShipNode.Recoil.cs)
+        pieces.Sort((a, b) => ((b.Lo.Z + b.Hi.Z) * 0.5f).CompareTo((a.Lo.Z + a.Hi.Z) * 0.5f));
+        SplitGuns(pieces);
     }
 
     /* LE FLANC QU'UN BOULET DOIT TRAVERSER, et c'est celui du MODÈLE, pas celui du
