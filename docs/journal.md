@@ -7893,6 +7893,21 @@ ambiguïté (`materials[].normalTexture`), l'œil dans le jeu beaucoup moins : u
 coque plate ressemble à une coque dont la carte est trop faible. Lire le JSON du
 modèle avant de chercher un bogue dans le moteur.
 
+## « Ennemi touché ! » en canonnant un ami
+
+Le compteur de coups au but ne regardait que le tireur : tout ce que le joueur
+touchait qui n était pas lui-même comptait pour un ennemi (signalé). Depuis qu
+il y a des camps, cela pouvait être son consort.
+
+Les coups se comptent donc en deux tas, et on ne TAIT pas le second : un boulet
+dans un navire de son pavillon est une faute, et le capitaine doit l apprendre
+de son bord avant de l apprendre du sien. Les quatre tournures, jouées :
+
+- « Ennemi touché ! »
+- « Ennemi touché ! 2 coups au but — et un boulet dans un navire de votre pavillon ! »
+- « Un boulet dans un navire de votre pavillon ! »
+- « 3 coups dans un navire de votre pavillon ! »
+
 ## La fin d'une escarmouche, et qui l'emporte
 
 Un panneau, et le mot en grand : **Victoire** quand le camp du joueur reste

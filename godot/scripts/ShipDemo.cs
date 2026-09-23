@@ -1908,13 +1908,26 @@ public partial class ShipDemo : Node3D
        (un demi-quart de seconde sans touche), avec le compte s il y en a eu
        plusieurs. */
     int _hits;
+    /* ET LES COUPS DANS UN NAVIRE DE SON PROPRE PAVILLON, comptés à part. On
+       annonçait « Ennemi touché ! » en canonnant un ami (signalé) — ce qui n'est
+       pas seulement faux, c'est le contraire de ce qu'il faut entendre. On ne le
+       tait pas pour autant : un boulet dans son consort est une faute, et le
+       capitaine doit l'apprendre de son bord avant de l'apprendre du sien. */
+    int _friendly;
     double _hitsAt = double.NegativeInfinity;
 
     void HitsTick()
     {
-        if (_hits == 0 || _t - _hitsAt < 0.5) return;
-        Say(_hits > 1 ? $"Ennemi touché ! {_hits} coups au but" : "Ennemi touché !");
+        if ((_hits == 0 && _friendly == 0) || _t - _hitsAt < 0.5) return;
+        string ennemi = _hits > 1 ? $"Ennemi touché ! {_hits} coups au but"
+                      : _hits == 1 ? "Ennemi touché !" : "";
+        string ami = _friendly > 1 ? $"{_friendly} coups dans un navire de votre pavillon !"
+                   : _friendly == 1 ? "Un boulet dans un navire de votre pavillon !" : "";
+        Say(ennemi.Length > 0 && ami.Length > 0
+            ? ennemi + " — et " + char.ToLower(ami[0]) + ami[1..]
+            : ennemi.Length > 0 ? ennemi : ami);
         _hits = 0;
+        _friendly = 0;
     }
 
     void Say(string text)
@@ -2187,7 +2200,11 @@ public partial class ShipDemo : Node3D
     {
         if (t.Tag is not ShipNode s) return;
         // un coup au but PORTÉ PAR NOUS : compté ici, dit une fois la bordée finie
-        if (from == _ship.Physics && s != _ship) { _hits++; _hitsAt = _t; }
+        if (from == _ship.Physics && s != _ship)
+        {
+            if (Allied(_ship, s)) _friendly++; else _hits++;
+            _hitsAt = _t;
+        }
         // le choc s'entend de là où le boulet a porté, donc plus tard que la pièce
         _sound?.Crash(world, k, speed, kind);
         // qui a tiré : c'est ce qui permet à un navire de savoir contre qui se retourner
