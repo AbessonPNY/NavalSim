@@ -7876,6 +7876,23 @@ Port-Royal : **4,26 ms/image et 1 169 k triangles, contre 3,12 ms et 514 k** —
 une milliseconde pour quarante-cinq fois la finesse, et seulement là où un
 patch existe.
 
+## Une normal map de 4,2 Mo, et la coque restée plate
+
+Blender exporte volontiers une carte de normales telle qu'elle est entrée :
+celle du bois de la frégate sortait en **16 bits par canal, RGBA** — 1024×1024
+pour 4,2 Mo. Une carte de normales n'a que trois canaux utiles et n'a jamais
+demandé plus de huit bits : ramenée en 8 bits RVB elle tombe à 0,51 Mo, le
+modèle de 6,7 à 3,0 Mo, et la page publiée de 18,7 à 13,6 Mo. Elle venait de
+passer la limite des 16 Mo sans que rien ne le dise avant `node build.js` : le
+poids des textures d'un `.glb` est le poste qui la fait franchir, et un seul
+export distrait suffit.
+
+Deuxième leçon, plus sournoise : la normal map rebranchée dans Blender l'avait
+été sur le mauvais matériau — `wood001` et non `hull`. Le `.glb` le dit sans
+ambiguïté (`materials[].normalTexture`), l'œil dans le jeu beaucoup moins : une
+coque plate ressemble à une coque dont la carte est trop faible. Lire le JSON du
+modèle avant de chercher un bogue dans le moteur.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code
