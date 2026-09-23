@@ -7893,6 +7893,39 @@ ambiguïté (`materials[].normalTexture`), l'œil dans le jeu beaucoup moins : u
 coque plate ressemble à une coque dont la carte est trop faible. Lire le JSON du
 modèle avant de chercher un bogue dans le moteur.
 
+## Les coques se traversaient (Godot)
+
+À l'abordage, une étrave passait au travers du navire visé (signalé). Le
+contact entre bordés n'était pourtant pas à écrire : `ShipPhysics.Collide` le
+fait depuis la page — neuf stations par bord, un ressort qui porte tout le
+poids de la coque à un tiers de mètre de chevauchement, et l'ouverture du
+bordé au-delà de 2,2 m/s. Ce qui manquait tenait en un argument.
+
+`Step()` prend les voisines EN PARAMÈTRE et ne les retient jamais — une liste
+gardée se périme dès que la flotte change, ce qui a déjà coûté un bogue à la
+page. Le portage appelait `Step(dt, mer, commandes, t)` sans le cinquième
+argument : `others` était nul, `Collide` sortait à sa première ligne, et rien
+ne le disait. La liste est donc refaite à chaque image, à côté de celle des
+coques à faire avancer, et les spectres ont la leur — ils ne se cognent
+qu'entre eux, et une étrave leur passe au travers, ce qui est le propre d'un
+spectre.
+
+**Et un banc qui ne regardait pas là.** Aucun des dix scénarios de parité
+n'avait deux coques : le seul morceau du solveur que le portage avait laissé
+muet était aussi le seul que personne ne mesurait. Un onzième les met **à
+couple** — deux frégates bord à bord, 13,5 m d'écart pour 14,5 m de bau, donc
+un mètre de chevauchement au maître-bau dès le premier pas. Elles s'écartent
+de 13,5 à 23,0 m en cinq secondes, le chevauchement relevé culmine à 12,9 cm,
+et les deux moteurs tiennent le même fil à **9·10⁻¹⁶ m**. Le cœur était juste ;
+c'est bien le câblage qui manquait.
+
+En parallèle (`ParallelSolvers`), une coque lit la pose d'une autre pendant
+qu'elle s'écrit. Ce sont des doubles alignés, donc jamais un nombre à moitié
+écrit : au pire une pose d'un sous-pas de retard, quelques millimètres, et le
+ressort y perd un cheveu de sa symétrie. Séquentiellement, la page fait déjà
+pareil — elle avance ses coques l'une après l'autre, et la seconde voit la
+première déjà partie.
+
 ## Un outil pour les textures qui sortent de Blender
 
 La leçon d'au-dessus s'est répétée à l'export suivant — la carte de normales

@@ -337,6 +337,11 @@ public partial class ShipDemo : Node3D
        gerbe dans la réserve COMMUNE d'embrun. Il est mis en file pendant le calcul
        et versé ensuite, sur le fil principal. */
     readonly List<ShipNode> _stepping = new();
+    /* QUI D'AUTRE EST À L'EAU — refait à chaque image et jamais retenu par une
+       coque, pour la raison qui a déjà coûté un bogue à la page : une référence
+       gardée se périme dès que la flotte change. Les spectres ont la leur : ils
+       ne se cognent qu'entre eux, et une étrave passe au travers. */
+    readonly List<ShipPhysics> _afloat = new(), _wraiths = new();
     readonly System.Collections.Concurrent.ConcurrentQueue<(Vec3d At, double Rate, double Speed)> _slamQueue = new();
     int _stepSub;
     double _stepDt, _stepT0;
@@ -349,14 +354,23 @@ public partial class ShipDemo : Node3D
         _stepping.Clear();
         _stepping.Add(_ship);
         _stepping.AddRange(_others);
+        _afloat.Clear(); _wraiths.Clear();
+        foreach (var s in _stepping) (s.IsGhost ? _wraiths : _afloat).Add(s.Physics);
         _stepSub = sub; _stepDt = dt; _stepT0 = t0;
         // un délégué gardé : en recréer un à chaque image serait de la mémoire à ramasser
         _stepOne ??= i =>
         {
             var s = _stepping[i];
             double t = _stepT0;
-            for (int k = 0; k < _stepSub; k++) { s.Physics.Step(_stepDt, _sea.Core, s.Ctrl, t); t += _stepDt; }
+            var near = s.IsGhost ? _wraiths : _afloat;
+            for (int k = 0; k < _stepSub; k++) { s.Physics.Step(_stepDt, _sea.Core, s.Ctrl, t, near); t += _stepDt; }
         };
+        /* EN PARALLÈLE, UNE COQUE LIT LA POSE D'UNE AUTRE PENDANT QU'ELLE S'ÉCRIT.
+           Ce sont des doubles alignés, donc jamais un nombre à moitié écrit : au
+           pire une pose d'un sous-pas de retard, soit quelques millimètres. Le
+           ressort de contact y perd un cheveu de sa symétrie et rien d'autre.
+           Séquentiel, la page fait déjà pareil — elle avance ses coques l'une
+           après l'autre, et la seconde voit la première déjà partie. */
         if (_settings.ParallelSolvers && _stepping.Count > 1)
             System.Threading.Tasks.Parallel.For(0, _stepping.Count, _stepOne);
         else

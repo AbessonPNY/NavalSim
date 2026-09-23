@@ -109,6 +109,21 @@ public static class PhysicsParity
             if (sc.TryGetProperty("glide", out var jgl) && jgl.ValueKind == JsonValueKind.Number)
                 phys.Glide = jgl.GetDouble();
 
+            /* LA SECONDE COQUE, quand le scénario en a une : le contact entre
+               deux bordés est le seul morceau du solveur qu'aucun autre ne
+               prend, et c'est celui que le portage avait laissé muet. */
+            ShipPhysics? mate = null;
+            List<ShipPhysics>? both = null;
+            var mateCtrl = new Controls { Throttle = 0, Rudder = 0, Sheet = 0, SailsSet = false };
+            if (sc.TryGetProperty("consort", out var jco) && jco.ValueKind == JsonValueKind.Object)
+            {
+                var ms = ShipSpec.FromJson(File.ReadAllText(
+                    Path.Combine(shipsDir, jco.GetProperty("ship").GetString() + ".json")));
+                mate = new ShipPhysics(ms, new HullLines(ms));
+                mate.Body.Pos = new Vec3d(jco.GetProperty("dx").GetDouble(), 0, 0);
+                both = new List<ShipPhysics> { phys, mate };
+            }
+
             // --- la barre automatique, si le scénario en a une ---
             AutoHelm? helm = null;
             if (sc.TryGetProperty("helm", out var jh) && jh.ValueKind == JsonValueKind.Array)
@@ -129,7 +144,8 @@ public static class PhysicsParity
             for (int i = 0; i < steps; i++)
             {
                 helm?.Update(dt, ocean, ctrl);
-                phys.Step(dt, ocean, ctrl, t);
+                phys.Step(dt, ocean, ctrl, t, both);
+                mate?.Step(dt, ocean, mateCtrl, t, both);
                 t += dt;
                 if (!(i % 50 == 49 || i == steps - 1)) continue;
                 if (k >= track.GetArrayLength()) break;
@@ -177,6 +193,15 @@ public static class PhysicsParity
                 St("sailLoad", e.GetProperty("load"), phys.SailLoad);
                 St("appWindAngle", e.GetProperty("beta"), phys.AppWindAngle);
                 St("optSheet", e.GetProperty("opt"), phys.OptSheet ?? -99);
+                if (mate != null)
+                {
+                    St("touching", e.GetProperty("touch"), phys.Touching);
+                    St("consort.x", e.GetProperty("mx"), mate.Body.Pos.X);
+                    St("consort.y", e.GetProperty("my"), mate.Body.Pos.Y);
+                    St("consort.z", e.GetProperty("mz"), mate.Body.Pos.Z);
+                    St("consort.touching", e.GetProperty("mtouch"), mate.Touching);
+                    St("consort.floodVol", e.GetProperty("mflood"), mate.FloodVol);
+                }
                 // les bouts d'en face des prises, qui glissent au-delà de leur tenue, et leur tension
                 if (helm != null)
                 {

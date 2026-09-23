@@ -160,7 +160,16 @@ const scenarios = [
     ctrl: { throttle: 0, rudder: 0, sheet: 0.5, sailsSet: true }, helm: [100, 0, 1200] },
   // la glisse d un fantome : tenue a hauteur fixe, droite, la houle passe au travers
   { id: 'glisse',       ship: 'frigate17e', force: 6, deg: 45, steps: 900,
-    ctrl: { throttle: 0, rudder: 0.4, sheet: 0.7, sailsSet: true }, glide: 0.8 }
+    ctrl: { throttle: 0, rudder: 0.4, sheet: 0.7, sailsSet: true }, glide: 0.8 },
+  /* DEUX COQUES A COUPLE, c est a dire l abordage. Elles commencent bord a bord
+     avec un metre de chevauchement au maitre-bau (13,5 m d ecart pour 14,5 m de
+     bau) : le ressort de contact agit des le premier pas, les ecarte, et la
+     vitesse qu elles y prennent ouvre le borde comme sur une roche. C est le
+     seul chemin du solveur qu aucun scenario ne prenait, et celui qui vient de
+     manquer au portage. */
+  { id: 'a-couple',     ship: 'frigate',  force: 3, deg: 90,  steps: 600,
+    ctrl: { throttle: 0, rudder: 0, sheet: 0, sailsSet: false },
+    consort: { ship: 'frigate', dx: 13.5 } }
 ];
 
 for (const sc of scenarios) {
@@ -185,9 +194,21 @@ for (const sc of scenarios) {
   }
   if (sc.glide != null) phys.glide = sc.glide;
 
+  /* LA SECONDE COQUE. Le solveur ne se cogne a personne tant qu on ne lui DONNE
+     pas la liste — elle est passee a chaque pas et jamais retenue, exactement
+     comme la page le fait a chaque image. */
+  let mate = null;
+  if (sc.consort) {
+    const mj = JSON.parse(fs.readFileSync(path.join(root, 'ships', sc.consort.ship + '.json'), 'utf8'));
+    const ms = new Naval.ShipSpec(mj);
+    mate = new Naval.ShipPhysics(ms, new Naval.HullLines(ms));
+    mate.body.pos.x = sc.consort.dx;
+  }
+
   const rec = {
     id: sc.id, ship: sc.ship, force: sc.force, deg: sc.deg, steps: sc.steps,
     ctrl: sc.ctrl, breach: !!sc.breach, grips, helm: sc.helm || null, glide: sc.glide ?? null,
+    consort: sc.consort || null,
     hullVolume: phys.hullVolume,
     probes: phys.probes.length,
     cargoCapacity: phys.cargoCapacity,
@@ -204,9 +225,13 @@ for (const sc of scenarios) {
   const ctrl = Object.assign({}, sc.ctrl);
   let helm = null;
   if (sc.helm) { helm = new Naval.AutoHelm(phys, ctrl); helm.target = new THREE.Vector3(...sc.helm); }
+  const both = mate ? [phys, mate] : null;
+  const mateCtrl = { throttle: 0, rudder: 0, sheet: 0, sailsSet: false };
   for (let i = 0; i < sc.steps; i++) {
     if (helm) helm.update(dt, ocean, ctrl);
+    if (both) { phys.neighbours = both; mate.neighbours = both; }
     phys.step(dt, ocean, ctrl, t);
+    if (mate) mate.step(dt, ocean, mateCtrl, t);
     t += dt;
     // on releve toutes les 50 images : assez pour voir la divergence s installer,
     // assez peu pour que le fichier reste lisible
@@ -226,7 +251,12 @@ for (const sc of scenarios) {
         opt: phys.optSheet === null ? -99 : phys.optSheet,
         // les bouts d'en face, qui glissent quand elle tire plus fort que leur tenue
         gw: phys.grips.map(g => [g.wx, g.wz, g.tension || 0]),
-        rud: ctrl.rudder, sht: ctrl.sheet, beat: helm ? helm.beatSide : 0
+        rud: ctrl.rudder, sht: ctrl.sheet, beat: helm ? helm.beatSide : 0,
+        // a couple : de combien son borde est DANS l autre, et ou l autre en est
+        touch: phys.touching,
+        mx: mate ? mate.body.pos.x : 0, my: mate ? mate.body.pos.y : 0,
+        mz: mate ? mate.body.pos.z : 0, mtouch: mate ? mate.touching : 0,
+        mflood: mate ? mate.floodVol : 0
       });
     }
   }
