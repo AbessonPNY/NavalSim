@@ -7931,6 +7931,37 @@ quel que soit le pont d'où l'on regarde.
 Mesuré en headless : 20 500 Hz sur le pont, 700 Hz dans la chambre, et le
 retour au plein air quand on en sort.
 
+## Pourquoi un modèle sort plus large qu'un autre à longueur égale
+
+Le galion pirate paraissait plus gros que la Roter Löwe (signalé), alors que
+leurs deux fiches ont la MÊME carène au champ près — 30 m, 7,25 m de bau, 240 t,
+463 m² de toile. Mesuré au canon, à distance vraiment égale : 120 coups au bordé
+contre 119, 5,95 m³ d'eau contre 6,88. Pas plus résistant, donc. Mais bien plus
+grand, et voici pourquoi.
+
+Le moteur met un  à l'échelle sans rien demander : il prend le maillage de
+PLUS GROS VOLUME, mesure son étendue le long de l'axe de longueur, et multiplie
+tout pour que cette étendue vaille la longueur de la fiche (). Les
+deux modèles font gagner le bon maillage — la coque, nommée  chez l'un
+comme chez l'autre. Et là est la surprise :
+
+| | coque dans le fichier | échelle | bau obtenu |
+|---|---|---|---|
+| Roter Löwe | 6,29 large × **27,51** long | 30/27,51 = 1,091 | 6,86 m |
+| galion pirate | 6,29 large × **24,16** long | 30/24,16 = 1,242 | **7,81 m** |
+
+**Même largeur dans Blender, longueurs différentes.** Normaliser sur la longueur
+étire la plus courte plus fort, et sa largeur suit : le pirate sort 8 % plus
+large que son propre bau, la Roter Löwe 6 % plus étroite — 14 % d'écart entre
+les deux. Rien n'est cassé dans le code ; c'est la supposition qui l'est.
+Normaliser la longueur ne donne le bon bau que si le modèle a déjà les bonnes
+proportions.
+
+Le rapport que la fiche demande est 30/7,25 = 4,138 ; les deux coques valent
+4,374 et 3,841. Pour 6,29 de large, la longueur juste est 26,03 — au pirate
++7,7 %, à la Roter Löwe −5,4 %.  dit tout cela d'un fichier :
+qui gagne, de combien, et ce que l'ensemble devient une fois à l'échelle.
+
 ## Ce qui se fait à bord ne passe pas par la cloison (Godot)
 
 Le bruit du bois qui éclate sous un boulet ne parvenait plus dans la chambre
