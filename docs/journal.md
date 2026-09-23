@@ -7898,19 +7898,21 @@ modèle avant de chercher un bogue dans le moteur.
 Une sortie en jeu libre enregistrée depuis Échap se retrouvait dans la liste de
 l'**Histoire** : le fichier ne disait pas d'où la partie venait, et la seule
 liste qui existait était celle du chapitre (signalé). Une partie porte donc
-désormais son `mode` — `histoire` ou `libre` —, et le Jeu libre a sa propre
-liste, avec « Nouvelle partie » et l'effacement en deux temps, comme l'autre.
+désormais son `mode` — `histoire`, `mission` ou `libre` —, et chacun des trois
+menus a sa liste, avec sa nouvelle partie et l'effacement en deux temps.
 
-Deux choix qui méritent d'être écrits. **Une mission n'est pas l'Histoire** :
-elle se joue par-dessus le jeu libre, sa partie va donc dans la liste libre, et
-sa quête repart où elle en était puisque le carnet de quêtes voyage avec le
-fichier. **Les anciennes parties se rangent seules** : avant le champ `mode`,
+Deux choix qui méritent d'être écrits. **Trois menus, trois listes** : une
+mission n'est ni l'Histoire ni le jeu libre, elle garde donc les siennes, sous
+« Missions » — et sa quête repart où elle en était puisque le carnet de quêtes
+voyage avec le fichier. **Les anciennes parties se rangent seules** : avant le
+champ `mode`,
 celles qui n'avaient pas de quête active étaient des parties libres, et leur
 propre carnet (`"active": null`) le dit — aucune migration à écrire, huit
 fichiers déjà sur le disque classés sans y toucher.
 
-Et le Jeu libre ne montre sa liste que s'il a quelque chose à proposer : sans
-partie enregistrée il prend la mer tout de suite, comme avant.
+Et un menu ne montre sa liste que s'il a quelque chose à proposer : sans partie
+enregistrée, le Jeu libre prend la mer tout de suite et « Missions » ouvre
+directement le choix des missions, comme avant.
 
 ## Conventions
 

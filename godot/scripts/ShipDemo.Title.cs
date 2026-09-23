@@ -18,7 +18,8 @@ namespace NavalSim;
 ///
 /// JEU LIBRE : le port de départ, sans quête. HISTOIRE : le premier chapitre
 /// qu'on n'a pas fini (les fiches `kind: story`, dans l'ordre de `chapter`).
-/// MISSIONS : la liste des autres, à choisir.
+/// MISSIONS : les autres quêtes, à choisir. Chacun des trois garde ses propres
+/// parties enregistrées : une mission ne va pas dans la liste de l'Histoire.
 ///
 /// Il ne redouble RIEN : « Options » ouvre le menu d'Échap, qui existe et qui
 /// est complet. Un second jeu de réglages aurait dérivé du premier en trois
@@ -178,8 +179,20 @@ public partial class ShipDemo : Node3D
         ShowPick();
     }
 
-    /// <summary>La liste des missions, à la place des entrées — et le retour.</summary>
+    /// <summary>
+    /// LES MISSIONS ont leurs parties comme les deux autres modes : on reprend
+    /// celle qu'on avait laissée, ou on en commence une neuve. Sans partie
+    /// enregistrée, la liste des missions s'ouvre tout de suite — il n'y a rien
+    /// à choisir avant.
+    /// </summary>
     void MissionItems()
+    {
+        if (Saves("mission").Count == 0) { MissionPick(); return; }
+        GameItems("mission", "Nouvelle mission", MissionPick);
+    }
+
+    /// <summary>Les missions qu'on peut commencer, et le retour.</summary>
+    void MissionPick()
     {
         ClearItems();
         if (_quests != null)
@@ -191,7 +204,8 @@ public partial class ShipDemo : Node3D
                 Item((q.Title.Length > 0 ? q.Title : q.Id) + done, () => StartQuest(id), 30);
             }
         if (_titleItems.Count == 0) Item("Aucune mission", () => { }, 30);
-        Item("Retour", MainItems, 34);
+        // on revient d'où l'on venait : la liste des parties s'il y en a
+        Item("Retour", () => { if (Saves("mission").Count > 0) MissionItems(); else MainItems(); }, 34);
         ShowPick();
     }
 
