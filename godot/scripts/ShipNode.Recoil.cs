@@ -45,7 +45,7 @@ public partial class ShipNode
     void SplitGuns(List<(Vector3 Lo, Vector3 Hi)> pieces)
     {
         _gunPieces.Clear();
-        if (ModelRoot == null || pieces.Count == 0) return;
+        if (ModelRoot == null) return;
 
         /* SI LE MODÈLE LES A DÉJÀ SÉPARÉES, on ne découpe rien : un maillage dont
            le NOM dit canon est une pièce, telle quelle. C'est la bonne façon de
@@ -53,7 +53,7 @@ public partial class ShipNode
         var named = new List<MeshInstance3D>();
         foreach (var (mi, _) in new List<(MeshInstance3D, Transform3D)>(Meshes(ModelRoot)))
             if (GunNames.IsMatch(mi.Name.ToString())) named.Add(mi);
-        if (named.Count >= pieces.Count && named.Count > 0)
+        if (named.Count > 0 && (pieces.Count == 0 || named.Count >= pieces.Count))
         {
             named.Sort((a, b) => (b.GlobalTransform.Origin.Z).CompareTo(a.GlobalTransform.Origin.Z));
             foreach (var mi in named)
@@ -134,6 +134,12 @@ public partial class ShipNode
                 }
             }
             if (!touched) continue;
+            /* TOUT EST PARTI DANS LES PIÈCES : le maillage d'origine n'a plus une
+               seule surface, et un ArrayMesh vide rendu ensuite jette « surface 0
+               hors bornes » — ce qui faisait échouer la mise à l'eau en plein
+               milieu et laissait une coque orpheline, immobile et intouchable,
+               plantée à l'origine locale (signalé). */
+            if (kept.Count == 0) { mi.Mesh = null; mi.Visible = false; continue; }
             // le maillage d'origine, refait sans les pièces
             var rebuilt = new ArrayMesh();
             for (int k = 0; k < kept.Count; k++)
@@ -203,6 +209,19 @@ public partial class ShipNode
     /// Une image de recul. Rien ne bouge tant qu'aucune pièce n'a tiré : on ne
     /// touche qu'à celles dont le rechargement court.
     /// </summary>
+    /// <summary>
+    /// CETTE PIÈCE VIENT DE PARLER. Dit par l'artillerie au COUP (Gunnery.OnFire),
+    /// et non quand l'ordre est donné : une bordée s'égrène le long du bord, et
+    /// c'est la mèche qui fait reculer, pas la main sur la touche.
+    /// </summary>
+    public void Recoil(Gun g, double clock)
+    {
+        int i = Battery.Guns.IndexOf(g);
+        if (i < 0 || i >= _gunPieces.Count) return;
+        _gunPieces[i].Fired = clock;
+        _gunPieces[i].Until = g.ReadyAt;
+    }
+
     public void RecoilTick(double clock)
     {
         for (int i = 0; i < _gunPieces.Count && i < Battery.Guns.Count; i++)
@@ -210,9 +229,6 @@ public partial class ShipNode
             var g = Battery.Guns[i];
             var p = _gunPieces[i];
             if (p.Pivot == null || !IsInstanceValid(p.Pivot)) continue;
-            // elle vient de tirer : son heure de disponibilité a sauté en avant
-            if (g.ReadyAt > p.Was + 0.01) { p.Fired = clock; p.Until = g.ReadyAt; }
-            p.Was = g.ReadyAt;
             if (p.Fired < 0) continue;
             double t = clock - p.Fired, all = Math.Max(0.5, p.Until - p.Fired);
             double back;

@@ -27,7 +27,7 @@ public partial class ShipDemo
         _gunBar.AddThemeConstantOverride("separation", 6);
         layer.AddChild(_gunBar);
         // l'ordre de Tab, pour que le doigt et la touche parcourent la même batterie
-        foreach (int side in new[] { -1, 1, 2, -2 })
+        foreach (int side in new[] { -1, 1, -3, -2, 3, 2 })
         {
             int s = side;
             var b = new Button { FocusMode = Control.FocusModeEnum.None, Visible = false };
@@ -55,6 +55,8 @@ public partial class ShipDemo
         if (!_ship.Battery.Has(side) || _gunSide == side) return;
         _gunSide = side;
         Say("En batterie : " + GunNames[side]);
+        // et l'œil derrière la pièce quand c'est une pièce de chasse
+        SetGunPost(Math.Abs(side) >= 2 ? side : (int?)null);
         GunSideTick();
     }
 

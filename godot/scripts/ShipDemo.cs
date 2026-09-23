@@ -284,6 +284,11 @@ public partial class ShipDemo : Node3D
         {
             var s = new ShipNode { LanternShadows = _settings.LanternShadows, WithMastLantern = _settings.MastLantern };
             AddChild(s);
+            /* UNE MISE À L EAU QUI ÉCHOUE NE LAISSE RIEN : sans cela, une coque à
+               demi née restait dans la scène sans être de la flotte — immobile,
+               intouchable, collée à l origine locale (signalé). */
+            try
+            {
             s.Build(spec);
             s.Physics.World = _world;
             s.Ctrl.SailsSet = true;
@@ -303,6 +308,13 @@ public partial class ShipDemo : Node3D
             _others.Add(s);
             if (arm) Arm(s);
             Colours(s);
+            }
+            catch (Exception e)
+            {
+                GD.PushWarning($"[{spec.Id}] mise à l eau abandonnée : {e.Message}");
+                if (_others.Remove(s)) _fleet.Remove(s.Physics);
+                RemoveChild(s); s.QueueFree();
+            }
         }
         GD.Print($"flotte d'essai : {n} × {spec.Name}");
         Sweep();
@@ -1238,7 +1250,35 @@ public partial class ShipDemo : Node3D
     double _bridgeYaw, _bridgePitch;
     const float OutsideFov = 55, OutsideNear = 0.05f;
 
-    string CamName() => _camMode switch
+    /* SERVIR UNE PIÈCE DE CHASSE : la choisir dans le panneau des bordées MET
+       L'ŒIL DERRIÈRE ELLE, dans son axe — on ne pointe pas un canon de chasse
+       sans le voir. Ce n'est pas une vue de la fiche : elle n'a rien à y faire,
+       puisqu'elle suit la pièce. Changer de vue (C) ou reprendre un bord la
+       rend. */
+    int? _gunPost;
+    static readonly NavalSim.Core.DeckView PostView = new()
+    { Y = 0.55, Z = 2.2, Pitch = -2, Fov = 45, Near = 0.08 };
+
+    void SetGunPost(int? side)
+    {
+        if (_gunPost == side) return;
+        _gunPost = side;
+        if (side is int s && GunEye(s, PostView) != null)
+        {
+            SetLens((float)(PostView.Fov ?? OutsideFov), (float)(PostView.Near ?? OutsideNear));
+            _bridgeYaw = 0; _bridgePitch = 0;
+            Say("À la pièce de " + GunNames[s]);
+        }
+        else
+        {
+            _gunPost = null;
+            if (_camMode == 1) EnterDeck();
+            else SetLens(OutsideFov, OutsideNear);
+        }
+        UpdateInfo();
+    }
+
+    string CamName() => _gunPost is int post ? "Pièce de " + GunNames[post] : _camMode switch
     {
         1 => _ship.Spec.Decks[_deck].Name,
         2 => "Fixe",
@@ -1253,6 +1293,7 @@ public partial class ShipDemo : Node3D
     /// </summary>
     void CycleCamera()
     {
+        SetGunPost(null);                 // changer de vue quitte la pièce
         DryLens();
         if (_camMode == 0) { _camMode = 1; _deck = 0; EnterDeck(); }
         else if (_camMode == 1 && _deck + 1 < _ship.Spec.Decks.Count) { _deck++; EnterDeck(); }
@@ -1279,6 +1320,16 @@ public partial class ShipDemo : Node3D
     {
         var spec = _ship.Spec;
         var v = spec.Decks[_deck];
+        /* DERRIÈRE LA PIÈCE, DANS SON AXE : la vue d'une pièce se pose sur elle
+           et non sur des coordonnées écrites à la main — un canon de chasse
+           ouvert de 38° emmène sa vue avec lui. */
+        if (v.Gun is int side && GunEye(side, v) is { } poste)
+        {
+            var xf0 = _ship.GlobalTransform;
+            _cam.Position = xf0 * poste.At;
+            _cam.LookAt(xf0 * (poste.At + poste.Dir * 120f), Vector3.Up);
+            return;
+        }
         double k = spec.L / 24;
         // l'œil : hauteur au-dessus de la flottaison ; absente, l'ancienne règle de la passerelle
         double x = v.X ?? (v.XFrac ?? 0) * spec.B;
@@ -1291,6 +1342,32 @@ public partial class ShipDemo : Node3D
         var xf = _ship.GlobalTransform;
         _cam.Position = xf * eye;
         _cam.LookAt(xf * (eye + dir * (float)(120 * k)), Vector3.Up);
+    }
+
+    /// <summary>
+    /// L'ŒIL D'UN SERVANT : sur l'axe du tube, deux mètres derrière la bouche et
+    /// un demi-mètre au-dessus, regard le long de la pièce (plus le débattement
+    /// que la souris a donné). Nulle si la coque n'a pas cette pièce.
+    /// </summary>
+    (Vector3 At, Vector3 Dir)? GunEye(int side, NavalSim.Core.DeckView v)
+    {
+        foreach (var g in _ship.Battery.Guns)
+        {
+            if (g.Side != side || g.Out) continue;
+            var dir = new Vector3((float)g.Dir.X, 0, (float)g.Dir.Z).Normalized();
+            double yaw = (v.Yaw + _bridgeYaw * 180 / Math.PI) * Math.PI / 180;
+            if (yaw != 0)
+            {
+                double c = Math.Cos(yaw), s = Math.Sin(yaw);
+                dir = new Vector3((float)(dir.X * c + dir.Z * s), 0, (float)(-dir.X * s + dir.Z * c)).Normalized();
+            }
+            double pitch = (v.Pitch) * Math.PI / 180 + _bridgePitch;
+            var look = new Vector3((float)(dir.X * Math.Cos(pitch)), (float)Math.Sin(pitch), (float)(dir.Z * Math.Cos(pitch)));
+            var at = new Vector3((float)g.P.X, (float)g.P.Y, (float)g.P.Z)
+                   - dir * (float)(v.Z ?? 2.2) + new Vector3(0, (float)(v.Y ?? 0.55), 0);
+            return (at, look.Normalized());
+        }
+        return null;
     }
 
     void UpdateCamera(double delta)
@@ -1315,6 +1392,15 @@ public partial class ShipDemo : Node3D
         {
             _cam.Position = fe;
             _cam.LookAt(_fixLook ?? Vector3.Zero, Vector3.Up);
+            return;
+        }
+
+        // à la pièce de chasse, s'il y en a une en batterie : l'œil est sur son axe
+        if (_gunPost is int post2 && GunEye(post2, PostView) is { } poste2)
+        {
+            var xfp = _ship.GlobalTransform;
+            _cam.Position = xfp * poste2.At;
+            _cam.LookAt(xfp * (poste2.At + poste2.Dir * 120f), Vector3.Up);
             return;
         }
 
@@ -2008,7 +2094,15 @@ public partial class ShipDemo : Node3D
        souvenir : +1 tribord, −1 bâbord, +2 poupe, −2 proue — « l'autre » est le négatif. */
     int _gunSide = 1;
     bool _salvo;
-    static readonly Dictionary<int, string> GunNames = new() { [1] = "tribord", [-1] = "bâbord", [2] = "poupe", [-2] = "proue" };
+    /* LES GROUPES : les deux bords, puis la chasse, qui se sert par bord elle
+       aussi — une pièce de proue à tribord ne pointe pas là où celle de bâbord
+       pointe. Une pièce dans l'axe garde le groupe sans bord (±2). */
+    static readonly Dictionary<int, string> GunNames = new()
+    {
+        [1] = "tribord", [-1] = "bâbord",
+        [-2] = "proue tribord", [-3] = "proue bâbord",
+        [2] = "poupe tribord", [3] = "poupe bâbord"
+    };
 
     ShotTarget TargetOf(ShipNode s)
     {
@@ -2023,11 +2117,16 @@ public partial class ShipDemo : Node3D
 
     void WireGuns()
     {
-        _gunnery.OnFire = (at, dir, k, floor, ph) =>
+        _gunnery.OnFire = (at, dir, k, floor, ph, gun) =>
         {
             _gunFx.Gun(new Vector3((float)at.X, (float)at.Y, (float)at.Z), new Vector3((float)dir.X, (float)dir.Y, (float)dir.Z), k, floor);
             // la flamme ici, le bruit quand il arrive : c'est le même événement
             _sound?.Boom(at, k);
+            /* ET LA PIÈCE PART EN ARRIÈRE AU COUP, pas à l'ordre : une bordée
+               s'égrène le long du bord, et c'est la mèche qui fait reculer, pas
+               la main sur G (signalé). */
+            if (_ship.Physics == ph) _ship.Recoil(gun, _gunnery.Clock);
+            else foreach (var s in _others) if (s.Physics == ph) { s.Recoil(gun, _gunnery.Clock); break; }
         };
         /* Un boulet fait un trou ÉTROIT dans l'eau très vite : une colonne haute et
            mince, pas un dôme — le volume est borné par la réserve d'embrun, pour
@@ -2146,7 +2245,7 @@ public partial class ShipDemo : Node3D
 
     void CycleGunSide()
     {
-        int[] order = { 1, -1, 2, -2 };
+        int[] order = { 1, -1, -2, -3, 2, 3 };
         int i = Array.IndexOf(order, _gunSide);
         for (int n = 1; n <= 4; n++)
         {
@@ -2154,6 +2253,8 @@ public partial class ShipDemo : Node3D
             if (_ship.Battery.Has(s)) { _gunSide = s; break; }
         }
         Say("En batterie : " + GunNames[_gunSide]);
+        // une pièce de chasse se sert à l œil : la caméra va derrière elle
+        SetGunPost(Math.Abs(_gunSide) >= 2 ? _gunSide : (int?)null);
         GunSideTick();
         HudTick();
     }

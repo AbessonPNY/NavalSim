@@ -176,6 +176,13 @@ public sealed class DeckView
     [JsonPropertyName("pitch")] public double Pitch { get; set; }
     [JsonPropertyName("fov")]   public double? Fov { get; set; }
     [JsonPropertyName("near")]  public double? Near { get; set; }
+    /// <summary>
+    /// SERVIR UNE PIÈCE : le groupe (+1 tribord, −1 bâbord, ∓2 et ∓3 la chasse
+    /// par bord). L'œil se place alors DANS L'AXE du canon et derrière lui, et
+    /// regarde où il pointe — la fiche n'a plus de coordonnées à tenir à jour
+    /// quand le modèle bouge.
+    /// </summary>
+    [JsonPropertyName("gun")]   public int? Gun { get; set; }
 }
 
 /// <summary>Les distances de prise de vue, propres à chaque navire, et ses vues à bord.</summary>

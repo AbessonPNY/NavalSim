@@ -36,6 +36,8 @@ public partial class ShipNode
     {
         Battery.Guns.Clear();
         if (ModelRoot == null) return;              // une coque procédurale ne porte pas de batterie
+        // un modèle qui NOMME ses pièces dit tout : on ne devine plus rien
+        if (NamedGuns()) return;
         const float cell = 0.45f;
         var grid = new Dictionary<(int, int, int), List<Vector3>>();
         foreach (var (mi, rel) in Meshes(ModelRoot))
@@ -110,8 +112,15 @@ public partial class ShipNode
             }
             else
             {
+                /* UNE PIÈCE DE CHASSE SE SERT PAR BORD. Deux canons de proue ne
+                   pointent pas ensemble — on vise avec CELUI qui porte —, et les
+                   servir d'un même ordre est ce qui faisait partir les deux pour
+                   une seule cible (signalé). Le bord suit la position : tribord
+                   est −x, et une pièce dans l'axe reste sans bord (±2). */
                 bool fore = c.Z > 0;
-                g.Side = fore ? -2 : 2;
+                bool axial = Math.Abs(c.X) < 0.35f * Math.Max(0.5f, hi.X - lo.X);
+                int board = axial ? 0 : (c.X < 0 ? 1 : -1);      // +1 tribord, −1 bâbord
+                g.Side = fore ? (board >= 0 ? -2 : -3) : (board >= 0 ? 2 : 3);
                 g.P = new Vec3d(c.X, c.Y, fore ? hi.Z : lo.Z);
                 g.Dir = new Vec3d(0, 0, fore ? 1 : -1);
                 g.Chase = cal < 0.9;
@@ -123,6 +132,76 @@ public partial class ShipNode
         // et chacune détachée du bordé, pour pouvoir reculer (ShipNode.Recoil.cs)
         pieces.Sort((a, b) => ((b.Lo.Z + b.Hi.Z) * 0.5f).CompareTo((a.Lo.Z + a.Hi.Z) * 0.5f));
         SplitGuns(pieces);
+    }
+
+    /* LES PIÈCES QUE LE MODÈLE NOMME — et qui disent leur ORIENTATION.
+
+       Un canon de chasse n'est pas parallèle à la quille : celui de la frégate
+       ouvre de 38° vers le dehors, pivot compris, et une boîte englobante ne
+       peut pas le dire (signalé). Quand les pièces sont des objets nommés, tout
+       se lit donc sur elles : l'AXE DU TUBE est leur plus longue dimension dans
+       LEUR repère, tournée par leur pose ; la bouche est au bout de cet axe ;
+       l'âme est la plus petite des deux autres. Le groupe suit la direction —
+       en travers c'est une pièce de bordée, vers l'avant ou l'arrière une pièce
+       de chasse, servie par bord.
+
+       Faux s'il n'y en a pas : le regroupement par matière reprend la main. */
+    bool NamedGuns()
+    {
+        var found = new List<(MeshInstance3D Mi, Transform3D Rel)>();
+        foreach (var (mi, rel) in Meshes(ModelRoot!))
+            if (GunNames.IsMatch(mi.Name.ToString())) found.Add((mi, rel));
+        if (found.Count == 0) return false;
+
+        var read = new List<(Vector3 At, Vector3 Dir, float Bore, float Half)>();
+        foreach (var (mi, rel) in found)
+        {
+            var box = mi.Mesh.GetAabb();
+            var e = box.Size;
+            // l'axe du tube : la plus longue dimension DANS SON REPÈRE
+            Vector3 axis = e.X >= e.Y && e.X >= e.Z ? Vector3.Right : e.Y >= e.Z ? Vector3.Up : Vector3.Back;
+            float len = Math.Max(e.X, Math.Max(e.Y, e.Z));
+            // l'âme : la plus petite des deux mesures en travers — l'affût élargit l'autre
+            float bore = Math.Min(axis == Vector3.Right ? Math.Min(e.Y, e.Z) : axis == Vector3.Up ? Math.Min(e.X, e.Z) : Math.Min(e.X, e.Y), len);
+            var at = rel * box.GetCenter();
+            var dir = (rel.Basis * axis);
+            dir = new Vector3(dir.X, 0, dir.Z).Normalized();
+            if (dir.LengthSquared() < 0.5f) dir = new Vector3(at.X < 0 ? -1 : 1, 0, 0);
+            // la bouche regarde DEHORS : le sens qui s'éloigne du milieu du navire
+            if (dir.X * at.X + dir.Z * at.Z < 0) dir = -dir;
+            float scale = rel.Basis.Scale.X;
+            read.Add((at, dir, bore * scale, len * 0.5f * scale));
+        }
+
+        // l'âme de la bordée donne l'échelle des calibres
+        var bores = new List<float>();
+        foreach (var (at, dir, bore, _) in read) if (Math.Abs(dir.X) >= Math.Abs(dir.Z)) bores.Add(bore);
+        bores.Sort();
+        float refBore = bores.Count > 0 ? bores[bores.Count >> 1] : 0;
+
+        foreach (var (at, dir, bore, half) in read)
+        {
+            bool across = Math.Abs(dir.X) >= Math.Abs(dir.Z);
+            double cal = refBore > 0 ? Math.Clamp(bore / refBore, 0.5, 1.5) : 1;
+            var g = new Gun { Cal = cal };
+            if (across) g.Side = dir.X < 0 ? 1 : -1;                 // tribord est −x
+            else
+            {
+                bool fore = dir.Z > 0;
+                bool axial = Math.Abs(at.X) < 0.35f;
+                int board = axial ? 0 : (at.X < 0 ? 1 : -1);
+                g.Side = fore ? (board >= 0 ? -2 : -3) : (board >= 0 ? 2 : 3);
+                g.Chase = cal < 0.9;
+            }
+            var muzzle = at + dir * half;
+            g.P = new Vec3d(muzzle.X, muzzle.Y, muzzle.Z);
+            g.Dir = new Vec3d(dir.X, 0, dir.Z);
+            Battery.Guns.Add(g);
+        }
+        Battery.Guns.Sort((a, b) => b.P.Z.CompareTo(a.P.Z));
+        SplitGuns(new List<(Vector3 Lo, Vector3 Hi)>());
+        RigLog.Add($"batterie : {Battery.Guns.Count} pièce(s) lues sur le modèle, orientation comprise");
+        return true;
     }
 
     /* LE FLANC QU'UN BOULET DOIT TRAVERSER, et c'est celui du MODÈLE, pas celui du

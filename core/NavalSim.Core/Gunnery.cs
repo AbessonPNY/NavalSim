@@ -119,7 +119,8 @@ public sealed class Gunnery
     readonly List<Queued> _queue = new();
 
     /// <summary>Une pièce parle : sa bouche (monde local), l'axe du coup, son calibre, la mer sous elle, et qui a tiré.</summary>
-    public Action<Vec3d, Vec3d, double, double, ShipPhysics>? OnFire;
+    /// <summary>Une pièce parle : sa bouche, l axe du coup, son calibre, la mer sous elle, qui a tiré, et LAQUELLE — c est elle qui recule.</summary>
+    public Action<Vec3d, Vec3d, double, double, ShipPhysics, Gun>? OnFire;
     /// <summary>Un coup au but : la cible, « mast » ou « hull », l'indice, la hauteur en part de son creux, la vitesse, le calibre, qui a tiré, où, dans quel sens.</summary>
     public Action<ShotTarget, string, int, double, double, double, ShipPhysics, Vec3d, Vec3d>? OnStrike;
     /// <summary>Un boulet dans la mer : où, et la gerbe qu'il lève.</summary>
@@ -254,7 +255,7 @@ public sealed class Gunnery
         Vec3d tq = arm.Cross(push);
         body.AngVel = body.AngVel + new Vec3d(tq.X / body.Ib.X, tq.Y / body.Ib.Y, tq.Z / body.Ib.Z);
 
-        OnFire?.Invoke(at, outDir, k, sea, ship);
+        OnFire?.Invoke(at, outDir, k, sea, ship, g);
     }
 
     static Vec3d RotateAbout(Vec3d v, Vec3d axis, double a)
