@@ -92,6 +92,7 @@ public partial class ShipNode
         d.Down = f;
         // passer par-dessus bord, c'est là que tout lâche à la fois
         CutRigging(i, 4);
+        SnapLines(i, true);          // et les cordages de ce mât s'en vont avec lui
         return true;
     }
 
@@ -221,6 +222,8 @@ public partial class ShipNode
             d.Fall.Position = new Vector3(0, (float)d.Heel, d.Fall.Position.Z);   // elle revient où elle était plantée
             d.Fall.Visible = true;
         }
+        // un radoub renvergue aussi ses cordages
+        for (int i = 0; i < _damage.Count; i++) SnapLines(i, false);
     }
 
     /// <summary>

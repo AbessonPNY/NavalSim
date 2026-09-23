@@ -74,8 +74,57 @@ public partial class ShipNode
     static string RepoRoot =>
         System.IO.Path.GetDirectoryName(ShipLibrary.Folder.TrimEnd('/', '\\')) ?? "";
 
+    /// <summary>
+    /// CE QUE LE NOM DIT. Deux pièces d'un modèle appartiennent à un mât sans
+    /// qu'aucune mesure ne puisse le deviner : la VIGIE, qui en fait partie et
+    /// tombe avec lui, et le CORDAGE, qui n'accompagne rien — il casse et s'en
+    /// va. Le nom du maillage les désigne (« vigie… », « hune… », « cordage… »,
+    /// « hauban… ») et le mât le plus proche en station les reçoit.
+    /// </summary>
+    readonly List<(MeshInstance3D Mi, int Mast)> _snapped = new();
+
+    void NameParts(List<Part> parts)
+    {
+        foreach (var p in parts)
+        {
+            if (p.Taken) continue;
+            string n = p.Mi.Name.ToString().ToLowerInvariant();
+            bool lookout = n.Contains("vigie") || n.Contains("hune");
+            bool line = n.Contains("cordage") || n.Contains("hauban");
+            if (!lookout && !line) continue;
+            int m = NearestMast(p.Mid.Z);
+            if (m < 0) continue;
+            p.Taken = true;
+            if (lookout) p.Mi.Reparent(_damage[m].Fall, true);
+            else _snapped.Add((p.Mi, m));
+            RigLog.Add(FormattableString.Invariant(
+                $"{(lookout ? "vigie" : "cordage")} « {p.Mi.Name} » au mat {m} (z {p.Mid.Z:F1})"));
+        }
+    }
+
+    /// <summary>Le mât dont le pied est le plus proche de cette station, ou −1.</summary>
+    int NearestMast(double z)
+    {
+        int best = -1; double near = double.MaxValue;
+        for (int i = 0; i < _damage.Count; i++)
+        {
+            if (!_damage[i].HasPole) continue;
+            double d = Math.Abs(_damage[i].Fall.Position.Z - z);
+            if (d < near) { near = d; best = i; }
+        }
+        return best;
+    }
+
+    /// <summary>Les cordages d'un mât qui s'en va : ils cassent, ils ne tombent pas.</summary>
+    void SnapLines(int mast, bool gone)
+    {
+        foreach (var (mi, m) in _snapped)
+            if (m == mast && IsInstanceValid(mi)) mi.Visible = !gone;
+    }
+
     void ClearRig()
     {
+        _snapped.Clear();
         _latPivot = null;
         _latYard = null;
         _latMast = -1;
@@ -985,6 +1034,9 @@ public partial class ShipNode
             // l'artimon, le plus en arrière : s'il porte une antenne et que la fiche a une latine, on la grée
             if (spec.LateenArea > 0 && z0 < 0 && (_latPivot == null || z0 < _latZ)) LateenOn(pole, fall, heel, z0, deckAt, parts);
         }
+
+        // et ce que le NOM désigne : les vigies et les cordages, à leur mât
+        NameParts(parts);
     }
 
     /// <summary>
