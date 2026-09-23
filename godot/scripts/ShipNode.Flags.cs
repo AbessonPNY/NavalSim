@@ -87,6 +87,13 @@ public partial class ShipNode
     /// <summary>A-t-elle un pavillon où hisser des couleurs ?</summary>
     public bool HasFlag => _flags.Count > 0;
 
+    /// <summary>
+    /// SOUS QUELLES COULEURS ELLE NAVIGUE — l'entrée de flags.json qu'on lui a
+    /// hissée, ou nulle si elle garde celles de sa fiche. C'est le seul endroit
+    /// où son camp se lit : une escarmouche oppose des pavillons, pas des coques.
+    /// </summary>
+    public Nation? Ensign => _nation;
+
     /* ------------------------------------------------------------------ */
     /*  LA MATIÈRE                                                          */
     /* ------------------------------------------------------------------ */
@@ -148,6 +155,11 @@ public partial class ShipNode
     {
         _nation = nation;
         ApplyNation();
+        /* LE CAMP D ABORD, L ETOFFE ENSUITE. Une coque qui n a nulle part ou hisser
+           un pavillon (pas de tete de mat, pas de baton) porte quand meme des
+           couleurs : sans cela elle n est d aucun bord, donc l ennemie de tous —
+           ce qu une escarmouche a tout de suite montre. */
+        if (_flagMat == null) return;
         _ensign0 ??= (_flagMat.GetShaderParameter(U.HasMap).AsSingle() > 0.5f ? _flagMat.GetShaderParameter(U.Map).As<Texture2D>() : null,
                       _flagMat.GetShaderParameter(U.Canvas).AsColor(),
                       _flagMat.GetShaderParameter(UEmissiveK).AsSingle() < 0.12f);

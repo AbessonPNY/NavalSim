@@ -171,6 +171,7 @@ public partial class ShipDemo : Node3D
     {
         ClearItems();
         Item("Jeu libre", FreeItems);
+        Item("Escarmouche", Skirmish);
         Item("Histoire", StoryItems);
         Item("Missions", MissionItems);
         Item("Options", () => { _menu.Visible = true; });
@@ -258,6 +259,8 @@ public partial class ShipDemo : Node3D
            du premier matin : personne autour, la bourse pleine, dix heures, la
            coque saine, la toile serrée et les couleurs hautes. */
         foreach (var other in new List<ShipNode>(_others)) RemoveShip(other);
+        // et la bataille s'arrête avec eux : on ne repart pas en escarmouche sans le demander
+        _skirmish = false; _melee.Clear(); _meleeDone = false;
         _purse = new Purse(Market.Depart);
         _gameId = "";
         var b = _ship.Physics.Body;

@@ -274,13 +274,25 @@ public partial class ShipNode : Node3D
     /// </summary>
     void AttachHaze(Node3D obj)
     {
-        _hazePass ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+        /* CES TROIS PASSES SONT LA COQUE, PAS DE L'AIR ENTRE ELLE ET L'ŒIL.
+           Elles mélangent, donc Godot les range dans la file transparente, où
+           l'ordre se décide par la PRIORITÉ d'abord et la distance ensuite. À la
+           priorité commune, une marque d'impact se retrouvait devant la fumée de
+           sa propre bordée (signalé) : le nuage est une autre transparence, et
+           deux transparences au même rang se départagent sur le centre de leur
+           objet — celui d'un navire de soixante-dix mètres n'est pas là où sa
+           joue est peinte. On les recule donc avant tout ce qui flotte dans
+           l'air, en gardant leur ordre entre elles : la coque est peinte, PUIS
+           la mer, PUIS la fumée. C'est l'ordre de la coque opaque qu'elles
+           habillent, et c'était le seul qu'elles n'avaient pas.
+           (Repères : sea_far −2, la mer −1, tout le reste 0.) */
+        _hazePass ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader"), RenderPriority = -4 };
         Hazed.Add(_hazePass);
         // la neige passe AVANT la brume : l'air est devant elle aussi
-        _snowPass ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/ship_snow.gdshader"), NextPass = _hazePass };
+        _snowPass ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/ship_snow.gdshader"), NextPass = _hazePass, RenderPriority = -5 };
         Snowed.Add(_snowPass);
         // et les blessures avant la neige : ses plaies se couvrent de blanc comme le reste
-        _scarPass ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/ship_scar.gdshader"), NextPass = _snowPass };
+        _scarPass ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/ship_scar.gdshader"), NextPass = _snowPass, RenderPriority = -6 };
         AddScarred(_scarPass);
         var done = new HashSet<Material>();
         foreach (var (mi, _) in Meshes(obj))

@@ -71,6 +71,10 @@ public partial class ShipDemo
         _purseLine.AddThemeColorOverride("font_outline_color", new Color(0, 0, 0, 0.85f));
         _purseLine.AddThemeConstantOverride("outline_size", 5);
         _purseBox.AddChild(_purseLine);
+
+        // le tableau des deux camps, sous le temps qu'il fait : seule l'escarmouche le montre
+        _meleeLine = Plate(18, HudGold, HorizontalAlignment.Right);
+        _meleeLine.Visible = false;
     }
 
     /// <summary>Chaque plaque à sa place, sur l'écran tel qu'il est — le masque de cinéma compris.</summary>
@@ -78,6 +82,9 @@ public partial class ShipDemo
     {
         if (_navLine == null || _skyLine == null || _purseBox == null || _purseLine == null) return;
         bool on = _hudOn && !_inTitle;
+        // le compte de la bataille se tient MEME instruments eteints : c est lui qui
+        // dit qui l a emporte, et cela ne doit pas dependre de la touche H
+        MeleeTick();
         _navLine.Visible = on && _compass != null && _compass.Visible;
         _skyLine.Visible = on;
         _purseBox.Visible = on && !_chartOpen;
@@ -118,6 +125,13 @@ public partial class ShipDemo
         _skyLine.Size = new Vector2(320, 0);
         float skyRight = s.X - right - 14 - (_sunPanel != null && _sunPanel.Visible ? _sunPanel.Size.X + 12 : 0);
         _skyLine.Position = new Vector2(skyRight - _skyLine.Size.X, top + 14);
+
+        // le compte de la bataille, juste sous la météo
+        if (_meleeLine != null && _meleeLine.Visible)
+        {
+            _meleeLine.Size = new Vector2(320, 0);
+            _meleeLine.Position = new Vector2(skyRight - _meleeLine.Size.X, _skyLine.Position.Y + _skyLine.Size.Y + 10);
+        }
 
         // la bourse, en bas à gauche — la cale se lit ailleurs (Z)
         _purseLine.Text = $"{_purse.Ecus} écus   {_purse.Pieces} pièces";

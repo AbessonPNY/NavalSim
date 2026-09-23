@@ -2188,8 +2188,11 @@ public partial class ShipDemo : Node3D
         ShipNode? shooter = null;
         foreach (var (node, tt) in _targets) if (tt.Physics == from) { shooter = node; break; }
         // les spectres ne provoquent pas les vivants et n'en sont pas provoqués
+        /* UN BOULET D'UN NAVIRE DE SON PAVILLON NE FAIT PAS UN ENNEMI. C'est la
+           règle de l'escarmouche, et elle vaut partout : entre gens du même bord,
+           un coup au but est une maladresse, pas une déclaration. */
         if (shooter != null && s != _ship && shooter != s && !_pirates.ContainsKey(s) && !_hostile.ContainsKey(s)
-            && !s.IsGhost && !shooter.IsGhost) _hostile[s] = (shooter, 0);
+            && !s.IsGhost && !shooter.IsGhost && !Allied(s, shooter)) _hostile[s] = (shooter, 0);
 
         var w = new Vector3((float)world.X, (float)world.Y, (float)world.Z);
         // le bois d'abord, quoi qu'on ait touché : le même événement vu du dehors
@@ -2381,6 +2384,8 @@ public partial class ShipDemo : Node3D
     ShipPhysics? EnemyOf(ShipNode s)
     {
         if (_pirates.TryGetValue(s, out var p)) return p.Enemy;
+        // en escarmouche, c'est le pavillon qui désigne l'ennemi, et lui seul
+        if (_skirmish && !s.IsGhost) return MeleeFoe(s)?.Physics;
         if (s.IsGhost) return _ghosts.Of(s.Physics)?.Foe;
         if (_hostile.TryGetValue(s, out var h) && IsInstanceValid(h.Foe) && !h.Foe.Physics.Foundered) return h.Foe.Physics;
         return null;
@@ -2419,8 +2424,10 @@ public partial class ShipDemo : Node3D
             h.Update(dt, _sea.Core, s.Ctrl);
             return;
         }
-        // sans pavillon, les honnêtes gens s'écartent avant tout le reste
-        if (Wary(s, dt)) return;
+        /* Sans pavillon, les honnêtes gens s'écartent avant tout le reste — mais
+           pas au milieu d'une bataille rangée : là, amener ses couleurs vous sort
+           d'un camp, cela ne fait pas fuir la ligne d'en face. */
+        if (!_skirmish && Wary(s, dt)) return;
         if (s.IsGhost)
         {
             // droit sur l'ennemi que la scène lui donne ; la bataille finie, il garde sa route
@@ -2430,10 +2437,14 @@ public partial class ShipDemo : Node3D
             h.Update(dt, _sea.Core, s.Ctrl);
             return;
         }
-        if (_hostile.TryGetValue(s, out var hs) && IsInstanceValid(hs.Foe))
+        /* Droit sur l'ennemi qu'on lui connaît, d'où qu'il vienne — un boulet
+           reçu hier, ou le pavillon d'en face. Une seule question posée une seule
+           fois : les canons la posent déjà (ServeGuns), la barre la posait
+           autrement, et deux réponses auraient fini par différer. */
+        if (EnemyOf(s) is { } quarry)
         {
             var h = HelmOf(s);
-            h.Target = hs.Foe.Physics.Body.Pos;
+            h.Target = quarry.Body.Pos;
             h.Update(dt, _sea.Core, s.Ctrl);
         }
     }
@@ -2793,6 +2804,8 @@ public partial class ShipDemo : Node3D
                 case "--soute": BlowUp(_ship); break;
                 case "--pirate": SpawnPirate(args[i + 1].ToFloat()); break;
                 case "--fantomes": GoToGhosts(true); break;
+                // la bataille montee d un bloc, sans passer par le menu : elle se mesure aussi
+                case "--escarmouche": Skirmish(); break;
                 case "--lunette": ToggleSpyglass(); break;
                 case "--feu": for (int n = args[i + 1].ToInt(); n > 0; n--) Fire(false, true); break;
                 // le mémento ouvert d emblee, pour le juger a la capture

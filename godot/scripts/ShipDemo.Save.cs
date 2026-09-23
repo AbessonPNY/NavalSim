@@ -168,6 +168,11 @@ public partial class ShipDemo
     /// <summary>Enregistrer la partie en cours. Le même fichier tant qu'on joue la même partie.</summary>
     void SaveGame()
     {
+        /* UNE ESCARMOUCHE NE SE REPREND PAS. C'est une bataille montée d'un bloc,
+           sans bourse, sans quête et sans lendemain : l'enregistrer sèmerait des
+           parties que ni l'Histoire, ni les Missions, ni le Jeu libre ne peuvent
+           montrer — et le menu d'Échap l'écrit à chaque retour au titre. */
+        if (_skirmish) { Say("Une escarmouche ne s'enregistre pas"); return; }
         DirAccess.MakeDirRecursiveAbsolute(ProjectSettings.GlobalizePath(SaveDir));
         var s = Collect();
         _gameId = s.Id;

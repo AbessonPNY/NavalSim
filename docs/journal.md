@@ -7893,6 +7893,65 @@ ambiguïté (`materials[].normalTexture`), l'œil dans le jeu beaucoup moins : u
 coque plate ressemble à une coque dont la carte est trop faible. Lire le JSON du
 modèle avant de chercher un bogue dans le moteur.
 
+## L'Escarmouche, et la notion qui manquait : le camp (Godot)
+
+Douze coques, deux pavillons, rien d'autre à faire que la bataille. Ce qui
+était à écrire n'était pas le combat — il existait — mais le **camp**.
+Jusqu'ici l'hostilité était une PAIRE née d'un boulet reçu : celui qui vous
+touche devient votre ennemi, un contre un. La règle demandée renverse cela :
+**deux navires du même pavillon ne se tirent jamais dessus, y compris quand
+l'un reçoit un boulet de l'autre**. Un coup fratricide redevient ce qu'il est,
+une maladresse, et non une déclaration de guerre.
+
+Le camp n'a rien demandé de neuf : c'est `ShipNode.Ensign`, l'entrée de
+flags.json qu'une coque arbore, qui n'était jusque-là qu'une image. La règle
+tient en un `&& !Allied(s, shooter)` dans le coup au but, et elle vaut PARTOUT,
+pas seulement en escarmouche. En bataille, l'ennemi de chacun est le plus
+proche d'un autre pavillon, choisi une fois et gardé tant qu'il flotte —
+rechoisir à chaque image fait louvoyer la barre entre deux proies
+équidistantes.
+
+**Trois pièges, tous trouvés en faisant tourner la chose :**
+
+`SpawnFleet` arme par défaut, et `Arm()` inscrit la coque comme **pirate** —
+or un pirate choisit sa proie lui-même. Les onze se seraient jetées sur le
+joueur et le pavillon n'aurait rien commandé. Une escarmouche met donc à l'eau
+sans armer : ici c'est le camp qui décide, et lui seul.
+
+Une coque sans tête de mât ni bâton de pavillon **n'était d'aucun bord**, donc
+l'ennemie de tous : le camp ne se posait que « si elle a un pavillon ». Six
+contre six comptait quatre contre cinq. `SetEnsign` pose maintenant la nation
+d'abord et l'étoffe ensuite, et sort proprement quand il n'y a rien à hisser.
+
+Le navire courant pouvait être un chaland. Une coque sans batterie prend celle
+du premier combattant : on ne joue pas une bataille dans un navire qui ne peut
+pas tirer.
+
+Mesuré en headless (`--escarmouche 1`, l'analyseur d'arguments ignorant le
+dernier jeton, il lui faut une valeur) : **six contre six**, chaque coque visant
+un pavillon adverse et jamais le sien (`ami=False` sur les douze paires), les
+deux lignes closes de 600 à 170 m, seize charges brûlées et deux coques
+embarquant de l'eau au bout de cent secondes, aucune exception.
+
+Une escarmouche ne s'enregistre pas : elle n'a ni bourse, ni quête, ni
+lendemain, et le menu d'Échap écrit une partie à chaque retour au titre — on
+aurait semé des fichiers qu'aucune des trois listes ne peut montrer.
+
+## Une cicatrice devant la fumée (Godot)
+
+Les marques d'impact restaient visibles PAR-DESSUS la fumée de la bordée qui
+venait de les faire (signalé). Les trois passes posées sur une coque — la
+blessure, la neige, la brume — mélangent, donc Godot les range dans la file
+transparente, où l'ordre se décide par la PRIORITÉ d'abord et la distance
+ensuite. Toutes à zéro comme le nuage de poudre, deux transparences se
+départageaient sur le centre de leur objet — et le centre d'un navire de
+soixante-dix mètres n'est pas là où sa joue est peinte.
+
+Elles reculent donc avant tout ce qui flotte dans l'air, en gardant leur ordre
+entre elles : blessure −6, neige −5, brume −4, devant sea_far (−2) et la mer
+(−1), et donc bien avant la fumée (0). C'est l'ordre de la coque OPAQUE
+qu'elles habillent, et c'était le seul qu'elles n'avaient pas.
+
 ## Les coques se traversaient (Godot)
 
 À l'abordage, une étrave passait au travers du navire visé (signalé). Le
