@@ -7893,6 +7893,25 @@ ambiguïté (`materials[].normalTexture`), l'œil dans le jeu beaucoup moins : u
 coque plate ressemble à une coque dont la carte est trop faible. Lire le JSON du
 modèle avant de chercher un bogue dans le moteur.
 
+## Chaque partie dans son menu (Godot)
+
+Une sortie en jeu libre enregistrée depuis Échap se retrouvait dans la liste de
+l'**Histoire** : le fichier ne disait pas d'où la partie venait, et la seule
+liste qui existait était celle du chapitre (signalé). Une partie porte donc
+désormais son `mode` — `histoire` ou `libre` —, et le Jeu libre a sa propre
+liste, avec « Nouvelle partie » et l'effacement en deux temps, comme l'autre.
+
+Deux choix qui méritent d'être écrits. **Une mission n'est pas l'Histoire** :
+elle se joue par-dessus le jeu libre, sa partie va donc dans la liste libre, et
+sa quête repart où elle en était puisque le carnet de quêtes voyage avec le
+fichier. **Les anciennes parties se rangent seules** : avant le champ `mode`,
+celles qui n'avaient pas de quête active étaient des parties libres, et leur
+propre carnet (`"active": null`) le dit — aucune migration à écrire, huit
+fichiers déjà sur le disque classés sans y toucher.
+
+Et le Jeu libre ne montre sa liste que s'il a quelque chose à proposer : sans
+partie enregistrée il prend la mer tout de suite, comme avant.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

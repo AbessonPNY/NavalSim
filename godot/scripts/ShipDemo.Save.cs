@@ -28,6 +28,13 @@ public partial class ShipDemo
         [JsonPropertyName("nom")] public string Nom { get; set; } = "";
         [JsonPropertyName("ecrit")] public string Ecrit { get; set; } = "";
         [JsonPropertyName("lieu")] public string Lieu { get; set; } = "";
+        /// <summary>
+        /// D'OÙ ELLE VIENT — « histoire » ou « libre ». Une partie s'enregistre
+        /// dans le menu qui l'a ouverte et nulle part ailleurs : une sortie en
+        /// jeu libre n'a rien à faire dans la liste de l'Histoire (signalé).
+        /// Vide dans les vieux fichiers : on le devine alors sur la quête.
+        /// </summary>
+        [JsonPropertyName("mode")] public string Mode { get; set; } = "";
         [JsonPropertyName("region")] public string Region { get; set; } = "caraibes";
         [JsonPropertyName("navire")] public string Navire { get; set; } = "";
         [JsonPropertyName("x")] public double X { get; set; }
@@ -110,7 +117,11 @@ public partial class ShipDemo
             Force = _force, Vent = _windDeg, MeteoAuto = _weather.On, Nuages = _cloud,
             Sous = _purse.Sous, Poudre = p.Powder,
             Voiles = _ship.Ctrl.SailsSet, Toile = _ship.Ctrl.Canvas, Ris = _reef,
-            Ecoute = _ship.Ctrl.Sheet, Pavillon = _colours
+            Ecoute = _ship.Ctrl.Sheet, Pavillon = _colours,
+            /* L'HISTOIRE, C'EST UN CHAPITRE EN COURS. Une mission isolée n'en est
+               pas une : elle se joue par-dessus le jeu libre, et se retrouve donc
+               dans sa liste — avec sa quête, qui repart où elle en était. */
+            Mode = _quests?.Active?.Kind == "story" ? "histoire" : "libre"
         };
         foreach (var c in p.Cargo)
             s.Cargo.Add(new Colis { Cale = c.Hold, Niveau = c.Level, Bord = c.Side, Kg = c.Kg, Nature = c.Kind });
@@ -172,8 +183,21 @@ public partial class ShipDemo
     //  LIRE
     // ------------------------------------------------------------------
 
-    /// <summary>Les parties qu'on peut reprendre, la plus fraîche d'abord.</summary>
-    static List<SaveState> Saves()
+    /// <summary>
+    /// LE MODE D'UNE PARTIE, y compris des anciennes. Avant que le fichier ne le
+    /// dise, une partie d'histoire est celle qui avait une quête en cours : c'est
+    /// exactement ce que son carnet de quêtes porte (« active »), et cela suffit
+    /// à ranger les parties déjà écrites sans rien leur demander.
+    /// </summary>
+    static string ModeOf(SaveState s)
+    {
+        if (s.Mode.Length > 0) return s.Mode;
+        return s.Quetes.Contains("\"active\": null") || !s.Quetes.Contains("\"active\"")
+             ? "libre" : "histoire";
+    }
+
+    /// <summary>Les parties d'un mode qu'on peut reprendre, la plus fraîche d'abord.</summary>
+    static List<SaveState> Saves(string mode)
     {
         var outp = new List<SaveState>();
         var dir = DirAccess.Open(SaveDir);
@@ -186,7 +210,9 @@ public partial class ShipDemo
                 using var f = FileAccess.Open($"{SaveDir}/{name}", FileAccess.ModeFlags.Read);
                 if (f == null) continue;
                 var s = JsonSerializer.Deserialize<SaveState>(f.GetAsText());
-                if (s != null) { s.Id = System.IO.Path.GetFileNameWithoutExtension(name); outp.Add(s); }
+                if (s == null || ModeOf(s) != mode) continue;
+                s.Id = System.IO.Path.GetFileNameWithoutExtension(name);
+                outp.Add(s);
             }
             catch (JsonException e) { GD.PushWarning($"[partie] {name} illisible : {e.Message}"); }
         }
@@ -289,18 +315,31 @@ public partial class ShipDemo
     // ------------------------------------------------------------------
 
     /// <summary>L'Histoire : reprendre une partie, en commencer une neuve, ou en effacer une.</summary>
-    void StoryItems()
+    void StoryItems() => GameItems("histoire", NewGame);
+
+    /// <summary>
+    /// LE JEU LIBRE, ses parties à lui. Rien à choisir quand il n'y en a aucune :
+    /// on prend la mer tout de suite, comme avant.
+    /// </summary>
+    void FreeItems()
+    {
+        if (Saves("libre").Count == 0) { NewFree(); return; }
+        GameItems("libre", NewFree);
+    }
+
+    /// <summary>La liste d'un mode : ses parties, une neuve, et l'effacement.</summary>
+    void GameItems(string mode, Action neuve)
     {
         _eraseId = "";
         ClearItems();
-        var list = Saves();
+        var list = Saves(mode);
         foreach (var s in list)
         {
             var save = s;
             Item($"{s.Nom}   ({s.Ecrit})", () => LoadGame(save), 28);
         }
-        Item("Nouvelle partie", NewGame, 34);
-        if (list.Count > 0) Item("Effacer une partie", EraseItems, 28);
+        Item("Nouvelle partie", neuve, 34);
+        if (list.Count > 0) Item("Effacer une partie", () => EraseItems(mode, neuve), 28);
         Item("Retour", MainItems, 34);
         ShowPick();
     }
@@ -312,33 +351,36 @@ public partial class ShipDemo
     /// EFFACER, EN DEUX TEMPS. Une partie effacée ne revient pas : le premier
     /// appui met la ligne en garde, le second seulement emporte le fichier.
     /// </summary>
-    void EraseItems()
+    void EraseItems(string mode, Action neuve)
     {
         ClearItems();
-        foreach (var s in Saves())
+        foreach (var s in Saves(mode))
         {
             var save = s;
             bool armed = _eraseId == s.Id;
             Item(armed ? $"Effacer pour de bon : {s.Nom} ?" : $"{s.Nom}   ({s.Ecrit})",
                  () =>
                  {
-                     if (_eraseId != save.Id) { _eraseId = save.Id; EraseItems(); return; }
+                     if (_eraseId != save.Id) { _eraseId = save.Id; EraseItems(mode, neuve); return; }
                      DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(PathOf(save.Id)));
                      GD.Print($"partie effacée : {save.Nom}");
                      if (_gameId == save.Id) _gameId = "";
                      _eraseId = "";
-                     EraseItems();
+                     EraseItems(mode, neuve);
                  }, 28);
         }
         if (_titleItems.Count == 0) Item("Plus aucune partie", () => { }, 28);
-        Item("Retour", StoryItems, 34);
+        Item("Retour", () => GameItems(mode, neuve), 34);
         ShowPick();
     }
 
+    /* UNE PARTIE NEUVE N'A PAS ENCORE DE NUMÉRO : Home() efface celui de la partie
+       qu'on quittait, et le premier enregistrement en tire un. Lui en donner un
+       ici ne servirait à rien qu'à le voir effacé juste après. */
+
     /// <summary>Une partie neuve : le port de départ, la première page du carnet.</summary>
-    void NewGame()
-    {
-        _gameId = Guid.NewGuid().ToString("N")[..8];
-        Story();
-    }
+    void NewGame() => Story();
+
+    /// <summary>Une sortie neuve en jeu libre.</summary>
+    void NewFree() => FreePlay();
 }
