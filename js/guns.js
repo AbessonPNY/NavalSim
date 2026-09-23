@@ -441,7 +441,7 @@ Naval.Guns = class Guns {
     const v0 = out.clone()
       .applyAxisAngle(sideV, (Math.random()-0.5)*spread)
       .applyAxisAngle(up,    (Math.random()-0.5)*spread)
-      .multiplyScalar(440*charge)
+      .multiplyScalar(440*charge*(0.78 + 0.22*k))
       .add(body.vel);
     const m = new THREE.Mesh(this.ballGeom, this.ballMat);
     m.position.copy(at);

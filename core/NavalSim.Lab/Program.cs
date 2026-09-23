@@ -43,6 +43,7 @@ switch (mode)
     case "bordee": Bordee(); break;
     case "allures": Allures(); break;
     case "ris": Ris(); break;
+    case "calibres": Calibres(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -737,5 +738,30 @@ void Ris()
             line += $"  {canvas * 100,3:F0} % : {Math.Sqrt(v.X * v.X + v.Z * v.Z) / 0.5144,5:F2} nd, gite {heel,4:F1} deg, toile {p2.SailLoad,5:F1} N/m2 ;";
         }
         Console.WriteLine(line);
+    }
+}
+
+/* CE QU'UN CALIBRE CHANGE : le meme coup, tire a plat de 6,5 m, pour la bordee
+   et pour les pieces de chasse d une fregate.
+     dotnet run --project core/NavalSim.Lab -c Release -- calibres */
+void Calibres()
+{
+    foreach (double k in new[] { 1.0, 0.92, 0.88, 0.78 })
+    {
+        var ocean = new Ocean { Swell = 1.0, Time = 0 };
+        ocean.SetSeaState(0, 0);
+        var g = new Gunnery();
+        // la vitesse a la bouche suit le calibre, comme dans Gunnery.Fire
+        var shot = new Gunnery.Shot { P = new Vec3d(0, 6.5, 0), V = new Vec3d(440 * (0.78 + 0.22 * k), 0, 0), C = 0.00097 / k, K = k };
+        g.Shots.Add(shot);
+        double t = 0, dt = 1.0 / 240, at200 = 0, at400 = 0;
+        while (g.Shots.Count > 0 && t < 20)
+        {
+            double was = shot.P.X;
+            g.Update(dt, ocean, t); t += dt;
+            if (was < 200 && shot.P.X >= 200) at200 = shot.V.Length;
+            if (was < 400 && shot.P.X >= 400) at400 = shot.V.Length;
+        }
+        Console.WriteLine($"calibre {k:F2} : portee {shot.P.X,4:F0} m, reste {at200,3:F0} m/s a 200 m, {at400,3:F0} a 400 ; trou {0.025 * k * k * 1e4,4:F0} cm2, recul {3000 * k * k,5:F0} kg.m/s");
     }
 }

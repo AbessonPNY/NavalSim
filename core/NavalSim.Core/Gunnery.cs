@@ -232,7 +232,12 @@ public sealed class Gunnery
            la portée de but en blanc. c va comme l'inverse du calibre. Pas deux charges
            pareilles, quelques pour cent, et un âme lisse n'est pas un instrument de
            précision. Tiré d'un pont qui marche : son erre entre dans le coup. */
-        double charge = 0.94 + _random() * 0.12;
+        /* ET LA PETITE PIÈCE POUSSE MOINS FORT : tube plus court, charge plus
+           légère. La traînée seule ne le disait pas — un boulet tiré à plat tombe
+           à l eau en une seconde et demie quel que soit son calibre, si bien que
+           la portée ne bougeait que de 3 % entre une pièce de bordée et un canon
+           de chasse (signalé, mesuré). */
+        double charge = (0.94 + _random() * 0.12) * (0.78 + 0.22 * k);
         const double spread = 0.010;
         Vec3d v0 = RotateAbout(RotateAbout(outDir, sideV, (_random() - 0.5) * spread), up, (_random() - 0.5) * spread)
                    * (440 * charge) + body.Vel;

@@ -65,11 +65,7 @@ public partial class ShipNode
                 mi.Reparent(pivot, true);
                 _gunPieces.Add(new GunPiece { Pivot = pivot, Home = centre });
             }
-            for (int i = 0; i < Battery.Guns.Count && i < _gunPieces.Count; i++)
-            {
-                var d = Battery.Guns[i].Dir;
-                _gunPieces[i].Back = new Vector3((float)-d.X, 0, (float)-d.Z).Normalized();
-            }
+            PairGuns();
             RigLog.Add($"batterie : {named.Count} pièce(s) déjà séparées dans le modèle");
             return;
         }
@@ -171,12 +167,33 @@ public partial class ShipNode
             _gunPieces.Add(new GunPiece { Pivot = pivot, Home = centre });
         }
 
-        // le sens du recul : à l'opposé de la bouche, une fois la batterie rangée
-        for (int i = 0; i < Battery.Guns.Count && i < _gunPieces.Count; i++)
+        PairGuns();
+    }
+
+    /* CHAQUE PIÈCE À SON CANON, par la DISTANCE et non par l'ordre de tri : deux
+       pièces se font face à la même station, et un tri qui les départage au
+       hasard fait reculer le bord d'en face à chaque bordée. */
+    void PairGuns()
+    {
+        var free = new List<GunPiece>(_gunPieces);
+        var paired = new List<GunPiece>();
+        foreach (var g in Battery.Guns)
         {
-            var d = Battery.Guns[i].Dir;
-            _gunPieces[i].Back = new Vector3((float)-d.X, 0, (float)-d.Z).Normalized();
+            var at = new Vector3((float)g.P.X, (float)g.P.Y, (float)g.P.Z);
+            GunPiece? best = null; float near = float.MaxValue;
+            foreach (var p in free)
+            {
+                float d = p.Home.DistanceTo(at);
+                if (d < near) { near = d; best = p; }
+            }
+            if (best == null) break;
+            free.Remove(best);
+            best.Back = new Vector3((float)-g.Dir.X, 0, (float)-g.Dir.Z).Normalized();
+            paired.Add(best);
         }
+        foreach (var p in free) { p.Back = Vector3.Zero; paired.Add(p); }
+        _gunPieces.Clear();
+        _gunPieces.AddRange(paired);
     }
 
     /// <summary>La matière des tubes, retenue au passage pour les pièces détachées.</summary>

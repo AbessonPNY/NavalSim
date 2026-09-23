@@ -79,11 +79,16 @@ public partial class ShipNode
         }
 
         // l'âme de la bordée donne l'échelle à laquelle une pièce de chasse se mesure
+        /* L'ÂME EST LA PLUS PETITE MESURE EN TRAVERS DU TUBE, et non la plus
+           grande : un canon modelé AVEC SON AFFÛT est large d'un côté et pas de
+           l'autre, et prendre la plus grande donnait au canon de chasse de la
+           frégate un calibre de 1,45 là où il est plus petit que la bordée
+           (signalé). La plus petite ne voit que le tube. */
         var bores = new List<float>();
         foreach (var (lo, hi) in pieces)
         {
             var e = hi - lo;
-            if (e.X >= e.Z) bores.Add(Math.Max(e.Y, e.Z));
+            if (e.X >= e.Z) bores.Add(Math.Min(e.Y, e.Z));
         }
         bores.Sort();
         float refBore = bores.Count > 0 ? bores[bores.Count >> 1] : 0;
@@ -93,7 +98,7 @@ public partial class ShipNode
             var e = hi - lo;
             var c = (lo + hi) * 0.5f;
             bool across = e.X >= e.Z;
-            float bore = across ? Math.Max(e.Y, e.Z) : Math.Max(e.Y, e.X);
+            float bore = across ? Math.Min(e.Y, e.Z) : Math.Min(e.Y, e.X);
             double cal = refBore > 0 ? Math.Max(0.5, Math.Min(1.5, bore / refBore)) : 1;
             var g = new Gun { Cal = cal };
             if (across)
