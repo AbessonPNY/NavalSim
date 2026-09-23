@@ -68,6 +68,34 @@ Naval.powderTexture = function(){
   return tex;
 };
 
+/* CE QU'IL RESTE DANS LE BOULET QUAND IL ARRIVE — la règle de la distance, et
+   elle n'est écrite qu'ici (miroir de Ball, core/Gunnery.cs).
+
+   Un boulet quitte la bouche à 440 m/s et perd sa vitesse en 1/(1 + c·x) : à
+   bout portant il l'a toute, à trois cents mètres les trois quarts, à six cents
+   les deux tiers. Ce qu'il fait au bois va comme son ÉNERGIE, donc comme le
+   CARRÉ de ce qui lui reste — à bout portant on enfonce le bordé, de loin on le
+   cabosse, sans qu'aucune règle le dise en plus.
+
+   La part qui reste est prise CONTRE la vitesse de bouche de SA pièce : une
+   petite pièce n'est pas punie deux fois, sa faiblesse est déjà dans son
+   calibre.
+
+   Pas de seuil du « boulet mort » : mesuré, il ne se declencherait jamais — une
+   piece pointe legerement vers le bas, si bien qu un boulet tombe a la mer
+   avant d avoir perdu assez de vitesse (9,1 m de chute a 500 m, ou il lui reste
+   38 % de son energie). La loi du carre suffit, seule. */
+Naval.Ball = {
+  MUZZLE: 440,
+  charge: k => 0.78 + 0.22*k,
+  bite(speed, k){
+    const v0 = this.MUZZLE * this.charge(k);
+    if(v0 < 1) return 1;
+    const r = speed / v0;
+    return Math.max(0, Math.min(1, r*r));
+  }
+};
+
 /* Game rules, overridden by settings.json → gunnery. */
 Naval.GUNNERY = {
   reload: [30, 60]        // seconds a piece is out after firing, drawn per shot
@@ -443,7 +471,7 @@ Naval.Guns = class Guns {
     const v0 = out.clone()
       .applyAxisAngle(sideV, (Math.random()-0.5)*spread)
       .applyAxisAngle(up,    (Math.random()-0.5)*spread)
-      .multiplyScalar(440*charge*(0.78 + 0.22*k))
+      .multiplyScalar(Naval.Ball.MUZZLE*charge*Naval.Ball.charge(k))
       .add(body.vel);
     const m = new THREE.Mesh(this.ballGeom, this.ballMat);
     m.position.copy(at);

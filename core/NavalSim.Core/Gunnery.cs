@@ -42,11 +42,13 @@ public sealed class Battery
        centièmes de sa longueur, et par le calibre qui l'a fait. Hors de combat à
        un ; ils S'ACCUMULENT, si bien qu'un bord battu encore et encore perd ses
        pièces une à une. `local` : où le coup est entré, dans son repère. */
-    public List<Gun> Wound(Vec3d local, double k, double shipL)
+    public List<Gun> Wound(Vec3d local, double k, double shipL, double bite = 1)
     {
         var outList = new List<Gun>();
         double R = Math.Max(1.5, 0.08 * shipL);
-        double blow = 1.6 * Math.Min(2, k);
+        // et ce que le boulet avait encore dans le ventre : un coup mourant ne
+        // démonte pas un affût qu'un coup à bout portant met en pièces
+        double blow = 1.6 * Math.Min(2, k) * bite;
         foreach (var g in Guns)
         {
             if (g.Out) continue;
@@ -79,6 +81,49 @@ public sealed class ShotTarget
     /// <summary>Les mâts debout : pied, hauteur, station, indice du mât.</summary>
     public Func<IReadOnlyList<(double Heel, double Height, double Z, int Fall)>>? Masts;
     public object? Tag;
+}
+
+/// <summary>
+/// CE QU'IL RESTE DANS LE BOULET QUAND IL ARRIVE — la règle de la distance, et
+/// elle n'est écrite qu'ici.
+///
+/// Un boulet quitte la bouche à 440 m/s et perd sa vitesse en 1/(1 + c·x) : à
+/// bout portant il l'a toute, à trois cents mètres les trois quarts, à six cents
+/// les deux tiers. Ce qu'il fait au bois va comme son ÉNERGIE, donc comme le
+/// CARRÉ de ce qui lui reste — c'est la seule loi, et elle donne d'elle-même les
+/// deux faits qu'on attend : à bout portant on enfonce le bordé, de loin on le
+/// cabosse. Rien n'est ajouté pour cela.
+///
+/// La vitesse de bouche dépend du calibre (une pièce de chasse pousse moins
+/// fort), et la part qui reste est prise CONTRE LA SIENNE : une petite pièce
+/// n'est pas punie deux fois, sa faiblesse est déjà dans son calibre.
+/// </summary>
+public static class Ball
+{
+    /// <summary>La vitesse à la bouche, avant la correction de calibre.</summary>
+    public const double Muzzle = 440;
+
+    /// <summary>Ce qu'une pièce de ce calibre pousse, en part d'une pièce de bordée.</summary>
+    public static double Charge(double k) => 0.78 + 0.22 * k;
+
+    /// <summary>
+    /// La part de l'énergie de bouche qu'il a encore : (v/v₀)², entre 0 et 1.
+    /// </summary>
+    public static double Bite(double speed, double k)
+    {
+        double v0 = Muzzle * Charge(k);
+        if (v0 < 1) return 1;
+        double r = speed / v0;
+        return Math.Clamp(r * r, 0, 1);
+    }
+
+    /* PAS DE SEUIL DU « BOULET MORT », ET C'EST MESURÉ. On en avait écrit un — en
+       deçà de tant d'énergie, la balle marque et ne perce plus. Il ne se serait
+       jamais déclenché : une pièce pointe LÉGÈREMENT VERS LE BAS (elle est à trois
+       mètres sur l'eau), si bien qu'un boulet tombe à la mer avant d'avoir perdu
+       assez de vitesse — 3,8 m de chute à 340 m, 9,1 m à 500 m, où il lui reste
+       encore 38 % de son énergie. Une règle qui ne peut pas s'appliquer est une
+       règle à ne pas écrire : la loi du carré suffit, seule. */
 }
 
 /// <summary>Les règles de jeu de l'artillerie, settings.json → gunnery.</summary>
@@ -250,10 +295,10 @@ public sealed class Gunnery
            à l eau en une seconde et demie quel que soit son calibre, si bien que
            la portée ne bougeait que de 3 % entre une pièce de bordée et un canon
            de chasse (signalé, mesuré). */
-        double charge = (0.94 + _random() * 0.12) * (0.78 + 0.22 * k);
+        double charge = (0.94 + _random() * 0.12) * Ball.Charge(k);
         const double spread = 0.010;
         Vec3d v0 = RotateAbout(RotateAbout(outDir, sideV, (_random() - 0.5) * spread), up, (_random() - 0.5) * spread)
-                   * (440 * charge) + body.Vel;
+                   * (Ball.Muzzle * charge) + body.Vel;
         Shots.Add(new Shot { P = at, V = v0, C = 0.00097 / k, K = k, From = ship });
 
         /* ET ELLE LE SENT : une vraie impulsion à une vraie hauteur, donc un vrai

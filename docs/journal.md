@@ -7893,6 +7893,40 @@ ambiguïté (`materials[].normalTexture`), l'œil dans le jeu beaucoup moins : u
 coque plate ressemble à une coque dont la carte est trop faible. Lire le JSON du
 modèle avant de chercher un bogue dans le moteur.
 
+## Un coup à bout portant vaut deux coups de loin
+
+La distance ne comptait pas : `onStrike` recevait bien la vitesse du boulet —
+depuis toujours — et ne s'en servait nulle part. Les dégâts ne tenaient qu'au
+calibre, si bien qu'un coup collé au bordé et un coup au bout du plein fouet
+faisaient exactement le même trou (signalé).
+
+Une seule loi, et elle est dans le noyau (`Ball`, lu par les deux moteurs) :
+ce qu'un boulet fait au bois va comme son **énergie**, donc comme le CARRÉ de
+la vitesse qui lui reste, rapportée à celle de SA bouche — une pièce de chasse
+pousse moins fort, et sa faiblesse est déjà dans son calibre, on ne la punit
+pas deux fois. Le trou, et les affûts derrière le bordé, en sont multipliés.
+
+Ce que la traînée en 1/(1 + c·x) donne toute seule, mesuré sur l'intégrateur
+lui-même (pleine bordée, k = 1) :
+
+| distance | vitesse | morsure | chute |
+|---|---|---|---|
+| 20 m | 431 m/s | 96 % | 0,0 m |
+| 100 m | 399 m/s | 82 % | 0,3 m |
+| 200 m | 361 m/s | 67 % | 1,2 m |
+| 340 m | 315 m/s | 51 % | 3,8 m |
+| 500 m | 271 m/s | 38 % | 9,1 m |
+
+Deux fois le trou à bout portant contre le bout du plein fouet, sans qu'aucune
+règle le dise en plus — c'est la traînée qui le dit.
+
+**Et un seuil qu'on a écrit puis retiré.** On avait ajouté un « boulet mort » :
+en deçà de trois dixièmes d'énergie, il marque et ne perce plus. Mesure faite,
+il ne se serait JAMAIS déclenché — une pièce pointe légèrement vers le bas
+(elle est à trois mètres sur l'eau), donc un boulet tombe à la mer bien avant
+d'avoir tant ralenti : à 500 m il a plongé de neuf mètres et lui reste encore
+38 %. Une règle qui ne peut pas s'appliquer est une règle à ne pas écrire.
+
 ## L'Escarmouche, et la notion qui manquait : le camp (Godot)
 
 Douze coques, deux pavillons, rien d'autre à faire que la bataille. Ce qui

@@ -522,6 +522,10 @@ async function main(){
     /* Timber first, whatever she was hit in: it is the same event seen from
        outside, and the deck cares about it more than the carpenter does. */
     if(world && dir) blast.splinters(world, dir, k || 1);
+    /* CE QU'IL LUI RESTE DE SON ÉLAN — toute la règle de la distance est là
+       (Naval.Ball.bite), et rien d'autre ici n'en sait quoi que ce soit. */
+    const bite = Naval.Ball.bite(speed, k || 1);
+
     if(kind === 'mast'){
       /* Masts were TOUGH. A single ball through a lower mast did not bring it
          down — they were a yard thick at the partners and made to be shot at —
@@ -549,7 +553,9 @@ async function main(){
        plugs it (ShipPhysics._plug). A fresh vector: the side is read once. */
     const sideX = world ? new THREE.Vector3().copy(world).sub(e.body.pos)
                             .applyQuaternion(e.body.quat.clone().invert()).x : 0;
-    e.physics.breach(index, 0.025*(k||1)*(k||1), Math.max(0, Math.min(1, local)), sideX);
+    /* Et le trou va comme l'énergie QUI RESTE : entier à bout portant, les deux
+       tiers à deux cents mètres, la moitié au bout du plein fouet. */
+    e.physics.breach(index, 0.025*(k||1)*(k||1)*bite, Math.max(0, Math.min(1, local)), sideX);
 
     // la marque dans le bordé, qui s'aggrave si l'on retape au même endroit
     if(e.ship && e.ship.scar) e.ship.scar(world, k);
@@ -557,7 +563,7 @@ async function main(){
     /* Et le coup démonte les pièces qui étaient derrière le bordé. Le joueur
        est prévenu, et la console relue : un bord qui se tait doit se voir sur
        le bouton qu'on s'apprêtait à presser. */
-    const demontees = e.ship && e.ship.woundGuns ? e.ship.woundGuns(world, k) : [];
+    const demontees = e.ship && e.ship.woundGuns ? e.ship.woundGuns(world, k, bite) : [];
     if(demontees.length && e === fleet[0]){
       const nom = { '1':'tribord', '-1':'bâbord', '2':'en poupe', '-2':'en proue' };
       const s = demontees[0].side, c = e.ship.gunCount(s);

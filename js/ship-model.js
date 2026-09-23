@@ -1347,7 +1347,7 @@ Naval.ShipModel = class ShipModel {
      guns one by one rather than all at once or never.
 
      `world` is where the ball struck. Returns the pieces just put out. */
-  woundGuns(world, k){
+  woundGuns(world, k, bite = 1){
     const out = [];
     if(!world || !this.guns || !this.guns.length) return out;
     this._gq = this._gq || new THREE.Quaternion();
@@ -1355,7 +1355,9 @@ Naval.ShipModel = class ShipModel {
     const loc = this._gl.copy(world).sub(this.group.position)
                         .applyQuaternion(this._gq.copy(this.group.quaternion).invert());
     const R = Math.max(1.5, 0.08*this.spec.L);
-    const blow = 1.6*Math.min(2, k || 1);
+    // et ce que le boulet avait encore dans le ventre : un coup mourant ne
+    // démonte pas un affût qu'un coup à bout portant met en pièces
+    const blow = 1.6*Math.min(2, k || 1)*bite;
     for(const g of this.guns){
       if(g.out) continue;
       const d = loc.distanceTo(g.p);

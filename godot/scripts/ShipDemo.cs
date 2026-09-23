@@ -2197,6 +2197,10 @@ public partial class ShipDemo : Node3D
         var w = new Vector3((float)world.X, (float)world.Y, (float)world.Z);
         // le bois d'abord, quoi qu'on ait touché : le même événement vu du dehors
         _splinters.Splinters(w, new Vector3((float)dir.X, (float)dir.Y, (float)dir.Z), k);
+        /* CE QU'IL LUI RESTE DE SON ÉLAN — toute la règle de la distance est là
+           (Ball.Bite), et rien d'autre dans ce fichier n'en sait quoi que ce soit. */
+        double bite = Ball.Bite(speed, k);
+
         if (kind == "mast")
         {
             // un bas mât faisait un pied de chêne : il en faut plusieurs, c'est la récompense du feu soutenu
@@ -2211,11 +2215,13 @@ public partial class ShipDemo : Node3D
            bordé du côté TOUCHÉ, et le charpentier le bouchera (ShipPhysics.Plug). */
         var b = s.Physics.Body;
         var local = b.Quat.Inverted().Rotate(world - b.Pos);
-        s.Physics.MakeBreach(index, 0.025 * k * k, Math.Clamp(frac, 0, 1), local.X);
+        /* Et le trou va comme l'énergie QUI RESTE : entier à bout portant, les
+           deux tiers à deux cents mètres, la moitié au bout du plein fouet. */
+        s.Physics.MakeBreach(index, 0.025 * k * k * bite, Math.Clamp(frac, 0, 1), local.X);
         // la marque dans le bordé, qui s'aggrave si l'on retape au même endroit
         s.Scar(w, k);
         // et les pièces qui étaient derrière le bordé
-        var down = s.Battery.Wound(local, k, s.Spec.L);
+        var down = s.Battery.Wound(local, k, s.Spec.L, bite);
         if (down.Count > 0 && s == _ship)
         {
             int side = down[0].Side;
