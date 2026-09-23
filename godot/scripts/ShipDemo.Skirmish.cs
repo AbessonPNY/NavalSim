@@ -21,9 +21,10 @@ namespace NavalSim;
 /// l'étoffe, elle ne change pas la nation —, et c'est voulu : on ne déserte pas
 /// une ligne de bataille en tirant sur un bout.
 ///
-/// L'ennemi de chacun est le plus proche d'un AUTRE pavillon, choisi une fois et
-/// gardé tant qu'il flotte : rechoisir à chaque image ferait louvoyer la barre
-/// entre deux proies équidistantes.
+/// L'adversaire de chacun est choisi une fois et gardé tant qu'il flotte —
+/// rechoisir à chaque image ferait louvoyer la barre entre deux proies
+/// équidistantes — et c'est celui que LE MOINS DE MONDE attaque déjà, la distance
+/// ne départageant que les ex æquo. Une bataille, et non une procession.
 /// </summary>
 public partial class ShipDemo
 {
@@ -41,6 +42,19 @@ public partial class ShipDemo
 
     /// <summary>Douze coques : ce que l'utilisateur a demandé, sous le plafond de seize (mesuré).</summary>
     const int SkirmishHulls = 12;
+
+    /// <summary>
+    /// La demi-distance entre les deux lignes : 250 m de part et d'autre, donc
+    /// 500 m au premier regard — hors du plein fouet (340 m), le temps de choisir
+    /// son bord, et pas plus.
+    /// </summary>
+    const double MeleeGap = 250;
+
+    /// <summary>
+    /// L'erre qu'une escadre a en se présentant : trois mètres par seconde, six
+    /// nœuds. On n'arrive pas en bataille à l'arrêt.
+    /// </summary>
+    const double MeleeWay = 3.0;
 
     /* CE QUI PEUT SE BATTRE — ET ON LE VÉRIFIE, on ne le suppose pas (demandé).
        Une batterie ne se lit qu'une fois le modèle chargé : on ne peut donc pas
@@ -68,24 +82,49 @@ public partial class ShipDemo
         return na != null && nb != null && na.Id == nb.Id;
     }
 
+    /// <summary>Au-delà, la proie est abandonnée : on ne traverse pas la mer derrière elle.</summary>
+    const double MeleeGiveUp = 1200;
+
     /// <summary>
-    /// L'ennemi qu'une coque s'est donné dans la mêlée : le plus proche d'un autre
-    /// pavillon. Gardé tant qu'il flotte, repris quand il sombre.
+    /// L'adversaire qu'une coque s'est donné dans la mêlée : celui que le moins de
+    /// monde attaque déjà, le plus proche à égalité. Gardé tant qu'il flotte et
+    /// qu'il est à portée de poursuite, repris quand il sombre ou s'éloigne trop.
     /// </summary>
     ShipNode? MeleeFoe(ShipNode s)
     {
+        var from = s.Physics.Body.Pos;
         if (_melee.TryGetValue(s, out var kept) && IsInstanceValid(kept)
-            && !kept.Physics.Foundered && !Allied(s, kept)) return kept;
+            && !kept.Physics.Foundered && !Allied(s, kept)
+            && (kept.Physics.Body.Pos - from).Length < MeleeGiveUp) return kept;
+
+        /* CHACUN SON ADVERSAIRE, et c'est ce qui fait une bataille plutôt qu'une
+           procession. Le plus proche seul ne suffit pas : douze coques trouvaient
+           le MÊME plus proche, s'y rendaient toutes, et comme la barre contourne
+           la garde d'une proie toujours du même côté, elles se rangeaient en file
+           indienne derrière elle sans jamais lui présenter le travers (signalé,
+           capture à l'appui). On regarde donc d'abord COMBIEN de coques visent
+           déjà chaque adversaire, et la distance ne départage que les ex æquo. Un
+           deuxième assaillant n'arrive donc sur une proie que lorsque tout le
+           monde en a une. */
+        var busy = new Dictionary<ShipNode, int>();
+        foreach (var (who, whom) in _melee)
+        {
+            if (who == s || !IsInstanceValid(who) || who.Physics.Foundered) continue;
+            if (!IsInstanceValid(whom)) continue;
+            busy[whom] = busy.GetValueOrDefault(whom) + 1;
+        }
 
         ShipNode? best = null;
+        int bn = int.MaxValue;
         double bd = double.MaxValue;
-        var from = s.Physics.Body.Pos;
         void Weigh(ShipNode o)
         {
             if (o == s || o.IsGhost || o.Physics.Foundered || Allied(s, o)) return;
             var d = o.Physics.Body.Pos - from;
             double q = d.X * d.X + d.Z * d.Z;
-            if (q < bd) { bd = q; best = o; }
+            int n = busy.GetValueOrDefault(o);
+            if (n > bn || (n == bn && q >= bd)) return;
+            bn = n; bd = q; best = o;
         }
         Weigh(_ship);
         foreach (var o in _others) Weigh(o);
@@ -116,9 +155,10 @@ public partial class ShipDemo
     // ------------------------------------------------------------------
 
     /// <summary>
-    /// DEUX LIGNES DE FILE QUI SE PRÉSENTENT LE TRAVERS, à six cents mètres — hors
-    /// de portée du plein fouet (trois cent quarante mètres), pour qu'on ait le
-    /// temps de choisir son bord avant que ça parle. Chacune vient sur l'autre.
+    /// DEUX LIGNES DE FILE QUI SE PRÉSENTENT LE TRAVERS, à cinq cents mètres —
+    /// hors de portée du plein fouet (trois cent quarante mètres), pour qu'on ait
+    /// le temps de choisir son bord avant que ça parle, et pas davantage. Chacune
+    /// vient sur l'autre, avec son erre et par bonne brise.
     /// </summary>
     void Skirmish()
     {
@@ -157,10 +197,19 @@ public partial class ShipDemo
         _ship.ShowColours(true, true);
         _colours = true;
 
+        /* DU VENT POUR SE BATTRE. Offshore() pose le temps de l'AFFICHE — force 3,
+           « il fait route, lentement » —, et deux lignes s'y rejoignaient à deux
+           nœuds et demi : quatre minutes avant le premier coup, pendant lesquelles
+           on ne voit qu'une procession (signalé). Force 5 par le même 75°, et les
+           coques arrivent AVEC DE L'ERRE, comme une escadre qui se présente. */
+        _force = 5; _windDeg = 75;
+        Restate();
+
         var me = _ship.Physics.Body;
         // l'étrave au nord, les deux lignes se présentent par le travers
         me.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), 0);
-        me.Pos = new Vec3d(0, me.Pos.Y, -300);
+        me.Pos = new Vec3d(0, me.Pos.Y, -MeleeGap);
+        me.Vel = me.Quat.Rotate(new Vec3d(0, 0, MeleeWay));
         _ship.SyncTransform();
 
         int perSide = SkirmishHulls / 2;
@@ -234,25 +283,30 @@ public partial class ShipDemo
 
         /* EN LIGNE DE FILE, l'une derrière l'autre à cent trente mètres — deux
            longueurs de frégate, ce qu'une escadre tenait pour ne pas s'aborder en
-           virant. Les deux lignes à trois cents mètres de part et d'autre. */
+           virant. Les deux lignes de part et d'autre, à MeleeGap. */
         double x = (rank - 2.5) * 130;
-        double z = mine ? -300 : 300;
+        double z = mine ? -MeleeGap : MeleeGap;
         double now = _stepT0 + _stepSub * _stepDt;
         b.Pos = new Vec3d(x, b.Pos.Y + _sea.Core.Sample(x, z, now), z);
-        b.Vel = Vec3d.Zero;
         b.AngVel = Vec3d.Zero;
         // cap au nord (+z) pour la vôtre, au sud pour l'autre : elles se ferment
         b.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), mine ? 0 : Math.PI);
+        b.Vel = b.Quat.Rotate(new Vec3d(0, 0, MeleeWay));
         s.SyncTransform();
 
         // le camp, pavillon visible ou non : c est lui qui dit qui elle ne doit pas canonner
         var n = mine ? _campA : _campB;
         if (n != null) { s.SetEnsign(n.Image, n); s.ShowColours(true, true); }
 
-        /* AU PLEIN FOUET, ET PAS PLUS PRÈS : une barre réglée court, et douze
-           coques finissent en tas au milieu. Deux cent vingt mètres, c'est encore
-           dans la portée utile et cela laisse la place de virer. */
-        HelmOf(s).Standoff = 220;
+        /* À PORTÉE DE MOUSQUET, et c'est mesuré. On avait mis deux cent vingt
+           mètres de garde — « au plein fouet, et pas plus près » —, ce qui donne
+           trois cents mètres de portée réelle une fois la tangente prise. Or à
+           trois cents mètres un boulet a déjà plongé de trois mètres et demi et
+           tombe à l'eau AVANT la muraille : cent cinquante-quatre charges brûlées
+           sans qu'une coque s'en ressente. Cent vingt mètres de garde donnent
+           cent soixante de portée, où le boulet est encore à hauteur de bordé et
+           mord aux deux tiers — c'est la distance à laquelle on se battait. */
+        HelmOf(s).Standoff = 120;
         s.Ctrl.SailsSet = true;
         s.Ctrl.Sheet = 0.6;
         return true;

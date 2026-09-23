@@ -7908,6 +7908,36 @@ de son bord avant de l apprendre du sien. Les quatre tournures, jouées :
 - « Un boulet dans un navire de votre pavillon ! »
 - « 3 coups dans un navire de votre pavillon ! »
 
+## Elles se rangeaient en file au lieu de se battre (Godot)
+
+Capture à l'appui : les douze coques se suivaient sagement et rien ne se
+passait. Trois causes, dont une qu'on n'aurait pas trouvée à l'œil.
+
+**Toutes visaient le même.** L'adversaire était « le plus proche d'un autre
+pavillon », et elles trouvaient toutes le même plus proche ; comme la barre
+contourne la garde d'une proie toujours du même côté, elles se rangeaient en
+file derrière elle sans jamais lui présenter le travers — et un navire qui ne
+présente pas le travers ne tire pas. On regarde désormais d'abord COMBIEN de
+coques visent déjà chaque adversaire ; la distance ne départage que les ex æquo.
+Onze duels au lieu d'une procession.
+
+**Le temps de l'affiche.** `Offshore()` pose force 3 et « il fait route,
+lentement » : c'est le fond de l'écran de titre, pas une brise de combat. Deux
+lignes s'y rejoignaient à 2,5 nœuds, quatre minutes avant le premier coup.
+Force 5, les lignes à 500 m au lieu de 600, et les coques arrivent AVEC DE
+L'ERRE — six nœuds, comme une escadre qui se présente.
+
+**Et la garde était trop grande, ce qui est le vrai enseignement.** 220 m de
+garde donnent 300 m de portée réelle une fois la tangente prise. Or une pièce
+pointe légèrement VERS LE BAS et le boulet tombe : à 300 m il a plongé de 3,5 m
+et entre dans l'eau avant la muraille. Mesuré : **418 charges brûlées pour une
+seule coque perdue en neuf minutes**, et une formation dissoute, les navires se
+courant après jusqu'à 880 m. Garde à 120 m — 160 m de portée réelle, où le
+boulet est encore à hauteur de bordé et mord aux deux tiers : **156 charges et
+sept coques sur onze embarquant de l'eau en moins de quatre minutes**, la
+formation tenue entre 70 et 270 m. C'est la distance à laquelle on se battait,
+et ce n'est pas un hasard : c'est celle où le boulet arrive encore droit.
+
 ## La fin d'une escarmouche, et qui l'emporte
 
 Un panneau, et le mot en grand : **Victoire** quand le camp du joueur reste
