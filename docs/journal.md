@@ -7893,6 +7893,28 @@ ambiguïté (`materials[].normalTexture`), l'œil dans le jeu beaucoup moins : u
 coque plate ressemble à une coque dont la carte est trop faible. Lire le JSON du
 modèle avant de chercher un bogue dans le moteur.
 
+## Un outil pour les textures qui sortent de Blender
+
+La leçon d'au-dessus s'est répétée à l'export suivant — la carte de normales
+du bois était revenue en 16 bits, et une seconde l'avait rejointe pour les
+cordages : 13,5 Mo de modèle, et une page très au-delà de ses 16 Mo. Ce qu'on
+refait deux fois à la main se range dans `tools/` : **`glb-8bit.js`** relit
+chaque PNG d'un `.glb`, ramène à huit bits ce qui est en seize, laisse tomber
+un alpha qui ne sert à rien, et borne le côté sur demande
+(`--max fabrics=512`). Il ne touche à rien d'autre : mêmes maillages, mêmes
+matières, mêmes noms — à passer après chaque export.
+
+Sur la frégate : bois 4,21 → 0,51 Mo, étoffes 6,14 → 2,45 Mo, le modèle de
+13,5 à 6,2 Mo. Les étoffes restent lourdes parce qu'une carte bruitée ne se
+compresse pas ; c'est à cela que sert `--max`, un cordage n'ayant pas besoin
+de mille pixels de côté.
+
+**Et une leçon payée cher** : un `git checkout` sur un fichier que l'on vient
+de recevoir et qui n'a jamais été indexé l'efface sans retour. Un export
+Blender de treize mégaoctets a disparu comme cela. Devant un binaire modifié
+qu'on n'a pas soi-même écrit, on en fait une copie AVANT d'y toucher — ou on
+l'indexe (`git add`), ce qui suffit à le mettre à l'abri.
+
 ## Chaque partie dans son menu (Godot)
 
 Une sortie en jeu libre enregistrée depuis Échap se retrouvait dans la liste de
