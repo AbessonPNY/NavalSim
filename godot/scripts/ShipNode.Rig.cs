@@ -492,6 +492,33 @@ public partial class ShipNode
         }
     }
 
+    /// <summary>
+    /// LES TANGENTES QU'UNE NORMAL MAP EXIGE. Godot lit le relief dans le repère
+    /// de la surface, et ce repère vient des TANGENTES : sans elles, une carte
+    /// livrée par le .glb ne fait rien du tout — ni erreur, ni relief. Le
+    /// chargement à l'exécution (GltfDocument) ne les fabrique pas, alors on les
+    /// fabrique ici, pour toute surface qui porte un relief et n'en a pas.
+    /// </summary>
+    static void TangentsForRelief(Node3D root)
+    {
+        foreach (var (mi, _) in Meshes(root))
+        {
+            var mesh = mi.Mesh;
+            if (mesh.GetSurfaceCount() != 1) continue;
+            if ((mi.GetSurfaceOverrideMaterial(0) ?? mesh.SurfaceGetMaterial(0)) is not BaseMaterial3D mat) continue;
+            if (!mat.NormalEnabled || mat.NormalTexture == null) continue;
+            var arrays = mesh.SurfaceGetArrays(0);
+            if (arrays[(int)Mesh.ArrayType.Tangent].VariantType != Variant.Type.Nil) continue;
+            if (arrays[(int)Mesh.ArrayType.TexUV].VariantType == Variant.Type.Nil) continue;
+            var st = new SurfaceTool();
+            st.CreateFromArrays(arrays);
+            st.GenerateTangents();
+            var am = st.Commit();
+            am.SurfaceSetMaterial(0, mat);
+            mi.Mesh = am;
+        }
+    }
+
     static ImageTexture? MakeRelief(Texture2D src, double strength, BaseMaterial3D.TextureChannel ch)
     {
         var img = src.GetImage();

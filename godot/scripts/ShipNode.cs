@@ -142,6 +142,8 @@ public partial class ShipNode : Node3D
 
             SplitPrimitives(obj);
             ReliefFromRoughness(obj, m.Relief ?? 0);
+            // et les tangentes des reliefs que le modèle apporte lui-même
+            TangentsForRelief(obj);
 
             // sa COQUE ramenée à la longueur que le solveur fait flotter
             double k = m.Scale ?? HullScale(obj, m.LengthAxis);
