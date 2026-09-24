@@ -445,8 +445,72 @@ public partial class SoundNode : Node3D
     }
 
     /// <summary>Le fondu, image par image.</summary>
+    /* ------------------------------------------------------------------ */
+    /*  LA MER, QUI NE S'ARRÊTE JAMAIS                                       */
+    /* ------------------------------------------------------------------ */
+
+    /// <summary>
+    /// LE BRUIT DE FOND DE LA MER — une boucle, et c'est AUTRE CHOSE QUE LA
+    /// MUSIQUE : on peut couper l'une sans l'autre, et la mer continue quand le
+    /// morceau se tait. Elle a donc son propre lecteur.
+    ///
+    /// Sur le bus du dehors : entendue depuis la chambre, elle passe la cloison
+    /// comme tout ce qui vient du large. Et en fondu — la mer ne change pas de
+    /// voix d'un coup quand le vent fraîchit.
+    /// </summary>
+    AudioStreamPlayer? _sea;
+    string _seaSrc = "";
+    double _seaGoal, _seaNow, _seaGain = 0.7;
+
+    public string SeaPlaying => _seaSrc;
+
+    public void Sea(string? file, double gain = 0.7)
+    {
+        _seaGain = Math.Clamp(gain, 0, 1);
+        if ((file ?? "") == _seaSrc) { if (_seaSrc.Length > 0) _seaGoal = _seaGain; return; }
+        _seaSrc = file ?? "";
+        if (string.IsNullOrEmpty(file)) { _seaGoal = 0; return; }
+
+        string path = System.IO.Path.Combine(WorldLoad.Folder, "medias", "sound", file);
+        if (!System.IO.File.Exists(path))
+        {
+            GD.PushWarning($"ambiance de mer absente : {file}");
+            _seaSrc = "";
+            return;
+        }
+        if (Read(path) is not { } stream) { _seaSrc = ""; return; }
+        if (stream is AudioStreamOggVorbis o) o.Loop = true;
+        else if (stream is AudioStreamMP3 m) m.Loop = true;
+        else if (stream is AudioStreamWav w) w.LoopMode = AudioStreamWav.LoopModeEnum.Forward;
+        _sea ??= AddSea();
+        _sea.Stream = stream;
+        _sea.VolumeDb = Mathf.LinearToDb(0.001f);
+        _seaNow = 0;
+        _seaGoal = _seaGain;
+        _sea.Play();
+    }
+
+    AudioStreamPlayer AddSea()
+    {
+        var a = new AudioStreamPlayer { Bus = OutBus };
+        AddChild(a);
+        return a;
+    }
+
+    void SeaTick(double dt)
+    {
+        if (_sea == null) return;
+        double step = dt / Fondu * Math.Max(0.05, _seaGain);
+        if (_seaNow < _seaGoal) _seaNow = Math.Min(_seaGoal, _seaNow + step);
+        else if (_seaNow > _seaGoal) _seaNow = Math.Max(_seaGoal, _seaNow - step);
+        if (_seaNow <= 0.0005) { if (_sea.Playing) _sea.Stop(); return; }
+        if (!_sea.Playing) _sea.Play();
+        _sea.VolumeDb = Mathf.LinearToDb((float)_seaNow);
+    }
+
     void AmbTick(double dt)
     {
+        SeaTick(dt);
         if (_amb == null) return;
         double step = dt / Fondu * VolAmb;
         if (_ambNow < _ambGoal) _ambNow = Math.Min(_ambGoal, _ambNow + step);

@@ -1830,6 +1830,7 @@ public partial class ShipDemo : Node3D
                 _bottleOneIn = bo.GetInt32();
             if (root.TryGetProperty("gunnery", out var gu)) _gunRules = GunnerySettings.FromJson(gu);
             if (root.TryGetProperty("encounters", out var ec)) _metRules = EncounterSettings.FromJson(ec);
+            if (root.TryGetProperty("sound", out var sn)) LoadSeaBeds(sn);
             if (root.TryGetProperty("storm", out var st))
             {
                 if (st.TryGetProperty("lightning", out var li)) _lightRules = LightningSettings.FromJson(li);

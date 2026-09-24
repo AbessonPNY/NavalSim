@@ -22,6 +22,15 @@ namespace NavalSim;
 public partial class ShipDemo
 {
     double _crewGain = 0.9, _crewHold = 2.5, _crewLo = 45, _crewHi = 180;
+
+    /* L'AMBIANCE DE LA MER, par bandes d'état de mer. La mer ne fait pas le même
+       bruit à force 2 et à force 8, et une seule boucle sonnerait faux la moitié
+       du temps. On range donc des bandes, de la plus calme à la plus grosse, et
+       la première dont le plafond dépasse la force courante l'emporte. Une seule
+       suffit pour commencer : elle couvre alors jusqu'à son plafond, et au-delà
+       la mer se tait plutôt que de mentir. */
+    readonly List<(string File, double MaxForce, double Gain)> _seaBeds = new();
+    double _seaCheck;
     double _nextLife = -1;
     readonly Random _crewRng = new();
 
@@ -36,6 +45,38 @@ public partial class ShipDemo
     // ------------------------------------------------------------------
     //  LE MANIFESTE
     // ------------------------------------------------------------------
+
+    /// <summary>Les bandes de mer, lues dans settings.json → sound.mer.</summary>
+    void LoadSeaBeds(System.Text.Json.JsonElement snd)
+    {
+        _seaBeds.Clear();
+        if (!snd.TryGetProperty("mer", out var m) || m.ValueKind != System.Text.Json.JsonValueKind.Array) return;
+        foreach (var e in m.EnumerateArray())
+        {
+            if (e.ValueKind != System.Text.Json.JsonValueKind.Object) continue;
+            string? f = e.TryGetProperty("fichier", out var fv) ? fv.GetString() : null;
+            if (string.IsNullOrEmpty(f)) continue;
+            double max = e.TryGetProperty("maxForce", out var mv) ? mv.GetDouble() : 99;
+            double gain = e.TryGetProperty("gain", out var gv) ? gv.GetDouble() : 0.7;
+            _seaBeds.Add((f, max, gain));
+        }
+        _seaBeds.Sort((a, b) => a.MaxForce.CompareTo(b.MaxForce));
+        if (_seaBeds.Count > 0) GD.Print($"ambiance de mer : {_seaBeds.Count} bande(s)");
+    }
+
+    /* CE QUE LA MER DIT, À CETTE FORCE-LÀ. Repris toutes les deux secondes et non
+       à chaque image : le choix ne change qu'avec le temps qu'il fait, et
+       SoundNode.Sea ne fait rien quand on lui redonne ce qu'il joue déjà. */
+    void SeaBedTick()
+    {
+        if (_sound == null || _seaBeds.Count == 0 || _t < _seaCheck) return;
+        _seaCheck = _t + 2;
+        double force = _sea.Core.SeaState;
+        foreach (var b in _seaBeds)
+            if (force <= b.MaxForce) { _sound.Sea(b.File, b.Gain); return; }
+        // au-delà de la dernière bande, elle se tait : mieux que de sonner faux
+        _sound.Sea(null);
+    }
 
     void LoadCrewVoices()
     {
@@ -114,6 +155,7 @@ public partial class ShipDemo
         // la barre toute d'un bord : on ne crie qu'une fois par coup de barre
         if (Math.Abs(ctrl.Rudder) > 0.85) Shout("barre", -0.3, 6);
 
+        SeaBedTick();
         Bell();
         Life(dt);
     }

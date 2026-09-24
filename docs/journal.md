@@ -7931,6 +7931,28 @@ quel que soit le pont d'où l'on regarde.
 Mesuré en headless : 20 500 Hz sur le pont, 700 Hz dans la chambre, et le
 retour au plein air quand on en sort.
 
+## La mer, qui ne s'arrête jamais (Godot)
+
+Une boucle de fond pour la mer, et c'est AUTRE CHOSE QUE LA MUSIQUE : on coupe
+l'une sans l'autre, et la mer continue quand le morceau se tait. Elle a donc son
+propre lecteur, sur le bus du dehors — entendue depuis la chambre, elle passe la
+cloison comme tout ce qui vient du large.
+
+**Par BANDES d'état de mer**, parce que la mer ne fait pas le même bruit à
+force 2 et à force 8, et qu'une boucle unique sonnerait faux la moitié du temps.
+ →  range les bandes de la plus calme à la plus
+grosse, et la première dont le plafond dépasse la force courante l'emporte. Le
+passage se fait en fondu : la mer ne change pas de voix d'un coup quand le vent
+fraîchit.
+
+Une seule bande pour l'instant —  jusqu'à force 3,5.
+Au-delà, elle SE TAIT plutôt que de mentir, ce qui dit tout de suite ce qui
+manque. Mesuré : à force 2 elle joue, à force 6 elle se tait.
+
+Le choix est repris toutes les deux secondes et non à chaque image — il ne
+change qu'avec le temps qu'il fait, et redonner au lecteur ce qu'il joue déjà ne
+lui coûte rien.
+
 ## La vie du bord, par l'oreille (Godot)
 
 Comment peupler un pont sans payer d'images ? `crew.js` a déjà répondu par la

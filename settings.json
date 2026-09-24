@@ -1,6 +1,12 @@
 {
   "hud": { "startHidden": true },
-  "sound": { "music": false },
+  "sound": {
+    "music": false,
+    "_mer": "L AMBIANCE DE LA MER, par etat de la mer : la premiere bande dont maxForce depasse la force courante l emporte, donc rangez-les de la plus calme a la plus grosse. Fichiers dans medias/sound/ (.ogg, .mp3 ou .wav). Le passage d une bande a l autre se fait en fondu. Retirez la liste, et la mer se tait.",
+    "mer": [
+      { "fichier": "olas_del_mar_loopable.ogg", "maxForce": 3.5, "gain": 0.7 }
+    ]
+  },
   "calendar": { "start": "1690-10-08" },
   "crew": { "enabled": false, "count": 4, "minLength": 12, "farHide": 350,
             "upright": 0.68, "lag": 0.35, "stanceFrom": 3, "stanceFull": 14, "braceFrom": 6, "braceFull": 18,
