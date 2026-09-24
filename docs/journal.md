@@ -7983,6 +7983,30 @@ d avant, alors qu en 1690 c était la CIVADIÈRE — une vergue SOUS le beaupré
 projet ne sait pas encore la dessiner, et la frégate de 1597 porte le même foc
 anachronique.
 
+### La civadiere, et une regle qui la bornait a rien
+
+La voile d avant de 1690 n est pas un foc mais une CIVADIERE : une vergue
+croisee SOUS le beaupre, portant une petite voile carree qui pend au-dessus de
+l eau. Elle est maintenant sur le modele — et rien n a ete appris au moteur pour
+cela. Une vergue se reconnait a sa FORME (longue en travers, mince, d equerre
+sur l axe), donc celle-ci passe l epreuve comme les autres et la toile vient s y
+pendre seule, en quatrieme groupe « sans espar », ce qui est juste sous un
+beaupre — et l empeche de tomber, un groupe sans mat a lui ne tombant pas.
+
+**Une seule regle etait fausse, et de trois centimetres.** La chute d une voile
+est bornee par le PONT — « une basse voile est bordee au pavois, pas a travers ».
+Juste au-dessus de la coque, faux sous un beaupre : la civadiere se trouvait
+bornee a une chute NEGATIVE de trois centimetres, donc a rien, et le groupe
+existait sans toile. Hors des bouts de la coque, le plancher d une vergue est la
+MER. Corrige des deux cotes.
+
+Mesuree apres : 5,76 m de largeur, 2,92 m de chute, point d ecoute a 40 cm
+au-dessus de l eau — la ou une civadiere se mouillait pour de bon. Huit voiles
+carrees en tout, plus la latine.
+
+Aucun navire a voiles carrees du dossier n est depourvu de modele : la voie par
+la forme est donc la seule utile, et un chemin par la fiche serait du code mort.
+
 ### La batterie, lue sur les tubes
 
 L'armement du 3 avril 1690 est dans le modèle, aux vraies pièces : 4 de

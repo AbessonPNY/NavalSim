@@ -132,8 +132,25 @@ function rigMeshes(spec, lines, out) {
     const beaupre = Mesh('Beaupre', 1);
     const z = L * 0.47, y = deckAt(z);
     const s = r.bowsprit.steeve || 0.2, len = r.bowsprit.length;
-    tube(beaupre, [0, y, z], [0, y + Math.sin(s) * len, z + Math.cos(s) * len], 0.22, 0.09, 8);
+    const tip = [0, y + Math.sin(s) * len, z + Math.cos(s) * len];
+    tube(beaupre, [0, y, z], tip, 0.22, 0.09, 8);
     out.push(beaupre);
+
+    /* LA CIVADIÈRE — la voile d'avant d'avant le foc. Une vergue croisée SOUS le
+       beaupré, qui portait une petite voile carrée : c'est ce qu'un navire de
+       1690 avait à l'étrave, le foc n'arrivant qu'au siècle suivant. Rien à
+       apprendre au moteur : une vergue se reconnaît à sa FORME — longue en
+       travers, mince, d'équerre sur l'axe — et celle-ci passe l'épreuve comme
+       les autres, si bien que la toile vient s'y pendre toute seule. */
+    const cv = r.spritsail;
+    if (cv) {
+      const civ = Mesh('VergueCivadiere', 1);
+      const u = cv.at ?? 0.55;
+      const p = [0, y + Math.sin(s) * len * u - (cv.under ?? 0.35), z + Math.cos(s) * len * u];
+      const half = (cv.span ?? 0.78) * spec.B * 0.5;
+      tube(civ, [-half, p[1], p[2]], [half, p[1], p[2]], 0.09, 0.05, 6);
+      out.push(civ);
+    }
   }
 }
 

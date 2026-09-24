@@ -1140,8 +1140,14 @@ Naval.ShipModel = class ShipModel {
         cord.push({obj:pivot, x:-half*0.98, y:yy, z:dz, len:armLen},
                   {obj:pivot, x: half*0.98, y:yy, z:dz, len:armLen});
 
-        const drop = Math.min(0.82*gap, 1.1*half,
-                              yy - deckAt(y.mid.z) - 0.02*spec.L);
+        /* A yard BEYOND THE STEM is a spritsail, and its floor is the SEA, not
+           the deck. The "no sail below the deck" rule is right over the hull — a
+           course is sheeted to the rail, not through it — and wrong under a
+           bowsprit, where the canvas hangs over the water and gets wet in it.
+           It clipped the spritsail to a negative drop, so to nothing at all. */
+        const overhang = Math.abs(y.mid.z) > spec.L*0.5;
+        const floorY = overhang ? 0.4 : deckAt(y.mid.z) + 0.02*spec.L;
+        const drop = Math.min(0.82*gap, 1.1*half, yy - floorY);
         if(drop < 0.2*half) continue;   // too near the deck to be a yard at all
         share += half*2*drop;           // roughly her area, for what she drives
 

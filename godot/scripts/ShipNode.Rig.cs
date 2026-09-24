@@ -999,7 +999,16 @@ public partial class ShipNode
                            : above != null ? above.Mid.Y - y.Mid.Y
                            : half * 2;
                 double dz = y.Mid.Z - z0, yy = y.Mid.Y;
-                double drop = Math.Min(Math.Min(0.82 * gap, 1.1 * half), yy - deckAt(y.Mid.Z) - 0.02 * spec.L);
+                /* UNE VERGUE AU-DELÀ DE L'ÉTRAVE EST UNE CIVADIÈRE, et son plancher
+                   n'est pas le pont mais la MER. La règle « aucune voile ne descend
+                   sous le pont » est juste au-dessus de la coque — une basse voile
+                   est bordée au pavois, pas à travers — et fausse sous un beaupré,
+                   où la toile pend au-dessus de l'eau et s'y mouille. Elle bornait
+                   la civadière à trois centimètres de chute NÉGATIVE, donc à rien
+                   (mesuré sur le Speedwell avant de le voir). */
+                bool overhang = Math.Abs(y.Mid.Z) > spec.L * 0.5;
+                double floorY = overhang ? 0.4 : deckAt(y.Mid.Z) + 0.02 * spec.L;
+                double drop = Math.Min(Math.Min(0.82 * gap, 1.1 * half), yy - floorY);
                 if (drop < 0.2 * half) continue;         // trop près du pont pour être une vergue
 
                 pivot.AddChild(SailSurface(new[]
