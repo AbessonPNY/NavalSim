@@ -15,7 +15,18 @@ public partial class ShipDemo
 {
     HBoxContainer? _gunBar;
     Label? _gunPowder;
+    Button? _layButton;
     readonly Dictionary<int, Button> _gunButtons = new();
+
+    /* « PAREZ À FAIRE FEU » — l'ordre qui fait d'une bordée une SALVE.
+       Sans lui, on tire ce qui est chargé : les pièces se rechargeant chacune à
+       son allure, le bord part par deux ou trois à la fois et s'égrène. L'ordre
+       donné, les servants pointent, amorcent et ATTENDENT — aucune ne parle
+       avant que tout le bord soit paré, et alors elles partent ensemble, à
+       quelques millièmes de seconde les unes des autres (demandé).
+       Le prix est le temps : on attend la plus lente. C'est le choix qu'on
+       laisse au joueur, et c'est celui qu'un capitaine avait. */
+    bool _layOrder;
 
     static readonly Color GunPicked = new(0.92f, 0.78f, 0.36f);   // l'or du bord choisi
     static readonly Color GunIdle = new(0.78f, 0.82f, 0.86f);
@@ -44,6 +55,24 @@ public partial class ShipDemo
         _gunPowder.AddThemeColorOverride("font_outline_color", new Color(0, 0, 0, 0.85f));
         _gunPowder.AddThemeConstantOverride("outline_size", 4);
         _gunBar.AddChild(_gunPowder);
+
+        _layButton = new Button { FocusMode = Control.FocusModeEnum.None };
+        _layButton.AddThemeFontSizeOverride("font_size", 12);
+        _layButton.TooltipText = "Parez à faire feu (⇧B) : le bord attend d'être entièrement chargé, puis part d'un coup";
+        _layButton.Pressed += ToggleLayOrder;
+        _gunBar.AddChild(_layButton);
+    }
+
+    /// <summary>Donner ou lever l'ordre de parer.</summary>
+    void ToggleLayOrder()
+    {
+        _layOrder = !_layOrder;
+        var l = _gunnery.Loaded(_ship.Battery, _gunSide);
+        Say(_layOrder
+            ? (l.Ready >= l.All && l.All > 0
+                ? "Parez à faire feu — le bord est paré"
+                : $"Parez à faire feu — {l.Ready}/{l.All} parées, on attend les autres")
+            : "Feu à volonté");
     }
 
     /// <summary>La hauteur que la rangée occupe : la ligne de quête se range dessous.</summary>
@@ -89,6 +118,18 @@ public partial class ShipDemo
             _gunPowder.Text = $"· {p} charge{(p > 1 ? "s" : "")}"
                 + (here.Ready == 0 && double.IsFinite(here.Next) ? $" · prête dans {Math.Ceiling(here.Next):F0} s" : "");
             _gunPowder.AddThemeColorOverride("font_color", p > 0 ? GunIdle : GunSpent);
+        }
+        if (_layButton != null)
+        {
+            var l = _gunnery.Loaded(bat, _gunSide);
+            bool paree = l.All > 0 && l.Ready >= l.All;
+            double wait = _gunnery.AllReadyIn(bat, _gunSide);
+            _layButton.Text = _layOrder
+                ? (paree ? "▮ paré à faire feu"
+                         : $"▯ on pare… {l.Ready}/{l.All}" + (wait > 0.5 ? $" ({Math.Ceiling(wait)} s)" : ""))
+                : "feu à volonté";
+            _layButton.AddThemeColorOverride("font_color",
+                !_layOrder ? GunIdle : paree ? GunPicked : GunSpent);
         }
     }
 }

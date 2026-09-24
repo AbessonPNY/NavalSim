@@ -172,7 +172,7 @@ public sealed class Gunnery
         public ShipPhysics From = null!;
     }
 
-    struct Queued { public double T; public Gun G; public ShipPhysics Ship; }
+    struct Queued { public double T; public Gun G; public ShipPhysics Ship; public bool Together; }
     readonly List<Queued> _queue = new();
 
     /// <summary>Une pièce parle : sa bouche (monde local), l'axe du coup, son calibre, la mer sous elle, et qui a tiré.</summary>
@@ -217,6 +217,24 @@ public sealed class Gunnery
         return (ready, all, ready > 0 ? 0 : next);
     }
 
+    /// <summary>
+    /// DANS COMBIEN LE BORD ENTIER SERA PARÉ — la plus LENTE, et non la
+    /// prochaine. <see cref="Loaded"/> ne donne l'attente que si rien n'est prêt,
+    /// ce qui est la bonne réponse quand on tire à volonté et la mauvaise quand on
+    /// attend le bord entier : à douze pièces sur quatorze, il annonçait zéro
+    /// seconde (signalé par la mesure). Zéro quand tout est chargé.
+    /// </summary>
+    public double AllReadyIn(Battery b, int side)
+    {
+        double last = 0;
+        foreach (var g in b.Guns)
+        {
+            if (g.Side != side || g.Out) continue;
+            last = Math.Max(last, g.ReadyAt - Clock);
+        }
+        return Math.Max(0, last);
+    }
+
     /* UNE PIÈCE, et la suivante la fois d'après : la batterie parcourue de l'avant à
        l'arrière coup par coup — ce qui est la façon dont on sert une batterie quand
        elle ne tire pas ensemble, et donne au joueur de quoi faire entre deux bordées. */
@@ -243,7 +261,7 @@ public sealed class Gunnery
        bord, et IRRÉGULIÈRE — chaque chef de pièce attend son roulis et sa mèche, et
        de temps en temps une pièce fait long feu. Seules parlent les pièces chargées ;
        `max` la borne à ce que la soute peut payer. */
-    public int Broadside(Battery b, int side, ShipPhysics ship, int max = int.MaxValue)
+    public int Broadside(Battery b, int side, ShipPhysics ship, int max = int.MaxValue, bool together = false)
     {
         var g = new List<Gun>();
         foreach (var x in b.Guns) if (x.Side == side && !x.Out && x.ReadyAt <= Clock) g.Add(x);
@@ -251,10 +269,28 @@ public sealed class Gunnery
         double delay = 0;
         for (int n = 0; n < fire; n++)
         {
-            _queue.Add(new Queued { T = -delay, G = g[n], Ship = ship });
+            _queue.Add(new Queued { T = -delay, G = g[n], Ship = ship, Together = together });
             Spent(g[n], delay);
-            delay += 0.08 + _random() * 0.22;
-            if (_random() < 0.18) delay += 0.15 + _random() * 0.35;   // une fait long feu
+            /* PARÉES, ELLES PARTENT ENSEMBLE. Une bordée tirée à volonté s'égrène
+               le long du bord — chaque chef de pièce attend son roulis et sa
+               mèche, et de temps en temps une fait long feu. Mais un bord PARÉ a
+               été pointé et amorcé d'avance, et n'attend qu'un mot : quelques
+               millièmes de seconde séparent alors les coups, le temps que l'ordre
+               coure d'une pièce à l'autre. Pas de long feu non plus — on ne garde
+               pas en batterie une pièce dont on doute.
+
+               L'étalement est borné au BORD ENTIER et non pris par pièce : un pas
+               fixe de huit millièmes ferait cent dix millisecondes sur quatorze
+               pièces, et ce ne serait plus une salve. Cinquante millièmes d'un
+               bout du bord à l'autre — quatre par pièce sur un bord de quatorze,
+               dix sur un bord de six —, plus un rien d'irrégularité qu'aucune
+               mèche n'évite. */
+            if (together) delay += (fire > 1 ? 0.05 / (fire - 1) : 0) + _random() * 0.003;
+            else
+            {
+                delay += 0.08 + _random() * 0.22;
+                if (_random() < 0.18) delay += 0.15 + _random() * 0.35;   // une fait long feu
+            }
         }
         return fire;
     }
@@ -341,7 +377,13 @@ public sealed class Gunnery
             q.T += dt;
             _queue[i] = q;
             if (q.T < 0) continue;
-            if (q.T < 2.5)
+            /* CHACUN ATTEND SON ROULIS — sauf sur ordre. Une pièce servie à
+               volonté part quand sa bouche descend, et c'est ce qui fait qu'une
+               bordée s'égrène. Mais un bord PARÉ part sur un mot : le capitaine a
+               choisi le roulis pour tous, et chaque chef attendant le sien
+               rendait la salve à sa traîne — mesuré, sept millièmes voulus entre
+               pièces et quarante observés, six images d'attente par coup. */
+            if (q.T < 2.5 && !q.Together)
             {
                 var b = q.Ship.Body;
                 Vec3d d = b.Quat.Rotate(q.G.Dir);

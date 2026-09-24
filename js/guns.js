@@ -297,20 +297,39 @@ Naval.Guns = class Guns {
      poudre n'est pas une bordée qui ne part pas : c'est une bordée plus
      courte, les pièces du bout restant muettes faute de gargousse, ce qui est
      exactement ce qui arrivait. Absent, toute la batterie parle comme avant. */
-  broadside(muzzles, side, body, spec, wind, max){
+  /* How long until the WHOLE side is laid — the slowest gun, not the next one.
+     loaded() only reports a wait when nothing at all is ready, which is right
+     when firing at will and wrong when holding for the full broadside. Zero
+     when everything is loaded. */
+  allReadyIn(muzzles, side){
+    let last = 0;
+    for(const g of muzzles) if(g.side === side && !g.out) last = Math.max(last, g.readyAt - this.clock);
+    return Math.max(0, last);
+  }
+
+  broadside(muzzles, side, body, spec, wind, max, together){
     // only what is loaded speaks: a broadside is the guns that are ready
     const g = this._battery(muzzles, side, true);
     if(!g.length) return 0;
     const fire = max === undefined ? g.length : Math.min(g.length, Math.max(0, max|0));
     if(!fire) return 0;
-    /* A few tenths of a second between guns, never together: each captain
-       waits for his own roll and his own match. */
+    /* A few tenths of a second between guns when firing at will: each captain
+       waits for his own roll and his own match. But a side that has been LAID
+       AND PRIMED on order is waiting on one word, and then only a few
+       thousandths separate the guns — the time it takes the order to run down
+       the deck. No hangfire either: one does not keep a doubtful gun in a
+       broadside that is being held. */
     let delay = 0;
     for(let n = 0; n < fire; n++){
-      this._queue.push({ t:-delay, g:g[n], body, spec, wind });
+      this._queue.push({ t:-delay, g:g[n], body, spec, wind, together });
       this._spent(g[n], delay);
-      delay += 0.08 + Math.random()*0.22;
-      if(Math.random() < 0.18) delay += 0.15 + Math.random()*0.35;   // one hangs fire
+      // spread bounded over the WHOLE side, not per gun: a fixed step would make
+      // 110 ms on a fourteen-gun broadside, which is no longer a salvo
+      if(together) delay += (fire > 1 ? 0.05/(fire - 1) : 0) + Math.random()*0.003;
+      else {
+        delay += 0.08 + Math.random()*0.22;
+        if(Math.random() < 0.18) delay += 0.15 + Math.random()*0.35;   // one hangs fire
+      }
     }
     return fire;
   }
@@ -728,7 +747,11 @@ Naval.Guns = class Guns {
       const q = this._queue[i];
       q.t += dt;
       if(q.t < 0) continue;
-      if(q.t < 2.5){
+      /* Each captain waits for his own roll — unless the side was LAID on
+         order, in which case the captain chose the roll for all of them and they
+         go on one word. Letting each wait for his own put the salvo back into a
+         ripple. */
+      if(q.t < 2.5 && !q.together){
         /* Along the barrel, whichever way it lies. The rule does not change for
            a chaser: what lifts a fore-and-aft gun is her PITCH, and (ω × d).y
            reads that exactly as it reads heel for a broadside gun. */

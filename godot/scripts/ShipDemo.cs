@@ -1643,6 +1643,8 @@ public partial class ShipDemo : Node3D
                 // AZERTY entierement.
                 case Key.Pageup: _swell = Math.Min(2.6, _swell + 0.15); Restate(); break;
                 case Key.Pagedown: _swell = Math.Max(0.4, _swell - 0.15); Restate(); break;
+                // parer le bord, ou rendre le feu à volonté
+                case Key.B when k.ShiftPressed: ToggleLayOrder(); break;
                 case Key.V when k.ShiftPressed: ReefStep(); break;
                 case Key.V: _ship.Ctrl.SailsSet = !_ship.Ctrl.SailsSet; _ship.Ctrl.Canvas = 1; _reef = 0; break;
                 /* N SEUL NE SERT PLUS (demandé). Elle passait à la fiche suivante,
@@ -2292,7 +2294,25 @@ public partial class ShipDemo : Node3D
         int side = other ? -_gunSide : _gunSide;
         if (!bat.Has(side)) { Say("Aucune pièce en " + GunNames[side]); return; }
         if (bat.Count(side).Ok == 0) { Say("Plus une pièce en état · " + GunNames[side]); return; }
-        int fired = held ? _gunnery.Broadside(bat, side, ph, ph.Powder) : _gunnery.FireOne(bat, side, ph);
+        /* L'ORDRE DE PARER RETIENT LE FEU. Tant que tout le bord n'est pas
+           chargé, rien ne part — c'est cela qu'on a demandé aux servants, et
+           c'est ce qui coûte : on attend la plus lente. Une pièce démontée ne
+           compte pas dans le total, sinon un bord amoindri ne tirerait jamais. */
+        if (_layOrder)
+        {
+            var L0 = _gunnery.Loaded(bat, side);
+            if (L0.Ready < L0.All)
+            {
+                double wait = _gunnery.AllReadyIn(bat, side);
+                Say($"Les servants parent leurs pièces · {L0.Ready}/{L0.All}"
+                    + (wait > 0.5 ? $" — parées dans {Math.Ceiling(wait)} s" : ""));
+                return;
+            }
+        }
+        // parée, la bordée part d'un coup, qu'on ait tenu la touche ou non
+        int fired = held || _layOrder
+            ? _gunnery.Broadside(bat, side, ph, ph.Powder, _layOrder)
+            : _gunnery.FireOne(bat, side, ph);
         if (fired == 0)
         {
             var L = _gunnery.Loaded(bat, side);

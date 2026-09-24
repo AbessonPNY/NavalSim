@@ -126,6 +126,9 @@ public partial class ShipDemo : Node3D
         Key(b, "P", "la flotte fantôme");
         Key(b, "⇧P", "amener ou hisser le pavillon");
         Key(b, "⇧N", "la flotte : mettre à l'eau, retirer");
+        Key(b, "⇧B", "parer le bord : tout charger, puis tirer d'un coup");
+        Key(b, "⇧B", "parer le bord : tout charger, puis tirer d'un coup");
+        Key(b, "⇧B", "parer le bord : tout charger, puis tirer d'un coup");
 
         var c2 = Column();
         Section(c2, "Vues");

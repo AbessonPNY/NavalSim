@@ -7931,6 +7931,39 @@ quel que soit le pont d'où l'on regarde.
 Mesuré en headless : 20 500 Hz sur le pont, 700 Hz dans la chambre, et le
 retour au plein air quand on en sort.
 
+## « Parez à faire feu » — la bordée qui part d'un coup
+
+Une bordée tirée à volonté s'égrène : les pièces se rechargeant chacune à son
+allure, le bord part par deux ou trois à la fois. L'ordre demandé fait d'elle
+une SALVE — les servants pointent, amorcent et attendent, aucune ne parle avant
+que tout le bord soit paré, et alors elles partent ensemble. Un bouton dans le
+panneau des bordées, et ⇧B.
+
+Le prix est le temps : on attend la plus lente. C'est le choix qu'on laisse au
+joueur, et c'est celui qu'un capitaine avait.
+
+**Trois choses à corriger, toutes trouvées à la mesure.**
+
+L'étalement était pris PAR PIÈCE : un pas fixe de huit millièmes fait cent dix
+millisecondes sur un bord de quatorze, et ce n'est plus une salve. Il est
+désormais borné au bord ENTIER — cinquante millièmes d'un bout à l'autre, soit
+quatre par pièce sur quatorze et dix sur six.
+
+`Loaded()` ne donne l'attente que si RIEN n'est prêt, ce qui est juste quand on
+tire à volonté et faux quand on attend le bord entier : à douze pièces sur
+quatorze il annonçait « parées dans 0 s ». `AllReadyIn()` rend la plus lente.
+
+**Et surtout, une belle règle qui se retournait contre nous.** Chaque chef de
+pièce attend SON roulis — le coup part quand sa bouche descend, et c'est ce qui
+fait qu'une bordée s'égrène. Mais un bord paré part sur UN MOT : le capitaine a
+choisi le roulis pour tous. Chacun attendant le sien, la salve redevenait une
+traîne — sept millièmes voulus entre pièces, quarante observés, six images
+d'attente par coup. Une file parée saute donc l'épreuve du roulis.
+
+Mesuré après : **quatorze coups en 63 ms**, écarts de 0 à 7 ms — et 7 ms est la
+durée d'une image à 134 im/s. La salve est désormais bornée par l'affichage et
+non par le code.
+
 ## Le HMS Speedwell, et un modèle bâti sur sa fiche
 
 Un bâtiment réel, cette fois, aux cotes de son constructeur : le *Speedwell*
