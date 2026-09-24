@@ -94,6 +94,8 @@ public partial class ShipDemo
             }
             Board("voiles", "monter", "voile-monte");
             Board("voiles", "descendre", "voile-descend");
+            Board("eau", "plonge", "eau-plonge");
+            Board("eau", "sort", "eau-sort");
 
             // les bandes de mer
             if (root.TryGetProperty("mer", out var mer) && mer.TryGetProperty("bandes", out var bandes)

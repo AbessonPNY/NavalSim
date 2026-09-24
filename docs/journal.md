@@ -7959,6 +7959,22 @@ un compromis, c'est le bon geste : une porte est entre vous et la mer, ou elle
 ne l'est pas. Une écriture par passage (relevé : 20500 → 900 → 20500), et le
 fondu du volume porte tout le glissé qu'on entend.
 
+### Le passage de la surface
+
+Un bloc `eau` au manifeste : `plonge` quand l'œil s'enfonce, `sort` quand il
+remonte. Trois choix qui valent d'être écrits.
+
+C'est un **événement, pas un état** : il se joue une fois au franchissement, et
+non tant qu'on est dessous. À **plein volume et SANS filtre**, alors même qu'on
+entre dans le monde qui filtre tout — c'est ce bruit-là qui dit qu'on a changé
+de monde, et l'étouffer par celui dans lequel on entre le priverait de son seul
+travail.
+
+Et le seuil a de l'**hystérésis** : on passe dessous à 0,65 de la bande et on
+repasse dessus à 0,35, sans quoi une vague qui lèche l'objectif ferait clapoter
+à chaque image. La même raison que le seuil du pirate qui louvoie à la limite,
+et la même réponse.
+
 ### Deux questions confondues en un seul drapeau
 
 La bordée du joueur n'était plus étouffée depuis la chambre (signalé). En

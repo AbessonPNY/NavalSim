@@ -255,7 +255,8 @@ public partial class SoundNode : Node3D
     /// <paramref name="hold"/> : les secondes avant que cette clé puisse reparler.
     /// Rend faux si la clé est muette ou si elle vient de parler.
     /// </summary>
-    public bool Crew(string key, Vec3d at, double gain = 1, double hold = 2)
+    /// <param name="inside">Vrai : au Master, sans cloison ni eau entre lui et l'oreille.</param>
+    public bool Crew(string key, Vec3d at, double gain = 1, double hold = 2, bool inside = false)
     {
         if (!On || !_crew.TryGetValue(key, out var list) || list.Count == 0) return false;
         if (_crewAgain.TryGetValue(key, out double t) && _now < t) return false;
@@ -263,7 +264,7 @@ public partial class SoundNode : Node3D
         var stream = list[(int)(_rng.Randf() * list.Count) % list.Count];
         var p = Free();
         if (p == null) return false;
-        p.Bus = OutBus;
+        p.Bus = inside ? "Master" : OutBus;
         p.Stream = stream;
         p.GlobalPosition = new Vector3((float)at.X, (float)at.Y, (float)at.Z);
         // une voix n'est pas un coup de canon : ni variation de hauteur, ni filtre de l'air

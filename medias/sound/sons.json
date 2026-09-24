@@ -18,6 +18,12 @@
     "descendre": ["sail_down.ogg"]
   },
 
+  "eau": {
+    "_aide": "Le passage de la surface, entendu par l'oreille qui la traverse : « plonge » quand la caméra s'enfonce, « sort » quand elle remonte. Joué à plein volume et sans filtre — c'est ce bruit-là qui dit qu'on a changé de monde, il ne doit pas être étouffé par celui dans lequel on entre.",
+    "plonge": ["water_splash_to_underwater.ogg"],
+    "sort": []
+  },
+
   "mer": {
     "_aide": "Le fond sonore de la mer, PAR BANDES d'état de mer : la première dont maxForce dépasse la force courante l'emporte, donc rangez-les de la plus calme à la plus grosse. Le passage se fait en fondu. Au-delà de la dernière, la mer se tait plutôt que de sonner faux.",
     "bandes": [

@@ -411,6 +411,8 @@ public partial class ShipDemo : Node3D
     CameraAttributesPractical _camAttr = null!;
     MotionBlurEffect _motionBlur = null!;
     UnderwaterEffect _under = null!;
+    /// <summary>L'œil était-il sous l'eau à l'image d'avant ? (avec hystérésis : voir plus bas)</summary>
+    bool _wasWet;
     AnamorphicDofEffect _anamorphic = null!;
     DofMarker _dofMarker = null!;
     readonly ColorRect[] _maskBars = { new() { Color = Colors.Black }, new() { Color = Colors.Black } };
@@ -1165,7 +1167,21 @@ public partial class ShipDemo : Node3D
         /* ET L OREILLE AVEC L OEIL : la bande d un demi-metre autour de la surface
            sert aussi au son, pour qu il ne bascule pas d un coup quand une vague
            passe devant l objectif. */
-        _sound?.Underwater(Math.Clamp((seaY - ce.Y) / 0.5 + 0.5, 0, 1));
+        double wet = Math.Clamp((seaY - ce.Y) / 0.5 + 0.5, 0, 1);
+        _sound?.Underwater(wet);
+        /* LE PASSAGE, ET NON L'ÉTAT. Ce qu'on entend en traversant la surface est
+           un événement : il ne se joue qu'au franchissement, une fois, et à PLEIN
+           VOLUME SANS FILTRE — c'est ce bruit-là qui dit qu'on a changé de monde,
+           il ne doit pas être étouffé par celui dans lequel on entre. Le seuil est
+           pris au milieu de la bande d'un demi-mètre, et il a sa marge : une vague
+           qui lèche l'objectif ne doit pas faire clapoter à chaque image. */
+        bool sous = wet > (_wasWet ? 0.35 : 0.65);
+        if (sous != _wasWet)
+        {
+            _sound?.Crew(sous ? "eau-plonge" : "eau-sort",
+                new Vec3d(ce.X, ce.Y, ce.Z), 1, 0.3, true);
+            _wasWet = sous;
+        }
         if (under)
         {
             _under.SeaY = (float)seaY;
