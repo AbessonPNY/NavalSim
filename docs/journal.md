@@ -7931,6 +7931,55 @@ quel que soit le pont d'où l'on regarde.
 Mesuré en headless : 20 500 Hz sur le pont, 700 Hz dans la chambre, et le
 retour au plein air quand on en sort.
 
+## Le HMS Speedwell, et un modèle bâti sur sa fiche
+
+Un bâtiment réel, cette fois, aux cotes de son constructeur : le *Speedwell*
+de 1690, sorti de Rotherhithe des mains de John Gressingham. Et une précision
+qui compte pour un projet qui cherche le vrai : **ce n'est pas un sloop**.
+threedecks.org le donne « British Fifth Rate Fireship » — un brûlot de
+cinquième rang. Les cotes demandées sont bien les siennes ; le type ne l'était
+pas, et le dire valait mieux que de l'écrire faux dans la fiche.
+
+Du pied anglais au mètre : pont de batterie 94 pi = **28,65 m**, quille
+78 pi 6 po = 23,93 m, maître-bau 24 pi 11 po = **7,595 m**, creux dans la cale
+9 pi 8 po = 2,946 m, port en lourd **259 53/94 tonneaux**.
+
+**Le tonneau de jauge n'est pas un déplacement**, et c'est le piège de toute
+fiche d'époque : c'est une capacité, quille × bau × bau/2 / 94 — formule
+vérifiée sur ces cotes mêmes, qui rend 259,2 contre les 259,56 annoncés, donc
+ce sont bien elles qui ont servi à la calculer. Le déplacement en charge se
+mesure autrement : **315 t**, trouvées en posant la coque à l'eau trois fois de
+suite jusqu'à ce que le tirant tombe sur **3,34 m** — les onze pieds d'un
+cinquième rang de cette taille — à 42,5 % d'immersion. Soit 1,21 fois la jauge,
+et non un coefficient choisi d'avance.
+
+### Le modèle vient de la fiche, et non l'inverse
+
+`add-ship.js` fait le chemin habituel : on modèle, l'outil déduit une fiche.
+**`tools/ship-glb.js` fait l'autre.** La coque est lofée par `js/hull-lines.js`
+— le MÊME code qui dessine la coque de la page et qui pose la grille de sondes
+du solveur —, si bien qu'aucune proportion ne peut dériver : il n'y en a
+qu'une. Mesuré au chargement : **échelle 1,0000**, et le bau du profil à
+**9 mm** de celui écrit dans la fiche. C'est exactement ce qui manquait au
+galion pirate, dont le modèle sort 8 % plus large que son propre bau.
+
+Le piège s'est d'ailleurs présenté tout de suite : le gréement modélisé d'un
+bloc faisait **4 572** de volume englobant contre 1 518 à la coque — beaupré
+débordant l'étrave, vergues d'un bord à l'autre, trois mâts de haut. Le navire
+se trouvait mis à l'échelle sur son beaupré. Un maillage par mât, et la coque
+reprend la main.
+
+### La batterie, lue sur les tubes
+
+L'armement du 3 avril 1690 est dans le modèle, aux vraies pièces : 4 de
+9 livres en batterie basse, 20 de 6 en batterie haute, 4 de 4 sur la dunette —
+**28 bouches**, 86 livres de bordée. Chaque tube est un objet nommé
+(`canonBabord_001`…), et son âme suit le diamètre du boulet de fonte,
+d = 1,923·∛livres en pouces. Le moteur, qui lit le calibre relatif à la médiane
+du bord sans qu'on lui dise rien, rend **1,14 / 1,00 / 0,87** — contre les
+∛(9/6) = 1,145 et ∛(4/6) = 0,874 attendus. La physique du jeu retrouve seule
+les calibres de 1690.
+
 ## Pourquoi un modèle sort plus large qu'un autre à longueur égale
 
 Le galion pirate paraissait plus gros que la Roter Löwe (signalé), alors que

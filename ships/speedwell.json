@@ -1,0 +1,99 @@
+{
+  "id": "speedwell",
+  "name": "HMS Speedwell 1690",
+  "note": "Brûlot anglais de cinquième rang — et non un sloop : threedecks.org (fiche 6810) le donne « British Fifth Rate Fireship ». Commandé le 6 décembre 1689, acquis le 3 avril 1690, construit à Rotherhithe par John Gressingham. Cotes d'origine converties du pied anglais (0,3048 m) : pont de batterie 94 pi = 28,65 m ; quille 78 pi 6 po = 23,93 m ; maître-bau 24 pi 11 po = 7,595 m ; creux dans la cale 9 pi 8 po = 2,946 m ; port en lourd 259 53/94 tonneaux. LE TONNEAU DE JAUGE N'EST PAS UN DÉPLACEMENT : c'est une capacité (quille × bau × bau/2 / 94, formule vérifiée sur ces cotes, 259,2 contre 259,56 annoncés). Les 315 t sont le déplacement en charge, soit 1,21 fois la jauge — mesuré, et non supposé : c'est la valeur qui la pose sur 3,34 m de tirant, les onze pieds d'un cinquième rang de cette taille, à 42,5 % d'immersion. Armement du 3 avril 1690 : 4 pièces de 9 livres en batterie basse, 20 de 6 en batterie haute, 4 de 4 sur la dunette — 28 bouches, 86 livres de bordée, 115 hommes. Barfleur 1692, convoi de Smyrne 1693, Antilles 1694, côtes d'Irlande jusqu'en 1697, mutinerie manquée en 1699, désarmé en 1700, démoli pour reconstruction en 1701. Le modèle est engendré par tools/ship-glb.js DEPUIS cette fiche : sa coque est lofée par le plan de formes du projet, donc l'échelle tombe à 1,0000 et le bau du modèle à 9 mm de celui écrit ici.",
+  "hull": {
+    "length": 28.65,
+    "beam": 7.6,
+    "freeboardMid": 1.75,
+    "sheerBow": 1.15,
+    "sheerStern": 0.95,
+    "keelDepth": 3.35,
+    "keelExtra": 0.6,
+    "dragAft": 0.85,
+    "forefootLift": 0.72,
+    "counterLift": 0.36,
+    "waterlinePower": 0.86,
+    "waterlineFull": 0.5,
+    "transomWidth": 0.52,
+    "sectionTuck": 0.44,
+    "sectionPower": 0.62
+  },
+  "displacementTonnes": 315,
+  "cog": {
+    "yFracKeel": -0.43,
+    "zFracLength": -0.05
+  },
+  "hydro": {
+    "resistance": 61,
+    "lateralGrip": 654,
+    "lateralQuad": 131,
+    "heaveDamp": 1100
+  },
+  "engine": {
+    "topSpeed": 3.9,
+    "sternPower": -0.5
+  },
+  "rudder": {
+    "power": 91.5,
+    "maxAngle": 0.61,
+    "postZFrac": -0.47,
+    "postY": -0.85
+  },
+  "rig": {
+    "type": "square",
+    "sailArea": 430,
+    "ceHeight": 9.4,
+    "ceZ": -0.4,
+    "maxSheet": 1.3,
+    "lateen": { "area": 42, "ceHeight": 7.2, "ceZ": -9.6, "maxSheet": 1.45 },
+    "belly": 1.65,
+    "masts": [
+      { "zFrac": 0.25, "height": 16.5, "yards": [0.3, 0.52, 0.72], "yardSpan": 0.96 },
+      { "zFrac": -0.02, "height": 18.5, "yards": [0.28, 0.5, 0.7], "yardSpan": 1.1 },
+      { "zFrac": -0.3, "height": 15.5, "yards": [0.3, 0.54, 0.74], "yardSpan": 0.84 }
+    ],
+    "jib": { "footFrac": 0.235, "tackAbove": 1.1, "clewAbove": 2, "headDrop": 3 },
+    "bowsprit": { "length": 7.4, "steeve": 0.22 }
+  },
+  "lanterns": [
+    { "x": 0, "zFrac": -0.455 }
+  ],
+  "deckhouse": {
+    "beamFrac": 0.36,
+    "height": 2.1,
+    "lengthFrac": 0.2,
+    "zFrac": -0.3
+  },
+  "appearance": {
+    "hull": "0x2c2118",
+    "timber": "0x8a6a45",
+    "spar": "0xb08c5c",
+    "house": "0xd9d2c2",
+    "canvas": "0xf2ebdc"
+  },
+  "flags": [
+    { "at": "stern", "size": 1.6, "image": "nation:poupe" },
+    { "mast": 1 },
+    { "mast": -1, "shape": "streamer", "size": 0.8, "image": "nation" },
+    { "at": "bow", "size": 0.6 }
+  ],
+  "camera": {
+    "chaseDist": 44,
+    "chaseHigh": 15,
+    "orbitDist": 54,
+    "helmZFrac": -0.4,
+    "helmHeight": 3.4,
+    "decks": [
+      { "name": "Passerelle", "x": 0, "y": 7.6, "zFrac": -0.4, "yaw": 0, "pitch": 0, "fov": 35 },
+      { "name": "Chambre du capitaine", "x": 0, "y": 3.8, "zFrac": -0.33, "yaw": 0, "pitch": -4, "fov": 50, "near": 0.08, "closed": true },
+      { "name": "Pont de batterie", "x": 0, "y": 4.1, "z": 5.0, "yaw": 0, "pitch": -2, "fov": 55, "near": 0.08 }
+    ]
+  },
+  "model": {
+    "glb": "ships/models/speedwell.glb",
+    "lengthAxis": "z",
+    "offset": [0, 0, 0],
+    "rotationY": 0
+  }
+}
