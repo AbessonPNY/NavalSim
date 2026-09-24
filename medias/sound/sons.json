@@ -1,0 +1,28 @@
+{
+  "note": "TOUS LES SONS DU JEU, EN UN SEUL ENDROIT — sauf les voix de l'équipage, qui ont crew.json à côté parce qu'elles sont d'une autre nature : elles se déposent par dizaines et se nomment par événement. Ici, ce qui est du décor et de la matière. Les fichiers vivent dans medias/sound/ (.ogg, .mp3 ou .wav, le jeu lit les trois) ; un chemin avec des barres est pris depuis ce dossier, un nom tout court aussi. Une entrée absente ou vide se tait sans dommage : rien n'est indispensable. Ce fichier est celui de la version GODOT ; la page publiée embarque ses propres sons par build.js.",
+
+  "canon": {
+    "_aide": "La pièce vue de près, et la même de loin — le jeu bascule à 400 m. Plusieurs par clé : il en tire une au hasard.",
+    "pres": ["cannon_fire_001.ogg"],
+    "loin": ["cannon_far_away.ogg"]
+  },
+
+  "bois": {
+    "_aide": "Le bordé qui éclate sous un boulet. Plusieurs valent mieux qu'un : on reconnaît vite un échantillon unique.",
+    "choc": ["wood_crash_001.ogg", "wood_crash_002.ogg"]
+  },
+
+  "mer": {
+    "_aide": "Le fond sonore de la mer, PAR BANDES d'état de mer : la première dont maxForce dépasse la force courante l'emporte, donc rangez-les de la plus calme à la plus grosse. Le passage se fait en fondu. Au-delà de la dernière, la mer se tait plutôt que de sonner faux.",
+    "bandes": [
+      { "fichier": "olas_del_mar_loopable.ogg", "maxForce": 4.5, "gain": 0.70 },
+      { "fichier": "thunderstorm_ocean.ogg", "maxForce": 99, "gain": 0.80 }
+    ]
+  },
+
+  "musique": {
+    "_aide": "Elle suit la situation : une voile hostile en vue ou du fer en l'air, et l'on passe à « action » ; le calme revient quinze secondes après que tout s'est tu. Coupée par défaut (settings.json → sound.music).",
+    "navigation": "Vivaldi for Focus & Energy  Fireplace Classical Music.ogg",
+    "action": "Musique Action Epique - Musique avec Tension   Musique Libre de Droit.ogg"
+  }
+}

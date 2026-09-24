@@ -50,7 +50,8 @@ public partial class SoundNode : Node3D
     readonly List<AudioStreamPlayer3D> _pool = new();
     /// <summary>Ceux qui attendent que leur son ait fait le chemin.</summary>
     readonly List<(double When, AudioStreamPlayer3D P)> _waiting = new();
-    readonly Dictionary<string, AudioStream> _buf = new();
+    /// <summary>Les échantillons, PLUSIEURS par clé : on en tire un au hasard.</summary>
+    readonly Dictionary<string, List<AudioStream>> _buf = new();
     readonly RandomNumberGenerator _rng = new();
     double _now;
 
@@ -123,29 +124,45 @@ public partial class SoundNode : Node3D
         LoadAll();
     }
 
-    /// <summary>
-    /// Les quatre échantillons, lus dans medias/sound comme la page — mêmes
-    /// fichiers, mêmes clés. Chargés à l'exécution, hors du projet Godot : un
-    /// dossier de sons pour les deux versions.
-    /// </summary>
+    /* LES ÉCHANTILLONS ÉTAIENT NOMMÉS ICI, EN DUR. Quatre lignes de code pour
+       dire quel fichier est le coup de canon : il fallait recompiler pour en
+       changer, et le nom ne se lisait nulle part ailleurs. Ils sont maintenant
+       dans medias/sound/sons.json, avec tout le reste — et PLUSIEURS par clé, ce
+       qu'un échantillon unique ne permettait pas : on reconnaît vite le même
+       craquement. La liste ci-dessous n'est que le DERNIER RECOURS, pour qu'un
+       dossier sans manifeste fasse quand même du bruit. */
+    static readonly (string Key, string File)[] Defaults =
+    {
+        ("pres", "cannon_fire_001.ogg"),
+        ("loin", "cannon_far_away.ogg"),
+        ("bois", "wood_crash_001.ogg"),
+        ("bois", "wood_crash_002.ogg")
+    };
+
     void LoadAll()
     {
-        Load("pres", "cannon_fire_001.ogg");
-        Load("loin", "cannon_far_away.ogg");
-        Load("bois1", "wood_crash_001.ogg");
-        Load("bois2", "wood_crash_002.ogg");
+        foreach (var (k, f) in Defaults) Load(k, f);
     }
 
-    void Load(string key, string file)
+    /// <summary>Un échantillon de plus sous cette clé — plusieurs, tirées au hasard.</summary>
+    public void Load(string key, string file)
     {
+        // un nom tout court ou un chemin : les deux partent de medias/sound
         string path = System.IO.Path.Combine(WorldLoad.Folder, "medias", "sound", file);
         if (!System.IO.File.Exists(path))
         {
             GD.PushWarning($"échantillon absent : {file} — ce bruit-là ne se fera pas.");
             return;
         }
-        if (Read(path) is { } s) _buf[key] = s;
+        if (Read(path) is not { } s) return;
+        if (!_buf.TryGetValue(key, out var list)) _buf[key] = list = new List<AudioStream>();
+        list.Add(s);
     }
+
+    /// <summary>Oublier ce qui était rangé sous cette clé : le manifeste remplace, il n'ajoute pas.</summary>
+    public void Forget(string key) => _buf.Remove(key);
+
+    public bool Knows(string key) => _buf.TryGetValue(key, out var l) && l.Count > 0;
 
     /// <summary>
     /// UN SON, QUEL QUE SOIT SON FLACON. Le projet n'avait que de l'Ogg parce que
@@ -255,7 +272,8 @@ public partial class SoundNode : Node3D
        tonnerre — arrive du dehors et passe par le bus qui filtre. */
     void Play(string key, Vec3d at, double rate, double vol, bool aboard = false)
     {
-        if (!On || !_buf.TryGetValue(key, out var stream)) return;
+        if (!On || !_buf.TryGetValue(key, out var bag) || bag.Count == 0) return;
+        var stream = bag[(int)(_rng.Randf() * bag.Count) % bag.Count];
         var cam = GetViewport().GetCamera3D();
         if (cam == null) return;
         var pos = new Vector3((float)at.X, (float)at.Y, (float)at.Z);
@@ -287,8 +305,8 @@ public partial class SoundNode : Node3D
         var cam = GetViewport().GetCamera3D();
         if (cam == null) return;
         double d = new Vector3((float)at.X, (float)at.Y, (float)at.Z).DistanceTo(cam.GlobalPosition);
-        string key = d > Loin ? (_buf.ContainsKey("loin") ? "loin" : "pres")
-                              : (_buf.ContainsKey("pres") ? "pres" : "loin");
+        string key = d > Loin ? (Knows("loin") ? "loin" : "pres")
+                              : (Knows("pres") ? "pres" : "loin");
         // jamais deux fois le même coup : la charge était dosée à la main
         Play(key, at, (1.15 - 0.30 * k) * (1 + (_rng.Randf() - 0.5) * 0.06), 1, aboard);
     }
@@ -298,7 +316,7 @@ public partial class SoundNode : Node3D
        placé pareillement. Rien à charger, rien à embarquer. */
     AudioStream Synth(string key, double duree, Action<float[], int> remplir)
     {
-        if (_buf.TryGetValue(key, out var had)) return had;
+        if (_buf.TryGetValue(key, out var had) && had.Count > 0) return had[0];
         const int rate = 22050;
         int n = (int)(duree * rate);
         var f = new float[n];
@@ -315,7 +333,7 @@ public partial class SoundNode : Node3D
             Format = AudioStreamWav.FormatEnum.Format16Bits,
             MixRate = rate, Stereo = false, Data = data
         };
-        _buf[key] = w;
+        _buf[key] = new List<AudioStream> { w };
         return w;
     }
 
@@ -382,8 +400,8 @@ public partial class SoundNode : Node3D
     /// </summary>
     public void Crash(Vec3d at, double k, double speed, string what, bool aboard = false)
     {
-        string key = _rng.Randf() < 0.5 ? "bois1" : "bois2";
-        if (!_buf.ContainsKey(key)) key = key == "bois1" ? "bois2" : "bois1";
+        // le tirage entre échantillons est fait par Play : une seule clé suffit
+        const string key = "bois";
         // un boulet arrivé à bout de course cogne moins fort ; 300 m/s est le plein fouet
         double fort = Math.Clamp((speed > 0 ? speed : 200) / 300, 0.3, 1);
         double aigu = what == "mast" ? 1.18 : 1.0;

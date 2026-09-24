@@ -29,7 +29,7 @@
     "pavillon-haut": [],
     "port": [],
     "vie": [],
-    "cloche": []
+    "cloche": ["Ship Bell.ogg"]
   },
   "quand": {
     "voiles": "on établit la toile (V)",

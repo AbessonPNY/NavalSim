@@ -46,22 +46,64 @@ public partial class ShipDemo
     //  LE MANIFESTE
     // ------------------------------------------------------------------
 
-    /// <summary>Les bandes de mer, lues dans settings.json → sound.mer.</summary>
-    void LoadSeaBeds(System.Text.Json.JsonElement snd)
+    /// <summary>Les deux musiques, nommées par le manifeste et non par le code.</summary>
+    string _ambCalme = "", _ambChaud = "";
+
+    /* TOUS LES SONS EN UN SEUL ENDROIT — medias/sound/sons.json (demandé).
+       Ils étaient dispersés : quatre noms de fichiers en dur dans SoundNode, deux
+       constantes de musique dans ShipDemo, et les bandes de mer dans
+       settings.json, qui est le fichier des RÉGLAGES et non celui du décor. Un
+       manifeste absent ne casse rien : chaque morceau garde ce qu'il avait. */
+    void LoadSounds()
     {
-        _seaBeds.Clear();
-        if (!snd.TryGetProperty("mer", out var m) || m.ValueKind != System.Text.Json.JsonValueKind.Array) return;
-        foreach (var e in m.EnumerateArray())
+        if (_sound == null) return;
+        string path = System.IO.Path.Combine(WorldLoad.Folder, "medias", "sound", "sons.json");
+        if (!System.IO.File.Exists(path)) return;
+        try
         {
-            if (e.ValueKind != System.Text.Json.JsonValueKind.Object) continue;
-            string? f = e.TryGetProperty("fichier", out var fv) ? fv.GetString() : null;
-            if (string.IsNullOrEmpty(f)) continue;
-            double max = e.TryGetProperty("maxForce", out var mv) ? mv.GetDouble() : 99;
-            double gain = e.TryGetProperty("gain", out var gv) ? gv.GetDouble() : 0.7;
-            _seaBeds.Add((f, max, gain));
+            using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(path));
+            var root = doc.RootElement;
+
+            // les échantillons : une clé du manifeste REMPLACE ce que le code avait mis
+            void Bag(string bloc, string champ, string key)
+            {
+                if (!root.TryGetProperty(bloc, out var b) || !b.TryGetProperty(champ, out var arr)
+                    || arr.ValueKind != System.Text.Json.JsonValueKind.Array || arr.GetArrayLength() == 0) return;
+                _sound.Forget(key);
+                foreach (var f in arr.EnumerateArray())
+                    if (f.GetString() is string file && file.Length > 0) _sound.Load(key, file);
+            }
+            Bag("canon", "pres", "pres");
+            Bag("canon", "loin", "loin");
+            Bag("bois", "choc", "bois");
+
+            // les bandes de mer
+            if (root.TryGetProperty("mer", out var mer) && mer.TryGetProperty("bandes", out var bandes)
+                && bandes.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                _seaBeds.Clear();
+                foreach (var e in bandes.EnumerateArray())
+                {
+                    if (e.ValueKind != System.Text.Json.JsonValueKind.Object) continue;
+                    string? f = e.TryGetProperty("fichier", out var fv) ? fv.GetString() : null;
+                    if (string.IsNullOrEmpty(f)) continue;
+                    double max = e.TryGetProperty("maxForce", out var mv) ? mv.GetDouble() : 99;
+                    double gain = e.TryGetProperty("gain", out var gv) ? gv.GetDouble() : 0.7;
+                    _seaBeds.Add((f, max, gain));
+                }
+                _seaBeds.Sort((a, b) => a.MaxForce.CompareTo(b.MaxForce));
+            }
+
+            // les musiques
+            if (root.TryGetProperty("musique", out var mus))
+            {
+                if (mus.TryGetProperty("navigation", out var n) && n.GetString() is string sn) _ambCalme = sn;
+                if (mus.TryGetProperty("action", out var a) && a.GetString() is string sa) _ambChaud = sa;
+            }
+            GD.Print($"sons : {_seaBeds.Count} bande(s) de mer, musiques "
+                   + (_ambCalme.Length > 0 || _ambChaud.Length > 0 ? "nommées" : "par défaut"));
         }
-        _seaBeds.Sort((a, b) => a.MaxForce.CompareTo(b.MaxForce));
-        if (_seaBeds.Count > 0) GD.Print($"ambiance de mer : {_seaBeds.Count} bande(s)");
+        catch (Exception e) { GD.PushWarning($"sons.json illisible ({e.Message}) : les sons d'origine sont gardés"); }
     }
 
     /* CE QUE LA MER DIT, À CETTE FORCE-LÀ. Repris toutes les deux secondes et non

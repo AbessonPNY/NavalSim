@@ -102,7 +102,8 @@ public partial class ShipDemo : Node3D
         AddChild(_coins);
         _sound = new SoundNode();
         AddChild(_sound);
-        // les voix APRÈS lui : le manifeste range ses échantillons dans le nœud
+        // les manifestes APRÈS lui : ils rangent leurs échantillons dans le nœud
+        LoadSounds();
         LoadCrewVoices();
         /* LA TERRE. Le monde est lu une fois — une image de neuf millions de
            pixels et le champ de distance qui en sort — et rien après ne change :
@@ -1830,7 +1831,6 @@ public partial class ShipDemo : Node3D
                 _bottleOneIn = bo.GetInt32();
             if (root.TryGetProperty("gunnery", out var gu)) _gunRules = GunnerySettings.FromJson(gu);
             if (root.TryGetProperty("encounters", out var ec)) _metRules = EncounterSettings.FromJson(ec);
-            if (root.TryGetProperty("sound", out var sn)) LoadSeaBeds(sn);
             if (root.TryGetProperty("storm", out var st))
             {
                 if (st.TryGetProperty("lightning", out var li)) _lightRules = LightningSettings.FromJson(li);
@@ -2707,8 +2707,13 @@ public partial class ShipDemo : Node3D
        secondes après que tout s'est tu. Le seuil n'est pas le même dans les deux
        sens — 1200 m pour s'échauffer, 1800 pour se rasseoir —, sans quoi une
        voile qui louvoie à la limite ferait clignoter la musique. */
-    const string AmbNav = "Vivaldi for Focus & Energy  Fireplace Classical Music.ogg";
-    const string AmbAction = "Musique Action Epique - Musique avec Tension   Musique Libre de Droit.ogg";
+    /* LES DEUX MORCEAUX SONT NOMMÉS PAR LE MANIFESTE (medias/sound/sons.json).
+       Ce qui suit n'est que le dernier recours, pour qu'un dossier sans manifeste
+       ait quand même sa musique. */
+    const string AmbNavDefaut = "Vivaldi for Focus & Energy  Fireplace Classical Music.ogg";
+    const string AmbActionDefaut = "Musique Action Epique - Musique avec Tension   Musique Libre de Droit.ogg";
+    string AmbNav => _ambCalme.Length > 0 ? _ambCalme : AmbNavDefaut;
+    string AmbAction => _ambChaud.Length > 0 ? _ambChaud : AmbActionDefaut;
     const double EnVue = 1200, Lachee = 1800, Oubli = 15;
     double _lastDanger = -1e9;
 

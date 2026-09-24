@@ -7931,6 +7931,31 @@ quel que soit le pont d'où l'on regarde.
 Mesuré en headless : 20 500 Hz sur le pont, 700 Hz dans la chambre, et le
 retour au plein air quand on en sort.
 
+## Tous les sons en un seul endroit (Godot)
+
+Ils étaient à trois places, et aucune n'était la bonne (demandé). Quatre noms
+de fichiers **en dur dans SoundNode** — il fallait recompiler pour changer le
+coup de canon ; deux **constantes de musique** dans ShipDemo ; et les bandes de
+mer dans **settings.json**, qui est le fichier des RÉGLAGES et non celui du
+décor. `medias/sound/sons.json` les réunit, à côté de `crew.json` qui garde les
+voix — elles sont d'une autre nature, se déposant par dizaines et se nommant
+par événement.
+
+Un manifeste absent ne casse rien : chaque morceau garde ce qu'il avait, la
+liste en dur devenant le dernier recours pour qu'un dossier nu fasse quand même
+du bruit. Et une clé du manifeste REMPLACE ce que le code avait mis, elle ne s'y
+ajoute pas — sans quoi nommer ses propres craquements laisserait les anciens
+dans le sac.
+
+Au passage, la réserve d'échantillons passe d'un son par clé à PLUSIEURS, tirés
+au hasard. Le bois avait déjà deux échantillons, et le code les distinguait à la
+main (« bois1 », « bois2 », et le tirage écrit deux fois) ; le canon n'en avait
+qu'un, qu'on finissait par reconnaître. Une seule clé « bois », une seule clé
+« pres », et autant de fichiers qu'on veut derrière.
+
+Mesuré : les deux bandes de mer basculent à leur seuil, canon et bois chargés
+depuis le manifeste, musiques nommées par lui.
+
 ## La mer, qui ne s'arrête jamais (Godot)
 
 Une boucle de fond pour la mer, et c'est AUTRE CHOSE QUE LA MUSIQUE : on coupe
