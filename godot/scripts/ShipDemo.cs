@@ -413,6 +413,8 @@ public partial class ShipDemo : Node3D
     UnderwaterEffect _under = null!;
     /// <summary>L'œil était-il sous l'eau à l'image d'avant ? (avec hystérésis : voir plus bas)</summary>
     bool _wasWet;
+    /// <summary>Sa hauteur à l'image d'avant, pour savoir à quelle vitesse il descend.</summary>
+    double _camWasY;
     AnamorphicDofEffect _anamorphic = null!;
     DofMarker _dofMarker = null!;
     readonly ColorRect[] _maskBars = { new() { Color = Colors.Black }, new() { Color = Colors.Black } };
@@ -1180,15 +1182,35 @@ public partial class ShipDemo : Node3D
         /* LE PASSAGE, ET NON L'ÉTAT. Ce qu'on entend en traversant la surface est
            un événement : il ne se joue qu'au franchissement, une fois, et à PLEIN
            VOLUME SANS FILTRE — c'est ce bruit-là qui dit qu'on a changé de monde,
-           il ne doit pas être étouffé par celui dans lequel on entre. Le seuil est
-           pris au milieu de la bande d'un demi-mètre, et il a sa marge : une vague
-           qui lèche l'objectif ne doit pas faire clapoter à chaque image. */
-        /* LE SEUIL EST LA SURFACE, ET NON SEPT CENTIMÈTRES DESSOUS. À 0,65 de la
-           bande on est déjà sous l'eau de 7,5 cm : le temps que la tête y arrive,
-           le bruit est en retard sur l'image (signalé). Il part maintenant quand
-           l'œil ATTEINT la surface. L'hystérésis reste pour la remontée — une
-           vague qui lèche l'objectif ne doit pas faire clapoter. */
-        bool sous = wet > (_wasWet ? 0.35 : 0.50);
+           il ne doit pas être étouffé par celui dans lequel on entre.
+
+           ET IL PART AVANT LE FRANCHISSEMENT, PARCE QUE L'ŒIL EST EN AVANCE. La
+           passe sous-marine s'allume dès que la caméra est à un DEMI-MÈTRE de la
+           surface (straddle > 0,01, quelques lignes plus haut) : l'eau envahit
+           l'image bien avant que le point de vue ait traversé. Le clapotis, lui,
+           attendait la traversée franche — d'où un son en retard sur ce qu'on
+           voit, quoi qu'on fasse aux seuils. Signalé trois fois, et cherché trois
+           fois au mauvais endroit : le retard n'était pas dans le son, il était
+           dans l'écart entre les deux sens.
+
+           On ne devine pas non plus une avance en centimètres, qui ne serait
+           juste qu'à une seule vitesse de plongée : on regarde OÙ LA CAMÉRA SERA
+           dans un dixième de seconde, et le bruit part quand ce point-là est sous
+           l'eau. Lente ou vive, la plongée sonne au même moment de l'image. */
+        double vy = frame > 1e-5 ? (ce.Y - _camWasY) / frame : 0;
+        _camWasY = ce.Y;
+        /* BORNÉE À HUIT MÈTRES PAR SECONDE : un changement de vue, une reprise de
+           partie ou un glissement d origine TÉLÉPORTENT la caméra, et la vitesse
+           apparente part à des centaines de mètres par seconde — le clapotis
+           sonnait alors en plein ciel (vu à la sonde : −841 m/s). Aucune plongée
+           ne descend plus vite que huit. */
+        double yBientot = ce.Y + Math.Max(-8, Math.Min(0, vy)) * 0.12;
+        /* ET LE SEUIL EST PRIS AU MILIEU DE LA BANDE DE L ŒIL, pas à la surface.
+           La passe sous-marine s allume à un demi-mètre, mais il n y a là qu un
+           filet d eau en bas de l image ; c est vers vingt-cinq centimètres qu on
+           voit vraiment la mer monter. Le bruit part là, plus l avance de la
+           vitesse — relevé sans elle : 212 ms de retard sur l image. */
+        bool sous = _wasWet ? seaY - ce.Y > -0.55 : seaY - yBientot > -0.22;
         if (sous != _wasWet)
         {
             _sound?.Crew(sous ? "eau-plonge" : "eau-sort",

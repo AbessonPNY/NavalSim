@@ -7975,6 +7975,31 @@ repasse dessus à 0,35, sans quoi une vague qui lèche l'objectif ferait clapote
 à chaque image. La même raison que le seuil du pirate qui louvoie à la limite,
 et la même réponse.
 
+### Le clapotis n'était pas en retard : l'image était en avance
+
+Trois tours à régler des seuils de son pendant que le défaut était ailleurs.
+La passe sous-marine s'allume dès que la caméra est à un **demi-mètre** de la
+surface — `straddle > 0,01` —, parce que c'est le pixel qui décide dans cette
+bande. L'eau envahit donc l'image bien avant que le point de vue ait traversé,
+et le clapotis, lui, attendait la traversée franche. **Relevé : 212 ms d'écart.**
+
+Le retard n'était pas dans le son, il était dans l'écart entre les deux sens.
+C'est la leçon du jour, et elle est la même que celle d'au-dessus : trois
+corrections justes n'avaient rien changé parce qu'elles portaient sur le mauvais
+chemin.
+
+On ne devine pas une avance en centimètres, qui ne serait juste qu'à une seule
+vitesse de plongée : on regarde **où la caméra sera dans un dixième de seconde**,
+et le bruit part quand ce point-là passe le milieu de la bande de l'œil (vingt-
+cinq centimètres, là où l'on voit vraiment la mer monter, et non le filet d'eau
+du demi-mètre). Lente ou vive, la plongée sonne au même moment de l'image.
+Après : **62 ms**.
+
+Et la vitesse est **bornée à huit mètres par seconde**, ce que la sonde a trouvé
+seule : un changement de vue, une reprise de partie ou un glissement d'origine
+TÉLÉPORTENT la caméra, et la vitesse apparente part à −841 m/s — le clapotis
+sonnait alors en plein ciel. Aucune plongée ne descend plus vite que huit.
+
 ### Six décibels par octave, ou pourquoi rien ne changeait
 
 Deux fois de suite, un réglage annoncé comme corrigé n'a **rien changé à
