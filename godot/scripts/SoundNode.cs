@@ -310,7 +310,16 @@ public partial class SoundNode : Node3D
        comme un bruit du large, c'est le supprimer (signalé). Ces voix-là restent
        au Master, quoi qu'on ferme. Le reste — les autres navires, la mer, le
        tonnerre — arrive du dehors et passe par le bus qui filtre. */
-    void Play(string key, Vec3d at, double rate, double vol, bool aboard = false)
+    /* DEUX QUESTIONS, ET ON LES AVAIT CONFONDUES EN UN SEUL DRAPEAU.
+       « À BORD » dit que le son se fait sur NOTRE navire, donc qu'il n'a pas de
+       chemin à parcourir : c'est le retard qu'il règle.
+       « DEDANS » dit qu'il se fait dans la PIÈCE OÙ L'ON EST, donc qu'aucune
+       cloison ne le sépare de l'oreille : c'est le bus qu'il règle.
+       Les deux ensemble ont rendu la bordée du joueur inétouffable depuis la
+       chambre (signalé) — or les pièces sont sur le pont de batterie, dehors, et
+       on les entend à travers le navire. Un boulet dans notre muraille, lui, fait
+       craquer les bois de la chambre elle-même : celui-là est bien dedans. */
+    void Play(string key, Vec3d at, double rate, double vol, bool aboard = false, bool inside = false)
     {
         if (!On || !_buf.TryGetValue(key, out var bag) || bag.Count == 0) return;
         var stream = bag[(int)(_rng.Randf() * bag.Count) % bag.Count];
@@ -322,7 +331,7 @@ public partial class SoundNode : Node3D
 
         var p = Free();
         if (p == null) return;                       // le plafond de voix : ce coup-ci ne se fera pas
-        p.Bus = aboard ? "Master" : OutBus;
+        p.Bus = inside ? "Master" : OutBus;
         p.Stream = stream;
         p.GlobalPosition = pos;
         p.PitchScale = (float)Math.Clamp(rate, 0.6, 1.6);
@@ -349,6 +358,7 @@ public partial class SoundNode : Node3D
     /// grosse pièce sonne plus GRAVE. Rendu par la vitesse de lecture plutôt que
     /// par un troisième échantillon, ce qui allonge du même coup la détente.
     /// </summary>
+    /// <param name="aboard">Notre propre pièce : rien à parcourir, mais elle est sur le pont.</param>
     public void Boom(Vec3d at, double k, bool aboard = false)
     {
         var cam = GetViewport().GetCamera3D();
@@ -447,6 +457,7 @@ public partial class SoundNode : Node3D
     /// mât n'est pas une muraille : même bois, plus léger et plus sec, donc le
     /// même échantillon monté d'un ton.
     /// </summary>
+    /// <param name="aboard">Dans NOTRE bordé : ce sont les bois de la pièce où l'on est.</param>
     public void Crash(Vec3d at, double k, double speed, string what, bool aboard = false)
     {
         // le tirage entre échantillons est fait par Play : une seule clé suffit
@@ -454,7 +465,7 @@ public partial class SoundNode : Node3D
         // un boulet arrivé à bout de course cogne moins fort ; 300 m/s est le plein fouet
         double fort = Math.Clamp((speed > 0 ? speed : 200) / 300, 0.3, 1);
         double aigu = what == "mast" ? 1.18 : 1.0;
-        Play(key, at, aigu * (1.15 - 0.30 * k) * (1 + (_rng.Randf() - 0.5) * 0.10), 0.85 * fort, aboard);
+        Play(key, at, aigu * (1.15 - 0.30 * k) * (1 + (_rng.Randf() - 0.5) * 0.10), 0.85 * fort, aboard, aboard);
     }
 
     // ------------------------------------------------------------------

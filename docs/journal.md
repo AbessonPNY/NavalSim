@@ -7959,6 +7959,23 @@ un compromis, c'est le bon geste : une porte est entre vous et la mer, ou elle
 ne l'est pas. Une écriture par passage (relevé : 20500 → 900 → 20500), et le
 fondu du volume porte tout le glissé qu'on entend.
 
+### Deux questions confondues en un seul drapeau
+
+La bordée du joueur n'était plus étouffée depuis la chambre (signalé). En
+supprimant son retard on l'avait aussi mise sur le bus non filtré : un seul
+drapeau « à bord » réglait les deux choses, et elles n'en sont pas une.
+
+**À BORD** dit que le son se fait sur NOTRE navire, donc qu'il n'a pas de chemin
+à parcourir : c'est le RETARD qu'il règle. **DEDANS** dit qu'il se fait dans la
+pièce où l'on est, donc qu'aucune cloison ne le sépare de l'oreille : c'est le
+BUS. Les pièces sont sur le pont de batterie — à bord, mais dehors, et on les
+entend à travers le navire. Un boulet dans notre muraille, lui, fait craquer les
+bois de la chambre elle-même : celui-là est bien dedans.
+
+Les quatre cas, relevés : sa bordée  ; un
+boulet chez nous  ; le même chez l'autre
+.
+
 ### L'oreille sous la surface
 
 Demandé : profiter d'une bataille écoutée de dessous. Rien ne porte le son comme
