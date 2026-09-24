@@ -271,7 +271,12 @@ public partial class SoundNode : Node3D
         p.PitchScale = 1;
         p.VolumeDb = Mathf.LinearToDb((float)Math.Clamp(gain, 0.001, 1));
         p.AttenuationFilterCutoffHz = 20500;
-        _waiting.Add((_now, p));
+        /* IL PART MAINTENANT, PAS À L'IMAGE SUIVANTE. Ce qui se fait à bord n'a
+           aucun chemin à parcourir : le mettre dans la file d'attente lui coûtait
+           une image pour rien — et la file, elle, existe pour retenir ce qui
+           voyage. Un son déjà en lecture n'est de toute façon plus libre, donc
+           rien à signaler à Free(). */
+        p.Play();
         return true;
     }
 

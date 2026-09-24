@@ -1175,7 +1175,12 @@ public partial class ShipDemo : Node3D
            il ne doit pas être étouffé par celui dans lequel on entre. Le seuil est
            pris au milieu de la bande d'un demi-mètre, et il a sa marge : une vague
            qui lèche l'objectif ne doit pas faire clapoter à chaque image. */
-        bool sous = wet > (_wasWet ? 0.35 : 0.65);
+        /* LE SEUIL EST LA SURFACE, ET NON SEPT CENTIMÈTRES DESSOUS. À 0,65 de la
+           bande on est déjà sous l'eau de 7,5 cm : le temps que la tête y arrive,
+           le bruit est en retard sur l'image (signalé). Il part maintenant quand
+           l'œil ATTEINT la surface. L'hystérésis reste pour la remontée — une
+           vague qui lèche l'objectif ne doit pas faire clapoter. */
+        bool sous = wet > (_wasWet ? 0.35 : 0.50);
         if (sous != _wasWet)
         {
             _sound?.Crew(sous ? "eau-plonge" : "eau-sort",
