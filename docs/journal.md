@@ -8007,6 +8007,30 @@ carrees en tout, plus la latine.
 Aucun navire a voiles carrees du dossier n est depourvu de modele : la voie par
 la forme est donc la seule utile, et un chemin par la fiche serait du code mort.
 
+### Trois defauts vus a l ecran, et ce qu ils apprennent
+
+**Les canons avaient leurs normales rentrantes** (signale). Verifie au calcul :
+le repere (e1, e2, u) d un tube etant direct, aller d un cote au suivant tourne
+de e1 vers e2, et la suite A[i] → B[i] → B[i+1] donne u × tangente = −radiale.
+Une normale qui rentre, donc, pour tous les flancs — les deux fonds, eux,
+etaient justes, verifie au meme calcul. L enroulement des flancs est retourne.
+
+**Et aucun maillage ne portait de normales du tout** : le decor minimal qui
+sert a lofer la coque hors du navigateur avait computeVertexNormals() en
+fonction vide, et l ecrivain de .glb n ecrivait pas d attribut NORMAL. Un
+moteur les deduit alors face par face : tout a facettes, un mat en prisme et
+une coque taillee en diamant. Elles sont maintenant lissees et ecrites.
+
+**L artimon paraissait n avoir qu un hunier carre**, la latine portant sans
+etre dessinee. Deux causes. Le modele n avait pas d antenne — ajoutee. Et
+surtout, le moteur n essayait la latine que sur les mats SANS vergue carree :
+il supposait qu une antenne exclut un hunier. Vrai d une caravelle, faux d un
+navire de 1690, dont l artimon porte les DEUX — une latine, et un hunier d
+artimon au-dessus. La latine est desormais essayee aussi sur un mat a vergues,
+le plus en arriere, LateenOn ne trouvant d antenne que s il y en a une.
+
+Mesuree : pic a 15,05 m, amure a 3,89 m, ecoute a 4,30 m.
+
 ### La batterie, lue sur les tubes
 
 L'armement du 3 avril 1690 est dans le modèle, aux vraies pièces : 4 de

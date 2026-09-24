@@ -49,6 +49,30 @@ require(path.join(ROOT, 'js', 'hull-lines.js'));
 function Mesh(name, material) {
   return { name, material, V: [], F: [] };
 }
+
+/**
+ * LES NORMALES, ÉCRITES. Sans attribut NORMAL, un moteur les déduit face par
+ * face : tout est à facettes, un mât est un prisme et une coque une taille de
+ * diamant (vu à l'écran). Celles-ci sont lissées — la somme des normales des
+ * triangles qui touchent chaque sommet —, ce qui arrondit les tubes et adoucit
+ * la coque sans rien changer à sa forme.
+ */
+function normals(m) {
+  const n = new Float64Array(m.V.length);
+  for (let t = 0; t < m.F.length; t += 3) {
+    const a = m.F[t] * 3, b = m.F[t + 1] * 3, c = m.F[t + 2] * 3;
+    const ux = m.V[b] - m.V[a], uy = m.V[b + 1] - m.V[a + 1], uz = m.V[b + 2] - m.V[a + 2];
+    const vx = m.V[c] - m.V[a], vy = m.V[c + 1] - m.V[a + 1], vz = m.V[c + 2] - m.V[a + 2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    for (const i of [a, b, c]) { n[i] += nx; n[i + 1] += ny; n[i + 2] += nz; }
+  }
+  const out = new Float32Array(m.V.length);
+  for (let i = 0; i < n.length; i += 3) {
+    const l = Math.hypot(n[i], n[i + 1], n[i + 2]) || 1;
+    out[i] = n[i] / l; out[i + 1] = n[i + 1] / l; out[i + 2] = n[i + 2] / l;
+  }
+  return out;
+}
 const vert = (m, x, y, z) => { m.V.push(x, y, z); return m.V.length / 3 - 1; };
 const tri = (m, a, b, c) => m.F.push(a, b, c);
 const quad = (m, a, b, c, d) => { tri(m, a, b, c); tri(m, a, c, d); };
@@ -78,8 +102,14 @@ function tube(m, p0, p1, r0, r1, sides = 8) {
     }
     return out;
   };
+  /* L'ENROULEMENT DES FLANCS, ET IL ÉTAIT À L'ENVERS (signalé, canons noirs à
+     l'écran). glTF tient pour face avant le triangle qui tourne dans le SENS
+     DIRECT vu du dehors. Le repère (e1, e2, u) étant direct, aller de i à i+1
+     tourne de e1 vers e2 ; la suite A[i] → B[i] → B[i+1] donne alors
+     u × tangente = −radiale, soit une normale RENTRANTE. On tourne dans l'autre
+     sens. Les deux fonds, eux, étaient justes : vérifié au même calcul. */
   const A = ring(p0, r0), B = ring(p1, r1);
-  for (let i = 0; i < sides; i++) quad(m, A[i], B[i], B[(i + 1) % sides], A[(i + 1) % sides]);
+  for (let i = 0; i < sides; i++) quad(m, A[i], A[(i + 1) % sides], B[(i + 1) % sides], B[i]);
   const c0 = vert(m, ...p0), c1 = vert(m, ...p1);
   for (let i = 0; i < sides; i++) {
     tri(m, c0, A[(i + 1) % sides], A[i]);
@@ -128,6 +158,21 @@ function rigMeshes(spec, lines, out) {
     }
     out.push(spars);
   });
+
+  /* L'ANTENNE DE LA LATINE. Le moteur pend la toile latine sur l'espar EN BIAIS
+     près du mât le plus en arrière ; sans antenne trouvée, la voile porte sans
+     être dessinée — ce qui se voit, l'artimon paraissant n'avoir qu'un hunier
+     carré (signalé). On la croise donc sur l'artimon, pic en haut et en arrière,
+     amure en bas et en avant, comme une antenne s'endente. */
+  const lat = r.lateen;
+  if (lat && r.masts && r.masts.length) {
+    const mt = r.masts[r.masts.length - 1];
+    const z = mt.zFrac * L, foot = deckAt(z) - 0.6;
+    const ant = Mesh('Antenne', 1);
+    tube(ant, [0, foot + mt.height * 0.16, z + L * 0.11],
+              [0, foot + mt.height * 0.88, z - L * 0.16], 0.09, 0.05, 6);
+    out.push(ant);
+  }
   if (r.bowsprit) {
     const beaupre = Mesh('Beaupre', 1);
     const z = L * 0.47, y = deckAt(z);
@@ -225,11 +270,14 @@ function writeGlb(out, meshes) {
       off += buf.length;
       return views.length - 1;
     };
+    const nrm = normals(m);
     const vp = put(Buffer.from(pos.buffer, pos.byteOffset, pos.byteLength), 34962);
+    const vn = put(Buffer.from(nrm.buffer, nrm.byteOffset, nrm.byteLength), 34962);
     const vi = put(Buffer.from(idx.buffer, idx.byteOffset, idx.byteLength), 34963);
     accs.push({ bufferView: vp, componentType: 5126, count: m.V.length / 3, type: 'VEC3', min, max });
+    accs.push({ bufferView: vn, componentType: 5126, count: m.V.length / 3, type: 'VEC3' });
     accs.push({ bufferView: vi, componentType: idx.BYTES_PER_ELEMENT === 4 ? 5125 : 5123, count: m.F.length, type: 'SCALAR' });
-    gltfMeshes.push({ name: m.name, primitives: [{ attributes: { POSITION: accs.length - 2 }, indices: accs.length - 1, material: m.material }] });
+    gltfMeshes.push({ name: m.name, primitives: [{ attributes: { POSITION: accs.length - 3, NORMAL: accs.length - 2 }, indices: accs.length - 1, material: m.material }] });
     nodes.push({ mesh: gltfMeshes.length - 1, name: m.name });
   }
 

@@ -1043,6 +1043,17 @@ public partial class ShipNode
                 Fall = fall, Heel = heel, Share = share, HasPole = pole != null, Height = mh, Cords = cords
             });
             _rigs.Add(pivot);
+
+            /* UN ARTIMON PEUT PORTER LES DEUX. La latine n'était essayée que sur
+               les mâts SANS vergue carrée, ce qui suppose qu'une antenne exclut
+               un hunier — vrai d'une caravelle, faux d'un navire de 1690, dont
+               l'artimon porte une latine ET un hunier d'artimon au-dessus (vu sur
+               le Speedwell : la latine portait sans être dessinée, et l'artimon
+               paraissait n'avoir qu'un carré). On l'essaie donc aussi ici, sur le
+               plus en arrière, et LateenOn ne trouve d'antenne que s'il y en a
+               une. */
+            if (pole != null && spec.LateenArea > 0 && z0 < 0 && (_latPivot == null || z0 < _latZ))
+                LateenOn(pole, fall, heel, z0, deckAt, parts);
         }
 
         /* LES MÂTS SANS VERGUE CARRÉE — un artimon à antenne, un mât de flèche
