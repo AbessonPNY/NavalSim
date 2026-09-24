@@ -114,6 +114,18 @@ public partial class ShipDemo
                 _seaBeds.Sort((a, b) => a.MaxForce.CompareTo(b.MaxForce));
             }
 
+            // ce qui étouffe, et de combien : cela s'écoute, donc cela se règle
+            if (root.TryGetProperty("etouffe", out var et))
+            {
+                float F(string n, float d) => et.TryGetProperty(n, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.Number ? (float)v.GetDouble() : d;
+                _sound.HzCabine = F("cabineHz", _sound.HzCabine);
+                _sound.HzEau = F("eauHz", _sound.HzEau);
+                _sound.DbCabine = F("cabineDb", _sound.DbCabine);
+                _sound.DbEau = F("eauDb", _sound.DbEau);
+                GD.Print(FormattableString.Invariant(
+                    $"etouffe : cabine {_sound.HzCabine:F0} Hz {_sound.DbCabine:F0} dB, eau {_sound.HzEau:F0} Hz {_sound.DbEau:F0} dB"));
+            }
+
             // les musiques
             if (root.TryGetProperty("musique", out var mus))
             {

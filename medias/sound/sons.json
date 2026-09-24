@@ -18,6 +18,14 @@
     "descendre": ["sail_down.ogg"]
   },
 
+  "etouffe": {
+    "_aide": "CE QUI ETOUFFE, ET DE COMBIEN. Une coupure en Hz (tout ce qui est plus aigu est coupe) et une baisse en dB. Cela s ecoute et ne se calcule pas : poussez. Plus BAS en Hz = plus sourd ; plus NEGATIF en dB = plus faible. La pente du filtre est la plus raide que Godot offre, 24 dB par octave — a six, la valeur par defaut, on n entendait rien du tout.",
+    "cabineHz": 900,
+    "cabineDb": -9,
+    "eauHz": 380,
+    "eauDb": -4
+  },
+
   "eau": {
     "_aide": "Le passage de la surface, entendu par l'oreille qui la traverse : « plonge » quand la caméra s'enfonce, « sort » quand elle remonte. Joué à plein volume et sans filtre — c'est ce bruit-là qui dit qu'on a changé de monde, il ne doit pas être étouffé par celui dans lequel on entre.",
     "plonge": ["water_splash_to_underwater.ogg"],

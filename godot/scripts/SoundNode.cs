@@ -82,7 +82,19 @@ public partial class SoundNode : Node3D
         }
         for (int e = AudioServer.GetBusEffectCount(_outIdx) - 1; e >= 0; e--)
             AudioServer.RemoveBusEffect(_outIdx, e);
-        _muffle = new AudioEffectLowPassFilter { CutoffHz = 20500 };
+        /* VINGT-QUATRE DÉCIBELS PAR OCTAVE, ET C'EST LÀ QUE TOUT SE JOUAIT.
+           Godot monte un passe-bas à SIX dB par octave par défaut : à 900 Hz de
+           coupure, ce qui est deux octaves plus haut ne perd que douze décibels —
+           autant dire rien. On entendait donc la BAISSE de volume et pas
+           l'étouffement, ce qui explique qu'aucun réglage de seuil ni de bande
+           n'ait rien changé à l'oreille (signalé deux fois). La pente la plus
+           raide que Godot offre coupe quatre fois plus vite, et c'est elle qu'il
+           faut pour une cloison de chêne ou pour de l'eau. */
+        _muffle = new AudioEffectLowPassFilter
+        {
+            CutoffHz = 20500,
+            Db = AudioEffectFilter.FilterDB.Filter24Db
+        };
         AudioServer.AddBusEffect(_outIdx, _muffle);
         Indoors(0);
     }
@@ -121,14 +133,21 @@ public partial class SoundNode : Node3D
        d'autre de la porte (signalé), quand la rampe est mesurée à 131 ms. Une
        écriture par passage suffit, et le fondu du volume porte tout le glissé
        qu'on entend. */
+    /* LES QUATRE NOMBRES SONT DANS LE MANIFESTE (sons.json → etouffe), parce
+       qu'ils s'écoutent et ne se calculent pas : celui qui les règle doit pouvoir
+       les pousser sans recompiler. Ce sont des Hz de coupure et des décibels de
+       baisse, pour la cloison et pour l'eau. */
+    public float HzCabine = 900, HzEau = 380;
+    public float DbCabine = -9, DbEau = -4;
+
     void Muffle()
     {
         // deux causes, et la plus forte l'emporte : une cloison sous l'eau ne filtre pas deux fois
         bool wet = _wetNow > 0.5, dedans = _indoorsNow > 0.5;
-        float hz = wet ? 380f : dedans ? 900f : 20500f;
+        float hz = wet ? HzEau : dedans ? HzCabine : 20500f;
         if (_muffle != null && hz != _wroteCut) { _muffle.CutoffHz = hz; _wroteCut = hz; }
         // et la baisse, au volume du bus : instantanée, sans coût, et elle seule fond
-        AudioServer.SetBusVolumeDb(_outIdx, (float)(-9 * _indoorsNow - 4 * _wetNow));
+        AudioServer.SetBusVolumeDb(_outIdx, (float)(DbCabine * _indoorsNow + DbEau * _wetNow));
     }
 
     public override void _Ready()

@@ -7975,6 +7975,30 @@ repasse dessus à 0,35, sans quoi une vague qui lèche l'objectif ferait clapote
 à chaque image. La même raison que le seuil du pirate qui louvoie à la limite,
 et la même réponse.
 
+### Six décibels par octave, ou pourquoi rien ne changeait
+
+Deux fois de suite, un réglage annoncé comme corrigé n'a **rien changé à
+l'oreille** — le seuil, la bande, la file. On avait cherché partout sauf dans
+le filtre lui-même.
+
+Godot monte un `AudioEffectLowPassFilter` à **six décibels par octave** par
+défaut. C'est une pente de rien du tout : à 900 Hz de coupure, ce qui est deux
+octaves plus haut — 3 600 Hz, en plein dans ce qui fait le claquement d'une
+toile ou le grain d'un clapotis — ne perd que douze décibels. On entendait donc
+la BAISSE de volume, qui elle marchait, et pas l'étouffement. Tout le reste
+était juste et ne pouvait rien y faire.
+
+`Filter24Db`, la pente la plus raide que Godot offre : quatre fois plus vite.
+
+La leçon n'est pas sur le son. Quand deux corrections mesurées et vérifiées ne
+changent rien à l'expérience, ce n'est pas qu'elles étaient trop timides : c'est
+que le CHEMIN qu'on règle n'est pas celui qu'on écoute. Il fallait douter du
+filtre, pas de ses réglages.
+
+Et parce que cela s'écoute et ne se calcule pas, les quatre nombres sont
+désormais dans `sons.json → etouffe` : deux coupures et deux baisses, poussables
+sans recompiler par celui qui, lui, entend.
+
 ### Le passage sous l'eau traînait : trois corrections, et un outil retiré
 
 **Le seuil.** Il partait à 0,65 de la bande, c'est-à-dire quand l'œil était
