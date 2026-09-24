@@ -267,6 +267,8 @@ public partial class ShipDemo
     void Notice(ShipNode s, double d)
     {
         _noticed.Add(s);
+        // la vigie, et elle est dans la hune : le cri vient de l'avant et d'en haut
+        Shout("voile-en-vue", 0.3, 8);
         string quoi = _hostile.ContainsKey(s) || _pirates.ContainsKey(s)
             ? "Une voile !"
             : s.Ensign?.Nationalite is string n ? $"Une voile — un navire {n}" : "Une voile !";

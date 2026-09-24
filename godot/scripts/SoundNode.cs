@@ -144,8 +144,77 @@ public partial class SoundNode : Node3D
             GD.PushWarning($"échantillon absent : {file} — ce bruit-là ne se fera pas.");
             return;
         }
-        var s = AudioStreamOggVorbis.LoadFromFile(path);
-        if (s != null) _buf[key] = s;
+        if (Read(path) is { } s) _buf[key] = s;
+    }
+
+    /// <summary>
+    /// UN SON, QUEL QUE SOIT SON FLACON. Le projet n'avait que de l'Ogg parce que
+    /// c'est ce qu'il embarquait ; ce qu'on enregistre ou qu'on achète arrive en
+    /// MP3, et refuser un fichier pour son extension serait une tracasserie sans
+    /// raison. Le WAV passe aussi : c'est ce que rend un montage.
+    /// </summary>
+    public static AudioStream? Read(string path)
+    {
+        try
+        {
+            return System.IO.Path.GetExtension(path).ToLowerInvariant() switch
+            {
+                ".mp3" => AudioStreamMP3.LoadFromFile(path),
+                ".wav" => AudioStreamWav.LoadFromFile(path),
+                _ => AudioStreamOggVorbis.LoadFromFile(path)
+            };
+        }
+        catch (Exception e)
+        {
+            GD.PushWarning($"son illisible : {System.IO.Path.GetFileName(path)} ({e.Message})");
+            return null;
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  LA VOIX DU BORD                                                     */
+    /* ------------------------------------------------------------------ */
+
+    /// <summary>Les échantillons de l'équipage, par événement : plusieurs par clé, tirés au hasard.</summary>
+    readonly Dictionary<string, List<AudioStream>> _crew = new();
+    /// <summary>Quand chaque clé pourra reparler : un ordre crié deux fois de suite n'est plus un ordre.</summary>
+    readonly Dictionary<string, double> _crewAgain = new();
+
+    /// <summary>Combien d'échantillons cette clé a reçus (zéro : elle se taira).</summary>
+    public int CrewCount(string key) => _crew.TryGetValue(key, out var l) ? l.Count : 0;
+
+    /// <summary>Ranger un échantillon d'équipage sous sa clé.</summary>
+    public void AddCrew(string key, string path)
+    {
+        if (Read(path) is not { } s) return;
+        if (!_crew.TryGetValue(key, out var list)) _crew[key] = list = new List<AudioStream>();
+        list.Add(s);
+    }
+
+    /// <summary>
+    /// UN ORDRE CRIÉ, ou un bruit de la vie du bord. Il part du PONT, donc par le
+    /// bus du dehors : entendu depuis la chambre, il traverse une cloison de
+    /// chêne comme le reste, et c'est juste — ce n'est pas vous qui criez.
+    /// <paramref name="hold"/> : les secondes avant que cette clé puisse reparler.
+    /// Rend faux si la clé est muette ou si elle vient de parler.
+    /// </summary>
+    public bool Crew(string key, Vec3d at, double gain = 1, double hold = 2)
+    {
+        if (!On || !_crew.TryGetValue(key, out var list) || list.Count == 0) return false;
+        if (_crewAgain.TryGetValue(key, out double t) && _now < t) return false;
+        _crewAgain[key] = _now + hold;
+        var stream = list[(int)(_rng.Randf() * list.Count) % list.Count];
+        var p = Free();
+        if (p == null) return false;
+        p.Bus = OutBus;
+        p.Stream = stream;
+        p.GlobalPosition = new Vector3((float)at.X, (float)at.Y, (float)at.Z);
+        // une voix n'est pas un coup de canon : ni variation de hauteur, ni filtre de l'air
+        p.PitchScale = 1;
+        p.VolumeDb = Mathf.LinearToDb((float)Math.Clamp(gain, 0.001, 1));
+        p.AttenuationFilterCutoffHz = 20500;
+        _waiting.Add((_now, p));
+        return true;
     }
 
     public override void _Process(double delta)

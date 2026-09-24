@@ -102,6 +102,8 @@ public partial class ShipDemo : Node3D
         AddChild(_coins);
         _sound = new SoundNode();
         AddChild(_sound);
+        // les voix APRÈS lui : le manifeste range ses échantillons dans le nœud
+        LoadCrewVoices();
         /* LA TERRE. Le monde est lu une fois — une image de neuf millions de
            pixels et le champ de distance qui en sort — et rien après ne change :
            c'est une fonction pure de la position, en mètres VRAIS. */
@@ -1124,6 +1126,7 @@ public partial class ShipDemo : Node3D
         GunTick(frame);
         EncounterTick(frame);
         CabinTick(frame);
+        CrewTick(frame);
         WreckTick(frame);
         TickSunPanel(frame);
         /* La lueur n'existe pas le jour — bloom.js saute sa passe tant que la nuit
@@ -2225,6 +2228,7 @@ public partial class ShipDemo : Node3D
     {
         if (t.Tag is not ShipNode s) return;
         // un coup au but PORTÉ PAR NOUS : compté ici, dit une fois la bordée finie
+        if (s == _ship) Shout("touche", 0, 4);
         if (from == _ship.Physics && s != _ship)
         {
             if (Allied(_ship, s)) _friendly++; else _hits++;
@@ -2253,7 +2257,9 @@ public partial class ShipDemo : Node3D
         if (kind == "mast")
         {
             // un bas mât faisait un pied de chêne : il en faut plusieurs, c'est la récompense du feu soutenu
-            s.WoundMast(index);
+            bool tombe = s.WoundMast(index);
+            // et s'il tombe chez nous, le pont l'apprend avant le capitaine
+            if (tombe && s == _ship) Shout("mat", 0.1, 5);
             return;
         }
         /* LE TROU D'UN BOULET, et comme le CARRÉ du calibre — un trou est une
@@ -2321,6 +2327,7 @@ public partial class ShipDemo : Node3D
             return;
         }
         ph.Powder = Math.Max(0, ph.Powder - fired);
+        Shout("feu", 0, 1.5);
     }
 
     /* LA COLONNE ANNONCE SON BORD, et ce qu'il en reste dès qu'il en manque :

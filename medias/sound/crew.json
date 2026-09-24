@@ -1,0 +1,52 @@
+{
+  "note": "LA VOIX DU BORD. Déposez vos fichiers dans medias/sound/crew/ et nommez-les ici — .mp3, .ogg ou .wav, le jeu lit les trois. Plusieurs par clé : il en tire un au hasard, ce qui vaut mieux qu'un seul qu'on finit par connaître par cœur. Une clé vide reste muette, sans avertissement ni dommage : on peut donc n'en remplir qu'une et commencer. Rien n'est embarqué dans la page publiée (build.js n'emporte pas ce dossier) : ces sons sont ceux de la version Godot.",
+  "reglages": {
+    "gain": 0.9,
+    "attente": 2.5,
+    "vie": [
+      45,
+      180
+    ]
+  },
+  "aide": {
+    "gain": "le volume des voix, 0 à 1",
+    "attente": "les secondes avant qu'une même clé puisse reparler — un ordre crié deux fois de suite n'est plus un ordre",
+    "vie": "entre deux bruits de « vie », en secondes de jeu : tiré entre les deux"
+  },
+  "voix": {
+    "voiles": [],
+    "ferle": [],
+    "ris": [],
+    "mouille": [],
+    "leve": [],
+    "barre": [],
+    "pare": [],
+    "feu": [],
+    "touche": [],
+    "mat": [],
+    "voile-en-vue": [],
+    "pavillon-bas": [],
+    "pavillon-haut": [],
+    "port": [],
+    "vie": [],
+    "cloche": []
+  },
+  "quand": {
+    "voiles": "on établit la toile (V)",
+    "ferle": "on la serre (V)",
+    "ris": "on prend ou on largue un ris (⇧V)",
+    "mouille": "l'ancre tombe",
+    "leve": "on la dérape",
+    "barre": "la barre toute d'un bord",
+    "pare": "« parez à faire feu » (⇧B)",
+    "feu": "l'ordre de tirer (G)",
+    "touche": "un boulet dans notre bordé",
+    "mat": "un de nos mâts s'abat",
+    "voile-en-vue": "la vigie annonce une voile",
+    "pavillon-bas": "on amène les couleurs",
+    "pavillon-haut": "on les hisse",
+    "port": "on entre dans un port",
+    "vie": "la vie du bord, au hasard : un rire, une toux, un seau, un bout qu'on love",
+    "cloche": "UN coup de cloche. Le jeu la frappe lui-même autant de fois qu'il faut, par paires, à chaque demi-heure du quart — un seul échantillon suffit."
+  }
+}

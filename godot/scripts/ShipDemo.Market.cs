@@ -132,7 +132,10 @@ public partial class ShipDemo : Node3D
     void MarketTick()
     {
         if (_mkPanel == null) return;
+        var avant = _portHere;
         _portHere = _inTitle ? null : PortInFront();
+        // on entre : la manœuvre de port a ses propres cris
+        if (avant == null && _portHere != null) Shout("port", 0.2, 20);
         _mkPanel.Visible = _portHere != null && _hudOn && !_inTitle;
         if (_portHere == null) return;
 

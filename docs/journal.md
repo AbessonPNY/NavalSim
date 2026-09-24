@@ -7931,6 +7931,36 @@ quel que soit le pont d'où l'on regarde.
 Mesuré en headless : 20 500 Hz sur le pont, 700 Hz dans la chambre, et le
 retour au plein air quand on en sort.
 
+## La vie du bord, par l'oreille (Godot)
+
+Comment peupler un pont sans payer d'images ? `crew.js` a déjà répondu par la
+négative : dessiner un équipage coûte une passe de peau par homme, et il y a
+jusqu'à seize coques à l'eau — d'où sa mise au placard. Mais ce n'est pas la
+vue qui dit qu'un navire est habité, c'est le BRUIT. Un ordre crié quand on
+brasse, une cloche au quart, un rire dans le gaillard : rien de cela ne coûte
+une image, un échantillon part et c'est tout.
+
+Le code ne connaît que les MOMENTS ; les sons sont nommés dans
+`medias/sound/crew.json`, plusieurs par clé — il en tire un au hasard, ce qui
+vaut mieux qu'un seul qu'on finit par connaître par cœur. Une clé vide reste
+muette, sans dommage : on peut n'en remplir qu'une et commencer. Seize moments
+branchés, tous sur du code qui existait déjà : la toile établie ou serrée, un
+ris, l'ancre qui tombe ou qui dérape, la barre toute d'un bord, « parez à faire
+feu », le feu lui-même, un boulet chez nous, un de nos mâts qui s'abat, la
+vigie qui annonce une voile, les couleurs qu'on amène ou qu'on hisse, l'entrée
+d'un port, et la vie du bord au hasard.
+
+Deux choses valaient d'être écrites plutôt que déposées. **La cloche du quart**
+n'a besoin que d'UN échantillon : le jeu la pique lui-même, un coup par
+demi-heure écoulée, de un à huit, et PAR PAIRES — deux, deux, deux, un —, ce
+qui est ce qui les rend comptables à l'oreille. Et **une voix sort du PONT**,
+donc par le bus du dehors : entendue depuis la chambre elle traverse une
+cloison de chêne comme le reste, et c'est juste — ce n'est pas vous qui criez.
+
+Le lecteur accepte désormais le `.mp3` et le `.wav` autant que l'Ogg : refuser
+un fichier pour son extension serait une tracasserie sans raison, et ce qu'on
+enregistre arrive en MP3.
+
 ## Commencer, ou reprendre (Godot)
 
 Le menu d un mode posait la liste des parties À PLAT, sous les deux boutons :

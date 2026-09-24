@@ -67,6 +67,7 @@ public partial class ShipDemo
     void ToggleLayOrder()
     {
         _layOrder = !_layOrder;
+        if (_layOrder) Shout("pare", 0, 1.5);
         var l = _gunnery.Loaded(_ship.Battery, _gunSide);
         Say(_layOrder
             ? (l.Ready >= l.All && l.All > 0
