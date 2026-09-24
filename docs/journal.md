@@ -7969,6 +7969,20 @@ débordant l'étrave, vergues d'un bord à l'autre, trois mâts de haut. Le navi
 se trouvait mis à l'échelle sur son beaupré. Un maillage par mât, et la coque
 reprend la main.
 
+### La voilure de 1690, et non celle du siècle suivant
+
+Première version donnée : trois vergues carrées sur chacun des trois mâts. Faux
+— et signalé avant que ce soit vu. En 1690, misaine et grand mât portent bien
+basse voile, hunier et perroquet, mais **l artimon n en porte qu une**, le
+hunier d artimon, au-dessus de la LATINE. Un artimon à trois vergues carrées
+est un gréement postérieur d un siècle. Corrigé : 3 + 3 + 1 vergues, plus la
+latine que rig.lateen déclare déjà comme seconde aile.
+
+Reste un écart assumé, faute de primitive : le bloc rig.jib tient lieu de voile
+d avant, alors qu en 1690 c était la CIVADIÈRE — une vergue SOUS le beaupré. Le
+projet ne sait pas encore la dessiner, et la frégate de 1597 porte le même foc
+anachronique.
+
 ### La batterie, lue sur les tubes
 
 L'armement du 3 avril 1690 est dans le modèle, aux vraies pièces : 4 de
