@@ -7972,9 +7972,9 @@ BUS. Les pièces sont sur le pont de batterie — à bord, mais dehors, et on le
 entend à travers le navire. Un boulet dans notre muraille, lui, fait craquer les
 bois de la chambre elle-même : celui-là est bien dedans.
 
-Les quatre cas, relevés : sa bordée  ; un
-boulet chez nous  ; le même chez l'autre
-.
+Les quatre cas, relevés : sa bordée `bord=oui dedans=non bus=Dehors 25 ms` ;
+un boulet chez nous `oui / oui / Master, 25 ms` ; le même chez l'autre
+`non / non / Dehors, 30 ms`.
 
 ### L'oreille sous la surface
 
