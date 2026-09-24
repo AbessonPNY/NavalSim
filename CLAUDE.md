@@ -65,7 +65,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `capture.js` | la capture d'écran (touche `I`), écrite par le serveur de dev |
 | `purse.js` | la bourse, le cours des épices, la poudre |
 
-Réglages de jeu : `settings.json` (son : musique d'ambiance, coupée par défaut ; rencontres, nuit, bloom, naufrage, tempête : foudre et kraken, baleine, serpent de mer, brume de surface et estime (Godot), fantômes, calendrier, climat, dauphins, rechargement des pièces, hommes sur le pont, caustiques du fond).
+Réglages de jeu : `settings.json` (son : musique d'ambiance, coupée par défaut ; rencontres, nuit, bloom, naufrage, tempête : foudre et kraken, baleine, serpent de mer, brume de surface et estime (Godot), fantômes, calendrier, climat, dauphins, rechargement des pièces, hommes sur le pont, caustiques du fond, bancs de poissons).
 Réglages d'aspect à l'œil (Godot, en tête de shader) : **`u_shadow`** dans `godot/shaders/ocean.gdshader` — l'ombre des coques sur l'eau (0,5 ; 0 = aucune, 1 = encre) ; et `AmbientGain` dans `godot/scripts/SkyNode.cs` — la lumière du ciel dans l'ombre des navires (1,0 ; plus bas = ombres plus franches), et `SunGain` à côté — le soleil de la page ramené à l'unité de Godot (1/π) ; par-dessus, l'étude de la lumière au menu (Lumière : force, chaleur, éclairage ambiant ; `reglages.ini` → `[lumiere]`). **`u_veil`** dans `godot/shaders/ocean.gdshader` — la part du dessous qui passe à travers la surface à épaisseur nulle, donc la netteté de la ligne d'eau sur le bordé (0,55 ; 1 = vitre, 0 = encre ; atténue aussi les hauts-fonds).
 Monde : `world/caraibes.json` + `world/caraibes-relief.png` (relief peint en gris), format dans `world/README.md` ; `tools/region-heightmap.js` repart des côtes réelles. Godot : une région par fiche de `world/` (la Tortue : `world/tortue.json`), reliées par des **traversées** comptées et non naviguées (`core/Passage.cs`, atterrages `approaches`) — changer de région recharge la scène.
 Quêtes : `quests/*.json`, format dans `quests/README.md` (`Naval.app.allerQuete()` pour sauter à l'étape).
@@ -120,6 +120,15 @@ les vitesses et plafonds s'écrivent **par seconde**, jamais par image.
 longueurs ×s, surfaces ×s², vitesse machine ×√s.
 
 ## Contraintes de publication
+
+**Deux définitions d'un même modèle, et une seule des deux est partagée.** La
+page est un fichier autonome plafonné à 16 Mo ; Godot lit sur le disque et n'a
+pas de plafond. Un modèle placé dans **`godot-models/<son chemin habituel>`**
+remplace, pour Godot seulement, celui de la racine (`Assets.Path`) : on exporte
+une fois en pleine définition là, puis `node tools/page-models.js` en tire la
+copie allégée à sa place habituelle, et `node build.js` vérifie la limite.
+Format et raisons : `godot-models/README.md`. Les données (fiches, monde,
+quêtes, réglages) restent partagées — jamais de doublon.
 
 La page publiée ne peut rien charger de local : `build.js` inline tous les
 scripts, embarque fiches, réglages, props et pavillons (`Naval.SHIP_DATA`,

@@ -119,15 +119,14 @@ public partial class ShipNode : Node3D
     ///
     /// Chargé à l'EXÉCUTION par GltfDocument, et non importé par l'éditeur : les
     /// fiches et leurs modèles vivent hors du projet Godot, dans ships/, où la
-    /// page d'origine les lit aussi. Un seul dossier pour les deux versions.
+    /// page d'origine les lit aussi — et <see cref="Assets.Path"/> laisse Godot
+    /// prendre au passage une version plus lourde s'il en existe une.
     /// </summary>
     bool LoadModel()
     {
         var m = Spec.Model;
         if (m == null || string.IsNullOrEmpty(m.Glb)) return false;
-        string root = System.IO.Path.GetDirectoryName(
-            ShipLibrary.Folder.TrimEnd('/', '\\')) ?? "";
-        string path = System.IO.Path.Combine(root, m.Glb);
+        string path = Assets.Path(m.Glb);
         try
         {
             var doc = new GltfDocument();

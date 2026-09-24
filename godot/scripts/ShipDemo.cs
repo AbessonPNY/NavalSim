@@ -81,6 +81,7 @@ public partial class ShipDemo : Node3D
         AddChild(_spray);
         _precip = new PrecipNode();
         AddChild(_precip);
+        Assets.Say();
         LoadClimate();
         _lightning = new LightningNode();
         AddChild(_lightning);
@@ -120,6 +121,12 @@ public partial class ShipDemo : Node3D
             _sea.Core.Shelter = (x, z) => _world.Shelter(x, z);
             _land = new LandNode(_world) { CausticRules = _causticRules };
             AddChild(_land);
+            /* LES BANCS DES HAUTS-FONDS, après la terre : c'est le fond qu'elle
+               dessine qui décide où ils tiennent. */
+            _fishNode = new FishNode { Rules = _fishRules };
+            AddChild(_fishNode);
+            if (!_fishNode.Build(Assets.Path("creatures/fish.glb")))
+            { _fishNode.QueueFree(); _fishNode = null; }
             _town = new TownNode(_world);
             AddChild(_town);
             _jetty = new JettyNode(_world);
@@ -148,7 +155,7 @@ public partial class ShipDemo : Node3D
         }
         WireWreck();
         _krakenNode.Build(_krakenRules.Glb == null ? null
-            : System.IO.Path.GetFullPath(System.IO.Path.Combine(ProjectSettings.GlobalizePath("res://"), "..", _krakenRules.Glb)));
+            : Assets.Path(_krakenRules.Glb));
         _kraken = new Kraken(_krakenRules) { BodyR = _krakenNode.BodyR };
         WireKraken();
         BuildWhale();
@@ -544,6 +551,7 @@ public partial class ShipDemo : Node3D
             sm.SetShaderParameter("u_sky_blur", s.SeaSkyBlur);
             sm.SetShaderParameter("u_ride_gain", s.SeaRideGain);
             _land?.Ground.SetShaderParameter("u_ride_gain", s.SeaRideGain);
+            _fishNode?.Material?.SetShaderParameter("u_ride_gain", s.SeaRideGain);
             sm.SetShaderParameter("u_cap_gain", s.SeaCapGain);
             sm.SetShaderParameter("u_foam_gain", s.SeaFoamGain);
             sm.SetShaderParameter("u_jac_foam", s.SeaJacobian);
@@ -1047,6 +1055,9 @@ public partial class ShipDemo : Node3D
             var here = new Vec3d(wo.X + b.Pos.X, 0, wo.Z + b.Pos.Z);
             _land.Update(here, new Vec3d(wo.X, 0, wo.Z), _landEager);
             _landEager = false;
+            // le niveau de la mer sous le navire décide de la hauteur d'eau
+            _fishNode?.Update(_world, here, new Vec3d(wo.X, 0, wo.Z), frame,
+                _sea.Core.Sample(b.Pos.X, b.Pos.Z, _t));
             foreach (var m in _land.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
             if (_town != null)
             {
@@ -1114,12 +1125,14 @@ public partial class ShipDemo : Node3D
            remplit les tableaux de cette image. Deux copies du spectre finiraient
            par ne plus l'être, et le fond scintillerait sur une houle que l'œil
            ne voit pas : c'est la panne silencieuse habituelle. */
-        if (_land != null)
+        if (_land != null) PushSea(_land.Ground);
+        if (_fishNode?.Material is ShaderMaterial fm) PushSea(fm);
+        void PushSea(ShaderMaterial m)
         {
-            _sea.PushWaves(_land.Ground);
-            _land.Ground.SetShaderParameter(U.Sharp, (float)_sea.Core.Sharp);
-            _land.Ground.SetShaderParameter("u_sunlit", (float)_sky.Sunlit);
-            _sky.PushTo(_land.Ground);
+            _sea.PushWaves(m);
+            m.SetShaderParameter(U.Sharp, (float)_sea.Core.Sharp);
+            m.SetShaderParameter("u_sunlit", (float)_sky.Sunlit);
+            _sky.PushTo(m);
         }
         // après le recentrage : la mer et le champ lisent la coque où elle EST
         _sea.TrackShips(_fleet);
@@ -1284,6 +1297,7 @@ public partial class ShipDemo : Node3D
         float ripple = (float)Math.Min(2.6, 0.40 + _sea.Core.WindSpeed * 0.105);
         _sea.Material?.SetShaderParameter(U.Ripple, ripple);
         _land?.Ground.SetShaderParameter(U.Ripple, ripple);
+        _fishNode?.Material?.SetShaderParameter(U.Ripple, ripple);
         var wv = _sea.Core.WindVec;
         double ws = Math.Sqrt(wv.X * wv.X + wv.Z * wv.Z);
         if (ws > 1e-4)
@@ -1291,6 +1305,7 @@ public partial class ShipDemo : Node3D
             var wu = new Vector2((float)(wv.X / ws), (float)(wv.Z / ws));
             _sea.Material?.SetShaderParameter(U.Wind, wu);
             _land?.Ground.SetShaderParameter(U.Wind, wu);
+            _fishNode?.Material?.SetShaderParameter(U.Wind, wu);
         }
 
         _hudAcc += frame;
@@ -1883,6 +1898,9 @@ public partial class ShipDemo : Node3D
     SnowSettings _snowRules = new();
     /// <summary>La lumière de la houle sur le fond : settings.json → caustics.</summary>
     CausticSettings _causticRules = new();
+    /// <summary>Les bancs des hauts-fonds : settings.json → fish.</summary>
+    FishSettings _fishRules = new();
+    FishNode? _fishNode;
     SeaFog? _seaFog;
     bool _saidFog;
 
@@ -1908,7 +1926,7 @@ public partial class ShipDemo : Node3D
        défaut, qui sont celles de climate.js. */
     void LoadClimate()
     {
-        string path = System.IO.Path.GetFullPath(System.IO.Path.Combine(ProjectSettings.GlobalizePath("res://"), "..", "settings.json"));
+        string path = Assets.Path("settings.json");
         try
         {
             using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(path));
@@ -1926,6 +1944,7 @@ public partial class ShipDemo : Node3D
             if (root.TryGetProperty("encounters", out var ec)) _metRules = EncounterSettings.FromJson(ec);
             if (root.TryGetProperty("snow", out var sw)) _snowRules = SnowSettings.FromJson(sw);
             if (root.TryGetProperty("caustics", out var ca)) _causticRules = CausticSettings.FromJson(ca);
+            if (root.TryGetProperty("fish", out var fi)) _fishRules = FishSettings.FromJson(fi);
             if (root.TryGetProperty("storm", out var st))
             {
                 if (st.TryGetProperty("lightning", out var li)) _lightRules = LightningSettings.FromJson(li);
@@ -2942,6 +2961,8 @@ public partial class ShipDemo : Node3D
         // nervures d'une rade battue
         _land?.Ground.SetShaderParameter("u_harbour", v);
         _land?.Ground.SetShaderParameter("u_harbour_pass", pass);
+        _fishNode?.Material?.SetShaderParameter("u_harbour", v);
+        _fishNode?.Material?.SetShaderParameter("u_harbour_pass", pass);
     }
 
     /// <summary>
@@ -3074,6 +3095,10 @@ public partial class ShipDemo : Node3D
                 case "--plongee": _diveSpeed = args[i + 1].ToFloat(); break;
                 /* LA LUMIÈRE DU FOND, à la volée : pour comparer deux images de la
                    même vue, ce qui est la seule façon d'en connaître le prix. */
+                // LES BANCS, à la volée : pour comparer deux images de la même vue
+                case "--poissons":
+                    if (_fishNode != null) _fishNode.Visible = args[i + 1] != "0";
+                    break;
                 case "--caustiques":
                     _land?.Ground.SetShaderParameter("u_caustic_gain",
                         args[i + 1] == "0" ? 0f : args[i + 1].ToFloat());

@@ -122,6 +122,23 @@
     "cooldown": 480,
     "glb": "creatures/whale.glb"
   },
+  "fish": {
+    "_aide": "LES BANCS DE POISSONS DES HAUTS-FONDS. Ils ne coûtent aucun calcul par image : chaque poisson porte quatre nombres et le shader en tire sa ronde, son cap et la flexion de son corps. bancs : combien à la fois autour du navire. poissons : combien dans chacun. fond_min / fond_max : l'eau où ils tiennent, en mètres — au-delà on ne les verrait plus. portee : jusqu'où on en pose. taille : la longueur d'un poisson en mètres, le modèle y est ramené quelle que soit son échelle. rayon : la largeur du banc. vitesse : en LONGUEURS DE CORPS par seconde, donc un gros va plus vite qu'un petit. battement : coups de queue par seconde. balancement : le balayage de la queue, en part de la longueur. sens : mettez -1 si le banc nage à reculons, c est que le modèle regarde vers -Z. teinte et variete : leur livrée, et de combien elle change d'un poisson à l'autre.",
+    "enabled": true,
+    "bancs": 3,
+    "poissons": 26,
+    "fond_min": 1.2,
+    "fond_max": 11,
+    "portee": 220,
+    "taille": 0.26,
+    "rayon": 3.2,
+    "vitesse": 1.1,
+    "battement": 2.6,
+    "balancement": 0.11,
+    "sens": -1,
+    "teinte": "#dc9e42",
+    "variete": 0.25
+  },
   "caustics": {
     "_aide": "LA LUMIÈRE DU SOLEIL RASSEMBLÉE PAR LA HOULE SUR LE FOND, dans les hauts-fonds. Ce n'est pas un motif peint : c'est la courbure des vraies vagues, donc elles changent quand la mer change, s'éteignent la nuit et sous un ciel fermé. force : le contraste, 1 = ce que la réfraction donne. profondeur : les mètres d'eau où elles s'éteignent — le soleil a un demi-degré de large, et son foyer se brouille en descendant. portee : la distance à l'œil où on les arrête, au-delà ce ne serait qu'un moiré. plancher : au foyer exact la clarté serait infinie ; plus bas = des nervures plus fines et plus vives. dispersion : le liseré coloré au bord d'une nervure, 1 = l'écart des indices de l'eau de mer, 0 = une lumière blanche. enabled : false les retire tout à fait.",
     "enabled": true,

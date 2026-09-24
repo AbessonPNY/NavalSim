@@ -1,0 +1,4 @@
+{
+  "_aide": "CE QU'IL FAUT RETIRER A UN MODELE POUR QU'IL ENTRE DANS LA PAGE. La cle est son chemin habituel, celui que la fiche donne. max borne le cote d'une image dont le nom porte le motif : les etoffes d'une frégate n'ont pas besoin de 1024 pixels, son borde si. Sans entree, un modele n'est que ramene a huit bits par canal — ce qui suffit presque toujours. Applique par « node tools/page-models.js ».",
+  "ships/models/fregate17e.glb": { "max": { "fabrics": 512 } }
+}

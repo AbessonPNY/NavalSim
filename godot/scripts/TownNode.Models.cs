@@ -33,8 +33,7 @@ public partial class TownNode
     Model? _church, _houseA, _houseB;
     ShaderMaterial? _glass;
 
-    static string RepoRoot =>
-        System.IO.Path.GetDirectoryName(ProjectSettings.GlobalizePath("res://").TrimEnd('/', '\\')) ?? "";
+    static string RepoRoot => Assets.Root;
 
     /// <summary>Lire les trois bâtiments. Faux si l'un manque : la ville garde ses boîtes.</summary>
     bool LoadModels()
@@ -52,7 +51,7 @@ public partial class TownNode
 
     Model? LoadBuilding(string rel)
     {
-        string path = System.IO.Path.Combine(RepoRoot, rel);
+        string path = Assets.Path(rel);
         if (!System.IO.File.Exists(path)) { GD.PushWarning($"[ville] {rel} introuvable — maisons en boîtes."); return null; }
         var doc = new GltfDocument();
         var state = new GltfState();

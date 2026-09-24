@@ -25,7 +25,7 @@ public partial class ShipDemo : Node3D
         _whaleNode = new WhaleNode();
         AddChild(_whaleNode);
         string? glb = _whaleRules.Glb == null ? null
-            : System.IO.Path.GetFullPath(System.IO.Path.Combine(ProjectSettings.GlobalizePath("res://"), "..", _whaleRules.Glb));
+            : Assets.Path(_whaleRules.Glb);
         _whaleNode.Build(glb);
         _whale = new Whale(_whaleRules)
         {

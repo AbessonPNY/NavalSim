@@ -80,7 +80,7 @@ public partial class CoinNode : Node3D
     Mesh? LoadCoin()
     {
         string path = System.IO.Path.GetFullPath(System.IO.Path.Combine(
-            ProjectSettings.GlobalizePath("res://"), "..", Glb));
+            Assets.Root, Glb));
         if (!System.IO.File.Exists(path)) return null;
         var doc = new GltfDocument();
         var state = new GltfState();

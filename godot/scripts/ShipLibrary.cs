@@ -26,8 +26,7 @@ public static class ShipLibrary
     {
         get
         {
-            string proj = ProjectSettings.GlobalizePath("res://");
-            return System.IO.Path.GetFullPath(System.IO.Path.Combine(proj, "..", "ships"));
+            return System.IO.Path.Combine(Assets.Root, "ships");
         }
     }
 

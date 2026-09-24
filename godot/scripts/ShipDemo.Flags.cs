@@ -17,7 +17,7 @@ public partial class ShipDemo
     void LoadNations()
     {
         string path = System.IO.Path.GetFullPath(System.IO.Path.Combine(
-            ProjectSettings.GlobalizePath("res://"), "..", "ships", "textures", "flags", "flags.json"));
+            Assets.Root, "ships", "textures", "flags", "flags.json"));
         try
         {
             using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(path));

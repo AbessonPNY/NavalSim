@@ -7975,6 +7975,174 @@ repasse dessus à 0,35, sans quoi une vague qui lèche l'objectif ferait clapote
 à chaque image. La même raison que le seuil du pirate qui louvoie à la limite,
 et la même réponse.
 
+## Deux jeux de modèles, et un seul export (Godot et page)
+
+La frégate est revenue de Blender à **13,6 Mo**, dont 12,8 de textures et, à
+elles seules, 10,4 pour deux cartes de normales en 16 bits. C'est la troisième
+fois que ce poids se présente, et les deux premières on l'a simplement rabaissé
+(`tools/glb-8bit.js`). Cette fois le diagnostic est allé plus loin, parce que la
+demande l'a rendu évident : **les deux versions du jeu n'ont pas la même
+contrainte, et on leur demandait le même fichier.**
+
+La page publiée est UN fichier autonome, plafonné à 16 Mo, où chaque modèle entre
+en base64 : tout mégaoctet d'un `.glb` y compte double. Godot lit sur le disque
+et n'a pas de plafond du tout — une carte de normales 1k en 16 bits ne lui coûte
+que de la mémoire de carte. Ramener l'export au niveau de la page revenait donc
+à priver Godot de ce qu'Arnaud venait de peindre, et à le lui faire refaire à
+chaque export.
+
+**La séparation tient en une fonction.** `godot-models/` double l'arborescence
+du dépôt ; un fichier qu'on y trouve remplace celui de la racine, pour Godot
+seulement :
+
+```
+godot-models/ships/models/fregate17e.glb   13,57 Mo   ← Godot
+ships/models/fregate17e.glb                 4,00 Mo   ← la page
+```
+
+Rien à déclarer, aucune liste à tenir : `Assets.Path(relatif)` rend le doublon
+s'il existe, la racine sinon. Vider le dossier rend au jeu son comportement
+d'avant. Et Godot annonce au démarrage ce qu'il y a trouvé — un doublon oublié
+est la panne muette du genre le plus vicieux : on corrige un modèle, on relance,
+et le moteur montre l'autre.
+
+Le dossier est **hors de `godot/`** à dessein. Ce qui est dans le projet,
+l'éditeur l'importe ; or ces modèles-là sont ouverts à l'exécution par
+`GltfDocument`, et n'ont rien à faire dans la base de ressources.
+
+**Un export, deux fichiers.** On exporte une seule fois, en pleine définition,
+dans `godot-models/`, et `node tools/page-models.js` en tire la copie de la page
+à sa place habituelle : huit bits par canal pour tout le monde, plus les bornes
+que `godot-models/allegement.json` demande par modèle — des DONNÉES, pas du code :
+
+```json
+{ "ships/models/fregate17e.glb": { "max": { "fabrics": 512 } } }
+```
+
+L'outil copie le lourd vers la place de la page **puis** l'allège, jamais
+l'inverse : on ne peut pas abîmer l'export d'origine en se trompant de sens.
+
+Mesure : 13,57 Mo en pleine définition, 4,00 Mo pour la page, et la page bâtie
+passe de 13 803 à **15 133 Ko** — sous la limite, mais il ne reste que 1,2 Mo de
+marge. La prochaine texture la franchira ; `--max 512` sur l'ensemble de la
+frégate est la réserve suivante, et elle ne coûtera rien à Godot.
+
+Ce qui ne doit JAMAIS aller dans ce dossier : les fiches, le monde, les quêtes,
+les réglages. Ce sont des données partagées, et les tenir en double est
+exactement ce que ce projet interdit — une correction qui ne vaudrait que pour
+un moteur. Le mécanisme les accepterait (il ne regarde pas l'extension), ce qui
+est commode pour essayer une valeur sans toucher à ce que la page verra ; mais
+rien ne doit y rester.
+
+## Des bancs de poissons qui ne coûtent rien (Godot)
+
+Demandé avec les caustiques : des poissons dans les eaux peu profondes, puis —
+en voyant le modèle — « peux-tu le déformer légèrement quand il se déplace pour
+que sa forme suive son mouvement ? ». Les deux tiennent dans le même shader.
+
+**Le principe est de ne rien faire.** Un banc est un `MultiMesh` dont les
+transformations d'instance ne changent JAMAIS après sa création. Chaque poisson
+n'y porte que quatre nombres (`INSTANCE_CUSTOM`) : sa phase, son rayon de ronde,
+sa hauteur dans le banc, sa taille. Où il est, où il regarde et comment son corps
+est plié sont calculés par le vertex shader à chaque image. Vingt-six poissons
+coûtent donc un appel de dessin et **pas une ligne de C# par image** — c'était
+la condition posée en septembre, quand les hommes sur le pont ont été retirés
+faute de tenir les images par seconde.
+
+**Ils tournent en rond, et ce n'est pas une facilité.** Un banc de récif ne va
+nulle part : il tourne au-dessus de son patate de corail. Une ronde donne donc le
+bon mouvement, et elle donne surtout une COURBURE PERMANENTE — qui est
+exactement ce qui était demandé. Un poisson qui vire n'est pas un poisson droit
+qu'on a tourné : son corps épouse l'arc qu'il décrit. Ici l'arc est connu
+exactement, c'est un cercle de rayon R, donc la flexion aussi — la corde d'un
+cercle s'écarte de z²/2R, et il n'y a rien d'autre à écrire.
+
+**Et ils ondulent**, d'une onde qui remonte de la queue vers la tête, d'amplitude
+décroissant vers l'avant en (1 − s)². C'est la nage carangiforme, celle de
+presque tous les poissons : la tête tient le cap, le corps ondule, la queue
+balaie. Une amplitude constante donne un serpent, et se voit tout de suite. La
+normale suit la pente de cette déformation, sans quoi un poisson plié s'éclaire
+comme un poisson droit et le pli reste invisible.
+
+### La lumière du fond, et où on la lit
+
+Les poissons appellent la MÊME fonction que le sable (`caustics.gdshaderinc`,
+sorti de `land.gdshader` pour l'occasion) : un banc qui passe sous une nervure la
+prend sur le dos, et c'est cela qui le pose DANS l'eau au lieu de le poser
+dessus.
+
+Mais pas au même endroit. Le fond la lit par PIXEL ; les poissons, par SOMMET.
+Un banc proche emplit l'écran, et payer dix-huit vagues et six lectures de ride
+par pixel de poisson coûtait une milliseconde et demie à lui seul. Un poisson
+fait vingt-six centimètres : la nervure qui passe sur lui est plus large que lui,
+et l'interpoler sur ses sommets ne se voit pas. `caustiques()` prend donc sa
+finesse en paramètre au lieu de la tirer de `fwidth` — qui n'existe de toute
+façon pas dans un vertex shader.
+
+### Deux pièges, et ce qu'ils apprennent
+
+**Il a fallu trois exports, et j'ai mal lu le deuxième.** Le premier `.glb`
+pesait 132 octets : un chunk JSON de 112, `"scenes": [{"name":"Scene"}]`, et
+rien d'autre — un export Blender sans objet sélectionné. Une lecture du fichier
+l'a dit tout de suite, avant qu'une ligne de code soit écrite.
+
+Le deuxième avait bien une maille, et j'ai conclu des seules étendues (3,40 ×
+2,46 × 3,05, avec quelques points isolés aux extrêmes de X) qu'il s'agissait
+d'un poisson mince portant ses pectorales. **C'était faux.** Le corps mesurait
+2,1 × 2,0 × 1,8 : une sphère, avec une dorsale et un éventail plat à un bout.
+La capture d'Arnaud montrait un poisson quatre fois plus long que haut ; les
+deux ne pouvaient pas être le même objet. En cause, presque à coup sûr, un
+modificateur de MULTIRÉSOLUTION : l'exportateur glTF de Blender applique les
+modificateurs, mais pas celui-là, et sort donc la cage de base — la sphère de
+départ, à peine déformée. 322 sommets pour une sculpture aurait dû me le dire.
+
+La leçon n'est pas « lire le fichier » — je l'avais fait —, c'est que **trois
+nombres ne font pas une forme**. Un maximum et un minimum par axe ne distinguent
+pas un poisson d'une patate ; il faut la dispersion (une covariance dit
+l'allongement en un chiffre) et, pour finir, la silhouette. D'où `tools/
+glb-look.js` : il donne le contenu, les mesures, l'allongement — « 1,4 : 1,
+PATATOÏDE, ce n'est probablement pas le modèle que vous croyez exporter » —,
+devine de quel bout est le nez (une caudale est un éventail, un museau une
+pointe) et trace la silhouette dans les trois plans. Le troisième export y
+répond « 22,5 : 1, axe franc sur Z, nez vers −Z », et il a suffi d'écrire
+`"sens": -1` dans les réglages.
+
+**La seconde mesure était fausse, et de beaucoup.** Bancs allumés : 4,21 ms de
+carte graphique ; éteints : 2,66. Une milliseconde et demie pour vingt-six
+poissons de vingt-six centimètres n'avait aucun sens — et en effet, ce n'étaient
+pas eux : le navire faisait route pendant la mesure, et d'une course à l'autre
+la côte n'occupait pas la même part de l'écran. Voiles ferlées (`--sails 0`),
+sur une scène immobile, trois allers-retours donnent 2,65 à 2,68 contre 2,64 à
+2,66 : **deux centièmes de milliseconde**. Une mesure de rendu ne vaut rien si
+la vue bouge entre les deux moitiés de la comparaison.
+
+Vérifié aussi qu'ils sont bel et bien dessinés, par la sonde de coût de la
+section précédente : le fragment shader rendu deux cents fois plus cher ajoute
+0,52 ms, donc il y a bien des pixels de poisson à l'écran.
+
+### Le modèle
+
+Lu tel quel : une seule maille, pas de squelette, pas d'animation, et **l'échelle
+est libre** — le jeu ramène l'étendue du modèle sur son axe à `fish.taille`,
+comme une coque est ramenée à la longueur de sa fiche. L'origine est libre aussi,
+le shader parle en part du corps, de la queue au nez. Matière et couleurs de
+sommet ignorées : la robe est faite dans le shader, dos sombre et ventre clair
+(le contre-ombrage, que presque tout ce qui nage porte), avec une teinte qui
+change d'un poisson à l'autre — un banc dont tous les individus ont la même
+livrée se lit comme un décalque.
+
+L'épaisseur d'un banc est celle de l'eau qui reste : dans un mètre vingt, un banc
+étalé sur trois mètres de haut sortirait par le dessus à la première vague.
+
+Le sens du modèle est un réglage (`fish.sens`) et non une convention imposée au
+modeleur : on ne devine pas de quel côté regarde une maille, et se tromper fait
+nager tout un banc à reculons — ce qui se voit, mais seulement en jeu. Un chiffre
+dans settings.json vaut mieux qu un aller-retour dans Blender.
+
+Réglages : `settings.json` → `fish`, portés par `core/Fish.cs`. Un modèle de
+départ : `node tools/fish-glb.js`. Pour regarder un modèle sans ouvrir Blender :
+`node tools/glb-look.js creatures/fish.glb`. En jeu : `-- --poissons 0|1`.
+
 ## Les caustiques, ou la houle vue par son ombre (Godot)
 
 Demandé : de la lumière qui joue sur le fond des hauts-fonds. La tentation est

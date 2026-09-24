@@ -101,7 +101,7 @@ public partial class FlotsamNode : Node3D
     void ReadProps()
     {
         string path = System.IO.Path.GetFullPath(System.IO.Path.Combine(
-            ProjectSettings.GlobalizePath("res://"), "..", "props", "Props.json"));
+            Assets.Root, "props", "Props.json"));
         try
         {
             using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(path));

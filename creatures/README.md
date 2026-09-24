@@ -123,3 +123,58 @@ large), `awayFromShore` et `minDepth` (où elle vit), `sight` (où on l'aperçoi
 (ses humeurs), `charge` (m/s), `ramAgain`, `massTonnes`. En jeu : **⇧K** la fait
 venir, et charger ; `-- --baleine 0|1|2` (indifférente, curieuse, hostile).
 
+
+## Les poissons — `creatures/fish.glb` (Godot)
+
+Des bancs dans les hauts-fonds. **Un seul modèle**, instancié : un banc est un
+`MultiMesh`, et chaque poisson n'y porte que quatre nombres — sa phase, son
+rayon de ronde, sa hauteur, sa taille. Tout le reste — où il est, où il regarde,
+comment son corps est plié — est calculé par le shader à chaque image. Aucun
+calcul par poisson côté processeur : c'est ce qui permet d'en mettre beaucoup.
+
+Ce que le jeu demande au modèle :
+
+- **Une seule maille**, sans squelette ni animation : la première qu'il trouve
+  est prise, les autres sont ignorées. Fusionnez les nageoires dans le corps.
+- **Dos en +Y**, donc le poisson est mince sur X, et sa longueur sur Z — la
+  convention des coques. Le **sens** sur cet axe, lui, est un réglage : si le
+  banc nage à reculons, mettez `"sens": -1` dans `settings.json` → `fish`, et
+  rien d'autre à toucher. Pour le savoir sans lancer le jeu :
+  `node tools/glb-look.js creatures/fish.glb` le devine (une caudale est un
+  éventail, un museau une pointe).
+- **L'échelle est libre.** Le jeu ramène la longueur du modèle (son étendue sur
+  Z) à `settings.json` → `fish.taille`, comme une coque est ramenée à la
+  longueur de sa fiche. Modelez à la taille qui vous arrange.
+- **L'origine est libre** elle aussi : le jeu lit les bornes de la boîte et
+  parle en « part du corps », de la queue au nez.
+- Matière et couleurs de sommet **ignorées** : la robe est faite par le shader —
+  dos sombre, ventre clair, une bande en travers, et une teinte qui change
+  d'un poisson à l'autre. Un banc dont tous les individus ont exactement la même
+  livrée se voit comme un décalque.
+
+**Vérifiez l'export avant de lancer le jeu** — une sculpture qui n'y est pas ne
+se voit qu'en jeu, et alors on cherche le bogue au mauvais endroit :
+
+```bash
+node tools/glb-look.js creatures/fish.glb
+```
+
+Il dit le contenu, les mesures, l'allongement et trace la silhouette. Un poisson
+doit y montrer un allongement franc (3 : 1 et plus) ; « 1,4 : 1, PATATOÏDE »
+veut dire que ce n'est pas le modèle que vous croyez exporter. Le cas le plus
+fréquent est un modificateur de **multirésolution** : l'exportateur glTF de
+Blender applique les modificateurs, mais pas celui-là, et sort la cage de base.
+Appliquez-le (ou *Objet → Convertir → Maillage*) avant d'exporter.
+
+Un modèle de départ, à ouvrir dans Blender :
+
+```bash
+node tools/fish-glb.js
+```
+
+Réglages (`settings.json` → `fish`) : `bancs` et `poissons` (combien, et de
+combien), `fond_min` / `fond_max` (l'eau où ils tiennent), `portee` (jusqu'où
+on en pose), `taille`, `rayon` (la largeur du banc), `vitesse` (en **longueurs
+de corps par seconde**, donc un gros va plus vite), `battement` (coups de queue
+par seconde), `balancement` (le balayage de la queue), `teinte` et `variete`.
+En jeu : `-- --poissons 0|1`, pour voir ce qu'ils coûtent.
