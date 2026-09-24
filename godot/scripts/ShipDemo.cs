@@ -1167,7 +1167,15 @@ public partial class ShipDemo : Node3D
         /* ET L OREILLE AVEC L OEIL : la bande d un demi-metre autour de la surface
            sert aussi au son, pour qu il ne bascule pas d un coup quand une vague
            passe devant l objectif. */
-        double wet = Math.Clamp((seaY - ce.Y) / 0.5 + 0.5, 0, 1);
+        /* L'OREILLE A SA PROPRE BANDE, ET BIEN PLUS ÉTROITE QUE L'ŒIL. L'image a
+           besoin du demi-mètre : à cheval sur la surface, c'est le PIXEL qui
+           décide, et il lui faut de quoi fondre. L'oreille n'a rien à fondre —
+           une tête est dans l'eau ou elle est dehors, et l'épaisseur du passage
+           est celle d'une oreille. Sur le demi-mètre de l'œil, une plongée à
+           vitesse moyenne étalait l'étouffement sur une demi-seconde, ce qui
+           s'entend comme une mollesse et non comme un passage (signalé). Dix
+           centimètres : un dixième de seconde au même train. */
+        double wet = Math.Clamp((seaY - ce.Y) / 0.10 + 0.5, 0, 1);
         _sound?.Underwater(wet);
         /* LE PASSAGE, ET NON L'ÉTAT. Ce qu'on entend en traversant la surface est
            un événement : il ne se joue qu'au franchissement, une fois, et à PLEIN

@@ -7975,29 +7975,37 @@ repasse dessus à 0,35, sans quoi une vague qui lèche l'objectif ferait clapote
 à chaque image. La même raison que le seuil du pirate qui louvoie à la limite,
 et la même réponse.
 
-### Le clapotis arrivait tard : trois causes, une seule innocente
+### Le passage sous l'eau traînait : trois corrections, et un outil retiré
 
-Signalé. On en soupçonnait trois, et le bon réflexe était de les séparer plutôt
-que de choisir.
-
-**Le fichier.** `tools/ogg-attaque.js` mesure le silence de tête d'un Ogg sans
-le décoder : Vorbis code le silence par des paquets minuscules — quelques
-octets là où un son plein en prend des centaines —, et chaque page porte sa
-position en échantillons. On descend les pages jusqu'à la première dont les
-paquets cessent d'être ridicules. Relevé sur les quatre échantillons du jeu :
-**0 ms partout**. Le fichier était innocent, et le rognage fait à la main avait
-bien travaillé.
-
-**Le seuil.** Il partait à 0,65 de la bande d'un demi-mètre, c'est-à-dire
-quand l'œil était déjà **7,5 cm sous l'eau**. Un bruit de passage doit partir
-au passage : ramené à 0,50, la surface exactement. L'hystérésis reste pour la
-remontée.
+**Le seuil.** Il partait à 0,65 de la bande, c'est-à-dire quand l'œil était
+déjà **7,5 cm sous l'eau**. Un bruit de passage doit partir au passage : ramené
+à 0,50, la surface exactement. L'hystérésis reste pour la remontée.
 
 **La file.** `Crew` mettait ses sons dans la file d'attente avec une échéance
 immédiate, et la file n'est relue qu'à l'image suivante : une image perdue pour
-rien. Or cette file existe pour retenir ce qui VOYAGE — un coup de canon à
-cinq cents mètres. Ce qui se fait à bord n'a aucun chemin à faire et part
-maintenant. Le gain vaut pour tous les sons du bord : ordres, cloche, toile.
+rien. Or cette file existe pour retenir ce qui VOYAGE — un coup de canon à cinq
+cents mètres. Ce qui se fait à bord n'a aucun chemin à faire et part maintenant.
+Le gain vaut pour tous les sons du bord : ordres, cloche, toile.
+
+**Et la vraie cause, trouvée en dernier : la BANDE.** Le fondu de l'étouffement
+suivait le demi-mètre de l'œil. L'image en a besoin — à cheval sur la surface,
+c'est le PIXEL qui décide, et il lui faut de quoi fondre. L'oreille n'a rien à
+fondre : une tête est dans l'eau ou elle est dehors, et l'épaisseur du passage
+est celle d'une oreille. Sur un demi-mètre, une plongée à vitesse moyenne
+étalait l'étouffement sur une demi-seconde, ce qui s'entend comme une mollesse
+et non comme un passage. Dix centimètres pour le son, le demi-mètre gardé pour
+l'image.
+
+**Un outil écrit puis retiré, et c'est la note utile.** On soupçonnait le
+fichier de commencer par du silence, et on a écrit `ogg-attaque.js` pour le
+mesurer sans décodeur — Vorbis dépense des octets à proportion de ce qu'il code,
+donc la taille des paquets suit l'énergie. Le proxy est trop grossier : il rend
+**0 ms à tous les seuils sur tous les fichiers**, y compris à 90 % du pic, ce
+qui veut dire qu'il sature à la première page et ne mesure rien. Aucun décodeur
+sur la machine pour l'arbitrer (ni ffmpeg, ni oggdec, ni sox). Un outil dont on
+ne peut pas valider la sortie ne vaut pas mieux que pas d'outil : il donne des
+chiffres qu'on croit. Retiré, et la conclusion qu'il avait servi à écrire —
+« le fichier est innocent » — est retirée avec lui : on n'en sait rien.
 
 ### Deux questions confondues en un seul drapeau
 
