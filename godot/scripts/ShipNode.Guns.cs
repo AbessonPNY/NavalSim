@@ -149,8 +149,8 @@ public partial class ShipNode
     bool NamedGuns()
     {
         var found = new List<(MeshInstance3D Mi, Transform3D Rel)>();
-        foreach (var (mi, rel) in Meshes(ModelRoot!))
-            if (GunNames.IsMatch(mi.Name.ToString())) found.Add((mi, rel));
+        foreach (var p in NamedPieces())
+            if (Tube(p) is { } t) found.Add((t.Mi, t.Rel));
         if (found.Count == 0) return false;
 
         var read = new List<(Vector3 At, Vector3 Dir, float Bore, float Half)>();
@@ -202,6 +202,94 @@ public partial class ShipNode
         SplitGuns(new List<(Vector3 Lo, Vector3 Hi)>());
         RigLog.Add($"batterie : {Battery.Guns.Count} pièce(s) lues sur le modèle, orientation comprise");
         return true;
+    }
+
+    /// <summary>
+    /// LES PIÈCES QUE LE MODÈLE NOMME — le nœud le plus HAUT dont le nom dit canon,
+    /// et TOUT ce qu'il porte.
+    ///
+    /// Le plus haut, et non chaque maillage. Un affût de bois modelé avec sa pièce
+    /// arrive de deux façons : en seconde surface du même objet — et
+    /// <see cref="SplitPrimitives"/> en fait un enfant « canon..._1 », qui porte
+    /// donc le même nom —, ou en enfant nommé autrement. Compter les maillages
+    /// donnait alors DEUX pièces au même endroit : une batterie de dix-sept canons
+    /// sur un navire qui en porte seize, et l'affût laissé en arrière quand le tube
+    /// reculait (signalé). Une pièce est un OBJET, pas une surface.
+    /// </summary>
+    List<Node3D> NamedPieces()
+    {
+        var found = new List<Node3D>();
+        void Gather(Node n)
+        {
+            foreach (var ch in n.GetChildren())
+            {
+                // trouvé : on ne descend pas, ses enfants sont à elle
+                if (ch is Node3D n3 && GunNames.IsMatch(n3.Name.ToString())) { found.Add(n3); continue; }
+                Gather(ch);
+            }
+        }
+        if (ModelRoot != null) Gather(ModelRoot);
+        return found;
+    }
+
+    /// <summary>
+    /// LE TUBE D'UNE PIÈCE : le maillage le plus LONG qu'elle porte, et sa pose.
+    /// C'est lui qui dit l'axe, l'âme et la bouche — un affût est toujours plus
+    /// court que le canon qu'il porte, et le prendre dans la mesure doublait le
+    /// calibre lu (l'âme est la plus petite mesure en travers, et les roues sont
+    /// larges). La pièce entière, elle, sert au recul.
+    /// </summary>
+    (MeshInstance3D Mi, Transform3D Rel)? Tube(Node3D piece)
+    {
+        MeshInstance3D? best = null;
+        Transform3D bestRel = Transform3D.Identity;
+        float longest = -1;
+        void Walk(Node n, Transform3D rel)
+        {
+            if (n is MeshInstance3D mi && mi.Mesh != null)
+            {
+                var e = mi.Mesh.GetAabb().Size;
+                float len = Math.Max(e.X, Math.Max(e.Y, e.Z));
+                if (len > longest) { longest = len; best = mi; bestRel = rel; }
+            }
+            foreach (var c in n.GetChildren())
+                Walk(c, c is Node3D c3 ? rel * c3.Transform : rel);
+        }
+        Walk(piece, RelToRoot(piece));
+        return best == null ? null : (best, bestRel);
+    }
+
+    /// <summary>La pose d'un nœud par rapport à la racine du modèle.</summary>
+    Transform3D RelToRoot(Node3D node)
+    {
+        var t = Transform3D.Identity;
+        for (Node? n = node; n != null && n != ModelRoot; n = n.GetParent())
+            if (n is Node3D n3) t = n3.Transform * t;
+        return t;
+    }
+
+    /// <summary>La boîte d'une pièce ET de tout ce qu'elle porte, dans SON repère.</summary>
+    static Aabb PieceBox(Node3D piece)
+    {
+        bool first = true;
+        var box = new Aabb();
+        void Walk(Node n, Transform3D rel)
+        {
+            if (n is MeshInstance3D mi && mi.Mesh != null)
+            {
+                var b = mi.Mesh.GetAabb();
+                for (int i = 0; i < 8; i++)
+                {
+                    var p = rel * b.GetEndpoint(i);
+                    if (first) { box = new Aabb(p, Vector3.Zero); first = false; }
+                    else box = box.Expand(p);
+                }
+            }
+            foreach (var c in n.GetChildren())
+                Walk(c, c is Node3D c3 ? rel * c3.Transform : rel);
+        }
+        Walk(piece, Transform3D.Identity);
+        return box;
     }
 
     /* LE FLANC QU'UN BOULET DOIT TRAVERSER, et c'est celui du MODÈLE, pas celui du

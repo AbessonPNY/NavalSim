@@ -268,7 +268,19 @@ public partial class ShipDemo
         double demi = Math.Floor(h * 2);                 // le numéro de la demi-heure du jour
         if (_wasBell < 0) { _wasBell = demi; return; }
         if (demi == _wasBell) return;
+
+        /* ELLE NE SONNE QUE LE TEMPS QUI PASSE DE LUI-MÊME. Le curseur de l'heure,
+           une partie qu'on reprend, une traversée d'une région à l'autre : l'horloge
+           SAUTE, et piquer tous les coups de chaque demi-heure franchie donnait un
+           carillon de plusieurs minutes (signalé). UNE demi-heure d'écart, et une
+           seule, est du temps vécu ; tout le reste est un saut, qu'on rattrape en
+           silence, la file des coups en attente comprise.
+
+           Le tour de minuit compte comme un pas (47 → 0), sans quoi on perdrait les
+           huit coups du changement de jour, qui sont justement ceux qu'on écoute. */
+        double pas = (demi - _wasBell + 48) % 48;
         _wasBell = demi;
+        if (pas != 1) { _bellQueue.Clear(); return; }
         int piques = (int)(((int)demi % 8) == 0 ? 8 : (int)demi % 8);
         for (int i = 0; i < piques; i++)
         {

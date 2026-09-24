@@ -7975,6 +7975,75 @@ repasse dessus à 0,35, sans quoi une vague qui lèche l'objectif ferait clapote
 à chaque image. La même raison que le seuil du pirate qui louvoie à la limite,
 et la même réponse.
 
+## Une pièce est un objet, pas une surface (Godot)
+
+Signalé : « j'ai ajouté la structure bois du canon bâbord 002, elle ne recule pas
+avec le tir ». Le défaut était plus large que la demande.
+
+Le modèle nomme ses pièces, et le jeu s'en sert : un maillage dont le nom dit
+canon est une pièce, détachée du bordé et posée sur son propre pivot. Mais Godot
+réunit les primitives d'un objet en SURFACES d'un seul maillage, et le portage
+les redécoupe en enfants (`SplitPrimitives`, pour que le gréement reconnaisse
+une vergue soudée à autre chose). Ces enfants héritent du nom : `canonBabord_002`
+devenait `canonBabord_002_0` et `canonBabord_002_1`.
+
+Or le bois de l'affût a été modelé dans la matière `hull`, et le tube dans
+`black_canon` : deux surfaces, donc deux enfants, donc **deux pièces au même
+endroit**. Le relevé le disait sans qu'on l'écoute — « batterie : 17 pièce(s) »
+sur un navire qui en porte seize. L'appariement donne une pièce par canon, du
+plus proche au plus loin ; la dix-septième restait sans canon, avec un sens de
+recul nul, et c'était l'affût. Le tube reculait, le bois restait.
+
+La règle devient : **une pièce est le nœud le plus HAUT dont le nom dit canon, et
+tout ce qu'il porte.** On ne descend pas dedans, et reparenter le nœud emmène ses
+enfants sans qu'on ait à les connaître — l'affût d'aujourd'hui, les roues et le
+palan de demain.
+
+Reste une mesure qui ne doit PAS voir l'affût : l'axe du tube est sa plus longue
+dimension, et l'âme la plus petite en travers, d'où se tire le calibre. Un affût
+est large et une roue est ronde : la pièce entière donnait une âme deux fois trop
+grosse pour ce canon-là. La lecture se fait donc sur le maillage le plus LONG de
+la pièce — un affût n'est jamais plus long que le canon qu'il porte. Le tube dit
+où l'on tire ; la pièce entière recule.
+
+Vérifié : la batterie de la frégate retombe de 17 à 16 pièces.
+
+## Le jeu libre ne s'enregistre plus tout seul (Godot)
+
+Signalé : « il m'en ajoute une nouvelle à chaque fois dans la liste ». En effet —
+« Menu principal » et « Quitter le jeu » appelaient l'enregistrement en passant,
+et comme chaque partie neuve reçoit un identifiant neuf, le Jeu libre gagnait une
+ligne par session. Le dossier en portait quatre pour la seule soirée, toutes à
+Port-Royal au 8 octobre 1690, c'est-à-dire quatre parties commencées et jamais
+jouées.
+
+La règle : **en jeu libre, le jeu n'écrit de lui-même que ce qui a déjà un nom**,
+c'est-à-dire ce que le joueur a choisi de garder une fois. Une partie neuve reste
+en l'air tant qu'il ne l'enregistre pas — le menu d'Échap l'écrit en toutes
+lettres (« Partie non enregistrée ») et sa première entrée est justement de
+l'enregistrer. Une quête en cours, elle, s'enregistre toujours : une Histoire ou
+une Mission perdue en fermant le jeu serait une tout autre affaire.
+
+Vérifié dans les deux sens, en comptant les fichiers : enregistrement en passant
+sur une partie libre neuve, 13 avant, 13 après ; enregistrement demandé, 14.
+
+## La cloche ne pique que le temps vécu (Godot)
+
+Signalé : bouger le curseur de l'heure faisait sonner toutes les demi-heures
+franchies, d'un coup. C'était fidèle à la lettre du code — un coup par demi-heure
+nouvelle — et absurde à l'oreille : traverser six heures, c'est douze demi-heures
+et jusqu'à quatre-vingts coups de cloche en file.
+
+Plutôt que de prévenir la cloche à chaque endroit où l'horloge saute (le curseur,
+une partie qu'on reprend, une traversée d'une région à l'autre), c'est elle qui
+juge : **une demi-heure d'écart, et une seule, est du temps vécu** ; tout le reste
+est un saut, qu'on rattrape en silence, la file des coups en attente comprise. Le
+tour de minuit compte comme un pas (47 → 0), sans quoi on perdrait les huit coups
+du changement de jour, qui sont ceux qu'on écoute.
+
+Vérifié : deux sauts d'heure à la main, zéro coup en file ; le temps laissé
+courir, la cloche revient.
+
 ## Deux jeux de modèles, et un seul export (Godot et page)
 
 La frégate est revenue de Blender à **13,6 Mo**, dont 12,8 de textures et, à

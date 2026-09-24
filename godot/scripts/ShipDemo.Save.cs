@@ -165,14 +165,37 @@ public partial class ShipDemo
         return best < 900 ? near.Name : $"{best / 1852:F0} milles de {near.Name}";
     }
 
-    /// <summary>Enregistrer la partie en cours. Le même fichier tant qu'on joue la même partie.</summary>
-    void SaveGame()
+    /// <summary>
+    /// Enregistrer la partie en cours. Le même fichier tant qu'on joue la même
+    /// partie — l'identifiant est gardé, et repris au chargement.
+    /// </summary>
+    /// <param name="asked">
+    /// Vrai si le JOUEUR l'a demandé, faux si c'est le jeu qui enregistre en
+    /// passant (retour au menu, sortie du jeu).
+    /// </param>
+    void SaveGame(bool asked = true)
     {
         /* UNE ESCARMOUCHE NE SE REPREND PAS. C'est une bataille montée d'un bloc,
            sans bourse, sans quête et sans lendemain : l'enregistrer sèmerait des
            parties que ni l'Histoire, ni les Missions, ni le Jeu libre ne peuvent
            montrer — et le menu d'Échap l'écrit à chaque retour au titre. */
         if (_skirmish) { Say("Une escarmouche ne s'enregistre pas"); return; }
+
+        /* ET LE JEU LIBRE NE S'ENREGISTRE PAS TOUT SEUL (signalé). Sortir au menu
+           ou quitter écrivait une partie à chaque fois, et comme chaque nouvelle
+           partie reçoit un identifiant neuf, la liste du Jeu libre s'allongeait
+           d'une ligne par session — des parties que personne n'avait demandé de
+           garder, et qu'il fallait effacer une à une.
+
+           La règle : en jeu libre, le jeu n'écrit de lui-même que ce qui a DÉJÀ
+           un nom, c'est-à-dire ce que le joueur a choisi de garder une fois. Une
+           partie neuve reste en l'air tant qu'il ne l'enregistre pas — le menu
+           d'Échap le dit en toutes lettres (« Partie non enregistrée ») et sa
+           première entrée est justement de l'enregistrer.
+
+           Une quête en cours, elle, s'enregistre toujours : une Histoire ou une
+           Mission perdue en fermant le jeu serait une tout autre affaire. */
+        if (!asked && _gameId.Length == 0 && _quests?.Active == null) return;
         DirAccess.MakeDirRecursiveAbsolute(ProjectSettings.GlobalizePath(SaveDir));
         var s = Collect();
         _gameId = s.Id;

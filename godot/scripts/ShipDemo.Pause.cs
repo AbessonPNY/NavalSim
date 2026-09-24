@@ -55,8 +55,9 @@ public partial class ShipDemo
         Entry("Reprendre la mer", () => TogglePause());
         Entry("Enregistrer la partie", () => { SaveGame(); PauseNote(); });
         Entry("Réglages", () => { _pause!.Visible = false; _menu.Visible = true; });
-        Entry("Menu principal", () => { _pause!.Visible = false; SaveGame(); Open(); MainItems(); });
-        Entry("Quitter le jeu", () => { SaveGame(); GetTree().Quit(); });
+        // en passant, et non sur demande : une partie libre neuve n'est pas écrite
+        Entry("Menu principal", () => { _pause!.Visible = false; SaveGame(false); Open(); MainItems(); });
+        Entry("Quitter le jeu", () => { SaveGame(false); GetTree().Quit(); });
 
         _pauseNote = new Label { HorizontalAlignment = HorizontalAlignment.Center };
         _pauseNote.AddThemeFontSizeOverride("font_size", 12);

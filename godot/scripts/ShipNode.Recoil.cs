@@ -50,22 +50,23 @@ public partial class ShipNode
         _gunPieces.Clear();
         if (ModelRoot == null) return;
 
-        /* SI LE MODÈLE LES A DÉJÀ SÉPARÉES, on ne découpe rien : un maillage dont
-           le NOM dit canon est une pièce, telle quelle. C'est la bonne façon de
-           modeler une batterie — rien à deviner, et l'affût peut venir avec. */
-        var named = new List<MeshInstance3D>();
-        foreach (var (mi, _) in new List<(MeshInstance3D, Transform3D)>(Meshes(ModelRoot)))
-            if (GunNames.IsMatch(mi.Name.ToString())) named.Add(mi);
+        /* SI LE MODÈLE LES A DÉJÀ SÉPARÉES, on ne découpe rien : un OBJET dont le
+           NOM dit canon est une pièce, avec tout ce qu'il porte. C'est la bonne
+           façon de modeler une batterie — rien à deviner, et l'affût vient avec. */
+        var named = NamedPieces();
         if (named.Count > 0 && (pieces.Count == 0 || named.Count >= pieces.Count))
         {
             named.Sort((a, b) => (b.GlobalTransform.Origin.Z).CompareTo(a.GlobalTransform.Origin.Z));
-            foreach (var mi in named)
+            foreach (var nd in named)
             {
-                var bb = mi.GetAabb();
-                var centre = mi.Transform * bb.GetCenter();
+                /* TOUT CE QUE LA PIÈCE PORTE RECULE AVEC ELLE — l'affût, les roues,
+                   ce qu'on lui ajoutera demain. Reparenter le NŒUD et non son
+                   maillage emmène ses enfants sans qu'on ait à les connaître. */
+                var bb = PieceBox(nd);
+                var centre = nd.Transform * bb.GetCenter();
                 var pivot = new Node3D { Position = centre };
                 AddChild(pivot);
-                mi.Reparent(pivot, true);
+                nd.Reparent(pivot, true);
                 _gunPieces.Add(new GunPiece { Pivot = pivot, Home = centre });
             }
             PairGuns();
