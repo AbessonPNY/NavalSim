@@ -7975,6 +7975,30 @@ repasse dessus à 0,35, sans quoi une vague qui lèche l'objectif ferait clapote
 à chaque image. La même raison que le seuil du pirate qui louvoie à la limite,
 et la même réponse.
 
+### Le bruit part quand l'image bascule — la même condition, pas un seuil voisin
+
+Trois seuils essayés, trois fois trop tard : la surface, puis le milieu de la
+bande, puis le milieu plus une avance. Chacun rapprochait, aucun ne tombait
+juste — parce qu'un seuil choisi **à part** de celui de l'œil ne peut être bon
+qu'à une seule vitesse de plongée.
+
+La condition de l'image est donc reprise **telle quelle**, appliquée à la
+position que la caméra aura dans un dixième de seconde. Les deux sens basculent
+alors ensemble par construction, et l'oreille se trouve un souffle en avance sur
+l'œil — ce qui est le bon sens : l'eau s'entend arriver. Relevé : **103 ms avant**
+l'image, contre 212 ms après au départ.
+
+`--plongee 1.5` reste, et devient un outil. Juger un passage de surface à la
+main est impossible : on n'y descend jamais deux fois à la même vitesse, et
+c'est justement la vitesse qui décide si le son tombe juste. Celle-ci descend à
+une allure donnée, tient trois secondes dessous, remonte et rend la caméra — le
+même geste à chaque essai, donc deux réglages comparables.
+
+Elle avait d'ailleurs son propre défaut, trouvé en l'utilisant : elle descendait
+de quatre mètres sous le POINT DE DÉPART, et en vue orbit la caméra est à quinze
+mètres — la démonstration ne montrait rien du tout. Elle part maintenant de trois
+mètres sur l'eau et descend à quatre sous elle.
+
 ### Le clapotis n'était pas en retard : l'image était en avance
 
 Trois tours à régler des seuils de son pendant que le défaut était ailleurs.

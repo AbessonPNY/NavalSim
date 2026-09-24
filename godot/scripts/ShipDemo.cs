@@ -1131,6 +1131,7 @@ public partial class ShipDemo : Node3D
         GunTick(frame);
         EncounterTick(frame);
         CabinTick(frame);
+        DiveShow(frame);
         CrewTick(frame);
 
         WreckTick(frame);
@@ -1200,17 +1201,27 @@ public partial class ShipDemo : Node3D
         double vy = frame > 1e-5 ? (ce.Y - _camWasY) / frame : 0;
         _camWasY = ce.Y;
         /* BORNÉE À HUIT MÈTRES PAR SECONDE : un changement de vue, une reprise de
-           partie ou un glissement d origine TÉLÉPORTENT la caméra, et la vitesse
+           partie ou un glissement d'origine TÉLÉPORTENT la caméra, et la vitesse
            apparente part à des centaines de mètres par seconde — le clapotis
            sonnait alors en plein ciel (vu à la sonde : −841 m/s). Aucune plongée
            ne descend plus vite que huit. */
-        double yBientot = ce.Y + Math.Max(-8, Math.Min(0, vy)) * 0.12;
-        /* ET LE SEUIL EST PRIS AU MILIEU DE LA BANDE DE L ŒIL, pas à la surface.
-           La passe sous-marine s allume à un demi-mètre, mais il n y a là qu un
-           filet d eau en bas de l image ; c est vers vingt-cinq centimètres qu on
-           voit vraiment la mer monter. Le bruit part là, plus l avance de la
-           vitesse — relevé sans elle : 212 ms de retard sur l image. */
-        bool sous = _wasWet ? seaY - ce.Y > -0.55 : seaY - yBientot > -0.22;
+        double yBientot = ce.Y + Math.Max(-8, Math.Min(0, vy)) * 0.10;
+
+        /* LE BRUIT PART QUAND L'IMAGE BASCULE — la MÊME condition, et non un seuil
+           à soi qu'on rapprocherait par tâtonnements. On a essayé la surface, puis
+           le milieu de la bande : chaque fois le son restait en retard (signalé
+           trois fois), parce qu'un seuil choisi à part de celui de l'œil ne peut
+           être juste qu'à une vitesse de plongée. La condition de l'image est
+           reprise telle quelle, appliquée à la position que la caméra aura dans un
+           dixième de seconde : les deux sens basculent alors ensemble par
+           construction, et l'oreille est un souffle en avance sur l'œil, ce qui
+           est le bon sens — l'eau s'entend arriver.
+
+           Le retour, lui, garde une large marge : la bande de l'œil bascule au
+           même endroit dans les deux sens, et une vague qui oscille autour ferait
+           clapoter à chaque crête. */
+        bool commeImage = seaY > yBientot || Math.Abs(seaY - yBientot) < 0.495;
+        bool sous = _wasWet ? seaY - ce.Y > -0.80 : commeImage;
         if (sous != _wasWet)
         {
             _sound?.Crew(sous ? "eau-plonge" : "eau-sort",
@@ -2001,6 +2012,57 @@ public partial class ShipDemo : Node3D
        une pièce de chasse est un poste de PONT, donc dehors quoi qu'en dise le
        pont d'où l'on regarde. */
     double _indoors;
+
+    /* LA PLONGÉE DE DÉMONSTRATION (--plongee 1.5, en m/s).
+       Juger un passage de surface à la main est impossible : on n'y descend jamais
+       deux fois à la même vitesse, et c'est justement la vitesse qui décide si le
+       son tombe juste. Celle-ci descend à une allure DONNÉE, tient trois secondes
+       dessous, remonte et rend la caméra — le même geste à chaque essai, donc deux
+       réglages comparables. Elle a servi à trouver les 212 ms d'écart entre l'œil
+       et l'oreille, et elle reste pour la prochaine fois. */
+    double _diveSpeed;
+    double _diveT0 = -1, _diveY0;
+    int _dive;
+
+    void DiveShow(double dt)
+    {
+        if (_diveSpeed <= 0 || _cam == null) return;
+        if (_diveT0 < 0)
+        {
+            if (_t < 4) return;                       // le temps que la mer se pose
+            _diveT0 = _t;
+            var c0 = _cam.GlobalPosition;
+            // on part de trois mètres sur l eau : au-delà, la descente serait un voyage
+            _diveY0 = _sea.Core.Sample(c0.X, c0.Z, _t) + 3.0;
+            _cam.GlobalPosition = new Vector3(c0.X, (float)_diveY0, c0.Z);
+            _dive = 1;
+            GD.Print($"— plongée de démonstration à {_diveSpeed:F1} m/s —");
+        }
+        var c = _cam.GlobalPosition;
+        double u = _t - _diveT0;
+        /* QUATRE MÈTRES SOUS LA MER, et non sous le point de départ : en vue orbit
+           la caméra est à quinze mètres, et descendre de quatre mètres la laissait
+           en plein ciel — la démonstration ne montrait rien. */
+        double mer = _sea.Core.Sample(c.X, c.Z, _t);
+        double bas = mer - 4.0;
+        if (_dive == 1)
+        {
+            double y = _diveY0 - u * _diveSpeed;
+            if (y <= bas) { _dive = 2; _diveT0 = _t; y = bas; GD.Print("— sous l'eau —"); }
+            _cam.GlobalPosition = new Vector3(c.X, (float)y, c.Z);
+        }
+        else if (_dive == 2)
+        {
+            _cam.GlobalPosition = new Vector3(c.X, (float)bas, c.Z);
+            if (u > 3) { _dive = 3; _diveT0 = _t; GD.Print("— on remonte —"); }
+        }
+        else if (_dive == 3)
+        {
+            double y = bas + u * _diveSpeed;
+            if (y >= _diveY0) { _dive = 4; _diveSpeed = 0; GD.Print("— fini, la caméra vous est rendue —"); return; }
+            _cam.GlobalPosition = new Vector3(c.X, (float)y, c.Z);
+        }
+    }
 
     void CabinTick(double dt)
     {
@@ -2967,6 +3029,8 @@ public partial class ShipDemo : Node3D
                    ligne de commande et reposerait le joueur a Port-Royal pendant
                    que sa ligne attend au large. */
                 case "--escarmouche": _wantMelee = args[i + 1] != "0"; break;
+                // DÉMONSTRATION : plonger la caméra à tant de mètres par seconde
+                case "--plongee": _diveSpeed = args[i + 1].ToFloat(); break;
                 case "--lunette": ToggleSpyglass(); break;
                 case "--feu": for (int n = args[i + 1].ToInt(); n > 0; n--) Fire(false, true); break;
                 // le mémento ouvert d emblee, pour le juger a la capture
