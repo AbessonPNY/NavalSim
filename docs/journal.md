@@ -7975,6 +7975,22 @@ repasse dessus à 0,35, sans quoi une vague qui lèche l'objectif ferait clapote
 à chaque image. La même raison que le seuil du pirate qui louvoie à la limite,
 et la même réponse.
 
+## Le manteau de neige sort du code
+
+Le 600 qui dit en combien de secondes un pont blanchit etait ecrit en dur DEUX
+fois — dans ShipDemo.cs et dans naval-sim.html, avec ses trois voisins (le
+plafond 0,85, la fonte 1800, la fonte de fond 0,5). Meme formule, memes nombres,
+deux endroits : exactement ce que le projet interdit.
+
+Ils passent dans settings.json, bloc snow, et la regle elle-meme dans
+core/Snow.cs — SnowSettings.Step(), une definition, deux moteurs. Le manteau
+n est pas une epaisseur mais une COUVERTURE, de zero (pont nu) a un (blanc
+partout ou le ciel se voit), et il fond toujours un peu : un pont qu on foule et
+une mer qui l arrose ne gardent pas la neige comme un champ.
+
+Verifie en poussant manteau a 60 s : la couche atteint 26,6 % en vingt-cinq
+secondes au lieu de 2,5 %. Le reglage agit bien.
+
 ## Il ne neige pas dans la chambre du capitaine (Godot)
 
 Le rideau de ce qui tombe est replié autour de l'ŒIL dans son shader — c'est ce

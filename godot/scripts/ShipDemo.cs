@@ -1857,6 +1857,8 @@ public partial class ShipDemo : Node3D
     PrecipNode _precip = null!;
     Calendar _calendar = new();
     SeaFogSettings _fogRules = new();
+    /// <summary>Le manteau de neige : settings.json → snow, les mêmes chiffres que la page.</summary>
+    SnowSettings _snowRules = new();
     SeaFog? _seaFog;
     bool _saidFog;
 
@@ -1898,6 +1900,7 @@ public partial class ShipDemo : Node3D
                 _bottleOneIn = bo.GetInt32();
             if (root.TryGetProperty("gunnery", out var gu)) _gunRules = GunnerySettings.FromJson(gu);
             if (root.TryGetProperty("encounters", out var ec)) _metRules = EncounterSettings.FromJson(ec);
+            if (root.TryGetProperty("snow", out var sw)) _snowRules = SnowSettings.FromJson(sw);
             if (root.TryGetProperty("storm", out var st))
             {
                 if (st.TryGetProperty("lightning", out var li)) _lightRules = LightningSettings.FromJson(li);
@@ -1952,16 +1955,11 @@ public partial class ShipDemo : Node3D
            sous une forte chute, plafonné à 0,85 — un manteau, pas une congère —,
            et qui fond d'autant plus vite qu'il fait doux. À chaque coque la
            sienne : un navire sorti de la neige la garde jusqu'à ce qu'elle fonde. */
-        double melt = Math.Max(0, _climate.Temp - _climate.K.SnowBelow);
+        double degel = Math.Max(0, _climate.Temp - _climate.K.SnowBelow);
         Settle(_ship);
         foreach (var s in _others) Settle(s);
-        void Settle(ShipNode s)
-        {
-            double c = s.SnowCover;
-            c = _fall.Snow ? Math.Min(0.85, c + dt * _fall.Amount / 600)
-                           : Math.Max(0, c - dt * (0.5 + melt) / 1800);
-            s.SetSnowCover(c);
-        }
+        void Settle(ShipNode s) =>
+            s.SetSnowCover(_snowRules.Step(s.SnowCover, dt, _fall.Snow ? _fall.Amount : 0, degel));
     }
 
     // ------------------------------------------------------------------

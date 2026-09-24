@@ -16,6 +16,18 @@
  */
 window.Naval = window.Naval || {};
 
+/* LE MANTEAU SUR LES PONTS — settings.json → snow, les mêmes chiffres que
+   Godot (core/Snow.cs). Ce n'est pas une épaisseur mais une COUVERTURE, de zéro
+   (un pont nu) à un (blanc partout où le ciel se voit). Elle fond toujours un
+   peu : un pont qu'on foule et une mer qui l'arrose ne gardent pas la neige
+   comme un champ. */
+Naval.SNOW = {
+  manteau: 600,          // secondes de chute PLEINE pour un manteau complet
+  max: 0.85,             // un manteau, pas une congère
+  fonte: 1800,           // secondes pour tout fondre au dégel nul
+  toujours: 0.5          // la fonte qui va de soi, avant celle du thermomètre
+};
+
 Naval.CLIMATE = {
   mean: 9.5,              // °C, the year's average
   seasonal: 9,            // ± over the year: about −2..3 °C at the end of January

@@ -1,20 +1,46 @@
 {
-  "hud": { "startHidden": true },
+  "hud": {
+    "startHidden": true
+  },
   "sound": {
     "music": false,
     "_sons": "Les FICHIERS de son ne sont plus ici : ils sont tous dans medias/sound/sons.json, avec les bandes de mer et les musiques. Ce réglage-ci ne dit que si la musique joue."
   },
-  "calendar": { "start": "1690-10-08" },
-  "crew": { "enabled": false, "count": 4, "minLength": 12, "farHide": 350,
-            "upright": 0.68, "lag": 0.35, "stanceFrom": 3, "stanceFull": 14, "braceFrom": 6, "braceFull": 18,
-            "glb": "creatures/sailor.glb" },
-  "gunnery": { "reload": [30, 60], "recoilSpeed": 2 },
+  "calendar": {
+    "start": "1690-10-08"
+  },
+  "crew": {
+    "enabled": false,
+    "count": 4,
+    "minLength": 12,
+    "farHide": 350,
+    "upright": 0.68,
+    "lag": 0.35,
+    "stanceFrom": 3,
+    "stanceFull": 14,
+    "braceFrom": 6,
+    "braceFull": 18,
+    "glb": "creatures/sailor.glb"
+  },
+  "gunnery": {
+    "reload": [
+      30,
+      60
+    ],
+    "recoilSpeed": 2
+  },
   "dolphins": {
     "enabled": true,
     "perDay": 4,
     "calmBelow": 3.5,
-    "pod": [3, 7],
-    "minutes": [3, 8],
+    "pod": [
+      3,
+      7
+    ],
+    "minutes": [
+      3,
+      8
+    ],
     "awayFromShore": 250,
     "glb": "creatures/dolphin.glb"
   },
@@ -23,10 +49,10 @@
     "glassMinutes": 30,
     "logBias": 0.06,
     "logNoise": 0.03,
-    "compassBias": 2.0,
-    "compassNoise": 1.0,
+    "compassBias": 2,
+    "compassNoise": 1,
     "growth": 0.07,
-    "noonError": 3.0,
+    "noonError": 3,
     "passageError": 0.04
   },
   "fog": {
@@ -37,11 +63,11 @@
     "maxWind": 4.5,
     "density": 0.02,
     "height": 12,
-    "rate": 1.0
+    "rate": 1
   },
   "serpent": {
     "enabled": true,
-    "perHour": 3.0,
+    "perHour": 3,
     "minRain": 0.15,
     "awayFromShore": 1000,
     "minDepth": 40,
@@ -50,8 +76,14 @@
     "circle": 180,
     "swim": 5,
     "dash": 11,
-    "stalk": [15, 30],
-    "dive": [10, 25],
+    "stalk": [
+      15,
+      30
+    ],
+    "dive": [
+      10,
+      25
+    ],
     "rise": 7,
     "hp": 10,
     "cooldown": 600,
@@ -59,24 +91,43 @@
   },
   "whale": {
     "enabled": true,
-    "perHour": 2.0,
+    "perHour": 2,
     "awayFromShore": 1000,
     "minDepth": 60,
-    "sight": [700, 1400],
-    "cruise": 2.0,
-    "surface": [35, 60],
-    "spout": [7, 12],
-    "dive": [45, 90],
+    "sight": [
+      700,
+      1400
+    ],
+    "cruise": 2,
+    "surface": [
+      35,
+      60
+    ],
+    "spout": [
+      7,
+      12
+    ],
+    "dive": [
+      45,
+      90
+    ],
     "diveDepth": 25,
     "curious": 0.45,
-    "hostile": 0.20,
-    "charge": 6.0,
+    "hostile": 0.2,
+    "charge": 6,
     "ramAgain": 0.5,
     "massTonnes": 40,
     "length": 15,
     "whiteChance": 0.04,
     "cooldown": 480,
     "glb": "creatures/whale.glb"
+  },
+  "snow": {
+    "_aide": "LE MANTEAU SUR LES PONTS. Ce n'est pas une épaisseur mais une couverture, de 0 (pont nu) à 1 (blanc partout où le ciel se voit). manteau : les secondes de chute PLEINE pour un manteau complet — baissez-le pour qu'elle prenne plus vite. max : ce qu'elle ne dépasse pas, un manteau et non une congère. fonte : les secondes pour tout fondre au dégel nul. toujours : la fonte qui va de soi, embruns et semelles, avant celle du thermomètre.",
+    "manteau": 600,
+    "max": 0.85,
+    "fonte": 1800,
+    "toujours": 0.5
   },
   "climate": {
     "mean": 9.5,
@@ -85,7 +136,10 @@
     "wander": 3,
     "coldestDay": 30,
     "showersPerDay": 3,
-    "showerMinutes": [20, 90],
+    "showerMinutes": [
+      20,
+      90
+    ],
     "snowBelow": 1.5
   },
   "note": "Réglages de jeu. Distances en mètres, durées en secondes de temps de jeu (la compression du temps les accélère).",
@@ -106,7 +160,15 @@
     "landDistance": 2500,
     "spawnFromLand": 1500,
     "clearWater": 400,
-    "exclude": ["bouee-canard", "chaloupe", "cotre", "barge", "schooner", "caisse-bois", "vedette"]
+    "exclude": [
+      "bouee-canard",
+      "chaloupe",
+      "cotre",
+      "barge",
+      "schooner",
+      "caisse-bois",
+      "vedette"
+    ]
   },
   "night": {
     "glow": 2.6,
@@ -133,8 +195,14 @@
     "radius": 2500,
     "lingerBefore": 90,
     "aggroRange": 350,
-    "sideA": ["frigate17e", "frigate17e"],
-    "sideB": ["pirate", "pirate"],
+    "sideA": [
+      "frigate17e",
+      "frigate17e"
+    ],
+    "sideB": [
+      "pirate",
+      "pirate"
+    ],
     "spread": 350,
     "fade": 6,
     "opacity": 0.3,

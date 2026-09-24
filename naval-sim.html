@@ -2180,6 +2180,7 @@ async function main(){
     if(s && s.ghosts) Object.assign(Naval.GHOSTS, s.ghosts);
     if(s && s.calendar && s.calendar.start){ calendar.setStart(s.calendar.start); saison(); }
     if(s && s.climate) Object.assign(Naval.CLIMATE, s.climate);
+    if(s && s.snow) Object.assign(Naval.SNOW, s.snow);
     if(s && s.dolphins) Object.assign(Naval.DOLPHINS, s.dolphins);
     if(s && s.gunnery) Object.assign(Naval.GUNNERY, s.gunnery);
     if(s && s.crew) Object.assign(Naval.CREW, s.crew);
@@ -3494,8 +3495,8 @@ async function main(){
       if(!sh || !sh._snowU) continue;
       let c = sh.snowCover || 0;
       if(e.ghost) c = 0;
-      else if(pluie.snow) c = Math.min(0.85, c + dt*pluie.amount/600);
-      else c = Math.max(0, c - dt*(0.5 + fonte)/1800);
+      else if(pluie.snow) c = Math.min(Naval.SNOW.max, c + dt*pluie.amount/Naval.SNOW.manteau);
+      else c = Math.max(0, c - dt*(Naval.SNOW.toujours + fonte)/Naval.SNOW.fonte);
       sh.snowCover = c;
       sh._snowU.uSnow.value = c;
     }
