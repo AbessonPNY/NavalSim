@@ -94,12 +94,41 @@ public partial class SoundNode : Node3D
        coupure descend de 20 kHz à 900 Hz, ce qui laisse le canon gronder et
        emporte le claquement de la toile. Neuf cents et non sept : à sept, ce qui
        venait de loin ne passait plus du tout. */
-    public void Indoors(double k)
+    public void Indoors(double k) { _indoorsNow = Math.Clamp(k, 0, 1); Muffle(); }
+
+    /* ------------------------------------------------------------------ */
+    /*  ET SOUS L'EAU                                                       */
+    /* ------------------------------------------------------------------ */
+
+    /// <summary>
+    /// L'ŒIL SOUS LA SURFACE. Rien ne porte le son comme l'eau — elle le mène
+    /// quatre fois plus vite que l'air et l'éteint bien moins —, mais une tête
+    /// immergée n'a plus l'oreille faite pour l'entendre : ce qui reste est un
+    /// grondement sans aigus. Une bataille écoutée de dessous est ce grondement,
+    /// et c'est ce qu'on vient y chercher. Plus bas que la cloison de la chambre,
+    /// donc, et moins éteint : on veut en profiter, pas en être privé.
+    /// </summary>
+    public void Underwater(double k) { _wetNow = Math.Clamp(k, 0, 1); Muffle(); }
+    double _wetNow;
+
+    float _wroteCut = -1;
+
+    /* LA COUPURE BASCULE D'UN COUP, LE VOLUME SEUL GLISSE — et ce n'est pas un
+       compromis, c'est le bon geste. Une porte est entre vous et la mer, ou elle
+       ne l'est pas ; la tête est sous l'eau, ou elle est dehors. La faire glisser
+       l'ÉCRIVAIT À CHAQUE IMAGE, et republier une ressource d'effet au serveur
+       audio soixante fois par seconde traîne — une seconde de latence de part et
+       d'autre de la porte (signalé), quand la rampe est mesurée à 131 ms. Une
+       écriture par passage suffit, et le fondu du volume porte tout le glissé
+       qu'on entend. */
+    void Muffle()
     {
-        _indoorsNow = Math.Clamp(k, 0, 1);
-        if (_muffle != null)
-            _muffle.CutoffHz = (float)(20500 * Math.Pow(900.0 / 20500, _indoorsNow));
-        AudioServer.SetBusVolumeDb(_outIdx, (float)(-9 * _indoorsNow));
+        // deux causes, et la plus forte l'emporte : une cloison sous l'eau ne filtre pas deux fois
+        bool wet = _wetNow > 0.5, dedans = _indoorsNow > 0.5;
+        float hz = wet ? 380f : dedans ? 900f : 20500f;
+        if (_muffle != null && hz != _wroteCut) { _muffle.CutoffHz = hz; _wroteCut = hz; }
+        // et la baisse, au volume du bus : instantanée, sans coût, et elle seule fond
+        AudioServer.SetBusVolumeDb(_outIdx, (float)(-9 * _indoorsNow - 4 * _wetNow));
     }
 
     public override void _Ready()
@@ -301,8 +330,17 @@ public partial class SoundNode : Node3D
         // la même détonation, privée de son claquement à mesure qu'elle vient de loin
         p.AttenuationFilterCutoffHz = (float)Math.Max(FcMin, 20000 * Math.Exp(-d / Etouffe));
 
-        // LE RETARD, qui est tout l'intérêt : la distance divisée par la vitesse du son
-        _waiting.Add((_now + d / C, p));
+        /* LE RETARD, QUI EST TOUT L'INTÉRÊT : la distance divisée par la vitesse
+           du son. SAUF POUR CE QUI SE FAIT À BORD. La caméra est l'oreille, et en
+           vue extérieure elle se tient à cinquante mètres du navire : sa propre
+           bordée arrivait alors avec cent cinquante millisecondes de retard
+           (mesuré : 143 ms à 49 m, 172 à 59), ce qui se lit comme une latence et
+           non comme de la distance. Or on n'est pas à cinquante mètres de son
+           propre pont, on y est. Vingt-cinq millièmes au plus pour ce qui vient
+           de chez nous — le temps que le coup traverse le navire —, et tout le
+           reste garde son voyage. */
+        double wait = aboard ? Math.Min(d / C, 0.025) : d / C;
+        _waiting.Add((_now + wait, p));
     }
 
     /// <summary>

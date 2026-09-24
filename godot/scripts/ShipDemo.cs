@@ -1128,6 +1128,7 @@ public partial class ShipDemo : Node3D
         EncounterTick(frame);
         CabinTick(frame);
         CrewTick(frame);
+
         WreckTick(frame);
         TickSunPanel(frame);
         /* La lueur n'existe pas le jour — bloom.js saute sa passe tant que la nuit
@@ -1161,6 +1162,10 @@ public partial class ShipDemo : Node3D
         _sea.Material?.SetShaderParameter("u_submerged", under ? 1f : 0f);
         // et la passe sous-marine, qui n'existe que là : l'eau qui éteint, les rais qui descendent
         _under.Enabled = under;
+        /* ET L OREILLE AVEC L OEIL : la bande d un demi-metre autour de la surface
+           sert aussi au son, pour qu il ne bascule pas d un coup quand une vague
+           passe devant l objectif. */
+        _sound?.Underwater(Math.Clamp((seaY - ce.Y) / 0.5 + 0.5, 0, 1));
         if (under)
         {
             _under.SeaY = (float)seaY;

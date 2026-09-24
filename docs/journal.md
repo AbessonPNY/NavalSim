@@ -7931,6 +7931,46 @@ quel que soit le pont d'où l'on regarde.
 Mesuré en headless : 20 500 Hz sur le pont, 700 Hz dans la chambre, et le
 retour au plein air quand on en sort.
 
+## Trois défauts d'oreille, et deux étaient mesurables
+
+### Sa propre bordée arrivait en retard
+
+Signalé : le canon sonne après le coup quand on tire près de la caméra. Mesuré :
+**143 ms à 49 m, 172 à 59** — la caméra de poursuite se tient à cinquante mètres
+du navire, et le retard de propagation faisait exactement ce qu'on lui demande.
+Le calcul est juste et le résultat est faux : on n'est pas à cinquante mètres de
+son propre pont, on y EST. La caméra est un objectif, pas une seconde paire
+d'oreilles sur un radeau.
+
+Ce qui se fait à bord — sa bordée, un boulet dans son bordé — voyage donc vingt-
+cinq millièmes au plus, le temps qu'il traverse le navire. Tout le reste garde
+son voyage, et c'est lui qui fait lire un canon comme lointain : rien n'est
+perdu de ce que ce module existe pour donner.
+
+### Une seconde de latence à la porte de la chambre
+
+Signalé aussi, et la rampe n'y était pour rien : **mesurée à 131 ms**, entrée
+comme sortie. La latence venait de ce qu'on écrivait `CutoffHz` sur la ressource
+de filtre À CHAQUE IMAGE — republier un effet au serveur audio soixante fois par
+seconde traîne.
+
+La coupure bascule maintenant D'UN COUP, et le volume seul glisse. Ce n'est pas
+un compromis, c'est le bon geste : une porte est entre vous et la mer, ou elle
+ne l'est pas. Une écriture par passage (relevé : 20500 → 900 → 20500), et le
+fondu du volume porte tout le glissé qu'on entend.
+
+### L'oreille sous la surface
+
+Demandé : profiter d'une bataille écoutée de dessous. Rien ne porte le son comme
+l'eau — quatre fois plus vite que l'air, et bien moins éteint —, mais une tête
+immergée n'a plus l'oreille faite pour l'entendre : ce qui reste est un
+grondement sans aigus. Coupure à **380 Hz**, plus bas que les 900 de la cloison,
+et seulement −4 dB contre −9 : on veut en profiter, pas en être privé.
+
+La bascule suit la même bande d'un demi-mètre autour de la surface que l'œil,
+pour qu'une vague devant l'objectif ne fasse pas clignoter le son. Et des deux
+causes, la plus forte l'emporte : une cloison sous l'eau ne filtre pas deux fois.
+
 ## La toile qui tombe, et deux réserves plutôt qu'une
 
 Un bloc `voiles` dans le manifeste : le bruit du chanvre quand on établit
