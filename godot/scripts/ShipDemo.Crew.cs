@@ -76,6 +76,24 @@ public partial class ShipDemo
             Bag("canon", "pres", "pres");
             Bag("canon", "loin", "loin");
             Bag("bois", "choc", "bois");
+            /* LA TOILE VA DANS LA RÉSERVE DU BORD, pas dans celle des coups : elle
+               se fait à vingt mètres, sans retard de trajet ni filtre de l'air. */
+            void Board(string bloc, string champ, string key)
+            {
+                if (!root.TryGetProperty(bloc, out var b) || !b.TryGetProperty(champ, out var arr)
+                    || arr.ValueKind != System.Text.Json.JsonValueKind.Array || arr.GetArrayLength() == 0) return;
+                _sound.ForgetCrew(key);
+                string dir = System.IO.Path.Combine(WorldLoad.Folder, "medias", "sound");
+                foreach (var f in arr.EnumerateArray())
+                {
+                    if (f.GetString() is not string file || file.Length == 0) continue;
+                    string full = System.IO.Path.Combine(dir, file);
+                    if (!System.IO.File.Exists(full)) { GD.PushWarning($"son absent : {file}"); continue; }
+                    _sound.AddCrew(key, full);
+                }
+            }
+            Board("voiles", "monter", "voile-monte");
+            Board("voiles", "descendre", "voile-descend");
 
             // les bandes de mer
             if (root.TryGetProperty("mer", out var mer) && mer.TryGetProperty("bandes", out var bandes)
@@ -170,6 +188,20 @@ public partial class ShipDemo
         return b.Quat.Rotate(new Vec3d(0, _ship.Spec.DeckMid + 1.4, _ship.Spec.L * zFrac)) + b.Pos;
     }
 
+    /// <summary>
+    /// LA TOILE, ET ELLE PARLE D'EN HAUT. Une voix sort de la dunette ; le chanvre
+    /// qui file dans ses poulies et la toile qui s'abat viennent du gréement, à
+    /// mi-hauteur des mâts — c'est ce qui les distingue à l'oreille quand les deux
+    /// partent ensemble.
+    /// </summary>
+    void Canvas(string key)
+    {
+        if (_sound == null) return;
+        var b = _ship.Physics.Body;
+        var at = b.Quat.Rotate(new Vec3d(0, _ship.Spec.DeckMid + 6, 0)) + b.Pos;
+        _sound.Crew(key, at, _crewGain, 1.5);
+    }
+
     /// <summary>Un ordre, s'il y a une voix pour le crier.</summary>
     public void Shout(string key, double zFrac = 0.1, double hold = -1)
         => _sound?.Crew(key, CrewAt(zFrac), _crewGain, hold < 0 ? _crewHold : hold);
@@ -184,7 +216,16 @@ public partial class ShipDemo
         var ctrl = _ship.Ctrl;
 
         // la toile : établie, serrée, et les ris qu'on prend ou qu'on largue
-        if (ctrl.SailsSet != _wasSails) { Shout(ctrl.SailsSet ? "voiles" : "ferle", 0.18); _wasSails = ctrl.SailsSet; }
+        if (ctrl.SailsSet != _wasSails)
+        {
+            Shout(ctrl.SailsSet ? "voiles" : "ferle", 0.18);
+            /* ET LA TOILE ELLE-MÊME. L'ordre crié et le bruit du chanvre sont deux
+               choses : l'un vient de la dunette, l'autre de partout à la fois, et
+               on peut vouloir l'un sans l'autre. La toile parle depuis le
+               gréement — en l'air, au milieu du navire. */
+            Canvas(ctrl.SailsSet ? "voile-monte" : "voile-descend");
+            _wasSails = ctrl.SailsSet;
+        }
         if (_reef != _wasReef) { Shout("ris", 0.18); _wasReef = _reef; }
 
         // le pavillon

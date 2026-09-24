@@ -12,6 +12,12 @@
     "choc": ["wood_crash_001.ogg", "wood_crash_002.ogg"]
   },
 
+  "voiles": {
+    "_aide": "La toile elle-même — le bruit qu'elle fait, pas l'ordre qu'on crie pour elle (celui-là est dans crew.json). « monter » quand on établit, « descendre » quand on serre.",
+    "monter": [],
+    "descendre": ["sail_down.ogg"]
+  },
+
   "mer": {
     "_aide": "Le fond sonore de la mer, PAR BANDES d'état de mer : la première dont maxForce dépasse la force courante l'emporte, donc rangez-les de la plus calme à la plus grosse. Le passage se fait en fondu. Au-delà de la dernière, la mer se tait plutôt que de sonner faux.",
     "bandes": [

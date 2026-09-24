@@ -197,8 +197,19 @@ public partial class SoundNode : Node3D
     /// <summary>Quand chaque clé pourra reparler : un ordre crié deux fois de suite n'est plus un ordre.</summary>
     readonly Dictionary<string, double> _crewAgain = new();
 
+    /* DEUX RÉSERVES, ET CE N'EST PAS UN DOUBLON. Ce qui VOYAGE — un coup de
+       canon, un boulet dans un bordé — passe par _buf : il arrive en retard de sa
+       distance, et l'air lui a mangé ses aigus. Ce qui se fait À BORD — une voix,
+       la toile qui tombe — passe par _crew : c'est à vingt mètres, rien ne le
+       retarde et rien ne le filtre, et il a droit à son propre délai de répétition.
+       Les mêmes échantillons dans le même sac se comporteraient mal d'un côté ou
+       de l'autre. */
+
     /// <summary>Combien d'échantillons cette clé a reçus (zéro : elle se taira).</summary>
     public int CrewCount(string key) => _crew.TryGetValue(key, out var l) ? l.Count : 0;
+
+    /// <summary>Oublier ce que cette clé de bord avait : un manifeste remplace, il n'ajoute pas.</summary>
+    public void ForgetCrew(string key) => _crew.Remove(key);
 
     /// <summary>Ranger un échantillon d'équipage sous sa clé.</summary>
     public void AddCrew(string key, string path)

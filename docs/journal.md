@@ -7931,6 +7931,31 @@ quel que soit le pont d'où l'on regarde.
 Mesuré en headless : 20 500 Hz sur le pont, 700 Hz dans la chambre, et le
 retour au plein air quand on en sort.
 
+## La toile qui tombe, et deux réserves plutôt qu'une
+
+Un bloc `voiles` dans le manifeste : le bruit du chanvre quand on établit
+(`monter`) et quand on serre (`descendre`). Ce n'est PAS l'ordre crié pour la
+toile, qui est dans `crew.json` — l'un vient de la dunette, l'autre de partout
+à la fois, et on peut vouloir l'un sans l'autre. La toile parle d'ailleurs
+d'en haut, à six mètres sur le pont : c'est ce qui la distingue à l'oreille
+quand les deux partent ensemble.
+
+**Et une erreur qu'il a fallu rattraper en chemin.** On avait rangé la toile
+dans la réserve des COUPS et on la jouait depuis celle du BORD — deux
+dictionnaires, aucun son. Le partage n'est pas un doublon et vaut d'être écrit :
+ce qui VOYAGE (un canon, un boulet dans un bordé) arrive en retard de sa
+distance et l'air lui a mangé ses aigus ; ce qui se fait À BORD (une voix, la
+toile) est à vingt mètres, rien ne le retarde ni ne le filtre, et il a son
+propre délai de répétition. Les mêmes échantillons dans le même sac se
+comporteraient mal d'un côté ou de l'autre.
+
+**Deuxième virgule de trop en deux jours.** Le bloc ajouté à la main finissait
+par `"monter": [...],` suivi d'une accolade : JSON invalide, donc manifeste
+entier illisible, donc retour silencieux aux sons d'origine. C'est la deuxième
+fois qu'un fichier de données écrit à la main casse tout sans rien dire — la
+première était une clé dupliquée dans les bandes de mer. Un `node -e
+"JSON.parse(...)"` avant d'ouvrir le jeu coûte une seconde.
+
 ## Tous les sons en un seul endroit (Godot)
 
 Ils étaient à trois places, et aucune n'était la bonne (demandé). Quatre noms
