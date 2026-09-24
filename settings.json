@@ -4,7 +4,8 @@
     "music": false,
     "_mer": "L AMBIANCE DE LA MER, par etat de la mer : la premiere bande dont maxForce depasse la force courante l emporte, donc rangez-les de la plus calme a la plus grosse. Fichiers dans medias/sound/ (.ogg, .mp3 ou .wav). Le passage d une bande a l autre se fait en fondu. Retirez la liste, et la mer se tait.",
     "mer": [
-      { "fichier": "olas_del_mar_loopable.ogg", "maxForce": 3.5, "gain": 0.7 }
+      { "fichier": "olas_del_mar_loopable.ogg", "maxForce": 4.5, "gain": 0.70 },
+      { "fichier": "thunderstorm_ocean.ogg",   "maxForce": 99,  "gain": 0.80 }
     ]
   },
   "calendar": { "start": "1690-10-08" },
