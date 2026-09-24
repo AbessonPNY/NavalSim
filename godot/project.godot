@@ -9,6 +9,12 @@ config/name="NavalSim"
 config/description="Simulation navale - portage Godot"
 run/main_scene="res://scenes/ship.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+; LE NOIR DU JEU DÈS LA PREMIÈRE SECONDE. Godot montre son écran de
+; démarrage pendant qu il s initialise — deux secondes et quart, mesurées —
+; puis le rideau de ShipDemo prend la suite jusqu à la première image. Même
+; noir pour les deux, et l écran ne saute pas.
+boot_splash/bg_color=Color(0.02, 0.03, 0.04, 1)
+boot_splash/show_image=false
 
 [dotnet]
 project/assembly_name="NavalSim"

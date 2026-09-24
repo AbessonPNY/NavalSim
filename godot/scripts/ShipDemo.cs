@@ -62,9 +62,87 @@ public partial class ShipDemo : Node3D
     const int MinSub = 4;
     const double MaxSubDt = 1.0 / 15;
 
-    public override void _ExitTree() { SaveBook(); SaveQuests(); _motionBlur?.Release(); _anamorphic?.Release(); }
+    public override void _ExitTree()
+    {
+        if (!_booted) return;                       // fermé pendant le chargement
+        SaveBook(); SaveQuests(); _motionBlur?.Release(); _anamorphic?.Release();
+    }
 
-    public override void _Ready()
+    /// <summary>
+    /// LE RIDEAU D'ABORD, LE MONDE ENSUITE.
+    ///
+    /// Bâtir la partie prend du temps — le relief est une image de neuf millions
+    /// de pixels, les modèles pèsent des mégaoctets, et les shaders se compilent
+    /// à la première image. Mesuré sur une machine RAPIDE : 2,2 s de démarrage du
+    /// moteur, 1,4 s pour ce _Ready, 0,4 s de compilation, soit quatre secondes
+    /// avant la première image. Sur un disque lent, davantage.
+    ///
+    /// Or rien ne peut être peint pendant qu'une méthode travaille : tant que
+    /// _Ready n'est pas rendu, aucune image n'est dessinée, et un rideau posé au
+    /// début serait affiché… après. Le travail est donc REPORTÉ d'une image :
+    /// on pose le rideau, on attend qu'il soit VRAIMENT dessiné (FramePostDraw,
+    /// et non un simple tour de boucle), et le monde se bâtit derrière lui.
+    ///
+    /// C'est le même geste que la traversée d'une région à l'autre, qui peint son
+    /// avis puis attend un quart de seconde avant de recharger la scène — et
+    /// comme ce rechargement repasse par ici, les deux rideaux se donnent la main
+    /// au lieu de laisser un trou noir entre eux.
+    ///
+    /// Tant que le monde n'est pas là, _Process n'a rien à faire : <see
+    /// cref="_booted"/> le tient à distance, et c'est la seule dette de ce
+    /// report — tout ce qui tourne à chaque image doit savoir attendre.
+    /// </summary>
+    public override async void _Ready()
+    {
+        Curtain();
+        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        Boot();
+        _booted = true;
+        /* ET IL RESTE EN PLACE UNE IMAGE DE PLUS : celle-là compile les shaders de
+           la mer, du ciel et des coques, et c'est la plus longue de la partie. La
+           lever avant elle rendrait l'écran à un monde qui n'est pas encore
+           dessiné. */
+        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        DropCurtain();
+    }
+
+    /// <summary>Vrai dès que le monde est bâti : avant, il n'y a rien à faire tourner.</summary>
+    bool _booted;
+    CanvasLayer? _curtain;
+
+    /// <summary>
+    /// « Chargement », sur le même noir que l'avis de traversée. Un rideau, et non
+    /// une image : il n'y a rien à charger pour l'afficher, ce qui est bien le
+    /// moins pour un écran dont le métier est de couvrir un chargement.
+    /// </summary>
+    void Curtain()
+    {
+        _curtain = new CanvasLayer { Layer = 20 };
+        AddChild(_curtain);
+        _curtain.AddChild(new ColorRect
+        {
+            AnchorRight = 1, AnchorBottom = 1, Color = new Color(0.02f, 0.03f, 0.04f)
+        });
+        var say = new Label
+        {
+            AnchorRight = 1, AnchorBottom = 1,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Text = "Chargement…"
+        };
+        say.AddThemeFontSizeOverride("font_size", 28);
+        say.AddThemeColorOverride("font_color", new Color(0.92f, 0.86f, 0.70f));
+        if (HandFont.Get() is { } hand) say.AddThemeFontOverride("font", hand);
+        _curtain.AddChild(say);
+    }
+
+    void DropCurtain()
+    {
+        _curtain?.QueueFree();
+        _curtain = null;
+    }
+
+    void Boot()
     {
         LoadNations();
         BuildScene();
@@ -952,6 +1030,8 @@ public partial class ShipDemo : Node3D
 
     public override void _Process(double delta)
     {
+        // le monde n'est pas encore bâti : le rideau est seul à l'écran
+        if (!_booted) return;
         if (_serpentIn > 0 && (_serpentIn -= delta) <= 0) SummonSerpent();
         if (_flipIn > 0 && (_flipIn -= delta) <= 0)
         {
@@ -1683,6 +1763,7 @@ public partial class ShipDemo : Node3D
 
     public override void _UnhandledInput(InputEvent e)
     {
+        if (!_booted) return;                       // rien à commander sous le rideau
         /* G : UN APPUI, une pièce ; TENU, la bordée entière — la répétition du clavier
            le dit, et un loquet empêche un long appui de lâcher bordée sur bordée.
            ⇧ : l'autre bord, une fois. */

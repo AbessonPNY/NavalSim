@@ -7975,6 +7975,69 @@ repasse dessus à 0,35, sans quoi une vague qui lèche l'objectif ferait clapote
 à chaque image. La même raison que le seuil du pirate qui louvoie à la limite,
 et la même réponse.
 
+## Un rideau de chargement, et où passent les quatre secondes (Godot)
+
+Demandé : un écran de chargement entre les écrans, pour les machines lentes. La
+première chose à faire était de savoir ce qu'il y a à couvrir, et le relevé est
+net — sur une machine RAPIDE, première image à **4,0 s** :
+
+| de … à | durée | ce qui s'y passe |
+|---|---|---|
+| 0 → 2,23 s | 2,23 s | le démarrage de Godot : moteur, Vulkan, assemblages .NET |
+| 2,23 → 3,62 s | 1,40 s | notre `_Ready` : le monde, les modèles, les nœuds |
+| 3,62 → 4,03 s | 0,41 s | la compilation des shaders, à la première image |
+
+Et dans ce `_Ready`, une seule ligne en prend le quart : charger le modèle du
+navire, **0,54 s** pour le chaland, **1,03 s** pour le Roter Löwe en pleine
+définition — c'est le prix de `godot-models/`, et il est payé une fois.
+
+### Rien ne se peint pendant qu'une méthode travaille
+
+C'est tout le problème, et c'est ce qui fait qu'un rideau posé au début de
+`_Ready` ne servirait à rien : tant que la méthode n'est pas rendue, aucune image
+n'est dessinée, et le rideau apparaîtrait APRÈS le chargement qu'il devait
+couvrir. Il faut donc REPORTER le travail d'une image :
+
+```csharp
+public override async void _Ready()
+{
+    Curtain();
+    await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+    Boot();
+    _booted = true;
+    await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+    DropCurtain();
+}
+```
+
+`FramePostDraw` et non un simple tour de boucle : c'est le seul signal qui dise
+que l'image est vraiment SORTIE. Et le rideau reste une image de plus, parce que
+celle qui suit `Boot()` est la plus longue de la partie — c'est elle qui compile
+les shaders de la mer, du ciel et des coques.
+
+Le prix de ce report est une dette à tenir : tant que le monde n'est pas bâti,
+`_Process`, `_UnhandledInput`, `_Input` et `_ExitTree` doivent savoir attendre.
+Un seul drapeau (`_booted`), quatre gardes, et c'est tout — mais l'oublier
+quelque part donnerait un plantage au démarrage, qui est le pire endroit.
+
+### Le noir est le même partout
+
+Les 2,23 s du moteur ne nous appartiennent pas : c'est l'écran de démarrage de
+Godot, et il montrait son logo. `boot_splash/show_image=false` et
+`boot_splash/bg_color` au noir du jeu (0,02 0,03 0,04) — celui de l'avis de
+traversée et du rideau. La fenêtre s'ouvre donc sur ce noir, le mot
+« Chargement… » y paraît à 2,2 s, et le monde le remplace à 4,0. Plus de saut.
+
+Le rechargement de scène d'une traversée repasse par le même `_Ready` : son avis
+(« Traversée vers La Tortue… ») tient 0,25 s, la scène recharge, et le rideau
+prend la suite pour les 0,8 s de `_Ready` qui suivent. Les deux se donnent la
+main au lieu de laisser un trou. Vérifié de bout en bout : Jamaïque → Tortue,
+236 milles, première image de la nouvelle région à 6,2 s.
+
+Ce qui n'est PAS couvert, et qui attendra : changer de navire depuis le titre
+(un demi à une seconde selon le modèle) se fait encore en une image, donc sans
+rideau — il faudrait rendre `Launch` asynchrone à son tour.
+
 ## Une pièce est un objet, pas une surface (Godot)
 
 Signalé : « j'ai ajouté la structure bois du canon bâbord 002, elle ne recule pas

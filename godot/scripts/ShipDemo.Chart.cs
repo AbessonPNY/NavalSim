@@ -233,6 +233,7 @@ public partial class ShipDemo : Node3D
        qu'il a le foyer, et l'événement poursuit sa route jusqu'à lui. */
     public override void _Input(InputEvent e)
     {
+        if (!_booted) return;                       // rien à commander sous le rideau
         if (ChartInput(e) || QuestInput(e)) GetViewport().SetInputAsHandled();
     }
 
