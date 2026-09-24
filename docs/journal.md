@@ -7940,12 +7940,12 @@ cloison comme tout ce qui vient du large.
 
 **Par BANDES d'état de mer**, parce que la mer ne fait pas le même bruit à
 force 2 et à force 8, et qu'une boucle unique sonnerait faux la moitié du temps.
- →  range les bandes de la plus calme à la plus
+`settings.json` → `sound.mer` range les bandes de la plus calme à la plus
 grosse, et la première dont le plafond dépasse la force courante l'emporte. Le
 passage se fait en fondu : la mer ne change pas de voix d'un coup quand le vent
 fraîchit.
 
-Une seule bande pour l'instant —  jusqu'à force 3,5.
+Une seule bande pour l'instant — `olas_del_mar_loopable.ogg` jusqu'à force 3,5.
 Au-delà, elle SE TAIT plutôt que de mentir, ce qui dit tout de suite ce qui
 manque. Mesuré : à force 2 elle joue, à force 6 elle se tait.
 
