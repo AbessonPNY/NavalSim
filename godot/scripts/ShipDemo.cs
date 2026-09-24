@@ -1930,8 +1930,22 @@ public partial class ShipDemo : Node3D
         var h = _sky.Core.Horizon;
         double light = Math.Min(1, (h.R + h.G + h.B) / 2.3);
         var w = _sea.Core.WindVec;
+        /* IL NE NEIGE PAS DANS LA CHAMBRE DU CAPITAINE (signalé). Le rideau de ce
+           qui tombe est replié autour de l'ŒIL dans son shader — c'est ce qui le
+           rend gratuit —, si bien qu'il suit la caméra partout, y compris sous un
+           pont. Une vue que la fiche dit « closed » a un toit : rien n'y tombe.
+
+           On se sert de la MÊME valeur qui ferme le son (_indoors), et non d'un
+           second test : une seule notion d'« être enfermé », deux usagers, et le
+           jour où une fiche déclarera une soute, la neige le saura sans qu'on y
+           touche. Elle glisse en un huitième de seconde, donc le ciel ne s'éteint
+           pas d'un coup au changement de vue.
+
+           Ce qui TIENT sur les ponts n'est pas touché : ce manteau-là est dehors,
+           et c'est ce qu'on voit par les fenêtres de poupe. */
+        double dehors = 1 - _indoors;
         _precip.Step(_cam.GlobalPosition, _t, new Vector3((float)w.X, (float)w.Y, (float)w.Z),
-            _fall.Snow ? 0 : _fall.Amount, _fall.Snow ? _fall.Amount : 0, light,
+            (_fall.Snow ? 0 : _fall.Amount) * dehors, (_fall.Snow ? _fall.Amount : 0) * dehors, light,
             GetViewport().GetVisibleRect().Size.Y);
 
         /* LA NEIGE TIENT SUR LES PONTS : un manteau qui s'épaissit en dix minutes

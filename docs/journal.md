@@ -7975,6 +7975,25 @@ repasse dessus à 0,35, sans quoi une vague qui lèche l'objectif ferait clapote
 à chaque image. La même raison que le seuil du pirate qui louvoie à la limite,
 et la même réponse.
 
+## Il ne neige pas dans la chambre du capitaine (Godot)
+
+Le rideau de ce qui tombe est replié autour de l'ŒIL dans son shader — c'est ce
+qui le rend gratuit, pas un octet de travail processeur par image — et il suit
+donc la caméra partout, y compris sous un pont. Dans la chambre, les flocons
+tombaient dans la pièce (signalé).
+
+Ce qui tombe est coupé dans une vue que la fiche dit `closed`. Et on se sert de
+la MÊME valeur qui ferme le son (`_indoors`) plutôt que d'un second test : une
+seule notion d'« être enfermé », deux usagers. Le jour où une fiche déclarera
+une soute ou un entrepont, la neige le saura sans qu'on y touche — et elle
+hérite du fondu de 131 ms, donc le ciel ne s'éteint pas d'un coup au changement
+de vue.
+
+Ce qui TIENT sur les ponts n'est pas touché : ce manteau-là est dehors, et c'est
+ce qu'on voit par les fenêtres de poupe. Relevé en entrant dans la chambre sous
+une chute forte : la neige continue (0,74 puis 0,99 d'intensité), le rideau
+passe à **0,000**.
+
 ### Le bruit part quand l'image bascule — la même condition, pas un seuil voisin
 
 Trois seuils essayés, trois fois trop tard : la surface, puis le milieu de la
