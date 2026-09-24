@@ -7931,6 +7931,24 @@ quel que soit le pont d'où l'on regarde.
 Mesuré en headless : 20 500 Hz sur le pont, 700 Hz dans la chambre, et le
 retour au plein air quand on en sort.
 
+## Commencer, ou reprendre (Godot)
+
+Le menu d un mode posait la liste des parties À PLAT, sous les deux boutons :
+le premier regard tombait sur des noms de sauvegardes plutôt que sur la
+question qu on se pose en arrivant. Deux temps désormais (demandé) —
+« Nouvelle partie » et « Charger une partie », la liste derrière son propre mot,
+et « Charger » qui ne paraît que s il y a quelque chose à charger.
+
+Les trois modes partagent la même fonction, donc l Histoire et les Missions y
+gagnent la même forme sans une ligne de plus.
+
+Et chaque partie porte la date RÉELLE où on l a laissée — celle de la montre,
+pas celle du bord. Les deux se lisent sur la même ligne : le nom porte le lieu
+et la date de jeu, la fin dit quand on y a joué. « aujourd hui à 16h42 »,
+« hier à 13h18 », sinon « le 23/09/2026 à 09h18 ». Le champ stocké reste en
+« yyyy-MM-dd HH:mm », parce que le tri des parties est celui des chaînes ; il ne
+se lit pas bien, et ce n est plus ce qu on montre.
+
 ## « Parez à faire feu » — la bordée qui part d'un coup
 
 Une bordée tirée à volonté s'égrène : les pièces se rechargeant chacune à son

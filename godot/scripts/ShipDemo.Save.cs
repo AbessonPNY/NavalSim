@@ -325,18 +325,35 @@ public partial class ShipDemo
     /// <summary>L'Histoire : reprendre une partie, en commencer une neuve, ou en effacer une.</summary>
     void StoryItems() => GameItems("histoire", "Nouvelle partie", NewGame);
 
+    /// <summary>Le jeu libre : commencer, ou reprendre.</summary>
+    void FreeItems() => GameItems("libre", "Nouvelle partie", NewFree);
+
     /// <summary>
-    /// LE JEU LIBRE, ses parties à lui. Rien à choisir quand il n'y en a aucune :
-    /// on prend la mer tout de suite, comme avant.
+    /// UN MENU DE MODE, EN DEUX TEMPS : « Nouvelle partie » et « Charger une
+    /// partie » (demandé). La liste des parties commencées était à plat sous les
+    /// deux boutons, si bien que le premier regard tombait sur des noms de
+    /// sauvegardes plutôt que sur la question qu'on se pose en arrivant —
+    /// commencer, ou reprendre. Elle est maintenant derrière son propre mot, et
+    /// « Charger » ne paraît que s'il y a quelque chose à charger.
     /// </summary>
-    void FreeItems()
+    void GameItems(string mode, string label, Action neuve)
     {
-        if (Saves("libre").Count == 0) { NewFree(); return; }
-        GameItems("libre", "Nouvelle partie", NewFree);
+        _eraseId = "";
+        ClearItems();
+        Item(label, neuve, 34);
+        if (Saves(mode).Count > 0)
+            Item("Charger une partie", () => LoadItems(mode, label, neuve), 34);
+        Item("Retour", MainItems, 34);
+        ShowPick();
     }
 
-    /// <summary>La liste d'un mode : ses parties, une neuve, et l'effacement.</summary>
-    void GameItems(string mode, string label, Action neuve)
+    /// <summary>
+    /// LES PARTIES COMMENCÉES, la plus fraîche d'abord, chacune avec la date
+    /// RÉELLE où on l'a laissée — celle de la montre et non celle du bord
+    /// (demandé). Les deux se lisent sur la même ligne : le nom porte le lieu et
+    /// la date de jeu, la fin dit quand on y a joué.
+    /// </summary>
+    void LoadItems(string mode, string label, Action neuve)
     {
         _eraseId = "";
         ClearItems();
@@ -344,12 +361,29 @@ public partial class ShipDemo
         foreach (var s in list)
         {
             var save = s;
-            Item($"{s.Nom}   ({s.Ecrit})", () => LoadGame(save), 28);
+            Item($"{s.Nom}   ·   {Written(s)}", () => LoadGame(save), 26);
         }
-        Item(label, neuve, 34);
-        if (list.Count > 0) Item("Effacer une partie", () => EraseItems(mode, label, neuve), 28);
-        Item("Retour", MainItems, 34);
+        if (list.Count == 0) Item("Aucune partie enregistrée", () => { }, 28);
+        else Item("Effacer une partie", () => EraseItems(mode, label, neuve), 28);
+        Item("Retour", () => GameItems(mode, label, neuve), 34);
         ShowPick();
+    }
+
+    /// <summary>
+    /// Quand on y a joué, en clair. <c>Ecrit</c> est écrit en « yyyy-MM-dd HH:mm »
+    /// pour que le tri des parties soit celui des chaînes ; il se lit mal, et ce
+    /// n'est pas ce qu'on montre.
+    /// </summary>
+    static string Written(SaveState s)
+    {
+        if (!DateTime.TryParseExact(s.Ecrit, "yyyy-MM-dd HH:mm",
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var d)) return s.Ecrit;
+        var today = DateTime.Now.Date;
+        string jour = d.Date == today ? "aujourd'hui"
+                    : d.Date == today.AddDays(-1) ? "hier"
+                    : "le " + d.ToString("dd/MM/yyyy");
+        return $"{jour} à {d:HH}h{d:mm}";
     }
 
     /// <summary>La partie qu'on s'apprête à effacer : le premier appui demande, le second fait.</summary>
@@ -366,7 +400,7 @@ public partial class ShipDemo
         {
             var save = s;
             bool armed = _eraseId == s.Id;
-            Item(armed ? $"Effacer pour de bon : {s.Nom} ?" : $"{s.Nom}   ({s.Ecrit})",
+            Item(armed ? $"Effacer pour de bon : {s.Nom} ?" : $"{s.Nom}   ·   {Written(s)}",
                  () =>
                  {
                      if (_eraseId != save.Id) { _eraseId = save.Id; EraseItems(mode, label, neuve); return; }
@@ -378,7 +412,8 @@ public partial class ShipDemo
                  }, 28);
         }
         if (_titleItems.Count == 0) Item("Plus aucune partie", () => { }, 28);
-        Item("Retour", () => GameItems(mode, label, neuve), 34);
+        // on revient à la LISTE d'où l'on vient, pas au menu du mode
+        Item("Retour", () => LoadItems(mode, label, neuve), 34);
         ShowPick();
     }
 
