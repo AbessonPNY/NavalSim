@@ -118,7 +118,7 @@ public partial class ShipDemo : Node3D
                dessine, abri compris : sans cette ligne, elle roulerait dans un
                bassin que l'œil voit calme. */
             _sea.Core.Shelter = (x, z) => _world.Shelter(x, z);
-            _land = new LandNode(_world);
+            _land = new LandNode(_world) { CausticRules = _causticRules };
             AddChild(_land);
             _town = new TownNode(_world);
             AddChild(_town);
@@ -543,6 +543,7 @@ public partial class ShipDemo : Node3D
             sm.SetShaderParameter("u_rough_wind", s.SeaRoughWind);
             sm.SetShaderParameter("u_sky_blur", s.SeaSkyBlur);
             sm.SetShaderParameter("u_ride_gain", s.SeaRideGain);
+            _land?.Ground.SetShaderParameter("u_ride_gain", s.SeaRideGain);
             sm.SetShaderParameter("u_cap_gain", s.SeaCapGain);
             sm.SetShaderParameter("u_foam_gain", s.SeaFoamGain);
             sm.SetShaderParameter("u_jac_foam", s.SeaJacobian);
@@ -1108,6 +1109,18 @@ public partial class ShipDemo : Node3D
         // les vues à bord ont leur propre champ : la vérification lit celui d'ICI
         _motionBlur.MainProjection = _cam.GetCameraProjection();
         _sea.UpdateFrom(_cam.GlobalPosition, _t);
+        /* LA MÊME MER SUR LE FOND. Le spectre que la surface vient de recevoir
+           est poussé tel quel à la matière du fond — APRÈS UpdateFrom, qui
+           remplit les tableaux de cette image. Deux copies du spectre finiraient
+           par ne plus l'être, et le fond scintillerait sur une houle que l'œil
+           ne voit pas : c'est la panne silencieuse habituelle. */
+        if (_land != null)
+        {
+            _sea.PushWaves(_land.Ground);
+            _land.Ground.SetShaderParameter(U.Sharp, (float)_sea.Core.Sharp);
+            _land.Ground.SetShaderParameter("u_sunlit", (float)_sky.Sunlit);
+            _sky.PushTo(_land.Ground);
+        }
         // après le recentrage : la mer et le champ lisent la coque où elle EST
         _sea.TrackShips(_fleet);
         // la cible rendue à l'image d'avant, avec l'heure et l'ancre de CETTE passe
@@ -1263,13 +1276,22 @@ public partial class ShipDemo : Node3D
         _sky.PushTo(_spray.Material);
         _spray.Step(frame);
         if (_spray.Pool.Count > _sprayMax) _sprayMax = _spray.Pool.Count;
-        _sea.Material?.SetShaderParameter(U.Ripple,
-            (float)Math.Min(2.6, 0.40 + _sea.Core.WindSpeed * 0.105));
+        /* LES RIDES — à la mer ET au fond. C'est le clapot qui fait les nœuds de
+           lumière sur le sable, pas la houle ; les deux shaders lisent le même
+           champ (ride.gdshaderinc), il leur faut donc la même force et le même
+           vent, sous peine d'une mer qui luit d'une ride et d'un fond qui en
+           dessine une autre. */
+        float ripple = (float)Math.Min(2.6, 0.40 + _sea.Core.WindSpeed * 0.105);
+        _sea.Material?.SetShaderParameter(U.Ripple, ripple);
+        _land?.Ground.SetShaderParameter(U.Ripple, ripple);
         var wv = _sea.Core.WindVec;
         double ws = Math.Sqrt(wv.X * wv.X + wv.Z * wv.Z);
         if (ws > 1e-4)
-            _sea.Material?.SetShaderParameter(U.Wind,
-                new Vector2((float)(wv.X / ws), (float)(wv.Z / ws)));
+        {
+            var wu = new Vector2((float)(wv.X / ws), (float)(wv.Z / ws));
+            _sea.Material?.SetShaderParameter(U.Wind, wu);
+            _land?.Ground.SetShaderParameter(U.Wind, wu);
+        }
 
         _hudAcc += frame;
         if (_hudAcc > 0.15) { _hudAcc = 0; UpdateInfo(); AmbianceTick(); MarketTick(); StowTick(); FleetTick(); }
@@ -1859,6 +1881,8 @@ public partial class ShipDemo : Node3D
     SeaFogSettings _fogRules = new();
     /// <summary>Le manteau de neige : settings.json → snow, les mêmes chiffres que la page.</summary>
     SnowSettings _snowRules = new();
+    /// <summary>La lumière de la houle sur le fond : settings.json → caustics.</summary>
+    CausticSettings _causticRules = new();
     SeaFog? _seaFog;
     bool _saidFog;
 
@@ -1901,6 +1925,7 @@ public partial class ShipDemo : Node3D
             if (root.TryGetProperty("gunnery", out var gu)) _gunRules = GunnerySettings.FromJson(gu);
             if (root.TryGetProperty("encounters", out var ec)) _metRules = EncounterSettings.FromJson(ec);
             if (root.TryGetProperty("snow", out var sw)) _snowRules = SnowSettings.FromJson(sw);
+            if (root.TryGetProperty("caustics", out var ca)) _causticRules = CausticSettings.FromJson(ca);
             if (root.TryGetProperty("storm", out var st))
             {
                 if (st.TryGetProperty("lightning", out var li)) _lightRules = LightningSettings.FromJson(li);
@@ -2913,6 +2938,10 @@ public partial class ShipDemo : Node3D
         _sea.Material?.SetShaderParameter("u_harbour_pass", pass);
         _foam.Set("u_harbour", v);
         _foam.Set("u_harbour_pass", pass);
+        // la lumière du fond lit le même abri : une rade calme n'a pas les
+        // nervures d'une rade battue
+        _land?.Ground.SetShaderParameter("u_harbour", v);
+        _land?.Ground.SetShaderParameter("u_harbour_pass", pass);
     }
 
     /// <summary>
@@ -3043,6 +3072,12 @@ public partial class ShipDemo : Node3D
                 case "--escarmouche": _wantMelee = args[i + 1] != "0"; break;
                 // DÉMONSTRATION : plonger la caméra à tant de mètres par seconde
                 case "--plongee": _diveSpeed = args[i + 1].ToFloat(); break;
+                /* LA LUMIÈRE DU FOND, à la volée : pour comparer deux images de la
+                   même vue, ce qui est la seule façon d'en connaître le prix. */
+                case "--caustiques":
+                    _land?.Ground.SetShaderParameter("u_caustic_gain",
+                        args[i + 1] == "0" ? 0f : args[i + 1].ToFloat());
+                    break;
                 case "--lunette": ToggleSpyglass(); break;
                 case "--feu": for (int n = args[i + 1].ToInt(); n > 0; n--) Fire(false, true); break;
                 // le mémento ouvert d emblee, pour le juger a la capture

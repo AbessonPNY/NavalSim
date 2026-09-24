@@ -157,3 +157,76 @@ void gerstner_sum(vec2 world_xz, float t, float shelter, float spacing,
 vec3 gerstner_normal(vec3 nrm_acc) {
 	return normalize(vec3(nrm_acc.x, 1.0 - nrm_acc.y, nrm_acc.z));
 }
+
+
+/* LA LUMIÈRE QUI SE CONCENTRE SUR LE FOND — les caustiques.
+ *
+ * Elles ne sont pas un motif décoratif plaqué sur le sable : ce sont LES MÊMES
+ * VAGUES, vues par leur ombre. Un rayon de soleil qui entre dans l'eau est
+ * dévié par la pente de la surface, d'un angle qui vaut (1 − 1/n) fois cette
+ * pente — le même quart que la réfraction du REGARD à la fin du shader de la
+ * mer, et pour la même raison. À la profondeur h, il a donc glissé de
+ * h·κ·∇η par rapport à l'endroit où il serait tombé sur une eau plate.
+ *
+ * Ce glissement est une APPLICATION du plan sur lui-même, S ↦ S + h·κ·∇η(S), et
+ * la clarté du fond est l'inverse de ce qu'elle dilate les aires — exactement
+ * comme le jacobien de Gerstner dit où l'eau se tasse. D'où :
+ *
+ *     det = (1 + hκ·η_xx)(1 + hκ·η_zz) − (hκ·η_xz)²        clarté = 1/|det|
+ *
+ * Sous une crête la courbure est négative, det descend sous un, et la lumière
+ * s'y rassemble : les nervures brillantes du fond sont les crêtes de la houle,
+ * pas ses creux. Là où det s'annule, le faisceau est à son foyer et la ligne
+ * serait infiniment brillante — c'est le plancher `floor` qui l'arrête, et il
+ * n'y a pas d'autre raison à lui.
+ *
+ * On ne rend donc PAS le déplacement ni la normale : la courbure suffit, et
+ * cette boucle-ci ne sert qu'aux pixels de fond en eau peu profonde. La grosse
+ * somme (gerstner_sum) est appelée à chaque sommet de la mer ; lui ajouter trois
+ * multiplications par vague pour un usage qui ne la concerne pas coûterait là
+ * où l'on ne gagne rien.
+ *
+ * `metre` est la largeur d'un pixel sur le fond, en mètres : au-delà, une vague
+ * n'est plus qu'un moiré. Le seuil est PLUS SÉVÈRE que celui du maillage de la
+ * mer (2,5 à 6) parce qu'une nervure de lumière est bien plus fine que la vague
+ * qui la dessine.
+ */
+void gerstner_bottom(vec2 world_xz, float t, float shelter, float metre, float hk,
+                     out float height, out vec3 curv) {
+	height = 0.0;
+	curv = vec3(0.0);
+
+	for (int i = 0; i < NW; i++) {
+		vec2 d = u_wave_a[i].xy;
+		float amp = u_wave_a[i].z * shelter;
+		float k = u_wave_a[i].w;
+
+		float lambda = 6.28318530718 / k;
+		float band = smoothstep(4.0, 10.0, lambda / max(metre, 1e-3));
+
+		/* ET CHAQUE ÉCHELLE S'ÉTEINT PASSÉ SON PROPRE FOYER. Une vague ne
+		   concentre la lumière qu'à une profondeur : là où h·κ·η_xx approche un,
+		   ses rayons se croisent. Plus bas, ils se sont recroisés dix fois et il
+		   ne reste qu'une bouillie — que la largeur du soleil, un demi-degré,
+		   efface pour de bon dans la nature. Sa courbure de crête vaut k²·amp,
+		   d'où ce seuil. C'est CELA qui donne l'étagement : la ride fait le
+		   réseau des trois premiers mètres, la houle celui des dix suivants, et
+		   rien ne bouillonne au fond d'une rade. */
+		band *= 1.0 - smoothstep(0.8, 2.2, hk * k * k * amp);
+
+		float f = k * dot(d, world_xz) - u_wave_b[i].x * t + u_wave_phase[i];
+		float c = cos(f);
+		float s = sin(f);
+
+		float dsl;
+		float hs = gerstner_profile(s, u_sharp, dsl);
+		height += amp * hs;
+
+		/* La pente, la MÊME que celle dont la normale est faite (WA·c), dérivée
+		   une fois de plus : η_xx = −d.x²·k·WA·s. L'aiguisage est tenu pour
+		   localement constant — sa dérivée ne change que la finesse des
+		   nervures, jamais où elles sont. */
+		float WA = k * amp * dsl * band;
+		curv -= vec3(d.x * d.x, d.y * d.y, d.x * d.y) * (k * WA * s);
+	}
+}

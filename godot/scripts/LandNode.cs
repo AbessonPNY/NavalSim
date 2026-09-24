@@ -34,9 +34,18 @@ public partial class LandNode : Node3D
     public int FineMax = 288;
     /// <summary>Le côté d'un carreau : 32 pixels du relief au départ.</summary>
     public double Tile = 1440;
+    /// <summary>La lumière de la houle rassemblée sur le fond (settings.json → caustics).</summary>
+    public CausticSettings CausticRules = new();
 
     /// <summary>Les matériaux que <see cref="SkyNode.PushTo"/> doit tenir à jour.</summary>
     public readonly List<ShaderMaterial> Hazed = new();
+
+    /// <summary>
+    /// LA MATIÈRE DU RELIEF — et, avec elle, les caustiques du fond. Elle lit la
+    /// MÊME mer que la surface : la démo lui pousse le spectre à chaque image
+    /// (<see cref="OceanNode.PushWaves"/>), le soleil, les rides et le havre.
+    /// </summary>
+    public ShaderMaterial Ground { get; private set; } = null!;
 
     sealed class Patch
     {
@@ -46,7 +55,7 @@ public partial class LandNode : Node3D
 
     readonly Dictionary<(int, int), Patch> _tiles = new();
     readonly HashSet<MeshInstance3D> _seen = new();
-    StandardMaterial3D _mat = null!;
+    ShaderMaterial _mat = null!;
 
     public LandNode(World world)
     {
@@ -59,16 +68,30 @@ public partial class LandNode : Node3D
            Couleurs de SOMMET plutôt qu'une texture : la bande à laquelle un
            point appartient est une fonction de sa hauteur, et rien à charger.
            Color8 et non Color : le constructeur de Godot prend des FLOTTANTS, et
-           0xc9 y valait 201, donc une côte blanche à souhait. */
-        _mat = new StandardMaterial3D
+           0xc9 y valait 201, donc une côte blanche à souhait.
+
+           SON PROPRE SHADER, ET NON UNE StandardMaterial3D, depuis que le fond
+           porte les caustiques : la lumière rassemblée par la houle MULTIPLIE ce
+           qui repart du sable, et une seconde passe multiplicative n'est pas
+           dessinée sous Forward+ (mesuré ; voir land.gdshader). Il ne fait rien
+           d'autre que ce que faisait la matière standard — l'albédo des sommets,
+           mat, éclairé par le moteur. */
+        _mat = new ShaderMaterial
         {
-            VertexColorUseAsAlbedo = true,
-            Roughness = 0.94f,
-            Metallic = 0f,
+            Shader = GD.Load<Shader>("res://shaders/land.gdshader"),
             // l'air devant tout le reste, la MÊME passe que la coque porte
             NextPass = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") }
         };
+        Ground = _mat;
         Hazed.Add((ShaderMaterial)_mat.NextPass);
+
+        // les cadrans une fois pour toutes ; le spectre et le soleil, à chaque image
+        _mat.SetShaderParameter("u_caustic_gain", CausticRules.Enabled ? (float)CausticRules.Gain : 0f);
+        _mat.SetShaderParameter("u_caustic_depth", (float)CausticRules.Depth);
+        _mat.SetShaderParameter("u_caustic_far", (float)CausticRules.Far);
+        _mat.SetShaderParameter("u_caustic_floor", (float)CausticRules.Floor);
+        _mat.SetShaderParameter("u_caustic_spread", (float)CausticRules.Spread);
+
     }
 
     /* Les teintes de la page, en sRGB. Les couleurs de sommet de Godot sont

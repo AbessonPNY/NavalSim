@@ -7975,6 +7975,135 @@ repasse dessus à 0,35, sans quoi une vague qui lèche l'objectif ferait clapote
 à chaque image. La même raison que le seuil du pirate qui louvoie à la limite,
 et la même réponse.
 
+## Les caustiques, ou la houle vue par son ombre (Godot)
+
+Demandé : de la lumière qui joue sur le fond des hauts-fonds. La tentation est
+un motif animé plaqué sur le sable — c'est ce que font la plupart des jeux, et
+cela se voit, parce que le motif ne sait rien de la mer qui est au-dessus.
+
+Ici les caustiques sont **les mêmes vagues, vues par leur ombre**. Un rayon de
+soleil qui entre dans l'eau est dévié par la pente de la surface, d'un angle qui
+vaut κ = 1 − 1/n de cette pente — un quart pour l'eau de mer, et c'est le MÊME
+quart que la réfraction du regard à la fin du shader de la mer, pour la même
+raison. À la profondeur h il est donc tombé en S + h·κ·∇η au lieu de S. Ce
+glissement est une application du plan sur lui-même, et la clarté du fond est
+l'inverse de ce qu'elle dilate les aires :
+
+    det = (1 + hκ·η_xx)(1 + hκ·η_zz) − (hκ·η_xz)²        clarté = 1/|det|
+
+C'est le frère jumeau du jacobien de Gerstner, qui dit où l'eau se tasse ; l'un
+et l'autre sont des rapports d'aires, et ils s'écrivent côte à côte dans
+`gerstner.gdshaderinc`. Sous une crête la courbure est négative, det descend
+sous un, et la lumière s'y rassemble : les nervures brillantes du fond sont les
+crêtes, pas les creux. Un plat calme n'écrit rien du tout — à courbure nulle, le
+facteur vaut exactement un. Elles s'éteignent la nuit, au ras de l'horizon et
+sous un ciel fermé sans qu'on ait à le leur dire.
+
+### Ce que la mesure a changé : la houle seule n'éclaire pas une plage
+
+Le premier jet ne lisait que les dix-huit composantes du spectre. Une sonde CPU
+sur la même arithmétique, par force 5, a donné la distribution du facteur :
+
+| profondeur | facteur | écart type |
+|---|---|---|
+| 1 m | 0,87 à 1,14 | 0,04 |
+| 3 m | 0,70 à 1,56 | 0,13 |
+| 6 m | 0,53 à 3,45 | 0,31 |
+| 10 m | 0,40 à 4,00 | 0,74 |
+
+Soit **rien du tout là où on l'avait demandé**, et une bouillie au large. La
+raison tient en une ligne : une vague de cinq mètres de long et dix centimètres
+d'amplitude a une courbure de crête de 0,16 m⁻¹, et il lui faut **vingt-cinq
+mètres d'eau** pour mettre au point. Chaque échelle a son foyer, h ≈ 1/(κ·k²·a).
+Ce qui dessine le réseau serré du sable, ce n'est pas la houle : c'est le clapot
+d'un mètre, dont le foyer tombe justement vers deux mètres de fond.
+
+Or ce clapot existe déjà — c'est `ride_h`, le champ de rides que la mer porte
+dans sa normale depuis toujours. Il est sorti du shader de la mer vers
+`ride.gdshaderinc`, que la surface et le fond incluent désormais tous les deux :
+la ride qui luit sur l'eau est exactement celle qui noue la lumière sur le sable,
+et elles ne peuvent plus diverger. Sa courbure se prend par six différences
+finies, la croisée comprise — sans elle, les nœuds se rangent en quadrillage au
+lieu de faire des mailles obliques.
+
+Et chaque échelle s'éteint passé SON foyer (`1 − smoothstep(0,8 ; 2,2 ; hκk²a)`).
+C'est ce qui donne l'étagement : la ride fait le réseau des trois premiers
+mètres, la houle celui des dix suivants, et rien ne bouillonne au fond d'une
+rade. Dans la nature, c'est le demi-degré de largeur du soleil qui efface le
+reste — à dix mètres, son foyer est déjà étalé sur neuf centimètres.
+
+Reste un détail qui ne coûte rien : les trois indices de l'eau de mer (1,331 ;
+1,335 ; 1,340) ne diffèrent que d'un demi pour cent, mais un foyer est un point
+de rencontre, et un demi pour cent d'écart sur la déviation y devient un liseré
+coloré. C'est à cela qu'on reconnaît une vraie caustique d'un motif peint.
+
+### La panne muette : une passe multiplicative ne dessine rien sous Forward+
+
+Une caustique n'ajoute pas de lumière, elle la **déplace** : ce qui brille sur
+une nervure manque entre deux, et un fond moyenné reste aussi clair qu'avant.
+Seul un PRODUIT dit cela, d'où une seconde passe `blend_mul` sur le relief,
+placée avant la mer (priorité −7) pour que celle-ci la retrouve dans l'image
+qu'elle relit déjà.
+
+Rien ne s'affichait, et rien ne le disait : le shader compilait, la matière
+existait, la passe était dans la chaîne. Ce qui l'a établi n'est pas un œil mais
+une **sonde de coût** : rendre la passe soixante fois plus chère et regarder
+l'horloge. Elle ne coûtait pas un centième de milliseconde de plus — donc elle
+ne rasterisait aucun fragment. La même passe en `blend_add` coûtait six
+millisecondes d'un coup. `blend_premul_alpha` : rien non plus. Sous Forward+,
+ces modes de mélange sont laissés tomber en silence.
+
+La sonde de coût vaut d'être retenue, et pas seulement ici : **quand on ne peut
+pas voir, on peut toujours faire payer**. Elle a servi trois fois de suite — une
+fois pour savoir si la passe dessinait, une fois pour savoir si le relief
+lui-même était à l'écran (il l'était : +2,2 ms), une fois pour trouver laquelle
+des cinq conditions de sortie rejetait tout. C'était `u_caustic_gain` à zéro,
+parce qu'un `replace` trop large dans settings.json avait éteint le mauvais
+bloc — le premier `"enabled": false` du fichier appartenait à `crew`.
+
+La réponse n'est pas de contourner le mélange mais de prendre l'endroit juste :
+le relief a désormais **son propre shader** (`land.gdshader`) au lieu d'une
+`StandardMaterial3D`, et la caustique y multiplie l'ALBEDO. Multiplier ce que le
+fond renvoie EST la bonne opération, le moteur l'éclaire, l'ombre et la brume
+par-dessus comme avant, et il n'y a plus ni passe, ni priorité, ni biais de
+profondeur à régler. Le shader ne fait rien d'autre que ce que faisait la
+matière standard : l'albédo des sommets, mat.
+
+### Où elles sont, et où elles ne sont pas
+
+Sur le FOND, et non dans le shader de la mer où l'on aurait pu les glisser pour
+rien : la mer ne couvre que les pixels qu'on voit À TRAVERS elle, et sous l'eau
+le fond est devant l'œil sans surface entre les deux — c'est justement de là
+qu'on vient les regarder. La lumière tombe sur le sable ; elle n'appartient pas
+à la fenêtre par laquelle on la regarde. Posée là, la mer la retrouve toute
+seule dans l'image qu'elle relit pour son dessous : une écriture, deux regards.
+
+Pas encore : la page (three.js), et les carènes — une coque mouillée prend les
+mêmes nervures, et son bordé n'est pas le relief.
+
+### Le prix
+
+Mesuré avec `--caustiques 0|1`, ajouté pour cela : on ne connaît le prix d'un
+effet qu'en comparant deux images de la MÊME vue, et l'éteindre par settings.json
+demandait de relancer sur une mer qui n'est plus la même.
+
+| vue | avec | sans | écart |
+|---|---|---|---|
+| orbite | 2,62 ms | 2,46 ms | 0,16 ms |
+| mi-eau (le fond emplit le bas de l'image) | 2,69 ms | 2,56 ms | 0,13 ms |
+| plafond : tout le relief calcule, sans tri | 2,70 ms | 2,46 ms | 0,24 ms |
+
+La troisième ligne est celle qui compte : en retirant le tri grossier, on force
+CHAQUE pixel de relief à payer les dix-huit vagues et les six lectures de ride —
+la montagne comme le sable. Un quart de milliseconde. L'effet ne peut donc pas
+coûter plus, quelle que soit la vue, et le tri lui-même n'en épargne que sept
+centièmes : il est là pour la justesse (rien au-dessus de l'eau, rien la nuit),
+pas pour le prix. Côté processeur, rien du tout : quatre `SetShaderParameter`
+par image.
+
+Réglages : `settings.json` → `caustics` (force, profondeur, portée, plancher,
+dispersion, enabled), portés par `core/Caustics.cs`.
+
 ## Le manteau de neige sort du code
 
 Le 600 qui dit en combien de secondes un pont blanchit etait ecrit en dur DEUX

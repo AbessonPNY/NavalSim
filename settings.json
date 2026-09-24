@@ -122,6 +122,15 @@
     "cooldown": 480,
     "glb": "creatures/whale.glb"
   },
+  "caustics": {
+    "_aide": "LA LUMIÈRE DU SOLEIL RASSEMBLÉE PAR LA HOULE SUR LE FOND, dans les hauts-fonds. Ce n'est pas un motif peint : c'est la courbure des vraies vagues, donc elles changent quand la mer change, s'éteignent la nuit et sous un ciel fermé. force : le contraste, 1 = ce que la réfraction donne. profondeur : les mètres d'eau où elles s'éteignent — le soleil a un demi-degré de large, et son foyer se brouille en descendant. portee : la distance à l'œil où on les arrête, au-delà ce ne serait qu'un moiré. plancher : au foyer exact la clarté serait infinie ; plus bas = des nervures plus fines et plus vives. dispersion : le liseré coloré au bord d'une nervure, 1 = l'écart des indices de l'eau de mer, 0 = une lumière blanche. enabled : false les retire tout à fait.",
+    "enabled": true,
+    "force": 1.0,
+    "profondeur": 14,
+    "portee": 700,
+    "plancher": 0.12,
+    "dispersion": 1.0
+  },
   "snow": {
     "_aide": "LE MANTEAU SUR LES PONTS. Ce n'est pas une épaisseur mais une couverture, de 0 (pont nu) à 1 (blanc partout où le ciel se voit). manteau : les secondes de chute PLEINE pour un manteau complet — baissez-le pour qu'elle prenne plus vite. max : ce qu'elle ne dépasse pas, un manteau et non une congère. fonte : les secondes pour tout fondre au dégel nul. toujours : la fonte qui va de soi, embruns et semelles, avant celle du thermomètre.",
     "manteau": 600,
