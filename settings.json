@@ -262,7 +262,7 @@
   },
   "storm": {
     "lightning": {
-      "_aide": "LA FOUDRE, ET IL Y EN A DEUX SORTES. 1) LE COUP PROCHE, celui qui tombe sur une tete de mat : on voit le trait, et il eclaire. Sa LAMPE est posee sur le trait, trente metres au-dessus du mat frappe — flashEnergy son eclat (160), flashRange sa portee en metres (200), flashShadow ses ombres portees, qui couchent l ombre des mats en travers du pont et coutent 0,6 ms de carte graphique le quart de seconde du coup. Et skyFlash (0,18) est ce que le CIEL en prend : il monte l hemispherique et blanchit le dome entier, de partout a la fois — a 1 il faisait le jour sur toute la mer et ecrasait la lampe. 2) LE GRAIN LOINTAIN qui s allume par en dedans : a six milles on ne voit qu une tache de nuage s allumer, pas une ombre qui bouge sur le bord, et celui-la ne sort JAMAIS du shader de ciel. farFlash son eclat (1), farPerSecond combien de coups par seconde d un banc bien noir (0,34). Le reste est ce qu il CASSE : minInten l enfoncement sous lequel rien ne tombe, perMinuteAtCore les coups par minute sur un navire au centre meme, splitChance une voile arrachee, woundChance le mat blesse (trois blessures et il tombe), dismastChance le mat fendu d un coup. En jeu : -- --foudre 1.",
+      "_aide": "LA FOUDRE, ET IL Y EN A DEUX SORTES. 1) LE COUP PROCHE, celui qui tombe sur une tete de mat : on voit le trait, et il eclaire. Sa LAMPE est posee sur le trait, trente metres au-dessus du mat frappe — flashEnergy son eclat (160), flashRange sa portee en metres (200), flashShadow ses ombres portees, qui couchent l ombre des mats en travers du pont. flashLife est ce que dure sa LUMIERE, en secondes (0,03) : le TRAIT vit un quart de seconde parce qu on le regarde, mais la lumiere d un coup de foudre est un coup de couteau, et une lueur qui traine se lit comme un projecteur qu on allume. C est une constante de temps — l eclat tombe en exp(-age/flashLife), donc un tiers apres deux images et rien apres cinq, avec l arc en retour qui rallume la meme pointe a 0,16 s. Plus court, une machine a trente images le manquerait une fois sur deux. flashColour son blanc FROID (0xccdcff), celui de la lune plutot que d une flamme : un arc est un plasma, et un pont aux feux couverts parait soudain gris acier. Et skyFlash (0,18) est ce que le CIEL en prend : il monte l hemispherique et blanchit le dome entier, de partout a la fois — a 1 il faisait le jour sur toute la mer et ecrasait la lampe. 2) LE GRAIN LOINTAIN qui s allume par en dedans : a six milles on ne voit qu une tache de nuage s allumer, pas une ombre qui bouge sur le bord, et celui-la ne sort JAMAIS du shader de ciel. farFlash son eclat (1), farPerSecond combien de coups par seconde d un banc bien noir (0,34). Le reste est ce qu il CASSE : minInten l enfoncement sous lequel rien ne tombe, perMinuteAtCore les coups par minute sur un navire au centre meme, splitChance une voile arrachee, woundChance le mat blesse (trois blessures et il tombe), dismastChance le mat fendu d un coup. En jeu : -- --foudre 1.",
       "enabled": true,
       "minInten": 0.4,
       "perMinuteAtCore": 0.5,
@@ -271,6 +271,8 @@
       "dismastChance": 0.12,
       "flashEnergy": 1800,
       "flashRange": 800,
+      "flashLife": 0.03,
+      "flashColour": "0xccdcff",
       "flashShadow": true,
       "skyFlash": 0.18,
       "farFlash": 1,

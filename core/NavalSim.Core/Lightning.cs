@@ -31,8 +31,33 @@ public sealed class LightningSettings
     /// ombres portées, qui sont l'essentiel de ce qu'on regarde et coûtent une
     /// carte cubique pendant le quart de seconde du coup.
     /// </summary>
-    public double FlashEnergy = 90, FlashRange = 170;
+    public double FlashEnergy = 400, FlashRange = 200;
     public bool FlashShadow = true;
+
+    /// <summary>
+    /// CE QUE DURE LE COUP, en secondes — et c'est très court.
+    ///
+    /// La lampe suivait la courbe d'éclat du TRAIT, qui vit un quart de seconde :
+    /// le trait doit durer cela, parce qu'on le regarde et qu'un trait d'une
+    /// image ne se voit pas. Mais la LUMIÈRE d'un coup de foudre est un coup de
+    /// couteau — « un centième de seconde » (signalé) —, et une lueur qui traîne
+    /// se lit comme un projecteur qu'on allume.
+    ///
+    /// C'est une constante de temps, pas une durée : l'éclat tombe en
+    /// exp(−âge/flashLife), donc à 0,03 s il ne reste qu'un tiers après deux
+    /// images et rien après cinq. Plus court que cela et une machine qui rend à
+    /// trente images par seconde manquerait le coup une fois sur deux ; c'est
+    /// pourquoi on ne descend pas au centième pour de bon.
+    /// </summary>
+    public double FlashLife = 0.03;
+
+    /// <summary>
+    /// SA COULEUR : un blanc FROID, celui de la lune plutôt que celui d'une
+    /// flamme. Un arc est un plasma à vingt-quatre mille degrés, et tout ce
+    /// qu'il éclaire prend cette teinte-là ; c'est ce qui le distingue d'un
+    /// fanal, et pourquoi un pont aux feux couverts paraît soudain gris acier.
+    /// </summary>
+    public string FlashColour = "0xccdcff";
 
     /// <summary>
     /// ET CE QUE LE CIEL EN PREND, de 0 à 1.
@@ -80,6 +105,9 @@ public sealed class LightningSettings
         s.SkyFlash = Math.Clamp(D("skyFlash", s.SkyFlash), 0, 1);
         s.FarFlash = Math.Clamp(D("farFlash", s.FarFlash), 0, 1);
         s.FarPerSecond = Math.Max(0, D("farPerSecond", s.FarPerSecond));
+        s.FlashLife = Math.Clamp(D("flashLife", s.FlashLife), 0.005, 1);
+        if (j.TryGetProperty("flashColour", out var fc) && fc.ValueKind == JsonValueKind.String)
+            s.FlashColour = fc.GetString()!;
         if (j.TryGetProperty("flashShadow", out var sh) && (sh.ValueKind == JsonValueKind.True || sh.ValueKind == JsonValueKind.False))
             s.FlashShadow = sh.GetBoolean();
         return s;

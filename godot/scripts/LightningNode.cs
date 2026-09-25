@@ -38,8 +38,12 @@ public partial class LightningNode : Node3D
     }
 
     /// <summary>Ce que le coup jette sur le pont — settings.json → storm.lightning.</summary>
-    public double FlashEnergy = 90, FlashRange = 170;
+    public double FlashEnergy = 400, FlashRange = 200;
     public bool FlashShadow = true;
+    /// <summary>La constante de temps de l'éclat, en secondes : très court.</summary>
+    public double FlashLife = 0.03;
+    /// <summary>Son blanc froid, celui de la lune plutôt que d'une flamme.</summary>
+    public string FlashColour = "0xccdcff";
 
     /* OÙ SE TIENT LA LAMPE SUR LE TRAIT, en mètres au-dessus de la tête de mât
        frappée. Au point d'impact même, elle éclairerait la pomme du mât et rien
@@ -77,7 +81,7 @@ public partial class LightningNode : Node3D
                couverts paraît soudain gris acier sous le coup. */
             var lamp = new OmniLight3D
             {
-                LightColor = new Color(0.82f, 0.88f, 1f),
+                LightColor = Hex(FlashColour),
                 LightEnergy = 0,
                 OmniRange = (float)FlashRange,
                 OmniAttenuation = 1.0f,
@@ -87,6 +91,13 @@ public partial class LightningNode : Node3D
             AddChild(lamp);
             _bolts[i] = new Bolt { Mesh = mi, Mat = mat, Lamp = lamp };
         }
+    }
+
+    /// <summary>« 0xccdcff », tel que la page le lit : une couleur sRGB.</summary>
+    static Color Hex(string s)
+    {
+        int v = Convert.ToInt32(s.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? s[2..] : s, 16);
+        return Color.Color8((byte)(v >> 16), (byte)(v >> 8), (byte)v);
     }
 
     double R() => _rng.NextDouble();
@@ -112,6 +123,7 @@ public partial class LightningNode : Node3D
         b.Lamp.Position = b.Bottom + (b.Top - b.Bottom).Normalized() * LampUp;
         b.Lamp.OmniRange = (float)FlashRange;
         b.Lamp.ShadowEnabled = FlashShadow;
+        b.Lamp.LightColor = Hex(FlashColour);
         b.Lamp.Visible = FlashEnergy > 0;
     }
 
@@ -180,8 +192,31 @@ public partial class LightningNode : Node3D
             double a = b.Age;
             double op = a < 0.06 ? 1 : a < 0.10 ? 0.25 : a < 0.16 ? 0.9 : Math.Max(0, 0.5 * (1 - (a - 0.16) / 0.09));
             b.Mat.SetShaderParameter(UOpacity, (float)op);
-            // la MÊME courbe : le trait et ce qu'il éclaire sont le même événement
-            b.Lamp.LightEnergy = (float)(op * FlashEnergy);
+
+            /* LE TRAIT DURE, SA LUMIÈRE NON. Ils suivaient la même courbe, au
+               nom d'« une définition, deux usagers », et c'était joindre deux
+               choses qui ne sont pas la même : le TRAIT doit vivre un quart de
+               seconde parce qu'on le regarde et qu'un trait d'une image ne se
+               voit pas ; sa LUMIÈRE est un coup de couteau (signalé — « un
+               centième de seconde »), et une lueur qui traîne se lit comme un
+               projecteur qu'on allume.
+
+               Une exponentielle, donc, et non un palier : à 0,03 s de constante
+               il ne reste qu'un tiers après deux images et rien après cinq. Et
+               l'ARC EN RETOUR rallume la même pointe à 0,16 s, plus faible — ce
+               qui donne le double battement qu'on voit d'un vrai coup. */
+            double eclat = Math.Exp(-a / FlashLife);
+            if (a > 0.16) eclat = Math.Max(eclat, 0.6 * Math.Exp(-(a - 0.16) / FlashLife));
+            double energie = eclat * FlashEnergy;
+            b.Lamp.LightEnergy = (float)energie;
+            /* ET ELLE S'ÉTEINT ENTRE LES DEUX POINTES. Une lampe à ombres portées
+               rend sa carte cubique à chaque image où on la VOIT, et non à chaque
+               image où elle éclaire : la laisser allumée à douze millièmes de son
+               éclat pendant que le trait finit de mourir, c'est payer la carte
+               pour rien. Le seuil est en unités d'énergie, pas en part de
+               l'éclat — c'est ce qui tombe sur le pont qui compte, et non ce
+               qu'on a réglé. */
+            b.Lamp.Visible = energie > 0.5;
         }
     }
 

@@ -9827,8 +9827,50 @@ part du TRAIT lui-même, qui est dans le ciel et doit y être. Le ciel garde de
 quoi dire qu'il s'est passé quelque chose partout — un coup de foudre allume
 réellement le dessous des nuages — sans faire le jour.
 
-`settings.json → storm.lightning` : `flashEnergy` 160, `flashRange` 200 m,
-`flashShadow` true, `skyFlash` 0,18.
+`settings.json → storm.lightning` : `flashEnergy`, `flashRange`, `flashShadow`,
+`skyFlash` 0,18.
+
+### Le trait dure, sa lumière non
+
+Demandé ensuite : « l'impact doit illuminer le bateau d'un blanc froid comme le
+fait la lune pendant un centième de seconde, avec des ombres portées ».
+
+La lampe suivait la courbe d'éclat du TRAIT, au nom d'« une définition, deux
+usagers ». C'était joindre deux choses qui ne sont pas la même. Le trait doit
+vivre un quart de seconde **parce qu'on le regarde**, et un trait d'une seule
+image ne se voit pas ; sa lumière, elle, est un coup de couteau, et une lueur
+qui traîne se lit comme un projecteur qu'on allume.
+
+L'éclat de la lampe est donc une EXPONENTIELLE et non un palier — `exp(−âge /
+flashLife)`, 0,03 s —, et l'arc en retour rallume la même pointe à 0,16 s, plus
+faible. Relevé, énergie réglée à 1800 :
+
+```
+image  1 : 1441      image  6 :   37
+image  2 :  341      image  8 :   12
+image  3 :  196      image  9 :  872   ← l'arc en retour
+image  4 :  112      image 11 :  314
+image  5 :   64      image 13 :  110
+```
+
+Deux coups de couteau, ce qui est le double battement d'un vrai coup.
+
+Pourquoi pas le centième pour de bon : c'est une constante de TEMPS, pas une
+durée, et à 0,01 s une machine qui rend à trente images par seconde manquerait
+le coup une fois sur deux. À 0,03 il reste un tiers après deux images et rien
+après cinq, sur toute machine.
+
+La couleur passe dans les réglages (`flashColour`, 0xccdcff) : un blanc froid,
+celui de la lune plutôt que d'une flamme. Un arc est un plasma à vingt-quatre
+mille degrés, et c'est ce qui fait qu'un pont aux feux couverts paraît soudain
+gris acier.
+
+**Et la lampe s'éteint entre les deux pointes.** Une lampe à ombres portées rend
+sa carte cubique à chaque image où on la VOIT, et non à chaque image où elle
+éclaire : la laisser allumée à douze millièmes de son éclat pendant que le trait
+finit de mourir, c'était payer la carte pour rien. Le seuil est en unités
+d'énergie et non en part de l'éclat — c'est ce qui tombe sur le pont qui compte,
+pas ce qu'on a réglé.
 
 ## Il portait ses voiles serrées, ce qui n'est pas un spectre (Godot)
 

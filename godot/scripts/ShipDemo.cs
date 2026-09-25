@@ -179,7 +179,9 @@ public partial class ShipDemo : Node3D
         {
             FlashEnergy = _lightRules.FlashEnergy,
             FlashRange = _lightRules.FlashRange,
-            FlashShadow = _lightRules.FlashShadow
+            FlashShadow = _lightRules.FlashShadow,
+            FlashLife = _lightRules.FlashLife,
+            FlashColour = _lightRules.FlashColour
         };
         AddChild(_lightning);
         // et ce que le CIEL en prend : le reste du coup est la lampe du trait
