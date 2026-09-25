@@ -10367,6 +10367,37 @@ sa vitesse d'abord, donc sa chance de fuir, et le navire ensuite.
 `⇧Y` allume un départ (Y fait sauter la soute, ⇧Y allume ce qui l'y mènera) ;
 `--incendie 3` en allume trois d'un coup, parce que c'est le NOMBRE qui décide.
 
+### La voile ne disparaît plus, elle se consume
+
+Demandé ensuite : « peut-on voir les voiles se consumer ? » Elle s'évanouissait
+d'un coup — le vieux `SplitSail`, qui est juste pour une voile qu'un boulet
+arrache mais faux pour une voile qui brûle.
+
+Elle est maintenant dévorée **du pied vers la têtière**, parce que la flamme
+MONTE : ce qui brûle d'abord est ce qui pend au-dessus du foyer. Le front a deux
+parts — la HAUTEUR, qui donne le sens, et un grain, qui donne la déchirure. Sans
+le grain elle se mangerait par une ligne horizontale, ce qui est un ciseau et non
+du feu ; sans la hauteur elle se mangerait par plaques, ce qui est de la
+moisissure. Devant le front, une lisière de braise qui ÉMET — la seule chose de
+cette voile qui ait une lumière à elle, et qui ne suit donc ni le ciel ni
+l'heure —, et devant elle un roussi plus large, parce qu'une toile noircit bien
+avant de s'enflammer.
+
+**`instance uniform` et non `uniform`.** Les voiles d'une même sorte PARTAGENT
+leur matière — une seule est créée par sorte —, et régler un uniforme aurait
+brûlé toute la voilure d'un coup. Ce qui appartient à UNE voile passe par son
+maillage, comme la rotation des bouffées et la taille des embruns.
+
+Une seule voile à la fois par mât, et c'est celle qui a DÉJÀ commencé qui finit :
+un mât qui brûlerait ses six voiles ensemble se lirait comme un effet et non
+comme un feu. Elle fume à SA place et non à celle du foyer — une voilure en feu
+est ce qu'on voit d'un mille, bien avant le pont.
+
+Relevé, trois foyers, en secondes de jeu : le feu atteint 0,45 à t+11 et la
+grand-voile part de 0,08 à t+15, 0,35 à t+22, 0,66 à t+29, consumée à t+37. Vingt
+secondes à la regarder partir, ce qui est le temps qu'il faut pour comprendre
+qu'on ne la rattrapera pas.
+
 ## La soute sautait en silence (Godot)
 
 Relevé en branchant l'échantillon d'explosion que le manifeste venait de

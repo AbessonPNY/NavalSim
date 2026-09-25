@@ -104,11 +104,26 @@ public partial class ShipDemo : Node3D
                 _gunFx.BurnLight(i, new Vector3((float)w.X, (float)w.Y + 1.2f, (float)w.Z), f.Worst, s.Spec.L / 30);
             }
 
-            /* LA TOILE PART LA PREMIÈRE. Un feu établi sous un mât mange sa voilure
-               avant de descendre à la soute : c'est ce qui rend l'incendie
-               différent d'une voie d'eau — on perd sa vitesse d'abord, donc sa
-               chance de fuir, et ensuite seulement le navire. */
-            if (f.Worst > 0.55 && _stormRng.NextDouble() < 0.10 * dt) s.SplitSail(false);
+            /* LA TOILE PART LA PREMIÈRE, ET ON LA VOIT PARTIR. Un feu établi sous
+               un mât mange sa voilure avant de descendre à la soute : c'est ce qui
+               rend l'incendie différent d'une voie d'eau — on perd sa vitesse
+               d'abord, donc sa chance de fuir, et ensuite seulement le navire.
+               Elle ne DISPARAÎT plus : elle se consume du pied vers la têtière,
+               une lisière de braise devant elle. */
+            if (pire != null && pire.Heat > 0.45)
+            {
+                int mat = s.MastNear(pire.P.Z);
+                if (mat >= 0) s.BurnSails(mat, dt, 0.06 * pire.Heat);
+                /* ET LA VOILE QUI BRÛLE FUME ELLE-MÊME, à sa place et non à celle
+                   du foyer : une voilure en feu est ce qu'on voit d'un mille, bien
+                   avant le pont. */
+                if (mat >= 0 && s.BurningSail(mat) is { } bs)
+                {
+                    var wv = b.Quat.Rotate(bs.P) + b.Pos;
+                    _gunFx.Burn(new Vector3((float)wv.X, (float)wv.Y, (float)wv.Z),
+                                0.5 * pire.Heat, dt, s.Spec.L / 30);
+                }
+            }
 
             if (f.Doomed) BlowUp(s);
         }

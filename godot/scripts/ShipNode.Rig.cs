@@ -31,6 +31,8 @@ public partial class ShipNode
         // le mât qui la porte (−1 : aucun qui tombe), et si elle a éclaté hors de ses ralingues
         public int Mast = -1;
         public bool Split;
+        /// <summary>Ce que le feu lui a mangé, de 0 (intacte) à 1 (plus rien).</summary>
+        public double Burn;
         // un seul tableau de surface par voile, rempli à chaque image : en créer un
         // neuf soixante fois par seconde et par voile, c'est de la mémoire à ramasser
         public readonly Godot.Collections.Array Arrays = NewArrays();

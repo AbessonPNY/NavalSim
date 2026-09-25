@@ -40,6 +40,27 @@ uniform float u_snow = 0.0;          // la couche de neige sur CE navire : penda
    settings.json → night.canvas. */
 uniform float u_canvas_floor = 0.05;
 
+/* CE QUE LE FEU A DÉVORÉ DE CETTE VOILE-CI, de 0 (intacte) à 1 (plus rien).
+ *
+ * « instance » et non « uniform » tout court : les voiles d'une même sorte
+ * PARTAGENT leur matière — une seule est créée par sorte, et la régler réglerait
+ * toute la voilure d'un coup. Ce qui appartient à UNE voile doit donc passer par
+ * son maillage, comme la rotation des bouffées et la taille des embruns. */
+instance uniform float u_burn = 0.0;
+
+/* UN GRAIN DOUX, tiré du hachage du ciel : de la valeur interpolée sur une
+   grille, ce qui suffit à déchiqueter une lisière. Une lisière droite se lit
+   comme un ciseau, et le feu ne coupe pas droit. */
+float naval_grain(vec2 q) {
+	vec2 i = floor(q), f = fract(q);
+	f = f * f * (3.0 - 2.0 * f);
+	float a0 = naval_hash13(vec3(i, 0.0));
+	float b0 = naval_hash13(vec3(i + vec2(1.0, 0.0), 0.0));
+	float c0 = naval_hash13(vec3(i + vec2(0.0, 1.0), 0.0));
+	float d0 = naval_hash13(vec3(i + vec2(1.0, 1.0), 0.0));
+	return mix(mix(a0, b0, f.x), mix(c0, d0, f.x), f.y);
+}
+
 varying vec3 v_world;
 varying vec3 v_raw_n;
 varying vec3 v_local;
@@ -58,6 +79,26 @@ void fragment() {
 	if (u_has_map > 0.5) diffuse *= texture(u_map, UV).rgb;
 	// par sa normale, comme la page : c'est la face qui regarde le ciel qui la reçoit
 	diffuse = mix(diffuse, NAVAL_SNOW_COLOR, naval_snow(v_raw_n.y, v_local, u_snow));
+
+	/* ELLE SE CONSUME DU PIED VERS LA TÊTIÈRE, parce que la flamme MONTE : ce qui
+	 * brûle d'abord est ce qui pend au-dessus du foyer, et le feu remonte la toile
+	 * en laissant une lisière de braise derrière lui.
+	 *
+	 * Deux parts dans le front : la HAUTEUR, qui donne le sens, et le grain, qui
+	 * donne la déchirure. Sans le grain la voile se mangerait par une ligne
+	 * horizontale ; sans la hauteur elle se mangerait par plaques, ce qui est de
+	 * la moisissure et non du feu. */
+	float braise = 0.0;
+	if (u_burn > 0.001) {
+		float bas = 1.0 - UV.y;                       // 0 à la têtière, 1 au point d'écoute
+		float front = bas * 0.62 + naval_grain(UV * vec2(5.0, 7.0)) * 0.38;
+		float seuil = 1.0 - u_burn;
+		if (front > seuil) discard;                   // ce qui est consumé n'est plus là
+		/* LA LISIÈRE : la braise qui ronge, et le roussi devant elle. Le roussi est
+		   plus large que la braise — une toile noircit bien avant de s'enflammer. */
+		braise = smoothstep(seuil - 0.09, seuil, front);
+		diffuse *= mix(1.0, 0.12, smoothstep(seuil - 0.30, seuil - 0.02, front));
+	}
 
 	vec3 to_eye = normalize(CAMERA_POSITION_WORLD - v_world);   // pas E : réservé
 	vec3 N = normalize(v_raw_n);
@@ -99,6 +140,11 @@ void fragment() {
 	float ciel = dot(u_horizon, vec3(0.2126, 0.7152, 0.0722));
 	float jour = clamp(ciel / 0.85, u_canvas_floor, 1.0);
 
-	EMISSION = (u_emissive * u_emissive_k * jour + lit_through) * (1.0 - hz)
+	/* ET LA BRAISE ÉMET. Elle ne suit ni le ciel ni l'heure — c'est du feu, la
+	   seule chose de cette voile qui ait une lumière à elle. La brume la mange
+	   comme le reste : une voile qui brûle à un mille est une lueur, pas une
+	   flamme. */
+	EMISSION = (u_emissive * u_emissive_k * jour + lit_through
+	            + vec3(1.0, 0.34, 0.06) * braise * 4.0) * (1.0 - hz)
 	         + ship_haze_colour(CAMERA_POSITION_WORLD, v_world) * hz;
 }

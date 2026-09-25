@@ -129,6 +129,66 @@ public partial class ShipNode
         return n;
     }
 
+    static readonly StringName UBurn = "u_burn";
+
+    /// <summary>
+    /// LE FEU MANGE LA TOILE D'UN MÂT — et on le VOIT : la voile se consume du
+    /// pied vers la têtière, une lisière de braise devant, du roussi devant elle,
+    /// et quand il ne reste plus rien elle est rayée des ralingues.
+    ///
+    /// <paramref name="rate"/> est ce qu'elle perd par seconde. Une seule voile à
+    /// la fois par mât — celle qui a le moins brûlé, donc la plus basse encore
+    /// entière n'est pas privilégiée : c'est celle qui a DÉJÀ commencé qui finit,
+    /// puis la suivante. Un mât qui brûlerait ses six voiles ensemble se lirait
+    /// comme un effet, pas comme un feu.
+    ///
+    /// Rend vrai tant qu'il reste de la toile à manger — faux quand le mât est nu.
+    /// </summary>
+    public bool BurnSails(int mast, double dt, double rate)
+    {
+        Canvas? pick = null;
+        foreach (var c in _canvases)
+        {
+            if (c.Split || c.Mast != mast) continue;
+            if (c.Burn > 0.001) { pick = c; break; }     // celle qui a commencé finit
+            pick ??= c;
+        }
+        if (pick == null) return false;
+        pick.Burn = Math.Min(1, pick.Burn + rate * dt);
+        /* PAR INSTANCE ET NON PAR MATIÈRE : les voiles d'une même sorte partagent
+           la leur, et la régler brûlerait toute la voilure d'un coup. */
+        pick.Node.SetInstanceShaderParameter(UBurn, (float)pick.Burn);
+        if (pick.Burn >= 1)
+        {
+            pick.Split = true;
+            pick.Node.Visible = false;
+            CutRigging(mast, 1);                        // ses bouts partent avec elle
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Où en est la voile qui brûle sur ce mât, et où elle est dans le repère du
+    /// bord : la flamme et la fumée s'y posent. Nul si rien n'y brûle.
+    /// </summary>
+    public (NavalSim.Core.Vec3d P, double Burn)? BurningSail(int mast)
+    {
+        foreach (var c in _canvases)
+        {
+            if (c.Split || c.Mast != mast || c.Burn <= 0.001) continue;
+            var g = c.Node.GlobalPosition;
+            var b = GlobalTransform.Origin;
+            var q = GlobalTransform.Basis;
+            // sa place dans le repère du navire : le nœud de la voile pend dans son mât
+            var loc = q.Inverse() * (g - b);
+            return (new NavalSim.Core.Vec3d(loc.X, loc.Y, loc.Z), c.Burn);
+        }
+        return null;
+    }
+
+    /// <summary>Le mât le plus proche de cette station, pour ce qui n'en connaît pas le numéro.</summary>
+    public int MastNear(double z) => NearestMast(z);
+
     /* LA TOILE EST LE FUSIBLE DU MÂT. Fait éclater UNE voile, tirée au sort parmi
        celles qui tiennent encore — pondérée par le tissu, donc un grand mât en perd
        plus souvent qu'un artimon, sans qu'aucune probabilité ait été écrite par
