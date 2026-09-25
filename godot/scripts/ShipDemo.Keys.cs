@@ -101,6 +101,7 @@ public partial class ShipDemo : Node3D
         Key(a, "⇧V", "prendre un ris : huniers, bas ris, tout serré");
         Key(a, "B", "l'élan : en route d'un coup, ou stop (B B : vitesse doublée)");
         Key(a, "M", "mouiller · virer au cabestan");
+        Key(a, "N", "la chaloupe : l'affaler, y passer, la rembarquer");
         Section(a, "Artillerie");
         Key(a, "G", "un coup de la pièce suivante");
         Key(a, "G tenu", "la bordée entière");
@@ -127,8 +128,9 @@ public partial class ShipDemo : Node3D
         Key(b, "⇧P", "amener ou hisser le pavillon");
         Key(b, "⇧N", "la flotte : mettre à l'eau, retirer");
         Key(b, "⇧B", "parer le bord : tout charger, puis tirer d'un coup");
-        Key(b, "⇧B", "parer le bord : tout charger, puis tirer d'un coup");
-        Key(b, "⇧B", "parer le bord : tout charger, puis tirer d'un coup");
+        Section(b, "La nuit");
+        Key(b, "⇧L", "couvrir les feux : un homme fait la tournée de l'arrière à l'avant");
+        Key(b, "⇧C", "la chambre seule : le capitaine souffle sa bougie");
 
         var c2 = Column();
         Section(c2, "Vues");

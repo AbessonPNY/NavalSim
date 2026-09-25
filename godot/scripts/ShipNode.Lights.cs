@@ -49,28 +49,57 @@ public partial class ShipNode
      *
      * Rallumer est la même tournée dans le même sens, à la même allure.
      */
-    /// <summary>Les feux sont-ils couverts (l'ordre, pas l'état).</summary>
+    /// <summary>Les feux du BORD sont-ils couverts (l'ordre, pas l'état).</summary>
     public bool Dark { get; private set; }
-    double _darkT = -1e9;
+    /// <summary>
+    /// Et ceux de la CHAMBRE, qu'on peut couvrir seuls — le capitaine dort
+    /// parfois. Ce sont les bougies (<c>kind: candle</c>) et les fenêtres de
+    /// poupe, c'est-à-dire tout ce qui éclaire DEDANS et tout ce qui le montre
+    /// dehors.
+    /// </summary>
+    public bool CabinDark { get; private set; }
+    double _darkT = -1e9, _cabinT = -1e9;
     /// <summary>Le pas de l'homme d'un fanal au suivant, et le temps qu'une flamme met à mourir.</summary>
     const double DouseWalk = 1.1, DouseFade = 0.7;
 
-    /// <summary>Donner l'ordre. <paramref name="t"/> est l'heure du jeu.</summary>
+    /// <summary>
+    /// Couvrir les feux du bord — et la chambre avec, puisque faire l'obscurité
+    /// veut dire toute l'obscurité. <paramref name="t"/> est l'heure du jeu.
+    /// </summary>
     public void Douse(bool dark, double t)
     {
-        if (dark == Dark) return;
-        /* SI LA TOURNÉE N'EST PAS FINIE, on repart d'où elle en est : rallumer au
-           milieu d'une extinction ne doit pas faire sauter les feux déjà morts. */
-        Dark = dark;
-        _darkT = t;
+        if (dark != Dark) { Dark = dark; _darkT = t; }
+        DouseCabin(dark, t);
     }
 
-    /// <summary>Ce qui reste de ce feu-là : 1 allumé, 0 couvert.</summary>
-    double Veil(int rank, double t)
+    /// <summary>
+    /// LA CHAMBRE SEULE. Le capitaine se couche : sa bougie s'éteint et ses
+    /// fenêtres de poupe avec, mais le fanal reste allumé — un navire qui fait
+    /// route porte ses feux, et ce n'est pas parce qu'on dort qu'on devient
+    /// invisible.
+    /// </summary>
+    public void DouseCabin(bool dark, double t)
     {
-        double u = (t - _darkT - rank * DouseWalk) / DouseFade;
+        if (dark == CabinDark) return;
+        CabinDark = dark;
+        _cabinT = t;
+    }
+
+    /// <summary>
+    /// Ce qui reste de ce feu-là : 1 allumé, 0 couvert. Deux tournées séparées —
+    /// celle du pont et celle de la chambre —, parce qu'on peut faire l'une sans
+    /// l'autre.
+    /// </summary>
+    double Veil(int rank, double t, bool cabin)
+    {
+        double t0 = cabin ? _cabinT : _darkT;
+        bool dark = cabin ? CabinDark : Dark;
+        /* LA CHAMBRE N'A PAS DE TOURNÉE : une bougie qu'on souffle s'éteint, on ne
+           marche pas jusqu'à elle. Son rang est donc nul, et seule la flamme
+           prend son temps. */
+        double u = (t - t0 - (cabin ? 0 : rank * DouseWalk)) / DouseFade;
         double fait = Math.Clamp(u, 0, 1);
-        return Dark ? 1 - fait : fait;
+        return dark ? 1 - fait : fait;
     }
 
     /// <summary>La tournée est-elle finie ? Pour le dire au joueur.</summary>
@@ -557,7 +586,7 @@ public partial class ShipNode
         /* LES FENÊTRES DE POUPE SONT LE DERNIER FEU À MOURIR : la chambre est à
            l'arrière, l'homme y finit sa tournée — et c'est celui qu'un guetteur
            voit le plus longtemps. */
-        double vitres = Veil(_lanterns.Count, t);
+        double vitres = Veil(_lanterns.Count, t, true);
         foreach (var (mat, b) in _nightMats)
             mat.EmissionEnergyMultiplier = (float)(_lit ? b * NightGlowGain * vitres : 0);
 
@@ -593,7 +622,7 @@ public partial class ShipNode
                 ? 0.80 + 0.12 * Math.Sin(t * 9.7 + L.Seed) + 0.08 * Math.Sin(t * 23.3 + L.Seed * 1.3)
                 : 0.86 + 0.14 * Math.Sin(t * 7.3 + L.Seed) + 0.06 * Math.Sin(t * 17.1 + L.Seed * 1.7);
             // ce que la tournée lui a laissé : une flamme qu'on couvre ne vacille plus
-            double v = Veil(L.Rank, t);
+            double v = Veil(L.Rank, t, L.Candle);
             L.Halo.SetShaderParameter(U.Opacity, (float)(0.85 * on * flick * far * v));
             L.Mark.SetShaderParameter(U.Opacity, (float)(L.Candle ? 0 : 0.95 * on * flick * far * v));
             L.Mark.SetShaderParameter(U.Size, (float)(0.030 * farSize));

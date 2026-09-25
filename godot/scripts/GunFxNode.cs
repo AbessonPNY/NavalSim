@@ -96,12 +96,46 @@ public partial class GunFxNode : Node3D
         }
     }
 
+    /// <summary>
+    /// CE QUE LE COUP ÉCLAIRE DE SON PROPRE BORD : énergie, portée en mètres,
+    /// durée en secondes. Réglé dans settings.json → gunnery.
+    /// </summary>
+    public double FlashEnergy = 34, FlashRange = 26, FlashLife = 0.22;
+
+    readonly List<ShaderMaterial> _puffMats = new();
+
+    /// <summary>
+    /// L'ŒIL EST PASSÉ SOUS L'EAU, OU EN EST SORTI.
+    ///
+    /// De dessous, le feu des canons avait disparu, et c'était une affaire
+    /// d'ORDRE et non d'opacité. La mer est opaque (ALPHA = 1) et montre ce qui
+    /// est au-delà en LISANT L'ÉCRAN déjà dessiné : tout ce qui vient après elle
+    /// n'y est pas, donc rien de ce qui est transparent ne traverse la fenêtre de
+    /// Snell. Les bouffées, qui sont transparentes, se dessinaient après.
+    ///
+    /// On ne peut pas les mettre devant une fois pour toutes : au-dessus de l'eau
+    /// la mer, dessinée ensuite, les recouvrirait — elles n'écrivent pas de
+    /// profondeur, et la mer n'a donc rien contre quoi se faire refuser. On les
+    /// fait donc passer AVANT la mer (priorité −3, la mer est à −1) seulement
+    /// quand l'œil est dessous, où c'est exactement ce qu'il faut : la mer les
+    /// recouvre bien, mais après les avoir lues dans l'écran et teintées de son
+    /// épaisseur d'eau — ce qui est ce que l'on voit d'une flamme depuis le fond.
+    /// </summary>
+    public void Submerged(bool under)
+    {
+        if (under == _under) return;
+        _under = under;
+        foreach (var m in _puffMats) m.RenderPriority = under ? -3 : 0;
+    }
+    bool _under;
+
     static readonly Aabb Big = new(new Vector3(-1e5f, -1e4f, -1e5f), new Vector3(2e5f, 2e4f, 2e5f));
 
     MultiMesh Pool(Mesh quad, string shader, Texture2D tex, int max)
     {
         var mat = new ShaderMaterial { Shader = GD.Load<Shader>(shader) };
         mat.SetShaderParameter("u_tex", tex);
+        _puffMats.Add(mat);
         var mm = new MultiMesh
         {
             TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseCustomData = true,
@@ -185,9 +219,10 @@ public partial class GunFxNode : Node3D
         int li = _gunLampI; _gunLampI = (_gunLampI + 1) % _gunLamps.Length;
         var L = _gunLamps[li];
         L.Position = at + outDir * (1.1f * fk);
-        L.OmniRange = 18 * fk;
-        // la page règle 1 600·k² candelas sur three ; l'énergie de Godot est une autre échelle
-        _gunLamp[li] = (0, 0.10, 16 * k * k);
+        L.OmniRange = (float)FlashRange * fk;
+        /* La page règle 1 600·k² candelas sur three ; l'énergie de Godot est une
+           autre échelle, et le tout se règle à l'œil dans settings.json. */
+        _gunLamp[li] = (0, FlashLife, FlashEnergy * k * k);
         L.LightEnergy = (float)_gunLamp[li].Peak;
     }
 

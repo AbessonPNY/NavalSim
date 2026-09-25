@@ -23,11 +23,15 @@
     "glb": "creatures/sailor.glb"
   },
   "gunnery": {
+    "_aide": "L'ARTILLERIE. reload : ce qu'une pièce met à se recharger, en secondes, tiré entre les deux. recoilSpeed : la vivacité du recul, un facteur (1 était la première mise au point, 2 va deux fois plus vite). Les trois derniers ne servent qu'à l'ŒIL — ce que le coup éclaire de son propre bord, et rien de plus : flashEnergy l'éclat de la lampe de bouche, flashRange sa portée en mètres, flashLife ce qu'elle dure en secondes. Ils montent en k², k étant le calibre relatif : une pièce de chasse éclaire moins qu'un trente-six.",
     "reload": [
       30,
       60
     ],
-    "recoilSpeed": 2
+    "recoilSpeed": 2,
+    "flashEnergy": 34,
+    "flashRange": 26,
+    "flashLife": 0.22
   },
   "dolphins": {
     "enabled": true,
@@ -216,6 +220,21 @@
     "radius": 1.7,
     "scale": 0.25,
     "nightOnly": true
+  },
+  "wraith": {
+    "_aide": "LE VAISSEAU FANTÔME QUI RÔDE — à ne pas confondre avec le Cimetière des Galions, qui est un LIEU. Celui-ci est une RENCONTRE : une nuit de brume, au large de toute côte, une voile pâle paraît. Elle ne porte rien — pas de vent dans sa toile, une erre constante — et ELLE VIENT À LA LUMIÈRE. Feux couverts (Maj+L), elle garde son cap et passe ; feux allumés, elle vient. Rien ne l'arrête et rien ne la blesse : il n'y a qu'à n'être pas vu. perHour : apparitions par heure de jeu quand tout s'y prête. shoreMin : deux milles de toute côte. fogMin, nightMin : ce qu'il lui faut de brume et de nuit. sight : où elle paraît. speedMin/speedMax : son erre en m/s, 4,12 à 5,14 (huit à dix nœuds). turn : ce qu'elle tourne au plus, en degrés par seconde — elle ne manœuvre pas, elle dérive sur vous. linger : ce qu'elle rôde. gone : au-delà, elle s'efface. hull : la coque qu'elle emprunte. En jeu : -- --fantome 1.",
+    "enabled": true,
+    "perHour": 0.8,
+    "shoreMin": 3704,
+    "fogMin": 0.3,
+    "nightMin": 0.45,
+    "sight": 900,
+    "speedMin": 4.12,
+    "speedMax": 5.14,
+    "turn": 2.5,
+    "linger": 210,
+    "gone": 1800,
+    "hull": "frigate17e"
   },
   "ghosts": {
     "enabled": true,

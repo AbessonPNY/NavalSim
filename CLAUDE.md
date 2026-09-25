@@ -65,7 +65,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `capture.js` | la capture d'écran (touche `I`), écrite par le serveur de dev |
 | `purse.js` | la bourse, le cours des épices, la poudre |
 
-Réglages de jeu : `settings.json` (son : musique d'ambiance, coupée par défaut ; rencontres, nuit, bloom, naufrage, tempête : foudre et kraken, baleine, serpent de mer, brume de surface et estime (Godot), fantômes, calendrier, climat, dauphins, rechargement des pièces, hommes sur le pont, caustiques du fond, bancs de poissons).
+Réglages de jeu : `settings.json` (son : musique d'ambiance, coupée par défaut ; rencontres, nuit, bloom, naufrage, tempête : foudre et kraken, baleine, serpent de mer, brume de surface et estime (Godot), fantômes, calendrier, climat, dauphins, rechargement des pièces et feu de bouche, hommes sur le pont, caustiques du fond, bancs de poissons).
 Réglages d'aspect à l'œil (Godot, en tête de shader) : **`u_shadow`** dans `godot/shaders/ocean.gdshader` — l'ombre des coques sur l'eau (0,5 ; 0 = aucune, 1 = encre) ; et `AmbientGain` dans `godot/scripts/SkyNode.cs` — la lumière du ciel dans l'ombre des navires (1,0 ; plus bas = ombres plus franches), et `SunGain` à côté — le soleil de la page ramené à l'unité de Godot (1/π) ; par-dessus, l'étude de la lumière au menu (Lumière : force, chaleur, éclairage ambiant ; `reglages.ini` → `[lumiere]`). **`u_veil`** dans `godot/shaders/ocean.gdshader` — la part du dessous qui passe à travers la surface à épaisseur nulle, donc la netteté de la ligne d'eau sur le bordé (0,55 ; 1 = vitre, 0 = encre ; atténue aussi les hauts-fonds). **`u_silt`** à côté — la vase d'un bassin, prise sur l'ABRI : une rade trouble son eau (voile abaissé, extinction montée) quand le large garde la sienne (0,55 ; 0 = le port aussi clair que le large). **`u_caustic_hull`** dans `godot/shaders/ship_caustic.gdshader` — ce que la nervure allume sur un bordé mouillé (0,42).
 Monde : `world/caraibes.json` + `world/caraibes-relief.png` (relief peint en gris), format dans `world/README.md` ; `tools/region-heightmap.js` repart des côtes réelles. Godot : une région par fiche de `world/` (la Tortue : `world/tortue.json`), reliées par des **traversées** comptées et non naviguées (`core/Passage.cs`, atterrages `approaches`) — changer de région recharge la scène.
 Quêtes : `quests/*.json`, format dans `quests/README.md` (`Naval.app.allerQuete()` pour sauter à l'étape).
@@ -192,11 +192,9 @@ La musique n'est pas embarquée (trop lourde). `node build.js` écrit
   `carnet-tortue.json` dans les données utilisateur). Ce que le bord a vu
   appartient à SA partie — à ranger dans l'enregistrement, ou dans un fichier par
   identifiant de partie, et à effacer avec elle. (Signalé le 25/09.)
-- **Brume rasante à reprendre** (signalé 25/09, capture) : ses bancs ont des
-  bords RECTILIGNES parce que le bruit est calculé par SOMMET et interpolé sur de
-  grands triangles — à passer au fragment ; et les ondulations qu'elle prend de la
-  houle sont inutiles, la nappe doit rester plate. Voir aussi son opacité par
-  nappe, quatre nappes à 1 font un mur.
+- **Brume rasante** : bords rectilignes et ondulations de houle réglés le 25/09
+  (bruit au fragment, nappes PLATES effacées là où une crête les traverse).
+  Reste son opacité par nappe — quatre nappes à 1 font un mur.
 - **Journal de bord** : écrit et les pages tournent (⇧I, ← →, ⇧Entrée).
   Reste le modèle du livre sur le bureau — une surface nommée `journal` suffit,
   rien à coder.

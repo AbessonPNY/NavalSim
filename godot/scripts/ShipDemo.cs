@@ -165,6 +165,7 @@ public partial class ShipDemo : Node3D
         _spray = new SprayNode();
         AddChild(_spray);
         BuildJournal();
+        BuildWraith();
         _mist = new MistNode();
         AddChild(_mist);
         _mist.Material.SetShaderParameter("u_mist_top", (float)_mistTop);
@@ -184,6 +185,10 @@ public partial class ShipDemo : Node3D
         _gunFx = new GunFxNode { Timber = _splinters };
         AddChild(_gunFx);
         _gunnery = new Gunnery(_gunRules);
+        // ce que le coup éclaire de son propre bord : réglé à l'œil, pas mesuré
+        _gunFx.FlashEnergy = _gunRules.FlashEnergy;
+        _gunFx.FlashRange = _gunRules.FlashRange;
+        _gunFx.FlashLife = _gunRules.FlashLife;
         WireGuns();
         _flotsam = new FlotsamNode();
         AddChild(_flotsam);
@@ -1135,6 +1140,7 @@ public partial class ShipDemo : Node3D
             _lightning.Rebase(-dx, -dz);
             _cordage.Rebase(-dx, -dz);
             _dolphins?.Rebase(-dx, -dz);
+            _wraith?.Rebase(-dx, -dz);
             _splinters.Rebase(-dx, -dz);
             _gunnery.Rebase(-dx, -dz);
             foreach (var pr in _pirates.Values) pr.Rebase(-dx, -dz);
@@ -1304,6 +1310,9 @@ public partial class ShipDemo : Node3D
         foreach (var s in _others) s.SetLantern(_sky.Core.Night, _t, _cam.GlobalPosition, _sky.Core);
         // après les feux : la scène lit la nuit par leur règle
         GhostTick(frame);
+        /* LE VAISSEAU QUI RÔDE, après les feux comme la bataille fantôme : il vient
+           à la LUMIÈRE, et il lui faut donc savoir ce que le bord montre. */
+        WraithTick(frame, frame * _sky.DayRate / 60.0);
         // et la mer les voit : leur reflet et leur lumière sur l'eau
         int lamps = _ship.FillLamps(_sea.Lamps, _sea.LampRange, 0);
         foreach (var s in _others) lamps += s.FillLamps(_sea.Lamps, _sea.LampRange, lamps);
@@ -1319,6 +1328,9 @@ public partial class ShipDemo : Node3D
         float straddle = (float)Math.Max(0, 1 - Math.Abs(seaY - ce.Y) / 0.5);
         bool under = seaY > ce.Y || straddle > 0.01f;
         _sea.Material?.SetShaderParameter("u_submerged", under ? 1f : 0f);
+        /* ET LES BOUFFÉES AVEC : de dessous, le feu des canons ne traverse la
+           fenêtre de Snell que s'il est dessiné avant la mer, qui lit l'écran. */
+        _gunFx.Submerged(under);
         // et la passe sous-marine, qui n'existe que là : l'eau qui éteint, les rais qui descendent
         _under.Enabled = under;
         /* ET L OREILLE AVEC L OEIL : la bande d un demi-metre autour de la surface
@@ -1901,6 +1913,8 @@ public partial class ShipDemo : Node3D
                    changer de monture — c est la quitter pour y revenir. */
                 case Key.N: Say(BoatSwing()); break;
                 case Key.F: _follow = !_follow; break;
+                // ⇧C : la chambre seule — le capitaine dort parfois
+                case Key.C when k.ShiftPressed: DouseCabin(); break;
                 case Key.C: CycleCamera(); break;
                 case Key.X: if (_fixed) Plant(); break;
                 /* LE PLAN D'ARRIMAGE, sur la seule place de lettre qui ne servait à
@@ -2120,6 +2134,7 @@ public partial class ShipDemo : Node3D
             if (root.TryGetProperty("calendar", out var c) && c.TryGetProperty("start", out var s))
                 _calendar = new Calendar(s.GetString());
             if (root.TryGetProperty("ghosts", out var gh)) _ghosts.Rules = GhostRules.FromJson(gh);
+            if (root.TryGetProperty("wraith", out var vf)) _wraithRules = WraithRules.FromJson(vf);
             if (root.TryGetProperty("whale", out var wh)) _whaleRules = WhaleSettings.FromJson(wh);
             if (root.TryGetProperty("serpent", out var sp)) _serpentRules = SerpentSettings.FromJson(sp);
             if (root.TryGetProperty("fog", out var fg))
@@ -3324,6 +3339,11 @@ public partial class ShipDemo : Node3D
                 /* LA LUMIÈRE DU FOND, à la volée : pour comparer deux images de la
                    même vue, ce qui est la seule façon d'en connaître le prix. */
                 // LES DAUPHINS : les faire venir tout de suite
+                // LE VAISSEAU FANTÔME : le faire paraître tout de suite
+                case "--fantome":
+                    if (args[i + 1] != "0")
+                        _wraith?.Summon(_ship.Physics.Body.Pos.X, _ship.Physics.Body.Pos.Z);
+                    break;
                 // LA CHALOUPE : l affaler tout de suite
                 case "--chaloupe": if (args[i + 1] != "0") GD.Print("chaloupe : " + BoatSwing()); break;
                 case "--dauphins":

@@ -140,6 +140,19 @@ public sealed class GunnerySettings
     /// </summary>
     public double RecoilSpeed = 2;
 
+    /// <summary>
+    /// LE FEU DE BOUCHE COMME LUMIÈRE — ce que le coup éclaire de son propre bord.
+    ///
+    /// Trois nombres, et ils ne servent qu'à l'œil : l'ÉNERGIE de la lampe, sa
+    /// PORTÉE en mètres, et ce qu'elle DURE en secondes. Ce sont les seuls
+    /// réglages d'artillerie qui ne changent rien au combat — une pièce ne tire
+    /// ni plus loin ni plus fort parce que sa flamme éclaire mieux.
+    ///
+    /// L'énergie et la portée montent en k², k étant le calibre relatif : une
+    /// pièce de chasse éclaire moins qu'un trente-six, ce qui est juste.
+    /// </summary>
+    public double FlashEnergy = 34, FlashRange = 26, FlashLife = 0.22;
+
     public static GunnerySettings FromJson(JsonElement j)
     {
         var s = new GunnerySettings();
@@ -147,6 +160,10 @@ public sealed class GunnerySettings
         { s.ReloadLo = r[0].GetDouble(); s.ReloadHi = r[1].GetDouble(); }
         if (j.TryGetProperty("recoilSpeed", out var v) && v.ValueKind == JsonValueKind.Number)
             s.RecoilSpeed = Math.Max(0.1, v.GetDouble());
+        double D(string k, double d) => j.TryGetProperty(k, out var e) && e.ValueKind == JsonValueKind.Number ? e.GetDouble() : d;
+        s.FlashEnergy = Math.Max(0, D("flashEnergy", s.FlashEnergy));
+        s.FlashRange = Math.Max(1, D("flashRange", s.FlashRange));
+        s.FlashLife = Math.Max(0.01, D("flashLife", s.FlashLife));
         return s;
     }
 }

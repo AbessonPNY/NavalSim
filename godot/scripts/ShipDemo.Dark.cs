@@ -32,4 +32,23 @@ public partial class ShipDemo : Node3D
             : "Rallumez les feux !");
         if (nuit) JournalLog(dark ? "Feux couverts." : "Feux rallumés.");
     }
+
+    /// <summary>
+    /// LA CHAMBRE SEULE (⇧C) — le capitaine se couche. Sa bougie s'éteint, ses
+    /// fenêtres de poupe s'éteignent avec, et le fanal reste allumé : un navire
+    /// qui fait route porte ses feux, et ce n'est pas parce qu'on dort qu'on
+    /// devient invisible.
+    ///
+    /// C'est aussi la SONDE d'une question qu'on ne pouvait pas trancher à l'œil :
+    /// la chambre reste-t-elle claire quand ce qui l'éclaire est mort ? Un fanal
+    /// est une lumière OMNIDIRECTIONNELLE, et il traverse le bordé dès que les
+    /// ombres portées sont coupées (Réglages → Ombres des fanaux). Éteindre la
+    /// chambre seule répond : si elle reste claire, la lumière vient du dehors.
+    /// </summary>
+    void DouseCabin()
+    {
+        bool dark = !_ship.CabinDark;
+        _ship.DouseCabin(dark, _t);
+        Say(dark ? "Le capitaine souffle sa bougie" : "On rallume dans la chambre");
+    }
 }

@@ -8225,6 +8225,38 @@ de la brume. Le premier jet en coûtait **0,96** : cinq nappes sur un disque de
 340 m, c'est-à-dire cinq fois l'écran en surimpression. Quatre nappes sur 250 m
 donnent la même chose à un cinquième du prix.
 
+### Les nappes sont plates, et c'est la houle qui passe au travers
+
+Reprise, deux défauts signalés l'un après l'autre : « les ondulations à sa
+surface sont inutiles », puis « celui au ras de l'eau passe sous l'eau avec la
+houle et ça crée des effets étranges ». C'est la même faute vue deux fois.
+
+Les nappes étaient posées SUR la houle, ce qui paraissait la bonne idée — la
+brume s'accumule dans le creux d'une lame, et c'est là qu'on la voit le mieux.
+Mais une brume de rayonnement ne monte ni ne descend avec la mer : c'est de
+l'air froid posé là, et un air posé est HORIZONTAL. La nappe qui suivait la
+lame était donc fausse d'abord ; et comme elle la suivait à hauteur constante,
+la plus basse plongeait sous la surface dans le creux d'à côté — l'eau étant
+translucide, on la voyait dessous, en plaques grises aux bords droits.
+
+Les nappes sont maintenant à hauteur fixe au-dessus du niveau moyen. On calcule
+toujours la hauteur d'eau, mais pour l'EFFACER : la brume s'éteint là où une
+crête traverse la nappe (`smoothstep(0, 0.30, y − h)`). Le résultat est celui
+qu'on cherchait au départ — elle reste dans les creux et la lame la perce —
+sans qu'aucune nappe puisse passer dessous.
+
+**Et le bruit est passé au fragment.** Il était calculé au sommet : quatorze
+anneaux sur le rayon, donc la nappe se lisait en grands polygones aux bords
+RECTILIGNES, ce qu'on voit sur la capture. Une brume n'a pas d'arêtes. Deux
+octaves par fragment coûtent peu au regard de ce que la nappe couvre d'écran,
+et c'est le seul endroit où le bruit d'un objet flou a sa place.
+
+La leçon, qui vaut au-delà de la brume : **ce qui est en l'air ne suit pas la
+mer**. On avait pris l'habitude que tout épouse la houle — l'écume, les débris,
+les caustiques — parce que tout cela FLOTTE. Ce qui ne flotte pas n'a aucune
+raison de le faire, et le lui imposer crée des fautes qu'on ne voit que de
+biais.
+
 ### Dix-huit lignes emportées par un nettoyage de sonde
 
 Et une faute qu'il faut écrire, parce qu'elle a failli passer.
@@ -9681,6 +9713,61 @@ fichiers déjà sur le disque classés sans y toucher.
 Et un menu ne montre sa liste que s'il a quelque chose à proposer : sans partie
 enregistrée, le Jeu libre prend la mer tout de suite et « Missions » ouvre
 directement le choix des missions, comme avant.
+
+## La chambre du capitaine s'éteint seule (Godot)
+
+Signalé : « il semblerait que la lanterne arrière du navire éclaire dans la
+cabine du capitaine ». Une lanterne est une lumière OMNIDIRECTIONNELLE, et elle
+traverse le bordé dès que ses ombres portées sont coupées (Réglages → Ombres des
+fanaux) — c'était la cause probable, mais on ne pouvait pas la trancher à l'œil :
+tant que la bougie de la chambre et les fenêtres de poupe brûlent, on ne sait pas
+d'où vient la clarté.
+
+D'où **⇧C**, qui n'éteint QUE la chambre. C'est une commande de jeu — le
+capitaine dort parfois, sa bougie s'éteint et ses fenêtres avec, tandis que le
+fanal reste allumé : un navire qui fait route porte ses feux, et ce n'est pas
+parce qu'on dort qu'on devient invisible. Et c'est en même temps la SONDE :
+chambre éteinte, si elle reste claire, la lumière vient du dehors.
+
+La mécanique est celle de ⇧L, dédoublée. `Veil(rang, t, chambre)` lit deux
+tournées séparées — celle du pont, qui a une MARCHE (un homme part de l'arrière
+et remonte, `rang × 1,1 s`), et celle de la chambre, qui n'en a pas : une
+bougie qu'on souffle s'éteint, on ne marche pas jusqu'à elle. ⇧L couvre les deux,
+parce que faire l'obscurité veut dire toute l'obscurité ; ⇧C ne touche que la
+seconde. Ce qui distingue les deux familles existait déjà : `kind: "candle"`
+dans la fiche.
+
+Vérifié sans écran sur la frégate du XVIIe, seule coque qui ait une bougie de
+chambre : la bougie tombe de 0,08 à 0 en sept dixièmes de seconde pendant que les
+deux fanaux continuent de vaciller entre 0,13 et 0,21.
+
+## Le feu du canon, vu d'en dessous (Godot)
+
+Signalé : « depuis sous l'eau le feu des canons n'apparaît plus ». Ce n'était pas
+une affaire d'opacité mais d'ORDRE, et le raisonnement vaut pour tout ce qui est
+transparent.
+
+La mer est OPAQUE (`ALPHA = 1.0`) et montre ce qui est au-delà en LISANT
+L'ÉCRAN déjà dessiné (`hint_screen_texture`). Tout ce qui se dessine après elle
+n'est pas dans cette texture, donc ne traverse pas la fenêtre de Snell. Les
+coques et le ciel, qui sont opaques, passent avant et se voient ; les bouffées,
+qui sont transparentes, passent après et disparaissaient.
+
+On ne peut pas les mettre devant une fois pour toutes : au-dessus de l'eau la
+mer, dessinée ensuite, les RECOUVRIRAIT — elles n'écrivent pas de profondeur
+(`depth_draw_never`), et la mer n'a donc rien contre quoi se faire refuser. La
+priorité de rendu bascule donc avec l'œil : −3 quand il est sous l'eau (la mer
+est à −1), 0 sinon. Sous l'eau c'est exactement ce qu'il faut — la mer les
+recouvre, mais après les avoir lues dans l'écran et teintées de son épaisseur
+d'eau, ce qui est ce que l'on voit d'une flamme depuis le fond.
+
+**Et le feu éclaire davantage.** Demandé plus puissant et plus long ; les trois
+nombres passent dans `settings.json → gunnery` — `flashEnergy` 16 → 34,
+`flashRange` 18 → 26 m, `flashLife` 0,10 → 0,22 s. Ils montent en k², k étant
+le calibre relatif : une pièce de chasse éclaire moins qu'un trente-six, ce qui
+est juste. Ce sont les seuls réglages d'artillerie qui ne changent RIEN au
+combat — une pièce ne tire ni plus loin ni plus fort parce que sa flamme éclaire
+mieux —, et c'est pourquoi ils peuvent se régler à l'œil sans rien mesurer.
 
 ## Conventions
 
