@@ -40,10 +40,12 @@ Ouvrez-le dans Blender, modifiez, puis **Fichier → Exporter → glTF 2.0**, fo
 - Pas d'animation ni d'armature à prévoir : la courbure est calculée.
 - Le rayon de touche du corps suit la taille du modèle.
 
-## Les dauphins — `creatures/dolphin.glb`
+## Les dauphins — `creatures/dolphin.glb` (page et Godot)
 
-Nommé par `settings.json` → `dolphins.glb`. Absent ou illisible : les dauphins
-restent dessinés par le code. Le build l'embarque. Modèle de départ :
+Nommé par `settings.json` → `dolphins.glb`. **Le même modèle et le même bloc de
+réglages pour les deux moteurs** ; la règle du banc est partagée
+(`core/Dolphins.cs`, portage de `js/dolphins.js`). Absent ou illisible : la page
+les dessine elle-même, Godot s'en passe. Le build l'embarque. Modèle de départ :
 
 ```bash
 node tools/dolphin-glb.js
@@ -62,6 +64,26 @@ node tools/dolphin-glb.js
   est calculée. Les nageoires sont des plaques fines à matière double face.
 - Chaque dauphin reçoit sa copie du modèle ; la taille varie un peu d'un animal
   à l'autre (×0,85 à ×1,2).
+- Sept au plus. Ils ne sont PAS instanciés en `MultiMesh` comme les mouettes ou
+  les bancs de poissons : chacun poursuit le navire avec son propre ressort, ce
+  qu'un shader ne peut pas faire — il ne sait rien de l'erre du bord.
+- En jeu : `-- --dauphins 1` les fait venir tout de suite.
+
+## Les mouettes — dessinées, sans modèle
+
+Rien à modeler : deux ailes effilées, un corps et une queue, bâtis par le code
+des deux côtés (`js/gulls.js`, `godot/scripts/GullNode.cs`), couleurs dans les
+sommets — le manteau gris qui court vers des pointes noires est le seul marquage
+qui survive à trois pixels de haut.
+
+Douze oiseaux, dont quatre sortent au navire et huit restent sur leur perchoir,
+qui est le point de rivage le plus proche. Côté Godot ils sont **deux
+`MultiMesh`** — un par cercle — et tout leur vol est dans le vertex shader
+(`gull.gdshader`) : position sur le cercle, cap tangent, inclinaison dans le
+virage, battement par salves. Zéro calcul par oiseau, deux appels de dessin.
+
+La règle collective (d'où le bandeau se pose, quand les suiveuses rentrent) est
+dans `core/Gulls.cs`. En jeu : `-- --mouettes 0|1`.
 
 ## Les marins — `creatures/sailor.glb`
 

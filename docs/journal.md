@@ -7975,6 +7975,57 @@ repasse dessus à 0,35, sans quoi une vague qui lèche l'objectif ferait clapote
 à chaque image. La même raison que le seuil du pirate qui louvoie à la limite,
 et la même réponse.
 
+## Les mouettes et les dauphins, le dernier trou du portage (Godot)
+
+Relevé module par module : sur les quarante-trois de la page, **deux seulement**
+n'avaient aucun équivalent Godot — `js/gulls.js` et `js/dolphins.js`. Ce sont les
+deux qui viennent d'être portés, et ils ont demandé deux architectures
+opposées, pour une raison qui vaut d'être retenue.
+
+### Ce qui peut vivre dans un shader, et ce qui ne le peut pas
+
+**Une mouette ne sait rien du navire.** Son vol est de l'arithmétique fermée :
+une position sur un cercle, un cap tangent, une inclinaison dans le virage, un
+battement par salves. Rien là-dedans n'a besoin d'être calculé par le
+processeur — les douze oiseaux sont donc **deux MultiMesh** (un par cercle,
+celui des suiveuses et celui du perchoir) dont les transformations d'instance ne
+bougent jamais ; chacune porte quatre nombres et `gull.gdshader` en tire tout le
+reste à chaque image. Mesuré : 2,65 ms de carte contre 2,68 sans, c'est-à-dire
+rien.
+
+**Un dauphin, si.** Il poursuit le navire avec un ressort, emporte son erre pour
+que la poursuite ne porte que sur l'écart, et se borne à la vitesse d'un nageur.
+Un shader ne peut pas faire cela : il ne sait rien de la route du bord. Les sept
+animaux sont donc sept nœuds, posés chaque image d'après l'état que le noyau
+tient — et cela coûte 0,02 ms de processeur, c'est-à-dire rien non plus. La
+leçon n'est pas « le shader est plus rapide », c'est : **ce qui ne dépend que de
+soi va dans le shader ; ce qui dépend d'un autre reste au processeur.**
+
+### Porter, et non réécrire
+
+Les deux règles passent par le noyau (`core/Gulls.cs`, `core/Dolphins.cs`),
+transcrites de la page ligne à ligne : le ressort et son plafond, le cycle de
+remontée avec ses 28 % d'arc hors de l'eau, le saut une fois sur cinq et demie,
+les deux gerbes — une nappe en perçant la surface, un panache plus lourd en y
+rentrant la tête la première —, la glissade du cercle des mouettes vers l'île
+avec sa bande morte entre 80 % et 100 % de la portée. Les dauphins lisent le
+MÊME bloc de `settings.json` que la page, clés anglaises comprises, et le MÊME
+`creatures/dolphin.glb` — y compris les trois noms de nœud que la fiche du
+modèle annonçait déjà pour la caudale, dont Godot ne reconnaissait d'abord
+qu'un.
+
+**Une erreur d'horloge, trouvée en relisant :** le tirage de leur arrivée
+compte en HEURES DE JEU, et je les avais prises à `DayRate/3600` au lieu de
+`DayRate/60`. Le ciel, lui, avance bien de `dt · DayRate / 60` — « une minute
+réelle pour DayRate heures de ciel ». Une bande serait venue soixante fois moins
+souvent que dans la page, ce qui ne se serait jamais vu comme un défaut : on
+aurait conclu qu'ils sont rares.
+
+Reste à leur donner un `settings.json` : les mouettes ont leurs constantes dans
+`core/Gulls.cs`, aux valeurs de la page, et un lecteur pour un bloc `gulls` s'il
+paraît un jour — mais la page ne le lirait pas, et une donnée que les deux
+moteurs ne partagent pas est exactement ce que ce projet refuse.
+
 ## Le havre n'était pas dans le même repère que la mer (Godot)
 
 Signalé : « le navire à quai est comme figé, il ne gîte pas » — puis, ce qui a

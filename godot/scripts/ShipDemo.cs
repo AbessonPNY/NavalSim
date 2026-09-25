@@ -206,6 +206,21 @@ public partial class ShipDemo : Node3D
             _sea.Core.Shelter = (x, z) => _world.Shelter(x, z);
             _land = new LandNode(_world) { CausticRules = _causticRules };
             AddChild(_land);
+            /* LES MOUETTES, qui disent la terre de plus loin que la terre : leur
+               perchoir est le rivage le plus proche, que le monde sait rendre. */
+            _gulls = new GullNode(_gullRules);
+            AddChild(_gulls);
+            /* LES DAUPHINS DE L'ÉTRAVE. Le noyau tient la bande, le nœud la pose ;
+               le modèle peut venir de godot-models/ comme tout le reste. */
+            _dolphins = new Dolphins(_dolphinRules)
+            {
+                Splash = (at, water, speed, jet) => _spray.Pool.Burst(at, water, speed, jet),
+                Say = Say,
+            };
+            _dolphinNode = new DolphinNode();
+            AddChild(_dolphinNode);
+            if (!_dolphinNode.Build(Assets.Path(_dolphinRules.Glb ?? "creatures/dolphin.glb")))
+            { _dolphinNode.QueueFree(); _dolphinNode = null; _dolphins = null; }
             /* LES BANCS DES HAUTS-FONDS, après la terre : c'est le fond qu'elle
                dessine qui décide où ils tiennent. */
             _fishNode = new FishNode { Rules = _fishRules };
@@ -1112,6 +1127,7 @@ public partial class ShipDemo : Node3D
             _serpent?.Rebase(-dx, -dz);
             _lightning.Rebase(-dx, -dz);
             _cordage.Rebase(-dx, -dz);
+            _dolphins?.Rebase(-dx, -dz);
             _splinters.Rebase(-dx, -dz);
             _gunnery.Rebase(-dx, -dz);
             foreach (var pr in _pirates.Values) pr.Rebase(-dx, -dz);
@@ -1145,6 +1161,17 @@ public partial class ShipDemo : Node3D
             // le niveau de la mer sous le navire décide de la hauteur d'eau
             _fishNode?.Update(_world, here, new Vec3d(wo.X, 0, wo.Z), frame,
                 _sea.Core.Sample(b.Pos.X, b.Pos.Z, _t));
+            _gulls?.Update(_world, here, new Vec3d(wo.X, 0, wo.Z), frame, _t);
+            if (_dolphins != null)
+            {
+                /* L'ÉTAT DE MER ET LA CÔTE décident s'ils viennent ; le temps de
+                   jeu écoulé, à quelle fréquence. Les heures sont celles de
+                   l'horloge du ciel, comme dans la page. */
+                _dolphins.Step(frame, b, _ship.Spec, _force, frame * _sky.DayRate / 60.0,
+                    _world.ShoreDistance(here.X, here.Z), _t,
+                    (x, z) => _sea.Core.Sample(x, z, _t));
+                _dolphinNode?.Sync(_dolphins);
+            }
             foreach (var m in _land.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
             if (_town != null)
             {
@@ -1367,6 +1394,7 @@ public partial class ShipDemo : Node3D
         if (_whaleNode != null && _whaleNode.Visible) foreach (var m in _whaleNode.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
         if (_serpentNode != null && _serpentNode.Visible) foreach (var m in _serpentNode.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
         foreach (var m in _cordage.Hazed) _sky.PushTo(m);
+        if (_dolphinNode != null) foreach (var m in _dolphinNode.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
         foreach (var m in _splinters.Hazed) _sky.PushTo(m);
         foreach (var m in _gunFx.Hazed) _sky.PushTo(m);
         foreach (var m in _flotsam.Hazed) _sky.PushTo(m);
@@ -1989,6 +2017,28 @@ public partial class ShipDemo : Node3D
     /// <summary>Les bancs des hauts-fonds : settings.json → fish.</summary>
     FishSettings _fishRules = new();
     FishNode? _fishNode;
+    /// <summary>Les mouettes : settings.json → gulls, s'il existe.</summary>
+    static GullRules GullsJson(System.Text.Json.JsonElement k)
+    {
+        var g = new GullRules();
+        double D(string n, double v) => k.TryGetProperty(n, out var e) && e.ValueKind == System.Text.Json.JsonValueKind.Number ? e.GetDouble() : v;
+        if (k.TryGetProperty("enabled", out var on) && (on.ValueKind == System.Text.Json.JsonValueKind.False || on.ValueKind == System.Text.Json.JsonValueKind.True))
+            g.Enabled = on.GetBoolean();
+        g.Count = (int)Math.Clamp(D("nombre", g.Count), 0, 200);
+        g.Followers = (int)Math.Clamp(D("suiveuses", g.Followers), 0, g.Count);
+        g.Span = Math.Clamp(D("envergure", g.Span), 0.2, 6);
+        g.ShoreRange = Math.Max(100, D("portee", g.ShoreRange));
+        g.Reach = Math.Max(50, D("rayon", g.Reach));
+        return g;
+    }
+
+    /// <summary>Les mouettes des côtes : settings.json → gulls.</summary>
+    GullRules _gullRules = new();
+    GullNode? _gulls;
+    /// <summary>Les dauphins de l'étrave : settings.json → dolphins, le bloc de la page.</summary>
+    DolphinRules _dolphinRules = new();
+    Dolphins? _dolphins;
+    DolphinNode? _dolphinNode;
     SeaFog? _seaFog;
     bool _saidFog;
 
@@ -2033,6 +2083,8 @@ public partial class ShipDemo : Node3D
             if (root.TryGetProperty("snow", out var sw)) _snowRules = SnowSettings.FromJson(sw);
             if (root.TryGetProperty("caustics", out var ca)) _causticRules = CausticSettings.FromJson(ca);
             if (root.TryGetProperty("fish", out var fi)) _fishRules = FishSettings.FromJson(fi);
+            if (root.TryGetProperty("gulls", out var mo)) _gullRules = GullsJson(mo);
+            if (root.TryGetProperty("dolphins", out var da)) _dolphinRules = DolphinRules.FromJson(da);
             if (root.TryGetProperty("storm", out var st))
             {
                 if (st.TryGetProperty("lightning", out var li)) _lightRules = LightningSettings.FromJson(li);
@@ -3202,6 +3254,14 @@ public partial class ShipDemo : Node3D
                 case "--plongee": _diveSpeed = args[i + 1].ToFloat(); break;
                 /* LA LUMIÈRE DU FOND, à la volée : pour comparer deux images de la
                    même vue, ce qui est la seule façon d'en connaître le prix. */
+                // LES DAUPHINS : les faire venir tout de suite
+                case "--dauphins":
+                    if (args[i + 1] != "0") _dolphins?.Summon(_ship.Physics.Body.Pos, _ship.Physics.Body.Quat);
+                    break;
+                // LES MOUETTES, à la volée
+                case "--mouettes":
+                    if (_gulls != null) _gulls.Visible = args[i + 1] != "0";
+                    break;
                 // LES BANCS, à la volée : pour comparer deux images de la même vue
                 case "--poissons":
                     if (_fishNode != null) _fishNode.Visible = args[i + 1] != "0";
