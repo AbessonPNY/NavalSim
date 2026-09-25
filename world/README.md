@@ -299,5 +299,20 @@ platier est l'interdit : la chaloupe tire 0,44 m et passe, la vedette 1,00 et
 touche, le chaland 2,30 et le Roter Löwe 3,85. On mouille dehors et l'on finit à
 l'aviron. Les trois chiffres à retoucher sont en tête de l'outil.
 
-Les cocotiers viennent de `node tools/palm-glb.js` (`world/assets/cocotier.glb`)
-et sont posés par `assets`, comme tout modèle du monde.
+Les cocotiers viennent de `node tools/palm-glb.js` (`props/cocotier.glb`) et
+sont posés par `assets`, comme tout modèle du monde.
+
+**Pour en modeler un dans Blender**, trois choses et rien d'autre :
+
+- **l'origine au PIED du tronc**, à la hauteur du sol : le jeu pose l'objet sur
+  le relief par son origine, et une origine au milieu du stipe l'enterrerait à
+  mi-hauteur ;
+- **le haut vers +Z dans Blender** (l'export glTF en fait +Y), **unités : le
+  mètre, à l'échelle du jeu** — celui du code fait 10,6 m de haut ;
+- **les couleurs dans les sommets**, ou une texture INCLUSE dans le `.glb` : la
+  page ne peut charger aucun fichier à côté.
+
+L'orientation autour de la verticale n'a pas à être choisie dans le modèle :
+chaque entrée `assets` porte son `yaw` et son `scale`.
+
+Pour le regarder sans ouvrir Blender : `node tools/glb-look.js props/cocotier.glb`.

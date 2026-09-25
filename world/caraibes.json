@@ -60,11 +60,11 @@
   ],
 
   "assets": [
-    { "name": "Cocotier", "glb": "world/assets/cocotier.glb",
+    { "name": "Cocotier", "glb": "props/cocotier.glb",
       "lat": 17.840114, "lon": -76.900176, "yaw": 40, "scale": 1 },
-    { "name": "Cocotier", "glb": "world/assets/cocotier.glb",
+    { "name": "Cocotier", "glb": "props/cocotier.glb",
       "lat": 17.840228, "lon": -76.899739, "yaw": 200, "scale": 0.86 },
-    { "name": "Cocotier", "glb": "world/assets/cocotier.glb",
+    { "name": "Cocotier", "glb": "props/cocotier.glb",
       "lat": 17.839753, "lon": -76.899886, "yaw": 310, "scale": 1.1 }
   ]
 }

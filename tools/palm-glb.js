@@ -1,6 +1,6 @@
 /* UN COCOTIER, à poser sur un îlot.
  *
- *   node tools/palm-glb.js                       # écrit world/assets/cocotier.glb
+ *   node tools/palm-glb.js                       # écrit props/cocotier.glb
  *   node tools/palm-glb.js autre/chemin.glb
  *
  * Écrit comme les maisons et l'église (tools/town-glb.js) : dessiné par le code,
@@ -23,7 +23,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const out = process.argv[2] || 'world/assets/cocotier.glb';
+const out = process.argv[2] || 'props/cocotier.glb';
 
 const H = 9.5;              // la hauteur du stipe, en mètres
 const LEAN = 0.16;          // ce qu'il penche, en part de sa hauteur
