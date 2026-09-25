@@ -7975,6 +7975,72 @@ repasse dessus à 0,35, sans quoi une vague qui lèche l'objectif ferait clapote
 à chaque image. La même raison que le seuil du pirate qui louvoie à la limite,
 et la même réponse.
 
+## Les caustiques sur les carènes, et la vase des rades (Godot)
+
+Deux demandes du même regard : mettre la lumière de l'eau sur ce qui est mouillé,
+et **rendre l'eau du port moins transparente** — « les caustiques révèlent le
+fond », et c'est vrai, éclairer le sable a rendu criant qu'on voyait à travers
+onze mètres d'eau de rade.
+
+### Ce qui est mouillé prend la même lumière
+
+La fonction existe déjà et elle est partagée (`caustics.gdshaderinc`) : on lui
+donne un point du monde, elle rend le facteur de lumière que la houle y
+rassemble. Un point de coque à un mètre sous la surface reçoit la caustique d'un
+mètre d'eau, exactement comme un sable à un mètre — et elle rend exactement UN
+au-dessus de l'eau, si bien que **la ligne de flottaison se dessine d'elle-même,
+à la vague près**, sans qu'on ait à la chercher.
+
+Trois décisions, chacune contre une tentation :
+
+**Elle AJOUTE au lieu de multiplier, et c'est un écart assumé.** Sur le fond le
+facteur multiplie l'albédo, ce qui est l'opération juste — une caustique déplace
+la lumière, elle n'en donne pas. Sur un modèle .glb la matière est celle de
+l'artiste, on ne la réécrit pas, et une passe multiplicative n'est pas dessinée
+sous Forward+ (mesuré il y a deux jours). Reste l'addition, qui rend les nervures
+claires et perd ce qu'elles ôtent entre elles. Sur une carène le marché est bon :
+ce qu'on regarde, ce sont les traits de lumière qui courent sur le bordé.
+
+**UNE passe pour toute la flotte**, coques procédurales et modèles ensemble : la
+nervure ne dépend que de la houle et de l'endroit du monde, jamais du navire.
+Seize matériaux auraient demandé de pousser le spectre seize fois par image pour
+le même résultat.
+
+**Et elle est en QUEUE de chaîne, pas au milieu.** Première version : accrochée
+avant la passe des blessures. Or celle-ci est PROPRE à un navire, et un matériau
+partagé qui la porte donne à toutes les coques les plaies et la neige de la
+dernière construite. L'ordre de DESSIN, lui, ne suit pas la chaîne mais les
+priorités : à −7 elle est peinte juste après la coque opaque, donc sous les
+blessures, sous la neige et sous la brume — l'air est devant tout. **La chaîne
+n'est qu'une liste de « peindre aussi ceci ».**
+
+Le tri est large et il fait tout le prix : rien au-dessus de trois mètres et demi
+du niveau moyen n'est jamais mouillé, ce qui écarte d'un `discard` la mâture, les
+hauts et les ponts — l'essentiel des pixels d'un navire. Coût de l'ensemble
+(fond et carènes), au minimum de trois allers-retours : **0,22 ms**. La machine
+était bruyante ce matin, les mêmes mesures allant de 2,67 à 3,33 ms sans que le
+réglage y soit pour rien ; d'où le minimum plutôt que la moyenne.
+
+### La vase d'un bassin
+
+Une rade n'a pas l'eau du large. Elle reçoit la terre, les rivières et le
+remuement des coques, et l'on n'y voit pas le fond par onze mètres. Plutôt qu'un
+trouble uniforme qui aurait éteint aussi la clarté du large, il est pris sur
+**l'ABRI**, qui dit déjà ce qu'est un bassin — un havre bien fermé vaut 0,12
+d'abri, le large 1 :
+
+    trouble = (1 − abri) · u_silt
+
+et il porte sur les deux termes qui font voir au travers, le voile de surface
+(ce qui passe à épaisseur nulle) et l'extinction par mètre. Au mouillage de
+Port-Royal, le voile tombe d'un tiers et l'extinction plus que double : le fond
+se lit encore à deux ou trois mètres, et plus du tout à onze.
+
+C'est la même cause dans la nature, ce qui est le meilleur signe qu'on n'a pas
+inventé un cadran de plus : **l'eau qui ne se renouvelle pas est l'eau qui garde
+ce qu'on y met.** Le calme et le trouble ont une seule raison, et le shader n'en
+lit qu'une.
+
 ## Les mouettes et les dauphins, le dernier trou du portage (Godot)
 
 Relevé module par module : sur les quarante-trois de la page, **deux seulement**

@@ -206,6 +206,7 @@ public partial class ShipDemo : Node3D
             _sea.Core.Shelter = (x, z) => _world.Shelter(x, z);
             _land = new LandNode(_world) { CausticRules = _causticRules };
             AddChild(_land);
+            CausticDials();
             /* LES MOUETTES, qui disent la terre de plus loin que la terre : leur
                perchoir est le rivage le plus proche, que le monde sait rendre. */
             _gulls = new GullNode(_gullRules);
@@ -652,6 +653,7 @@ public partial class ShipDemo : Node3D
             sm.SetShaderParameter("u_ride_gain", s.SeaRideGain);
             _land?.Ground.SetShaderParameter("u_ride_gain", s.SeaRideGain);
             _fishNode?.Material?.SetShaderParameter("u_ride_gain", s.SeaRideGain);
+            ShipNode.Caustic?.SetShaderParameter("u_ride_gain", s.SeaRideGain);
             sm.SetShaderParameter("u_cap_gain", s.SeaCapGain);
             sm.SetShaderParameter("u_foam_gain", s.SeaFoamGain);
             sm.SetShaderParameter("u_jac_foam", s.SeaJacobian);
@@ -1239,8 +1241,11 @@ public partial class ShipDemo : Node3D
            remplit les tableaux de cette image. Deux copies du spectre finiraient
            par ne plus l'être, et le fond scintillerait sur une houle que l'œil
            ne voit pas : c'est la panne silencieuse habituelle. */
+        if (ShipNode.Caustic != null && !_causticDialed) { CausticDials(); _causticDialed = true; }
         if (_land != null) PushSea(_land.Ground);
         if (_fishNode?.Material is ShaderMaterial fm) PushSea(fm);
+        // la MÊME lumière sur les carènes, et une seule passe pour toute la flotte
+        if (ShipNode.Caustic is ShaderMaterial hc) PushSea(hc);
         void PushSea(ShaderMaterial m)
         {
             _sea.PushWaves(m);
@@ -1413,6 +1418,7 @@ public partial class ShipDemo : Node3D
         _sea.Material?.SetShaderParameter(U.Ripple, ripple);
         _land?.Ground.SetShaderParameter(U.Ripple, ripple);
         _fishNode?.Material?.SetShaderParameter(U.Ripple, ripple);
+        ShipNode.Caustic?.SetShaderParameter(U.Ripple, ripple);
         var wv = _sea.Core.WindVec;
         double ws = Math.Sqrt(wv.X * wv.X + wv.Z * wv.Z);
         if (ws > 1e-4)
@@ -1421,6 +1427,7 @@ public partial class ShipDemo : Node3D
             _sea.Material?.SetShaderParameter(U.Wind, wu);
             _land?.Ground.SetShaderParameter(U.Wind, wu);
             _fishNode?.Material?.SetShaderParameter(U.Wind, wu);
+            ShipNode.Caustic?.SetShaderParameter(U.Wind, wu);
         }
 
         _hudAcc += frame;
@@ -2014,7 +2021,24 @@ public partial class ShipDemo : Node3D
     SnowSettings _snowRules = new();
     /// <summary>La lumière de la houle sur le fond : settings.json → caustics.</summary>
     CausticSettings _causticRules = new();
+    /// <summary>
+    /// LES CADRANS DES CAUSTIQUES SUR LA PASSE DES CARÈNES — les mêmes qu'au
+    /// fond, lus une seule fois. La passe est créée par la première coque à
+    /// naître, donc après ce point : on la règle aussi à sa naissance, et ici
+    /// pour celles qui suivent.
+    /// </summary>
+    void CausticDials()
+    {
+        if (ShipNode.Caustic is not ShaderMaterial m) return;
+        m.SetShaderParameter("u_caustic_gain", _causticRules.Enabled ? (float)_causticRules.Gain : 0f);
+        m.SetShaderParameter("u_caustic_depth", (float)_causticRules.Depth);
+        m.SetShaderParameter("u_caustic_far", (float)_causticRules.Far);
+        m.SetShaderParameter("u_caustic_floor", (float)_causticRules.Floor);
+        m.SetShaderParameter("u_caustic_spread", (float)_causticRules.Spread);
+    }
+
     /// <summary>Les bancs des hauts-fonds : settings.json → fish.</summary>
+    bool _causticDialed;
     FishSettings _fishRules = new();
     FishNode? _fishNode;
     /// <summary>Les mouettes : settings.json → gulls, s'il existe.</summary>
@@ -3122,6 +3146,8 @@ public partial class ShipDemo : Node3D
         _land?.Ground.SetShaderParameter("u_harbour_pass", pass);
         _fishNode?.Material?.SetShaderParameter("u_harbour", v);
         _fishNode?.Material?.SetShaderParameter("u_harbour_pass", pass);
+        ShipNode.Caustic?.SetShaderParameter("u_harbour", v);
+        ShipNode.Caustic?.SetShaderParameter("u_harbour_pass", pass);
     }
 
     /// <summary>
@@ -3267,6 +3293,8 @@ public partial class ShipDemo : Node3D
                     if (_fishNode != null) _fishNode.Visible = args[i + 1] != "0";
                     break;
                 case "--caustiques":
+                    ShipNode.Caustic?.SetShaderParameter("u_caustic_gain",
+                        args[i + 1] == "0" ? 0f : args[i + 1].ToFloat());
                     _land?.Ground.SetShaderParameter("u_caustic_gain",
                         args[i + 1] == "0" ? 0f : args[i + 1].ToFloat());
                     break;

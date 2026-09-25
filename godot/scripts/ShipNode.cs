@@ -64,6 +64,8 @@ public partial class ShipNode : Node3D
         Hazed.Add(m);
         AddSnowed(m);
         AddScarred(m);
+        // ce qui est mouillé prend la lumière de l'eau, coque dessinée comprise
+        m.NextPass = CausticPass();
         return m;
     }
 
@@ -262,6 +264,21 @@ public partial class ShipNode : Node3D
     }
 
     ShaderMaterial? _hazePass, _snowPass;
+    /// <summary>
+    /// LA LUMIÈRE DE L'EAU SUR LES CARÈNES, une seule pour TOUTE la flotte —
+    /// coques procédurales et modèles .glb —, parce qu'elle ne dépend que de la
+    /// houle et de l'endroit du monde, jamais du navire. La démo lui pousse la
+    /// mer comme elle la pousse au fond, une fois par image et non seize.
+    /// </summary>
+    public static ShaderMaterial? Caustic;
+
+    /// <summary>Elle, en la faisant naître au besoin.</summary>
+    public static ShaderMaterial CausticPass() =>
+        Caustic ??= new ShaderMaterial
+        {
+            Shader = GD.Load<Shader>("res://shaders/ship_caustic.gdshader"),
+            RenderPriority = -7,
+        };
 
     /// <summary>
     /// Poser la brume sur chaque matériau du modèle, en DERNIER de sa chaîne de
@@ -293,6 +310,22 @@ public partial class ShipNode : Node3D
         // et les blessures avant la neige : ses plaies se couvrent de blanc comme le reste
         _scarPass ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/ship_scar.gdshader"), NextPass = _snowPass, RenderPriority = -6 };
         AddScarred(_scarPass);
+        /* ET LA LUMIÈRE DE L'EAU EN TÊTE, sur ce qui est mouillé. Elle est
+           PARTAGÉE PAR TOUTES LES COQUES — un seul matériau statique — parce
+           qu'elle ne dépend de rien du navire : la nervure qui court sur un bordé
+           ne tient qu'à la houle et à l'endroit du monde. Une par navire aurait
+           demandé de pousser le spectre seize fois par image pour le même
+           résultat. */
+        /* ELLE EST EN QUEUE DE CHAÎNE ET NON AU MILIEU, et ce n'est pas un détail :
+           partagée par toute la flotte, elle ne peut porter aucun maillon PROPRE à
+           un navire. Accrochée avant la passe des blessures, elle aurait donné à
+           chaque coque les plaies et la neige de la dernière construite.
+
+           L'ORDRE DE DESSIN, lui, ne suit pas la chaîne mais les PRIORITÉS : à −7
+           elle est peinte juste après la coque opaque, donc sous les blessures,
+           sous la neige et sous la brume — ce qui est l'ordre juste, l'air étant
+           devant tout. La chaîne n'est qu'une liste de « peindre aussi ceci ». */
+        _hazePass.NextPass = CausticPass();
         var done = new HashSet<Material>();
         foreach (var (mi, _) in Meshes(obj))
             for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)

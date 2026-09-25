@@ -103,6 +103,16 @@ uniform float u_refract = 1.0;
    dès le premier centimètre : les rides brisent l'image, et une eau de rade
    porte toujours sa part de particules. 1 : une vitre ; 0 : de l'encre. */
 uniform float u_veil = 0.55;
+/* LA VASE D'UN BASSIN. Une rade n'a pas l'eau du large : elle reçoit la terre,
+   les rivières et le remuement des coques, et l'on n'y voit pas le fond par onze
+   mètres — ce que les caustiques, en éclairant le sable, ont rendu criant
+   (signalé : « l'eau est maintenant très transparente dans le port »).
+
+   Elle est prise sur L'ABRI, qui dit déjà ce qu'est un bassin : un havre bien
+   fermé vaut 0,12 d'abri, le large 1. Le trouble suit donc le calme, ce qui est
+   la même cause dans la nature — l'eau qui ne se renouvelle pas est l'eau qui
+   garde ce qu'on y met. 0 : le port aussi clair que le large. */
+uniform float u_silt = 0.55;
 /* L'OMBRE DES COQUES SUR L'EAU : la part de la lumière de l'eau qu'une coque
    retire là où elle cache le soleil. 0 : pas d'ombre ; 1 : de l'encre. La mer
    n'est pas éclairée par le moteur (unshaded) et ne reçoit donc aucune carte
@@ -126,6 +136,7 @@ varying vec3 v_nrm;
 varying float v_foam;
 varying float v_rel;
 varying float v_spacing;
+varying float v_shelter;
 
 void vertex() {
 	/* DÉPENSER LES SOMMETS LÀ OÙ ILS SONT VUS. La grille est uniforme dans le
@@ -148,6 +159,7 @@ void vertex() {
 	vec3 w0 = vec3(local.x + u_centre.x, 0.0, local.y + u_centre.z);
 	// ce qui reste de la mer derrière un môle, en mètres MONDE
 	float shelter = shelter_at(w0.xz);
+	v_shelter = shelter;
 
 	vec3 disp;
 	vec3 nrm_acc;
@@ -925,7 +937,14 @@ void fragment() {
 	   au regard droit. */
 	if (thick <= 0.0) { suv = base; thick = thick0; }
 	if (thick > 0.0) {
-		vec3 T = clamp(exp(-u_absorb * thick), 0.0, 1.0);
+		/* LE TROUBLE DE LA RADE, sur les deux termes qui font voir au travers :
+		   ce que la surface laisse passer à épaisseur nulle, et ce que l'eau
+		   éteint par mètre. Au mouillage de Port-Royal (abri 0,12) le voile tombe
+		   d'un tiers et l'extinction plus que double : le fond se lit encore à
+		   deux ou trois mètres, et plus du tout à onze. */
+		float trouble = (1.0 - v_shelter) * u_silt;
+		vec3 T = clamp(exp(-u_absorb * (1.0 + 2.5 * trouble) * thick), 0.0, 1.0);
+		float veil = u_veil * (1.0 - 0.75 * trouble);
 		vec3 behind = naval_encode(textureLod(u_screen, suv, 0.0).rgb);
 		if (u_submerged > 0.5 && !FRONT_FACING) {
 			// par en dessous, ce qu'on voit à travers la fenêtre est EN L'AIR : rien à partager
@@ -941,7 +960,7 @@ void fragment() {
 			   coque comme dans un aquarium, sans ligne d'eau (signalé). Ici le
 			   reflet reste en place, et la flottaison se découpe sur le bordé
 			   comme sur une vraie coque : de biais, presque tout est reflet. */
-			c += (1.0 - F) * T * u_veil * (behind - body);
+			c += (1.0 - F) * T * veil * (behind - body);
 		}
 	}
 
