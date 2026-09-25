@@ -68,9 +68,11 @@ public partial class ShipDemo : Node3D
         _journalView.Size = new Vector2(h * 1100 / 1500, h);
         _journalHint.Position = new Vector2(0, r.Y - 30);
         _journalHint.Size = new Vector2(r.X, 24);
-        _journalHint.Text = _journalNode?.OpenSketch != null
-            ? "Croquis : tracez à la souris · E change d'encre · Tab referme le croquis · Échap ferme le journal"
-            : "Écrivez · Tab ouvre un croquis · Retour arrière efface · molette fait défiler · Échap ferme";
+        string ou = _journal.Pages.Count > 0
+            ? $"page {_journal.At + 1} sur {_journal.Pages.Count}  ·  " : "";
+        _journalHint.Text = ou + (_journalNode?.OpenSketch != null
+            ? "Croquis : tracez à la souris · E change d'encre · Tab referme le croquis · Échap ferme"
+            : "Écrivez · Tab : croquis · ← → : tourner · ⇧Entrée : page neuve · molette : défiler · Échap : fermer");
     }
 
     /// <summary>La date du bord, écrite comme on l'écrivait, et sa forme rangeable.</summary>
@@ -138,7 +140,27 @@ public partial class ShipDemo : Node3D
                 case Key.Tab: _journalNode.Sketch(); LayoutJournal(); return true;
                 case Key.Backspace: _journalNode.Back(); return true;
                 case Key.Enter:
-                case Key.KpEnter: _journalNode.Type("\n"); return true;
+                case Key.KpEnter:
+                    /* ⇧ENTRÉE OUVRE UNE PAGE NEUVE, à la date du jour. « Des pages
+                       libres » veut dire qu'on peut en tourner une quand on veut,
+                       et pas seulement quand le calendrier l'a décidé. */
+                    if (k.ShiftPressed) { var (d2, c2) = Today(); _journal.NewPage(d2, c2); _journalNode.Scroll = 0; }
+                    else _journalNode.Type("\n");
+                    _journalNode.Refresh();
+                    LayoutJournal();
+                    return true;
+                /* TOURNER. Les flèches, parce qu'il n'y a rien d'autre à en faire
+                   dans une page dont la plume est toujours au bout : le jour où le
+                   curseur se déplacera dans le texte, il faudra les lui rendre et
+                   prendre Page précédente / Page suivante. */
+                case Key.Left:
+                case Key.Pageup:
+                    if (_journal.Turn(-1)) { _journalNode.Scroll = 0; _journalNode.Refresh(); LayoutJournal(); }
+                    return true;
+                case Key.Right:
+                case Key.Pagedown:
+                    if (_journal.Turn(+1)) { _journalNode.Scroll = 0; _journalNode.Refresh(); LayoutJournal(); }
+                    return true;
             }
             /* E CHANGE D'ENCRE, MAIS SEULEMENT LA PLUME À LA MAIN : en écriture, E
                est une lettre, et rien n'est plus agaçant qu'une touche qui fait

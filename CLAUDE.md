@@ -185,10 +185,7 @@ La musique n'est pas embarquée (trop lourde). `node build.js` écrit
 - Relief (normal map) : interrupteur et intensité dans `settings.json`.
 - Fusionner les voies d'eau d'un même endroit (voir le journal).
 - Chaloupe : console de barre encore celle d'un navire, pas de `.glb`.
-- **Un îlot au large**, deux ou trois cocotiers, **accessible à la chaloupe
-  seulement** : c'est le haut-fond qui l'interdit au navire, pas une règle — le
-  relief doit donc le ceindre d'une eau où la quille ne passe pas, et la
-  chaloupe y aller. (Demandé le 25/09.)
+
 - **La carte du capitaine est GLOBALE, et elle ne devrait pas l'être** : une
   nouvelle partie de jeu libre rouvre le carnet de la précédente (`carnet.json`,
   `carnet-tortue.json` dans les données utilisateur). Ce que le bord a vu
@@ -199,10 +196,9 @@ La musique n'est pas embarquée (trop lourde). `node build.js` écrit
   grands triangles — à passer au fragment ; et les ondulations qu'elle prend de la
   houle sont inutiles, la nappe doit rester plate. Voir aussi son opacité par
   nappe, quatre nappes à 1 font un mur.
-- **Journal de bord** : écrit (⇧I, `core/Journal.cs`, `JournalNode`, enregistré
-  dans la partie, une ligne par escale). Restent : TOURNER LES PAGES — on n'écrit
-  et ne voit que la dernière —, le modèle du livre sur le bureau (une surface
-  nommée `journal` suffit, rien à coder), et la relecture des pages anciennes.
+- **Journal de bord** : écrit et les pages tournent (⇧I, ← →, ⇧Entrée).
+  Reste le modèle du livre sur le bureau — une surface nommée `journal` suffit,
+  rien à coder.
 
 ## Conventions
 

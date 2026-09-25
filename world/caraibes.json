@@ -30,7 +30,10 @@
   "patches": [
     { "key": "port-royal", "image": "world/port-royal-relief.png",
       "west": -76.856648, "east": -76.809353, "south": 17.915345, "north": 17.960341,
-      "feather": 80 }
+      "feather": 80 },
+    { "key": "ilot-cocotiers", "image": "world/ilot-cocotiers-relief.png",
+      "west": -76.916544, "east": -76.883456, "south": 17.824251, "north": 17.855749,
+      "feather": 60 }
   ],
 
   "ports": [
@@ -56,5 +59,12 @@
     { "key": "yallahs", "name": "Yallahs", "lat": 17.8680, "lon": -76.5700, "quay": 180 }
   ],
 
-  "assets": []
+  "assets": [
+    { "name": "Cocotier", "glb": "world/assets/cocotier.glb",
+      "lat": 17.840114, "lon": -76.900176, "yaw": 40, "scale": 1 },
+    { "name": "Cocotier", "glb": "world/assets/cocotier.glb",
+      "lat": 17.840228, "lon": -76.899739, "yaw": 200, "scale": 0.86 },
+    { "name": "Cocotier", "glb": "world/assets/cocotier.glb",
+      "lat": 17.839753, "lon": -76.899886, "yaw": 310, "scale": 1.1 }
+  ]
 }

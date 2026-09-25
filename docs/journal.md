@@ -7975,6 +7975,87 @@ repasse dessus à 0,35, sans quoi une vague qui lèche l'objectif ferait clapote
 à chaque image. La même raison que le seuil du pirate qui louvoie à la limite,
 et la même réponse.
 
+## Tourner les pages du journal (Godot)
+
+Trois choses, dont une qui ne se voit qu'à l'usage.
+
+`←` et `→` tournent, `⇧Entrée` ouvre une page neuve à la date du jour — « des
+pages libres » veut dire qu'on peut en tourner une quand on veut, et pas
+seulement quand le calendrier l'a décidé. Les flèches, parce qu'il n'y a rien
+d'autre à en faire dans une page dont la plume est toujours au bout ; le jour où
+le curseur se déplacera dans le texte, il faudra les lui rendre et prendre Page
+précédente / Page suivante.
+
+**Et une ligne du bord ne tourne plus la page sous les yeux du lecteur.** Le
+capitaine peut être en train de relire son départ de Port-Royal ; ce n'est pas au
+bord de lui arracher la feuille des mains parce qu'on vient de mouiller ailleurs.
+`Today()` prend donc un paramètre qui dit si l'on s'y PLACE : la plume oui,
+l'escale non. Vérifié à la sonde : quatre pages, on recule jusqu'à la première,
+une escale s'écrit — et l'on est toujours sur la première.
+
+## L'îlot aux cocotiers (Godot et page)
+
+Demandé : un îlot au large, deux ou trois cocotiers, **accessible à la chaloupe
+seulement**. La note d'En suspens disait déjà l'essentiel : *c'est le haut-fond
+qui l'interdit au navire, pas une règle.* On ne barre pas la route au joueur par
+un interdit ; on lui met sous la quille un platier où elle ne passe pas.
+
+### Le chiffre qui décide de tout
+
+Tirants d'eau du jeu, pris dans les fiches (`keelDepth` + `keelExtra`) :
+
+| | tirant |
+|---|---|
+| chaloupe | **0,44 m** |
+| vedette | 1,00 m |
+| chaland Bourrasque | 2,30 m |
+| Roter Löwe | 3,85 m |
+
+Le platier est donc peint à **−0,88 m** (le gris le plus proche d'un mètre) : la
+chaloupe a quarante-quatre centimètres sous la quille, et tout le reste touche —
+y compris la vedette, de justesse, ce qui est exactement la règle demandée.
+
+### Le profil, et pourquoi un patch
+
+    +5,95 m  ___
+            /   \___ plage
+    0 m ---'        \____ platier −0,88 m ____
+                                              \___ tombant
+   −22 m                                           '------- puis le plateau, −126 m
+        0    30    45                    175      255
+
+Relevé après peinture, des deux côtés — Godot dit la même chose que la page :
+centre +5,95, platier −0,88, pied −21,97. On mouille dehors, on finit à l'aviron :
+deux cents mètres de nage, ce qui est une décision et non une formalité.
+
+C'est un **patch** et non un coup de pinceau dans la grande image : 1024 px pour
+1400 m, soit 1,37 m par pixel là où la grande image en vaut 45. Deux raisons : un
+îlot de quatre-vingt-dix mètres tiendrait en deux pixels de la grande, et surtout
+une révision de la carte de la Jamaïque ne l'effacera pas.
+
+`tools/islet.js` le pose, et **refuse** un point où le fond est à moins de dix-huit
+mètres : un îlot doit naître au large et non se coller à une côte. Il ajoute son
+entrée aux `patches` au lieu de remplacer le tableau — ce que `relief-patch.js`
+fait, et qui aurait effacé Port-Royal.
+
+### Les cocotiers, et un trou du portage trouvé en chemin
+
+Pas d'arbre dans le projet : `tools/palm-glb.js` en écrit un, comme les maisons et
+l'église. Ce qui fait le cocotier et qu'on ne peut pas ôter : le **stipe penché**
+(un cocotier droit est un poteau ; celui du bord de mer se couche vers le large),
+les **palmes qui retombent** sous l'horizontale (droites, elles font un parasol de
+carton), et les **anneaux** que les vieilles palmes laissent en tombant — qui ne
+coûtent rien, c'est le rayon du tronc qui ondule.
+
+Ils sont posés par `assets`, la fiche du monde. Et c'est là qu'un trou est
+apparu : **la page les plaçait depuis toujours (`land.js` → `loadAssets`), Godot
+ne les voyait pas.** Un objet ajouté au monde n'existait que d'un côté. Corrigé
+dans `LandNode`, sur le même patron que les carreaux — bâti une fois, gardé en
+mètres vrais, reposé à `lieu − origine` à chaque image, donc aucun Rebase.
+
+La page passe de 15 174 à 15 311 Ko : 137 pour l'îlot et son arbre, sur les 1 073
+qui restaient.
+
 ## Le journal de bord (Godot)
 
 Demandé : « un journal de bord que le capitaine peut remplir au clavier comme les

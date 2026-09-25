@@ -102,11 +102,32 @@ public sealed class Journal
     /// LA PAGE OÙ ÉCRIRE MAINTENANT : la dernière si elle porte ce jour-ci, une
     /// neuve sinon. C'est par là que passe ce que le bord écrit de lui-même, de
     /// sorte qu'une escale ne vienne jamais salir la page d'hier.
+    ///
+    /// <paramref name="ouvrir"/> dit si l'on s'y PLACE. Une escale écrit sans
+    /// tourner la page : le capitaine peut être en train de relire son départ de
+    /// Port-Royal, ce n'est pas au bord de lui arracher la feuille des mains.
     /// </summary>
-    public JournalPage Today(string date, string key)
+    public JournalPage Today(string date, string key, bool ouvrir = true)
     {
-        if (Pages.Count > 0 && Pages[^1].Key == key) { At = Pages.Count - 1; return Pages[^1]; }
-        return NewPage(date, key);
+        if (Pages.Count > 0 && Pages[^1].Key == key)
+        {
+            if (ouvrir) At = Pages.Count - 1;
+            return Pages[^1];
+        }
+        int avant = At;
+        var p = NewPage(date, key);
+        if (!ouvrir) At = Math.Clamp(avant, 0, Pages.Count - 1);
+        return p;
+    }
+
+    /// <summary>Tourner : −1 en arrière, +1 en avant. Rend vrai si l'on a bougé.</summary>
+    public bool Turn(int sens)
+    {
+        if (Pages.Count == 0) return false;
+        int cible = Math.Clamp(At + sens, 0, Pages.Count - 1);
+        if (cible == At) return false;
+        At = cible;
+        return true;
     }
 
     /// <summary>
@@ -116,7 +137,7 @@ public sealed class Journal
     /// </summary>
     public void Log(string date, string key, string line)
     {
-        var p = Today(date, key);
+        var p = Today(date, key, false);
         var b = p.Pen();
         if (b.Text.Length > 0 && !b.Text.EndsWith("\n")) b.Text += "\n";
         b.Text += line + "\n";

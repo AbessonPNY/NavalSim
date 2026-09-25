@@ -55,6 +55,7 @@ public partial class LandNode : Node3D
 
     readonly Dictionary<(int, int), Patch> _tiles = new();
     readonly HashSet<MeshInstance3D> _seen = new();
+    bool _assetsBuilt;
     ShaderMaterial _mat = null!;
 
     public LandNode(World world)
@@ -206,8 +207,75 @@ public partial class LandNode : Node3D
     /// Montrer ce qui est à portée, cacher le reste, et tout poser contre
     /// l'origine du moment. <paramref name="centre"/> est sa position VRAIE.
     /// </summary>
+    /// <summary>
+    /// LES MODÈLES QUE LA FICHE POSE — world/caraibes.json → assets : un fort, un
+    /// phare, un cocotier. La page les plaçait depuis toujours (land.js →
+    /// loadAssets) ; le portage ne les voyait pas, si bien qu'un objet ajouté au
+    /// monde n'existait que d'un côté. C'était le genre de trou qu'on ne trouve
+    /// qu'en s'en servant.
+    ///
+    /// Bâtis UNE FOIS, et replacés à chaque image comme les carreaux : ils vivent
+    /// en mètres VRAIS et sont posés à <c>lieu − origine</c>, donc rien ici n'a
+    /// de Rebase. Leur hauteur est celle du relief sous eux, sauf si la fiche la
+    /// donne — un fort se pose sur sa colline, un feu sur son rocher.
+    /// </summary>
+    readonly List<Node3D> _assets = new();
+
+    void BuildAssets()
+    {
+        foreach (var a in World.Region.Assets)
+        {
+            string path = Assets.Path(a.Glb);
+            if (!System.IO.File.Exists(path)) { GD.PushWarning($"[monde] modèle introuvable : {a.Glb}"); continue; }
+            var doc = new GltfDocument();
+            var state = new GltfState();
+            if (doc.AppendFromFile(path, state) != Error.Ok || doc.GenerateScene(state) is not Node3D root)
+            { GD.PushWarning($"[monde] {a.Glb} illisible"); continue; }
+
+            var g = World.Geo.ToXZ(a.Lat, a.Lon);
+            var hold = new Node3D { Name = a.Name.Length > 0 ? a.Name : "asset" };
+            hold.AddChild(root);
+            root.Scale = Vector3.One * (float)a.Scale;
+            root.Rotation = new Vector3(0, (float)(-a.Yaw * Math.PI / 180), 0);
+            AddChild(hold);
+            /* SA PLACE VRAIE est gardée sur le nœud lui-même : on ne peut pas la
+               relire du monde à chaque image sans repayer la lecture du relief. */
+            hold.SetMeta("wx", g.X);
+            hold.SetMeta("wz", g.Z);
+            hold.SetMeta("wy", a.Y ?? World.HeightAt(g.X, g.Z));
+            // l'air devant tout le reste, la MÊME passe que la coque porte
+            var haze = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+            Hazed.Add(haze);
+            foreach (var mi in AllMeshes(root))
+                for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
+                    if (mi.GetActiveMaterial(i) is BaseMaterial3D bm)
+                    {
+                        var own = (BaseMaterial3D)bm.Duplicate();
+                        own.NextPass = haze;
+                        own.VertexColorUseAsAlbedo = true;
+                        mi.SetSurfaceOverrideMaterial(i, own);
+                    }
+            _assets.Add(hold);
+        }
+        if (_assets.Count > 0) GD.Print($"monde : {_assets.Count} modèle(s) posé(s)");
+    }
+
+    static IEnumerable<MeshInstance3D> AllMeshes(Node n)
+    {
+        if (n is MeshInstance3D mi && mi.Mesh != null) yield return mi;
+        foreach (var c in n.GetChildren())
+            foreach (var m in AllMeshes(c)) yield return m;
+    }
+
     public void Update(Vec3d centre, Vec3d origin, bool eager = false)
     {
+        if (!_assetsBuilt) { _assetsBuilt = true; BuildAssets(); }
+        foreach (var a in _assets)
+            a.Position = new Vector3(
+                (float)((double)a.GetMeta("wx") - origin.X),
+                (float)(double)a.GetMeta("wy"),
+                (float)((double)a.GetMeta("wz") - origin.Z));
+
         int i0 = (int)Math.Floor((centre.X - Range) / Tile), i1 = (int)Math.Floor((centre.X + Range) / Tile);
         int j0 = (int)Math.Floor((centre.Z - Range) / Tile), j1 = (int)Math.Floor((centre.Z + Range) / Tile);
         _seen.Clear();

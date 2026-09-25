@@ -280,3 +280,24 @@ Naval.Geo.fix(x, z)                    // → { lat, lon }
 Naval.Geo.toXZ(lat, lon)               // → { x, z }
 Naval.app.world.isles                  // les ports, avec leur ponton calculé
 ```
+
+## Un îlot au large
+
+```bash
+node tools/islet.js ilot-cocotiers 17.84 -76.90 --sonde   # dire ce qu'il y a là
+node tools/islet.js ilot-cocotiers 17.84 -76.90           # le poser
+```
+
+Il peint un **patch** (1024 px pour 1400 m) et ajoute son entrée à `patches` —
+sans toucher à la grande image, donc une révision de la carte ne l'effacera pas.
+Il **refuse** un point où le fond est à moins de dix-huit mètres : un îlot naît au
+large, il ne se colle pas à une côte.
+
+Le profil est ce qui fait tout le jeu : sommet à +5,5 m, plage jusqu'à 45 m,
+**platier à −1 m** jusqu'à 175 m, puis un tombant à −22 m au pied (255 m). Ce
+platier est l'interdit : la chaloupe tire 0,44 m et passe, la vedette 1,00 et
+touche, le chaland 2,30 et le Roter Löwe 3,85. On mouille dehors et l'on finit à
+l'aviron. Les trois chiffres à retoucher sont en tête de l'outil.
+
+Les cocotiers viennent de `node tools/palm-glb.js` (`world/assets/cocotier.glb`)
+et sont posés par `assets`, comme tout modèle du monde.
