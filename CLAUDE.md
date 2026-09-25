@@ -194,10 +194,15 @@ La musique n'est pas embarquée (trop lourde). `node build.js` écrit
   `carnet-tortue.json` dans les données utilisateur). Ce que le bord a vu
   appartient à SA partie — à ranger dans l'enregistrement, ou dans un fichier par
   identifiant de partie, et à effacer avec elle. (Signalé le 25/09.)
-- **Un journal de bord**, que le capitaine remplit au clavier comme les notes :
-  une page par date, du texte dessous, et des zones de DESSIN qui s'intercalent.
-  Gros morceau — la saisie au clavier, la mise en page qui coule, le dessin à la
-  souris, et tout cela à enregistrer avec la partie. (Demandé le 25/09.)
+- **Brume rasante à reprendre** (signalé 25/09, capture) : ses bancs ont des
+  bords RECTILIGNES parce que le bruit est calculé par SOMMET et interpolé sur de
+  grands triangles — à passer au fragment ; et les ondulations qu'elle prend de la
+  houle sont inutiles, la nappe doit rester plate. Voir aussi son opacité par
+  nappe, quatre nappes à 1 font un mur.
+- **Journal de bord** : écrit (⇧I, `core/Journal.cs`, `JournalNode`, enregistré
+  dans la partie, une ligne par escale). Restent : TOURNER LES PAGES — on n'écrit
+  et ne voit que la dernière —, le modèle du livre sur le bureau (une surface
+  nommée `journal` suffit, rien à coder), et la relecture des pages anciennes.
 
 ## Conventions
 

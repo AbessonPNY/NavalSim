@@ -234,6 +234,8 @@ public partial class ShipDemo : Node3D
     public override void _Input(InputEvent e)
     {
         if (!_booted) return;                       // rien à commander sous le rideau
+        // une page ouverte prend TOUT : on y écrit, et rien ne doit passer derrière
+        if (JournalInput(e)) { GetViewport().SetInputAsHandled(); return; }
         if (ChartInput(e) || QuestInput(e)) GetViewport().SetInputAsHandled();
     }
 

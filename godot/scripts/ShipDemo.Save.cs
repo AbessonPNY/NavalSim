@@ -61,6 +61,11 @@ public partial class ShipDemo
         [JsonPropertyName("flotte")] public List<Coque> Flotte { get; set; } = new();
         /// <summary>Les quêtes et le carnet, tels qu'ils s'écrivent déjà dans user:// — recopiés ici.</summary>
         [JsonPropertyName("quetes")] public string Quetes { get; set; } = "";
+        /* LE JOURNAL DE BORD VIT DANS LA PARTIE, et nulle part ailleurs. Le carnet
+           de carte, lui, est un fichier global que la reprise repose — un héritage
+           qu'il faudra corriger (une partie neuve rouvre le carnet de la
+           précédente) ; on ne l'imite pas ici. */
+        [JsonPropertyName("journal")] public string Journal { get; set; } = "";
         [JsonPropertyName("carnet")] public string Carnet { get; set; } = "";
     }
 
@@ -144,6 +149,7 @@ public partial class ShipDemo
             });
         }
         s.Quetes = _quests?.ToJson() ?? "";
+        s.Journal = _journal.Pages.Count > 0 ? _journal.ToJson() : "";
         s.Carnet = _book?.ToJson() ?? "";
         s.Lieu = Where();
         s.Nom = $"{_ship.Spec.Name} — {s.Lieu}, {_calendar.Date:dd/MM/yyyy}";
@@ -285,6 +291,7 @@ public partial class ShipDemo
         p.ClearCargo();
         foreach (var c in s.Cargo) p.LoadCargo(c.Cale, c.Niveau, c.Bord, c.Kg / 1000, c.Nature);
 
+        if (s.Journal.Length > 0) _journal.FromJson(s.Journal);
         _t = s.T;
         _calendar.SetStart(s.CalDebut);
         for (int d = 0; d < s.CalJour; d++) _calendar.NextDay();

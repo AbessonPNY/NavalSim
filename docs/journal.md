@@ -7975,6 +7975,79 @@ repasse dessus à 0,35, sans quoi une vague qui lèche l'objectif ferait clapote
 à chaque image. La même raison que le seuil du pirate qui louvoie à la limite,
 et la même réponse.
 
+## Le journal de bord (Godot)
+
+Demandé : « un journal de bord que le capitaine peut remplir au clavier comme les
+notes, une page visible à chaque fois la date et dessous du texte et des zones de
+dessins qui s'intercalent ». Trois choix ont été posés avant d'écrire une ligne :
+le journal porte **une ligne par escale** en plus de la date, il vit comme **un
+livre sur le bureau** qu'on ouvre en grand, et ses **pages sont libres**, datées à
+l'ouverture.
+
+### Ce que la carte avait déjà, et qu'il ne fallait pas réécrire
+
+Le carnet de la carte savait déjà taper du texte au clavier, tracer à main levée
+en trois encres avec annulation, garder les traits en VECTEURS dans un JSON
+lisible, rendre une feuille dans un `SubViewport` écrite à la main (Estonia), et
+s'ouvrir en grand. Tout cela est repris.
+
+### Ce qu'il fallait vraiment : la notion de PAGE
+
+Le carnet est un PLAN — des traits et des mots posés à des coordonnées du MONDE,
+qui valent quelle que soit l'échelle à laquelle on redessine la carte. Le journal
+est une SUITE DE FEUILLES où le texte coule et où les croquis s'intercalent, et
+où rien ne désigne un lieu. Deux besoins, deux modèles : les mêler aurait donné un
+objet incapable des deux. D'où `core/Journal.cs` à côté de `core/Logbook.cs`, et
+des traits en coordonnées de PAGE (0 à 1) et non en mètres.
+
+**L'ordre des blocs EST la mise en page.** Un bloc est du texte ou un dessin ; le
+texte s'enroule à la largeur de la feuille, un dessin prend sa hauteur, le suivant
+reprend dessous. Rien à positionner, rien à faire flotter — c'est la seule façon
+qu'une main qui écrit puisse passer au croquis et revenir sans avoir à ranger quoi
+que ce soit. `Tab` ouvre un croquis, `Tab` le referme et le texte reprend.
+
+**Le texte est pris à l'UNICODE** de l'événement clavier et non au code de touche :
+c'est la seule façon d'écrire « é » sur un clavier français sans réécrire la
+disposition. Et `E` ne change d'encre que **la plume à la main** — en écriture,
+`E` est une lettre, et rien n'est plus agaçant qu'une touche qui fait deux choses
+selon un état qu'on ne voit pas.
+
+**Le curseur ne clignote pas.** Une plume posée sur le papier ne clignote pas ; le
+clignotement est un tic d'écran.
+
+### Ce que le bord écrit tout seul
+
+La date en tête, soulignée d'un filet — et une ligne par escale : « Mouillé à
+Port-Royal. », « Appareillé de Passage Fort. » Elle est prise du bandeau du
+comptoir, qui sait DÉJÀ devant quel port on se trouve ; lui demander plutôt que de
+recalculer évite un second avis qui finirait par dire autre chose. Juste assez
+pour qu'un journal négligé garde la trace du voyage, assez peu pour qu'il reste
+celui du capitaine.
+
+### Le livre sur le bureau
+
+Par la règle de la carte : le modèle qui nomme une surface `journal` (ou
+`logbook`) la reçoit. Aucun modèle ne le fait encore, et **cela ne bloque rien** —
+`⇧I` ouvre la page en grand (I comme « inscrire », la carte étant sur I). Le jour
+où un `.glb` portera un livre ouvert sur le bureau, il n'y aura rien à changer :
+`DressChart` et `DressJournal` sont désormais la même fonction avec un nom
+différent.
+
+### Enregistré avec la partie, et non à côté
+
+Le journal vit dans le fichier de sauvegarde. Le carnet de carte, lui, est un
+fichier GLOBAL que la reprise repose — un héritage qui fait qu'une partie neuve
+rouvre le carnet de la précédente (signalé, et en suspens). On ne l'a pas imité.
+
+Vérifié à la sonde : page datée « 8 octobre 1690 », la ligne « Mouillé à
+Port-Royal. » écrite d'elle-même au premier tour, le texte tapé à la suite, un
+croquis d'un trait rouge intercalé, du texte dessous, relu sans perte — trois
+blocs, et la feuille peinte sur 246 pixels. Les accents sortent tels quels et non
+en `é` : ce fichier doit rester ouvrable par un humain, comme le carnet.
+
+Reste à faire : tourner les pages (il n'y a pour l'instant que la dernière), le
+modèle du livre, et la relecture des pages anciennes.
+
 ## La brume rasante du petit matin (Godot)
 
 Demandé : une brume qui ne monte pas à plus de deux mètres, « qui ressemble un

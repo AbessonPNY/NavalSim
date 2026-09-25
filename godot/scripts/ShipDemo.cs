@@ -164,6 +164,7 @@ public partial class ShipDemo : Node3D
 
         _spray = new SprayNode();
         AddChild(_spray);
+        BuildJournal();
         _mist = new MistNode();
         AddChild(_mist);
         _mist.Material.SetShaderParameter("u_mist_top", (float)_mistTop);
@@ -1196,6 +1197,8 @@ public partial class ShipDemo : Node3D
                 if (!_dressed && _chart.Texture != null)
                 {
                     _dressed = _ship.DressChart(_chart.Texture);
+                    // et le livre du bureau, si le modèle en porte un
+                    if (_journalNode != null) _ship.DressJournal(_journalNode.Texture);
                     // se PENCHER dessus : la vue se pose depuis la feuille elle-même
                     if (_dressed && _overChart && _ship.ChartSurface is MeshInstance3D ms)
                     {
@@ -1439,7 +1442,7 @@ public partial class ShipDemo : Node3D
         }
 
         _hudAcc += frame;
-        if (_hudAcc > 0.15) { _hudAcc = 0; UpdateInfo(); AmbianceTick(); MarketTick(); StowTick(); FleetTick(); }
+        if (_hudAcc > 0.15) { _hudAcc = 0; UpdateInfo(); AmbianceTick(); MarketTick(); JournalPortTick(); StowTick(); FleetTick(); }
         TrimTick();
         HitsTick();
         GunSideTick();
@@ -1909,6 +1912,7 @@ public partial class ShipDemo : Node3D
                 case Key.P: GoToGhosts(true); break;
                 case Key.L: ToggleSpyglass(); break;
                 // la carte du capitaine : I comme « inscrire »
+                case Key.I when k.ShiftPressed: ToggleJournal(); break;
                 case Key.I: ToggleChart(); break;
                 // M par sa LETTRE comme ⇧M : sur un AZERTY il n'est pas à la place du QWERTY
 

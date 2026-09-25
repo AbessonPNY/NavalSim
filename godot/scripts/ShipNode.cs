@@ -223,7 +223,18 @@ public partial class ShipNode : Node3D
     /// <summary>La feuille, une fois trouvée : ce qui permet de s'y pencher dessus.</summary>
     public MeshInstance3D? ChartSurface { get; private set; }
 
-    public bool DressChart(Texture2D tex)
+    public bool DressChart(Texture2D tex) => Dress(tex, ChartNode.MapMaterial, s => ChartSurface = s);
+
+    /// <summary>
+    /// ET LE JOURNAL DE BORD, par la même règle et pour la même raison : le modèle
+    /// qui nomme une surface « journal » (ou « logbook ») porte le livre ouvert du
+    /// capitaine sur son bureau. Aucun modèle ne le fait encore ; le jour où l'un
+    /// le fera, il n'y aura rien à changer ici.
+    /// </summary>
+    public bool DressJournal(Texture2D tex) => Dress(tex, "journal", _ => { })
+                                            || Dress(tex, "logbook", _ => { });
+
+    bool Dress(Texture2D tex, string nom, Action<MeshInstance3D> keep)
     {
         if (ModelRoot == null) return false;
         bool any = false;
@@ -231,7 +242,7 @@ public partial class ShipNode : Node3D
             for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
             {
                 var m = mi.Mesh.SurfaceGetMaterial(i);
-                if (m == null || !m.ResourceName.Contains(ChartNode.MapMaterial, StringComparison.OrdinalIgnoreCase))
+                if (m == null || !m.ResourceName.Contains(nom, StringComparison.OrdinalIgnoreCase))
                     continue;
                 mi.SetSurfaceOverrideMaterial(i, new StandardMaterial3D
                 {
@@ -241,7 +252,7 @@ public partial class ShipNode : Node3D
                     SpecularMode = BaseMaterial3D.SpecularModeEnum.Disabled
                 });
                 any = true;
-                ChartSurface = mi;
+                keep(mi);
             }
         return any;
     }
