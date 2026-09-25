@@ -81,11 +81,18 @@ const R_PLAGE = 45;        // et le platier commence ici
 const R_PLATIER = 175;     // il court jusque-là
 const R_PIED = 255;        // puis le tombant
 /* CE QUI INTERDIT LE NAVIRE ET LAISSE PASSER LA CHALOUPE, et c est un chiffre
-   qui se calcule et non qui se choisit. Tirants d eau du jeu : chaloupe 0,44 m,
-   vedette 1,00, chaland 2,30, Roter Löwe 3,85. À un mètre d eau la chaloupe a
-   cinquante-six centimètres sous la quille et tout le reste touche — y compris
-   la vedette, de justesse, ce qui est exactement la règle demandée. */
-const PLATIER = -1.0;
+   qui se MESURE et non qui se lit dans une fiche. Premier jet : les keelDepth des
+   fiches, 0,44 m pour la chaloupe — faux. Une fiche donne la quille, l eau donne
+   l ENFONCEMENT, et le solveur est le seul à le savoir. Relevé en jeu :
+
+       chaloupe 0,70 m · vedette 1,17 · chaland 1,75 · cotre 1,95
+       goélette 2,53 · Roter Löwe 3,04
+
+   La fenêtre est donc entre 0,70 et 1,17, et le gris ne donne que deux marches
+   dans cet intervalle : −0,88 m (dix-huit centimètres sous la chaloupe, trop peu
+   pour une mer qui respire) et −1,20 m — cinquante centimètres sous la chaloupe,
+   trois sous la vedette, qui touche. C est celui-là. */
+const PLATIER = -1.2;
 const PIED = -22;          // où l'on peut mouiller
 
 function profil(r) {

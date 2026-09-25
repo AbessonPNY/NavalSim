@@ -229,6 +229,8 @@ public sealed class ShipJson
     [JsonPropertyName("id")]   public string Id { get; set; } = "";
     [JsonPropertyName("name")] public string Name { get; set; } = "";
     [JsonPropertyName("note")] public string? Note { get; set; }
+    /// <summary>La fiche de la chaloupe qu'elle porte, s'il y en a une.</summary>
+    [JsonPropertyName("boat")] public string? Boat { get; set; }
     [JsonPropertyName("hull")] public HullShape Hull { get; set; } = new();
     [JsonPropertyName("displacementTonnes")] public double DisplacementTonnes { get; set; }
     [JsonPropertyName("cog")]    public CogSpec Cog { get; set; } = new();
@@ -264,6 +266,8 @@ public sealed class ShipSpec
     public string Id { get; }
     public string Name { get; }
     public string Note { get; }
+    /// <summary>L'identifiant de la chaloupe qu'elle porte, vide si elle n'en porte pas.</summary>
+    public string Boat { get; }
 
     public HullShape Hull { get; }
     public double L { get; }        // longueur
@@ -340,6 +344,11 @@ public sealed class ShipSpec
         Id = json.Id;
         Name = json.Name;
         Note = json.Note ?? "";
+        /* LA CHALOUPE QU'ELLE PORTE — l'identifiant d'une autre fiche. UNE CHALOUPE
+           EST UN NAVIRE : rien d'autre n'est nécessaire, ni classe, ni cas
+           particulier ; celui qui la met à l'eau la met à l'eau comme une conserve
+           et en prend la barre comme d'une autre coque. */
+        Boat = json.Boat ?? "";
 
         var h = json.Hull;
         Hull = h;

@@ -295,8 +295,11 @@ large, il ne se colle pas à une côte.
 
 Le profil est ce qui fait tout le jeu : sommet à +5,5 m, plage jusqu'à 45 m,
 **platier à −1 m** jusqu'à 175 m, puis un tombant à −22 m au pied (255 m). Ce
-platier est l'interdit : la chaloupe tire 0,44 m et passe, la vedette 1,00 et
-touche, le chaland 2,30 et le Roter Löwe 3,85. On mouille dehors et l'on finit à
+platier est l'interdit, et ses chiffres sont ceux du jeu et non des fiches — une
+fiche donne la quille, l'eau donne l'enfoncement. Tirants RELEVÉS à flot :
+chaloupe 0,70 m (elle passe, cinquante centimètres sous la quille), vedette 1,17
+(trois centimètres : elle touche à la première houle), chaland 1,75, cotre 1,95,
+goélette 2,53, Roter Löwe 3,04 — tous échoués. On mouille dehors et l'on finit à
 l'aviron. Les trois chiffres à retoucher sont en tête de l'outil.
 
 Les cocotiers viennent de `node tools/palm-glb.js` (`props/cocotier.glb`) et

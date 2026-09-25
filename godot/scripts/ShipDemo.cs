@@ -1895,6 +1895,11 @@ public partial class ShipDemo : Node3D
                    pleine mer n était plus qu un moyen de se perdre. ⇧N garde le
                    panneau de flotte, qui est autre chose. */
                 case Key.N when k.ShiftPressed: ToggleFleetPanel(); break;
+                /* N REND LA CHALOUPE, et la touche retrouve son emploi : elle avait
+                   été libérée parce que changer de monture en pleine mer n était
+                   qu un moyen de se perdre. Mettre une chaloupe à l eau n est pas
+                   changer de monture — c est la quitter pour y revenir. */
+                case Key.N: Say(BoatSwing()); break;
                 case Key.F: _follow = !_follow; break;
                 case Key.C: CycleCamera(); break;
                 case Key.X: if (_fixed) Plant(); break;
@@ -3315,6 +3320,8 @@ public partial class ShipDemo : Node3D
                 /* LA LUMIÈRE DU FOND, à la volée : pour comparer deux images de la
                    même vue, ce qui est la seule façon d'en connaître le prix. */
                 // LES DAUPHINS : les faire venir tout de suite
+                // LA CHALOUPE : l affaler tout de suite
+                case "--chaloupe": if (args[i + 1] != "0") GD.Print("chaloupe : " + BoatSwing()); break;
                 case "--dauphins":
                     if (args[i + 1] != "0") _dolphins?.Summon(_ship.Physics.Body.Pos, _ship.Physics.Body.Quat);
                     break;

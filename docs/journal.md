@@ -7993,6 +7993,68 @@ bord de lui arracher la feuille des mains parce qu'on vient de mouiller ailleurs
 l'escale non. Vérifié à la sonde : quatre pages, on recule jusqu'à la première,
 une escale s'écrit — et l'on est toujours sur la première.
 
+## La chaloupe portée, et le tirant d'eau qui ne se lit pas dans la fiche
+
+L'îlot venait d'être posé avec un platier où seule une chaloupe passe — et la
+chaloupe n'était **pas portée** : Godot savait la prendre au menu comme n'importe
+quelle fiche, mais pas la mettre à l'eau depuis son navire. L'îlot était donc un
+lieu qu'on voit et qu'on ne peut pas atteindre, ce qui est pire que pas de lieu.
+
+**Une chaloupe est un navire**, et c'est tout ce qui a rendu le portage court :
+sa fiche est une fiche, le navire qui la porte la nomme (`"boat": "chaloupe"`,
+qui manquait au noyau), elle est mise à l'eau par le même `SpawnFleet` que les
+conserves. Reste à en prendre la barre — et là, une bonne surprise : `_ship` est
+lu **trois cent soixante-deux fois, toujours par le champ**, jamais mis en cache.
+Échanger la référence avec une entrée de `_others` suffit donc : la caméra, les
+instruments, les pièces, les sondes suivent d'eux-mêmes, et les profils de coque
+se réécrivent à l'image suivante puisque la flotte est reconstruite à chaque tour.
+
+Le reste est la manœuvre de la page, transcrite : par le travers bâbord (l'ancre
+pend au bossoir de tribord), à quai le bord du large — le plus loin des bittes,
+sans quoi on l'affalerait sur le ponton —, le navire mère mouille s'il n'est ni
+à quai ni déjà sur son ancre, et sa barre de réserve est mise de côté : laissée
+en place, elle chassait le navire à la barre, c'est-à-dire la chaloupe.
+
+`N` la rend, et la touche retrouve son emploi. Elle avait été libérée parce que
+changer de monture en pleine mer n'était qu'un moyen de se perdre ; mettre une
+chaloupe à l'eau n'est pas changer de monture — c'est la quitter pour y revenir.
+
+### Le chiffre que j'avais pris dans la fiche, et qui était faux
+
+Le platier de l'îlot avait été calculé sur les `keelDepth` des fiches : chaloupe
+0,44 m, vedette 1,00, chaland 2,30, Roter Löwe 3,85. **Une fiche donne la quille ;
+l'eau donne l'ENFONCEMENT**, et seul le solveur le sait. Relevé en jeu, coque par
+coque :
+
+| | fiche | à flot |
+|---|---|---|
+| chaloupe | 0,44 | **0,70** |
+| vedette | 1,00 | **1,17** |
+| chaland | 2,30 | 1,75 |
+| cotre | — | 1,95 |
+| goélette | 3,10 | 2,53 |
+| Roter Löwe | 3,85 | 3,04 |
+
+La fenêtre utile n'est donc pas 0,44–1,00 mais **0,70–1,17**, et le gris ne donne
+que deux marches dedans : −0,88 m (dix-huit centimètres sous la chaloupe, trop peu
+pour une mer qui respire) et −1,20 m. C'est −1,20 : **cinquante centimètres sous
+la chaloupe, trois sous la vedette** — qui touche à la première houle —, et tout
+ce qui est plus gros s'échoue franchement.
+
+C'était mon premier chiffre, que j'avais « corrigé » à −1,0 sur la foi des fiches.
+La leçon n'est pas d'avoir tourné en rond : c'est qu'**un nombre qui décide d'une
+règle de jeu doit être mesuré dans le jeu**, et qu'une fiche décrit une coque, pas
+son comportement.
+
+### Et une sonde qui a refusé de partir
+
+Le retrait de la sonde de mesure a échoué — la chaîne exacte ne correspondait plus,
+parce que j'avais corrigé la sonde entre-temps. Elle a **refusé** au lieu de couper
+au jugé, ce qui est exactement ce que la règle écrite hier demandait après qu'un
+nettoyage trop large eut emporté dix-huit lignes de vrai code. Retrait à la ligne
+près, borné à neuf lignes, `git diff` pour conclure : sept insertions, aucune
+suppression.
+
 ## L'îlot aux cocotiers (Godot et page)
 
 Demandé : un îlot au large, deux ou trois cocotiers, **accessible à la chaloupe

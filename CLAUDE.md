@@ -184,7 +184,8 @@ La musique n'est pas embarquée (trop lourde). `node build.js` écrit
   reste à mesurer sur une boucle qui tourne.
 - Relief (normal map) : interrupteur et intensité dans `settings.json`.
 - Fusionner les voies d'eau d'un même endroit (voir le journal).
-- Chaloupe : console de barre encore celle d'un navire, pas de `.glb`.
+- Chaloupe : portée (N l'affale et la hisse, `ShipDemo.Boat.cs`), mais sa console
+  de barre est encore celle d'un navire, et elle n'a pas de `.glb`.
 
 - **La carte du capitaine est GLOBALE, et elle ne devrait pas l'être** : une
   nouvelle partie de jeu libre rouvre le carnet de la précédente (`carnet.json`,
