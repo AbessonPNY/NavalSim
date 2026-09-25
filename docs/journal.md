@@ -10398,6 +10398,62 @@ grand-voile part de 0,08 à t+15, 0,35 à t+22, 0,66 à t+29, consumée à t+37.
 secondes à la regarder partir, ce qui est le temps qu'il faut pour comprendre
 qu'on ne la rattrapera pas.
 
+### Trois foyers n'en mangeaient que trois
+
+Signalé sur une capture : « toutes les voiles ne se consument pas ? » Deux
+voiles brûlaient, les quatre autres restaient blanches pour toujours. Trois
+raisons, et chacune est une hypothèse qu'on n'avait pas vue :
+
+**Seul le PIRE foyer mangeait.** Un feu à trois foyers n'entamait qu'un mât.
+Chacun mange désormais la toile du mât sous lequel il est.
+
+**Sa foulée était en mètres.** Trois à huit — une foulée de chaloupe. Sur un
+bâtiment de soixante-dix mètres les six foyers restaient groupés autour du
+premier et l'artimon ne brûlait jamais. Elle va maintenant comme la LONGUEUR de
+la coque, un dixième à un tiers d'elle.
+
+**Et un foyer s'arrêtait quand son mât était nu.** Il ne restait plus rien à
+manger au plus proche, et le feu attendait poliment. Un brasier établi (0,6 et
+plus) prend maintenant ailleurs : il court dans le gréement, et un navire bien
+pris perd TOUT.
+
+### La soute venait trop tôt
+
+Autre chose que la mesure a montrée, qu'on ne voyait pas : à `magazine` 2,6 le
+navire sautait avant qu'une seule voile ait fini de brûler. La fin
+spectaculaire — la voilure qui part mât après mât — n'arrivait donc JAMAIS, parce
+que la poudre allait toujours plus vite.
+
+Un navire en feu perd son gréement et sa toile bien avant sa poudre, et la soute
+est la fin dramatique, pas la fin ordinaire. Elle passe à 3,6 :
+
+| | trois foyers | quatre et plus |
+|---|---|---|
+| issue | toute la toile y passe, la coque survit | la soute |
+
+Relevé après correction, trois foyers, en secondes de jeu : deux voiles prennent
+à t+13, la première est consumée à t+27, trois à t+33, cinq à t+40, **les six à
+t+47** — et la somme plafonne à 3,3, sous la soute. On perd sa voilure entière
+et on reste à flot, ce qui est exactement l'histoire qu'on voulait : le feu
+prend d'abord ce qui vous ferait fuir.
+
+### Et la braise monte avec la lisière
+
+Demandé : des particules de feu qui montent sur les voiles à mesure qu elles se
+réduisent. Une toile qui brûle ne fait pas la colonne d un incendie de pont :
+elle lâche des ESCARBILLES, de la braise légère que le tirage emporte et que la
+gravité reprend au bout de sa course — c est l arc court qui la rend légère à
+l œil, une ligne droite en ferait une fusée.
+
+Semées LE LONG de la lisière qui ronge, sur toute la laize, et non en un point :
+le feu mange la toile sur toute sa largeur à la fois, et une gerbe unique se
+lirait comme une torche plantée derrière elle.
+
+**Et la lisière MONTE.** La flamme partait du milieu de la voile et n en bougeait
+pas ; elle est maintenant tirée de la boîte du maillage — refait à chaque image,
+donc elle suit le ventre de la toile — à la hauteur qu a atteinte le front. Le
+feu remonte la voile, et ce qu on en voit remonte avec lui.
+
 ## La soute sautait en silence (Godot)
 
 Relevé en branchant l'échantillon d'explosion que le manifeste venait de
@@ -10409,6 +10465,31 @@ l'avait vu parce qu'on la REGARDE.
 par-dessus son voyage dans l'air. Et sans échantillon, rien du tout — un tonnerre
 de synthèse ne ressemble pas à une explosion, et mieux vaut le manque que le
 faux.
+
+## Un try qui couvre trente réglages (Godot)
+
+Relevé en vérifiant tout autre chose, et il valait la peine de le chercher :
+
+```
+WARNING: settings.json illisible (Object reference not set to an instance of
+an object.) : climat par défaut
+```
+
+Le fichier était bon — Node le relisait sans broncher. Ce qui levait, c'était ma
+propre ligne : le bloc `fire` poussait son éclat au nœud des effets
+(`_gunFx.FireLight`), or les réglages sont lus AVANT que ce nœud existe. Le null
+sautait dans le `catch`, et emportait avec lui TOUT CE QUI SUIVAIT dans le
+`try` — le climat, la baleine, le serpent, la brume, chacun repassé à ses valeurs
+par défaut, sans un mot de plus qu'une ligne d'avertissement qu'on ne lit pas.
+
+La valeur est désormais RETENUE dans un champ et posée à la naissance du nœud.
+
+La leçon est sur la forme du code et non sur la faute : **un `try` qui couvre
+trente lectures fait de chaque erreur une panne muette et GÉNÉRALE.** La première
+qui lève emporte les vingt-neuf suivantes, et le symptôme ne ressemble jamais à
+la cause — ici « le climat par défaut » pour une lampe d'incendie. À ne pas
+découper aujourd'hui, mais à savoir : quand un réglage lointain paraît ignoré,
+c'est la ligne d'avertissement qu'il faut chercher, pas le fichier.
 
 ## Conventions
 

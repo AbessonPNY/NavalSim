@@ -328,6 +328,47 @@ public partial class GunFxNode : Node3D
     double _burnDue;
 
     /// <summary>
+    /// LA BRAISE QUI MONTE D'UNE VOILE QUI SE MANGE — des flammèches, et non un
+    /// foyer.
+    ///
+    /// Une toile qui brûle ne fait pas la colonne d'un incendie de pont : elle
+    /// lâche des ESCARBILLES, de la braise légère que le tirage emporte vers le
+    /// haut et que le vent couche. C'est ce qu'on voit d'une voilure en feu, et
+    /// c'est joli parce que ça monte vite et que ça s'éteint en l'air.
+    ///
+    /// Semées LE LONG de la lisière qui ronge — <paramref name="span"/> est la
+    /// demi-largeur de la voile —, et non en un point : le feu mange la toile sur
+    /// toute sa laize à la fois, et une gerbe unique se lirait comme une torche
+    /// plantée derrière elle.
+    /// </summary>
+    public void Embers(Vector3 at, double span, double heat, double dt, double scale = 1)
+    {
+        if (heat <= 0.01) return;
+        double k = Math.Max(0.35, scale);
+        float fk = (float)k;
+        _emberDue += (6 + 22 * heat) * dt;
+        int n = (int)_emberDue;
+        _emberDue -= n;
+        for (int i = 0; i < n && i < 8; i++)
+        {
+            var p0 = at + new Vector3((float)((R() - 0.5) * 2 * span), (R() - 0.5f) * 0.4f * fk,
+                                      (R() - 0.5f) * 0.3f * fk);
+            /* ELLE MONTE ET ELLE PÈSE. La gravité la reprend au bout de sa course,
+               donc elle décrit l'arc court d'une braise et non la ligne droite
+               d'une fusée — c'est l'arc qui la rend légère à l'œil. */
+            Add(_add, new Puff
+            {
+                K = Kind.Spark, T = 0, Life = 1.1 + R() * 1.4, P = p0, Gravity = true,
+                V = new Vector3((R() - 0.5f) * 1.6f, 3.0f + R() * 4.5f, (R() - 0.5f) * 1.2f) * fk,
+                S0 = 0.30 * k, S1 = 0.10 * k, Col = Lin(0xffa24a), Rot = R() * 6.2832
+            }, MaxAdd);
+        }
+        // et une petite flamme sur la lisière elle-même, qui dit où elle ronge
+        Burn(at, heat * 0.45, dt, scale * 0.5);
+    }
+    double _emberDue;
+
+    /// <summary>
     /// LA LUMIÈRE D'UN INCENDIE — une par navire, posée sur son pire foyer.
     ///
     /// Elle est créée à l'armement et ne fait que changer d'énergie et de place,

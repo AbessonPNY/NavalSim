@@ -16,7 +16,7 @@
   
  "feu": {
     "_aide": "explosion : Un bruit d'explosion pour les navires sabordés",
-    "explosion": ["explosion_001.ogg"]
+    "explosion": ["explosion_001.ogg", "explosion_002.ogg"]
   },
   
 

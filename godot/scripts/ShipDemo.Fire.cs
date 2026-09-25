@@ -20,13 +20,15 @@ namespace NavalSim;
 public partial class ShipDemo : Node3D
 {
     FireSettings _fireRules = new();
+    /// <summary>L éclat d un brasier, lu AVANT que le nœud des effets existe.</summary>
+    double _fireLight = 26;
     readonly Dictionary<ShipNode, Fire> _fires = new();
 
     /// <summary>Son feu, créé au premier départ — une coque qui n'a jamais brûlé n'en a pas.</summary>
     Fire FireOf(ShipNode s)
     {
         if (_fires.TryGetValue(s, out var f)) return f;
-        f = new Fire(_fireRules, _stormRng.NextDouble);
+        f = new Fire(_fireRules, _stormRng.NextDouble) { Length = s.Spec.L };
         f.Event = kind =>
         {
             if (s != _ship) return;                       // ce qui brûle ailleurs se voit, ne se dit pas
@@ -38,9 +40,7 @@ public partial class ShipDemo : Node3D
                 /* SAUF SI ELLE VIENT DE SAUTER. Le feu s'éteint bel et bien quand
                    la mer entre — mais « le feu est maîtrisé » après « LA SOUTE ! »
                    se lit comme une plaisanterie. */
-                case "maitrise":
-                    if (s.Physics.Foundered) break;
-                    Say("Le feu est maîtrisé."); JournalLog("Le feu maîtrisé."); break;
+                case "maitrise": Say("Le feu est maîtrisé."); JournalLog("Le feu maîtrisé."); break;
                 case "soute": Say("LA SOUTE !"); break;
             }
         };
@@ -110,18 +110,35 @@ public partial class ShipDemo : Node3D
                d'abord, donc sa chance de fuir, et ensuite seulement le navire.
                Elle ne DISPARAÎT plus : elle se consume du pied vers la têtière,
                une lisière de braise devant elle. */
-            if (pire != null && pire.Heat > 0.45)
+            /* CHAQUE FOYER MANGE LA TOILE DU MÂT SOUS LEQUEL IL EST, et non le
+               seul pire : un navire bien pris perd toute sa voilure, mât après
+               mât, à mesure que le feu court le long du pont. Seul le pire
+               brûlait, si bien qu'un brasier de trois foyers n'entamait qu'un
+               mât et laissait les autres intacts (signalé, capture). */
+            foreach (var seat in f.Seats)
             {
-                int mat = s.MastNear(pire.P.Z);
-                if (mat >= 0) s.BurnSails(mat, dt, 0.06 * pire.Heat);
+                if (seat.Heat < 0.45) continue;
+                int mat = s.MastNear(seat.P.Z);
+                if (mat < 0) continue;
+                /* ET S'IL NE RESTE RIEN SUR SON MÂT, IL PREND AILLEURS. Un
+                   brasier établi ne s'arrête pas parce que la toile la plus
+                   proche a fini de brûler : le feu court dans le gréement, et un
+                   navire bien pris perd TOUT. Trois foyers en mangeaient trois et
+                   laissaient les trois autres intactes pour toujours (signalé). */
+                if (!s.BurnSails(mat, dt, 0.09 * seat.Heat) && seat.Heat > 0.6)
+                    mat = s.BurnAnySail(dt, 0.09 * seat.Heat);
                 /* ET LA VOILE QUI BRÛLE FUME ELLE-MÊME, à sa place et non à celle
                    du foyer : une voilure en feu est ce qu'on voit d'un mille, bien
                    avant le pont. */
-                if (mat >= 0 && s.BurningSail(mat) is { } bs)
+                if (s.BurningSail(mat) is { } bs)
                 {
                     var wv = b.Quat.Rotate(bs.P) + b.Pos;
-                    _gunFx.Burn(new Vector3((float)wv.X, (float)wv.Y, (float)wv.Z),
-                                0.5 * pire.Heat, dt, s.Spec.L / 30);
+                    /* DES ESCARBILLES QUI MONTENT DE LA LISIÈRE, sur toute la
+                       laize, à mesure qu'elle ronge : c'est ce qu'on voit d'une
+                       voilure en feu, et ça monte d'autant plus qu'il en reste
+                       moins à manger. */
+                    _gunFx.Embers(new Vector3((float)wv.X, (float)wv.Y, (float)wv.Z),
+                                  bs.Span, 0.35 + 0.65 * bs.Burn, dt, s.Spec.L / 30);
                 }
             }
 

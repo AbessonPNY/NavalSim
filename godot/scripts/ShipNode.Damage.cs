@@ -171,19 +171,43 @@ public partial class ShipNode
     /// Où en est la voile qui brûle sur ce mât, et où elle est dans le repère du
     /// bord : la flamme et la fumée s'y posent. Nul si rien n'y brûle.
     /// </summary>
-    public (NavalSim.Core.Vec3d P, double Burn)? BurningSail(int mast)
+    public (NavalSim.Core.Vec3d P, double Span, double Burn)? BurningSail(int mast)
     {
         foreach (var c in _canvases)
         {
             if (c.Split || c.Mast != mast || c.Burn <= 0.001) continue;
-            var g = c.Node.GlobalPosition;
-            var b = GlobalTransform.Origin;
-            var q = GlobalTransform.Basis;
-            // sa place dans le repère du navire : le nœud de la voile pend dans son mât
-            var loc = q.Inverse() * (g - b);
-            return (new NavalSim.Core.Vec3d(loc.X, loc.Y, loc.Z), c.Burn);
+            /* LA LISIÈRE, ET NON LE MILIEU DE LA VOILE. Ce qui doit fumer et
+               cracher ses escarbilles est le FRONT qui ronge, et il MONTE : la
+               braise partait du centre et n'y bougeait pas, si bien qu'on voyait
+               une torche accrochée derrière la toile au lieu d'un feu qui la
+               remonte (demandé). Tirée de la boîte du maillage, qui est refait à
+               chaque image et suit donc le ventre de la voile. */
+            var box = c.Node.GetAabb();
+            var here = new Vector3(box.Position.X + box.Size.X * 0.5f,
+                                   box.Position.Y + box.Size.Y * (float)c.Burn,
+                                   box.Position.Z + box.Size.Z * 0.5f);
+            var g = c.Node.GlobalTransform * here;
+            var loc = GlobalTransform.AffineInverse() * g;
+            // la demi-laize, pour semer la braise sur toute sa largeur
+            double span = Math.Max(0.5, c.Node.GlobalTransform.Basis.Scale.X * box.Size.X * 0.45);
+            return (new NavalSim.Core.Vec3d(loc.X, loc.Y, loc.Z), span, c.Burn);
         }
         return null;
+    }
+
+    /// <summary>
+    /// N'IMPORTE QUELLE TOILE QUI RESTE, quand celle du mât d'à côté a fini de
+    /// brûler : un brasier établi ne s'arrête pas là. Rend le mât qu'il a pris,
+    /// −1 s'il ne reste plus rien à manger.
+    /// </summary>
+    public int BurnAnySail(double dt, double rate)
+    {
+        // celle qui a déjà commencé d'abord, pour ne pas en entamer six à la fois
+        foreach (var c in _canvases)
+            if (!c.Split && c.Burn > 0.001 && c.Mast >= 0) { BurnSails(c.Mast, dt, rate); return c.Mast; }
+        foreach (var c in _canvases)
+            if (!c.Split && c.Mast >= 0) { BurnSails(c.Mast, dt, rate); return c.Mast; }
+        return -1;
     }
 
     /// <summary>Le mât le plus proche de cette station, pour ce qui n'en connaît pas le numéro.</summary>

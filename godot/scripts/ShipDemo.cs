@@ -194,7 +194,7 @@ public partial class ShipDemo : Node3D
         AddChild(_cordage);
         _splinters = new SplinterNode();
         AddChild(_splinters);
-        _gunFx = new GunFxNode { Timber = _splinters };
+        _gunFx = new GunFxNode { Timber = _splinters, FireLight = _fireLight };
         AddChild(_gunFx);
         _gunnery = new Gunnery(_gunRules);
         // ce que le coup éclaire de son propre bord : réglé à l'œil, pas mesuré
@@ -2182,8 +2182,15 @@ public partial class ShipDemo : Node3D
             if (root.TryGetProperty("fire", out var feu))
             {
                 _fireRules = FireSettings.FromJson(feu);
+                /* RETENU, PAS POUSSÉ. Les réglages sont lus AVANT que le nœud des
+                   effets existe, et le lui pousser ici levait une exception qui
+                   emportait TOUT LE RESTE de la lecture en silence — la seule
+                   trace était « settings.json illisible », et le climat, la
+                   baleine, le serpent et la brume repassaient aux valeurs par
+                   défaut. Un try qui couvre trente réglages ne pardonne pas qu'on
+                   touche à un objet pas encore né. */
                 if (feu.TryGetProperty("light", out var fl) && fl.ValueKind == System.Text.Json.JsonValueKind.Number)
-                    _gunFx.FireLight = Math.Max(0, fl.GetDouble());
+                    _fireLight = Math.Max(0, fl.GetDouble());
             }
             /* CE QUI RESTE DE LA TOILE SOUS LES ÉTOILES. La lumière qui traverse
                le tissage est celle du CIEL : sans jour derrière, une voile ne

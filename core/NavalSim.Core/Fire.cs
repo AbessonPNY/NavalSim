@@ -40,7 +40,7 @@ public sealed class FireSettings
     public double Rain = 0.05;
 
     /// <summary>La somme des foyers au-delà de laquelle la soute prend.</summary>
-    public double Magazine = 2.6;
+    public double Magazine = 3.6;
     /// <summary>Combien de foyers au plus : au-delà, un départ de plus ravive le plus proche.</summary>
     public int MaxSeats = 6;
     /// <summary>Sous cette ardeur, un foyer est mort et disparaît.</summary>
@@ -104,6 +104,16 @@ public sealed class Fire
 
     /// <summary>« depart », « encore », « gagne », « maitrise », « soute ».</summary>
     public Action<string>? Event;
+
+    /// <summary>
+    /// LA LONGUEUR DE SA COQUE, en mètres : c'est elle qui donne la foulée du feu
+    /// quand il court le long du pont. Un incendie ne se propage pas de trois
+    /// mètres sur un vaisseau comme sur une chaloupe.
+    /// </summary>
+    public double Length = 30;
+
+    /// <summary>La soute a pris : ce qui suit n est plus une lutte.</summary>
+    bool _blown;
 
     public Fire(FireSettings? k = null, Func<double>? rng = null)
     {
@@ -179,7 +189,10 @@ public sealed class Fire
         if (Seats.Count == 0)
         {
             Total = 0; Worst = 0;
-            Event?.Invoke("maitrise");
+            /* SAUF SI LA SOUTE A DÉJÀ PRIS. Le feu s'éteint bel et bien quand la
+               mer entre par où le navire s'est ouvert — mais « le feu est
+               maîtrisé » après « LA SOUTE ! » se lit comme une plaisanterie. */
+            if (!_blown) Event?.Invoke("maitrise");
             return;
         }
 
@@ -193,7 +206,11 @@ public sealed class Fire
                 var s = Seats[i];
                 if (s.Heat < 0.45) continue;
                 if (_rng() > K.Spread * s.Heat * dt) continue;
-                double a = _rng() * Math.Tau, r = 3 + _rng() * 5;
+                /* IL COURT LE LONG D'ELLE, et sa foulée va comme sa LONGUEUR : trois
+                   à huit mètres étaient une foulée de chaloupe, et sur un vaisseau
+                   de soixante-dix mètres les six foyers restaient groupés autour du
+                   premier — l'artimon ne brûlait jamais. */
+                double a = _rng() * Math.Tau, r = (0.10 + 0.22 * _rng()) * Length;
                 Light(new Vec3d(s.P.X + Math.Sin(a) * r * 0.35, s.P.Y, s.P.Z + Math.Cos(a) * r), 0.10);
                 break;
             }
@@ -204,11 +221,12 @@ public sealed class Fire
         if (avant < K.Magazine && Total >= K.Magazine)
         {
             Doomed = true;
+            _blown = true;
             Event?.Invoke("soute");
         }
         else if (avant < 1.0 && Total >= 1.0) Event?.Invoke("gagne");
     }
 
     /// <summary>Tout éteint — au radoub, ou quand la coque s'en va.</summary>
-    public void Clear() { Seats.Clear(); Total = 0; Worst = 0; Doomed = false; }
+    public void Clear() { Seats.Clear(); Total = 0; Worst = 0; Doomed = false; _blown = false; }
 }
