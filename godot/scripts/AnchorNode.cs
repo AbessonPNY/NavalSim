@@ -243,6 +243,12 @@ public partial class AnchorNode : Node3D
     /// <summary>M : mouiller, ou virer au cabestan. Le même geste dans les deux sens.</summary>
     public void Toggle(ShipNode ship, double t)
     {
+        /* PAS D'ANCRE, PAS DE MOUILLAGE. Une chaloupe n'a ni écubier, ni
+           cabestan, ni le poids qu'il faudrait pour tenir — et l'on pouvait
+           pourtant mouiller avec (signalé). La fiche le dit (« anchor »: false)
+           plutôt que le code de deviner : une galère en a une, et elle a aussi
+           des avirons. */
+        if (!ship.Spec.HasAnchor) { OnSay?.Invoke("Pas d'ancre à bord"); return; }
         var it = Of(ship);
         switch (it.State)
         {

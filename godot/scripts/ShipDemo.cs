@@ -170,12 +170,22 @@ public partial class ShipDemo : Node3D
         AddChild(_mist);
         _mist.Material.SetShaderParameter("u_mist_top", (float)_mistTop);
         _mist.Material.SetShaderParameter("u_mist_patch", (float)_mistPatch);
+        _mist.Material.SetShaderParameter("u_mist_gain", (float)_mistGain);
         _precip = new PrecipNode();
         AddChild(_precip);
         Assets.Say();
         LoadClimate();
-        _lightning = new LightningNode();
+        _lightning = new LightningNode
+        {
+            FlashEnergy = _lightRules.FlashEnergy,
+            FlashRange = _lightRules.FlashRange,
+            FlashShadow = _lightRules.FlashShadow
+        };
         AddChild(_lightning);
+        // et ce que le CIEL en prend : le reste du coup est la lampe du trait
+        _sky.SkyFlash = _lightRules.SkyFlash;
+        _sky.FarFlash = _lightRules.FarFlash;
+        _sky.FarPerSecond = _lightRules.FarPerSecond;
         _krakenNode = new KrakenNode();
         AddChild(_krakenNode);
         _cordage = new CordageNode();
@@ -1114,6 +1124,9 @@ public partial class ShipDemo : Node3D
         _ship.Sea = _sea.Core;
         _ship.StreamFlags(_t);
         _ship.RecoilTick(_gunnery.Clock, _gunRules.RecoilSpeed);
+        // les avirons balancent EN MESURE avec le coup que le solveur vient de donner
+        _ship.SetOars(frame);
+        foreach (var s2 in _others) s2.SetOars(frame);
         // les lanternes pendues suivent le roulis en vrais pendules
         _ship.SwingLanterns(frame);
         StepOthers(frame);
@@ -1751,6 +1764,22 @@ public partial class ShipDemo : Node3D
         if (Physical(Key.W)) c.Throttle = Math.Min(1, c.Throttle + dt * 0.8);
         if (Physical(Key.S)) c.Throttle = Math.Max(-1, c.Throttle - dt * 0.8);
 
+        /* LES DEUX BANCS D'AVIRONS, tirés des MÊMES touches. Une embarcation n'a
+           pas de machine ni de barre : W et S sont les nageurs qui nagent ou qui
+           scient, A et D font nager d'un bord et scier de l'autre, et elle pivote
+           sur place — ce qu'aucune règle n'a besoin de dire, le bras de levier
+           s'en charge. Ainsi la chaloupe se conduit aux mêmes touches que le
+           navire, sans qu'on ait à réapprendre à bord d'un canot.
+
+           Elle était INGOUVERNABLE : sa fiche donne au gouvernail une puissance
+           nulle — ce qui est juste, une chaloupe se gouverne à l'aviron — et les
+           avirons n'étaient pas portés (signalé). */
+        if (_ship.Spec.Oars != null)
+        {
+            c.OarL = Math.Clamp(c.Throttle + c.Rudder, -1, 1);
+            c.OarR = Math.Clamp(c.Throttle - c.Rudder, -1, 1);
+        }
+
         if (Physical(Key.Q)) c.Sheet = Math.Max(0, c.Sheet - dt * 0.8);
         if (Physical(Key.E)) c.Sheet = Math.Min(_ship.Spec.MaxSheet, c.Sheet + dt * 0.8);
     }
@@ -1926,6 +1955,8 @@ public partial class ShipDemo : Node3D
                 case Key.O: _settings.Occlusion = !_settings.Occlusion; Changed(); break;
                 case Key.Tab: CycleGunSide(); break;
                 case Key.Y: BlowUp(_ship); break;
+                // ⇧U : le vaisseau fantôme, tout de suite — U appelle une voile, ⇧U celle qui n'en est pas une
+                case Key.U when k.ShiftPressed: SummonWraith(); break;
                 case Key.U: SpawnPirate(900); break;
                 case Key.P when k.ShiftPressed: ToggleColours(); break;
                 case Key.P: GoToGhosts(true); break;
@@ -2052,7 +2083,7 @@ public partial class ShipDemo : Node3D
     PrecipNode _precip = null!;
     /// <summary>Les traînées basses du petit matin (settings.json → fog.rasante).</summary>
     MistNode? _mist;
-    double _mistAmount = 1.0, _mistTop = 2.0, _mistPatch = 90, _mistForce = -1;
+    double _mistAmount = 1.0, _mistTop = 2.0, _mistPatch = 90, _mistForce = -1, _mistGain = 0.45;
     Calendar _calendar = new();
     SeaFogSettings _fogRules = new();
     /// <summary>Le manteau de neige : settings.json → snow, les mêmes chiffres que la page.</summary>
@@ -2146,6 +2177,8 @@ public partial class ShipDemo : Node3D
                     _mistTop = Math.Clamp(rh.GetDouble(), 0.2, 30);
                 if (fg.TryGetProperty("rasanteBancs", out var rb) && rb.ValueKind == System.Text.Json.JsonValueKind.Number)
                     _mistPatch = Math.Clamp(rb.GetDouble(), 5, 600);
+                if (fg.TryGetProperty("rasanteVoile", out var rv) && rv.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    _mistGain = Math.Clamp(rv.GetDouble(), 0, 1);
             }
             if (root.TryGetProperty("reckoning", out var rk)) _reckRules = ReckoningSettings.FromJson(rk);
             if (root.TryGetProperty("wreck", out var wr) && wr.TryGetProperty("bottleOneIn", out var bo))
@@ -3134,8 +3167,79 @@ public partial class ShipDemo : Node3D
     /* UN CARNET PAR RÉGION : ce qu'on y trace est en mètres de SA carte, et un
        trait de la Jamaïque posé sur la Tortue passerait au travers des terres.
        La Jamaïque garde l'ancien nom de fichier — ce qu'on y a déjà tracé reste. */
-    string BookPath => _world == null || _world.Region.Key is "" or "caraibes"
-        ? "user://carnet.json" : $"user://carnet-{_world.Region.Key}.json";
+    string BookPath => BookPathOf(_world?.Region.Key ?? "");
+
+    /// <summary>Le carnet de CETTE région-là. Une seule définition : la reprise,
+    /// l'enregistrement et l'oubli s'en servent tous les trois.</summary>
+    public static string BookPathOf(string region) =>
+        region is "" or "caraibes" ? "user://carnet.json" : $"user://carnet-{region}.json";
+
+    /* ------------------------------------------------------------------ */
+    /*  CE QUE LE BORD A VU APPARTIENT À SA PARTIE                         */
+    /* ------------------------------------------------------------------ */
+
+    /// <summary>
+    /// TOUS LES CARNETS, RÉGION PAR RÉGION — lus sur le disque, sauf celui de la
+    /// région ouverte, qui vit en mémoire et serait en retard d'une traversée.
+    /// </summary>
+    Dictionary<string, string> BooksNow()
+    {
+        var outp = new Dictionary<string, string>();
+        string ici = _world?.Region.Key ?? "";
+        foreach (var r in Regions())
+        {
+            if (r.Key == ici) continue;
+            string path = BookPathOf(r.Key);
+            if (!FileAccess.FileExists(path)) continue;
+            using var f = FileAccess.Open(path, FileAccess.ModeFlags.Read);
+            if (f != null) outp[r.Key] = f.GetAsText();
+        }
+        if (_book != null) { KeepEstimate(); outp[ici] = _book.ToJson(); }
+        return outp;
+    }
+
+    /// <summary>
+    /// OUBLIER LA CARTE — au départ d'une partie neuve, libre ou d'histoire.
+    ///
+    /// Le carnet était un fichier GLOBAL : une sortie neuve rouvrait celui de la
+    /// précédente, avec ses traits, ses relevés et son voile déjà levé sur la
+    /// moitié de la mer (signalé). Ce que le bord a vu appartient à SA partie, et
+    /// une partie qui commence n'a rien vu.
+    ///
+    /// Tous les carnets, pas seulement celui de la région ouverte : la partie
+    /// qu'on quitte a pu passer à la Tortue, et ce qu'elle y a relevé ne doit pas
+    /// attendre la nôtre là-bas. Et le carnet de MÉMOIRE avec, sans quoi le
+    /// premier enregistrement réécrirait le fichier qu'on vient d'effacer.
+    /// </summary>
+    void ForgetBooks()
+    {
+        foreach (var r in Regions())
+        {
+            string path = BookPathOf(r.Key);
+            if (FileAccess.FileExists(path)) DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(path));
+        }
+        // la Jamaïque garde l'ancien nom de fichier : elle n'est pas forcément dans la liste
+        if (FileAccess.FileExists("user://carnet.json"))
+            DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath("user://carnet.json"));
+        _book = new NavalSim.Core.Logbook();
+        _chart?.Rebook(_book);
+    }
+
+    /// <summary>Reposer les carnets d'une partie qu'on reprend, et effacer les autres.</summary>
+    void PutBooks(Dictionary<string, string> books)
+    {
+        foreach (var r in Regions())
+        {
+            string path = BookPathOf(r.Key);
+            if (books.TryGetValue(r.Key, out var txt) && txt.Length > 0)
+            {
+                using var f = FileAccess.Open(path, FileAccess.ModeFlags.Write);
+                f?.StoreString(txt);
+            }
+            else if (FileAccess.FileExists(path))
+                DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(path));
+        }
+    }
 
     NavalSim.Core.Logbook LoadBook()
     {
@@ -3322,6 +3426,11 @@ public partial class ShipDemo : Node3D
                 // une seconde après la mise à l'eau : une traversée pose le navire APRÈS la ligne de commande
                 // LA BRUME RASANTE, à la volée : 0 à 1, sans toucher à celle de l'air
                 case "--rasante": _mistForce = args[i + 1].ToFloat(); break;
+                // ce qu'UNE nappe arrête : pour juger le voile sans toucher au fichier
+                case "--voile":
+                    _mistGain = Math.Clamp(args[i + 1].ToFloat(), 0, 1);
+                    _mist?.Material.SetShaderParameter("u_mist_gain", (float)_mistGain);
+                    break;
                 case "--brume": if (args[i + 1] != "0") (_seaFog ??= new SeaFog(_fogRules)).Force(args[i + 1].ToFloat() > 1 ? args[i + 1].ToFloat() : 6); break;
                 case "--serpent": _serpentIn = args[i + 1] != "0" ? 1.0 : -1; break;
                 case "--foudre": Strike(_ship); break;
@@ -3340,10 +3449,7 @@ public partial class ShipDemo : Node3D
                    même vue, ce qui est la seule façon d'en connaître le prix. */
                 // LES DAUPHINS : les faire venir tout de suite
                 // LE VAISSEAU FANTÔME : le faire paraître tout de suite
-                case "--fantome":
-                    if (args[i + 1] != "0")
-                        _wraith?.Summon(_ship.Physics.Body.Pos.X, _ship.Physics.Body.Pos.Z);
-                    break;
+                case "--fantome": if (args[i + 1] != "0") SummonWraith(); break;
                 // LA CHALOUPE : l affaler tout de suite
                 case "--chaloupe": if (args[i + 1] != "0") GD.Print("chaloupe : " + BoatSwing()); break;
                 case "--dauphins":

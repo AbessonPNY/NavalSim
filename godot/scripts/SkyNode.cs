@@ -302,16 +302,37 @@ public partial class SkyNode : Node3D
     double _loom;
 
     /// <summary>
-    /// L'éclair PROCHE : un coup au-dessus d'elle, qui éclaire le pont, la toile
-    /// et tout le ciel ensemble. Quatre pointes sur une seconde, parce qu'on est
-    /// dedans et que le détail se voit.
+    /// CE QUE LE CIEL PREND D'UN COUP PROCHE, de 0 à 1 — settings.json →
+    /// storm.lightning.skyFlash. Le reste du coup est la LAMPE de
+    /// <see cref="LightningNode"/>, qui vient d'un endroit et couche des ombres.
+    /// </summary>
+    public double SkyFlash = 0.30;
+
+    /// <summary>
+    /// L'AUTRE SORTE : le grain lointain qui s'allume par en dedans — son éclat,
+    /// et combien de coups par seconde d'un banc bien noir. Il ne sort jamais du
+    /// shader de ciel : à six milles on voit une tache de nuage s'allumer, et
+    /// rien d'autre. settings.json → storm.lightning.farFlash / farPerSecond.
+    /// </summary>
+    public double FarFlash = 1.0, FarPerSecond = 0.34;
+
+    /// <summary>
+    /// L'éclair PROCHE, tel que le CIEL le voit : l'hémisphérique qui monte et le
+    /// dôme qui blanchit, de partout à la fois. Quatre pointes sur une seconde,
+    /// parce qu'on est dedans et que le détail se voit.
+    ///
+    /// Il ne fait plus que SA part. Un coup au-dessus de la tête vient d'un
+    /// ENDROIT, et c'est la lampe du trait qui le dit ; le ciel garde de quoi
+    /// signaler que quelque chose s'est passé partout — le dessous des nuages
+    /// s'allume pour de bon — sans faire le jour sur toute la mer.
     /// </summary>
     public void Strike()
     {
         _flashT = 0;
+        double k = Math.Clamp(SkyFlash, 0, 1);
         _flashQueue = new (double, double)[]
         {
-            (0.00, 1.00), (0.06, 0.55), (0.17, 0.80), (0.33, 0.35)
+            (0.00, 1.00 * k), (0.06, 0.55 * k), (0.17, 0.80 * k), (0.33, 0.35 * k)
         };
     }
 
@@ -335,7 +356,7 @@ public partial class SkyNode : Node3D
             _farA *= Math.Exp(-dt * 22.0);
             if (_farT > _farNext2 && _farNext2 > 0)
             {
-                _farA = Math.Max(_farA, 0.55);
+                _farA = Math.Max(_farA, 0.55 * FarFlash);
                 _farNext2 = -1;
             }
             if (_farA < 0.004) _farA = 0;
@@ -343,9 +364,9 @@ public partial class SkyNode : Node3D
 
         // seulement d'un banc qu'on voit réellement, et d'autant plus souvent
         // qu'il est noir : environ un coup toutes les trois secondes d'un grain formé
-        if (loom > 0.06 && _farA == 0 && _rng.Randf() < loom * dt * 0.34)
+        if (loom > 0.06 && _farA == 0 && FarFlash > 0 && _rng.Randf() < loom * dt * FarPerSecond)
         {
-            _farA = 1.0;
+            _farA = FarFlash;
             _farT = 0;
             _farNext2 = _rng.Randf() < 0.55 ? 0.09 + _rng.Randf() * 0.10 : -1;
             // quelque part le long du front plutôt qu'en plein milieu

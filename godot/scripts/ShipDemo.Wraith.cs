@@ -44,7 +44,13 @@ public partial class ShipDemo : Node3D
             _world.ShoreDistance(o.X + b.Pos.X, o.Z + b.Pos.Z));
 
         bool apres = _wraith.State != Wraith.Mood.Away;
-        if (apres && !avant) RaiseWraith();
+        /* SUR L'ABSENCE DE COQUE, ET NON SUR LA BASCULE D'ÉTAT. On guettait le
+           passage de Away à Abroad, ce qui ne valait que s'il venait de lui-même :
+           appelé à la touche, il paraissait AVANT cette image, la bascule était
+           déjà faite et aucune coque n'était mise à l'eau — on le voyait errer
+           dans le journal sans jamais rien voir sur la mer. L'absence de coque dit
+           la vérité ; la bascule n'en donnait qu'un indice. */
+        if (apres && _wraithShip == null) RaiseWraith();
         if (!apres && avant) { if (_wraithShip != null) RemoveShip(_wraithShip); _wraithShip = null; }
         if (_wraithShip == null) return;
 
@@ -67,6 +73,27 @@ public partial class ShipDemo : Node3D
     }
     bool _wraithLogged;
 
+    /// <summary>
+    /// ⇧U — LE FAIRE VENIR TOUT DE SUITE, comme K fait venir le kraken. Et comme
+    /// lui, on lui amène d'abord ce dont il a besoin : il ne paraît que la nuit
+    /// et dans la brume, et une voile pâle en plein midi sur une mer claire ne
+    /// serait qu'une coque de plus. L'HEURE, pas le soleil — le cycle du jour
+    /// réécrit le soleil depuis l'heure à chaque image.
+    ///
+    /// Le large, lui, ne s'amène pas : on ne va pas déplacer le navire pour un
+    /// essai. Il est donc appelé de FORCE, ce qui le dispense des conditions le
+    /// temps de sa ronde ; à deux milles d'une côte il viendra tout de même, ce
+    /// qui n'arriverait jamais de lui-même.
+    /// </summary>
+    void SummonWraith()
+    {
+        if (_wraith == null) return;
+        if (_sky.Core.Night < _wraithRules.NightMin) { _sky.Core.SetTimeOfDay(22, _sky.Latitude); _sky.Apply(); }
+        if (_sky.Core.Fog < _wraithRules.FogMin) (_seaFog ??= new SeaFog(_fogRules)).Force(4);
+        var b = _ship.Physics.Body;
+        _wraith.Summon(b.Pos.X, b.Pos.Z, force: true);
+    }
+
     void RaiseWraith()
     {
         int idx = _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == _wraithRules.Hull);
@@ -76,8 +103,24 @@ public partial class ShipDemo : Node3D
         if (_others.Count == before) return;
         var s = _others[^1];
         _helms.Remove(s);                       // il ne se gouverne pas : il dérive
-        s.Ctrl.SailsSet = false;
         s.Ctrl.Throttle = 0;
+        /* IL PORTE TOUTE SA TOILE, ET ELLE NE PORTE RIEN.
+         *
+         * Il naviguait à sec de toile, ce qui était le raisonnement juste et le
+         * spectacle faux : on lisait un navire aux voiles SERRÉES, c'est-à-dire un
+         * navire ordinaire au mouillage, et rien de plus (signalé — « ça doit être
+         * un spectre comme l'un de ceux de la bataille d'un autre temps »).
+         *
+         * Un vaisseau fantôme porte au contraire tout ce qu'il a, et c'est
+         * justement l'écart qui glace : de la toile pleine, en loques, et pas un
+         * degré de gîte, pas une lame à l'étrave, une erre égale — ce qu'aucun
+         * navire ne peut faire. La toile ne lui donne pas un nœud puisqu'il est
+         * GLISSÉ et que le solveur ne le touche pas ; elle n'est là que pour l'œil.
+         *
+         * Ghostify la déchire par ailleurs, une carte de plaies tirée par voile :
+         * ce sont les mêmes loques que celles de la bataille du Cimetière. */
+        s.Ctrl.SailsSet = true;
+        s.Ctrl.Canvas = 1;
         s.ShowColours(false);                   // pas de pavillon : on ne sait pas d'où il vient
         s.Ghostify(_ghosts.Rules.Opacity, _gunFx.Smoke);
         if (_hulls.TryGetValue(s, out var h)) s.Physics.Glide = h.Y + 0.25;

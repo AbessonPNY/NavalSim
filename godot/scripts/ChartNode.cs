@@ -41,7 +41,7 @@ public partial class ChartNode : Node
     const int MaskSide = 256;
 
     readonly World _world;
-    public readonly Logbook Book;
+    public Logbook Book { get; private set; }
 
     SubViewport _vp = null!;
     TextureRect _land = null!;
@@ -199,6 +199,18 @@ public partial class ChartNode : Node
     /// découverte du capitaine, et le rouvrir le lendemain rend la carte honnête.
     /// </summary>
     public bool Unveiled { get; private set; }
+
+    /// <summary>
+    /// CHANGER DE CARNET — au départ d'une partie neuve. La feuille est la même
+    /// (c'est la région), ce qui est écrit dessus ne l'est pas : la route, les
+    /// traits, les mots et le VOILE, qui se refait tout entier de la route du
+    /// nouveau carnet, laquelle est vide.
+    /// </summary>
+    public void Rebook(Logbook book)
+    {
+        Book = book;
+        Unveil(false);
+    }
 
     public void Unveil(bool on)
     {

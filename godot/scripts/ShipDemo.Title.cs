@@ -265,6 +265,10 @@ public partial class ShipDemo : Node3D
         _met.Clear(); _noticed.Clear(); _bound.Clear(); _nextSail = -1;
         _purse = new Purse(Market.Depart);
         _gameId = "";
+        /* ET LA CARTE AVEC : ce que le bord a vu appartient à SA partie. Ici plutôt
+           que dans FreePlay et StartQuest, parce que Home() est le seul endroit par
+           où passent les deux — et qu'une reprise, elle, n'y passe pas. */
+        ForgetBooks();
         var b = _ship.Physics.Body;
         b.Vel = Vec3d.Zero;
         b.AngVel = Vec3d.Zero;

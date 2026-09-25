@@ -170,6 +170,8 @@ public partial class ShipNode : Node3D
             ModelRoot = obj;
             RigModel();
             FindGuns();
+            // ce qui est dedans ne reçoit plus la lumière des fanaux du pont
+            MarkInside();
             // sur tout ce qui est à bord, y compris les espars que RigModel vient
             // de sortir du modèle pour les pendre dans leurs pivots
             AttachHaze(this);

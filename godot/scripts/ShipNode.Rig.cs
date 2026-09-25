@@ -145,11 +145,110 @@ public partial class ShipNode
     /// coque seule ne montre pas son roulis, l'œil n'ayant aucune verticale à quoi
     /// comparer l'inclinaison.
     /// </summary>
+    /* ------------------------------------------------------------------ */
+    /*  LES AVIRONS D'UNE EMBARCATION                                      */
+    /* ------------------------------------------------------------------ */
+
+    sealed class Oar
+    {
+        public Node3D Pivot = null!;
+        public Node3D Blade = null!;
+        public int Side;                 // 0 bâbord, 1 tribord
+        public float Sg;                 // +1 bâbord (+x), −1 tribord (−x)
+        public float Th, Dip = 0.14f, Feather;
+    }
+    readonly List<Oar> _oars = new();
+
+    /// <summary>
+    /// UN AVIRON PAR TOLET : un fût et une pelle, qui pivotent sur le plat-bord.
+    /// Rien ici ne tire — le solveur le fait, aux PELLES —, et <see cref="SetOars"/>
+    /// ne lit que la phase de son coup : ce que l'œil voit nager est exactement ce
+    /// qui la fait avancer.
+    /// </summary>
+    void BuildOars()
+    {
+        _oars.Clear();
+        if (Spec.Oars is not NavalSim.Core.OarsSpec O) return;
+        var L = Lines;
+        double len = O.Length;
+        var spar = MakeHullMaterial(Hex(Spec.Appearance.Spar), 0.62f);
+        var loomMesh = Cylinder(0.03, 0.04, len, 8);
+        var bladeMesh = new BoxMesh { Size = new Vector3(0.8f, 0.022f, 0.16f) };
+        for (int i = 0; i < O.Pairs; i++)
+        {
+            double z = Spec.L * (O.Pairs > 1 ? 0.12 - 0.26 * i / (O.Pairs - 1.0) : 0);
+            double t = z / Spec.L + 0.5;
+            for (int side = 0; side < 2; side++)
+            {
+                float sg = side == 0 ? 1 : -1;          // bâbord +x, tribord −x
+                var pivot = new Node3D
+                {
+                    Position = new Vector3(sg * (float)(L.HalfB(t) * 0.97),
+                                           (float)(L.DeckY(t) + 0.30 * (Spec.L / 24)), (float)z)
+                };
+                /* LE FÛT EST COUCHÉ LE LONG DE X, comme il est armé : un tiers en
+                   dedans du tolet, deux au dehors. Le cylindre de Godot est debout
+                   sur Y ; on le couche par la rotation du nœud qui le porte. */
+                var loom = new MeshInstance3D
+                {
+                    Mesh = loomMesh, MaterialOverride = spar,
+                    Position = new Vector3(sg * (float)(0.2 * len), 0, 0),
+                    Rotation = new Vector3(0, 0, Mathf.Pi / 2)
+                };
+                var blade = new MeshInstance3D
+                {
+                    Mesh = bladeMesh, MaterialOverride = spar,
+                    Position = new Vector3(sg * (float)(0.7 * len - 0.4), 0, 0)
+                };
+                pivot.AddChild(loom);
+                pivot.AddChild(blade);
+                _rig.AddChild(pivot);
+                _oars.Add(new Oar { Pivot = pivot, Blade = blade, Side = side, Sg = sg });
+            }
+        }
+    }
+
+    /// <summary>
+    /// BALANCER LES AVIRONS EN MESURE avec le coup du solveur : la pelle en avant
+    /// et CARRÉE à l'attaque, tirée vers l'arrière dans l'eau, puis plumée et
+    /// portée en avant au-dessus. Scier nage le même coup à l'envers. Laissés à
+    /// eux-mêmes, ils sont tenus à plat, hors de l'eau.
+    /// </summary>
+    public void SetOars(double dt)
+    {
+        if (_oars.Count == 0) return;
+        float k = (float)Math.Min(1, dt * 14);
+        foreach (var o in _oars)
+        {
+            double inp = Physics.OarInput[o.Side], u = Physics.OarPhase[o.Side];
+            float th = 0, dip = 0.14f, feather = 0;
+            if (inp != 0)
+            {
+                float dir = inp > 0 ? 1 : -1;
+                if (u < 0.45)
+                {
+                    float e = (float)((1 - Math.Cos(Math.PI * u / 0.45)) / 2);
+                    th = dir * (-0.55f + 1.1f * e); dip = -0.17f; feather = Mathf.Pi / 2;
+                }
+                else
+                {
+                    float e = (float)((1 - Math.Cos(Math.PI * (u - 0.45) / 0.55)) / 2);
+                    th = dir * (0.55f - 1.1f * e);
+                    dip = 0.08f + 0.07f * (float)Math.Sin(Math.PI * (u - 0.45) / 0.55);
+                }
+            }
+            o.Th += (th - o.Th) * k; o.Dip += (dip - o.Dip) * k; o.Feather += (feather - o.Feather) * k;
+            o.Pivot.Rotation = new Vector3(0, o.Sg * o.Th, o.Sg * o.Dip);
+            o.Blade.Rotation = new Vector3(o.Feather, 0, 0);
+        }
+    }
+
     void BuildRig()
     {
         _rig = new Node3D();
         AddChild(_rig);
         var spec = Spec;
+        BuildOars();                                    // une chaloupe n'a que cela
         if (spec.Masts.Count == 0) return;              // un bâtiment à la seule machine
         double sc = spec.L / 24;                          // les espars grossissent avec elle
         var spar = MakeHullMaterial(Hex(spec.Appearance.Spar), 0.62f);

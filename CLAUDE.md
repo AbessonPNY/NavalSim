@@ -184,17 +184,10 @@ La musique n'est pas embarquée (trop lourde). `node build.js` écrit
   reste à mesurer sur une boucle qui tourne.
 - Relief (normal map) : interrupteur et intensité dans `settings.json`.
 - Fusionner les voies d'eau d'un même endroit (voir le journal).
-- Chaloupe : portée (N l'affale et la hisse, `ShipDemo.Boat.cs`), mais sa console
-  de barre est encore celle d'un navire, et elle n'a pas de `.glb`.
+- Chaloupe : portée (N l'affale et la hisse, `ShipDemo.Boat.cs`), elle nage à
+  l'aviron et ne mouille pas ; reste sa console de barre, encore celle d'un
+  navire, et elle n'a pas de `.glb`.
 
-- **La carte du capitaine est GLOBALE, et elle ne devrait pas l'être** : une
-  nouvelle partie de jeu libre rouvre le carnet de la précédente (`carnet.json`,
-  `carnet-tortue.json` dans les données utilisateur). Ce que le bord a vu
-  appartient à SA partie — à ranger dans l'enregistrement, ou dans un fichier par
-  identifiant de partie, et à effacer avec elle. (Signalé le 25/09.)
-- **Brume rasante** : bords rectilignes et ondulations de houle réglés le 25/09
-  (bruit au fragment, nappes PLATES effacées là où une crête les traverse).
-  Reste son opacité par nappe — quatre nappes à 1 font un mur.
 - **Journal de bord** : écrit et les pages tournent (⇧I, ← →, ⇧Entrée).
   Reste le modèle du livre sur le bureau — une surface nommée `journal` suffit,
   rien à coder.

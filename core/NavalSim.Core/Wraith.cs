@@ -85,6 +85,14 @@ public sealed class Wraith
     public double Left { get; private set; }
     /// <summary>A-t-il déjà passé le bord ? Pour ne le dire qu'une fois.</summary>
     public bool Passed;
+    /// <summary>
+    /// APPELÉ À LA MAIN. Le sort ne le fait paraître que la nuit, dans la brume
+    /// et au large ; appelé, il tient sa ronde jusqu'au bout même si le ciel se
+    /// découvre. Sans quoi la touche qui le convoque ne montrerait rien — il
+    /// s'effacerait à l'image suivante, ce qui est exactement ce qui arrivait au
+    /// kraken avant qu'on lui amène son grain.
+    /// </summary>
+    public bool Forced { get; private set; }
 
     public Action<string>? Say;
 
@@ -96,8 +104,12 @@ public sealed class Wraith
 
     double R(double a, double b) => a + _rng.NextDouble() * (b - a);
 
-    /// <summary>Le faire paraître maintenant, autour de ce point — pour l'essai, ou par le sort.</summary>
-    public void Summon(double x, double z)
+    /// <summary>
+    /// Le faire paraître maintenant, autour de ce point — par le sort, ou appelé.
+    /// <paramref name="force"/> : il tient sa ronde même si la nuit, la brume ou
+    /// le large viennent à manquer.
+    /// </summary>
+    public void Summon(double x, double z, bool force = false)
     {
         /* IL PARAÎT SUR L'AVANT D'UN BORD OU DE L'AUTRE, jamais droit derrière :
            un fantôme qu'on découvre dans son sillage n'est qu'une surprise, un
@@ -110,6 +122,7 @@ public sealed class Wraith
         Fade = 0;
         Left = K.Linger;
         Passed = false;
+        Forced = force;
         State = Mood.Abroad;
         Say?.Invoke("Une voile pâle, sur la brume… elle ne porte rien.");
     }
@@ -139,7 +152,7 @@ public sealed class Wraith
             /* IL S'EN VA quand le jour vient, quand la brume tombe, quand on a
                gagné la côte, quand il a rôdé son temps — ou quand il est trop
                loin pour qu'on le voie encore. */
-            if (!propice || Left <= 0 || d > K.Gone) State = Mood.Leaving;
+            if ((!propice && !Forced) || Left <= 0 || d > K.Gone) State = Mood.Leaving;
         }
 
         /* CE QUI L'ATTIRE : la lumière, et rien d'autre. Feux couverts, il garde
@@ -169,6 +182,7 @@ public sealed class Wraith
         if (State == Mood.Leaving && Fade <= 0.001)
         {
             State = Mood.Away;
+            Forced = false;
             Say?.Invoke("La brume se referme sur lui.");
         }
     }

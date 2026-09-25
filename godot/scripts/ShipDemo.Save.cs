@@ -61,12 +61,17 @@ public partial class ShipDemo
         [JsonPropertyName("flotte")] public List<Coque> Flotte { get; set; } = new();
         /// <summary>Les quêtes et le carnet, tels qu'ils s'écrivent déjà dans user:// — recopiés ici.</summary>
         [JsonPropertyName("quetes")] public string Quetes { get; set; } = "";
-        /* LE JOURNAL DE BORD VIT DANS LA PARTIE, et nulle part ailleurs. Le carnet
-           de carte, lui, est un fichier global que la reprise repose — un héritage
-           qu'il faudra corriger (une partie neuve rouvre le carnet de la
-           précédente) ; on ne l'imite pas ici. */
+        /* LE JOURNAL DE BORD ET LA CARTE VIVENT DANS LA PARTIE, et nulle part
+           ailleurs. Le carnet de carte a longtemps été un fichier GLOBAL que la
+           reprise reposait : une sortie neuve rouvrait celui de la précédente,
+           avec ses traits et son voile déjà levé (signalé). Il est maintenant
+           enregistré RÉGION PAR RÉGION — une partie peut avoir passé à la Tortue,
+           et ce qu'elle y a relevé lui appartient aussi. */
         [JsonPropertyName("journal")] public string Journal { get; set; } = "";
+        /// <summary>Le carnet de la seule région ouverte — LU pour les parties d'avant, plus écrit.</summary>
         [JsonPropertyName("carnet")] public string Carnet { get; set; } = "";
+        /// <summary>Un carnet par région visitée, la clé de la région pour clé.</summary>
+        [JsonPropertyName("carnets")] public Dictionary<string, string> Carnets { get; set; } = new();
     }
 
     public sealed class Colis
@@ -150,7 +155,7 @@ public partial class ShipDemo
         }
         s.Quetes = _quests?.ToJson() ?? "";
         s.Journal = _journal.Pages.Count > 0 ? _journal.ToJson() : "";
-        s.Carnet = _book?.ToJson() ?? "";
+        s.Carnets = BooksNow();
         s.Lieu = Where();
         s.Nom = $"{_ship.Spec.Name} — {s.Lieu}, {_calendar.Date:dd/MM/yyyy}";
         return s;
@@ -264,11 +269,15 @@ public partial class ShipDemo
     /// </summary>
     void LoadGame(SaveState s)
     {
-        /* LE CARNET ET LES QUÊTES SONT DÉJÀ DES FICHIERS : on les repose là où la
+        /* LES CARNETS ET LES QUÊTES SONT DÉJÀ DES FICHIERS : on les repose là où la
            scène neuve ira les lire, plutôt que d'ouvrir un second chemin qui
-           finirait par dire autre chose. */
-        string carnet = s.Region is "" or "caraibes" ? "user://carnet.json" : $"user://carnet-{s.Region}.json";
-        if (s.Carnet.Length > 0) { using var f = FileAccess.Open(carnet, FileAccess.ModeFlags.Write); f?.StoreString(s.Carnet); }
+           finirait par dire autre chose. Et les régions que cette partie-là n'a
+           pas visitées sont EFFACÉES : sans quoi on hériterait du carnet d'une
+           autre partie en traversant. */
+        var books = new Dictionary<string, string>(s.Carnets);
+        // une partie d'avant n'en portait qu'un, sans dire de quelle région : c'est la sienne
+        if (books.Count == 0 && s.Carnet.Length > 0) books[s.Region is "" ? "caraibes" : s.Region] = s.Carnet;
+        PutBooks(books);
         if (s.Quetes.Length > 0) { using var f = FileAccess.Open(QuestPath, FileAccess.ModeFlags.Write); f?.StoreString(s.Quetes); }
         _loading = s;
         GetTree().ReloadCurrentScene();

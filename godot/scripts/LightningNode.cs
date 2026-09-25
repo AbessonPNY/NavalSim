@@ -6,10 +6,22 @@ namespace NavalSim;
 /// <summary>
 /// LES COUPS DE FOUDRE — lightning.js : l'éclair, du nuage à une tête de mât.
 /// Trois bandes en réserve (un coup ne dure qu'un quart de seconde, deux à la fois
-/// sont déjà rares), chacune avec son matériau ; le dessin est dans
-/// lightning_bolt.gdshader. Aucune lampe : le nombre de lumières de la scène ne
-/// change jamais en jeu, et le pont est éclairé par l'éclat du ciel
-/// (<see cref="SkyNode.Strike"/>), déjà branché sur le ciel, la mer et le gréement.
+/// sont déjà rares), chacune avec son matériau et SA LAMPE ; le dessin est dans
+/// lightning_bolt.gdshader.
+///
+/// L'éclat du ciel (<see cref="SkyNode.Strike"/>) reste : il monte l'hémisphérique
+/// et court sur la mer, les voiles et le gréement, ce qui est le coup vu de loin.
+/// Mais un coup AU-DESSUS DE LA TÊTE vient d'un endroit, et une lumière qui vient
+/// de partout ne peut pas le rendre : il faut qu'un bord s'allume, que l'autre
+/// reste noir et que l'ombre des mâts se couche en travers du pont. D'où une
+/// lampe par bande, posée sur le trait du coup, qui suit EXACTEMENT sa courbe
+/// d'éclat — une définition, deux usagers.
+///
+/// Les trois lampes sont créées à l'armement et ne sont jamais ni ajoutées ni
+/// retirées ; seules leur énergie et leur visibilité changent, comme celles des
+/// canons. Leur visibilité, parce qu'une lampe à ombres portées rend sa carte
+/// cubique à chaque image tant qu'on la voit, et qu'un coup ne dure qu'un quart
+/// de seconde sur des minutes de calme.
 /// </summary>
 public partial class LightningNode : Node3D
 {
@@ -20,9 +32,22 @@ public partial class LightningNode : Node3D
     {
         public MeshInstance3D Mesh = null!;
         public ShaderMaterial Mat = null!;
+        public OmniLight3D Lamp = null!;
         public Vector3 Top, Bottom;
         public double Age = -1;                // négatif : libre
     }
+
+    /// <summary>Ce que le coup jette sur le pont — settings.json → storm.lightning.</summary>
+    public double FlashEnergy = 90, FlashRange = 170;
+    public bool FlashShadow = true;
+
+    /* OÙ SE TIENT LA LAMPE SUR LE TRAIT, en mètres au-dessus de la tête de mât
+       frappée. Au point d'impact même, elle éclairerait la pomme du mât et rien
+       d'autre — un mât de quarante mètres ferait écran à son propre pont. Trente
+       mètres plus haut, le pont entier est dans son cône et les mâts couchent
+       leur ombre dessus, ce qui est ce qu'on veut voir. Le coup, lui, fait trois
+       cents mètres : la lampe n'est pas l'éclair, elle en est la part utile. */
+    const float LampUp = 30;
 
     readonly Bolt[] _bolts = new Bolt[3];
     readonly Random _rng = new();
@@ -46,7 +71,21 @@ public partial class LightningNode : Node3D
                 CastShadow = GeometryInstance3D.ShadowCastingSetting.Off
             };
             AddChild(mi);
-            _bolts[i] = new Bolt { Mesh = mi, Mat = mat };
+            /* BLANC-BLEU ET FROID : un arc est un plasma à trente mille degrés, et
+               tout ce qu'il éclaire prend cette teinte-là. C'est ce qui le distingue
+               d'un fanal, qui est une flamme, et c'est pourquoi un pont aux feux
+               couverts paraît soudain gris acier sous le coup. */
+            var lamp = new OmniLight3D
+            {
+                LightColor = new Color(0.82f, 0.88f, 1f),
+                LightEnergy = 0,
+                OmniRange = (float)FlashRange,
+                OmniAttenuation = 1.0f,
+                ShadowEnabled = FlashShadow,
+                Visible = false
+            };
+            AddChild(lamp);
+            _bolts[i] = new Bolt { Mesh = mi, Mat = mat, Lamp = lamp };
         }
     }
 
@@ -67,6 +106,13 @@ public partial class LightningNode : Node3D
         b.Mat.SetShaderParameter(UBottom, b.Bottom);
         b.Age = 0;
         b.Mesh.Visible = true;
+        /* SUR LE TRAIT DU COUP, pas à côté : l'ombre d'un mât doit tomber du même
+           côté que le trait qu'on voit, sans quoi l'œil sent la triche sans
+           pouvoir la nommer. */
+        b.Lamp.Position = b.Bottom + (b.Top - b.Bottom).Normalized() * LampUp;
+        b.Lamp.OmniRange = (float)FlashRange;
+        b.Lamp.ShadowEnabled = FlashShadow;
+        b.Lamp.Visible = FlashEnergy > 0;
     }
 
     /* LE COUP TEL QU'ON L'ESQUISSERAIT — paint() de la page : d'en haut dans le
@@ -124,11 +170,18 @@ public partial class LightningNode : Node3D
         {
             if (b.Age < 0) continue;
             b.Age += dt;
-            if (b.Age > 0.25) { b.Age = -1; b.Mesh.Visible = false; continue; }
+            if (b.Age > 0.25)
+            {
+                b.Age = -1; b.Mesh.Visible = false;
+                b.Lamp.LightEnergy = 0; b.Lamp.Visible = false;
+                continue;
+            }
             // la forme du coup du ciel : un premier éclat, un creux, un arc en retour, fini
             double a = b.Age;
             double op = a < 0.06 ? 1 : a < 0.10 ? 0.25 : a < 0.16 ? 0.9 : Math.Max(0, 0.5 * (1 - (a - 0.16) / 0.09));
             b.Mat.SetShaderParameter(UOpacity, (float)op);
+            // la MÊME courbe : le trait et ce qu'il éclaire sont le même événement
+            b.Lamp.LightEnergy = (float)(op * FlashEnergy);
         }
     }
 
@@ -139,6 +192,7 @@ public partial class LightningNode : Node3D
         {
             if (b.Age < 0) continue;
             b.Top -= d; b.Bottom -= d;
+            b.Lamp.Position -= d;
             b.Mat.SetShaderParameter(UTop, b.Top);
             b.Mat.SetShaderParameter(UBottom, b.Bottom);
         }

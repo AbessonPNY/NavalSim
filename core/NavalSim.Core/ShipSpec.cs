@@ -133,6 +133,23 @@ public sealed class ModelSpec
     [JsonPropertyName("nightGlow")]  public double? NightGlow { get; set; }
     /// <summary>Le gain de pente du relief tiré de la rugosité (voir ReliefMap) ; absent, aucun.</summary>
     [JsonPropertyName("relief")]     public double? Relief { get; set; }
+    /// <summary>
+    /// CE QUI EST DEDANS — des morceaux de nom de maillage, sans égard à la casse.
+    /// Ce qui correspond est à l'INTÉRIEUR de la coque, et les feux du pont ne
+    /// l'éclairent pas : un fanal est dehors, et ce qui est dehors n'entre pas.
+    ///
+    /// Le moteur ne peut pas le deviner. Une coque est une boîte ouverte dont
+    /// l'intérieur est modelé vu du dedans, si bien qu'une cloison présente ses
+    /// dos aux lumières du dehors et ne leur fait aucune ombre ; et une vitre de
+    /// poupe, qui ne porte volontairement pas d'ombre pour que le soleil entre,
+    /// laisse aussi entrer le fanal pendu deux mètres derrière. On le DIT donc,
+    /// plutôt que de multiplier les cartes d'ombres.
+    ///
+    /// Absente, la liste vaut « cabine, cabin, chambre, bureau », ce qui couvre
+    /// les modèles écrits jusqu'ici. Une liste VIDE veut dire « rien n'est
+    /// dedans », et le bord entier reprend la lumière des fanaux.
+    /// </summary>
+    [JsonPropertyName("inside")]     public string[]? Inside { get; set; }
 }
 
 /// <summary>
@@ -224,6 +241,26 @@ public sealed class AppearanceSpec
     [JsonPropertyName("impactMaps")] public List<List<string>>? ImpactMaps { get; set; }
 }
 
+/// <summary>
+/// LES AVIRONS D'UNE EMBARCATION, telle que la fiche les écrit. pairs : combien
+/// de paires ; period : le temps d'un coup entier, en secondes ; length : la
+/// longueur d'un aviron, en mètres (absente, 1,7 fois son bau).
+/// </summary>
+public sealed class OarsJson
+{
+    [JsonPropertyName("pairs")]  public int? Pairs { get; set; }
+    [JsonPropertyName("period")] public double? Period { get; set; }
+    [JsonPropertyName("length")] public double? Length { get; set; }
+}
+
+/// <summary>Ce que le solveur et le modèle en tirent.</summary>
+public sealed class OarsSpec
+{
+    public int Pairs = 2;
+    public double Period = 2.2;
+    public double Length = 3.4;
+}
+
 public sealed class ShipJson
 {
     [JsonPropertyName("id")]   public string Id { get; set; } = "";
@@ -237,6 +274,13 @@ public sealed class ShipJson
     [JsonPropertyName("hydro")]  public HydroSpec Hydro { get; set; } = new();
     [JsonPropertyName("engine")] public EngineSpec Engine { get; set; } = new();
     [JsonPropertyName("rudder")] public RudderSpec Rudder { get; set; } = new();
+    [JsonPropertyName("oars")] public OarsJson? Oars { get; set; }
+    /// <summary>
+    /// A-T-ELLE UNE ANCRE ? Vrai sauf mention contraire. Une chaloupe n'en porte
+    /// pas — elle n'a ni écubier, ni cabestan, ni le poids qu'il faudrait pour
+    /// tenir, et on pouvait pourtant mouiller avec (signalé).
+    /// </summary>
+    [JsonPropertyName("anchor")] public bool? Anchor { get; set; }
     [JsonPropertyName("rig")]    public RigSpec Rig { get; set; } = new();
     [JsonPropertyName("model")]  public ModelSpec? Model { get; set; }
     [JsonPropertyName("appearance")] public AppearanceSpec Appearance { get; set; } = new();
@@ -295,6 +339,15 @@ public sealed class ShipSpec
     /// l'élan de débogage (B) s'y arrête. Une coque moderne peut le relever.
     /// </summary>
     public double SpeedLimit { get; }
+
+    /// <summary>
+    /// SES AVIRONS, si elle en a — une chaloupe, une yole, une galère. Nul
+    /// autrement, et le solveur n'en sait alors rien.
+    /// </summary>
+    public OarsSpec? Oars { get; }
+
+    /// <summary>A-t-elle une ancre à mouiller ? Une embarcation n'en a pas.</summary>
+    public bool HasAnchor { get; }
 
     public double RudderK { get; }
     public double RudderMax { get; }
@@ -387,6 +440,22 @@ public sealed class ShipSpec
         double sp = json.Engine.SternPower ?? -0.6;
         SternPower = Math.Max(-1, Math.Min(0, sp));
         SpeedLimit = Math.Max(1, json.Engine.SpeedLimit ?? 40);
+
+        /* SES AVIRONS. La longueur par défaut vaut 1,7 fois son bau, comme la
+           page : un aviron qui ne déborde pas assez ne fait pas de bras de
+           levier, et c'est le levier qui la fait tourner. */
+        if (json.Oars is OarsJson oj)
+            Oars = new OarsSpec
+            {
+                Pairs = Math.Max(1, oj.Pairs ?? 2),
+                Period = Math.Max(0.4, oj.Period ?? 2.2),
+                Length = oj.Length ?? 1.7 * json.Hull.Beam
+            };
+
+        /* SON ANCRE : celle qu'on mouille. Absente de la fiche, elle en a une —
+           tous les bâtiments en portent ; ce sont les embarcations qui font
+           exception, et elles le DISENT. */
+        HasAnchor = json.Anchor ?? true;
 
         RudderK = json.Rudder.Power * lateralArea;
         RudderMax = json.Rudder.MaxAngle;

@@ -51,6 +51,7 @@
     "jib": null,
     "bowsprit": null
   },
+  "anchor": false,
   "oars": {
     "pairs": 2,
     "period": 2.2,

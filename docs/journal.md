@@ -9769,6 +9769,307 @@ est juste. Ce sont les seuls réglages d'artillerie qui ne changent RIEN au
 combat — une pièce ne tire ni plus loin ni plus fort parce que sa flamme éclaire
 mieux —, et c'est pourquoi ils peuvent se régler à l'œil sans rien mesurer.
 
+## L'éclair éclaire d'un endroit (Godot)
+
+Demandé : « la nuit en pleine tempête il faudrait que les différents éclairs
+créent de vrais flashs de lumière sur le bateau, ce sera impressionnant avec les
+lanternes éteintes ».
+
+Il y avait déjà un éclat, et il ne pouvait pas faire ça : `Sky.Flash` monte
+l'HÉMISPHÉRIQUE de 2,6 et court sur la mer, les voiles et le gréement. C'est le
+coup vu de loin, et c'est juste — à six milles on voit le ciel blanchir, pas une
+ombre bouger. Mais un coup au-dessus de la tête vient d'UN ENDROIT, et une
+lumière qui vient de partout ne peut pas le rendre : il faut qu'un bord
+s'allume, que l'autre reste noir et que l'ombre des mâts se couche en travers du
+pont.
+
+Chaque bande de `LightningNode` a donc sa lampe — trois, créées à l'armement,
+jamais ajoutées ni retirées, seules leur énergie et leur visibilité changent.
+Elle est posée SUR LE TRAIT du coup, trente mètres au-dessus de la tête de mât
+frappée : au point d'impact même, un mât de quarante mètres ferait écran à son
+propre pont ; trente mètres plus haut, le pont entier est dans son cône. Blanc
+bleuté (0,82 0,88 1,00), parce qu'un arc est un plasma et que tout ce qu'il
+éclaire prend cette teinte — c'est ce qui le distingue d'un fanal, qui est une
+flamme, et pourquoi un pont aux feux couverts paraît soudain gris acier.
+
+Et elle suit **exactement** la courbe d'éclat du trait, qui existait déjà : un
+premier éclat, un creux, un arc en retour, fini, le tout en un quart de seconde.
+Une définition, deux usagers — le trait et ce qu'il éclaire sont le même
+événement, et il serait absurde de les faire battre séparément.
+
+Sa visibilité bascule avec la bande, ce qui déroge à l'habitude de ne jamais
+masquer une lumière. La raison est qu'elle porte des OMBRES : une lampe à ombres
+portées rend sa carte cubique à chaque image tant qu'on la voit, et un coup dure
+un quart de seconde sur des minutes de calme. Prix mesuré au pire — un coup
+toutes les douze images, donc une bande toujours vivante : **0,64 ms de carte
+graphique** (4,13 contre 3,49). En jeu, où un coup est rare, c'est zéro.
+
+### Et le ciel a cédé la place
+
+Signalé sur une capture prise au bon moment : « les éclairs ne doivent pas
+illuminer autant tout le ciel ; c'est surtout le bateau, et la lumière vient d'un
+seul côté comme un spot qui s'allumerait soudain ».
+
+C'est la description exacte de la lampe qu'on venait de poser — il suffisait de
+lui laisser la place. L'éclat du ciel, lui, était resté à pleine force et faisait
+le jour sur toute la mer par-dessus elle. Mesuré, le vert moyen du quart HAUT de
+l'écran (le ciel) contre la moitié BASSE (la mer et le navire), image par image
+après le coup :
+
+| | ciel au pic | mer et navire |
+|---|---|---|
+| au repos | 0,086 | 0,090 |
+| `skyFlash` 1,0 (avant) | **0,446** | 0,191 |
+| `skyFlash` 0,18, lampe 160 | **0,172** | 0,124 |
+
+Le ciel monte deux fois et demie moins, et ce qui lui reste vient pour une bonne
+part du TRAIT lui-même, qui est dans le ciel et doit y être. Le ciel garde de
+quoi dire qu'il s'est passé quelque chose partout — un coup de foudre allume
+réellement le dessous des nuages — sans faire le jour.
+
+`settings.json → storm.lightning` : `flashEnergy` 160, `flashRange` 200 m,
+`flashShadow` true, `skyFlash` 0,18.
+
+## Il portait ses voiles serrées, ce qui n'est pas un spectre (Godot)
+
+Signalé : « le bateau fantôme qui arrive à 8 nœuds, ça doit être un spectre comme
+l'un de ceux de la bataille d'un autre temps ».
+
+Il en était déjà un par la matière — `Ghostify` à la même opacité que ceux du
+Cimetière, la même toile en loques, la même aure qui vacille. Ce qui manquait
+était la TOILE : il naviguait à sec de toile, parce que le raisonnement disait
+qu'il ne porte rien, et le raisonnement était juste et le spectacle faux. On
+lisait un navire aux voiles serrées, c'est-à-dire un navire ordinaire au
+mouillage.
+
+Un vaisseau fantôme porte au contraire tout ce qu'il a, et c'est justement
+l'ÉCART qui glace : de la toile pleine, en loques, et pas un degré de gîte, pas
+une lame à l'étrave, une erre égale — ce qu'aucun navire ne peut faire. La toile
+ne lui donne pas un nœud puisqu'il est glissé et que le solveur ne le touche
+pas ; elle n'est là que pour l'œil, et c'est elle qui dit ce qu'il est.
+
+La leçon vaut au-delà : **un fantôme se reconnaît à ce qu'il fait de travers, pas
+à ce qu'il ne fait pas.** Un navire qui ne porte rien n'est pas étrange, il est
+au repos ; un navire qui porte tout sans gîter est impossible.
+
+## Un fanal est dehors, et ce qui est dehors n'entre pas (Godot)
+
+Suite directe de ⇧C, qui avait été posée pour trancher la question : la chambre
+éteinte restait claire, donc la lumière venait du dehors. Les deux coupables
+sont le feu de poupe et celui de grand mât, et ils entrent par deux chemins
+différents — ce qui explique qu'aucun réglage d'ombres ne les arrêtait.
+
+Le premier passe par les VITRES DE POUPE, qui ne portent volontairement pas
+d'ombre : on les avait dispensées pour que le soleil entre dans la chambre
+(journal « les fenêtres s'allument avec les feux »). Une vitre transparente à la
+lumière l'est pour toutes les lumières, et le fanal est pendu deux mètres
+derrière elle.
+
+Le second passe par le PONT, et c'est plus subtil : l'intérieur d'une coque est
+modelé **vu du dedans**, donc ses cloisons et son plafond présentent leur dos aux
+lumières du dehors. Un plafond dont la normale regarde vers le bas ne fait aucune
+ombre à une lampe posée au-dessus de lui.
+
+On aurait pu forcer les ombres double face et rendre les vitres opaques ; on y
+aurait perdu le soleil dans la chambre et gagné deux cartes d'ombre. **On le dit
+plutôt qu'on ne le calcule** : `model.inside` de la fiche nomme les morceaux qui
+sont à l'intérieur (par défaut « cabine, cabin, chambre, bureau »), ceux-là
+quittent la couche de lumière du dehors, et les feux du PONT retirent cette
+couche de leur masque. Tout le reste garde le masque plein — le soleil, la lune,
+la bougie de la chambre, le feu des canons, l'éclair —, donc rien d'autre ne
+change. Coût : zéro, c'est un masque de bits.
+
+Relevé sur la frégate du XVIIe : `CabineCapitaine`, `BureauCapitaine`,
+`BureauCapitaineMap` et `cabineLantern` passent dedans, le reste du bord non.
+
+La limite est honnête et elle est écrite dans `ships/README.md` : si le plancher
+d'une pièce appartient au maillage de la COQUE plutôt qu'à un nœud nommé, il
+reste dehors et reste éclairé. Le remède est dans Blender, pas dans le code.
+
+## ⇧U, et la coque qui n'était jamais mise à l'eau (Godot)
+
+Demandé : une touche pour faire venir le vaisseau fantôme, « comme pour le
+kraken ». La comparaison porte plus loin qu'il n'y paraît — K amène d'abord son
+grain, parce qu'un kraken hors d'une dépression replongerait à l'image suivante.
+⇧U fait pareil : elle amène la nuit et la brume, sans quoi une voile pâle en
+plein midi sur une mer claire ne serait qu'une coque de plus. L'HEURE, pas le
+soleil — le cycle du jour réécrit le soleil depuis l'heure à chaque image.
+
+Le large, lui, ne s'amène pas : on ne déplace pas le navire pour un essai. Il est
+donc appelé de FORCE (`Summon(force: true)`), ce qui le dispense des conditions
+le temps de sa ronde. C'est aussi ce qui manquait à `--fantome 1`, qui pouvait
+s'évaporer avant d'avoir paru.
+
+### Il errait dans le journal sans jamais paraître sur la mer
+
+Et la vraie faute est là. La coque du fantôme était mise à l'eau sur la BASCULE
+d'état — `si Away devient Abroad`. Cela ne valait que s'il venait de lui-même,
+car la bascule se produisait alors À L'INTÉRIEUR de `WraithTick`, entre le
+`avant` et le `après`. Appelé à la touche, il paraissait avant cette image : la
+bascule était déjà faite, aucune transition n'était vue, aucune coque n'était
+mise à l'eau. Le journal de bord annonçait une voile pâle, on tournait la tête,
+il n'y avait rien.
+
+`if (apres && _wraithShip == null)` : **l'absence de coque dit la vérité, la
+bascule n'en donnait qu'un indice.** La règle générale vaut d'être écrite —
+quand un état peut être changé de l'extérieur, un déclencheur bâti sur la
+DIFFÉRENCE entre deux images rate tout ce qui s'est produit entre elles ; un
+déclencheur bâti sur ce qui MANQUE ne rate rien, et se répare tout seul.
+
+## Ce que le bord a vu appartient à sa partie (Godot)
+
+Le carnet de la carte était un fichier GLOBAL. Une sortie neuve rouvrait celui de
+la précédente, avec ses traits, ses relevés et son voile déjà levé sur la moitié
+de la mer — noté en suspens depuis le 18/09, demandé le 25.
+
+Trois pièces, et aucune n'est compliquée séparément :
+
+**Un carnet par région DANS l'enregistrement.** Il n'y en avait qu'un, celui de
+la région ouverte, ce qui perdait la Tortue dès qu'on y était passé. Le champ est
+maintenant `carnets`, une table dont la clé est la région ; `carnet` reste lu
+pour les parties d'avant, et se range alors sous la région qu'elles déclarent.
+Celui de la région OUVERTE est pris en mémoire et non sur le disque — il serait
+sinon en retard de tout ce qu'on a tracé depuis la dernière traversée.
+
+**Une reprise efface les régions absentes.** Reposer les carnets qu'une partie
+porte ne suffit pas : si l'on ne retire pas les autres, on hérite du carnet d'une
+autre partie en traversant. Ce qui n'est pas dans l'enregistrement n'existe pas.
+
+**Une partie neuve oublie tout**, et l'oubli est dans `Home()` — le seul endroit
+par où passent le jeu libre ET l'histoire, et par où une reprise ne passe pas.
+C'est déjà là qu'on rend le bord à son état du premier matin (personne autour, la
+bourse pleine, dix heures, la toile serrée) ; la carte y avait sa place.
+
+Le carnet de MÉMOIRE part avec les fichiers, sans quoi le premier enregistrement
+réécrirait ce qu'on vient d'effacer. Et la carte change de carnet par
+`ChartNode.Rebook`, qui refait le VOILE de la route du nouveau — laquelle est
+vide, donc le voile se referme.
+
+Relevé : route de 3 points, l'enregistrement en porte une région, l'oubli rend 0
+et le fichier disparaît, la reprise rend 3.
+
+## La brume luisait toute seule la nuit (Godot)
+
+Signalé sur une capture de Port-Royal vue d'en haut : la terre et la ville sont
+noires, les fenêtres allumées — et la brume, elle, est un voile pâle et clair
+par-dessus tout. « Elle ne doit être visible qu'éclairée par la lumière
+alentour. »
+
+Elle l'était déjà, en intention : elle n'a pas de couleur propre et prend celle
+de l'HORIZON, qui porte l'heure. La faute était d'un espace de couleur.
+
+```glsl
+ALBEDO = u_horizon * 1.04;              // faux
+ALBEDO = naval_display(u_horizon * 1.04);  // juste
+```
+
+La mer et le ciel calculent en valeurs d'ÉCRAN — c'est la convention de ce
+projet, et `naval_display` est la conversion vers le linéaire qu'attend
+`ALBEDO`. Écrite telle quelle, une couleur d'écran de 0,055 (l'horizon de
+minuit) entrait pour 0,055 de lumière au lieu de 0,004 : **dix fois trop**. Le
+jour, où l'horizon vaut 0,82, l'écart n'est plus que d'un tiers et ne se voit
+pas — ce qui est exactement pourquoi le défaut a survécu à sa mise au point, qui
+s'est faite au petit matin.
+
+### Et quatre nappes à l'opacité pleine font un mur
+
+Signalé une seconde fois, capture à l'appui : toujours lumineuse. Mesuré cette
+fois plutôt que raisonné — le rendu relu à l'image, la moyenne du tiers bas de
+l'écran, la brume vue puis cachée dans la même course :
+
+| | nappes vues | nappes cachées |
+|---|---|---|
+| plein jour | 0,617 | 0,203 |
+| nuit noire, avant l'espace de couleur | 0,605 | 0,156 |
+| nuit noire, après | 0,134 | 0,096 |
+| nuit noire, voile à 0,45 | 0,118 | 0,095 |
+
+L'espace de couleur était bien la grosse faute — de quatre fois la mer à un
+tiers. Restait qu'un tiers, c'est encore beaucoup pour un voile : les quatre
+nappes pouvaient chacune monter à l'opacité PLEINE, et superposées elles
+composent 1 − (1 − a)⁴, c'est-à-dire un mur. Un mur de la couleur du ciel se lit
+comme une chose qui luit, quelle que soit sa couleur — c'est l'OPACITÉ qu'on
+prend pour de la lumière.
+
+`u_mist_gain` (0,45 ; `fog.rasanteVoile`, et `--voile` en jeu) dit ce qu'une
+nappe arrête à elle seule. Le reste est le regard : c'est le RASANT, qui en
+traverse beaucoup en longueur, qui doit épaissir la brume, et non la nappe qu'on
+regarde d'en haut.
+
+### Troisième passe : c'est l'OPACITÉ qui doit suivre la lumière
+
+Signalé une troisième fois, et cette fois avec la précision qui manquait : « c'est
+bien la nappe basse sur l'eau ». Mesuré depuis le PONT cette fois, et non de la
+caméra en orbite — l'œil à 8,6 m, nuit noire, brume de surface à 1,00 :
+
+| | nappes vues | nappes cachées |
+|---|---|---|
+| avant | 0,165 | 0,155 |
+| après | 0,157 | 0,156 |
+| de jour, après | 0,578 | 0,454 |
+
+Prendre la couleur de l'horizon suffisait à ne pas la faire BRILLER, mais pas à
+la faire disparaître : à minuit elle restait une nappe grise pleine, posée sur
+une mer que la lune éclaire — donc plus PLATE que ce qu'il y a dessous, et une
+chose plate au milieu d'une chose vivante se lit comme une chose qui luit.
+
+Une brume est visible parce qu'elle DIFFUSE de la lumière ; à minuit il n'y a
+presque rien à diffuser, et elle doit s'effacer pour que la mer se voie au
+travers. Son opacité suit donc la luminance de l'horizon (`clamp(lum/0.55,
+0.06, 1)`), tirée de l'horizon lui-même : une seule définition, et le petit
+matin — pour lequel elle a été faite — la retrouve entière dès que le ciel
+pâlit.
+
+Trois passes pour un même défaut, et chacune corrigeait quelque chose de vrai :
+la COULEUR (espace de couleur), puis l'ÉPAISSEUR (quatre nappes pleines font un
+mur), puis la PRÉSENCE. C'est la troisième qui répond à la phrase exacte du
+signalement — « elle ne doit être visible que éclairée par la lumière alentour ».
+
+### La leçon
+
+La leçon est la même que celle des nuages qui brillaient toute la nuit et de
+l'écume qui luisait à minuit : **rien de ce qui ne fait que renvoyer la lumière
+ne doit être plus clair que ce qui tombe dessus**. Ici ce n'était pas le modèle
+qui était faux mais l'unité, ce qui est plus vicieux : un modèle faux se voit
+tout le temps, une unité fausse ne se voit qu'aux extrêmes. L'embrun, la pluie
+et la neige passaient tous par `naval_display` ; la brume rasante, écrite plus
+tard, était la seule à ne pas le faire.
+
+## La chaloupe ne pouvait pas tourner, et pouvait mouiller (Godot)
+
+Trois défauts signalés d'un coup, et deux n'en font qu'un.
+
+**Elle ne se dirigeait ni à bâbord ni à tribord**, et **elle n'avait pas ses
+avirons**. Sa fiche donne au gouvernail une puissance NULLE, ce qui est juste —
+une chaloupe se gouverne à l'aviron — et les avirons, eux, n'avaient jamais été
+portés : le bloc `oars` de la fiche n'était lu que par la page. Elle n'avait donc
+rien pour tourner.
+
+Le portage est celui de la page, au signe près, et son point est ailleurs qu'on
+ne croirait : **la poussée d'un banc s'applique à ses PELLES, pas à ses tolets.**
+Le nageur sur son aviron et l'aviron sur son tolet sont des forces INTÉRIEURES au
+système « embarcation et avirons » ; la seule poussée du dehors est celle de
+l'eau sur la pelle, aux deux tiers de l'aviron hors du plat-bord. Prise au tolet,
+le levier vaut le tiers de la vérité et la chaloupe pivote d'un degré par
+seconde.
+
+Le coup est une IMPULSION et non une poussée : pelle dans l'eau les 45 premiers
+pour cent du cycle, demi-sinus de force, rien au retour, et l'amplitude calée
+pour que la moyenne des deux bancs vaille la poussée de la machine — sa
+`topSpeed` reste sa vitesse. La PHASE appartient au solveur et le modèle la lit :
+ce que l'œil voit nager est exactement ce qui la fait avancer.
+
+Aux mêmes touches, sans rien de neuf à apprendre : `OarL = machine + barre`,
+`OarR = machine − barre`. W et S nagent ou scient, A et D font nager d'un bord et
+scier de l'autre, et elle pivote sur place. Relevé : barre à tribord seule, cap
+0 → 15,8° en trois secondes avec 0,11 m/s d'erre — elle tourne sur elle-même ;
+les deux bancs ensemble, 1,00 m/s au bout du même temps et le cap immobile.
+
+**Et l'on pouvait mouiller.** Une chaloupe n'a ni écubier, ni cabestan, ni le
+poids qu'il faudrait pour tenir. La fiche le DIT (`"anchor": false`) plutôt que
+le code de le deviner : une galère a des avirons ET une ancre, et deviner par les
+avirons l'aurait privée de la sienne.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

@@ -29,8 +29,8 @@
       60
     ],
     "recoilSpeed": 2,
-    "flashEnergy": 34,
-    "flashRange": 26,
+    "flashEnergy": 160,
+    "flashRange": 200,
     "flashLife": 0.22
   },
   "dolphins": {
@@ -65,12 +65,13 @@
     "from": 21,
     "afterDawn": 1.5,
     "maxWind": 4.5,
-    "_aide": "LA BRUME DE SURFACE. density : son extinction par mètre au ras de l eau (0,02 = on voit à 150 m). height : la HAUTEUR D ÉCHELLE de la couche, en mètres — c est elle qui décide si la mâture sort de la brume ou y disparaît. Relevé à 40 m de distance : à 12 m de hauteur, la coque prend 49 % de brume et la hune 28 % ; à 25 m, 52 et 40 ; à 40 m, 53 et 45. Plus bas, un banc rasant d où les mâts émergent ; plus haut, une purée où tout se noie. rasante : les traînées basses qu on VOIT traîner sur l eau, de 0 (aucune) à 1 — elles montent avec la brume de l air, qui est la même nuit, et rasanteHaut donne leur épaisseur en mètres (2), rasanteBancs la taille de leurs bancs (90 m). En jeu : -- --rasante 0..1.",
+    "_aide": "LA BRUME DE SURFACE. density : son extinction par mètre au ras de l eau (0,02 = on voit à 150 m). height : la HAUTEUR D ÉCHELLE de la couche, en mètres — c est elle qui décide si la mâture sort de la brume ou y disparaît. Relevé à 40 m de distance : à 12 m de hauteur, la coque prend 49 % de brume et la hune 28 % ; à 25 m, 52 et 40 ; à 40 m, 53 et 45. Plus bas, un banc rasant d où les mâts émergent ; plus haut, une purée où tout se noie. rasante : les traînées basses qu on VOIT traîner sur l eau, de 0 (aucune) à 1 — elles montent avec la brume de l air, qui est la même nuit, et rasanteHaut donne leur épaisseur en mètres (2), rasanteBancs la taille de leurs bancs (90 m). rasanteVoile : ce qu UNE nappe arrête, de 0 à 1 (0,45) — elles sont quatre superposées, et à 1 chacune elles font un mur au lieu d un voile ; c est le regard rasant qui doit epaissir la brume, pas la nappe vue d en haut. En jeu : -- --rasante 0..1 et --voile 0..1.",
     "density": 0.02,
     "height": 25,
     "rasante": 1.0,
     "rasanteHaut": 2.0,
     "rasanteBancs": 90,
+    "rasanteVoile": 0.45,
     "rate": 1
   },
   "serpent": {
@@ -260,12 +261,19 @@
   },
   "storm": {
     "lightning": {
+      "_aide": "LA FOUDRE, ET IL Y EN A DEUX SORTES. 1) LE COUP PROCHE, celui qui tombe sur une tete de mat : on voit le trait, et il eclaire. Sa LAMPE est posee sur le trait, trente metres au-dessus du mat frappe — flashEnergy son eclat (160), flashRange sa portee en metres (200), flashShadow ses ombres portees, qui couchent l ombre des mats en travers du pont et coutent 0,6 ms de carte graphique le quart de seconde du coup. Et skyFlash (0,18) est ce que le CIEL en prend : il monte l hemispherique et blanchit le dome entier, de partout a la fois — a 1 il faisait le jour sur toute la mer et ecrasait la lampe. 2) LE GRAIN LOINTAIN qui s allume par en dedans : a six milles on ne voit qu une tache de nuage s allumer, pas une ombre qui bouge sur le bord, et celui-la ne sort JAMAIS du shader de ciel. farFlash son eclat (1), farPerSecond combien de coups par seconde d un banc bien noir (0,34). Le reste est ce qu il CASSE : minInten l enfoncement sous lequel rien ne tombe, perMinuteAtCore les coups par minute sur un navire au centre meme, splitChance une voile arrachee, woundChance le mat blesse (trois blessures et il tombe), dismastChance le mat fendu d un coup. En jeu : -- --foudre 1.",
       "enabled": true,
       "minInten": 0.4,
       "perMinuteAtCore": 0.5,
       "splitChance": 0.5,
       "woundChance": 0.6,
-      "dismastChance": 0.12
+      "dismastChance": 0.12,
+      "flashEnergy": 160,
+      "flashRange": 200,
+      "flashShadow": true,
+      "skyFlash": 0.18,
+      "farFlash": 1,
+      "farPerSecond": 0.34
     },
     "kraken": {
       "enabled": true,

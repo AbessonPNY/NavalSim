@@ -229,6 +229,46 @@ public sealed partial class ShipPhysics
         Vec3d arm = b.Quat.Rotate(new Vec3d(0, S.RudderY, S.RudderZ)) + b.Pos - cog;
         torque += arm.Cross(fVec);
 
+        /* --- LES AVIRONS ---
+           NAGÉS UN BORD À LA FOIS. La poussée d'un banc s'applique À SES PELLES
+           et non à ses tolets : le nageur sur son aviron et l'aviron sur son
+           tolet sont des forces INTÉRIEURES au système « embarcation et
+           avirons », et la seule poussée du dehors est celle de l'eau sur la
+           pelle, aux deux tiers de l'aviron hors du plat-bord. Prise au tolet le
+           levier valait le tiers de la vérité, et une chaloupe pivotait d'un
+           degré par seconde.
+
+           Nager d'un bord seulement la fait tourner sans qu'aucune règle ne le
+           dise : une embarcation sans gouvernail se conduit exactement ainsi.
+
+           LE COUP EST UNE IMPULSION, PAS UNE POUSSÉE : la pelle est dans l'eau
+           les 45 premiers pour cent du cycle, en demi-sinus de force, et rien
+           sur le retour. Dimensionné pour que la moyenne des deux bancs nageant
+           ensemble vaille la poussée de la machine — sa « topSpeed » reste donc sa
+           vitesse ; scier (−1) en donne « sternPower ». La PHASE est la sienne, et
+           le modèle la lit pour balancer les avirons en mesure. */
+        if (S.Oars is OarsSpec oars)
+        {
+            double amp = S.MaxThrust * Math.PI / (4 * 0.45);
+            for (int side = 0; side < 2; side++)
+            {
+                double inp = side == 0 ? ctrl.OarL : ctrl.OarR;
+                OarInput[side] = inp;
+                if (inp == 0) continue;
+                OarPhase[side] = (OarPhase[side] + dt / oars.Period) % 1;
+                double nage = OarPhase[side];
+                if (nage >= 0.45) continue;
+                double f = amp * Math.Sin(Math.PI * nage / 0.45)
+                         * (inp > 0 ? 1 : S.SternPower) * Math.Abs(inp) * inWater;
+                Vec3d oVec = fwd * f;
+                force += oVec;
+                // bâbord est +x dans son repère, tribord −x (l'invariant de main)
+                double outb = S.B * 0.5 + 0.6 * oars.Length;
+                Vec3d oArm = b.Quat.Rotate(new Vec3d(side == 0 ? outb : -outb, 0, 0)) + b.Pos - cog;
+                torque += oArm.Cross(oVec);
+            }
+        }
+
         Sails(ctrl, ocean, cog, ref force, ref torque, fwd, right);
         Ground(dt, ref force, ref torque, cog, ocean);
         Collide(dt, ref force, ref torque, cog, neighbours);

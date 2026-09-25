@@ -111,6 +111,14 @@ public partial class ShipNode
 
     /// <summary>Les réglages qui touchent aux feux : posés AVANT Build, relus par RebuildLanterns.</summary>
     public bool LanternShadows = true, WithMastLantern = true;
+
+    /* LA COUCHE DU DEDANS. Godot n'éclaire un maillage que si les couches de
+       l'un rencontrent le masque de l'autre : ce qui est à l'intérieur de la
+       coque quitte la couche 1 pour celle-ci, et les feux du PONT retirent
+       celle-ci de leur masque. Tout le reste — le soleil, la lune, la bougie de
+       la chambre, le feu des canons, l'éclair — garde le masque plein et entre
+       donc comme avant. */
+    const uint InsideLayer = 1 << 1;
     static readonly RandomNumberGenerator Rng = new();
 
     /// <summary>
@@ -522,11 +530,45 @@ public partial class ShipNode
                flamme enfermée dans sa propre lanterne ne sortait que par quatre
                fentes, ce que la page avait déjà rencontré. */
             ShadowEnabled = LanternShadows,
-            OmniShadowMode = OmniLight3D.ShadowMode.Cube
+            OmniShadowMode = OmniLight3D.ShadowMode.Cube,
+            /* UN FANAL EST DEHORS, ET CE QUI EST DEHORS N'ENTRE PAS. Le feu de
+               poupe éclairait la chambre du capitaine à travers ses propres
+               vitres — qui ne portent pas d'ombre, pour que le soleil entre —, et
+               le feu de grand mât à travers un pont modelé vu du dessous. Une
+               bougie, elle, est DEDANS : elle garde le masque plein. */
+            LightCullMask = l?.Kind == "candle" ? 0xFFFFFu : 0xFFFFFu & ~InsideLayer
         };
         group.AddChild(L.Light);
         parent.AddChild(group);
         return L;
+    }
+
+    static readonly string[] InsideByDefault = { "cabine", "cabin", "chambre", "bureau" };
+
+    /// <summary>
+    /// CE QUI EST DEDANS QUITTE LA COUCHE DU DEHORS — voir <see cref="InsideLayer"/>.
+    /// Les noms viennent de la fiche (<c>model.inside</c>) ; le parcours prend le
+    /// nœud qui correspond ET tout ce qu'il porte, parce qu'un bureau posé dans
+    /// une chambre est dans la chambre.
+    /// </summary>
+    void MarkInside()
+    {
+        if (ModelRoot == null) return;
+        var names = Spec.Model?.Inside ?? InsideByDefault;
+        if (names.Length == 0) return;
+        Walk(ModelRoot, false);
+
+        void Walk(Node n, bool inside)
+        {
+            if (!inside && n is Node3D)
+            {
+                string nom = n.Name.ToString();
+                foreach (var w in names)
+                    if (nom.Contains(w, StringComparison.OrdinalIgnoreCase)) { inside = true; break; }
+            }
+            if (inside && n is VisualInstance3D vi) vi.Layers = InsideLayer;
+            foreach (var c in n.GetChildren()) Walk(c, inside);
+        }
     }
 
     /// <summary>

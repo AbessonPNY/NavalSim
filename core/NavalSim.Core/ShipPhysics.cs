@@ -28,9 +28,19 @@ public sealed class Controls
     /// </summary>
     public double Canvas = 1;
 
+    /// <summary>
+    /// LES DEUX BANCS D'AVIRONS, de −1 (on scie) à 1 (on nage), bâbord et
+    /// tribord séparément. C'est AINSI qu'une embarcation se gouverne : nager
+    /// d'un bord et scier de l'autre la fait pivoter sur place, et aucune règle
+    /// n'a besoin d'être écrite pour cela — le bras de levier s'en charge.
+    /// Ignorés par une coque dont la fiche ne porte pas d'avirons.
+    /// </summary>
+    public double OarL, OarR;
+
     public Controls Clone() => new()
     {
-        Throttle = Throttle, Rudder = Rudder, Sheet = Sheet, SailsSet = SailsSet, Canvas = Canvas
+        Throttle = Throttle, Rudder = Rudder, Sheet = Sheet, SailsSet = SailsSet, Canvas = Canvas,
+        OarL = OarL, OarR = OarR
     };
 }
 
@@ -178,6 +188,15 @@ public sealed partial class ShipPhysics
 
     // ---- état d'avarie ----
     public double FloodVol, FloodTonnes, FloodRate, FreeSurfaceRise;
+
+    /// <summary>
+    /// OÙ EN EST CHAQUE BANC DE SON COUP, de 0 à 1, et ce qu on lui demande. Le
+    /// modèle les lit pour balancer les avirons EN MESURE avec la poussée : ce
+    /// que l œil voit nager est ce qui la fait avancer, et non une animation
+    /// posée à côté.
+    /// </summary>
+    public readonly double[] OarPhase = new double[2];
+    public readonly double[] OarInput = new double[2];
     public double Aground;          // mètres dont sa quille est DANS le fond
     public double Touching;         // mètres dont son bordé est DANS une autre coque
     public bool Foundered;

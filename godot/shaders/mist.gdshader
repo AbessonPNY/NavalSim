@@ -41,6 +41,13 @@ uniform float u_mist_far = 240.0;
 
 // la hauteur de la nappe la plus basse au-dessus du niveau moyen, en mètres
 uniform float u_mist_base = 0.05;
+/* CE QU'UNE NAPPE ARRÊTE, À ELLE SEULE. Elles étaient quatre à pouvoir monter
+   jusqu'à l'opacité pleine : superposées, elles composaient 1 − (1 − a)⁴, c'est-
+   à-dire un MUR — et un mur de la couleur du ciel se lit comme une chose qui
+   luit, quelle que soit sa couleur (signalé deux fois). Une brume est un voile
+   qu'on traverse ; c'est le regard rasant, qui en traverse beaucoup en longueur,
+   qui doit l'épaissir, et non la nappe qu'on regarde d'en haut. */
+uniform float u_mist_gain = 0.45;
 
 varying float v_alpha;
 varying float v_clear;
@@ -84,7 +91,24 @@ void vertex() {
 	float d = distance(p, u_eye.xz);
 	float pres = smoothstep(4.0, 16.0, d) * (1.0 - smoothstep(u_mist_far * 0.7, u_mist_far, d));
 
-	v_alpha = u_mist * profil * pres;
+	/* ELLE NE SE VOIT QUE PAR CE QUI L'ÉCLAIRE, et c'est son OPACITÉ qui le dit,
+	 * pas seulement sa couleur.
+	 *
+	 * Une brume est visible parce qu'elle DIFFUSE de la lumière. Prendre la
+	 * couleur de l'horizon suffisait à ne pas la faire briller, mais pas à la
+	 * faire disparaître : à minuit elle restait une nappe grise pleine, posée sur
+	 * une mer que la lune éclaire, donc plus PLATE que ce qu'il y a dessous — et
+	 * une chose plate au milieu d'une chose vivante se lit comme une chose qui
+	 * luit (signalé trois fois). À minuit il n'y a presque rien à diffuser : elle
+	 * doit alors s'effacer, et la mer se voir au travers.
+	 *
+	 * Tiré de l'horizon lui-même, qui porte l'heure : une seule définition, et
+	 * le petit matin — pour lequel elle a été faite — la retrouve entière dès que
+	 * le ciel pâlit. */
+	float lumiere = dot(u_horizon, vec3(0.2126, 0.7152, 0.0722));
+	float eclairee = clamp(lumiere / 0.55, 0.06, 1.0);
+
+	v_alpha = u_mist * u_mist_gain * eclairee * profil * pres;
 }
 
 void fragment() {
@@ -111,7 +135,17 @@ void fragment() {
 	/* ELLE N'A PAS DE COULEUR PROPRE : elle diffuse le ciel, comme l'écume et la
 	   fumée. Celle de l'HORIZON, qui porte l'heure — bleutée avant le jour, rose
 	   au lever, blanche à midi —, et c'est ce qui fait qu'elle appartient au
-	   matin sans qu'on ait à le lui dire. */
-	ALBEDO = u_horizon * 1.04;
+	   matin sans qu'on ait à le lui dire.
+	 *
+	 * ET ELLE PASSE PAR naval_display, COMME L'EMBRUN ET LA PLUIE. La mer et le
+	 * ciel calculent en valeurs d'ÉCRAN ; ALBEDO, lui, est linéaire. Écrite telle
+	 * quelle, une couleur d'écran de 0,055 — l'horizon de minuit — entrait pour
+	 * 0,055 de lumière au lieu de 0,004 : dix fois trop. Le jour l'écart est d'un
+	 * tiers et ne se voit pas ; la nuit la brume LUISAIT toute seule, plus claire
+	 * que la mer et la terre qu'elle couvrait (signalé, capture de Port-Royal).
+	 *
+	 * Une brume n'a pas de lumière à elle — même faute que les nuages qui
+	 * brillaient toute la nuit, même faute que l'écume, même remède. */
+	ALBEDO = naval_display(u_horizon * 1.04);
 	ALPHA = clamp(a, 0.0, 1.0);
 }

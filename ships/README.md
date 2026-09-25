@@ -122,6 +122,30 @@ une matière `glass`.
 
 `model.nightGlow` règle la force (1 par défaut, 0 pour ne rien allumer).
 
+### Ce qui est dedans
+
+```json
+"model": { "glb": "...", "inside": ["cabine", "chambre", "bureau"] }
+```
+
+Des morceaux de nom de maillage, sans égard à la casse. Un nœud dont le nom en
+contient un est à l'**intérieur** de la coque, lui et tout ce qu'il porte : les
+feux du pont ne l'éclairent plus. Le soleil, la lune, la bougie de la chambre, le
+feu des canons et l'éclair y entrent comme avant.
+
+Il faut le dire parce que le moteur ne peut pas le deviner. Une coque est une
+boîte ouverte dont l'intérieur est modelé **vu du dedans** : ses cloisons
+présentent leur dos aux lumières du dehors et ne leur font aucune ombre. Et une
+vitre de poupe ne porte volontairement pas d'ombre, pour que le soleil entre dans
+la chambre — ce qui laisse entrer du même coup le fanal pendu deux mètres
+derrière. Le fanal arrière et celui de grand mât éclairaient donc la chambre à
+travers le bordé (signalé).
+
+Absent, vaut `["cabine", "cabin", "chambre", "bureau"]`. Une liste **vide** veut
+dire « rien n'est dedans ». Si une pièce reste éclairée, c'est que sa cloison ou
+son plancher appartient au maillage de la coque et non à un nœud nommé : donnez
+un nom au morceau dans Blender, ou ajoutez-le à la liste.
+
 Trois réglages de jeu, dans `settings.json` :
 
 ```json
