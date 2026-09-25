@@ -10207,6 +10207,90 @@ La leçon est la même que pour la brume et les nuages, prise par l'autre bout :
 quand une chose paraît trop claire, ce n'est pas toujours la lumière qu'on lui
 donne — c'est parfois ce qu'elle est.
 
+## Le beaupré, seul espar qu'aucun boulet ne pouvait abattre (Godot)
+
+Signalé : « le beaupré doit pouvoir tomber aussi, vu qu'on le frappe ». Il ne le
+pouvait pas, et la raison est qu'il est COUCHÉ.
+
+Le gréement cherche ses espars par deux épreuves de forme : la vergue est large
+en travers, le mât est haut et mince DANS LES DEUX SENS. Un beaupré n'est ni
+l'un ni l'autre — il est long vers l'avant. Le gréement voyait bien une position
+de mât au-delà de l'étrave, puisqu'elle porte sa civadière, mais « sans espar » :
+et seul un mât qui est son propre maillage peut tomber. Il était donc le seul
+espar du bord qu'aucun boulet ne pouvait abattre, alors qu'il est le premier
+qu'on touche en chasse.
+
+### Son épaisseur est en travers, et seulement là
+
+Première épreuve écrite, premier échec, et il vaut d'être dit : j'ai mesuré son
+épaisseur comme pour un mât, `max(Size.X, Size.Y)`. Or un beaupré est en PENTE.
+Celui de la frégate monte de 5,17 m sur 11,22 de long : l'épreuve le refusait
+parce qu'il était « épais » de cinq mètres, quand c'est un cylindre de
+trente-trois centimètres. **Une boîte englobante ne mesure une épaisseur que sur
+les axes de l'objet**, et un objet en biais n'en a aucun.
+
+L'épreuve est donc : huit fois plus long que large, moins d'un huitième de bau
+en travers, plus couché que debout, et il DÉBORDE l'étrave. Deux gardes de
+largeur plutôt qu'une, parce que la coque passe la première toute seule —
+trente mètres de long, six de large, sur l'axe, et débordant l'étrave comme lui.
+La lui faire tomber aurait été mémorable.
+
+Et pas un BOUT : un étai qui monte du bâton de foc à la hune est long, mince, sur
+l'axe et déborde l'étrave tout comme lui. Sur la Belliqueuse une « BézierCurve »
+allait à 49,61 m et donnait un beaupré de trente et un mètres. Écartés par le
+nom, comme le verre et les fanaux le sont déjà.
+
+Reconnu sur quatre modèles : `Cylinder_002` sur la Belliqueuse, la frégate du
+XVIIe et le galion pirate, et une pièce nommée `Beaupre` sur le Speedwell. Le
+cotre, la goélette et la vedette n'en ont pas de séparé — le journal du gréement
+le dit (`--dumprig`), et un modéliste qui le nommera l'aura.
+
+### Il tombe en avant, et c'est le seul nombre qui change
+
+Un mât articulé à son pied tourne sur le ROULIS et passe par-dessus la lisse ; un
+beaupré est articulé à son talon et tourne sur le TANGAGE, sa pointe plongeant
+devant l'étrave. Tout le reste — l'équation du pendule, les haubans qui le
+retiennent sur la fin, le naufrage ensuite — est celui des mâts, sans un nombre
+de plus. Il s'arrête plus tôt (60° contre 80°) : ses sous-barbes le tiennent par
+en dessous et il pend en travers de l'étrave.
+
+**Et la civadière part avec lui.** Son groupe est reparenté dans celui qui tombe,
+en gardant sa place : elle suit alors sans qu'une seule ligne parle d'elle.
+
+### Une boîte debout ne décrit pas un espar couché
+
+Les boulets rencontrent les espars par une boîte (pied, hauteur, station). Pour
+le beaupré elle donnait une colonne de onze mètres plantée à son TALON,
+c'est-à-dire partout où il n'est pas. La boîte porte donc une longueur vers
+l'avant, nulle pour un mât — sa hauteur devient alors sa quête. Un champ de plus
+et le cas du mât est inchangé au bit près.
+
+`--beaupre 1` le fait tomber tout de suite, sans le canonner.
+
+### Ce qui pend à un espar pend à l'espar, pas à la mer
+
+Deux choses restées en l'air, signalées l'une après l'autre.
+
+**Le pavillon de beaupré.** Il est planté au bout de l'espar mais sa hampe était
+ajoutée au NAVIRE, comme celle du couronnement : l'espar partait, la hampe et
+l'étoffe restaient suspendues à rien. Reparentés dans le groupe qui tombe en
+gardant leur place — le vent continue de les faire battre, qui travaille dans
+leur propre repère. Même remède que la civadière, pour la même raison.
+
+**Le cordage de misaine, et c'est une régression que j'ai faite.** Les pièces
+nommées (vigies, cordages) se rangent au mât le plus proche EN STATION. Or un
+beaupré est rangé à son TALON, qui est sous le mât de misaine — c'est là qu'il
+est étalingué : sur la frégate, talon à z 9,10 et misaine à 9,86, quand le
+cordage est à 9,1. Il est donc devenu le plus proche, et le cordage est passé du
+mât 1 au mât 4 ; il restait en place quand la misaine tombait.
+
+**Un espar couché n'a pas de station** : il en traverse une dizaine, et ce qui
+pend à la sienne pend à ce qui est DEBOUT là. Il est écarté du choix.
+
+La leçon générale vaut d'être notée : **ajouter un membre à une famille change ce
+que « le plus proche » veut dire pour tous les autres.** Le nouveau venu était
+correct en lui-même ; c'est la question posée à la liste qui ne l'était plus.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

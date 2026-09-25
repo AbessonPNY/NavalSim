@@ -3613,6 +3613,8 @@ public partial class ShipDemo : Node3D
                 // la coque retournée, pour éprouver le chavirage et R
                 case "--chavirer": _flipIn = args[i + 1] != "0" ? 1.0 : -1; break;
                 case "--demater": _ship.DropMast(args[i + 1].ToInt()); break;
+                // LE BEAUPRÉ, tout de suite : pour le voir tomber sans le canonner
+                case "--beaupre": if (args[i + 1] != "0") GD.Print("beaupré : " + (_ship.DropSprit() ? "il part" : "aucun reconnu")); break;
                 case "--meteo": SetAutoWeather(args[i + 1] == "1"); break;
                 case "--tempete": GoToStorm(args[i + 1].ToFloat()); break;
                 case "--swell": _swell = args[i + 1].ToFloat(); Restate(); break;

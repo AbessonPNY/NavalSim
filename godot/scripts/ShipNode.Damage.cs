@@ -20,6 +20,12 @@ public partial class ShipNode
         public Node3D Fall = null!;              // le groupe qui tombe, à son pied
         public double Heel, Height, Share;       // son pied, sa hauteur, sa part de la surface de toile
         public bool HasPole;                     // un espar à lui : lui seul peut tomber
+        /* SUR LE TANGAGE ET NON SUR LE ROULIS : un mât passe par-dessus la lisse,
+           un beaupré plonge devant l'étrave. Le seul nombre qui les sépare. */
+        public bool Pitch;
+        /* CE QU'IL MONTE SUR SA LONGUEUR — sa quête. Nulle pour un mât, qui est
+           debout ; c'est la hauteur de la boîte que les boulets rencontrent. */
+        public double Rise;
         public int Wounds;
         public Falling? Down;                    // en train de tomber, ou tombé
         public List<CordAnchor> Cords = new();   // d'où un bout coupé peut pendre
@@ -85,8 +91,13 @@ public partial class ShipNode
         var f = new Falling
         {
             Rate = Math.Sqrt(3 * 9.81 / (2 * L)),
-            Side = side != 0 ? side : (_dmgRng.NextDouble() < 0.5 ? -1 : 1),
-            Wait = delay
+            Side = d.Pitch ? 1 : side != 0 ? side : (_dmgRng.NextDouble() < 0.5 ? -1 : 1),
+            Wait = delay,
+            /* UN BEAUPRÉ NE VA PAS À LA VERTICALE : ses sous-barbes le tiennent par
+               en dessous, et il pend en travers de l'étrave à une soixantaine de
+               degrés. Un mât, lui, passe par-dessus bord et bute dans ses haubans
+               à quatre-vingts. */
+            Stop = d.Pitch ? 1.05 : 1.40
         };
         f.W = 0.30 * f.Rate;                     // le coup ne le pousse pas
         d.Down = f;
@@ -94,6 +105,17 @@ public partial class ShipNode
         CutRigging(i, 4);
         SnapLines(i, true);          // et les cordages de ce mât s'en vont avec lui
         return true;
+    }
+
+    /// <summary>
+    /// LE BEAUPRÉ, S IL EN A UN. Il est un espar comme les autres pour le reste
+    /// du code — une entrée d avarie, une boîte pour les boulets, une chute —,
+    /// mais personne ne sait son indice : ceci le trouve.
+    /// </summary>
+    public bool DropSprit()
+    {
+        for (int i = 0; i < _damage.Count; i++) if (_damage[i].Pitch) return DropMast(i);
+        return false;
     }
 
     /* LA SOUTE LES PREND TOUS — mais pas ensemble : à quelques dixièmes de seconde
@@ -249,7 +271,12 @@ public partial class ShipNode
                 double pris = Math.Max(0, (s.A - 0.72 * s.Stop) / (0.28 * s.Stop));
                 if (pris > 0) s.W -= s.W * pris * pris * 7.0 * dt;
                 s.A = Math.Min(s.Stop, s.A + s.W * dt);
-                f.Rotation = new Vector3(0, 0, (float)(s.Side * s.A));
+                /* UNE ROTATION POSITIVE AUTOUR DE X COUCHE +Z VERS LE BAS : la
+                   pointe du beaupré plonge devant l'étrave, ce qu'on veut. Son
+                   bord est donc toujours +1 — il n'y a pas deux façons de tomber
+                   en avant. */
+                f.Rotation = d.Pitch ? new Vector3((float)s.A, 0, 0)
+                                     : new Vector3(0, 0, (float)(s.Side * s.A));
                 continue;
             }
 
@@ -263,9 +290,20 @@ public partial class ShipNode
             s.Sink += dt;
             double u = Math.Min(1, s.Sink / 2.4);
             double e = u * u * (3 - 2 * u);
-            f.Rotation = new Vector3(0, 0, (float)(s.Side * (s.Stop + 1.10 * e)));
-            f.Position = new Vector3((float)(-s.Side * 3.6 * e),
-                (float)(d.Heel - (2.6 * e + 4.2 * s.Sink * s.Sink)), f.Position.Z);
+            if (d.Pitch)
+            {
+                /* IL S'EN VA PAR L'AVANT, et le navire lui passe dessus : pas de
+                   dérive latérale, il tombe droit et on le laisse derrière. */
+                f.Rotation = new Vector3((float)(s.Stop + 0.9 * e), 0, 0);
+                f.Position = new Vector3(f.Position.X,
+                    (float)(d.Heel - (1.8 * e + 4.2 * s.Sink * s.Sink)), f.Position.Z);
+            }
+            else
+            {
+                f.Rotation = new Vector3(0, 0, (float)(s.Side * (s.Stop + 1.10 * e)));
+                f.Position = new Vector3((float)(-s.Side * 3.6 * e),
+                    (float)(d.Heel - (2.6 * e + 4.2 * s.Sink * s.Sink)), f.Position.Z);
+            }
             if (s.Sink > 2.6) f.Visible = false;
         }
     }

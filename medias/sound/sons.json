@@ -14,6 +14,11 @@
     "loin": ["thunder_far.ogg"]
   },
   
+ "feu": {
+    "_aide": "explosion : Un bruit d'explosion pour les navires sabordés",
+    "explosion": ["explosion_001.ogg"]
+  },
+  
 
   "bois": {
     "_aide": "Le bordé qui éclate sous un boulet. Plusieurs valent mieux qu'un : on reconnaît vite un échantillon unique.",

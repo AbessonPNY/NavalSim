@@ -79,7 +79,14 @@ public sealed class ShotTarget
     /// <summary>Par compartiment : demi-largeur, pont, quille, z0, z1 — le flanc du modèle. Nul : celui du solveur.</summary>
     public (double Half, double Deck, double Keel, double Z0, double Z1)[]? Shell;
     /// <summary>Les mâts debout : pied, hauteur, station, indice du mât.</summary>
-    public Func<IReadOnlyList<(double Heel, double Height, double Z, int Fall)>>? Masts;
+    /// <summary>
+    /// Ses espars, pour les boulets : pied, hauteur, station, LONGUEUR VERS
+    /// L'AVANT et indice d'avarie. Un mât est debout et sa longueur est nulle ;
+    /// un BEAUPRÉ est couché, et c'est elle qui le décrit — sans quoi il était
+    /// lu comme une colonne de onze mètres plantée à son talon, c'est-à-dire
+    /// partout où il n'est pas.
+    /// </summary>
+    public Func<IReadOnlyList<(double Heel, double Height, double Z, double Long, int Fall)>>? Masts;
     public object? Tag;
 }
 
@@ -486,7 +493,8 @@ public sealed class Gunnery
                 for (int mi = 0; mi < masts.Count; mi++)
                 {
                     var m = masts[mi];
-                    double u = Slab(l0, l1, new Vec3d(-1.1, m.Heel, m.Z - 1.1), new Vec3d(1.1, m.Heel + m.Height, m.Z + 1.1));
+                    double u = Slab(l0, l1, new Vec3d(-1.1, m.Heel, m.Z - 1.1),
+                                              new Vec3d(1.1, m.Heel + m.Height, m.Z + 1.1 + m.Long));
                     if (u < 0) continue;
                     OnStrike?.Invoke(e, "mast", m.Fall, 0.5, b.V.Length, b.K, b.From,
                         body.Quat.Rotate(l0 + (l1 - l0) * u) + body.Pos, dir);

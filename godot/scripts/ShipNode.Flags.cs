@@ -330,10 +330,12 @@ public partial class ShipNode
         double x = l.X ?? (l.XFrac ?? 0) * spec.B;
         /* Le pavillon de beaupré est planté sur l'espar, pas sur le pont : au bout
            du beaupré tel que le modèle le dessine, sauf si la fiche dit où. */
+        bool surBeaupre = false;
         if (!stern && ModelRoot != null && l.Z == null && l.ZFrac == null && SpritTip() is { } sp)
         {
             z = sp.Z;
             if (l.Y == null) y = sp.Y;
+            surBeaupre = true;
         }
         y += l.Above;
         double h = l.Staff ?? Math.Max((stern ? 0.12 : 0.08) * spec.L, hoist * 1.5);
@@ -354,6 +356,18 @@ public partial class ShipNode
         AddChild(foot);
         var f = FlagAt(this, x, y + h * Math.Cos(rake), z + lean * h * Math.Sin(rake), l, -lean * rake);
         f.Staff = foot;
+        /* IL TOMBE AVEC SON ESPAR. Planté au bout du beaupré, il restait en l'air
+           quand celui-ci passait par-dessus l'étrave (signalé) — une hampe et une
+           étoffe suspendues à rien. Reparentés dans le groupe qui tombe EN
+           GARDANT leur place : ils suivent alors sans qu'une ligne parle d'eux, et
+           le vent continue de les faire battre, qui travaille dans leur propre
+           repère. */
+        if (surBeaupre && SpritFall is { } sf)
+        {
+            foot.Reparent(sf, true);
+            f.Mount.Reparent(sf, true);
+            RigLog.Add($"pavillon « {l.Image ?? l.At} » pendu au beaupré : il tombera avec lui");
+        }
         return f;
     }
 

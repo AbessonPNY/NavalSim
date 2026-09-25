@@ -15,7 +15,7 @@ public partial class ShipNode
     /// <summary>Sa batterie ; vide pour une coque procédurale, qui n'en porte pas.</summary>
     public readonly Battery Battery = new();
     (double Half, double Deck, double Keel, double Z0, double Z1)[]? _shell;
-    readonly List<(double Heel, double Height, double Z, int Fall)> _mastBoxes = new();
+    readonly List<(double Heel, double Height, double Z, double Long, int Fall)> _mastBoxes = new();
 
     static readonly Regex GunNames = new("canon|cannon|gun", RegexOptions.IgnoreCase);
 
@@ -369,15 +369,25 @@ public partial class ShipNode
         return best > 0 ? best : null;
     }
 
-    /// <summary>Ses mâts debout, pour les boulets : pied, hauteur, station, indice. Seul un espar à lui peut être touché.</summary>
-    public IReadOnlyList<(double Heel, double Height, double Z, int Fall)> MastBoxes()
+    /// <summary>
+    /// Ses espars, pour les boulets : pied, hauteur, station, longueur vers
+    /// l'avant, indice. Seul un espar à lui peut être touché.
+    ///
+    /// UN MÂT EST DEBOUT ET UN BEAUPRÉ EST COUCHÉ, et la même boîte ne peut pas
+    /// les décrire tous deux : le beaupré donnait une colonne de onze mètres
+    /// plantée à son talon, donc partout où il n'est pas. Sa hauteur est sa
+    /// QUÊTE, et sa longueur porte vers l'avant.
+    /// </summary>
+    public IReadOnlyList<(double Heel, double Height, double Z, double Long, int Fall)> MastBoxes()
     {
         _mastBoxes.Clear();
         for (int i = 0; i < _damage.Count; i++)
         {
             var d = _damage[i];
             if (!d.HasPole || d.Down != null) continue;          // déjà parti
-            _mastBoxes.Add((d.Fall.Position.Y, d.Height, d.Fall.Position.Z, i));
+            _mastBoxes.Add(d.Pitch
+                ? (d.Fall.Position.Y, d.Rise + 1.0, d.Fall.Position.Z, d.Height, i)
+                : (d.Fall.Position.Y, d.Height, d.Fall.Position.Z, 0.0, i));
         }
         return _mastBoxes;
     }

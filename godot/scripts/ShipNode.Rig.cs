@@ -108,7 +108,14 @@ public partial class ShipNode
         int best = -1; double near = double.MaxValue;
         for (int i = 0; i < _damage.Count; i++)
         {
-            if (!_damage[i].HasPole) continue;
+            /* PAS LE BEAUPRÉ. Il est rangé à son TALON, qui est sous le mât de
+               misaine — c est là qu il est étalingué —, si bien qu il devenait le
+               plus proche de tout ce qui pend à la misaine : le cordage de misaine
+               est passé du mât 1 au mât 4 et restait en place quand le mât tombait
+               (signalé, régression). Un espar COUCHÉ n a pas de station : il en
+               traverse une dizaine, et ce qui pend à la sienne pend à ce qui est
+               DEBOUT là. */
+            if (!_damage[i].HasPole || _damage[i].Pitch) continue;
             double d = Math.Abs(_damage[i].Fall.Position.Z - z);
             if (d < near) { near = d; best = i; }
         }
@@ -515,6 +522,11 @@ public partial class ShipNode
     /* LES NOMS QUI DISENT « CECI ÉCLAIRE » : vitrage, fanal, lampe — GLOW_NAMES de
        la page. Ils servent deux fois : à allumer la nuit, et à REFUSER ces pièces
        au gréement, une vergue étant en bois, jamais en verre. */
+    /// <summary>Ce qui PEND plutôt que ce qui tient : à écarter des espars.</summary>
+    static readonly Regex Cordage = new(
+        "b[ée]zier|curve|courbe|cordage|rope|stay|[ée]tai|hauban|shroud|drisse|line",
+        RegexOptions.IgnoreCase);
+
     static readonly Regex GlowNames = new(
         "fenetre|fenêtre|window|vitre|hublot|glass|verre|lamp|lanterne|lantern|glow",
         RegexOptions.IgnoreCase);
@@ -958,6 +970,39 @@ public partial class ShipNode
            ce cas ; la MATIÈRE, si. Et la fiche peut nommer ce qu'elle tient à
            l'écart (`model.rigIgnore`). */
         var ignore = spec.Model?.RigIgnore ?? new List<string>();
+        /* L'ÉPREUVE DU BEAUPRÉ : long vers l'AVANT, mince dans les deux autres
+           sens, sur l'axe, et qui DÉBORDE l'étrave. Le dernier point est celui
+           qui compte — une lisse de pont est longue, mince et sur l'axe elle
+           aussi, mais elle s'arrête au bordé. */
+        bool FormeBeaupre(Part p)
+        {
+            double along = p.Size.Z;
+            /* SON ÉPAISSEUR EST EN TRAVERS, ET SEULEMENT LÀ. Mesurée aussi en
+               hauteur, comme pour un mât, elle valait la QUÊTE et non le bois :
+               le beaupré de la frégate monte de 5,17 m sur 11,22 de long, et
+               l'épreuve le refusait parce qu'il était « épais » de cinq mètres
+               (relevé — Cylinder_002, x 0,33 y 5,17 z 11,22). C'est bien un
+               cylindre de trente-trois centimètres, simplement en pente.
+
+               Huit fois plus long que large ET moins d'un huitième de bau : deux
+               gardes plutôt qu'une, parce que la COQUE passe la première toute
+               seule — trente mètres de long sur six de large, sur l'axe, et qui
+               déborde l'étrave comme lui. La lui faire tomber serait mémorable. */
+            /* ET CE N'EST PAS UN BOUT. Un étai qui monte du bâton de foc à la hune
+               est long, mince, sur l'axe et déborde l'étrave tout comme lui : sur
+               la Belliqueuse une « BézierCurve » allait à 49,61 m et donnait un
+               beaupré de trente et un mètres (relevé). On les écarte par le NOM,
+               comme le verre et les fanaux le sont déjà — un modéliste qui nomme
+               ses courbes autrement les ajoutera à model.rigIgnore. */
+            if (Cordage.IsMatch(p.Mi.Name.ToString())) return false;
+            return along > 8 * p.Size.X
+                && p.Size.X < 0.12 * spec.B
+                && along > p.Size.Y                       // plus couché que debout
+                && along > 0.15 * spec.L
+                && Math.Abs(p.Mid.X) < 0.10 * spec.B
+                && p.Max.Z > 0.46 * spec.L;               // il déborde l'étrave
+        }
+
         bool Bois(Part p)
         {
             var mat = p.Mi.GetSurfaceOverrideMaterial(0) ?? p.Mi.Mesh.SurfaceGetMaterial(0);
@@ -1182,8 +1227,89 @@ public partial class ShipNode
             if (spec.LateenArea > 0 && z0 < 0 && (_latPivot == null || z0 < _latZ)) LateenOn(pole, fall, heel, z0, deckAt, parts);
         }
 
+        /* LE BEAUPRÉ — un espar COUCHÉ, que ni l'épreuve du mât ni celle de la
+           vergue ne pouvaient reconnaître : la première cherche du haut et mince,
+           la seconde du large en travers, et lui est long vers l'AVANT. Il était
+           donc le seul espar du bord qu'aucun boulet ne pouvait abattre, alors
+           qu'il est le premier qu'on touche en chasse (signalé).
+
+           Après les deux boucles, sur ce qui reste : les mâts ont pris ce qui est
+           à eux, et ce qui déborde encore de l'étrave ne peut être que lui — lui
+           et son bâton de foc, qui partent ensemble puisqu'ils sont frappés l'un
+           sur l'autre. */
+        var sprits = parts.Where(q => !q.Taken && Bois(q) && FormeBeaupre(q)).ToList();
+        if (sprits.Count > 0) SpritOn(sprits, spec, deckAt);
+
         // et ce que le NOM désigne : les vigies et les cordages, à leur mât
         NameParts(parts);
+    }
+
+    /// <summary>
+    /// LE BEAUPRÉ MONTÉ POUR TOMBER — il bascule VERS L'AVANT, sur ses
+    /// jottereaux, et non par-dessus le bord comme un mât.
+    ///
+    /// C'est la seule différence avec un mât, et elle est dans l'AXE : un mât
+    /// articulé à son pied tourne sur le roulis (z local) et passe par-dessus la
+    /// lisse ; un beaupré est articulé à son talon et tourne sur le tangage (x
+    /// local), sa pointe plongeant dans la mer devant l'étrave. Tout le reste —
+    /// l'équation du pendule, les haubans qui le retiennent sur la fin, le
+    /// naufrage ensuite — est celui des mâts, sans un nombre de plus.
+    ///
+    /// LA CIVADIÈRE PART AVEC. Le gréement voit déjà une position de mât au-delà
+    /// de l'étrave (elle porte sa vergue) mais sans espar à elle : elle ne
+    /// pouvait donc pas tomber, et sa toile serait restée en l'air. On la
+    /// REPARENTE dans le groupe qui tombe, en gardant sa place — elle suit alors
+    /// sans qu'une seule ligne parle d'elle.
+    /// </summary>
+    /// <summary>
+    /// LE GROUPE DU BEAUPRÉ, s'il en a un : tout ce qui doit partir avec lui s'y
+    /// pend. La civadière y entre d'elle-même ; le pavillon de beaupré, qui est
+    /// bâti APRÈS le gréement, s'y pend par ici.
+    /// </summary>
+    public Node3D? SpritFall { get; private set; }
+
+    void SpritOn(List<Part> sprits, ShipSpec spec, Func<double, double> deckAt)
+    {
+        // le talon : le point le plus en arrière de tout ce qui le compose
+        Part heelPart = sprits[0];
+        foreach (var q in sprits) if (q.Min.Z < heelPart.Min.Z) heelPart = q;
+        double z0 = heelPart.Min.Z;
+        /* SA HAUTEUR AU TALON, prise sur les sommets qui y sont : un beaupré est
+           EN PENTE (la quête, 0,22 radian sur la frégate), et son milieu est donc
+           bien plus haut que son talon. Le pivoter sur son milieu le ferait
+           s'enfoncer dans le gaillard. */
+        double y0 = 0; int n = 0;
+        foreach (var v in heelPart.Verts)
+            if (v.Z < z0 + Math.Max(0.3, 0.02 * spec.L)) { y0 += v.Y; n++; }
+        y0 = n > 0 ? y0 / n : heelPart.Min.Y;
+
+        double tip = z0, tipY = y0;
+        foreach (var q in sprits) if (q.Max.Z > tip) { tip = q.Max.Z; tipY = q.Max.Y; }
+        double len = Math.Max(2, tip - z0);
+
+        var fall = new Node3D { Position = new Vector3(0, (float)y0, (float)z0) };
+        AddChild(fall);
+        SpritFall = fall;
+        foreach (var q in sprits) { q.Taken = true; q.Mi.Reparent(fall, true); }
+
+        /* ET LA CIVADIÈRE, qui pend au-delà de l'étrave : son groupe entre dans
+           celui-ci. Son entrée d'avarie reste, sans espar donc incapable de
+           tomber seule — ce qui est juste : elle tombe AVEC le beaupré. */
+        foreach (var d0 in _damage)
+            if (!d0.HasPole && d0.Fall.GetParent() == this && d0.Fall.Position.Z > 0.42 * spec.L)
+                d0.Fall.Reparent(fall, true);
+
+        var cords = new List<CordAnchor>();
+        foreach (int sx in new[] { -1, 1 })
+            cords.Add(new CordAnchor(fall, new Vector3((float)(sx * Math.Min(1.0, 0.04 * len)), 0, (float)(len * 0.72)),
+                Math.Max(3, Math.Min(8, 0.30 * len))));
+        _damage.Add(new MastDamage
+        {
+            Fall = fall, Heel = y0, Share = 0, HasPole = true, Height = len, Cords = cords,
+            Pitch = true, Rise = Math.Max(0, tipY - y0)
+        });
+        RigLog.Add(FormattableString.Invariant(
+            $"beaupré talon z {z0:F2} y {y0:F2}, pointe z {tip:F2}, longueur {len:F2} — {string.Join(" + ", sprits.Select(q => q.Mi.Name))}"));
     }
 
     /// <summary>
