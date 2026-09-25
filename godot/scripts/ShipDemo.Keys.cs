@@ -121,6 +121,7 @@ public partial class ShipDemo : Node3D
         Section(b, "Rencontres");
         Key(b, "U", "une voile sous pavillon noir");
         Key(b, "⇧U", "le vaisseau fantôme, qui vient à la lumière");
+        Key(b, "⇧F", "un coup de foudre : sur la mâture, ou à toucher le bord");
         Key(b, "K", "le kraken, tout de suite");
         Key(b, "⇧K", "une baleine, qui vient charger");
         Key(b, "⇧J", "une averse, et le serpent de mer");

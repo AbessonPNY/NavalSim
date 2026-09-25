@@ -10149,6 +10149,64 @@ que RENVOYER la lumière et qui a été écrit avec une valeur en dur. Le test t
 en une phrase : *si je coupe le soleil et la lune, cela doit-il rester visible ?*
 Pour une flamme, un éclair et une fenêtre éclairée, oui. Pour tout le reste, non.
 
+## Le coup qui manque le mât (Godot)
+
+Demandé : une touche pour appeler la foudre et la régler à l'œil, et qu'elle
+« manque parfois le mât et tombe à l'eau dans un périmètre de 4 à 10 mètres ».
+
+**⇧F**, et non K, qui est le kraken — F comme foudre. Le sort décide par la MÊME
+règle que l'orage, sans quoi la touche montrerait autre chose que ce qu'on verra
+en jeu : c'est une porte commune (`StrikeSomewhere`) et non un second chemin.
+
+Le coup à l'eau ne casse rien — il éclaire, il tonne aussitôt puisqu'on est
+dedans, et il lève une gerbe là où il entre. C'est ce qui manquait le plus à une
+nuit de gros temps : un bord qui ne reçoit QUE des coups sur sa mâture est un
+bord où la foudre est une avarie et jamais un spectacle.
+
+La distance se compte **du bordé** et non du centre (demi-bau plus la
+fourchette), pour que quatre mètres soient les mêmes quatre mètres sur une
+chaloupe et sur un vaisseau. Le premier jet tirait de zéro au maximum : la
+moitié des coups tombaient alors à toucher la muraille, ce qui est le cas RARE
+et non l'ordinaire, et le voir chaque fois l'usait. De quatre à dix, donc :
+assez près pour qu'on le prenne pour soi, assez loin pour que ce soit un coup
+manqué.
+
+`nearChance`, `nearMin`, `nearMax` dans les réglages ; `nearRadius`, qui fut le
+premier nom, vaut encore pour le maximum — **un réglage renommé ne doit pas faire
+retomber une partie sur le défaut sans rien dire.**
+
+Deux commutateurs de plus, qui manquaient depuis longtemps : `--heure` pose la
+nuit (`--sun` fige le soleil mais ne fait pas la nuit — c'est l'HEURE qui la
+décide, le cycle du jour réécrivant le soleil depuis elle à chaque image) et
+`--feux 0` couvre les feux au démarrage.
+
+## La toile n'est pas blanche (Godot et page)
+
+Signalé deux fois : de nuit les voiles restent claires quand tout le reste est
+noir, « et elles se voient toujours plus que les drapeaux, étrange ».
+
+J'ai cherché le défaut dans l'éclairage et je ne l'ai pas trouvé : émission,
+translucidité, albédo, spéculaire coupés tour à tour, aucun terme ne dominait —
+et il s'est avéré que ma boîte de mesure attrapait le tableau de bord, si bien
+qu'aucun de ces chiffres ne valait rien. **Une mesure dont on ne sait pas ce
+qu'elle regarde ne mesure rien**, et il a fallu revenir à la fiche pour voir la
+réponse, qui y était écrite en clair.
+
+`appearance.canvas` valait `0xf2ebdc` ou `0xece4d2` selon les fiches, soit 0,84 à
+0,89 en linéaire, contre 0,15 pour un bordé. **À lumière égale, la toile rendait
+six fois ce que rend la coque**, à toute heure — c'est l'ÉTOFFE qui était fausse,
+pas l'éclairage. Un pavillon, lui, porte la couleur de sa nation, souvent
+sombre : l'écart que l'œil trouve étrange est celui des deux étoffes.
+
+Et 0,89, c'est le blanc d'une voile de régate moderne. Le lin écru d'un navire
+d'époque, salé, mouillé et passé au soleil, est nettement plus sombre. Toutes les
+fiches passent à `0xd8cdb4` — le repli du noyau et `tools/add-ship.js` avec, sans
+quoi la prochaine fiche naîtrait blanche.
+
+La leçon est la même que pour la brume et les nuages, prise par l'autre bout :
+quand une chose paraît trop claire, ce n'est pas toujours la lumière qu'on lui
+donne — c'est parfois ce qu'elle est.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

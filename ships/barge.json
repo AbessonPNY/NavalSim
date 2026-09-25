@@ -58,7 +58,7 @@
     "timber": "0x6a5a42",
     "spar": "0x8f7a55",
     "house": "0xbdb5a2",
-    "canvas": "0xe8e0cf"
+    "canvas": "0xd8cdb4"
   },
 
   "camera": { "chaseDist": 46, "chaseHigh": 17, "orbitDist": 56, "helmZFrac": -0.40, "helmHeight": 3.75 },

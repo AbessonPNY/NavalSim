@@ -6,6 +6,14 @@
     "pres": ["cannon_fire_001.ogg"],
     "loin": ["cannon_far_away.ogg"]
   },
+  
+  
+  "foudre": {
+    "_aide": "",
+    "pres": ["thunder_001.ogg", "thunder_002.ogg"],
+    "loin": ["thunder_far.ogg"]
+  },
+  
 
   "bois": {
     "_aide": "Le bordé qui éclate sous un boulet. Plusieurs valent mieux qu'un : on reconnaît vite un échantillon unique.",

@@ -231,7 +231,13 @@ public sealed class AppearanceSpec
 {
     [JsonPropertyName("hull")]      public string Hull { get; set; } = "0x3a2a1c";
     [JsonPropertyName("spar")]      public string Spar { get; set; } = "0xa8875a";
-    [JsonPropertyName("canvas")]    public string Canvas { get; set; } = "0xf2ebdc";
+    /* LA TOILE N'EST PAS BLANCHE. Elle était déclarée à 0xf2ebdc, soit 0,89 en
+       linéaire contre 0,15 pour un bordé : à lumière égale elle rendait six fois
+       ce que rend la coque, et de nuit elle restait le seul objet clair de
+       l'image (signalé, deux captures). Le lin écru, salé et passé au soleil d'un
+       navire d'époque est nettement plus sombre que le blanc d'une voile de
+       régate moderne — c'est l'ÉTOFFE qui était fausse, pas l'éclairage. */
+    [JsonPropertyName("canvas")]    public string Canvas { get; set; } = "0xd8cdb4";
     [JsonPropertyName("canvasMap")] public Dictionary<string, string>? CanvasMap { get; set; }
     /// <summary>Le pavillon qu'elle arbore ; « jolly » : la tête de mort, et c'est une déclaration.</summary>
     [JsonPropertyName("ensign")]    public string? Ensign { get; set; }

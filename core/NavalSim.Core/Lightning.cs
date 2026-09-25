@@ -60,6 +60,26 @@ public sealed class LightningSettings
     public string FlashColour = "0xccdcff";
 
     /// <summary>
+    /// LE COUP QUI TOMBE À L'EAU À CÔTÉ D'ELLE, et non sur sa mâture.
+    ///
+    /// Un orage ne frappe pas que les mâts : l'essentiel de ce qu'on voit d'une
+    /// nuit de gros temps tombe dans la mer autour, et c'est cela qui la déchire.
+    /// Un bord qui ne reçoit QUE des coups sur sa mâture est un bord où la foudre
+    /// est une avarie et jamais un spectacle.
+    ///
+    /// nearChance : la part des coups qui tombent à l'eau plutôt que sur un mât.
+    /// nearMin, nearMax : entre quelles distances DU BORDÉ, en mètres — de quatre
+    /// à dix, c'est-à-dire assez près pour qu'on le prenne pour soi et assez loin
+    /// pour que ce soit un coup MANQUÉ. Mesurées du bordé et non du centre, pour
+    /// que ce soient les mêmes mètres sur une chaloupe et sur un vaisseau.
+    ///
+    /// Le premier jet tirait de zéro au maximum, si bien que la moitié des coups
+    /// tombaient à toucher la muraille : c'est le cas RARE, pas l'ordinaire, et
+    /// le voir à chaque fois l'usait.
+    /// </summary>
+    public double NearChance = 0.6, NearMin = 4, NearMax = 10;
+
+    /// <summary>
     /// ET CE QUE LE CIEL EN PREND, de 0 à 1.
     ///
     /// L'éclat du ciel monte l'hémisphérique et blanchit le dôme entier : tout
@@ -106,6 +126,12 @@ public sealed class LightningSettings
         s.FarFlash = Math.Clamp(D("farFlash", s.FarFlash), 0, 1);
         s.FarPerSecond = Math.Max(0, D("farPerSecond", s.FarPerSecond));
         s.FlashLife = Math.Clamp(D("flashLife", s.FlashLife), 0.005, 1);
+        s.NearChance = Math.Clamp(D("nearChance", s.NearChance), 0, 1);
+        /* « nearRadius » était le premier nom, et un réglage renommé ne doit pas
+           faire retomber une partie sur le défaut sans rien dire : il vaut encore
+           pour le maximum. */
+        s.NearMax = Math.Max(0, D("nearMax", D("nearRadius", s.NearMax)));
+        s.NearMin = Math.Clamp(D("nearMin", s.NearMin), 0, s.NearMax);
         if (j.TryGetProperty("flashColour", out var fc) && fc.ValueKind == JsonValueKind.String)
             s.FlashColour = fc.GetString()!;
         if (j.TryGetProperty("flashShadow", out var sh) && (sh.ValueKind == JsonValueKind.True || sh.ValueKind == JsonValueKind.False))

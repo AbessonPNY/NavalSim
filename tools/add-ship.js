@@ -149,7 +149,7 @@ const spec = {
   },
   deckhouse: { beamFrac: 0.42, height: +(0.78*k).toFixed(2), lengthFrac: 0.17, zFrac: -0.11 },
   appearance: { hull:'0x1d2b38', timber:'0x8a6a45', spar:'0xb08c5c',
-                house:'0xd9d2c2', canvas:'0xf2ebdc' },
+                house:'0xd9d2c2', canvas:'0xd8cdb4' },
   camera: { chaseDist: +(38*k).toFixed(0), chaseHigh: +(14*k).toFixed(0),
             orbitDist: +(46*k).toFixed(0), helmZFrac: -0.44 },
   model: { glb: glbRel.replace(/\\/g,'/'), lengthAxis, offset:[0,0,0], rotationY: 0 }

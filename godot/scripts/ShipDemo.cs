@@ -1943,6 +1943,11 @@ public partial class ShipDemo : Node3D
                    qu un moyen de se perdre. Mettre une chaloupe à l eau n est pas
                    changer de monture — c est la quitter pour y revenir. */
                 case Key.N: Say(BoatSwing()); break;
+                /* ⇧F : UN COUP DE FOUDRE, TOUT DE SUITE — F comme foudre. K est
+                   le kraken et le reste. Le sort décide s'il frappe la mâture ou
+                   s'il tombe à l'eau le long du bord, par la même règle que
+                   l'orage : la touche montre ce qu'on verra en jeu. */
+                case Key.F when k.ShiftPressed: StrikeSomewhere(_ship); break;
                 case Key.F: _follow = !_follow; break;
                 // ⇧C : la chambre seule — le capitaine dort parfois
                 case Key.C when k.ShiftPressed: DouseCabin(); break;
@@ -2480,7 +2485,7 @@ public partial class ShipDemo : Node3D
         SerpentTick(dt);
 
         foreach (var (prey, inten) in _orage)
-            if (_stormRng.NextDouble() < _lightRules.StrikeChance(inten, dt)) Strike(_preyShip[prey]);
+            if (_stormRng.NextDouble() < _lightRules.StrikeChance(inten, dt)) StrikeSomewhere(_preyShip[prey]);
         _lightning.Step(dt);
 
         // les bouts rompus de toute la flotte, et les éclats en l'air
@@ -2496,6 +2501,51 @@ public partial class ShipDemo : Node3D
        ciel ne s'allume que si c'est assez près pour éclairer notre pont. Ce
        qu'elle coûte : une voile, une blessure de mât — les mêmes que les boulets —,
        et parfois le mât d'un coup. */
+    /// <summary>
+    /// UN COUP, ET LE SORT DÉCIDE OÙ IL TOMBE : sur sa mâture, ou dans la mer le
+    /// long d'elle. C'est la même porte pour l'orage et pour ⇧F, sans quoi la
+    /// touche montrerait autre chose que ce qu'on verra en jeu.
+    /// </summary>
+    void StrikeSomewhere(ShipNode s)
+    {
+        if (_stormRng.NextDouble() < _lightRules.NearChance) StrikeAlongside(s);
+        else Strike(s);
+    }
+
+    /// <summary>
+    /// LE COUP QUI DÉCHIRE LA NUIT LE LONG DU BORD — il tombe à l'eau, à quelques
+    /// mètres du bordé, et ne casse rien.
+    ///
+    /// Un orage ne frappe pas que les mâts, et un bord qui ne reçoit que des
+    /// coups sur sa mâture est un bord où la foudre est une avarie et jamais un
+    /// spectacle. Celui-ci ne coûte rien : il éclaire, il tonne aussitôt — on est
+    /// dedans —, et il lève une gerbe là où il entre dans l'eau.
+    ///
+    /// La distance se compte DU BORDÉ (demi-bau plus <c>nearMin…nearMax</c>) et
+    /// non du centre, pour que quatre mètres soient les mêmes quatre mètres sur
+    /// une chaloupe et sur un vaisseau. Quatre à dix : assez près pour qu'on le
+    /// prenne pour soi, assez loin pour que ce soit un coup MANQUÉ.
+    /// </summary>
+    void StrikeAlongside(ShipNode s)
+    {
+        if (s.Physics.Foundered) return;
+        var b = s.Physics.Body;
+        double a2 = _stormRng.NextDouble() * Math.Tau;
+        double d = s.Spec.B * 0.5 + _lightRules.NearMin
+                 + _stormRng.NextDouble() * (_lightRules.NearMax - _lightRules.NearMin);
+        double x = b.Pos.X + Math.Sin(a2) * d, z = b.Pos.Z + Math.Cos(a2) * d;
+        float y = (float)_sea.Core.Sample(x, z, _t);
+        var w = new Vector3((float)x, y, (float)z);
+
+        _lightning.Strike(w);
+        if (w.DistanceTo(_cam.GlobalPosition) < 3000) _sky.Strike();
+        // il tombe à toucher : le tonnerre part avec, l'acoustique fait le reste
+        _sound?.Thunder(new Vec3d(w.X, w.Y, w.Z));
+        // et l'eau se soulève là où il entre
+        _spray.Pool.Burst(new Vec3d(x, y, z), y, 9, 1.6);
+        if (s == _ship) Say("La foudre tombe à toucher le bord !");
+    }
+
     void Strike(ShipNode s)
     {
         if (s.Physics.Foundered || !s.HighestMasthead(out var w, out int fall)) return;
@@ -3447,7 +3497,15 @@ public partial class ShipDemo : Node3D
                     break;
                 case "--brume": if (args[i + 1] != "0") (_seaFog ??= new SeaFog(_fogRules)).Force(args[i + 1].ToFloat() > 1 ? args[i + 1].ToFloat() : 6); break;
                 case "--serpent": _serpentIn = args[i + 1] != "0" ? 1.0 : -1; break;
-                case "--foudre": Strike(_ship); break;
+                /* L HEURE, PAS LE SOLEIL : le cycle du jour réécrit le soleil depuis
+                   l heure à chaque image, et un soleil posé à la main revenait au jour.
+                   --sun fige le soleil, --heure pose la NUIT. */
+                case "--heure": _sky.Core.SetTimeOfDay(args[i + 1].ToFloat(), _sky.Latitude); _sky.Apply(); break;
+                // les feux couverts tout de suite, comme ⇧L : pour juger ce qui reste visible
+                case "--feux": _ship.Douse(args[i + 1] == "0", _t); break;
+                case "--foudre": StrikeSomewhere(_ship); break;
+                // le coup à l'eau seul, pour le régler : --pres 1
+                case "--pres": if (args[i + 1] != "0") StrikeAlongside(_ship); break;
                 case "--bordee": _gunSide = args[i + 1].ToInt(); Fire(false, true); break;
                 case "--soute": BlowUp(_ship); break;
                 case "--pirate": SpawnPirate(args[i + 1].ToFloat()); break;
