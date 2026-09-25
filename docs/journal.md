@@ -7975,6 +7975,55 @@ repasse dessus à 0,35, sans quoi une vague qui lèche l'objectif ferait clapote
 à chaque image. La même raison que le seuil du pirate qui louvoie à la limite,
 et la même réponse.
 
+## Le havre n'était pas dans le même repère que la mer (Godot)
+
+Signalé : « le navire à quai est comme figé, il ne gîte pas » — puis, ce qui a
+tout donné : « ou peu ; si j'ajoute de la houle, **l'eau lui est indifférente** ».
+
+Ce n'était pas la coque. C'était l'ABRI, lu dans deux repères à la fois.
+
+Le monde tient ses havres en mètres VRAIS. La mer, l'écume et le fond, eux,
+calculent près de zéro, sur des coordonnées dont l'origine flottante a glissé.
+`u_harbour` partait en mètres vrais : tant qu'on navigue autour de zéro les deux
+se confondent, et rien ne se voit. Mais **mouiller dans un port recentre
+l'origine SUR le port** (`Moor`), et dès lors le shader mesurait la distance
+entre un point proche de zéro et un centre de havre à plusieurs centaines de
+mètres. Relevé après correction : le bassin de Port-Royal est à 115 m de la
+coque pour un rayon de 188 — dedans. Avant, il le trouvait à 374 m, donc
+dehors, et ne calmait rien.
+
+L'échantillonneur du noyau, lui, faisait le chemin juste : il rend ses
+coordonnées vraies avant d'appeler `World.Shelter`. La coque flottait donc sur
+une mer abritée à 12 % pendant que l'œil voyait la houle du large entrer dans la
+rade. Deux calculateurs sur trois lisaient le même abri — et c'est le troisième
+qu'on regardait.
+
+C'est exactement la panne contre laquelle tout ce projet est écrit, et elle avait
+trouvé le seul angle mort : la règle dit « trois calculateurs doivent lire la
+même mer », on y avait pensé pour les VAGUES, pas pour le repère du havre. Le
+correctif tient en deux soustractions (la démo pousse le havre décalé de
+l'origine), et l'en-tête de `shelter.gdshaderinc` dit désormais dans quel repère
+il parle — il annonçait le contraire.
+
+Reste la question de fond, qui est un réglage et non un défaut : un bassin abrité
+à 88 % laisse 12 % de la houle, soit une dizaine de centimètres par force 4 et
+une trentaine par force 8. La coque y lève et y gîte d'un degré et demi — c'est
+peu, et c'est ce qu'est une rade. Le chiffre est dans `shelter_at` et dans
+`World.Shelter`, des deux côtés, si l'on veut que ça remue davantage.
+
+## Le rideau ne se levait pas sans écran (Godot)
+
+Poussé la veille, et faux : le rideau de chargement attend `FramePostDraw` avant
+de bâtir le monde, or **en mode sans-tête personne ne dessine** et ce signal
+n'arrive jamais. Le jeu ne démarrait plus du tout — mais seulement là où l'on ne
+regarde pas, c'est-à-dire dans tout ce qui le mesure et le vérifie. La sonde
+suivante n'a rien imprimé, et c'est ce silence qui l'a dit.
+
+`DisplayServer.GetName() != "headless"` : on n'attend une image que s'il y a
+quelqu'un pour la voir. La leçon est plus générale — **un effet visuel qui
+BLOQUE le démarrage n'est plus un effet visuel**, et tout ce qui attend un signal
+de rendu doit prévoir le cas où il n'y a pas de rendu.
+
 ## Un rideau de chargement, et où passent les quatre secondes (Godot)
 
 Demandé : un écran de chargement entre les écrans, pour les machines lentes. La

@@ -10,8 +10,17 @@
  * UN SEUL HAVRE À LA FOIS, et c'est assez : on n'est jamais dans deux ports.
  * Le plus proche est poussé par la démo à chaque image.
  *
- * Les coordonnées sont en mètres MONDE VRAIS, parce que c'est là que le havre
- * est défini et que la mer y travaille déjà pour cette raison exacte.
+ * LES COORDONNÉES SONT CELLES OÙ LA MER TRAVAILLE — près de zéro, l'origine
+ * flottante déduite —, et NON les mètres vrais du monde. C'est la démo qui fait
+ * la conversion en poussant u_harbour (voir PushHarbour) : elle seule connaît
+ * l'origine du moment, et un uniforme en mètres vrais serait faux dès le premier
+ * recentrage. L'échantillonneur du noyau fait le chemin inverse — il rend ses
+ * coordonnées vraies avant d'appeler World.Shelter — et les trois lisent alors
+ * le même abri.
+ *
+ * Ce n'est pas une précaution de style : poussé en mètres vrais, cet uniforme
+ * laissait la houle du large entrer dans la rade sous les yeux d'une coque qui,
+ * elle, flottait sur une eau calme.
  */
 
 // xy : le centre · z : le rayon extérieur (mur compris) · w : 1 s'il y a un havre

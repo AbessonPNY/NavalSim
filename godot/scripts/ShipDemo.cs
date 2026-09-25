@@ -94,15 +94,22 @@ public partial class ShipDemo : Node3D
     /// </summary>
     public override async void _Ready()
     {
+        /* SANS ÉCRAN, PERSONNE NE DESSINE — et FramePostDraw n'arrive jamais. Le
+           jeu ne démarrait plus du tout en mode sans-tête, c'est-à-dire dans tout
+           ce qui le mesure et le vérifie : la panne muette du genre le plus bête,
+           parce qu'elle ne se voit QUE là où l'on ne regarde pas. On n'attend donc
+           une image que s'il y a quelqu'un pour la voir. */
+        bool aVoir = DisplayServer.GetName() != "headless";
         Curtain();
-        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (aVoir) await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         Boot();
         _booted = true;
         /* ET IL RESTE EN PLACE UNE IMAGE DE PLUS : celle-là compile les shaders de
            la mer, du ciel et des coques, et c'est la plus longue de la partie. La
            lever avant elle rendrait l'écran à un monde qui n'est pas encore
            dessiné. */
-        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        if (aVoir) await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         DropCurtain();
     }
 
@@ -3030,10 +3037,29 @@ public partial class ShipDemo : Node3D
             double d = dx * dx + dz * dz;
             if (d < bestD) { bestD = d; best = H; }
         }
+        /* LE HAVRE EST POUSSÉ DANS LE REPÈRE OÙ LES SHADERS TRAVAILLENT, c'est-à-dire
+           DÉCALÉ DE L'ORIGINE FLOTTANTE — et c'est tout le sujet du défaut corrigé ici.
+
+           Le monde tient ses havres en mètres VRAIS ; la mer, l'écume et le fond,
+           eux, calculent près de zéro, sur des coordonnées dont l'origine a glissé.
+           Ces uniformes partaient en mètres vrais : tant qu'on naviguait autour de
+           zéro les deux se confondaient, mais mouiller dans un port REBASE l'origine
+           SUR le port (voir Moor), et dès lors le shader mesurait la distance entre
+           un point proche de zéro et un centre de havre à plusieurs centaines de
+           mètres. Il le trouvait hors du bassin et ne calmait rien.
+
+           Conséquence, signalée : « le navire à quai est comme figé, et si j'ajoute
+           de la houle l'eau lui est indifférente ». Elle l'était en effet — la coque
+           flottait sur une mer abritée à 12 % (le noyau, lui, convertit bien en
+           mètres vrais avant d'appeler World.Shelter) pendant que l'ŒIL voyait la
+           houle du large entrer dans la rade. Deux calculateurs sur trois lisaient
+           le même abri, et c'est le troisième qu'on regardait. */
+        var o = _sea.Core.Origin;
         var v = best is Harbour h && bestD < 4000 * 4000
-            ? new Vector4((float)h.Cx, (float)h.Cz, (float)(h.R + h.Wall), 1)
+            ? new Vector4((float)(h.Cx - o.X), (float)(h.Cz - o.Z), (float)(h.R + h.Wall), 1)
             : Vector4.Zero;
-        var pass = best is Harbour h2 ? new Vector2((float)h2.Px, (float)h2.Pz) : Vector2.Zero;
+        var pass = best is Harbour h2
+            ? new Vector2((float)(h2.Px - o.X), (float)(h2.Pz - o.Z)) : Vector2.Zero;
         _sea.Material?.SetShaderParameter("u_harbour", v);
         _sea.Material?.SetShaderParameter("u_harbour_pass", pass);
         _foam.Set("u_harbour", v);
