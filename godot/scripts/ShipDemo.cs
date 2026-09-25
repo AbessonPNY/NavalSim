@@ -1915,6 +1915,10 @@ public partial class ShipDemo : Node3D
                 case Key.U: SpawnPirate(900); break;
                 case Key.P when k.ShiftPressed: ToggleColours(); break;
                 case Key.P: GoToGhosts(true); break;
+                /* ⇧L COUVRE LES FEUX — L comme lunette, ⇧L comme lanternes. Un
+                   navire qui veut ne pas être vu la nuit éteint, et c est la seule
+                   chose qu il puisse faire. */
+                case Key.L when k.ShiftPressed: Douse(); break;
                 case Key.L: ToggleSpyglass(); break;
                 // la carte du capitaine : I comme « inscrire »
                 case Key.I when k.ShiftPressed: ToggleJournal(); break;

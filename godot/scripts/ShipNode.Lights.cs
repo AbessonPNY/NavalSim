@@ -32,9 +32,49 @@ public partial class ShipNode
         public bool Candle;
         public double Seed;
         public Swing? Swing;
+        /// <summary>Son rang dans la tournée de l'homme qui couvre les feux, de l'arrière vers l'avant.</summary>
+        public int Rank;
     }
 
     readonly List<Lantern> _lanterns = new();
+
+    /* COUVRIR LES FEUX, ET COMMENT ILS S'ÉTEIGNENT.
+     *
+     * Pas tous ensemble, et pas par un fondu du bord entier : c'est un HOMME qui
+     * fait la tournée. Il part de l'arrière — le fanal de poupe est celui qu'on
+     * voit de loin —, marche vers l'avant, et chaque flamme meurt en moins d'une
+     * seconde une fois qu'il y est. Le DÉCALAGE est donc sa marche, et la
+     * PROGRESSION la flamme qui tombe ; deux choses différentes, et c'est pour
+     * cela qu'un simple fondu ne ressemble à rien.
+     *
+     * Rallumer est la même tournée dans le même sens, à la même allure.
+     */
+    /// <summary>Les feux sont-ils couverts (l'ordre, pas l'état).</summary>
+    public bool Dark { get; private set; }
+    double _darkT = -1e9;
+    /// <summary>Le pas de l'homme d'un fanal au suivant, et le temps qu'une flamme met à mourir.</summary>
+    const double DouseWalk = 1.1, DouseFade = 0.7;
+
+    /// <summary>Donner l'ordre. <paramref name="t"/> est l'heure du jeu.</summary>
+    public void Douse(bool dark, double t)
+    {
+        if (dark == Dark) return;
+        /* SI LA TOURNÉE N'EST PAS FINIE, on repart d'où elle en est : rallumer au
+           milieu d'une extinction ne doit pas faire sauter les feux déjà morts. */
+        Dark = dark;
+        _darkT = t;
+    }
+
+    /// <summary>Ce qui reste de ce feu-là : 1 allumé, 0 couvert.</summary>
+    double Veil(int rank, double t)
+    {
+        double u = (t - _darkT - rank * DouseWalk) / DouseFade;
+        double fait = Math.Clamp(u, 0, 1);
+        return Dark ? 1 - fait : fait;
+    }
+
+    /// <summary>La tournée est-elle finie ? Pour le dire au joueur.</summary>
+    public bool Snuffed => Dark && _lanterns.Count > 0;
     readonly List<(BaseMaterial3D Mat, double Base)> _nightMats = new();
     bool _lit;
     /// <summary>Ses feux sont-ils allumés : la nuit, par la règle des fanaux.</summary>
@@ -356,7 +396,19 @@ public partial class ShipNode
     }
 
     /// <summary>Refaire les feux : la lanterne du mât a été ajoutée ou retirée.</summary>
-    public void RebuildLanterns() => BuildLanterns();
+    public void RebuildLanterns() { BuildLanterns(); RankLanterns(); }
+
+    /// <summary>
+    /// L'ORDRE DE LA TOURNÉE : de l'arrière vers l'avant, par la place de chaque
+    /// feu sur le pont. Ce n'est pas un détail d'ordonnancement — c'est ce qui
+    /// fait qu'on VOIT quelqu'un marcher.
+    /// </summary>
+    void RankLanterns()
+    {
+        var ordre = new List<Lantern>(_lanterns);
+        ordre.Sort((x, y) => x.Group.Position.Z.CompareTo(y.Group.Position.Z));
+        for (int i = 0; i < ordre.Count; i++) ordre[i].Rank = i;
+    }
 
     /// <summary>
     /// Ses feux tels que la mer doit les voir : position monde et énergie de
@@ -502,7 +554,12 @@ public partial class ShipNode
         // hésite à la limite ferait battre tout le bord
         if (on >= LightAt) _lit = true;
         else if (on <= SnuffAt) _lit = false;
-        foreach (var (mat, b) in _nightMats) mat.EmissionEnergyMultiplier = (float)(_lit ? b * NightGlowGain : 0);
+        /* LES FENÊTRES DE POUPE SONT LE DERNIER FEU À MOURIR : la chambre est à
+           l'arrière, l'homme y finit sa tournée — et c'est celui qu'un guetteur
+           voit le plus longtemps. */
+        double vitres = Veil(_lanterns.Count, t);
+        foreach (var (mat, b) in _nightMats)
+            mat.EmissionEnergyMultiplier = (float)(_lit ? b * NightGlowGain * vitres : 0);
 
         /* AU LOIN, LE FEU S'EFFACE. Le repère est à taille d'ÉCRAN fixe — sans lui
            un fanal disparaît à deux milles —, mais avec un éclat fixe une voile au
@@ -535,10 +592,12 @@ public partial class ShipNode
             double flick = L.Candle && L.Swing == null
                 ? 0.80 + 0.12 * Math.Sin(t * 9.7 + L.Seed) + 0.08 * Math.Sin(t * 23.3 + L.Seed * 1.3)
                 : 0.86 + 0.14 * Math.Sin(t * 7.3 + L.Seed) + 0.06 * Math.Sin(t * 17.1 + L.Seed * 1.7);
-            L.Halo.SetShaderParameter(U.Opacity, (float)(0.85 * on * flick * far));
-            L.Mark.SetShaderParameter(U.Opacity, (float)(L.Candle ? 0 : 0.95 * on * flick * far));
+            // ce que la tournée lui a laissé : une flamme qu'on couvre ne vacille plus
+            double v = Veil(L.Rank, t);
+            L.Halo.SetShaderParameter(U.Opacity, (float)(0.85 * on * flick * far * v));
+            L.Mark.SetShaderParameter(U.Opacity, (float)(L.Candle ? 0 : 0.95 * on * flick * far * v));
             L.Mark.SetShaderParameter(U.Size, (float)(0.030 * farSize));
-            L.Light.LightEnergy = (float)(2.6 * on * flick);
+            L.Light.LightEnergy = (float)(2.6 * on * flick * v);
         }
     }
 }
