@@ -9,7 +9,7 @@
   
   
   "foudre": {
-    "_aide": "",
+    "_aide": "LE TONNERRE. pres : le coup qu on prend sur la tete ; loin : le roulement. Le jeu bascule a 1500 m, bien plus loin que le canon (400 m) — une piece a un demi-mille est deja un bruit sourd, un coup de foudre a un demi-mille claque encore. Plusieurs par cle : il en tire une au hasard, et lui donne un peu de hauteur en moins ou en plus pour qu on ne reconnaisse pas deux fois le meme coup. Sans echantillon, le jeu le SYNTHETISE. Le voyage du son n est pas ici : on voit l eclair, on compte, puis on entend.",
     "pres": ["thunder_001.ogg", "thunder_002.ogg"],
     "loin": ["thunder_far.ogg"]
   },
@@ -28,8 +28,8 @@
 
   "etouffe": {
     "_aide": "CE QUI ETOUFFE, ET DE COMBIEN. Une coupure en Hz (tout ce qui est plus aigu est coupe) et une baisse en dB. Cela s ecoute et ne se calcule pas : poussez. Plus BAS en Hz = plus sourd ; plus NEGATIF en dB = plus faible. La pente du filtre est la plus raide que Godot offre, 24 dB par octave — a six, la valeur par defaut, on n entendait rien du tout.",
-    "cabineHz": 900,
-    "cabineDb": -9,
+    "cabineHz": 1200,
+    "cabineDb": -2,
     "eauHz": 380,
     "eauDb": -4
   },

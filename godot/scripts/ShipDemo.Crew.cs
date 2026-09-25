@@ -76,6 +76,12 @@ public partial class ShipDemo
             Bag("canon", "pres", "pres");
             Bag("canon", "loin", "loin");
             Bag("bois", "choc", "bois");
+            /* LE TONNERRE A SES PROPRES CLÉS et non « pres »/« loin », qui sont
+               celles du canon : deux blocs du manifeste qui se rangeraient sous le
+               même nom se remplaceraient l'un l'autre, et le dernier lu gagnerait
+               en silence. */
+            Bag("foudre", "pres", "tonnerre-pres");
+            Bag("foudre", "loin", "tonnerre-loin");
             /* LA TOILE VA DANS LA RÉSERVE DU BORD, pas dans celle des coups : elle
                se fait à vingt mètres, sans retard de trajet ni filtre de l'air. */
             void Board(string bloc, string champ, string key)

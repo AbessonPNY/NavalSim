@@ -426,8 +426,33 @@ public partial class SoundNode : Node3D
     /// s'éteint en battant — du bruit brun, qui est ce que l'air renvoie d'une
     /// décharge répercutée par les nuages.
     /// </summary>
+    /// <summary>
+    /// LE TONNERRE. Deux échantillons s'il y en a — le coup qu'on prend sur la
+    /// tête et le roulement qu'on entend de loin —, et la synthèse en dernier
+    /// recours, pour qu'un dossier sans manifeste tonne quand même.
+    ///
+    /// La frontière est BIEN PLUS LOIN que celle du canon (400 m) : une pièce à
+    /// un demi-mille est déjà un bruit sourd, tandis qu'un coup de foudre à un
+    /// demi-mille claque encore. Au-delà d'un mille, on n'entend plus que le
+    /// roulement — et c'est ce roulement qui fait la nuit d'orage.
+    ///
+    /// Le VOYAGE du son n'est pas ici : <see cref="Play"/> le retarde déjà de la
+    /// distance. On voit l'éclair, on compte, puis on entend.
+    /// </summary>
+    public const double TonnerreLoin = 1500;
+
     public void Thunder(Vec3d at)
     {
+        var cam0 = GetViewport().GetCamera3D();
+        if (cam0 != null && (Knows("tonnerre-pres") || Knows("tonnerre-loin")))
+        {
+            double dd = new Vector3((float)at.X, (float)at.Y, (float)at.Z).DistanceTo(cam0.GlobalPosition);
+            string k = dd > TonnerreLoin ? (Knows("tonnerre-loin") ? "tonnerre-loin" : "tonnerre-pres")
+                                         : (Knows("tonnerre-pres") ? "tonnerre-pres" : "tonnerre-loin");
+            // jamais deux fois le même coup : un peu de hauteur en moins ou en plus
+            Play(k, at, 1 + (_rng.Randf() - 0.5) * 0.14, 1);
+            return;
+        }
         Synth("tonnerre", 4.5, (d, sr) =>
         {
             double brun = 0;

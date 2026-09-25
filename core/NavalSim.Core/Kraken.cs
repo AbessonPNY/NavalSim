@@ -192,6 +192,22 @@ public sealed class Kraken
         if (State != KrakenState.Dive && (v == null || !alive(v))) Dive("storm");
         double intenV = 0;
         for (int li = 0; li < list.Count; li++) if (list[li].Prey == v) { intenV = list[li].Inten; break; }
+
+        /* IL NE PLONGE PAS SUR UNE SEULE IMAGE.
+         *
+         * Le creux du grain était lu à chaque image et comparé tel quel : une
+         * SEULE image où la proie manquait de la liste — parce que le grain venait
+         * d'être recalculé, parce qu'elle passait la frontière d'un cheveu, parce
+         * qu'un rechargement la sortait un instant de la flotte — donnait un
+         * enfoncement de zéro, et le kraken plongeait POUR DE BON : il emporte
+         * avec lui son temps de repos, un quart d'heure de jeu. Une rencontre
+         * qu'on a mis une minute à faire venir ne doit pas se perdre sur un
+         * bégaiement d'une seizième de seconde.
+         *
+         * On compte donc le temps qu'il a passé au sec, et on ne plonge qu'après
+         * <see cref="Patience"/>. Remis à zéro dès que le grain revient : ce n'est
+         * pas un décompte, c'est une jauge. */
+        if (intenV < K.MinInten * 0.5) WeakT += dt; else WeakT = 0;
         var ph = v!.Physics;
         var b = ph.Body;
         double kn = Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z) * 1.944;
@@ -200,7 +216,7 @@ public sealed class Kraken
         {
             case KrakenState.Lurk:
                 StateT += dt;
-                if (intenV < K.MinInten * 0.5) { Dive("storm"); break; }
+                if (WeakT > Patience) { Dive("storm"); break; }
                 if (kn > K.FleeKnots) Dist += K.RetreatRate * dt;
                 else if (StateT > K.LingerBefore)
                 {
@@ -214,7 +230,7 @@ public sealed class Kraken
 
             case KrakenState.Grip:
                 StateT += dt;
-                if (intenV < K.MinInten * 0.5 || ph.Foundered) { Dive("storm"); break; }
+                if (WeakT > Patience || ph.Foundered) { Dive("storm"); break; }
                 DmgT += dt;
                 if (DmgT > K.DamageEvery) { DmgT = 0; Tear(); }
                 break;
@@ -366,11 +382,21 @@ public sealed class Kraken
         Splash?.Invoke(b.Quat.Rotate(new Vec3d(an.X, an.Y, an.Z)) + b.Pos, 6, 5, 1.2);
     }
 
+    /// <summary>
+    /// CE QU'IL SUPPORTE DE MER CALME AVANT DE RENONCER, en secondes. Trois : assez
+    /// pour qu'un grain qui faiblit une seconde ne le fasse pas plonger, trop peu
+    /// pour qu'il suive un navire sorti du gros temps.
+    /// </summary>
+    public const double Patience = 3;
+
+    /// <summary>Ce qu'il a déjà passé hors du creux, en secondes.</summary>
+    public double WeakT { get; private set; }
+
     /// <summary>Il plonge : il lâche tout, et ne reviendra pas avant <see cref="KrakenSettings.Cooldown"/>.</summary>
     public void Dive(string why)
     {
         ReleaseAll();
-        State = KrakenState.Dive; StateT = 0;
+        State = KrakenState.Dive; StateT = 0; WeakT = 0;
         foreach (var a in ArmsList) a.Want = 0;
         Cool = K.Cooldown;
         Event?.Invoke(why, Victim);
