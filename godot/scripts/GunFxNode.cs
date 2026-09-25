@@ -43,6 +43,8 @@ public partial class GunFxNode : Node3D
     readonly List<Puff> _add = new(), _powder = new(), _soot = new();
     MultiMesh _mmAdd = null!, _mmPowder = null!, _mmSoot = null!, _mmBall = null!;
     readonly OmniLight3D[] _gunLamps = new OmniLight3D[4], _blastLamps = new OmniLight3D[3];
+    /// <summary>Une par coque qui peut brûler — autant que la flotte en porte.</summary>
+    readonly OmniLight3D[] _fireLamps = new OmniLight3D[NavalSim.Core.Config.MaxShips];
     readonly (double T, double Life, double Peak)[] _gunLamp = new (double, double, double)[4], _blastLamp = new (double, double, double)[3];
     int _gunLampI, _blastLampI;
     readonly Random _rng = new();
@@ -93,6 +95,18 @@ public partial class GunFxNode : Node3D
         {
             _blastLamps[i] = new OmniLight3D { LightColor = new Color(1, 0xc2 / 255f, 0x5a / 255f), LightEnergy = 0, ShadowEnabled = false };
             AddChild(_blastLamps[i]);
+        }
+        /* UNE LAMPE D'INCENDIE PAR COQUE POSSIBLE, créée ici et jamais ajoutée ni
+           retirée ensuite : un feu dure des minutes, et la scène ne peut pas voir
+           son nombre de lumières changer en jeu. */
+        for (int i = 0; i < _fireLamps.Length; i++)
+        {
+            _fireLamps[i] = new OmniLight3D
+            {
+                LightColor = new Color(1, 0x8e / 255f, 0x3a / 255f),
+                LightEnergy = 0, OmniAttenuation = 1.0f, ShadowEnabled = false, Visible = false
+            };
+            AddChild(_fireLamps[i]);
         }
     }
 
@@ -256,6 +270,97 @@ public partial class GunFxNode : Node3D
     /// <summary>Faire partir une charge plus tard : une soute ne saute pas d'un coup net.</summary>
     public void BlastIn(double delay, Vector3 at, double size) => _queue.Add((-Math.Max(0, delay), at, size));
 
+    /* ------------------------------------------------------------------ */
+    /*  UN FOYER D'INCENDIE                                                */
+    /* ------------------------------------------------------------------ */
+
+    /// <summary>
+    /// CE QUI BRÛLE À BORD — une flamme qui monte, sa fumée, et la lumière qu'elle
+    /// jette. <paramref name="heat"/> de 0 à 1 mène tout : le nombre de bouffées,
+    /// leur taille, leur vitesse et l'éclat de la lampe.
+    ///
+    /// Ce n'est PAS la boule de feu d'une explosion, qui part en tous sens et meurt
+    /// en une seconde : un incendie MONTE, lentement, et sa fumée est noire et
+    /// grasse — du goudron, du chanvre et de la toile, pas de la poudre. Les
+    /// bouffées sont donc lentes, hautes, et il y en a peu par image : c'est leur
+    /// PERSISTANCE qui fait la colonne, pas leur nombre.
+    ///
+    /// <paramref name="dt"/> sert à en semer un compte juste quelle que soit la
+    /// cadence d'images — un feu qui fume deux fois plus sur une machine deux fois
+    /// plus rapide serait une faute de la même famille que les vitesses par image.
+    /// </summary>
+    public void Burn(Vector3 at, double heat, double dt, double scale = 1)
+    {
+        if (heat <= 0.01) return;
+        double k = Math.Max(0.35, scale);
+        float fk = (float)k;
+        // combien de bouffées cette image mérite : un feu bien pris en sème une dizaine par seconde
+        _burnDue += (3 + 9 * heat) * dt;
+        int n = (int)_burnDue;
+        _burnDue -= n;
+        for (int i = 0; i < n && i < 6; i++)
+        {
+            float a2 = R() * Mathf.Tau, r = R() * 1.2f * fk;
+            var p0 = at + new Vector3(Mathf.Cos(a2) * r, 0, Mathf.Sin(a2) * r);
+            // LA FLAMME : courte, elle monte droit et s'éteint vite
+            Add(_add, new Puff
+            {
+                K = Kind.Fire, T = 0, Life = 0.45 + R() * 0.5,
+                P = p0,
+                V = new Vector3((R() - 0.5f) * 0.9f, (1.6f + R() * 2.2f) * (0.5f + (float)heat), (R() - 0.5f) * 0.9f) * fk,
+                Drag = 1.4,
+                S0 = (0.5 + 1.4 * heat) * k, S1 = (1.6 + 3.2 * heat) * k,
+                Col = Lin(0xffc46a), Rot = R() * 6.2832
+            }, MaxAdd);
+            // LA FUMÉE : noire, lente, et elle vit vingt fois plus — c'est elle qu'on voit d'un mille
+            if (R() < 0.7f)
+                Add(_soot, new Puff
+                {
+                    K = Kind.Soot, T = 0, Life = 7 + R() * 9,
+                    P = p0 + new Vector3(0, 0.6f * fk, 0),
+                    V = new Vector3((R() - 0.5f) * 0.8f, 2.2f + R() * 2.4f, (R() - 0.5f) * 0.8f) * fk,
+                    Lift = 0.35 * k, Drag = 0.5,
+                    S0 = (0.8 + 1.6 * heat) * k, S1 = (5 + 7 * heat) * k,
+                    Col = Lin(0x2b2724), Rot = R() * 6.2832
+                }, MaxSoot);
+        }
+    }
+    double _burnDue;
+
+    /// <summary>
+    /// LA LUMIÈRE D'UN INCENDIE — une par navire, posée sur son pire foyer.
+    ///
+    /// Elle est créée à l'armement et ne fait que changer d'énergie et de place,
+    /// comme celles des canons : un feu qui dure des minutes ne peut pas se
+    /// permettre d'ajouter une lumière à la scène. Orange et BASSE, parce qu'un
+    /// incendie éclaire d'en dessous — c'est ce qui rend les visages et la voilure
+    /// si étranges sur les peintures de combat nocturne.
+    /// </summary>
+    public void BurnLight(int slot, Vector3 at, double heat, double scale = 1)
+    {
+        if (slot < 0 || slot >= _fireLamps.Length) return;
+        var L = _fireLamps[slot];
+        if (heat <= 0.01) { L.LightEnergy = 0; L.Visible = false; return; }
+        L.Visible = true;
+        L.Position = at;
+        L.OmniRange = (float)(14 * Math.Max(0.35, scale) * (0.5 + heat));
+        // elle respire : un brasier n'est pas une lampe
+        double flick = 0.82 + 0.18 * Math.Sin(_burnT * 8.3 + slot) + 0.10 * Math.Sin(_burnT * 19.7 + slot * 2.1);
+        L.LightEnergy = (float)(FireLight * heat * heat * flick);
+    }
+    double _burnT;
+
+    /// <summary>L'éclat d'un incendie bien pris — settings.json → fire.light.</summary>
+    public double FireLight = 26;
+
+    /// <summary>Éteindre la lampe d'un navire qui ne brûle plus.</summary>
+    public void BurnOut(int slot)
+    {
+        if (slot < 0 || slot >= _fireLamps.Length) return;
+        _fireLamps[slot].LightEnergy = 0;
+        _fireLamps[slot].Visible = false;
+    }
+
     /* LA SOUTE SAUTE — fire() d'explosion.js. Ce qui fait lire une explosion n'est
        pas la boule de feu, c'est l'ORDRE des choses et leurs durées : un éclat parti
        en un dixième de seconde, une boule qui grandit vite et meurt en une, une fumée
@@ -327,6 +432,7 @@ public partial class GunFxNode : Node3D
             _queue[i] = q;
             if (q.T >= 0) { Blast(q.At, q.Size); _queue.RemoveAt(i); }
         }
+        _burnT += dt;
         // l'éclat meurt vite et inégalement : une charge ne s'éteint pas, elle s'en va
         StepLamps(_gunLamps, _gunLamp, dt);
         StepLamps(_blastLamps, _blastLamp, dt);
@@ -475,6 +581,7 @@ public partial class GunFxNode : Node3D
         for (int i = 0; i < _queue.Count; i++) { var q = _queue[i]; q.At -= d; _queue[i] = q; }
         foreach (var L in _gunLamps) L.Position -= d;
         foreach (var L in _blastLamps) L.Position -= d;
+        foreach (var L in _fireLamps) L.Position -= d;
     }
 
     /* ------------------------------------------------------------------ */

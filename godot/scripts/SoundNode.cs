@@ -344,7 +344,12 @@ public partial class SoundNode : Node3D
        chambre (signalé) — or les pièces sont sur le pont de batterie, dehors, et
        on les entend à travers le navire. Un boulet dans notre muraille, lui, fait
        craquer les bois de la chambre elle-même : celui-là est bien dedans. */
-    void Play(string key, Vec3d at, double rate, double vol, bool aboard = false, bool inside = false)
+    /// <param name="after">
+    /// Ce qu'il faut attendre AVANT de le lancer, en secondes, par-dessus le
+    /// voyage du son. Une soute ne saute pas d'un coup : trois explosions
+    /// décalées, et le son doit suivre les mêmes décalages que la flamme.
+    /// </param>
+    void Play(string key, Vec3d at, double rate, double vol, bool aboard = false, bool inside = false, double after = 0)
     {
         if (!On || !_buf.TryGetValue(key, out var bag) || bag.Count == 0) return;
         var stream = bag[(int)(_rng.Randf() * bag.Count) % bag.Count];
@@ -373,7 +378,7 @@ public partial class SoundNode : Node3D
            propre pont, on y est. Vingt-cinq millièmes au plus pour ce qui vient
            de chez nous — le temps que le coup traverse le navire —, et tout le
            reste garde son voyage. */
-        double wait = aboard ? Math.Min(d / C, 0.025) : d / C;
+        double wait = (aboard ? Math.Min(d / C, 0.025) : d / C) + Math.Max(0, after);
         _waiting.Add((_now + wait, p));
     }
 
@@ -393,6 +398,22 @@ public partial class SoundNode : Node3D
                               : (Knows("pres") ? "pres" : "loin");
         // jamais deux fois le même coup : la charge était dosée à la main
         Play(key, at, (1.15 - 0.30 * k) * (1 + (_rng.Randf() - 0.5) * 0.06), 1, aboard);
+    }
+
+    /// <summary>
+    /// LA SOUTE QUI SAUTE. <paramref name="k"/> va avec la taille du bâtiment :
+    /// un vaisseau part plus GRAVE qu'une chaloupe, rendu par la vitesse de
+    /// lecture comme pour le canon. <paramref name="after"/> décale le coup,
+    /// parce qu'une soute part en trois fois.
+    ///
+    /// Sans échantillon, rien : elle sautait déjà en silence, et un tonnerre de
+    /// synthèse ne ressemble pas à une explosion — mieux vaut le manque que le
+    /// faux.
+    /// </summary>
+    public void Blast(Vec3d at, double k = 1, double after = 0)
+    {
+        Play("explosion", at, (1.10 - 0.28 * Math.Clamp(k, 0, 1.6)) * (1 + (_rng.Randf() - 0.5) * 0.08), 1,
+             false, false, after);
     }
 
     /* UN SON QU'ON FABRIQUE, faute d'échantillon : écrit une fois dans un tampon,

@@ -157,6 +157,8 @@ public partial class ShipDemo
     /// </summary>
     void Salvage()
     {
+        // le radoub éteint ce qui brûlait : on ne répare pas un navire en feu
+        Douse(_ship);
         bool sunk = _lost || _ship.Physics.Foundered;
         bool capsized = Capsized();
         _ship.Physics.Salvage();

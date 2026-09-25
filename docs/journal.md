@@ -10291,6 +10291,94 @@ La leçon générale vaut d'être notée : **ajouter un membre à une famille ch
 que « le plus proche » veut dire pour tous les autres.** Le nouveau venu était
 correct en lui-même ; c'est la question posée à la liste qui ne l'était plus.
 
+## L'incendie, et la lutte comme un budget (Godot)
+
+Demandé : « possible de déclencher un incendie à bord ? Un bateau qui a subi des
+tirs de canon, la foudre ou l'assaut d'un brûlot peut prendre feu. »
+
+Un navire de bois, de chanvre, de toile et de goudron, avec de la poudre dans le
+ventre : le feu est ce qu'on craint avant l'eau. Le modèle tient en une page —
+des FOYERS, chacun à sa place dans le repère du bord, chacun avec son ardeur de 0
+à 1 ; ils grandissent seuls, ils en allument d'autres, l'équipage les combat.
+
+### La lutte est un budget, pas un seuil
+
+C'est la seule règle du combat, et c'est elle qui fait tout le drame :
+**l'équipage donne tant de seaux par seconde, répartis entre les foyers.** Un
+départ reçoit tout et meurt ; six n'en reçoivent qu'un sixième chacun et
+débordent le monde. Personne n'a écrit « à six foyers on perd » — c'est la
+division qui le dit.
+
+Le foyer, lui, grandit comme ce qu'il a DÉJÀ pris : `grow·(0,25 + h)·(1 − h)`,
+une courbe en S — lent à partir (un feu qui naît est un feu qu'on éteint),
+brutal au milieu (il tire son propre tirage), plafonné à la fin, quand tout ce
+qui pouvait prendre a pris. Son maximum vaut 0,047 par seconde ; l'équipage
+donne 0,06 en tout. D'où, sans un seuil écrit nulle part :
+
+| foyers | seaux par foyer | issue |
+|---|---|---|
+| 1 | 0,060 | noyé en une dizaine de secondes |
+| 2 | 0,030 | le feu gagne, et il se propage |
+| 4 | 0,015 | la soute |
+
+Relevé en jeu, et c'est exactement ce que la table annonce : à un foyer « le feu
+est maîtrisé » ; à deux, « un autre foyer », puis « le feu gagne » ; à quatre,
+« LA SOUTE ! ».
+
+### Ce qui l'allume, et par une seule porte
+
+Le boulet, la foudre et le brûlot passent tous par `LightFire`, si bien
+qu'aucun d'eux n'a sa propre idée de ce qu'est un incendie.
+
+Un boulet FROID n'allume rien par lui-même : ce qui prend est ce qu'il crève en
+passant — une gargousse qu'on portait, une lanterne de batterie, un baril de
+brai. D'où une chance faible (6 % au plein calibre) et d'autant plus faible que
+le coup vient de loin, par la même `Bite` qui décide déjà de la taille du trou :
+un boulet mourant traverse le bordé sans rien renverser derrière.
+
+La foudre, elle, allume une fois sur trois — c'est le goudron des haubans et la
+toile sèche qui prennent, pas le bois. Et le foyer naît au PIED du mât frappé et
+non à sa pomme : ce qui brûle est ce qui retombe en flammes sur le pont, et un
+feu de tête de mât s'éteint tout seul.
+
+Deux foyers à moins de trois mètres n'en font qu'un, sans quoi une bordée en
+ouvrait dix d'un coup et l'équipage était débordé par ce qui n'était qu'un seul
+brasier compté dix fois.
+
+### Ce qu'on en voit
+
+Une flamme qui MONTE, lentement, et une fumée noire et grasse qui vit vingt fois
+plus longtemps — du goudron, du chanvre et de la toile, pas de la poudre. Ce
+n'est pas la boule de feu d'une explosion, qui part en tous sens et meurt en une
+seconde : c'est la PERSISTANCE des bouffées qui fait la colonne, pas leur
+nombre, et il en naît peu par image. Le compte est tiré du temps écoulé et non
+du nombre d'images, sans quoi un feu fumerait deux fois plus sur une machine
+deux fois plus rapide.
+
+Une lampe par coque, orange et BASSE, posée sur le pire foyer : un incendie
+éclaire d'en dessous, ce qui est pourquoi les visages et la voilure sont si
+étranges sur les peintures de combat nocturne. Créées toutes à l'armement et
+jamais ajoutées en jeu, comme celles des canons — un feu dure des minutes.
+
+**Et la toile part la première.** Un feu établi mange la voilure avant de
+descendre à la soute, ce qui rend l'incendie différent d'une voie d'eau : on perd
+sa vitesse d'abord, donc sa chance de fuir, et le navire ensuite.
+
+`⇧Y` allume un départ (Y fait sauter la soute, ⇧Y allume ce qui l'y mènera) ;
+`--incendie 3` en allume trois d'un coup, parce que c'est le NOMBRE qui décide.
+
+## La soute sautait en silence (Godot)
+
+Relevé en branchant l'échantillon d'explosion que le manifeste venait de
+recevoir : `BlowUp` ne faisait aucun bruit. Trois boules de feu décalées, du bois
+en arcs balistiques, une colonne de fumée — et rien à entendre. Personne ne
+l'avait vu parce qu'on la REGARDE.
+
+`Play` sait désormais attendre : le son suit les mêmes décalages que la flamme,
+par-dessus son voyage dans l'air. Et sans échantillon, rien du tout — un tonnerre
+de synthèse ne ressemble pas à une explosion, et mieux vaut le manque que le
+faux.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

@@ -80,6 +80,7 @@ public partial class ShipDemo
                celles du canon : deux blocs du manifeste qui se rangeraient sous le
                même nom se remplaceraient l'un l'autre, et le dernier lu gagnerait
                en silence. */
+            Bag("feu", "explosion", "explosion");
             Bag("foudre", "pres", "tonnerre-pres");
             Bag("foudre", "loin", "tonnerre-loin");
             /* LA TOILE VA DANS LA RÉSERVE DU BORD, pas dans celle des coups : elle

@@ -1961,6 +1961,12 @@ public partial class ShipDemo : Node3D
                 // l'occlusion ambiante et l'illumination globale, pour juger à l'œil
                 case Key.O: _settings.Occlusion = !_settings.Occlusion; Changed(); break;
                 case Key.Tab: CycleGunSide(); break;
+                /* ⇧Y : LE FEU À BORD — Y fait sauter la soute, ⇧Y allume ce qui
+                   l'y mènera si personne ne s'en occupe. */
+                case Key.Y when k.ShiftPressed:
+                    LightFire(_ship, new Vec3d((_stormRng.NextDouble() - 0.5) * _ship.Spec.B * 0.6,
+                        _ship.Spec.DeckMid, (_stormRng.NextDouble() - 0.5) * _ship.Spec.L * 0.5), 0.14);
+                    break;
                 case Key.Y: BlowUp(_ship); break;
                 // ⇧U : le vaisseau fantôme, tout de suite — U appelle une voile, ⇧U celle qui n'en est pas une
                 case Key.U when k.ShiftPressed: SummonWraith(); break;
@@ -2173,6 +2179,12 @@ public partial class ShipDemo : Node3D
                 _calendar = new Calendar(s.GetString());
             if (root.TryGetProperty("ghosts", out var gh)) _ghosts.Rules = GhostRules.FromJson(gh);
             if (root.TryGetProperty("wraith", out var vf)) _wraithRules = WraithRules.FromJson(vf);
+            if (root.TryGetProperty("fire", out var feu))
+            {
+                _fireRules = FireSettings.FromJson(feu);
+                if (feu.TryGetProperty("light", out var fl) && fl.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    _gunFx.FireLight = Math.Max(0, fl.GetDouble());
+            }
             /* CE QUI RESTE DE LA TOILE SOUS LES ÉTOILES. La lumière qui traverse
                le tissage est celle du CIEL : sans jour derrière, une voile ne
                donne rien. Le plancher laisse de quoi deviner la mâture. */
@@ -2487,6 +2499,8 @@ public partial class ShipDemo : Node3D
         foreach (var (prey, inten) in _orage)
             if (_stormRng.NextDouble() < _lightRules.StrikeChance(inten, dt)) StrikeSomewhere(_preyShip[prey]);
         _lightning.Step(dt);
+        // ce qui brûle à bord : après la foudre, qui peut l'allumer
+        FireTick(dt);
 
         // les bouts rompus de toute la flotte, et les éclats en l'air
         _allShips.Clear();
@@ -2555,6 +2569,16 @@ public partial class ShipDemo : Node3D
         _sound?.Thunder(new Vec3d(w.X, w.Y, w.Z));
         // la pomme du mât vole en éclats, vers le bas
         _splinters.Splinters(w, Vector3.Down, 0.6);
+        /* ET LE FEU PREND, souvent : c'est le goudron des haubans et la toile
+           sèche qui s'allument, pas le bois. Le foyer naît au PIED du mât frappé
+           et non à sa pomme — ce qui brûle est ce qui tombe en flammes sur le
+           pont, et un feu de tête de mât s'éteint tout seul. */
+        if (_stormRng.NextDouble() < _fireRules.BoltChance)
+        {
+            var lb = s.Physics.Body;
+            var lloc = lb.Quat.Inverted().Rotate(new Vec3d(w.X, w.Y, w.Z) - lb.Pos);
+            LightFire(s, new Vec3d(lloc.X, s.Spec.DeckMid, lloc.Z), 0.16);
+        }
         string what = "La foudre frappe la mâture !";
         if (fall >= 0)
         {
@@ -2757,6 +2781,13 @@ public partial class ShipDemo : Node3D
         /* Et le trou va comme l'énergie QUI RESTE : entier à bout portant, les
            deux tiers à deux cents mètres, la moitié au bout du plein fouet. */
         s.Physics.MakeBreach(index, 0.025 * k * k * bite, Math.Clamp(frac, 0, 1), local.X);
+        /* ET PARFOIS LE FEU. Un boulet froid n'allume rien par lui-même ; ce qui
+           prend est ce qu'il CREVE en passant — une gargousse qu'on portait, une
+           lanterne de batterie, un baril de brai. D'où la chance, faible, et
+           d'autant plus faible que le coup vient de loin : un boulet mourant
+           traverse le bordé sans rien renverser derrière. */
+        if (_stormRng.NextDouble() < _fireRules.ShotChance * k * bite)
+            LightFire(s, local, 0.10);
         // la marque dans le bordé, qui s'aggrave si l'on retape au même endroit
         s.Scar(w, k);
         // et les pièces qui étaient derrière le bordé
@@ -2903,6 +2934,9 @@ public partial class ShipDemo : Node3D
         {
             var w = b.Quat.Rotate(p) + b.Pos;
             _gunFx.BlastIn(delay, new Vector3((float)w.X, (float)w.Y, (float)w.Z), s.Spec.L * sz);
+            /* ET ON L'ENTEND, au même décalage que la flamme : elle sautait en
+               SILENCE, ce que personne n'avait relevé parce qu'on la regarde. */
+            _sound?.Blast(w, s.Spec.L / 40, delay);
         }
         ph.BlowUp();
         s.DropAllMasts();
@@ -3508,6 +3542,14 @@ public partial class ShipDemo : Node3D
                 case "--pres": if (args[i + 1] != "0") StrikeAlongside(_ship); break;
                 case "--bordee": _gunSide = args[i + 1].ToInt(); Fire(false, true); break;
                 case "--soute": BlowUp(_ship); break;
+                /* DES DÉPARTS DE FEU, tout de suite : pour le régler sans se faire
+                   canonner. Le nombre compte plus que la force — c'est lui qui
+                   décide, puisque l'effort de l'équipage se DIVISE. */
+                case "--incendie":
+                    for (int n = Math.Max(1, args[i + 1].ToInt()); n > 0; n--)
+                        LightFire(_ship, new Vec3d((_stormRng.NextDouble() - 0.5) * _ship.Spec.B * 0.6,
+                            _ship.Spec.DeckMid, (n - 2.0) * _ship.Spec.L * 0.16), 0.15);
+                    break;
                 case "--pirate": SpawnPirate(args[i + 1].ToFloat()); break;
                 case "--fantomes": GoToGhosts(true); break;
                 /* La bataille montee d un bloc, sans passer par le menu. APRES la

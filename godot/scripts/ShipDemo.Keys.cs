@@ -110,6 +110,7 @@ public partial class ShipDemo : Node3D
         Section(a, "Avaries");
         Key(a, "R", "réparer et renflouer");
         Key(a, "Y", "faire sauter la soute");
+        Key(a, "⇧Y", "un départ de feu à bord");
 
         var b = Column();
         Section(b, "Le temps qu'il fait");
