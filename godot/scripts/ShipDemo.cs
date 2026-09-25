@@ -164,6 +164,10 @@ public partial class ShipDemo : Node3D
 
         _spray = new SprayNode();
         AddChild(_spray);
+        _mist = new MistNode();
+        AddChild(_mist);
+        _mist.Material.SetShaderParameter("u_mist_top", (float)_mistTop);
+        _mist.Material.SetShaderParameter("u_mist_patch", (float)_mistPatch);
         _precip = new PrecipNode();
         AddChild(_precip);
         Assets.Say();
@@ -1246,6 +1250,8 @@ public partial class ShipDemo : Node3D
         if (_fishNode?.Material is ShaderMaterial fm) PushSea(fm);
         // la MÊME lumière sur les carènes, et une seule passe pour toute la flotte
         if (ShipNode.Caustic is ShaderMaterial hc) PushSea(hc);
+        // la brume rasante se pose sur la MÊME houle, et prend la couleur du ciel
+        if (_mist != null) PushSea(_mist.Material);
         void PushSea(ShaderMaterial m)
         {
             _sea.PushWaves(m);
@@ -1419,6 +1425,7 @@ public partial class ShipDemo : Node3D
         _land?.Ground.SetShaderParameter(U.Ripple, ripple);
         _fishNode?.Material?.SetShaderParameter(U.Ripple, ripple);
         ShipNode.Caustic?.SetShaderParameter(U.Ripple, ripple);
+        _mist?.Material.SetShaderParameter(U.Ripple, ripple);
         var wv = _sea.Core.WindVec;
         double ws = Math.Sqrt(wv.X * wv.X + wv.Z * wv.Z);
         if (ws > 1e-4)
@@ -1428,6 +1435,7 @@ public partial class ShipDemo : Node3D
             _land?.Ground.SetShaderParameter(U.Wind, wu);
             _fishNode?.Material?.SetShaderParameter(U.Wind, wu);
             ShipNode.Caustic?.SetShaderParameter(U.Wind, wu);
+            _mist?.Material.SetShaderParameter(U.Wind, wu);
         }
 
         _hudAcc += frame;
@@ -2015,6 +2023,9 @@ public partial class ShipDemo : Node3D
     // ------------------------------------------------------------------
 
     PrecipNode _precip = null!;
+    /// <summary>Les traînées basses du petit matin (settings.json → fog.rasante).</summary>
+    MistNode? _mist;
+    double _mistAmount = 1.0, _mistTop = 2.0, _mistPatch = 90, _mistForce = -1;
     Calendar _calendar = new();
     SeaFogSettings _fogRules = new();
     /// <summary>Le manteau de neige : settings.json → snow, les mêmes chiffres que la page.</summary>
@@ -2098,7 +2109,16 @@ public partial class ShipDemo : Node3D
             if (root.TryGetProperty("ghosts", out var gh)) _ghosts.Rules = GhostRules.FromJson(gh);
             if (root.TryGetProperty("whale", out var wh)) _whaleRules = WhaleSettings.FromJson(wh);
             if (root.TryGetProperty("serpent", out var sp)) _serpentRules = SerpentSettings.FromJson(sp);
-            if (root.TryGetProperty("fog", out var fg)) _fogRules = SeaFogSettings.FromJson(fg);
+            if (root.TryGetProperty("fog", out var fg))
+            {
+                _fogRules = SeaFogSettings.FromJson(fg);
+                if (fg.TryGetProperty("rasante", out var ra) && ra.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    _mistAmount = Math.Clamp(ra.GetDouble(), 0, 3);
+                if (fg.TryGetProperty("rasanteHaut", out var rh) && rh.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    _mistTop = Math.Clamp(rh.GetDouble(), 0.2, 30);
+                if (fg.TryGetProperty("rasanteBancs", out var rb) && rb.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    _mistPatch = Math.Clamp(rb.GetDouble(), 5, 600);
+            }
             if (root.TryGetProperty("reckoning", out var rk)) _reckRules = ReckoningSettings.FromJson(rk);
             if (root.TryGetProperty("wreck", out var wr) && wr.TryGetProperty("bottleOneIn", out var bo))
                 _bottleOneIn = bo.GetInt32();
@@ -2155,6 +2175,12 @@ public partial class ShipDemo : Node3D
            Ce qui TIENT sur les ponts n'est pas touché : ce manteau-là est dehors,
            et c'est ce qu'on voit par les fenêtres de poupe. */
         double dehors = 1 - _indoors;
+        /* LA BRUME RASANTE monte avec celle de l'air, parce que c'est le même
+           matin : l'une ôte la vue, l'autre se voit. Sa part propre est dans les
+           réglages, si bien qu'on peut avoir l'une sans l'autre. Elle ne rentre
+           pas dans la chambre du capitaine — même raison que la neige. */
+        _mist?.Step(_cam.GlobalPosition,
+            (_mistForce >= 0 ? _mistForce : _sky.Core.Fog * _mistAmount) * dehors);
         _precip.Step(_cam.GlobalPosition, _t, new Vector3((float)w.X, (float)w.Y, (float)w.Z),
             (_fall.Snow ? 0 : _fall.Amount) * dehors, (_fall.Snow ? _fall.Amount : 0) * dehors, light,
             GetViewport().GetVisibleRect().Size.Y);
@@ -3148,6 +3174,8 @@ public partial class ShipDemo : Node3D
         _fishNode?.Material?.SetShaderParameter("u_harbour_pass", pass);
         ShipNode.Caustic?.SetShaderParameter("u_harbour", v);
         ShipNode.Caustic?.SetShaderParameter("u_harbour_pass", pass);
+        _mist?.Material.SetShaderParameter("u_harbour", v);
+        _mist?.Material.SetShaderParameter("u_harbour_pass", pass);
     }
 
     /// <summary>
@@ -3264,6 +3292,8 @@ public partial class ShipDemo : Node3D
                 // --baleine 0 : indifférente, 1 : curieuse, 2 : hostile
                 case "--baleine": SummonWhale((WhaleMood)Math.Clamp(args[i + 1].ToInt(), 0, 2)); break;
                 // une seconde après la mise à l'eau : une traversée pose le navire APRÈS la ligne de commande
+                // LA BRUME RASANTE, à la volée : 0 à 1, sans toucher à celle de l'air
+                case "--rasante": _mistForce = args[i + 1].ToFloat(); break;
                 case "--brume": if (args[i + 1] != "0") (_seaFog ??= new SeaFog(_fogRules)).Force(args[i + 1].ToFloat() > 1 ? args[i + 1].ToFloat() : 6); break;
                 case "--serpent": _serpentIn = args[i + 1] != "0" ? 1.0 : -1; break;
                 case "--foudre": Strike(_ship); break;

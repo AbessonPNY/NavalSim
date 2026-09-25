@@ -12,7 +12,7 @@ public sealed class SeaFogSettings
     public double AfterDawn = 1.5;     // les heures qu'elle tient après le lever (6 h)
     public double MaxWind = 4.5;       // au-delà de cette force, le vent la chasse (une brume d'advection tient par brise modérée)
     public double Density = 0.02;      // par mètre, au ras de l'eau : on voit à 150 m
-    public double Height = 12;         // l'échelle de hauteur de la couche, m
+    public double Height = 25;         // la HAUTEUR D ÉCHELLE de la couche, m — voir settings.json
     public double Rate = 1.0;          // de rien à pleine, en heures de jeu
 
     public static SeaFogSettings FromJson(JsonElement k)

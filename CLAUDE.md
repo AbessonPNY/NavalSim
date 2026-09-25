@@ -185,6 +185,19 @@ La musique n'est pas embarquée (trop lourde). `node build.js` écrit
 - Relief (normal map) : interrupteur et intensité dans `settings.json`.
 - Fusionner les voies d'eau d'un même endroit (voir le journal).
 - Chaloupe : console de barre encore celle d'un navire, pas de `.glb`.
+- **Un îlot au large**, deux ou trois cocotiers, **accessible à la chaloupe
+  seulement** : c'est le haut-fond qui l'interdit au navire, pas une règle — le
+  relief doit donc le ceindre d'une eau où la quille ne passe pas, et la
+  chaloupe y aller. (Demandé le 25/09.)
+- **La carte du capitaine est GLOBALE, et elle ne devrait pas l'être** : une
+  nouvelle partie de jeu libre rouvre le carnet de la précédente (`carnet.json`,
+  `carnet-tortue.json` dans les données utilisateur). Ce que le bord a vu
+  appartient à SA partie — à ranger dans l'enregistrement, ou dans un fichier par
+  identifiant de partie, et à effacer avec elle. (Signalé le 25/09.)
+- **Un journal de bord**, que le capitaine remplit au clavier comme les notes :
+  une page par date, du texte dessous, et des zones de DESSIN qui s'intercalent.
+  Gros morceau — la saisie au clavier, la mise en page qui coule, le dessin à la
+  souris, et tout cela à enregistrer avec la partie. (Demandé le 25/09.)
 
 ## Conventions
 

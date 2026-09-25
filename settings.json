@@ -61,8 +61,12 @@
     "from": 21,
     "afterDawn": 1.5,
     "maxWind": 4.5,
+    "_aide": "LA BRUME DE SURFACE. density : son extinction par mètre au ras de l eau (0,02 = on voit à 150 m). height : la HAUTEUR D ÉCHELLE de la couche, en mètres — c est elle qui décide si la mâture sort de la brume ou y disparaît. Relevé à 40 m de distance : à 12 m de hauteur, la coque prend 49 % de brume et la hune 28 % ; à 25 m, 52 et 40 ; à 40 m, 53 et 45. Plus bas, un banc rasant d où les mâts émergent ; plus haut, une purée où tout se noie. rasante : les traînées basses qu on VOIT traîner sur l eau, de 0 (aucune) à 1 — elles montent avec la brume de l air, qui est la même nuit, et rasanteHaut donne leur épaisseur en mètres (2), rasanteBancs la taille de leurs bancs (90 m). En jeu : -- --rasante 0..1.",
     "density": 0.02,
-    "height": 12,
+    "height": 25,
+    "rasante": 1.0,
+    "rasanteHaut": 2.0,
+    "rasanteBancs": 90,
     "rate": 1
   },
   "serpent": {

@@ -7975,6 +7975,130 @@ repasse dessus à 0,35, sans quoi une vague qui lèche l'objectif ferait clapote
 à chaque image. La même raison que le seuil du pirate qui louvoie à la limite,
 et la même réponse.
 
+## La brume rasante du petit matin (Godot)
+
+Demandé : une brume qui ne monte pas à plus de deux mètres, « qui ressemble un
+peu à la fumée des canons, mais stagnante et plutôt éparse », pour l'ambiance du
+petit matin.
+
+Ce n'est pas la brume de `SeaFog`, et les deux ne font pas le même métier. Celle
+de l'air est une perte de VISIBILITÉ : une extinction par mètre qui efface
+l'horizon et pâlit ce qui est loin, mais qu'on ne voit jamais elle-même — on voit
+ce qu'elle fait. Celle-ci est un OBJET, qu'on regarde. Un matin de calme a les
+deux, et c'est pourquoi la seconde monte avec la première (`fog.rasante` règle sa
+part, donc on peut avoir l'une sans l'autre).
+
+**Des nappes, et non des bouffées.** La fumée d'un canon est un nuage qui roule
+et qui monte ; une brume de rayonnement ne monte pas — c'est l'air au contact de
+l'eau froide qui condense, et rien ne le soulève. Quatre nappes horizontales
+superposées, la plus haute à deux mètres, rendent donc mieux la chose que
+n'importe quel volume : on voit à travers, elles se déchirent, et le regard
+rasant les traverse en longueur, ce qui les épaissit exactement comme de la vraie
+brume. Elles sont posées SUR LA HOULE et non sur le plan zéro : dans le creux
+d'une lame la brume s'accumule, et c'est là qu'on la voit le mieux.
+
+Repliée autour de l'œil comme la pluie et la neige — le maillage est un disque
+posé à l'origine que le vertex shader recentre —, donc aucun travail processeur.
+Deux octaves de bruit dérivant à un dixième du vent font les bancs : à peu près
+la moitié de l'eau reste nue, ce qui est ce qui la rend crédible. Pas de couleur
+propre : elle diffuse celle de l'HORIZON, qui porte l'heure, et c'est ce qui la
+fait appartenir au matin sans qu'on ait à le lui dire.
+
+Prix, au minimum de trois allers-retours : **0,2 ms** — et seulement quand il y a
+de la brume. Le premier jet en coûtait **0,96** : cinq nappes sur un disque de
+340 m, c'est-à-dire cinq fois l'écran en surimpression. Quatre nappes sur 250 m
+donnent la même chose à un cinquième du prix.
+
+### Dix-huit lignes emportées par un nettoyage de sonde
+
+Et une faute qu'il faut écrire, parce qu'elle a failli passer.
+
+Pour mesurer, on pose des sondes temporaires dans le code, et on les retire après.
+Celle-ci était un bloc `if (++_zh == 300) { … }` de dix-neuf lignes ; le retrait
+s'est fait par une expression régulière `/ *if \(\+\+_zh == 300\)\n *\{[\s\S]*?\n *\}\n/`,
+qui a mal accroché sa fin et laissé le fichier bancal. La « réparation » qui a
+suivi, elle, a coupé du dernier `if (` jusqu'à un repère plus bas — et a emporté
+avec la sonde **le pas du champ d'écume, la mise à jour du ciel, et quatre
+horloges** : `FallTick`, `StormTick`, `GunTick`, `EncounterTick`.
+
+**Et cela compilait.** C'est tout le venin : du code retiré ne casse rien tant
+que personne ne l'appelle, le compilateur ne dit rien, les mesures continuent de
+sortir des chiffres — faux, mais plausibles. La brume rasante a d'ailleurs mesuré
+ZÉRO milliseconde pendant ce temps-là, ce qui aurait dû me mettre la puce à
+l'oreille et me l'a mise trop tard : c'est Arnaud qui a vu la faute, sur une
+capture où la terre était jaune, l'écume figée en une bande et ma nappe rendue en
+plaque opaque.
+
+Trois règles qui en sortent :
+
+- **Une sonde se retire comme elle s'est posée.** Elle a été ajoutée par un
+  remplacement de chaîne EXACTE ; elle doit être retirée par le remplacement de
+  cette même chaîne exacte, jamais par un motif qui « trouve la fin du bloc ».
+- **Après tout retrait, `git diff` et non la compilation.** Ici le diff disait
+  tout en trois lignes : dix-neuf suppressions dont dix-huit qui n'étaient pas à
+  moi.
+- **Une mesure à zéro est un symptôme, pas un résultat.** Un effet qu'on vient
+  d'écrire et qui ne coûte rien n'est pas gratuit : il ne s'exécute pas.
+
+## Vingt et une secondes de mou (Godot)
+
+Signalé : « je n'arrive pas à faire remonter l'ancre, elle reste au fond ». Elle
+remontait — mais après vingt et une secondes pendant lesquelles il ne se passait
+rigoureusement rien, ce qui est la même chose du point de vue de qui joue.
+
+Le compte, relevé à la sonde : l'équipage file trois fois et demie la profondeur
+(c'est la touée, et elle est juste), soit **38,7 m de câble pour une ancre qui
+n'est qu'à 11,5 m de l'écubier** — elle est tombée presque sous le navire. Le
+cabestan rentrait ce câble à 1,2 m/s sans distinguer le mou de l'effort : il
+fallait donc virer vingt-six mètres de cordage MOLLE avant que la ligne ne prenne
+la moindre tension, et l'ancre ne pouvait pas bouger d'un pouce pendant ce
+temps-là.
+
+C'est faux au sens propre. Du câble qui ne tire pas se hale à la main ; ce n'est
+que lorsqu'il vient **à pic** que le cabestan commence à travailler, et il ne
+s'agit plus alors de rentrer du cordage mais de **haler le navire au-dessus de
+son ancre**. Deux allures, donc — 4,5 m/s sur le mou, 1,2 sur l'effort — et la
+lenteur reste exactement là où est le travail. Relevé après : cinq secondes et
+demie avant que l'ancre dérape, neuf pour la remonter à l'écubier, et le geste
+est lisible d'un bout à l'autre.
+
+Au passage, un mot que l'équipage n'avait pas : « Le câble est à pic » quand la
+ligne prend son effort. Il ne sonne pas au mouillage sur sa verticale (l'ancre
+dérape avant), et c'est bien la seule fois où il n'aurait rien à dire.
+
+## Les voiles dans la brume : elles y sont, deux fois moins (Godot)
+
+Signalé sur capture : la toile ne semble pas prise par la brume quand la coque
+l'est. Mesuré, et c'est plus intéressant qu'un oubli — **les voiles reçoivent
+bien la brume**, par la même fonction que tout ce qui est vu à travers l'air
+(`haze_along`), avec les mêmes uniformes : la sonde le montre poussé à l'identique
+sur `hull.gdshader` et sur `sail.gdshader`.
+
+Ce qui diffère, c'est la HAUTEUR. La brume de surface est une couche basse, et sa
+hauteur d'échelle valait douze mètres. À quarante mètres de distance :
+
+| hauteur de couche | coque (y 2) | basse voile (y 10) | hune (y 22) |
+|---|---|---|---|
+| 12 m | 49 % | 39 % | 28 % |
+| 25 m | 52 % | 47 % | 40 % |
+| 40 m | 53 % | 50 % | 45 % |
+
+À douze mètres, la hune ne prend que le quart de brume quand la coque en prend la
+moitié — et c'était VOULU, le noyau le dit en toutes lettres : « la mâture sort,
+les étoiles restent ». C'est une vraie brume de rayonnement, celle d'une nuit
+calme, et un navire dont les mâts émergent d'un banc rasant est une des plus
+belles choses qu'on puisse voir en mer.
+
+Mais ce n'est pas la seule brume qui existe, et ce n'est pas celle qu'on croit
+voir en plein jour : une brume d'advection, celle qui arrive avec le vent de mer,
+est épaisse de dizaines de mètres et noie le gréement. La hauteur passe donc de
+12 à **25 m** — le gréement est pris presque autant que la coque, et le banc
+reste assez bas pour que les étoiles percent au-dessus de soixante mètres.
+
+C'est un réglage, `settings.json` → `fog.height`, partagé avec la page, et le
+tableau ci-dessus est dans son aide : plus bas, un banc rasant d'où les mâts
+émergent ; plus haut, une purée où tout se noie.
+
 ## Les caustiques sur les carènes, et la vase des rades (Godot)
 
 Deux demandes du même regard : mettre la lumière de l'eau sur ce qui est mouillé,

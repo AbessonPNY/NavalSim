@@ -48,6 +48,8 @@ public partial class AnchorNode : Node3D
         public readonly double[] Px = new double[N], Py = new double[N], Pz = new double[N];
         public readonly double[] Ox = new double[N], Oy = new double[N], Oz = new double[N];
         public bool Strung;
+        /// <summary>Le câble a-t-il déjà pris son effort ? Pour ne le dire qu une fois.</summary>
+        public bool Taut;
         public double Acc, Tick2, FloorShip, FloorAt;
         /// <summary>L'écubier, en repère du navire : SUR le bordé, mesuré une fois.</summary>
         public Vec3d? Hole;
@@ -255,6 +257,7 @@ public partial class AnchorNode : Node3D
             case St.Down:
             case St.Hang:
                 it.State = St.Weigh;
+                it.Taut = false;
                 if (it.Moor == null) { Stow(it); OnSay?.Invoke("Ancre haute et bossée"); }
                 else OnSay?.Invoke("On vire au cabestan");
                 break;
@@ -365,8 +368,27 @@ public partial class AnchorNode : Node3D
                 /* LE CABESTAN rentre du câble et le navire vient à son ancre,
                    parce que c'est le même ressort : raccourcissez la ligne et
                    elle est halée au-dessus. Elle dérape quand le câble est à
-                   pic. */
-                m.Len = Math.Max(0, m.Len - 1.2 * dt);
+                   pic.
+
+                   ET LE MOU RENTRE VITE. Signalé : « je n'arrive pas à faire
+                   remonter l'ancre, elle reste au fond ». Elle remontait — mais
+                   après VINGT ET UNE SECONDES pendant lesquelles rien ne bougeait.
+
+                   Le compte : l'équipage file trois fois et demie la profondeur,
+                   soit 38,7 m de câble pour une ancre qui n'est qu'à 11,5 m de
+                   l'écubier ; à 1,2 m/s il fallait rentrer vingt-six mètres de MOU
+                   avant que la ligne ne prenne le moindre effort, et l'ancre ne
+                   pouvait pas bouger d'un pouce pendant ce temps-là.
+
+                   C'est faux au sens propre : du câble qui ne tire pas se hale à
+                   la main, et ce n'est que lorsqu'il vient À PIC que le cabestan
+                   commence à travailler — il ne s'agit plus alors de rentrer du
+                   cordage mais de haler le navire au-dessus de son ancre. Deux
+                   allures, donc, et la lenteur reste là où l'effort est. */
+                double slack = m.Len - (hawse - it.P).Length;
+                bool apic = slack <= 0.5;
+                if (apic && !it.Taut) { it.Taut = true; OnSay?.Invoke("Le câble est à pic"); }
+                m.Len = Math.Max(0, m.Len - (apic ? 1.2 : 4.5) * dt);
                 double upDown = hawse.Y - m.Wy;
                 if (m.Len <= upDown + 1.5)
                 {
