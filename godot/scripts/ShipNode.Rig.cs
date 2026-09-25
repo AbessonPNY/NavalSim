@@ -411,6 +411,7 @@ public partial class ShipNode
     ShaderMaterial NewCanvas(string? mapSrc)
     {
         var m = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/sail.gdshader") };
+        m.SetShaderParameter(UCanvasFloor, (float)CanvasFloor);
         m.SetShaderParameter(U.Canvas, Hex(Spec.Appearance.Canvas));
         m.SetShaderParameter(U.Emissive, Hex("0x8d866f"));
         if (mapSrc != null)

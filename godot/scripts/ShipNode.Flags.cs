@@ -41,6 +41,16 @@ public partial class ShipNode
     Nation? _nation;
     (Texture2D? Map, Color Color, bool Painted)? _ensign0;
     static readonly StringName UEmissiveK = "u_emissive_k";
+    internal static readonly StringName UCanvasFloor = "u_canvas_floor";
+
+    /// <summary>
+    /// CE QUI RESTE DE LA TOILE SOUS LES ÉTOILES, de 0 à 1 — settings.json →
+    /// night.canvas. La part de sa lumière de jour que la toile et l'étoffe
+    /// gardent quand le ciel est au plus noir. Elle était CONSTANTE, si bien
+    /// qu'un navire feux couverts dans le noir montrait ses voiles comme des
+    /// draps pendus (signalé).
+    /// </summary>
+    public static double CanvasFloor = 0.05;
 
     /* AMENER LES COULEURS PREND LE TEMPS QUE ÇA PREND : le pavillon descend le
        long de sa drisse — il rapetisse à mesure qu'il coule vers la poulie, puis
@@ -107,11 +117,20 @@ public partial class ShipNode
     ShaderMaterial NewFlagMat() =>
         new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/sail.gdshader") };
 
+    /// <summary>La repousser à toutes ses toiles — pour juger le réglage sans rebâtir.</summary>
+    public void RefreshCanvasFloor()
+    {
+        foreach (var c in _canvases) if (c.Mat is ShaderMaterial cm) cm.SetShaderParameter(UCanvasFloor, (float)CanvasFloor);
+        _flagMat?.SetShaderParameter(UCanvasFloor, (float)CanvasFloor);
+        foreach (var m in _flagMats.Values) m.SetShaderParameter(UCanvasFloor, (float)CanvasFloor);
+    }
+
     void Dress(ShaderMaterial m, Texture2D? map, Color colour, bool painted)
     {
         m.SetShaderParameter(U.Canvas, colour);
         m.SetShaderParameter(U.Emissive, Hex(painted ? "0x2a2a2e" : "0x7c7a72"));
         m.SetShaderParameter(UEmissiveK, painted ? 0.10f : 0.14f);
+        m.SetShaderParameter(UCanvasFloor, (float)CanvasFloor);
         m.SetShaderParameter(U.Map, map!);
         m.SetShaderParameter(U.HasMap, map != null ? 1f : 0f);
     }

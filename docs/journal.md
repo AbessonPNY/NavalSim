@@ -10070,6 +10070,43 @@ poids qu'il faudrait pour tenir. La fiche le DIT (`"anchor": false`) plutôt que
 le code de le deviner : une galère a des avirons ET une ancre, et deviner par les
 avirons l'aurait privée de la sienne.
 
+## La toile n'est pas une lampe, c'est une fenêtre (Godot)
+
+Signalé en jeu, capture à l'appui : un navire de nuit, coque presque noire, mer
+noire — et la toile en gris clair, les pavillons en blanc, comme des draps
+pendus dans le noir. « On ne devrait presque plus les voir. »
+
+`sail.gdshader` porte une émission constante :
+
+```glsl
+EMISSION = u_emissive * u_emissive_k + lit_through;   // 0,553×0,12 …
+```
+
+Elle a une raison, et une bonne : une toile de lin est MINCE, et ce qui passe au
+travers du tissage de tous les côtés à la fois n'est représenté par aucun lobe.
+Le lobe (`lit_through`) ne rend que la lumière qui file droit — le soleil
+derrière la voile, dans l'axe du regard —, et une voile au contre-jour est claire
+même quand on ne regarde pas vers le soleil.
+
+Mais cette lumière-là est celle du CIEL, et l'émission ne le savait pas. Elle
+valait 0,032 en linéaire, de jour comme à minuit, soit 0,32 à l'écran, quand tout
+le reste de l'image de nuit tombe à 0,01. **Ce n'est pas une lampe, c'est une
+fenêtre : sans jour derrière, elle ne donne rien.**
+
+Elle suit maintenant la luminance de l'horizon, comme la brume rasante et pour
+la même raison — 0,88 de jour, 0,072 à minuit, donc l'émission tombe d'un facteur
+douze. Le plancher (`night.canvas`, 0,05 ; `--toile-nuit` en jeu) laisse de quoi
+deviner la toile sous les étoiles : à zéro la mâture perd sa silhouette, ce qui
+n'est pas plus juste. Les pavillons en profitent, qui emploient le même shader et
+brillaient du même blanc.
+
+**Troisième fois que la même faute se présente sous un autre visage** — les
+nuages qui restaient éclairés toute la nuit, l'écume qui luisait à minuit, la
+brume rasante, et maintenant la toile. Chaque fois : quelque chose qui ne fait
+que RENVOYER la lumière et qui a été écrit avec une valeur en dur. Le test tient
+en une phrase : *si je coupe le soleil et la lune, cela doit-il rester visible ?*
+Pour une flamme, un éclair et une fenêtre éclairée, oui. Pour tout le reste, non.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

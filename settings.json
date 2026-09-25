@@ -206,6 +206,7 @@
     ]
   },
   "night": {
+    "canvas": 0.05,
     "glow": 2.6,
     "lightAt": 0.35,
     "snuffAt": 0.25,
@@ -268,8 +269,8 @@
       "splitChance": 0.5,
       "woundChance": 0.6,
       "dismastChance": 0.12,
-      "flashEnergy": 160,
-      "flashRange": 200,
+      "flashEnergy": 1800,
+      "flashRange": 800,
       "flashShadow": true,
       "skyFlash": 0.18,
       "farFlash": 1,

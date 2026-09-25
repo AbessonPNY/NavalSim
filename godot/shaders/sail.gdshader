@@ -34,6 +34,11 @@ uniform float u_has_map = 0.0;
 uniform vec3 u_sun_col = vec3(1.0, 0.95, 0.86);
 uniform float u_translucency = 0.45;   // la part de la lumière reçue derrière qui ressort devant
 uniform float u_snow = 0.0;          // la couche de neige sur CE navire : pendante, la toile n'en garde presque pas
+/* CE QUI RESTE DE LA TOILE SOUS LES ÉTOILES, de 0 à 1 : la part de sa lumière de
+   jour qu'elle garde quand le ciel est au plus noir. À 0 elle disparaît tout à
+   fait et la mâture perd sa silhouette ; à 1 elle pend comme un drap éclairé.
+   settings.json → night.canvas. */
+uniform float u_canvas_floor = 0.05;
 
 varying vec3 v_world;
 varying vec3 v_raw_n;
@@ -76,6 +81,24 @@ void fragment() {
 	SPECULAR = 0.5 * (1.0 - hz);
 	ROUGHNESS = 0.95;
 	METALLIC = 0.0;
-	EMISSION = (u_emissive * u_emissive_k + lit_through) * (1.0 - hz)
+	/* ET CE QUI TRAVERSE LE TISSAGE SUIT LE CIEL QUI LE DONNE.
+	 *
+	 * Cette émission constante est la lumière que le CIEL envoie à travers la
+	 * toile de tous les côtés à la fois, qu'aucun lobe ne représente. Constante,
+	 * elle l'était aussi la nuit : à minuit tout le reste de l'image tombe à
+	 * quelques millièmes et la toile restait à 0,066, si bien qu'un navire feux
+	 * couverts dans le noir montrait ses voiles comme des draps pendus (signalé).
+	 * Ce n'est pas une lampe, c'est une fenêtre : sans jour derrière, elle ne
+	 * donne rien.
+	 *
+	 * Tiré de l'horizon lui-même, qui porte l'heure — même remède que la brume
+	 * rasante, même faute : rien de ce qui ne fait que RENVOYER la lumière ne
+	 * doit être plus clair que ce qui tombe dessus. Le plancher laisse de quoi
+	 * deviner la toile sous les étoiles, sans quoi elle disparaîtrait tout à
+	 * fait et la mâture perdrait sa silhouette. */
+	float ciel = dot(u_horizon, vec3(0.2126, 0.7152, 0.0722));
+	float jour = clamp(ciel / 0.85, u_canvas_floor, 1.0);
+
+	EMISSION = (u_emissive * u_emissive_k * jour + lit_through) * (1.0 - hz)
 	         + ship_haze_colour(CAMERA_POSITION_WORLD, v_world) * hz;
 }

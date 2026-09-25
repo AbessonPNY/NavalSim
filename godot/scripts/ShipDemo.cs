@@ -2166,6 +2166,12 @@ public partial class ShipDemo : Node3D
                 _calendar = new Calendar(s.GetString());
             if (root.TryGetProperty("ghosts", out var gh)) _ghosts.Rules = GhostRules.FromJson(gh);
             if (root.TryGetProperty("wraith", out var vf)) _wraithRules = WraithRules.FromJson(vf);
+            /* CE QUI RESTE DE LA TOILE SOUS LES ÉTOILES. La lumière qui traverse
+               le tissage est celle du CIEL : sans jour derrière, une voile ne
+               donne rien. Le plancher laisse de quoi deviner la mâture. */
+            if (root.TryGetProperty("night", out var nt)
+                && nt.TryGetProperty("canvas", out var cv) && cv.ValueKind == System.Text.Json.JsonValueKind.Number)
+                ShipNode.CanvasFloor = Math.Clamp(cv.GetDouble(), 0, 1);
             if (root.TryGetProperty("whale", out var wh)) _whaleRules = WhaleSettings.FromJson(wh);
             if (root.TryGetProperty("serpent", out var sp)) _serpentRules = SerpentSettings.FromJson(sp);
             if (root.TryGetProperty("fog", out var fg))
@@ -3426,6 +3432,12 @@ public partial class ShipDemo : Node3D
                 // une seconde après la mise à l'eau : une traversée pose le navire APRÈS la ligne de commande
                 // LA BRUME RASANTE, à la volée : 0 à 1, sans toucher à celle de l'air
                 case "--rasante": _mistForce = args[i + 1].ToFloat(); break;
+                // ce qui reste de la toile sous les étoiles : pour juger à l'œil
+                case "--toile-nuit":
+                    ShipNode.CanvasFloor = Math.Clamp(args[i + 1].ToFloat(), 0, 1);
+                    _ship.RefreshCanvasFloor();
+                    foreach (var sn in _others) sn.RefreshCanvasFloor();
+                    break;
                 // ce qu'UNE nappe arrête : pour juger le voile sans toucher au fichier
                 case "--voile":
                     _mistGain = Math.Clamp(args[i + 1].ToFloat(), 0, 1);
