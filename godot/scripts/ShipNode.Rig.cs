@@ -33,6 +33,8 @@ public partial class ShipNode
         public bool Split;
         /// <summary>Ce que le feu lui a mangé, de 0 (intacte) à 1 (plus rien).</summary>
         public double Burn;
+        /// <summary>Où les boulets l'ont percée, en coordonnées de sa toile (u, v).</summary>
+        public readonly List<Vector2> Holes = new();
         // un seul tableau de surface par voile, rempli à chaque image : en créer un
         // neuf soixante fois par seconde et par voile, c'est de la mémoire à ramasser
         public readonly Godot.Collections.Array Arrays = NewArrays();
@@ -46,6 +48,8 @@ public partial class ShipNode
     }
 
     readonly List<Canvas> _canvases = new();
+    /// <summary>La dernière heure où la toile a été formée : le creux passe à une vitesse, pas d'un coup.</summary>
+    double? _lastTrimT;
     // les pivots que le brassage fait tourner ; le foc, à part, aux trois quarts
     readonly List<Node3D> _rigs = new();
     Node3D? _jibRig;
@@ -531,9 +535,30 @@ public partial class ShipNode
             // son mât tombé, elle n'est plus gréée : le solveur ne la compte plus
             Physics.LateenUp = _latMast < 0 || _latMast >= _damage.Count || _damage[_latMast].Down == null;
         }
+        /* ET LE CREUX PASSE AVEC LA BÔME.
+         *
+         * Le signe de l'angle des bras dit de quel bord la toile porte : l'angle
+         * est un lacet, la bôme montre l'arrière, donc un lacet positif l'envoie
+         * à tribord (−x) et la toile doit s'y creuser. Sa normale de taille est
+         * +x, d'où le signe contraire.
+         *
+         * Il PASSE, il ne saute pas : deux secondes et demie d'un bord à l'autre,
+         * le temps que la bôme traverse. Ce qu'on voit alors est une voile qui
+         * tombe à plat et se remplit de l'autre main — un empannage. */
+        double dtb = Math.Clamp(t - (_lastTrimT ?? t), 0, 0.25);
+        _lastTrimT = t;
+        double pas = dtb * 2.5;
+        void Lean(Canvas c, double want)
+            => c.Cloth.Side += Math.Clamp(want - c.Cloth.Side, -pas, pas);
+        double lee = -Math.Sign(angle);
+        double leeLat = _latPivot != null ? -Math.Sign(_latTrim.Angle) : 1;
         foreach (var c in _canvases)
         {
             if (c.Split) continue;                       // partie : plus rien à former
+            /* Une carrée se creuse vers l'avant des deux bords : elle n'a pas de
+               main à changer, et lui en donner une la retournerait pour rien. */
+            if (c.Cloth.Kind != "square")
+                Lean(c, _latMast >= 0 && c.Mast == _latMast ? leeLat : lee);
             c.Cloth.Shape(Spec.Rig.Belly, load, luffing, t, set);
             Upload(c);
         }
@@ -969,6 +994,25 @@ public partial class ShipNode
         _latYard?.Reparent(_latPivot, true);
         _latMast = _damage.Count - 1;
         _canvases[^1].Mast = _latMast;
+        /* ET SON MÂT REÇOIT SA PART, qu'il n'avait pas.
+         *
+         * Un mât sans vergue carrée naît avec une part NULLE, ce qui est juste à
+         * la seconde où il est planté : il ne porte rien. Puis on lui grée une
+         * antenne, et personne ne revenait le lui dire — si bien que l'artimon
+         * d'un galion comptait pour zéro dans tout ce qui pèse la toile. Sa
+         * latine pouvait brûler, se trouer, partir avec le kraken : la poussée du
+         * navire n'en savait rien (relevé : m3 part 0).
+         *
+         * L'aire du triangle qu'on vient de tendre, dans la même unité que les
+         * voiles carrées — leur part est aussi une surface prise sur le modèle,
+         * et non sur la fiche : deux mesures du même monde. */
+        var lt = L(T, T.Y); var lc = L(P, clewY); var lp = L(P, P.Y);
+        var e1 = lc - lt; var e2 = lp - lt;
+        double aire = 0.5 * new Vec3d(e1.Y * e2.Z - e1.Z * e2.Y,
+                                      e1.Z * e2.X - e1.X * e2.Z,
+                                      e1.X * e2.Y - e1.Y * e2.X).Length;
+        _damage[_latMast].Share += aire;
+        RigLog.Add(FormattableString.Invariant($"latine : part {aire:F0} m² au mât {_latMast}"));
         _latZ = z0;
         RigLog.Add(FormattableString.Invariant($"latine : pic y {P.Y:F2} z {P.Z:F2}, amure y {T.Y:F2} z {T.Z:F2}, écoute y {clewY:F2}"));
     }

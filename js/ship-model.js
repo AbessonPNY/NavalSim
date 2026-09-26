@@ -657,7 +657,17 @@ Naval.ShipModel = class ShipModel {
     mesh.userData.sail = { base:Float32Array.from(pos), w:Float32Array.from(w),
                            sag:Float32Array.from(sag), u:Float32Array.from(us),
                            swag:Float32Array.from(swag), nSwag:nSwag,
-                           nu1:nu+1, dir:dir.clone().normalize() };
+                           nu1:nu+1, dir:dir.clone().normalize(),
+                           /* Her CUT, and which hand she bellies to. A sail
+                              bellies to LEEWARD, and a fore-and-after changes
+                              sides: her boom goes across and the round of her
+                              must go with it. The normal is fixed at the cut, in
+                              the pivot's frame, so it turned WITH the boom and
+                              never changed hands — she filled again with her
+                              belly the wrong way about (reported on the
+                              schooner). A square sail bellies forward on either
+                              board and keeps 1. */
+                           kind:c.kind, side:1 };
     this.canvases.push(mesh);
     return mesh;
   }
@@ -713,7 +723,9 @@ Naval.ShipModel = class ShipModel {
       const s = m.userData.sail;
       if(!s) continue;
       const attr = m.geometry.attributes.position, arr = attr.array;
-      const base = s.base, w = s.w, sg = s.sag, u = s.u, d = s.dir, nu1 = s.nu1 || 9;
+      const base = s.base, w = s.w, sg = s.sag, u = s.u, nu1 = s.nu1 || 9;
+      // sa normale, prise de la main où elle porte
+      const sd = s.side != null ? s.side : 1, d = { x:s.dir.x*sd, y:s.dir.y*sd, z:s.dir.z*sd };
       const sw = s.nSwag ? s.swag : null;        // null: she is not handed this way
       /* And then she hangs a little, on top of whatever she was cut. The cut
          is the larger of the two by some way — the foot of a course stands
@@ -3068,6 +3080,20 @@ Naval.ShipModel = class ShipModel {
     for(const c of this.canvases) c.visible = (c.userData.split !== true);
     for(const rig of this.rigs){
       rig.rotation.y = (rig===this.jibRig ? angle*0.75 : angle);
+    }
+    /* AND THE BELLY GOES ACROSS WITH THE BOOM. The braced angle is a yaw and
+       the boom shows astern, so a positive yaw carries it to starboard (−x) and
+       the cloth must bag that way; her cut normal is +x, hence the opposite
+       sign. It TRAVELS rather than jumps — a second or so, the time the boom
+       takes — and what one sees meanwhile is a sail that falls flat and fills
+       on the other hand, which is a gybe. */
+    const lee = -Math.sign(angle);
+    const step = dt*2.5;
+    for(const m of this.canvases){
+      const s2 = m.userData.sail;
+      if(!s2 || s2.kind === 'square') continue;
+      const cur = s2.side != null ? s2.side : 1;
+      s2.side = cur + Math.max(-step, Math.min(step, lee - cur));
     }
     this.setSailShape(load || 0, luffing, t, set);
   }

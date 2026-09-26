@@ -10879,6 +10879,133 @@ bougie en BLEU**. La chambre rouge a répondu en une image à une question que d
 mesures n'auraient pas tranchée. C'est la deuxième fois de la journée qu'une
 sonde grossière et visible fait ce que la mesure au pixel ne sait pas faire.
 
+## La toile qui se déchire, et le creux qui ne changeait pas de main (Godot + page)
+
+Deux sujets d'un même après-midi, et qui n'ont rien à voir l'un avec l'autre
+sinon qu'ils portent sur la même toile.
+
+### Un boulet ne s'arrête pas dans une voile
+
+Demandé : des voiles qui se déchirent sous les coups, et une efficacité qui
+tombe avec le nombre de trous.
+
+Le point de départ, qui décide de tout le reste : **une toile n'arrête pas un
+boulet.** Il la traverse et poursuit sa course, et c'est précisément pourquoi il
+fallait de la mitraille et des boulets ramés pour démâter, et pourquoi on ne
+s'abrite pas derrière sa voilure. Les voiles sont donc interrogées AVANT la
+coque, sans que le coup soit consommé : la même volée peut trouer un hunier, la
+misaine derrière, puis porter au bordé. Un boulet garde la liste de ce qu'il a
+percé, sans quoi une voile un peu creuse, dont la boîte tient sur deux sous-pas,
+prendrait deux trous pour un seul coup.
+
+Et elle ne fait **ni éclat ni fracas** : pas de bois arraché, pas de brèche, pas
+de pièce démontée, et pas le bruit du chêne qui éclate. Faire craquer une
+membrure parce qu'un boulet a traversé un hunier serait un contresens qu'on
+ENTENDRAIT.
+
+**Ce qu'un trou coûte : six pour cent.** Un boulet n'emporte que quelques
+centièmes de mètre carré sur cent, et compter la surface perdue aurait donné un
+effet nul. Mais une toile percée sous tension se déchire le long de sa trame,
+perd sa forme et CRACHE son vent par la brèche : ce qu'elle perd est son creux,
+pas son aire. Six trous en font une loque (0,64 de la voilure), et le septième
+l'emporte tout entière — une toile percée de partout finit par se fendre d'une
+ralingue à l'autre. Les deux chiffres sont dans `settings.json`.
+
+### Trois choses trouvées en le vérifiant, et qui valaient le détour
+
+**La latine ne comptait pour rien.** Un mât sans vergue carrée naît avec une
+part nulle — ce qui est juste à la seconde où on le plante, il ne porte rien —
+puis on lui grée une antenne et personne ne revenait le lui dire. Relevé :
+`m3 part 0`. L'artimon d'un galion pesait donc zéro dans toute la poussée : sa
+latine pouvait brûler, se trouer, partir avec le kraken, le navire n'en savait
+rien. Elle reçoit maintenant l'aire du triangle qu'on vient de tendre, dans la
+même unité que les carrées — leur part est aussi une surface prise sur le
+modèle, et non sur la fiche : deux mesures du même monde.
+
+**La part d'un mât n'est plus un COMPTE de voiles mais une FRACTION.** Une toile
+n'est plus entière ou rien : elle brûle par le pied, elle se troue au boulet, et
+chacun de ces états lui prend une part. Compter les voiles debout faisait qu'une
+voile aux trois quarts consumée tirait comme une neuve jusqu'à sa dernière
+seconde.
+
+**Le trou se pose sur la TRAJECTOIRE, pas au point d'entrée.** L'artillerie
+donne l'endroit où le boulet entre dans la BOÎTE de la voile, qui entoure un
+tissu gonflé : le point peut être à deux ou trois mètres du tissu, et les trous
+se collaient aux bords (relevé : écart 2,56 m, v = 1,00, c'est-à-dire sur la
+têtière). Le boulet, lui, va tout droit : on cherche le sommet le plus proche de
+sa DROITE DE VOL, et celui-là est sur le tissu, là où il l'a percé. Vingt
+centimètres au lieu de deux mètres cinquante.
+
+### Quarante mille images de bataille sans un seul trou
+
+Et c'est la mesure la plus instructive de la journée. Une escarmouche entière,
+douze coques, n'a pas troué une voile.
+
+Ce n'est pas le code : **l'artillerie tire à plat, à hauteur de bordé, et les
+boulets passent SOUS la toile.** C'est géométriquement juste et historiquement
+faux dans un seul sens — les Français visaient le gréement pour désemparer, les
+Anglais la coque pour tuer. Tant que l'IA ne pointe pas haut, la toile ne se
+déchirera qu'aux coups d'un navire très incliné. À décider.
+
+Un piège de méthode au passage : le premier boulet d'épreuve, lâché à la ligne
+de commande, traversait un navire **à sec de toile**. Établir prend du temps, et
+au premier instant les voiles sont encore roulées sur leurs vergues — leur boîte
+fait un mètre de haut au lieu de cinq (relevé). Les deux outils d'épreuve
+attendent maintenant quatre secondes. Et `--trous` visait le CENTRE de chaque
+voile, donc dix trous tombaient sur le même sommet et n'en faisaient qu'un : ils
+sont semés.
+
+### La forme d'une déchirure
+
+Un rond net se lit comme une perforation de carton : on le voit, et on ne croit
+pas que ce soit du tissu. D'où deux formes réunies — le POINÇON, rond et de la
+taille du boulet, ce qu'il a emporté ; et la FENTE, longue et mince, qui s'ouvre
+à partir de lui.
+
+Sa direction n'est pas tirée au hasard : une voile est faite de LAIZES cousues
+dans le sens de la chute, et une toile percée se fend le long de ses coutures.
+La fente part donc de la verticale et ne s'en écarte que d'un tiers de quart de
+tour — jamais jusqu'à l'entaille horizontale, qui n'arrive qu'à une ralingue
+arrachée. Le bord est déchiqueté par l'ANGLE autour du trou, et la graine de
+chaque fente est sa propre place sur la toile : deux déchirures voisines ne se
+ressemblent jamais.
+
+Six trous par voile et pas plus, parce que les uniformes d'instance sont
+comptés : trois `vec4`, deux trous chacun. C'est un plafond CHOISI — au septième
+la voile s'ouvre et disparaît, donc on n'a jamais besoin du septième.
+
+### Et le creux qui ne changeait pas de main
+
+Signalé sur la goélette : la bôme passe d'un bord à l'autre, et les voiles
+reprennent le vent avec leur arrondi du mauvais côté.
+
+La cause est franche. Le creux d'une voile est porté par une NORMALE FIGÉE à la
+taille, dans le repère du pivot — elle tournait donc AVEC la bôme sans jamais
+changer de main. Une carrée n'a pas ce défaut : elle se creuse vers l'avant, et
+c'est vrai des deux bords.
+
+Le signe est celui de l'angle des bras : l'angle est un lacet, la bôme montre
+l'arrière, donc un lacet positif l'envoie à tribord et la toile doit s'y creuser.
+Le raisonnement ne dépend pas de la main du repère, ce qui est le bon signe
+qu'il est juste : bôme et creux subissent la MÊME rotation, il suffit qu'ils
+soient du même côté l'un de l'autre.
+
+Prendre le signe de l'angle plutôt qu'un seuil sur sa valeur, parce qu'au PRÈS
+la bôme est presque au milieu et la toile pleine : une règle qui aplatirait le
+creux aux petits angles aurait vidé les voiles au plus mauvais moment.
+
+Et il PASSE, il ne saute pas : deux secondes et demie, le temps que la bôme
+traverse. Ce qu'on voit alors est une voile qui tombe à plat et se remplit de
+l'autre main — un empannage. Relevé sur la page : bras à −0,90 rad, creux +1 ;
+bras à +0,90, creux −1 ; et pendant le virement le creux ATTEND la bôme au lieu
+de la précéder, puisque les bras tiennent leur bord une seconde et demie avant
+de partir.
+
+**La page portait exactement la même normale figée**, et l'utilisateur s'en
+doutait. Les deux sont corrigées du même coup, ce qui est la règle : `SailCloth`
+est le portage de `setSailShape`, et une correction qui ne vaudrait que pour un
+moteur est le début de deux définitions.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

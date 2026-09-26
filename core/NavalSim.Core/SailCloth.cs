@@ -55,6 +55,24 @@ public sealed class SailCloth
     public readonly float[] Positions, Normals;
 
     /// <summary>
+    /// DE QUEL BORD ELLE SE CREUSE : +1 du côté de sa normale, −1 de l'autre, et
+    /// ce qu'il y a entre les deux pendant qu'elle passe.
+    ///
+    /// Une voile se creuse SOUS LE VENT, et une aurique change de bord : sa bôme
+    /// passe d'un côté à l'autre et le rond doit passer avec elle. Or la normale
+    /// est fixée à la taille, dans le repère du pivot, si bien qu'elle tournait
+    /// AVEC la bôme sans jamais changer de main — la voile reprenait le vent avec
+    /// son arrondi du mauvais côté (signalé sur la goélette).
+    ///
+    /// Une carrée n'en a pas besoin : elle se creuse vers l'avant, et c'est vrai
+    /// des deux bords. Elle garde donc 1, et rien ne bouge pour elle.
+    ///
+    /// Passer par zéro n'est pas un défaut de ce réglage, c'est ce qu'on voit
+    /// d'un empannage : la toile tombe à plat, puis se remplit de l'autre main.
+    /// </summary>
+    public double Side = 1;
+
+    /// <summary>
     /// La profondeur de la toile le long d'un axe. <paramref name="d"/> est où
     /// elle est la plus creuse, <paramref name="pin0"/>/<paramref name="pin1"/>
     /// disent si chaque bout est LACÉ. Toute la question est là : un bord lacé
@@ -197,7 +215,7 @@ public sealed class SailCloth
         double furl = 1 - sf;
         float[] b = Base, w = W, sg = Sag, u = U;
         float[]? sw = NSwag != 0 ? Swag : null;
-        Vec3d d = Dir;
+        Vec3d d = Dir * Side;
         int nu1 = Nu1;
         // elle pend un peu, par-dessus sa coupe, sans jamais retourner le rond
         double hang = full * (0.10 + 0.06 * press);
@@ -284,6 +302,9 @@ public sealed class BraceTrim
     public const double Accel = 1.0;    // rad/s², pour prendre de l'erre comme pour la casser
 
     double? _trimT;
+    /// <summary>L'angle montré, celui des bras : son SIGNE dit de quel bord la toile porte.</summary>
+    public double Angle => _brace;
+
     int? _tackShown;
     double _tackHeld, _brace, _braceV;
 

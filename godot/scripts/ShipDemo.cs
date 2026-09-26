@@ -1086,12 +1086,21 @@ public partial class ShipDemo : Node3D
 
     /// <summary>--chavirer : la coque retournée une seconde après la mise à quai, qui la redresserait.</summary>
     double _flipIn = -1, _serpentIn = -1;
+    /* L'ÉPREUVE DU BOULET ATTEND QUE LA TOILE SOIT DEHORS. Établir prend du
+       temps, et au premier instant les voiles sont encore roulées sur leurs
+       vergues — un mètre de haut au lieu de cinq (relevé). Un boulet lâché à la
+       ligne de commande traversait donc un navire à sec de toile et ne trouvait
+       rien. */
+    double _shotIn = -1, _shotY, _holesIn = -1;
+    int _holesWanted;
 
     public override void _Process(double delta)
     {
         // le monde n'est pas encore bâti : le rideau est seul à l'écran
         if (!_booted) return;
         if (_serpentIn > 0 && (_serpentIn -= delta) <= 0) SummonSerpent();
+        if (_shotIn > 0 && (_shotIn -= delta) <= 0) TestShot(_shotY);
+        if (_holesIn > 0 && (_holesIn -= delta) <= 0) TestHoles(_holesWanted);
         if (_flipIn > 0 && (_flipIn -= delta) <= 0)
         {
             _ship.Physics.CastOff();
@@ -2738,7 +2747,10 @@ public partial class ShipDemo : Node3D
     ShotTarget TargetOf(ShipNode s)
     {
         if (_targets.TryGetValue(s, out var t)) return t;
-        t = new ShotTarget { Physics = s.Physics, Battery = s.Battery, Shell = s.HullShell(), Masts = s.MastBoxes, Tag = s };
+        t = new ShotTarget { Physics = s.Physics, Battery = s.Battery, Shell = s.HullShell(),
+                             Masts = s.MastBoxes, Sails = s.SailBoxes, Tag = s };
+        // ce qu'un trou coûte à une voile est une règle d'artillerie : elle vient d'ici
+        s.SailHoleLoss = _gunnery.Rules.SailHoleLoss;
         _targets[s] = t;
         // armée à sa première apparition : quarante charges par pièce, comme la page
         s.Physics.PowderMax = s.Battery.Guns.Count * 40;
@@ -2792,6 +2804,58 @@ public partial class ShipDemo : Node3D
        liquide et l'envahissement prennent la suite sans une ligne pour l'artillerie ;
        un mât touché est la même blessure que la foudre. Rien du fait d'être canonné
        n'est un cas à part. */
+    /// <summary>
+    /// UNE GERBE DE BOULETS PAR LE TRAVERS, à la hauteur qu'on lui donne — de
+    /// quoi éprouver ce qu'une toile fait d'un coup qui la traverse, sans
+    /// attendre qu'une bataille veuille bien en tirer un au bon endroit.
+    ///
+    /// Cinq et non un : la toile roule avec la houle, et un boulet seul dit
+    /// surtout si le navire penchait au bon moment. Échelonnés en station, ils
+    /// disent ce que la toile fait, elle.
+    /// </summary>
+    void TestShot(double height)
+    {
+        var bb = _ship.Physics.Body;
+        // le tireur doit être un AUTRE : un navire ne se tire pas dessus
+        var from = _others.Count > 0 ? _others[0].Physics : _ship.Physics;
+        for (int hz = -2; hz <= 2; hz++)
+            _gunnery.Shots.Add(new Gunnery.Shot
+            {
+                P = new Vec3d(bb.Pos.X + 160, bb.Pos.Y + height, bb.Pos.Z + hz * 5),
+                V = new Vec3d(-Ball.Muzzle, 0, 0), K = 1, C = 0.00097, From = from
+            });
+        GD.Print($"cinq boulets lâchés à {height:F1} m sur l'eau, 160 m par le travers");
+    }
+
+    /// <summary>
+    /// DES TROUS DANS SA PROPRE TOILE, sans attendre qu un ennemi les y mette : au
+    /// centre de chaque voile hissee, l une apres l autre, en repassant sur les
+    /// memes quand on en demande plus qu il n y a de voiles.
+    ///
+    /// Comme le boulet d epreuve, il ATTEND que la toile soit etablie : au
+    /// premier instant les voiles sont encore roulees sur leurs vergues, et les
+    /// trous se seraient poses sur le rouleau.
+    /// </summary>
+    void TestHoles(int n)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            var bs = _ship.SailBoxes();
+            if (bs.Count == 0) { GD.Print("trous : aucune voile hissee"); break; }
+            var bx = bs[j % bs.Count];
+            /* SEMES et non tous au centre : vises au meme point, ils tombaient sur
+               le meme sommet et ne faisaient qu un trou pour dix. */
+            double fx = _stormRng.NextDouble(), fy = _stormRng.NextDouble(), fz = _stormRng.NextDouble();
+            var mid = new Vector3((float)(bx.Min.X + (bx.Max.X - bx.Min.X) * (0.2 + 0.6 * fx)),
+                                  (float)(bx.Min.Y + (bx.Max.Y - bx.Min.Y) * (0.2 + 0.6 * fy)),
+                                  (float)(bx.Min.Z + (bx.Max.Z - bx.Min.Z) * (0.2 + 0.6 * fz)));
+            int rr = _ship.HoleSail(bx.Sail, _ship.GlobalTransform * mid,
+                                    _ship.GlobalTransform.Basis * new Vector3(1, 0, 0),
+                                    _gunnery.Rules.SailHolesMax);
+            GD.Print($"trou dans la voile {bx.Sail} : {(rr == -2 ? "elle s ouvre" : rr < 0 ? "manque" : rr + " trou(s)")}, toile entiere {_ship.Whole():F3}");
+        }
+    }
+
     void Struck(ShotTarget t, string kind, int index, double frac, double speed, double k, ShipPhysics from, Vec3d world, Vec3d dir)
     {
         if (t.Tag is not ShipNode s) return;
@@ -2801,6 +2865,24 @@ public partial class ShipDemo : Node3D
         {
             if (Allied(_ship, s)) _friendly++; else _hits++;
             _hitsAt = _t;
+        }
+        /* LA TOILE NE FAIT NI ÉCLAT NI FRACAS, et le boulet ne s'y arrête pas.
+           Elle claque, et c'est tout : pas de bois arraché, pas de brèche, pas de
+           pièce démontée — un trou, et la voile qui crache son vent par là. C'est
+           pourquoi ce cas passe AVANT tout le reste, jusqu'au bruit du choc :
+           faire craquer du chêne parce qu'un boulet a traversé un hunier serait
+           un contresens qu'on entendrait. */
+        if (kind == "sail")
+        {
+            int r = s.HoleSail(index, new Vector3((float)world.X, (float)world.Y, (float)world.Z),
+                               new Vector3((float)dir.X, (float)dir.Y, (float)dir.Z),
+                               _gunnery.Rules.SailHolesMax);
+            if (r == -2)
+            {
+                Say(s == _ship ? "Une voile s'ouvre d'une ralingue à l'autre !"
+                               : $"Une voile du {s.Spec.Name} s'ouvre en deux !");
+            }
+            return;
         }
         // le choc s'entend de là où le boulet a porté, donc plus tard que la pièce
         // touchée chez SOI : le bois qui éclate est celui de la chambre où l'on est
@@ -3691,7 +3773,10 @@ public partial class ShipDemo : Node3D
                     _fixLook = _fixEye.Value + new Vector3((float)sdir.X, 0, (float)sdir.Z).Normalized() * 300 + new Vector3(0, -6, 0);
                     break;
                 // les instruments masqués, comme H : pour une capture de la scène seule
-                case "--masquer": _info.Visible = _sunPanel.Visible = args[i + 1] != "1"; break;
+                /* TOUS les instruments, et non les deux étiquettes de gauche : une
+                   capture de la mer ou de la toile n a que faire du comptoir, de la
+                   rose et de la barre de pièces. */
+                case "--masquer": _hudOn = args[i + 1] != "1"; _info.Visible = _sunPanel.Visible = _hudOn; break;
                 case "--panneau-mer": _seaPanel.Visible = args[i + 1] == "1"; break;
                 // la mer aux valeurs par défaut, sans toucher au fichier : pour comparer
                 case "--mer-defaut":
@@ -3715,6 +3800,15 @@ public partial class ShipDemo : Node3D
                 // la coque retournée, pour éprouver le chavirage et R
                 case "--chavirer": _flipIn = args[i + 1] != "0" ? 1.0 : -1; break;
                 case "--demater": _ship.DropMast(args[i + 1].ToInt()); break;
+                /* DES TROUS DANS SA PROPRE TOILE, sans attendre qu un ennemi les y mette :
+                   au CENTRE de chaque voile hissee, l une apres l autre, en repassant
+                   sur les memes quand on en demande plus qu il n y a de voiles. */
+                /* UN BOULET VENU D UN BORD, a la hauteur qu on lui donne : de quoi
+                   eprouver ce qu une toile fait d un coup qui la traverse, sans
+                   attendre qu une bataille veuille bien en tirer un au bon endroit.
+                   L argument est sa hauteur sur l eau, en metres. */
+                case "--boulet": _shotY = args[i + 1].ToFloat(); _shotIn = 4.0; break;
+                case "--trous": _holesWanted = args[i + 1].ToInt(); _holesIn = 4.0; break;
                 // LE BEAUPRÉ, tout de suite : pour le voir tomber sans le canonner
                 case "--beaupre": if (args[i + 1] != "0") GD.Print("beaupré : " + (_ship.DropSprit() ? "il part" : "aucun reconnu")); break;
                 case "--meteo": SetAutoWeather(args[i + 1] == "1"); break;

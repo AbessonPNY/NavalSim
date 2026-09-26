@@ -87,6 +87,14 @@ public sealed class ShotTarget
     /// partout où il n'est pas.
     /// </summary>
     public Func<IReadOnlyList<(double Heel, double Height, double Z, double Long, int Fall)>>? Masts;
+
+    /// <summary>
+    /// SES VOILES HISSÉES : la boîte de chacune dans le repère du bord, et son
+    /// numéro. Une toile n'ARRÊTE pas un boulet — elle le laisse passer en
+    /// gardant son trou, et c'est pour cela qu'elle est demandée à part des
+    /// espars et de la coque, qui, eux, le tuent.
+    /// </summary>
+    public Func<IReadOnlyList<(Vec3d Min, Vec3d Max, int Sail)>>? Sails;
     public object? Tag;
 }
 
@@ -147,6 +155,15 @@ public sealed class GunnerySettings
     /// </summary>
     public double RecoilSpeed = 2;
 
+    /* CE QU'UN TROU COÛTE À UNE VOILE, en part de sa poussée. Six pour cent :
+       un boulet n'emporte que quelques centièmes de mètre carré sur cent, mais
+       une toile percée sous tension se déchire le long de sa trame, perd sa
+       forme et CRACHE son vent par la brèche — ce qu'elle perd est son creux,
+       pas sa surface. Six trous font une loque, et le septième l'emporte. */
+    public double SailHoleLoss = 0.06;
+    /// <summary>Combien de trous elle encaisse avant de s'ouvrir tout entière.</summary>
+    public int SailHolesMax = 6;
+
     /// <summary>
     /// LE FEU DE BOUCHE COMME LUMIÈRE — ce que le coup éclaire de son propre bord.
     ///
@@ -171,6 +188,8 @@ public sealed class GunnerySettings
         s.FlashEnergy = Math.Max(0, D("flashEnergy", s.FlashEnergy));
         s.FlashRange = Math.Max(1, D("flashRange", s.FlashRange));
         s.FlashLife = Math.Max(0.01, D("flashLife", s.FlashLife));
+        s.SailHoleLoss = Math.Clamp(D("sailHoleLoss", s.SailHoleLoss), 0, 1);
+        s.SailHolesMax = (int)Math.Clamp(D("sailHolesMax", s.SailHolesMax), 1, 6);
         return s;
     }
 }
@@ -191,6 +210,14 @@ public sealed class Gunnery
 
     public sealed class Shot
     {
+        /// <summary>
+        /// LES TOILES QU'IL A DÉJÀ TRAVERSÉES, cible et voile encodées ensemble.
+        /// Sans cela une voile un peu creuse, dont la boîte tient sur deux
+        /// sous-pas, prendrait deux trous pour un seul boulet. Nul tant qu'il n'a
+        /// rien percé, ce qui est le cas de la quasi-totalité des coups.
+        /// </summary>
+        public List<int>? Pierced;
+
         public Vec3d P, V;
         public double T, C, K;
         public ShipPhysics From = null!;
@@ -477,8 +504,9 @@ public sealed class Gunnery
 
     bool HitShips(Shot b, Vec3d a0, Vec3d a1)
     {
-        foreach (var e in Targets)
+        for (int ti = 0; ti < Targets.Count; ti++)
         {
+            var e = Targets[ti];
             var ph = e.Physics;
             if (ph == b.From || ph.Foundered) continue;
             if (CanHit != null && !CanHit(b.From, e)) continue;
@@ -499,6 +527,27 @@ public sealed class Gunnery
                     OnStrike?.Invoke(e, "mast", m.Fall, 0.5, b.V.Length, b.K, b.From,
                         body.Quat.Rotate(l0 + (l1 - l0) * u) + body.Pos, dir);
                     return true;
+                }
+            }
+            /* SA TOILE, QUI NE L'ARRÊTE PAS. Un boulet troue une voile et poursuit
+               sa course : c'est précisément pourquoi il fallait de la mitraille et
+               des boulets ramés pour démâter, et pourquoi on ne se protège pas
+               derrière sa voilure. Elle est donc interrogée AVANT la coque, sans
+               que le coup soit consommé — la même volée peut trouer un hunier,
+               puis la misaine derrière, puis porter au bordé. */
+            if (e.Sails != null && OnStrike != null)
+            {
+                var sails = e.Sails();
+                for (int si = 0; si < sails.Count; si++)
+                {
+                    var sl = sails[si];
+                    double us = Slab(l0, l1, sl.Min, sl.Max);
+                    if (us < 0) continue;
+                    int key = ti * 64 + sl.Sail;
+                    if (b.Pierced != null && b.Pierced.Contains(key)) continue;
+                    (b.Pierced ??= new List<int>()).Add(key);
+                    OnStrike(e, "sail", sl.Sail, 0.5, b.V.Length, b.K, b.From,
+                             body.Quat.Rotate(l0 + (l1 - l0) * us) + body.Pos, dir);
                 }
             }
             /* Son flanc tel que l'ŒIL l'a — la coquille du modèle où elle en a une —,

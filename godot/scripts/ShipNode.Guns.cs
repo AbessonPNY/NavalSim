@@ -369,6 +369,39 @@ public partial class ShipNode
         return best > 0 ? best : null;
     }
 
+    readonly List<(NavalSim.Core.Vec3d Min, NavalSim.Core.Vec3d Max, int Sail)> _sailBoxes = new();
+
+    /// <summary>
+    /// SA TOILE, POUR LES BOULETS : la boîte de chaque voile hissée, dans le
+    /// repère du bord.
+    ///
+    /// La boîte du MAILLAGE et non un rectangle calculé : une voile est un
+    /// morceau de tissu qui gonfle, qui se brasse et qui porte, et ce qu'un
+    /// boulet doit rencontrer est celle qu'on VOIT — la même règle que pour la
+    /// coquille du bordé, pour la même raison.
+    ///
+    /// Ferlée, elle n'offre rien : une voile serrée sur sa vergue est un boudin
+    /// de toile de quarante centimètres, et lui garder sa surface ferait d'un
+    /// navire au mouillage une cible plus grande que sous voiles.
+    /// </summary>
+    public IReadOnlyList<(NavalSim.Core.Vec3d Min, NavalSim.Core.Vec3d Max, int Sail)> SailBoxes()
+    {
+        _sailBoxes.Clear();
+        if (!Ctrl.SailsSet) return _sailBoxes;
+        var inv = GlobalTransform.AffineInverse();
+        for (int i = 0; i < _canvases.Count; i++)
+        {
+            var c = _canvases[i];
+            if (c.Split || c.Node == null || !c.Node.Visible) continue;
+            var bb = inv * c.Node.GlobalTransform * c.Node.GetAabb();
+            var mn = bb.Position;
+            var mx = bb.Position + bb.Size;
+            _sailBoxes.Add((new NavalSim.Core.Vec3d(mn.X, mn.Y, mn.Z),
+                            new NavalSim.Core.Vec3d(mx.X, mx.Y, mx.Z), i));
+        }
+        return _sailBoxes;
+    }
+
     /// <summary>
     /// Ses espars, pour les boulets : pied, hauteur, station, longueur vers
     /// l'avant, indice. Seul un espar à lui peut être touché.

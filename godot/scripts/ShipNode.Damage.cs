@@ -130,6 +130,84 @@ public partial class ShipNode
     }
 
     static readonly StringName UBurn = "u_burn";
+    /* TROIS vec4 POUR SIX TROUS, deux par vec4 : les uniformes d'instance sont
+       comptés, et la matière de toile est PARTAGÉE — la régler percerait toute
+       la voilure d'un coup. Six suffisent : au septième la voile s'ouvre. */
+    static readonly StringName UHole0 = "u_hole0", UHole1 = "u_hole1", UHole2 = "u_hole2", UHoleN = "u_hole_n";
+
+    /// <summary>
+    /// UN BOULET TRAVERSE UNE VOILE ET LUI LAISSE SON TROU — il ne s'y arrête
+    /// pas, c'est pourquoi on ne s'abrite pas derrière sa voilure.
+    ///
+    /// Le trou est posé LÀ OÙ LE COUP A PORTÉ, et non au hasard : on cherche le
+    /// sommet de la toile le plus proche du point d'impact et on prend SON u,v.
+    /// La grille est assez fine pour que l'erreur se mesure en dizaines de
+    /// centimètres, et le tableau des sommets est déjà rempli à chaque image
+    /// pour le maillage — rien à calculer de plus.
+    ///
+    /// Au-delà de ce qu'elle encaisse, elle ne se troue plus : elle S'OUVRE.
+    /// Une toile percée de partout finit par se fendre d'une ralingue à l'autre,
+    /// et le navire la perd tout entière.
+    ///
+    /// Rend le nombre de trous qu'elle porte, −1 si le coup n'a rien trouvé, et
+    /// −2 si la voile vient de s'ouvrir.
+    /// </summary>
+    public int HoleSail(int sail, Vector3 world, Vector3 dir, int max)
+    {
+        if (sail < 0 || sail >= _canvases.Count) return -1;
+        var c = _canvases[sail];
+        if (c.Split || c.V == null || c.Uv == null || c.V.Length == 0) return -1;
+
+        /* LA TRAJECTOIRE ET NON LE POINT D'ENTRÉE.
+         *
+         * Ce que l'artillerie donne est l'endroit où le boulet est entré dans la
+         * BOÎTE de la voile, qui est un parallélépipède autour d'une toile
+         * gonflée : le point peut être à deux ou trois mètres du tissu, et les
+         * trous se collaient alors aux bords (relevé : écart 2,56 m, v = 1,00,
+         * c'est-à-dire sur la têtière).
+         *
+         * Le boulet, lui, va tout droit : on cherche donc le sommet le plus
+         * proche de sa DROITE DE VOL, et celui-là est sur le tissu, là où il l'a
+         * percé. Le repère est celui de la voile, où les sommets vivent. */
+        var inv = c.Node.GlobalTransform.AffineInverse();
+        var loc = inv * world;
+        var ray = (inv.Basis * dir).Normalized();
+        int best = -1;
+        float bd = float.MaxValue;
+        int n = Math.Min(c.V.Length, c.Uv.Length);
+        for (int i = 0; i < n; i++)
+        {
+            var w = c.V[i] - loc;
+            // sa distance à la droite : ce qu'il en reste une fois ôté le long du tir
+            float d = (w - ray * w.Dot(ray)).LengthSquared();
+            if (d < bd) { bd = d; best = i; }
+        }
+        if (best < 0) return -1;
+        c.Holes.Add(c.Uv[best]);
+        if (c.Holes.Count > max)
+        {
+            /* ELLE S'OUVRE, et ses bouts partent avec elle : le même sort que la
+               voile qui a fini de brûler, par la même porte. */
+            c.Split = true;
+            c.Node.Visible = false;
+            if (c.Mast >= 0) CutRigging(c.Mast, 1);
+            return -2;
+        }
+        ShowHoles(c);
+        return c.Holes.Count;
+    }
+
+    static void ShowHoles(Canvas c)
+    {
+        Vector2 H(int i) => i < c.Holes.Count ? c.Holes[i] : Vector2.Zero;
+        c.Node.SetInstanceShaderParameter(UHole0, new Vector4(H(0).X, H(0).Y, H(1).X, H(1).Y));
+        c.Node.SetInstanceShaderParameter(UHole1, new Vector4(H(2).X, H(2).Y, H(3).X, H(3).Y));
+        c.Node.SetInstanceShaderParameter(UHole2, new Vector4(H(4).X, H(4).Y, H(5).X, H(5).Y));
+        c.Node.SetInstanceShaderParameter(UHoleN, (float)c.Holes.Count);
+    }
+
+    /// <summary>Ce qu'une voile trouée porte encore, de 1 (entière) à 0 — voir GunnerySettings.SailHoleLoss.</summary>
+    public double SailHoleLoss = 0.06;
 
     /// <summary>
     /// LE FEU MANGE LA TOILE D'UN MÂT — et on le VOIT : la voile se consume du
@@ -239,13 +317,22 @@ public partial class ShipNode
         return i;
     }
 
-    (int Total, int Alive) CanvasOf(int mast)
+    /* CE QU'UN MÂT PORTE ENCORE, ET CE QU'IL PORTAIT — en FRACTIONS de voile et
+       non en voiles comptées. Une toile n'est plus entière ou rien : elle brûle
+       par le pied, elle se troue au boulet, et chacun de ces états lui prend une
+       PART de sa poussée. Compter les voiles debout faisait qu'une voile aux
+       trois quarts consumée tirait comme une neuve jusqu'à sa dernière seconde. */
+    (double Total, double Alive) CanvasOf(int mast)
     {
-        int all = 0, alive = 0;
+        double all = 0, alive = 0;
         foreach (var c in _canvases)
-            if (c.Mast == mast) { all++; if (!c.Split) alive++; }
+            if (c.Mast == mast) { all++; alive += Intact(c); }
         return (all, alive);
     }
+
+    /// <summary>Ce qu'une voile porte encore, de 1 à 0 : ce qui n'a pas brûlé, moins ses trous.</summary>
+    double Intact(Canvas c)
+        => c.Split ? 0 : Math.Max(0, (1 - c.Burn) * (1 - c.Holes.Count * SailHoleLoss));
 
     /// <summary>
     /// LE MÂT QUI PORTE LE PLUS, et c'est lui qui casse : ce qui est encore envergué
@@ -319,7 +406,12 @@ public partial class ShipNode
         RigEpoch++;
         Battery.Restore();
         ClearScars();               // et un bordé neuf : un radoub ne laisse pas de cicatrice          // et remonte ses pièces : le même radoub
-        foreach (var c in _canvases) { c.Split = false; c.Node.Visible = true; }
+        foreach (var c in _canvases)
+        {
+            c.Split = false; c.Node.Visible = true; c.Burn = 0;
+            c.Node.SetInstanceShaderParameter(UBurn, 0f);
+            c.Holes.Clear(); ShowHoles(c);            // une toile renverguée est une toile neuve
+        }
         foreach (var d in _damage)
         {
             d.Wounds = 0;

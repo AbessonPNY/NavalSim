@@ -48,6 +48,23 @@ uniform float u_canvas_floor = 0.05;
  * son maillage, comme la rotation des bouffées et la taille des embruns. */
 instance uniform float u_burn = 0.0;
 
+/* LES TROUS DE BOULET, deux par vec4 et six en tout.
+ *
+ * Par INSTANCE, comme la combustion, et pour la même raison : la matière de
+ * toile est partagée par toute la voilure, et une voile percée doit l'être
+ * seule. Deux trous par vec4 parce que les uniformes d'instance sont comptés —
+ * u, v de l'un, puis u, v de l'autre. Au septième la voile s'ouvre et disparaît
+ * de la vergue, donc six suffisent : c'est un plafond choisi, pas subi. */
+instance uniform vec4 u_hole0 = vec4(0.0);
+instance uniform vec4 u_hole1 = vec4(0.0);
+instance uniform vec4 u_hole2 = vec4(0.0);
+instance uniform float u_hole_n = 0.0;
+
+/* LA TAILLE D'UNE DÉCHIRURE, en part de la toile. Un boulet de douze livres
+   fait douze centimètres ; ce qu'on voit sur une voile n'est pas ce calibre mais
+   ce qui PART de là — la toile sous tension se fend dès qu'on l'a percée. */
+const float HOLE_R = 0.055;
+
 /* UN GRAIN DOUX, tiré du hachage du ciel : de la valeur interpolée sur une
    grille, ce qui suffit à déchiqueter une lisière. Une lisière droite se lit
    comme un ciseau, et le feu ne coupe pas droit. */
@@ -59,6 +76,39 @@ float naval_grain(vec2 q) {
 	float c0 = naval_hash13(vec3(i + vec2(0.0, 1.0), 0.0));
 	float d0 = naval_hash13(vec3(i + vec2(1.0, 1.0), 0.0));
 	return mix(mix(a0, b0, f.x), mix(c0, d0, f.x), f.y);
+}
+
+/* UNE DÉCHIRURE, ET NON UN POINÇON.
+ *
+ * Un boulet dans une voile ne laisse pas un rond net : il emporte un disque de
+ * son calibre, et la toile TENDUE se fend aussitôt à partir de là. Le trou rond
+ * seul se lisait comme une perforation de carton — on le voyait, et on ne
+ * croyait pas que ce fût du tissu.
+ *
+ * D'où deux formes réunies : le POINÇON, petit et rond, ce que le boulet a
+ * emporté ; et la FENTE, longue et mince, qui court à partir de lui.
+ *
+ * Sa direction n'est pas tirée au hasard : une voile est faite de LAIZES
+ * cousues dans le sens de la chute, et une toile percée se fend le long de ses
+ * coutures, pas en travers. La fente part donc de la verticale, et ne s'en
+ * écarte que d'un tiers de quart de tour — jamais jusqu'à l'entaille
+ * horizontale, qui n'arrive qu'à une ralingue arrachée.
+ *
+ * Le bord est déchiqueté par le même grain que la lisière du feu : le rayon
+ * change avec l'ANGLE autour du trou, si bien qu'aucun côté ne ressemble à
+ * l'autre et qu'aucune fente ne ressemble à sa voisine — leur graine est leur
+ * propre place sur la toile. */
+float naval_tear(vec2 uv, vec2 h) {
+	vec2 q = (uv - h) / HOLE_R;
+	// ce que le boulet a emporté : rond, et de son calibre
+	float poincon = length(q) / 0.52;
+	// et ce qui s'est ouvert ensuite, le long de la laize
+	float a = 1.5708 + (naval_grain(h * 37.0 + 5.0) - 0.5) * 1.1;
+	float cs = cos(a), sn = sin(a);
+	vec2 r = vec2((q.x * cs + q.y * sn) / 3.4, -q.x * sn + q.y * cs);
+	float ang = atan(r.y, r.x);
+	float bord = 0.30 + 0.52 * naval_grain(vec2(cos(ang), sin(ang)) * 1.7 + h * 11.0);
+	return min(poincon, length(r) / max(0.12, bord));
 }
 
 varying vec3 v_world;
@@ -95,6 +145,25 @@ void fragment() {
 	 * donne la déchirure. Sans le grain la voile se mangerait par une ligne
 	 * horizontale ; sans la hauteur elle se mangerait par plaques, ce qui est de
 	 * la moisissure et non du feu. */
+	/* ET LES TROUS, AVANT LE FEU : ce qui n'est plus là ne brûle pas.
+	 *
+	 * Le bord n'est pas un cercle — il est tiré au grain de la toile, si bien
+	 * qu'il se déchire en étoile plutôt qu'à l'emporte-pièce. Autour, la trame
+	 * qui a lâché reste une seconde plus sombre : c'est la ralingue effilochée,
+	 * et c'est ce qui fait lire le trou comme une blessure plutôt que comme un
+	 * défaut de texture. */
+	if (u_hole_n > 0.5) {
+		// sous 1, on est DANS la déchirure ; au-delà, la trame qui a lâché autour
+		float dh = naval_tear(UV, u_hole0.xy);
+		if (u_hole_n > 1.5) dh = min(dh, naval_tear(UV, u_hole0.zw));
+		if (u_hole_n > 2.5) dh = min(dh, naval_tear(UV, u_hole1.xy));
+		if (u_hole_n > 3.5) dh = min(dh, naval_tear(UV, u_hole1.zw));
+		if (u_hole_n > 4.5) dh = min(dh, naval_tear(UV, u_hole2.xy));
+		if (u_hole_n > 5.5) dh = min(dh, naval_tear(UV, u_hole2.zw));
+		if (dh < 1.0) discard;
+		diffuse *= mix(1.0, 0.62, smoothstep(2.2, 1.0, dh));
+	}
+
 	float braise = 0.0;
 	if (u_burn > 0.001) {
 		float bas = 1.0 - UV.y;                       // 0 à la têtière, 1 au point d'écoute

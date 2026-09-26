@@ -23,7 +23,7 @@
     "glb": "creatures/sailor.glb"
   },
   "gunnery": {
-    "_aide": "L'ARTILLERIE. reload : ce qu'une pièce met à se recharger, en secondes, tiré entre les deux. recoilSpeed : la vivacité du recul, un facteur (1 était la première mise au point, 2 va deux fois plus vite). Les trois derniers ne servent qu'à l'ŒIL — ce que le coup éclaire de son propre bord, et rien de plus : flashEnergy l'éclat de la lampe de bouche, flashRange sa portée en mètres, flashLife ce qu'elle dure en secondes. Ils montent en k², k étant le calibre relatif : une pièce de chasse éclaire moins qu'un trente-six.",
+    "_aide": "L'ARTILLERIE. reload : ce qu'une pièce met à se recharger, en secondes, tiré entre les deux. recoilSpeed : la vivacité du recul, un facteur (1 était la première mise au point, 2 va deux fois plus vite). Les trois derniers ne servent qu'à l'ŒIL — ce que le coup éclaire de son propre bord, et rien de plus : flashEnergy l'éclat de la lampe de bouche, flashRange sa portée en mètres, flashLife ce qu'elle dure en secondes. Ils montent en k², k étant le calibre relatif : une pièce de chasse éclaire moins qu'un trente-six. LA TOILE TROUÉE : un boulet traverse une voile sans s'arrêter et lui laisse un trou ; sailHoleLoss est ce que chaque trou coûte de poussée à cette voile (0,06), sailHolesMax combien elle en encaisse avant de s'ouvrir tout entière (6, et c'est un plafond).",
     "reload": [
       30,
       60
@@ -31,7 +31,9 @@
     "recoilSpeed": 2,
     "flashEnergy": 160,
     "flashRange": 200,
-    "flashLife": 0.22
+    "flashLife": 0.22,
+    "sailHoleLoss": 0.06,
+    "sailHolesMax": 6
   },
   "dolphins": {
     "enabled": true,
