@@ -1359,6 +1359,15 @@ public partial class ShipDemo : Node3D
         float straddle = (float)Math.Max(0, 1 - Math.Abs(seaY - ce.Y) / 0.5);
         bool under = seaY > ce.Y || straddle > 0.01f;
         _sea.Material?.SetShaderParameter("u_submerged", under ? 1f : 0f);
+        /* LA CÔTE LA PLUS PROCHE, pour l'écume de déferlement : elle se décide en
+           lisant l'image, qui ne sait pas distinguer une plage d'une carène, et
+           il faut donc lui dire la seule chose qu'elle ne peut pas deviner. */
+        if (_world != null)
+        {
+            var bp = _ship.Physics.Body.Pos;
+            _sea.Material?.SetShaderParameter("u_shore_dist",
+                (float)_world.ShoreDistance(_sea.Core.Origin.X + bp.X, _sea.Core.Origin.Z + bp.Z));
+        }
         /* ET LES BOUFFÉES AVEC : de dessous, le feu des canons ne traverse la
            fenêtre de Snell que s'il est dessiné avant la mer, qui lit l'écran. */
         _gunFx.Submerged(under);

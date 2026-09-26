@@ -10692,6 +10692,66 @@ ATTEND — et non sur ce qu'on observe — vaut une question.
 `u_collar` dans `ocean.gdshader` le règle, comme `u_veil` et `u_silt` : 1 le
 réglage, 0 l'efface, 2 le double.
 
+## La carène blanche sous l'eau, et une bissection à deux (Godot)
+
+Signalé deux fois, capture à l'appui : à quai, la coque paraît BLANCHE à travers
+l'eau, vue d'au-dessus de la mer.
+
+### Comment on l'a trouvée
+
+Mal, d'abord, et c'est la partie qui vaut d'être écrite. J'ai accusé les
+caustiques de carène, plafonné leur addition, baissé leur force : le défaut est
+resté. J'ai accusé le voile de surface, mesuré, rien. J'ai accusé le collier, la
+persistance, les crêtes : rien. Six courses, trois hypothèses, aucune preuve — et
+à chaque fois une mesure au pixel qui ne disait ni oui ni non, parce que ma boîte
+d'échantillonnage ne regardait pas ce qu'il fallait.
+
+Ce qui a tranché : **Arnaud a fait la bissection lui-même.** Six lancements
+enchaînés, chacun avec un terme coupé, annoncés dans l'ordre, et il a dit « stop »
+au bon. C'est l'écume — et le terme exact, isolé ensuite à la mesure, est
+l'**écume de RIVAGE** : l'ôter seule fait exactement autant qu'ôter toute
+l'écume (6,87 % de pixels clairs → 2,3 %, à un centième près la même chose).
+
+La leçon est sur la méthode : **quand la mesure ne tranche pas, celui qui regarde
+tranche.** J'aurais dû lui proposer cette procédure à la première hypothèse et
+non à la sixième ; elle a pris deux minutes et elle a été décisive.
+
+### Pourquoi une carène ressemble à une plage
+
+L'écume de déferlement se décide en **lisant l'image déjà rendue** : « ce qu'il y
+a derrière ce pixel d'eau est-il juste dessous ? » Une plage répond oui. Une
+carène immergée aussi — elle est juste derrière, et sa surface est à quelques
+décimètres sous l'eau. Le rouleau se peignait donc sur le bordé.
+
+Le garde-fou existait — `near_hull > 2,5 m` — et il était trop court d'un ordre
+de grandeur. **Au ras de l'eau, un pixel de mer à vingt mètres d'un vaisseau a ce
+vaisseau derrière lui** : la portée d'une carène en vue rasante n'est pas une
+constante, c'est sa LONGUEUR. Mesuré sur le galion de trente mètres :
+
+| exclusion | pixels clairs |
+|---|---|
+| 2,5 m (avant) | 6,84 % |
+| 8 m | 6,87 % |
+| 16 m | 5,50 % |
+| **24 m** | **2,27 %** — le blanc a disparu |
+
+Vingt-quatre mètres pour une coque de trente, soit une fois et demie sa
+demi-longueur : c'est ce qu'on écrit, et une chaloupe en obtient huit quand un
+vaisseau de soixante-dix en obtient cinquante-cinq.
+
+**Et pas de déferlement sans côte.** Le jeu connaît la distance à la terre la
+plus proche ; la mer ne la connaissait pas, et lisait l'image seule. Au-delà de
+six cents mètres il n'y a pas de plage, donc pas de rouleau, quoi que l'image
+raconte. `u_shore_foam` l'éteint tout à fait si besoin.
+
+### Ce qu'on a essayé et jeté
+
+Tester le point RECONSTITUÉ derrière chaque pixel — tombe-t-il dans l'empreinte
+d'une flottaison ? — était l'idée élégante, et elle ne marchait pas : la région
+qu'elle attrape et celle qui blanchit sont disjointes, sans que j'aie su dire
+pourquoi. Elle coûtait un `hull_gap` par navire et par pixel. **On ne garde pas
+un coût sans preuve**, elle est retirée.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

@@ -108,6 +108,21 @@ uniform float u_veil = 0.55;
    quand elle est stoppée. Par calme plat et machine arrêtée, il n'y en a pas, et
    c'est ce qu'il faut : rien ne remue, rien ne blanchit. */
 uniform float u_collar = 1.0;
+
+/* L'ÉCUME DE RIVAGE, un facteur : 1 le réglage, 0 l'éteint.
+ *
+ * Elle se décide en LISANT L'IMAGE déjà rendue — « ce qu'il y a derrière ce pixel
+ * d'eau est-il juste dessous ? » — et c'est une question à laquelle une plage
+ * répond oui, mais une CARÈNE IMMERGÉE aussi. D'où un bordé qui blanchissait à
+ * travers l'eau, à quai (signalé, deux captures). Isolé par bissection, la
+ * dernière faite par Arnaud lui-même sur six variantes : ôter cette écume seule
+ * fait exactement autant qu'ôter TOUTE l'écume.
+ *
+ * u_shore_dist est la distance du bord à la côte la plus proche, en mètres : le
+ * jeu la connaît déjà, et un rouleau n'existe que près d'une terre. Au-delà, pas
+ * de plage, donc pas de déferlement — quoi que l'image raconte. */
+uniform float u_shore_foam = 1.0;
+uniform float u_shore_dist = 0.0;
 /* LA VASE D'UN BASSIN. Une rade n'a pas l'eau du large : elle reçoit la terre,
    les rivières et le remuement des coques, et l'on n'y voit pas le fond par onze
    mètres — ce que les caustiques, en éclairant le sable, ont rendu criant
@@ -735,7 +750,14 @@ void fragment() {
 		float t_along;
 		float gap_m = hull_gap(rel, f2, r2, u_ship_half[i], u_hull_ends[i],
 		                       (float(i) + 0.5) / float(NSHIP), t_along);
-		near_hull = min(near_hull, gap_m);
+		/* ET CE QU'UNE COQUE INTERDIT AU DÉFERLEMENT, QUI VA COMME SA TAILLE.
+		   Au ras de l'eau, un pixel de mer à vingt mètres d'un vaisseau a ce
+		   vaisseau derrière lui : la portée d'une carène en vue rasante n'est pas
+		   une constante, c'est sa LONGUEUR. Deux mètres et demi écartaient le
+		   collier et rien d'autre ; mesuré sur le galion de trente mètres, il
+		   faut vingt-quatre mètres pour que le blanc s'en aille — une longueur et
+		   demie de demi-coque, et c'est ce qu'on écrit. */
+		near_hull = min(near_hull, gap_m - 1.5 * u_ship_half[i].x);
 		float way = clamp(u_ship_speed[i] / 3.0, 0.0, 1.0);
 
 		/* Seuls le collier net et la vague d'étrave restent instantanés — ils
@@ -828,7 +850,11 @@ void fragment() {
 	   la pousse un peu plus. Les coques gardent leur collier : rien à moins de
 	   deux mètres et demi d'une flottaison. */
 	float shore_foam = 0.0;
-	if (dist < 600.0 && near_hull > 2.5) {
+	/* PAS DE DÉFERLEMENT SANS CÔTE, et pas de déferlement sur une carène. La
+	   règle lit l'image seule, qui ne sait pas distinguer une plage d'un bordé :
+	   on lui donne d'abord les deux choses qu'elle ne peut pas deviner. */
+	float pres_terre = u_shore_foam * (1.0 - smoothstep(300.0, 700.0, u_shore_dist));
+	if (dist < 600.0 && near_hull > 2.5 && pres_terre > 0.01) {
 		float scene_z = view_depth(SCREEN_UV, INV_PROJECTION_MATRIX);
 		float frag_z = -VERTEX.z;
 		// du fond ou de la terre juste derrière — pas le ciel, pas le large
@@ -837,7 +863,8 @@ void fragment() {
 			float over = v_world.y - sw.y;                 // l'eau au-dessus du sable, en mètres
 			float swash = 0.35 + 0.35 * sin(u_time * 1.1 + dot(v_world.xz, vec2(0.05, 0.03)));
 			float band = (1.0 - smoothstep(0.0, 0.9 + swash, over)) * smoothstep(-0.2, 0.05, over);
-			shore_foam = band * (0.55 + 0.45 * lace(v_world.xz * 0.9 + 17.0, 0.0, fine)) * (1.0 - smoothstep(350.0, 600.0, dist));
+			shore_foam = band * (0.55 + 0.45 * lace(v_world.xz * 0.9 + 17.0, 0.0, fine))
+			           * (1.0 - smoothstep(350.0, 600.0, dist)) * pres_terre;
 		}
 	}
 	float foam = clamp(max(max(max(crest_foam, persist), wake_lines), shore_foam) + hull_foam, 0.0, 1.0) * (1.0 - far * 0.85);
