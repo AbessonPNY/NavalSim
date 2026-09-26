@@ -126,7 +126,11 @@ page est un fichier autonome plafonné à 16 Mo ; Godot lit sur le disque et n'a
 pas de plafond. Un modèle placé dans **`godot-models/<son chemin habituel>`**
 remplace, pour Godot seulement, celui de la racine (`Assets.Path`) : on exporte
 une fois en pleine définition là, puis `node tools/page-models.js` en tire la
-copie allégée à sa place habituelle, et `node build.js` vérifie la limite.
+copie allégée à sa place habituelle, et `node build.js` vérifie la limite. Ce qui
+n'y tient pas se marque `"page": false` dans `godot-models/allegement.json` : pas
+de copie de page, la fiche garde son `glb`, et la page dessine la coque d'après
+ses lignes (La Boussole, jumelle de la Roter Löwe). C'est le seul endroit où les
+deux moteurs peuvent montrer autre chose l'un que l'autre.
 Format et raisons : `godot-models/README.md`. Les données (fiches, monde,
 quêtes, réglages) restent partagées — jamais de doublon.
 

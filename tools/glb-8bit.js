@@ -13,7 +13,7 @@
   sert à rien. Le reste du .glb n'est pas touché — mêmes maillages, mêmes
   matières, mêmes noms. À passer après chaque export Blender.
 
-      node tools/glb-8bit.js ships/models/fregate17e.glb
+      node tools/glb-8bit.js ships/models/roter_lowe_1597.glb
 */
 'use strict';
 const fs = require('fs');

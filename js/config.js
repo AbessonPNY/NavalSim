@@ -77,9 +77,9 @@ Naval.Config = {
      server lists the folder live and the build writes that index, so this is
      reached only on a static host that never got one. It must still match the
      folder: build.js compares the two and says so if they have drifted. */
-  SHIPS: ['ships/barge.json', 'ships/bouee-canard.json', 'ships/caisse-bois.json', 'ships/chaloupe.json', 'ships/cotre.json',
-          'ships/frigate.json', 'ships/frigate17e.json', 'ships/pirate.json',
-          'ships/schooner.json', 'ships/vedette.json'],
+  SHIPS: ['ships/barge.json', 'ships/bouee-canard.json', 'ships/boussole.json', 'ships/caisse-bois.json',
+          'ships/chaloupe.json', 'ships/cotre.json', 'ships/frigate.json', 'ships/frigate17e.json',
+          'ships/pirate.json', 'ships/schooner.json', 'ships/speedwell.json', 'ships/vedette.json'],
 
   BEAUFORT: [
     [0,'Calme','0.0'],[1,'Très légère','0.1'],[2,'Belle vaguelette','0.3'],

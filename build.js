@@ -59,6 +59,19 @@ console.log('wrote ships/index.json  (' + shipList.length + ' vessels, for stati
   }
 }
 
+/* CE QUI EST TENU HORS DE LA PAGE, ET QUI NE DOIT PAS SE PLAINDRE. Un .glb
+ * absent est normalement un accident, d'où l'avertissement plus bas ; mais un
+ * modèle peut être hors page EXPRÈS — deux galions de quatre mégaoctets ne
+ * tiennent pas dans les seize, et le second se contente de sa coque dessinée.
+ * La décision est une donnée, et elle vit là où elle se prend :
+ * godot-models/allegement.json. Un avertissement qui sonne à chaque build
+ * n'avertit plus de rien. */
+let horsPage = {};
+try {
+  const r = JSON.parse(fs.readFileSync(path.join(ROOT, 'godot-models/allegement.json'), 'utf8'));
+  for (const [k, v] of Object.entries(r)) if (v && v.page === false) horsPage[k] = true;
+} catch (e) { /* pas de godot-models : rien de volontaire, tout est accident */ }
+
 const shipData = {};
 for (const rel of shipList) {
   const spec = JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8'));
@@ -72,6 +85,9 @@ for (const rel of shipList) {
       const bytes = fs.readFileSync(p);
       spec.model.glbBase64 = bytes.toString('base64');
       console.log('  embedded ' + spec.model.glb + '  (' + (bytes.length/1024).toFixed(1) + ' KB)');
+    } else if (horsPage[spec.model.glb]) {
+      console.log('  hors page (page: false) : ' + spec.model.glb + ' — ' + spec.id +
+                  ' aura sa coque dessinée');
     } else {
       console.warn('  WARNING: ' + spec.model.glb + ' is missing — ' + spec.id +
                    ' will fall back to its procedural hull');

@@ -40,7 +40,7 @@ public static class Assets
 
     /// <summary>
     /// Le chemin complet d'un fichier donné RELATIVEMENT à la racine du dépôt
-    /// (« ships/models/fregate17e.glb »). Celui de <c>godot-models/</c> gagne
+    /// (« ships/models/roter_lowe_1597.glb »). Celui de <c>godot-models/</c> gagne
     /// s'il existe.
     /// </summary>
     public static string Path(string relative)

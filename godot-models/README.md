@@ -4,8 +4,8 @@ Ce dossier **double l'arborescence du dépôt**. Un fichier qu'on y trouve rempl
 celui de la racine — **pour Godot seulement**.
 
 ```
-godot-models/ships/models/fregate17e.glb     ← Godot lit celui-ci
-ships/models/fregate17e.glb                  ← la page lit celui-là
+godot-models/ships/models/roter_lowe_1597.glb     ← Godot lit celui-ci
+ships/models/roter_lowe_1597.glb                  ← la page lit celui-là
 ```
 
 Rien à déclarer, aucune liste à tenir : c'est la présence du fichier qui décide
@@ -38,18 +38,40 @@ carte de normales n'a jamais demandé plus). Ce qu'il fait en plus, sur demande,
 c'est borner le côté de certaines images — `allegement.json` :
 
 ```json
-{ "ships/models/fregate17e.glb": { "max": { "fabrics": 512 } } }
+{ "ships/models/roter_lowe_1597.glb": { "max": { "fabrics": 512 } } }
 ```
 
 La clé est le chemin habituel du modèle, celui que la fiche donne ; `max` borne
 les images dont le nom porte le motif. Sans entrée, un modèle n'est que ramené à
 huit bits, ce qui suffit presque toujours.
 
+### Et ce qui n'entre pas du tout : `page: false`
+
+Borner des textures ne sauve pas tout. Deux galions de quatre mégaoctets ne
+tiennent pas dans les seize de la page, et ce qui pèse chez eux n'est pas leur
+étoffe : c'est leur **géométrie**, que nul `max` ne réduit. Un modèle peut donc
+être tenu hors de la page, exprès :
+
+```json
+{ "ships/models/hero_ship.glb": { "page": false } }
+```
+
+L'outil ne fait alors aucune copie de page, **et efface celle qui traînerait** —
+c'est arrivé, un export de Blender lâché à la place de la copie allégée, et la
+page est sortie à 21 Mo. La fiche garde son `glb` sans mentir : `build.js` dit en
+clair que le modèle est hors page, et `ShipModel` dessine la coque d'après ses
+lignes, ce qui est un repli honnête et non une panne. C'est le cas de
+**La Boussole**, jumelle de la Roter Löwe : la page porte l'une, Godot les deux.
+
+Le corollaire, qui vaut d'être su : **les deux moteurs peuvent ne pas montrer le
+même navire**. C'est le seul endroit du projet où c'est permis, et c'est le
+plafond de 16 Mo qui l'impose.
+
 Pour regarder un modèle sans ouvrir Blender — contenu, mesures, allongement,
 silhouette, de quel bout est le nez :
 
 ```bash
-node tools/glb-look.js godot-models/ships/models/fregate17e.glb
+node tools/glb-look.js godot-models/ships/models/roter_lowe_1597.glb
 ```
 
 ## Ce qu'on n'y met pas

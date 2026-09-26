@@ -1,4 +1,5 @@
 {
-  "_aide": "CE QU'IL FAUT RETIRER A UN MODELE POUR QU'IL ENTRE DANS LA PAGE. La cle est son chemin habituel, celui que la fiche donne. max borne le cote d'une image dont le nom porte le motif : les etoffes d'une frégate n'ont pas besoin de 1024 pixels, son borde si. Sans entree, un modele n'est que ramene a huit bits par canal — ce qui suffit presque toujours. Applique par « node tools/page-models.js ».",
-  "ships/models/fregate17e.glb": { "max": { "fabrics": 512 } }
+  "_aide": "CE QU'IL FAUT RETIRER A UN MODELE POUR QU'IL ENTRE DANS LA PAGE. La cle est son chemin habituel, celui que la fiche donne. max borne le cote d'une image dont le nom porte le motif : les etoffes d'une frégate n'ont pas besoin de 1024 pixels, son borde si. Sans entree, un modele n'est que ramene a huit bits par canal — ce qui suffit presque toujours. page a false tient un modele HORS de la page : la copie allegee n est pas faite et celle qui trainerait est effacee, la fiche garde son glb, et ShipModel dessine la coque d apres ses lignes. C est le cas de La Boussole, jumelle de la Roter Lowe : deux galions de quatre megaoctets ne tiennent pas dans les seize de la page, et ce qui pese chez eux est la geometrie, qu aucune borne de texture ne reduit. Applique par « node tools/page-models.js ».",
+  "ships/models/roter_lowe_1597.glb": { "max": { "fabrics": 512 } },
+  "ships/models/hero_ship.glb": { "page": false }
 }
