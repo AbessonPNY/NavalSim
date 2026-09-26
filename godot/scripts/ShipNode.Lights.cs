@@ -510,7 +510,14 @@ public partial class ShipNode
                 Mesh = Cylinder(0.022, 0.025, 0.14, 10),
                 MaterialOverride = MakeHullMaterial(Hex("0xefe6cf"), 0.7f),
                 Position = new Vector3(0, -0.085f, 0),
-                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off
+                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+                /* ET ELLE EST DEDANS PAR DÉFINITION. MarkInside ne parcourt que le
+                   MODÈLE ; ce bâton de cire est fabriqué par le code, après lui, et
+                   restait donc sur la couche du dehors : la bougie SOUFFLÉE
+                   continuait de réagir au fanal de poupe, éclairée à travers la
+                   cloison (signalé). Ce qu on fabrique à la main, on le range à la
+                   main. */
+                Layers = InsideLayer
             });
 
         /* Une vraie flamme, pas une ampoule : elle est éclairée par une mèche dans
@@ -531,12 +538,22 @@ public partial class ShipNode
                fentes, ce que la page avait déjà rencontré. */
             ShadowEnabled = LanternShadows,
             OmniShadowMode = OmniLight3D.ShadowMode.Cube,
-            /* UN FANAL EST DEHORS, ET CE QUI EST DEHORS N'ENTRE PAS. Le feu de
-               poupe éclairait la chambre du capitaine à travers ses propres
-               vitres — qui ne portent pas d'ombre, pour que le soleil entre —, et
-               le feu de grand mât à travers un pont modelé vu du dessous. Une
-               bougie, elle, est DEDANS : elle garde le masque plein. */
-            LightCullMask = l?.Kind == "candle" ? 0xFFFFFu : 0xFFFFFu & ~InsideLayer
+            /* UN FANAL EST DEHORS, UNE BOUGIE EST DEDANS, ET NI L UN NI L AUTRE
+               NE TRAVERSE LE BORDÉ.
+
+               Le feu de poupe éclairait la chambre du capitaine à travers ses
+               propres vitres — qui ne portent pas d ombre, pour que le soleil
+               entre — et le feu de grand mât à travers un pont modelé vu du
+               dessous. Puis, une fois cela réglé, la bougie de la chambre a fait
+               le chemin inverse : elle éclairait le pont et le bordé au travers
+               des cloisons (signalé).
+
+               Les deux masques sont donc COMPLÉMENTAIRES, et c est ce qui les
+               rend justes : ce qui brûle dehors n éclaire que le dehors, ce qui
+               brûle dedans n éclaire que le dedans. Les fenêtres de poupe, elles,
+               luisent par leur propre émissive — c est bien une chambre éclairée
+               qu on voit du dehors, et non sa bougie. */
+            LightCullMask = l?.Kind == "candle" ? InsideLayer : 0xFFFFFu & ~InsideLayer
         };
         group.AddChild(L.Light);
         parent.AddChild(group);
@@ -556,7 +573,46 @@ public partial class ShipNode
         if (ModelRoot == null) return;
         var names = Spec.Model?.Inside ?? InsideByDefault;
         if (names.Length == 0) return;
+
+        /* PREMIÈRE PASSE : ce que le NOM désigne, et la BOÎTE que cela occupe. */
+        var boite = new Aabb();
+        bool eu = false;
         Walk(ModelRoot, false);
+
+        /* SECONDE PASSE : ce qui est DANS cette boîte, quel que soit son nom.
+         *
+         * La règle par nom ne suffisait pas et on l'a vu en peignant les fanaux
+         * en rouge : la chambre s'allumait en rouge alors que « CabineCapitaine »
+         * était bien marquée — parce que ses BARROTS DE PLAFOND sont des
+         * maillages à eux, que personne n'a pensé à nommer, et qu'un modéliste
+         * n'a aucune raison de nommer (signalé).
+         *
+         * Ce qui est dans la chambre est dans la chambre : on prend la boîte de
+         * ce que le nom a désigné, on la resserre d'un rien pour ne pas mordre
+         * sur ce qui la touche du dehors, et tout maillage dont le CENTRE y tombe
+         * passe dedans. Le centre et non la boîte : le bordé de la coque est un
+         * seul maillage qui court d'un bout à l'autre du navire, il traverse la
+         * chambre mais son centre est au milieu du bâtiment — il reste dehors,
+         * ce qu'il faut, puisqu'il est aussi la muraille qu'on voit du dehors. */
+        if (eu)
+        {
+            /* LE NOM DONNE L EMPRISE, PAS LE VOLUME. « CabineCapitaine » est le
+               PLANCHER de la chambre : sa boite fait vingt centimetres de haut, et
+               rien de ce qui est dedans n y tombait — ni les barrots du plafond, ni
+               le mobilier (releve : x ±1,6, y 3,7..3,9, z −10,5..−8,5). On lui rend
+               sa HAUTEUR SOUS BARROTS, qui va comme le navire : un dixieme de
+               sa longueur fait 3 m sur une coque de trente, ce qui est la hauteur
+               d un entrepont. Au-dela on prendrait le pont du dessus. */
+            boite = new Aabb(boite.Position, new Vector3(boite.Size.X, (float)(0.10 * Spec.L), boite.Size.Z));
+            foreach (var (mi, _) in Meshes(ModelRoot))
+            {
+                if (mi.Layers == InsideLayer) continue;
+                var bb = mi.GetAabb();
+                var c = mi.GlobalTransform * (bb.Position + bb.Size * 0.5f);
+                var loc = GlobalTransform.AffineInverse() * c;
+                if (boite.HasPoint(loc)) mi.Layers = InsideLayer;
+            }
+        }
 
         void Walk(Node n, bool inside)
         {
@@ -566,7 +622,18 @@ public partial class ShipNode
                 foreach (var w in names)
                     if (nom.Contains(w, StringComparison.OrdinalIgnoreCase)) { inside = true; break; }
             }
-            if (inside && n is VisualInstance3D vi) vi.Layers = InsideLayer;
+            if (inside && n is VisualInstance3D vi)
+            {
+                vi.Layers = InsideLayer;
+                if (vi is MeshInstance3D mi && mi.Mesh != null)
+                {
+                    var bb = mi.GetAabb();
+                    var t = GlobalTransform.AffineInverse() * mi.GlobalTransform;
+                    var mondiale = t * bb;
+                    if (!eu) { boite = mondiale; eu = true; }
+                    else boite = boite.Merge(mondiale);
+                }
+            }
             foreach (var c in n.GetChildren()) Walk(c, inside);
         }
     }

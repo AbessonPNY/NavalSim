@@ -75,10 +75,44 @@ void fragment() {
 	/* La couleur RESTE et multiplie l'image, au lieu de passer au blanc : c'est
 	   le ton de sa toile, qui garde une voile peinte du même blanc cassé que ses
 	   voiles unies — un motif sur un matériau blanc est un drap à côté du foc. */
+	/* CE QU'IL Y A DE JOUR, tiré de l'horizon qui porte l'heure. Il servait à
+	   l'émission seule ; il sert maintenant aussi à la translucidité, et c'est
+	   pourquoi il est calculé ici, avant l'un comme l'autre. Une définition,
+	   deux usagers — jamais deux fois la même heure lue de deux façons. */
+	float ciel = dot(u_horizon, vec3(0.2126, 0.7152, 0.0722));
+	/* EN PUISSANCE, ET NON EN DROITE LIGNE. Le rapport droit laissait la toile
+	   a un tiers de son eclat au crepuscule et a un dixieme a une heure du matin,
+	   ce qui, sur un albedo trente-sept fois celui du borde, fait encore des
+	   voiles blanches dans le noir (signale quatre fois). L exposant 2,2 les fait
+	   tomber avec le jour et non apres lui : un dixieme au crepuscule, cinq
+	   milliemes a minuit, et rien de change a midi. */
+	float jour = clamp(pow(clamp(ciel / 0.85, 0.0, 1.0), 2.2), u_canvas_floor * 0.1, 1.0);
+
 	vec3 diffuse = u_canvas;
 	if (u_has_map > 0.5) diffuse *= texture(u_map, UV).rgb;
 	// par sa normale, comme la page : c'est la face qui regarde le ciel qui la reçoit
 	diffuse = mix(diffuse, NAVAL_SNOW_COLOR, naval_snow(v_raw_n.y, v_local, u_snow));
+
+	/* ET LA TOILE S'ÉTEINT AVEC LE CIEL — un écart avec la physique, assumé et
+	 * mesuré.
+	 *
+	 * Un albédo ne change pas avec l'heure : ce qui est blanc reste blanc, et
+	 * c'est bien pour cela qu'on repérait une voile la nuit. Le chiffre est
+	 * imparable — la toile rend 0,616 en linéaire quand le bordé rend 0,017,
+	 * soit TRENTE-SEPT FOIS : sous n'importe quelle lumière, si faible soit-elle,
+	 * les voiles seront trente-sept fois plus claires que la coque, et aucun
+	 * réglage d'éclairage ne peut y changer quoi que ce soit.
+	 *
+	 * Trois passes l'ont montré : l'émission suit le ciel, la toile est passée de
+	 * 0xf2ebdc à 0xd8cdb4, la translucidité suit le ciel — et un navire aux feux
+	 * couverts montrait toujours ses voiles à un mille (signalé quatre fois).
+	 *
+	 * On choisit donc le tableau contre la mesure : un navire qui se cache dans
+	 * la nuit doit disparaître. Le même facteur que l'émission, donc UNE seule
+	 * heure lue pour toute la voile, et un seul cadran — night.canvas, qui dit ce
+	 * qu'il en reste sous les étoiles. Le prix est qu'un fanal éclaire moins la
+	 * toile qu'il ne devrait ; on le monte si l'on préfère l'autre défaut. */
+	diffuse *= jour;
 
 	/* ELLE SE CONSUME DU PIED VERS LA TÊTIÈRE, parce que la flamme MONTE : ce qui
 	 * brûle d'abord est ce qui pend au-dessus du foyer, et le feu remonte la toile
@@ -118,6 +152,23 @@ void fragment() {
 	   fait pour TOUTE lumière (BACKLIGHT) : le soleil, la lune, et le fanal de
 	   poupe qui éclaire la misaine par derrière. Un écart voulu avec la page, qui
 	   n'a que le lobe. */
+	/* ET LA TRANSLUCIDITÉ SUIT LE JOUR ELLE AUSSI.
+	 *
+	 * C'est le terme qui gardait la toile allumée quand tout le reste était
+	 * éteint, et il a été trouvé en éteignant les cinq termes un par un jusqu'à
+	 * n'en laisser qu'un : sur six variantes, celle qui garde la seule
+	 * translucidité est la seule qui ressemble encore au témoin (Arnaud, 27/09).
+	 *
+	 * La raison est dans sa nature : le BACKLIGHT n'a PAS de chute en N·L. Une
+	 * voile éclairée par-derrière rend autant qu'une voile éclairée de face, et
+	 * une lueur qui vient de n'importe où la rallume. De jour c'est exactement ce
+	 * qu'on veut — une voile à contre-jour est claire, c'est même sa signature.
+	 * La nuit, elle devient la seule chose de l'image éclairée de tous les côtés
+	 * à la fois, et un navire aux feux couverts montre ses voiles à un mille.
+	 *
+	 * Le même facteur que l'émission, donc, et pour la même raison : ce qui
+	 * traverse une toile est ce que le ciel lui donne, et à minuit il ne donne
+	 * presque rien. */
 	BACKLIGHT = diffuse * u_translucency * (1.0 - hz);
 	SPECULAR = 0.5 * (1.0 - hz);
 	ROUGHNESS = 0.95;
@@ -137,8 +188,6 @@ void fragment() {
 	 * doit être plus clair que ce qui tombe dessus. Le plancher laisse de quoi
 	 * deviner la toile sous les étoiles, sans quoi elle disparaîtrait tout à
 	 * fait et la mâture perdrait sa silhouette. */
-	float ciel = dot(u_horizon, vec3(0.2126, 0.7152, 0.0722));
-	float jour = clamp(ciel / 0.85, u_canvas_floor, 1.0);
 
 	/* ET LA BRAISE ÉMET. Elle ne suit ni le ciel ni l'heure — c'est du feu, la
 	   seule chose de cette voile qui ait une lumière à elle. La brume la mange

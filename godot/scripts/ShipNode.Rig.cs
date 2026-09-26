@@ -407,13 +407,35 @@ public partial class ShipNode
         if (src == null)
         {
             _canvasMat ??= NewCanvas(null);
-            return _canvasMat;
+            return Inscrire(_canvasMat);
         }
         if (!_painted.TryGetValue(kind, out var m))
         {
             m = NewCanvas(src);
             _painted[kind] = m;
         }
+        return Inscrire(m);
+    }
+
+    /// <summary>
+    /// LA MATIERE DE TOILE, REINSCRITE A CHAQUE FOIS QU ON LA DONNE.
+    ///
+    /// BuildRig l inscrit dans Hazed — la liste de ce qui recoit le ciel, le
+    /// soleil et l heure — puis LoadModel VIDE cette liste pour la refaire sur
+    /// le modele. Or la matiere, elle, est en CACHE : les voiles rebaties sur
+    /// les vergues du .glb reprenaient la meme et personne ne la reinscrivait.
+    /// Elles gardaient donc les valeurs par defaut du shader — un horizon de
+    /// plein midi — et restaient blanches a minuit, quoi qu on fit du reste
+    /// (signale quatre fois, trouve en peignant la toile en ROUGE la nuit : les
+    /// pavillons devenaient ecarlates, les voiles non, alors que les deux
+    /// emploient le meme shader).
+    ///
+    /// Un objet qu on garde en cache survit a la liste qui le tenait : c est la
+    /// SORTIE qui doit inscrire, pas la construction.
+    /// </summary>
+    ShaderMaterial Inscrire(ShaderMaterial m)
+    {
+        if (!Hazed.Contains(m)) { Hazed.Add(m); AddSnowed(m); }
         return m;
     }
 

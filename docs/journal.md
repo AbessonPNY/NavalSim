@@ -10752,6 +10752,133 @@ qu'elle attrape et celle qui blanchit sont disjointes, sans que j'aie su dire
 pourquoi. Elle coûtait un `hull_gap` par navire et par pixel. **On ne garde pas
 un coût sans preuve**, elle est retirée.
 
+## Les voiles ne recevaient pas l'heure (Godot)
+
+Signalé quatre fois : la nuit, les voiles restent blanches quand la coque et la
+mer sont noires. Trois corrections successives n'y ont rien changé, et la
+quatrième a montré pourquoi.
+
+### Ce qu'on a corrigé pour rien
+
+L'émission du tissage a été mise à suivre le ciel. La toile est passée de
+`0xf2ebdc` à `0xd8cdb4`. La translucidité a été mise à suivre le ciel aussi.
+Chaque fois : aucun effet. Chaque fois : une explication plausible pour la fois
+suivante.
+
+Le chiffre qui semblait tout expliquer, et qui n'expliquait rien : la toile rend
+**0,616** en linéaire quand le bordé rend **0,017** — trente-sept fois. Sous
+n'importe quelle lumière, les voiles sont trente-sept fois plus claires que la
+coque. C'est vrai, et c'était hors sujet.
+
+### Ce que c'était
+
+`BuildRig()` inscrit les matières de toile dans `Hazed` — la liste de ce qui
+reçoit, à chaque image, le ciel, le soleil et l'heure. Puis `LoadModel()` VIDE
+cette liste pour la refaire sur le modèle. Or la matière, elle, est en CACHE
+(`_canvasMat ??= NewCanvas(null)`) : les voiles rebâties sur les vergues du
+`.glb` reprenaient la même, et personne ne la réinscrivait.
+
+Elles gardaient donc les **valeurs par défaut du shader** — `u_horizon` à
+(0,82 / 0,89 / 0,93), c'est-à-dire un plein midi — et restaient blanches à
+minuit quoi qu'on fît du reste. Mes trois corrections lisaient toutes la même
+heure figée à midi.
+
+**Un objet qu'on garde en cache survit à la liste qui le tenait.** C'est la
+SORTIE qui doit inscrire, pas la construction : `CanvasMat` réinscrit
+maintenant à chaque fois qu'elle donne la matière, et le cas se réparera tout
+seul si quelqu'un vide la liste une troisième fois.
+
+### Comment on l'a trouvée
+
+En peignant la toile en ROUGE la nuit — une sonde qu'on ne peut pas ne pas voir.
+Résultat : **les pavillons sont devenus écarlates, les voiles non**, alors que
+les deux emploient le même shader. Il n'y avait plus qu'à demander pourquoi les
+uns reçoivent l'heure et les autres pas.
+
+Relevé après correction : **trois** matières de toile reçoivent la nuit, là où il
+n'y en avait qu'une — le pavillon.
+
+La leçon de méthode, et c'est la troisième fois cette semaine : **quand trois
+corrections plausibles ne font rien, ce n'est pas la quatrième qu'il faut
+écrire — c'est qu'on ne mesure pas ce qu'on croit.** Une sonde grossière et
+visible (du rouge) a tranché en une image ce que six mesures au pixel n'avaient
+pas su dire.
+
+### Ce qui reste, et qui est peut-être de trop
+
+Deux choses posées pendant la chasse, sur une prémisse fausse :
+
+- `diffuse *= jour` — la toile s'assombrit avec le ciel, ALBÉDO COMPRIS. C'est
+  un écart assumé avec la physique : un albédo ne change pas avec l'heure, et
+  c'est bien pour cela qu'on repérait une voile la nuit. Le prix est qu'un fanal
+  éclaire moins la toile qu'il ne devrait.
+- `jour` en puissance 2,2 au lieu du rapport droit, pour la faire tomber avec le
+  jour et non après lui.
+
+Elles tenaient toutes deux leur raison d'être du défaut qui vient d'être corrigé.
+À rejuger maintenant que les voiles reçoivent l'heure : il se peut que l'émission
+et la translucidité suffisent, et alors on rendra son albédo à la toile.
+
+## Le dedans et le dehors, par le lieu et non par le nom (Godot)
+
+Trois signalements de suite, qui sont le même défaut vu sous trois angles : le
+fanal de poupe éclairait la chambre ; puis, une fois cela réglé, la bougie de la
+chambre éclairait le pont ; puis la bougie SOUFFLÉE réagissait encore au fanal.
+
+### Le nom donnait l'emprise, pas le volume
+
+La mécanique posée la veille était bonne — ce qui est à l'intérieur quitte la
+couche de lumière du dehors, et les feux du pont retirent cette couche de leur
+masque — mais l'intérieur était désigné par le NOM (`model.inside`).
+
+Or `CabineCapitaine`, dans le modèle, est le **plancher** de la chambre : sa
+boîte fait vingt centimètres de haut (relevé : x ±1,6, y 3,7..3,9, z −10,5..−8,5).
+Rien de ce qui est DANS la chambre n'y tombait — ni les barrots du plafond, ni le
+mobilier, ni les vitres de poupe. Et un modéliste n'a aucune raison de nommer un
+barrot « cabine ».
+
+Le nom ne donne donc plus que l'**emprise au sol**, et on lui rend sa **hauteur
+sous barrots** : un dixième de la longueur du navire, trois mètres sur une coque
+de trente, ce qui est la hauteur d'un entrepont. Tout maillage dont le CENTRE
+tombe dans ce volume passe dedans — sept pièces au lieu de quatre.
+
+Le centre, et non la boîte : le bordé est un seul maillage qui court d'un bout à
+l'autre du navire. Il TRAVERSE la chambre, mais son centre est au milieu du
+bâtiment — il reste donc dehors, ce qu'il faut, puisqu'il est aussi la muraille
+qu'on voit du dehors.
+
+### Les deux masques sont complémentaires
+
+```csharp
+LightCullMask = candle ? InsideLayer : 0xFFFFF & ~InsideLayer
+```
+
+**Ce qui brûle dehors n'éclaire que le dehors, ce qui brûle dedans n'éclaire que
+le dedans.** La bougie avait le masque plein, et elle éclairait le pont et le
+bordé au travers des cloisons. Les fenêtres de poupe, elles, luisent par leur
+propre émissive : ce qu'on voit du dehors est une chambre ÉCLAIRÉE, pas sa
+bougie — et c'est ce que ⇧L sert à cacher.
+
+### Ce qu'on fabrique à la main, on le range à la main
+
+Dernier trou, et le plus instructif : le bâton de cire de la bougie est un
+maillage fabriqué par le CODE, après le modèle. `MarkInside` ne parcourt que le
+modèle, et cette pièce-là n'existait même pas encore quand il passait. Elle
+restait donc sur la couche du dehors, et la bougie soufflée continuait de réagir
+au fanal à travers la cloison.
+
+C'est le même oubli que celui des voiles ce matin, à l'envers : là, une matière
+en cache survivait à la liste qui la tenait ; ici, un maillage naît après le
+parcours qui aurait dû le ranger. **Une passe qui classe le monde ne classe que
+ce qui existe au moment où elle passe.**
+
+### Et la méthode, une fois de plus
+
+Les trois ont été trouvés en peignant les feux : **les fanaux en ROUGE et la
+bougie en BLEU**. La chambre rouge a répondu en une image à une question que dix
+mesures n'auraient pas tranchée. C'est la deuxième fois de la journée qu'une
+sonde grossière et visible fait ce que la mesure au pixel ne sait pas faire.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

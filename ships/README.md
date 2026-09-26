@@ -141,6 +141,13 @@ la chambre — ce qui laisse entrer du même coup le fanal pendu deux mètres
 derrière. Le fanal arrière et celui de grand mât éclairaient donc la chambre à
 travers le bordé (signalé).
 
+Le nom ne donne que l EMPRISE AU SOL : dans un modèle, « CabineCapitaine » est
+souvent le PLANCHER de la chambre, et sa boîte fait vingt centimètres de haut. On
+lui rend donc sa hauteur sous barrots — un dixième de la longueur du navire — et
+tout maillage dont le CENTRE tombe dans ce volume passe dedans, quel que soit son
+nom. Les barrots du plafond et le mobilier suivent ainsi sans qu on ait à les
+nommer.
+
 Absent, vaut `["cabine", "cabin", "chambre", "bureau"]`. Une liste **vide** veut
 dire « rien n'est dedans ». Si une pièce reste éclairée, c'est que sa cloison ou
 son plancher appartient au maillage de la coque et non à un nœud nommé : donnez
