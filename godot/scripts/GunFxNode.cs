@@ -375,10 +375,56 @@ public partial class GunFxNode : Node3D
                 S0 = 0.30 * k, S1 = 0.10 * k, Col = Lin(0xffa24a), Rot = R() * 6.2832
             }, MaxAdd);
         }
-        // et une petite flamme sur la lisière elle-même, qui dit où elle ronge
-        Burn(at, heat * 0.45, dt, scale * 0.5);
     }
     double _emberDue;
+
+    /// <summary>
+    /// LA TOILE QUI LÈCHE — les flammes d'une voile en feu.
+    ///
+    /// Trois choses les séparent d'un foyer de pont, et les trois comptent.
+    ///
+    /// Elles sont semées SUR TOUTE LA LAIZE, le long de l'axe qu'on leur donne —
+    /// celui de la vergue, dans le monde. Un foyer répand ses flammes dans un
+    /// disque horizontal, ce qui est juste pour un tas de bois qui brûle sur un
+    /// pont ; une voile brûle sur une LIGNE, celle de son front, et des flammes
+    /// en rond derrière elle se lisaient comme une torche accrochée au mât.
+    ///
+    /// Elles sont NOMBREUSES et COURTES. Une toile de lin n'a pas de quoi
+    /// nourrir une colonne : elle s'enflamme d'un coup, lèche et s'éteint. Ce
+    /// qu'on veut voir est un rideau qui frémit sur toute la largeur, pas six
+    /// langues isolées — d'où quatre fois le débit d'un foyer et la moitié de la
+    /// vie.
+    ///
+    /// Elles montent DROIT et collent au tissu : le hasard qu'on leur laisse est
+    /// dans la laize, à peine dans l'épaisseur. Une flamme qui s'écarte de la
+    /// toile ne la lèche plus, elle flotte à côté.
+    /// </summary>
+    public void SailFire(Vector3 at, Vector3 axis, double span, double heat, double dt, double scale = 1)
+    {
+        if (heat <= 0.01) return;
+        double k = Math.Max(0.35, scale);
+        float fk = (float)k;
+        _sailFlameDue += (10 + 26 * heat) * dt;
+        int n = (int)_sailFlameDue;
+        _sailFlameDue -= n;
+        var ax = axis.LengthSquared() > 1e-4f ? axis.Normalized() : Vector3.Right;
+        for (int i = 0; i < n && i < 9; i++)
+        {
+            var p0 = at + ax * ((R() - 0.5f) * 2f * (float)span)
+                        + new Vector3((R() - 0.5f) * 0.22f, (R() - 0.6f) * 0.5f, (R() - 0.5f) * 0.22f) * fk;
+            Add(_flame, new Puff
+            {
+                K = Kind.Fire, T = 0, Life = 0.30 + R() * 0.40,
+                P = p0,
+                V = ax * ((R() - 0.5f) * 0.8f * fk)
+                  + new Vector3(0, (2.0f + R() * 2.4f) * (0.55f + (float)heat), 0) * fk,
+                Drag = 1.7,
+                S0 = (0.32 + 0.85 * heat) * k, S1 = (1.05 + 2.1 * heat) * k,
+                Col = Lin(0xffb055), Rot = (R() - 0.5) * 0.22
+            }, MaxFlame);
+        }
+    }
+    double _sailFlameDue;
 
     /// <summary>
     /// LA LUMIÈRE D'UN INCENDIE — une par navire, posée sur son pire foyer.

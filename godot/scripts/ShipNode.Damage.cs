@@ -224,12 +224,20 @@ public partial class ShipNode
     /// </summary>
     public bool BurnSails(int mast, double dt, double rate)
     {
+        /* LA PLUS BASSE D'ABORD, et c'est la flamme qui en décide : un feu monte.
+           Ce qui prend en premier est la voile la plus près du foyer — la basse
+           voile, celle dont le point d'écoute pend au-dessus du pont —, et le feu
+           remonte ensuite de vergue en vergue. Il partait dans l'ordre où les
+           voiles avaient été gréées, c'est-à-dire par le perroquet aussi souvent
+           que par la misaine (signalé). */
         Canvas? pick = null;
+        double bas = double.MaxValue;
         foreach (var c in _canvases)
         {
             if (c.Split || c.Mast != mast) continue;
             if (c.Burn > 0.001) { pick = c; break; }     // celle qui a commencé finit
-            pick ??= c;
+            double y = Foot(c);
+            if (y < bas) { bas = y; pick = c; }
         }
         if (pick == null) return false;
         pick.Burn = Math.Min(1, pick.Burn + rate * dt);
@@ -266,8 +274,13 @@ public partial class ShipNode
                                    box.Position.Z + box.Size.Z * 0.5f);
             var g = c.Node.GlobalTransform * here;
             var loc = GlobalTransform.AffineInverse() * g;
-            // la demi-laize, pour semer la braise sur toute sa largeur
-            double span = Math.Max(0.5, c.Node.GlobalTransform.Basis.Scale.X * box.Size.X * 0.45);
+            /* LA DEMI-LAIZE, DANS LE REPÈRE DU BORD et non dans celui de la voile.
+               Braise et flammes s étalent selon le TRAVERS du navire ; mesurer leur
+               largeur sur l axe propre de la toile, qui tourne avec sa vergue et
+               avec son pivot, donnait 1,2 m de demi-laize à un hunier qui en fait
+               quatre (relevé) — deux repères pour une même largeur. */
+            var bb = GlobalTransform.AffineInverse() * c.Node.GlobalTransform * box;
+            double span = Math.Max(0.5, bb.Size.X * 0.45);
             return (new NavalSim.Core.Vec3d(loc.X, loc.Y, loc.Z), span, c.Burn);
         }
         return null;
@@ -283,9 +296,26 @@ public partial class ShipNode
         // celle qui a déjà commencé d'abord, pour ne pas en entamer six à la fois
         foreach (var c in _canvases)
             if (!c.Split && c.Burn > 0.001 && c.Mast >= 0) { BurnSails(c.Mast, dt, rate); return c.Mast; }
+        // et à défaut la plus BASSE qui reste, par le même principe : le feu monte
+        Canvas? pick = null;
+        double bas = double.MaxValue;
         foreach (var c in _canvases)
-            if (!c.Split && c.Mast >= 0) { BurnSails(c.Mast, dt, rate); return c.Mast; }
-        return -1;
+        {
+            if (c.Split || c.Mast < 0) continue;
+            double y = Foot(c);
+            if (y < bas) { bas = y; pick = c; }
+        }
+        if (pick == null) return -1;
+        BurnSails(pick.Mast, dt, rate);
+        return pick.Mast;
+    }
+
+    /// <summary>Le pied d'une voile dans le repère du bord : ce qui décide laquelle brûle en premier.</summary>
+    double Foot(Canvas c)
+    {
+        if (c.Node == null) return double.MaxValue;
+        var bb = c.Node.GetAabb();
+        return (GlobalTransform.AffineInverse() * c.Node.GlobalTransform * bb).Position.Y;
     }
 
     /// <summary>Le mât le plus proche de cette station, pour ce qui n'en connaît pas le numéro.</summary>

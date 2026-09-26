@@ -47,6 +47,19 @@ public partial class ShipNode
         return a;
     }
 
+    static readonly StringName UBurnSeed = "u_burn_seed";
+
+    /* UN VRAI BRASSAGE, et non un pas régulier. Le premier essai prenait le reste
+       d un produit par un premier — ce qui, tant qu on ne déborde pas du modulo,
+       revient à AJOUTER le même nombre à chaque voile (relevé : 0 · 2,16 · 4,33 ·
+       6,49…). Le dessin changeait quand même, le bruit ne se répétant pas d une
+       case à l autre, mais une progression n est pas un hasard et finirait par se
+       voir sur une voilure nombreuse. */
+    static float BurnSeed(int i)
+    {
+        double x = Math.Sin((i + 1) * 12.9898) * 43758.5453;
+        return (float)(Math.Abs(x - Math.Floor(x)) * 40.0);
+    }
     readonly List<Canvas> _canvases = new();
     /// <summary>La dernière heure où la toile a été formée : le creux passe à une vitesse, pas d'un coup.</summary>
     double? _lastTrimT;
@@ -489,6 +502,10 @@ public partial class ShipNode
             c.Idx[t + 2] = cloth.Indices[t + 1];
         }
         c.Node = new MeshInstance3D { Mesh = c.Mesh, CastShadow = GeometryInstance3D.ShadowCastingSetting.On };
+        /* SA GRAINE DE COMBUSTION : deux voiles ne brûlent pas du même dessin.
+           Un hachage et non le rang, sinon les voisines se ressemblent encore —
+           ce qu'on veut n'est pas un décalage, c'est un autre feu. */
+        c.Node.SetInstanceShaderParameter(UBurnSeed, BurnSeed(_canvases.Count));
         Upload(c);
         _canvases.Add(c);
         return c.Node;

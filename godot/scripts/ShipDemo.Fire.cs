@@ -137,8 +137,15 @@ public partial class ShipDemo : Node3D
                        laize, à mesure qu'elle ronge : c'est ce qu'on voit d'une
                        voilure en feu, et ça monte d'autant plus qu'il en reste
                        moins à manger. */
-                    _gunFx.Embers(new Vector3((float)wv.X, (float)wv.Y, (float)wv.Z),
-                                  bs.Span, 0.35 + 0.65 * bs.Burn, dt, s.Spec.L / 30);
+                    var wp = new Vector3((float)wv.X, (float)wv.Y, (float)wv.Z);
+                    double chaud = 0.35 + 0.65 * bs.Burn;
+                    _gunFx.Embers(wp, bs.Span, chaud, dt, s.Spec.L / 30);
+                    /* ET DES FLAMMES SUR TOUTE LA LAIZE, le long de la vergue et
+                       non en rond : l'axe est le travers du bord, tourné avec
+                       elle, donc les langues suivent la toile où qu'elle brasse. */
+                    var tv = b.Quat.Rotate(new Vec3d(1, 0, 0));
+                    _gunFx.SailFire(wp, new Vector3((float)tv.X, (float)tv.Y, (float)tv.Z),
+                                    bs.Span, chaud, dt, s.Spec.L / 30);
                 }
             }
 

@@ -60,6 +60,17 @@ instance uniform vec4 u_hole1 = vec4(0.0);
 instance uniform vec4 u_hole2 = vec4(0.0);
 instance uniform float u_hole_n = 0.0;
 
+/* LA GRAINE DE SA COMBUSTION, propre à chaque voile.
+ *
+ * Le front du feu se tire d'un bruit pris sur les coordonnées de la toile. Or
+ * ces coordonnées sont les MÊMES d'une voile à l'autre — zéro à un dans les
+ * deux sens —, si bien que les six voiles d'un navire se consumaient selon
+ * exactement le même dessin, décalé de rien du tout. On ne le voit pas sur une
+ * voile seule ; on ne voit que cela sur une voilure entière.
+ *
+ * Une graine par voile, posée au gréement, et chacune brûle à sa façon. */
+instance uniform float u_burn_seed = 0.0;
+
 /* LA TAILLE D'UNE DÉCHIRURE, en part de la toile. Un boulet de douze livres
    fait douze centimètres ; ce qu'on voit sur une voile n'est pas ce calibre mais
    ce qui PART de là — la toile sous tension se fend dès qu'on l'a percée. */
@@ -76,6 +87,35 @@ float naval_grain(vec2 q) {
 	float c0 = naval_hash13(vec3(i + vec2(0.0, 1.0), 0.0));
 	float d0 = naval_hash13(vec3(i + vec2(1.0, 1.0), 0.0));
 	return mix(mix(a0, b0, f.x), mix(c0, d0, f.x), f.y);
+}
+
+/* LE GRAIN D'UNE TOILE QUI BRÛLE — à plusieurs échelles, et TORDU.
+ *
+ * Un seul octave de bruit doux donne des taches rondes toutes de la même
+ * taille : la lisière ondulait régulièrement, comme un nuage, là où un feu
+ * avance par langues, par pointes et par trous, et à toutes les tailles à la
+ * fois (signalé).
+ *
+ * Trois octaves, chacun deux fois plus fin et deux fois moins fort : le premier
+ * donne les grandes avancées, le dernier la dentelle du bord. Les fréquences ne
+ * sont pas des multiples exacts (2,13 et 4,31) pour que les octaves ne se
+ * calent jamais les uns sur les autres — c'est cet alignement qui fait
+ * réapparaître un motif là où l'on en cherchait l'absence.
+ *
+ * Et la TORSION avant tout : on déplace l'endroit où l'on regarde le bruit par
+ * un autre bruit. C'est elle qui ôte à la lisière son air de nuage, parce
+ * qu'elle étire les taches dans des directions qui changent d'un point à
+ * l'autre — un feu ne mange pas en rond. Elle coûte deux tirages et vaut plus
+ * que les trois octaves réunis.
+ *
+ * Somme des poids exactement 1 : le front reste entre zéro et un, et le seuil
+ * de combustion garde le sens qu'il avait. */
+float naval_burn_grain(vec2 q) {
+	vec2 w = vec2(naval_grain(q * 0.7 + 3.1), naval_grain(q * 0.7 + 7.4)) - 0.5;
+	q += w * 1.4;
+	return naval_grain(q) * 0.52
+	     + naval_grain(q * 2.13 + 11.0) * 0.30
+	     + naval_grain(q * 4.31 + 23.0) * 0.18;
 }
 
 /* UNE DÉCHIRURE, ET NON UN POINÇON.
@@ -167,7 +207,12 @@ void fragment() {
 	float braise = 0.0;
 	if (u_burn > 0.001) {
 		float bas = 1.0 - UV.y;                       // 0 à la têtière, 1 au point d'écoute
-		float front = bas * 0.62 + naval_grain(UV * vec2(5.0, 7.0)) * 0.38;
+		/* La HAUTEUR donne le sens, le GRAIN la déchirure, et le partage entre
+		   les deux est tout le réglage : trop de hauteur et la toile se mange par
+		   une ligne horizontale, trop de grain et elle se mange par plaques, ce
+		   qui est de la moisissure et non du feu. La graine décale le grain d'une
+		   voile à l'autre. */
+		float front = bas * 0.55 + naval_burn_grain(UV * vec2(4.0, 5.5) + u_burn_seed) * 0.45;
 		float seuil = 1.0 - u_burn;
 		if (front > seuil) discard;                   // ce qui est consumé n'est plus là
 		/* LA LISIÈRE : la braise qui ronge, et le roussi devant elle. Le roussi est

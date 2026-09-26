@@ -11006,6 +11006,88 @@ doutait. Les deux sont corrigées du même coup, ce qui est la règle : `SailClo
 est le portage de `setSailShape`, et une correction qui ne vaudrait que pour un
 moteur est le début de deux définitions.
 
+## Le feu prend par le bas, et ne mange pas deux fois le même dessin (Godot)
+
+Trois demandes d'affilée sur la toile qui brûle, et chacune a trouvé un défaut
+qu'on ne cherchait pas.
+
+### Par le bas, parce qu'un feu monte
+
+Le feu prenait les voiles d'un mât dans l'ordre où elles avaient été gréées,
+c'est-à-dire par le perroquet aussi souvent que par la misaine. Ce qui doit
+s'enflammer d'abord est la voile la plus PRÈS DU FOYER — la basse voile, dont le
+point d'écoute pend au-dessus du pont — et le feu remonte ensuite de vergue en
+vergue. Relevé après correction : mât 0, voile à 5,2 m puis voile à 13,3 m ; mât
+1, 4,7 m puis 12,4 m. Le brasier qui doit aller manger ailleurs prend lui aussi
+la plus basse qui reste.
+
+### Des flammes qui lèchent, et non un foyer posé derrière la toile
+
+Trois choses séparent les flammes d'une voile de celles d'un tas de bois :
+
+**Elles se sèment sur une LIGNE, pas dans un disque.** Un foyer de pont répand
+ses langues dans un disque horizontal, ce qui est juste pour lui ; une voile
+brûle sur le front qui la ronge, et des flammes en rond derrière elle se
+lisaient comme une torche accrochée au mât.
+
+**Elles sont nombreuses et courtes.** Une toile de lin n'a pas de quoi nourrir
+une colonne : elle s'enflamme d'un coup, lèche, s'éteint. Quatre fois le débit
+d'un foyer et la moitié de la vie — 50 à 60 langues en l'air au lieu de six.
+
+**Elles montent droit et collent au tissu**, le hasard étant dans la laize et à
+peine dans l'épaisseur : une flamme qui s'écarte de la toile ne la lèche plus,
+elle flotte à côté.
+
+Et une incohérence trouvée là : la demi-laize était mesurée dans le repère de la
+VOILE, qui tourne avec sa vergue et son pivot, alors que braise et flammes
+s'étalent selon le TRAVERS DU BORD. Un hunier de quatre mètres de demi-largeur
+s'annonçait à 1,2 m et le feu se serrait au milieu. **Deux repères pour une même
+largeur** : il n'y en a plus qu'un, et la même voile donne 2,3 m.
+
+### Le bruit d'une lisière, et la faute qui se voyait vraiment
+
+Demandé : un front moins régulier. Ce qu'il y avait était UN octave de bruit
+doux, donc des taches rondes toutes de la même taille — la lisière ondulait
+comme un nuage là où un feu avance par langues, par pointes et par trous, à
+toutes les tailles à la fois.
+
+Trois octaves, chacun deux fois plus fin et deux fois moins fort ; et surtout la
+TORSION, qui déplace l'endroit où l'on regarde le bruit par un autre bruit.
+C'est elle qui ôte à la lisière son air de nuage, parce qu'elle étire les taches
+dans des directions qui changent d'un point à l'autre. Elle coûte deux tirages
+et vaut plus que les trois octaves réunis.
+
+Deux détails qui ne s'inventent pas :
+
+- **les fréquences ne sont pas des multiples exacts** (2,13 et 4,31). Des
+  octaves en 2 et 4 se calent les uns sur les autres et font réapparaître un
+  motif là où on en cherchait l'absence ;
+- **la somme des poids fait exactement 1**, si bien que le front reste entre
+  zéro et un et que le seuil de combustion garde le sens qu'il avait.
+
+Mais le vrai défaut était ailleurs, et personne ne le cherchait : **les six
+voiles brûlaient du même dessin.** Le bruit se prend sur les coordonnées de la
+toile, or elles sont les mêmes d'une voile à l'autre — zéro à un dans les deux
+sens. On ne le voit pas sur une voile seule ; on ne voit que cela sur une
+voilure entière. Une graine par voile, et le sujet est clos.
+
+**La leçon, qui n'est pas la première du genre : quand un motif se répète, ce
+n'est pas toujours le bruit qui est trop régulier — c'est parfois qu'on
+interroge le même bruit au même endroit.**
+
+### Et deux fautes attrapées en le vérifiant
+
+**Un uniforme d'instance posé sur un nœud pas encore dans l'arbre peut se
+perdre.** Il tient ici — relu après coup — mais la question devait être posée
+avant de bâtir dessus, et la relire coûtait une sonde.
+
+**Un « hachage » qui était un pas régulier.** `i * 7919 % 977` : tant qu'on ne
+déborde pas du modulo, cela revient à AJOUTER toujours la même chose (relevé :
+0 · 2,16 · 4,33 · 6,49…). Le dessin changeait quand même, le bruit ne se
+répétant pas d'une case à l'autre — mais une progression n'est pas un hasard, et
+elle aurait fini par se voir sur une voilure nombreuse. C'est exactement la
+faute qu'on venait de corriger, commise en la corrigeant.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code
