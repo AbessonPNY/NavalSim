@@ -375,7 +375,10 @@ public partial class ShipDemo
     void StoryItems() => GameItems("histoire", "Nouvelle partie", NewGame);
 
     /// <summary>Le jeu libre : commencer, ou reprendre.</summary>
-    void FreeItems() => GameItems("libre", "Nouvelle partie", NewFree);
+    /* JEU LIBRE : voir ShipDemo.ShipPick.cs — il ouvre le panneau des navires au
+       lieu d'aller droit au jeu, et c'est lui qui pose ses entrées. Les deux
+       autres modes gardent GameItems : on ne choisit pas sa coque pour une
+       quête, l'histoire la donne. */
 
     /// <summary>
     /// UN MENU DE MODE, EN DEUX TEMPS : « Nouvelle partie » et « Charger une

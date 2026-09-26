@@ -25,8 +25,12 @@ const inlined = [];
  * procedural hull rather than failing. */
 // Whatever specs are in the ships folder, in the order they sort. Dropping a
 // file in there is the whole act of adding a vessel — no list to maintain.
+/* index.json dit ce que la page doit demander, libre.json ce que le jeu libre
+   propose : ce sont des LISTES de navires, pas des navires. Les embarquer comme
+   des fiches mettrait deux bateaux fantômes dans le sélecteur. */
+const NOT_SHIPS = ['index.json', 'libre.json'];
 const shipList = fs.readdirSync(path.join(ROOT, 'ships'))
-  .filter(f => f.endsWith('.json') && f !== 'index.json')
+  .filter(f => f.endsWith('.json') && !NOT_SHIPS.includes(f))
   .sort()
   .map(f => 'ships/' + f);
 

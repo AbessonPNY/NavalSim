@@ -1,0 +1,12 @@
+{
+  "_aide": "LES NAVIRES QU'ON PEUT PRENDRE EN JEU LIBRE, dans l'ordre ou ils paraissent. Le dossier fait foi pour ce qui EXISTE ; ce fichier dit ce qui est OFFERT — un chaland, une bouee et une vedette de debogage sont des fiches parfaitement valides qu'on ne propose pas au joueur. Une entree : ship (le nom de la fiche, sans .json) et, tous facultatifs, label, year, image, locked. Sans label ni year, ils se lisent dans le nom de la fiche : « La Boussole 1597 » donne « La Boussole » et 1597. Le tonnage n'est JAMAIS ici, il se lit dans la fiche — une definition, plusieurs usagers. Sans image, le visuel est cherche a ships/textures/menu/<ship>.jpg puis .png, et a defaut la carte est peinte par le code. locked porte la RAISON, montree au joueur, et la coque reste visible mais grise : ce qu'on ne peut pas encore prendre doit se voir, sinon il ne se convoite pas. Fichier absent ou illisible : tout le dossier est offert, avec un avertissement — on ne prive jamais le joueur de ses navires sur une faute de virgule.",
+  "ships": [
+    { "ship": "boussole" },
+    { "ship": "frigate17e" },
+    { "ship": "pirate", "year": 1600 },
+    { "ship": "speedwell" },
+    { "ship": "schooner" },
+    { "ship": "cotre" },
+    { "ship": "frigate", "locked": "Une frégate de 2 000 t ne se confie pas au premier venu." }
+  ]
+}

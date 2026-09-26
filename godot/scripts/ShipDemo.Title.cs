@@ -68,7 +68,7 @@ public partial class ShipDemo : Node3D
            tient dans le cadre du scope, il ne passe pas par-dessus les bandes. */
         _titleLayer = new CanvasLayer { Layer = -1, Visible = false };
         AddChild(_titleLayer);
-        var root = new Control { AnchorRight = 1, AnchorBottom = 1, MouseFilter = Control.MouseFilterEnum.Ignore };
+        var root = _titleRoot = new Control { AnchorRight = 1, AnchorBottom = 1, MouseFilter = Control.MouseFilterEnum.Ignore };
         _titleLayer.AddChild(root);
 
         var font = Cursive();
@@ -169,6 +169,7 @@ public partial class ShipDemo : Node3D
 
     void MainItems()
     {
+        ClosePick();
         ClearItems();
         Item("Jeu libre", FreeItems);
         Item("Escarmouche", Skirmish);
@@ -349,6 +350,8 @@ public partial class ShipDemo : Node3D
     /// <summary>Les flèches et l'entrée, tant que le titre est là. Rend vrai s'il a pris la touche.</summary>
     bool TitleKey(Key key)
     {
+        // le panneau du jeu libre passe avant : c'est lui qu'on regarde
+        if (PickKey(key)) return true;
         switch (key)
         {
             case Key.Up:   _titlePick = (_titlePick + _titleItems.Count - 1) % _titleItems.Count; ShowPick(); return true;
@@ -358,6 +361,7 @@ public partial class ShipDemo : Node3D
             // on ne quitte pas un jeu par mégarde depuis son écran de titre
             case Key.Escape:
                 if (_menu.Visible) _menu.Visible = false;
+                else if (_pickOpen) { ClosePick(); MainItems(); }
                 else if (_credits != null && _credits.Visible) _credits.Visible = false;
                 else if (_titleItems.Count > 0 && _titleItems[^1].Text == "Retour") MainItems();
                 return true;

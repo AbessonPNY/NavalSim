@@ -20,6 +20,47 @@ Options : `--tonnes N` pour imposer le déplacement, `--id slug`, `--force` pour
 Une fiche illisible est ignorée avec un avertissement en console — elle
 n'empêche jamais les autres navires de se charger.
 
+## Ce qu'on peut prendre en jeu libre — `libre.json`
+
+Le dossier fait foi pour ce qui **existe** ; `ships/libre.json` dit ce qui est
+**offert**. Un chaland, une bouée canard et une vedette de débogage sont des
+fiches parfaitement valides qu'on ne propose pas au joueur, et tous les navires
+ne se prennent pas dès le premier jour.
+
+```json
+{
+  "ships": [
+    { "ship": "boussole" },
+    { "ship": "pirate", "year": 1600 },
+    { "ship": "frigate", "locked": "Une frégate de 2 000 t ne se confie pas au premier venu." }
+  ]
+}
+```
+
+L'ordre est celui des cartes. Une entrée porte `ship` — le nom de la fiche, sans
+`.json` — et, tous facultatifs :
+
+| champ | ce qu'il fait |
+|---|---|
+| `label` | le nom sur la carte ; sans lui, celui de la fiche **moins son millésime** |
+| `year` | l'année ; sans elle, les quatre chiffres qui terminent le nom de la fiche |
+| `image` | le visuel, depuis la racine ; sans lui, `ships/textures/menu/<ship>.jpg` |
+| `locked` | la **raison** qui l'interdit : la coque reste visible, mais grise |
+
+Le tonnage n'est jamais ici : il se lit dans la fiche. Une définition, plusieurs
+usagers — un déplacement écrit à deux endroits est un déplacement qui divergera.
+
+`locked` porte la raison et non un simple drapeau, parce que la raison s'affiche
+sous la carte : **ce qu'on ne peut pas encore prendre doit se voir**, sinon il ne
+se convoite pas.
+
+Fichier absent ou illisible : tout le dossier est offert, avec un avertissement
+en console. On ne prive jamais le joueur de ses navires sur une faute de
+virgule. Et ce fichier n'est pas une fiche — `build.js` comme Godot l'écartent
+du dossier au même titre qu'`index.json`.
+
+Les visuels ont leur propre README : `ships/textures/menu/`.
+
 ## Principe
 
 Le JSON énonce ce qu'énoncerait un architecte naval : dimensions principales,
