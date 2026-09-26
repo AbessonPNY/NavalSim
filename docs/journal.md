@@ -10491,6 +10491,68 @@ la cause — ici « le climat par défaut » pour une lampe d'incendie. À ne pa
 découper aujourd'hui, mais à savoir : quand un réglage lointain paraît ignoré,
 c'est la ligne d'avertissement qu'il faut chercher, pas le fichier.
 
+## Une flamme est une langue, pas un disque (Godot)
+
+Demandé : remplacer les particules rondes du feu par des formes plus « flammes ».
+
+Les bouffées additives partageaient une seule texture — un disque —, ce qui va
+pour une boule de feu et pour une étincelle, et pas du tout pour ce qui BRÛLE :
+une flamme est une langue, haute, pointue, et **l'œil la reconnaît à sa
+silhouette bien avant sa couleur**.
+
+Un second bassin, donc, avec sa texture à lui, peinte plutôt que chargée comme
+tout ce que le code peut dessiner. Large et ronde au pied, effilée en pointe,
+les bords ondulés de deux harmoniques pour que la lisière ne soit pas un arc de
+cercle ; le cœur blanc-jaune et la frange orange sombre, parce qu'une flamme est
+le plus chaude au milieu de sa base. Elle est dessinée HAUTE dans un carré : la
+bouffée reste un sprite carré, et c'est le vide de part et d'autre qui lui donne
+son élancement, sans qu'on ait à porter une seconde dimension jusqu'au shader.
+
+**Et elle se tient debout.** Les bouffées prennent un angle au hasard, ce qui est
+juste pour de la fumée et absurde pour du feu : on avait des flammes couchées et
+même à l'envers, la seule chose qu'une flamme ne fait jamais. Un huitième de
+radian de tremblement suffit à ce qu'elles ne soient pas toutes parallèles.
+
+La boule de feu d'une explosion garde le disque : une déflagration n'a pas de
+haut.
+
+## Le Roter Löwe était sous-lesté (Godot et page)
+
+Signalé : « le Roter Löwe a tendance à se coucher facilement par gros temps ».
+Mesuré plutôt que ressenti — gîte moyenne et pire sur une course de force 9,
+creux 1,4, toile établie :
+
+| | gîte moyenne | pire | immersion |
+|---|---|---|---|
+| Roter Löwe | 17,2° | 19,7° | 36,6 % |
+| HMS Speedwell | 13,1° | 16,5° | 53,2 % |
+
+Elle est bien plus tendre que sa sœur de 1690, et la fiche dit pourquoi : à
+longueur et bau presque égaux, elle déplace **240 tonnes contre 315**, et flotte
+donc à 37 % d'immersion quand l'autre est à 53. Un bâtiment qui flotte si haut
+avec 463 m² de toile portés à 9,75 m n'a pas le bras de levier qu'il faut.
+
+Ce n'était pas la faute de la houle ni du solveur : **elle n'avait pas assez de
+lest**. Trois cents tonnes pour trente mètres sur sept mètres vingt-cinq est
+d'ailleurs la figure plausible d'un galion de 1597 ; deux cent quarante était
+une coque de papier.
+
+La correction est donc un seul nombre, et le plus honnête — le déplacement, non
+le centre de gravité, qui reste celui de ses sœurs. Avec 300 t elle tombe dans la
+bande du Speedwell (13,5 à 16,5° de moyenne selon les courses) et flotte à 45 %.
+Le galion pirate, qui est la MÊME coque au chiffre près, reçoit le même lest :
+laisser l'un tendre et l'autre raide aurait été un mensonge de fiche.
+
+**Une note sur la mesure elle-même**, qui vaut d'être écrite : deux courses de la
+même coque dans le même état de mer donnent 14,0° et 16,2° de moyenne — la phase
+de la houle et les risées sont tirées au sort. Trois degrés de dispersion, donc,
+et il faut deux ou trois courses avant de croire un écart. Le premier balayage
+(240 → 300 → 330) était monotone et de huit degrés d'amplitude : lui, on peut le
+croire.
+
+Éprouvée au pire : force 9,9, creux 1,8, toile établie, trois courses — 7 à 11°
+de moyenne, 13 à 20° de pointe, **aucun chavirage**.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

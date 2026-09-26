@@ -19,7 +19,7 @@
     "sectionTuck": 0.46,
     "sectionPower": 0.6
   },
-  "displacementTonnes": 240,
+  "displacementTonnes": 300,
   "boat": "chaloupe",
   "cog": {
     "yFracKeel": -0.43,

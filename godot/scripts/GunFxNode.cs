@@ -27,6 +27,8 @@ namespace NavalSim;
 public partial class GunFxNode : Node3D
 {
     const int MaxAdd = 512, MaxPowder = 1536, MaxSoot = 256, MaxBalls = 96;
+    /// <summary>Les LANGUES de feu, qui ont leur propre forme et leur propre réserve.</summary>
+    const int MaxFlame = 384;
     const double Lag = 0.30;          // la part du vent qu'un nuage de poudre prend
 
     enum Kind { Flash, Smoke, Fire, Soot, Spark, Mist }
@@ -40,8 +42,8 @@ public partial class GunFxNode : Node3D
         public Vector3 Col;               // la couleur de base, linéaire
     }
 
-    readonly List<Puff> _add = new(), _powder = new(), _soot = new();
-    MultiMesh _mmAdd = null!, _mmPowder = null!, _mmSoot = null!, _mmBall = null!;
+    readonly List<Puff> _add = new(), _powder = new(), _soot = new(), _flame = new();
+    MultiMesh _mmAdd = null!, _mmPowder = null!, _mmSoot = null!, _mmBall = null!, _mmFlame = null!;
     readonly OmniLight3D[] _gunLamps = new OmniLight3D[4], _blastLamps = new OmniLight3D[3];
     /// <summary>Une par coque qui peut brûler — autant que la flotte en porte.</summary>
     readonly OmniLight3D[] _fireLamps = new OmniLight3D[NavalSim.Core.Config.MaxShips];
@@ -65,6 +67,12 @@ public partial class GunFxNode : Node3D
         _mmAdd = Pool(quad, "res://shaders/puff_add.gdshader", GlowTexture(), MaxAdd);
         _mmPowder = Pool(quad, "res://shaders/puff_mix.gdshader", PowderTexture(), MaxPowder);
         _mmSoot = Pool(quad, "res://shaders/puff_mix.gdshader", Smoke = SmokeTexture(), MaxSoot);
+        /* LE FEU A SA PROPRE FORME. Les bouffées additives partageaient une seule
+           texture — un disque —, ce qui va pour une boule de feu et pour une
+           étincelle, et pas du tout pour ce qui BRÛLE : une flamme est une langue,
+           haute, pointue, et l'œil la reconnaît à sa silhouette bien avant sa
+           couleur. Un second bassin, donc, avec sa texture à lui. */
+        _mmFlame = Pool(quad, "res://shaders/puff_add.gdshader", FlameTexture(), MaxFlame);
 
         /* UN BOULET, bien plus gros que nature, et exprès : un douze livres fait onze
            centimètres, un tiers de pixel à une encablure — il n'existerait pas. Son
@@ -302,16 +310,20 @@ public partial class GunFxNode : Node3D
         {
             float a2 = R() * Mathf.Tau, r = R() * 1.2f * fk;
             var p0 = at + new Vector3(Mathf.Cos(a2) * r, 0, Mathf.Sin(a2) * r);
-            // LA FLAMME : courte, elle monte droit et s'éteint vite
-            Add(_add, new Puff
+            /* LA FLAMME : une LANGUE, courte, qui monte droit et s'éteint vite.
+               Elle se tient DEBOUT — un angle au hasard ferait des flammes
+               couchées et même à l'envers, ce qui est la seule chose qu'une
+               flamme ne fait jamais. Un huitième de radian de tremblement suffit
+               à ce qu'elles ne soient pas toutes parallèles. */
+            Add(_flame, new Puff
             {
                 K = Kind.Fire, T = 0, Life = 0.45 + R() * 0.5,
                 P = p0,
                 V = new Vector3((R() - 0.5f) * 0.9f, (1.6f + R() * 2.2f) * (0.5f + (float)heat), (R() - 0.5f) * 0.9f) * fk,
                 Drag = 1.4,
                 S0 = (0.5 + 1.4 * heat) * k, S1 = (1.6 + 3.2 * heat) * k,
-                Col = Lin(0xffc46a), Rot = R() * 6.2832
-            }, MaxAdd);
+                Col = Lin(0xffc46a), Rot = (R() - 0.5) * 0.25
+            }, MaxFlame);
             // LA FUMÉE : noire, lente, et elle vit vingt fois plus — c'est elle qu'on voit d'un mille
             if (R() < 0.7f)
                 Add(_soot, new Puff
@@ -486,6 +498,7 @@ public partial class GunFxNode : Node3D
         _lit = new Vector3((float)(horizon.X / l * kk), (float)(horizon.Y / l * kk), (float)(horizon.Z / l * kk));
 
         StepPuffs(_add, _mmAdd, dt, wind);
+        StepPuffs(_flame, _mmFlame, dt, wind);
         StepPuffs(_powder, _mmPowder, dt, wind);
         StepPuffs(_soot, _mmSoot, dt, wind);
 
@@ -619,6 +632,7 @@ public partial class GunFxNode : Node3D
         for (int i = 0; i < _add.Count; i++) { var p = _add[i]; p.P -= d; _add[i] = p; }
         for (int i = 0; i < _powder.Count; i++) { var p = _powder[i]; p.P -= d; _powder[i] = p; }
         for (int i = 0; i < _soot.Count; i++) { var p = _soot[i]; p.P -= d; _soot[i] = p; }
+        for (int i = 0; i < _flame.Count; i++) { var p = _flame[i]; p.P -= d; _flame[i] = p; }
         for (int i = 0; i < _queue.Count; i++) { var q = _queue[i]; q.At -= d; _queue[i] = q; }
         foreach (var L in _gunLamps) L.Position -= d;
         foreach (var L in _blastLamps) L.Position -= d;
@@ -686,6 +700,52 @@ public partial class GunFxNode : Node3D
 
     /* LA LUEUR (Naval.glowTexture) : blanc au cœur, puis chaud, puis ambre, puis
        rien — en couleur, celle-ci. */
+    /// <summary>
+    /// UNE LANGUE DE FEU, peinte plutôt que chargée — comme tout ce que le code
+    /// peut dessiner.
+    ///
+    /// Large et ronde au pied, effilée en pointe au sommet, les bords ondulés :
+    /// c'est la SILHOUETTE qu'on reconnaît, bien avant la couleur. Le cœur est
+    /// blanc-jaune et la lisière orange sombre, parce qu'une flamme est le plus
+    /// chaude au milieu de sa base et se refroidit en montant.
+    ///
+    /// Dessinée haute dans un carré, le pied en BAS : la bouffée reste un sprite
+    /// carré, et c'est le vide de part et d'autre qui lui donne son élancement,
+    /// sans qu'on ait à porter une seconde dimension jusqu'au shader.
+    /// </summary>
+    static ImageTexture FlameTexture()
+    {
+        const int s = 64;
+        var img = Image.CreateEmpty(s, s, false, Image.Format.Rgba8);
+        for (int y = 0; y < s; y++)
+            for (int x = 0; x < s; x++)
+            {
+                // u : 0 au pied, 1 à la pointe ; v : de −1 à 1 en travers
+                float u = 1f - (y + 0.5f) / s;
+                float v = ((x + 0.5f) / s - 0.5f) * 2f;
+                /* SA LARGEUR : pleine au tiers de sa hauteur, nulle à la pointe et
+                   resserrée au pied — une flamme n'est pas un triangle, elle a un
+                   ventre. Et deux ondulations en travers, pour que la lisière ne
+                   soit pas un arc de cercle. */
+                float ventre = MathF.Sin(MathF.Pow(u, 0.62f) * MathF.PI);
+                float onde = 1f + 0.10f * MathF.Sin(u * 11f) + 0.06f * MathF.Sin(u * 23f + 1.7f);
+                float w = ventre * onde * 0.92f;
+                float d = w > 0.001f ? MathF.Abs(v) / w : 9f;
+                if (d >= 1f) { img.SetPixel(x, y, new Color(0, 0, 0, 0)); continue; }
+                /* LE CŒUR EST BLANC, la lisière orange, et tout s'éteint vers la
+                   pointe : le haut d'une flamme est déjà de la fumée chaude. */
+                float coeur = MathF.Pow(1f - d, 2.2f) * (1f - u * 0.72f);
+                float a2 = MathF.Pow(1f - d, 1.35f) * (1f - MathF.Pow(u, 1.8f));
+                var c = new Color(1f,
+                                  Math.Clamp(0.42f + 0.58f * coeur, 0f, 1f),
+                                  Math.Clamp(0.08f + 0.80f * coeur * coeur, 0f, 1f),
+                                  Math.Clamp(a2, 0f, 1f));
+                img.SetPixel(x, y, c);
+            }
+        img.GenerateMipmaps();
+        return ImageTexture.CreateFromImage(img);
+    }
+
     static ImageTexture GlowTexture()
     {
         const int s = 64;
