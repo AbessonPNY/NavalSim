@@ -172,6 +172,18 @@ public partial class ShipDemo
         _meleeJoined = false;
         _skirmish = true;
 
+        /* ET LA MER SE VIDE DE SES MONSTRES. Couper leur pas suffit à ce qu'il
+           n'en vienne plus, mais pas à renvoyer celui qui était déjà là : un
+           kraken accroché au bord serait resté accroché, figé, pour toute
+           l'escarmouche — un pas qu'on ne fait plus ne défait pas ce qu'il avait
+           fait. On plonge donc le kraken (il lâche tout, c'est déjà écrit) et l'on
+           efface ce qui se dessinait. */
+        if (_kraken.State != KrakenState.Absent && _kraken.State != KrakenState.Dive) _kraken.Dive("storm");
+        _krakenNode.Visible = false;
+        if (_whaleNode != null) _whaleNode.Visible = false;
+        if (_serpentNode != null) _serpentNode.Visible = false;
+        if (_wraithShip != null) { RemoveShip(_wraithShip); _wraithShip = null; }
+
         // deux pavillons différents, tirés parmi les nations — jamais le noir
         var pool = _nations.All.FindAll(x => !x.Pirate);
         if (pool.Count < 2) { Say("Il faut deux pavillons pour une escarmouche"); _skirmish = false; Play(); return; }

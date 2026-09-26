@@ -963,6 +963,19 @@ public partial class ShipDemo : Node3D
     /// Le taux ÉNONCÉ : « ×2 » ne veut rien dire si « ×1 » ne dit pas quoi —
     /// une minute réelle pour une heure. L'heure du ciel à côté.
     /// </summary>
+    /// <summary>
+    /// POSER LE DÉFILEMENT DU JOUR, curseur compris. Le régler sur le ciel seul
+    /// laissait la console montrer l'ancien taux, et le premier frôlement du
+    /// curseur le rendait — une valeur affichée qui n'est pas la valeur vraie est
+    /// pire que pas de valeur du tout.
+    /// </summary>
+    void SetDayRate(double v)
+    {
+        _sky.DayRate = Math.Clamp(v, 0, 16);
+        if (_sunSpeed != null) _sunSpeed.SetValueNoSignal(_sky.DayRate);
+        if (_sunSpeedVal != null) ShowSunSpeed();
+    }
+
     void ShowSunSpeed()
     {
         double v = _sky.DayRate;
@@ -1326,8 +1339,11 @@ public partial class ShipDemo : Node3D
         // après les feux : la scène lit la nuit par leur règle
         GhostTick(frame);
         /* LE VAISSEAU QUI RÔDE, après les feux comme la bataille fantôme : il vient
-           à la LUMIÈRE, et il lui faut donc savoir ce que le bord montre. */
-        WraithTick(frame, frame * _sky.DayRate / 60.0);
+           à la LUMIÈRE, et il lui faut donc savoir ce que le bord montre. Muet en
+           escarmouche, comme le reste du bestiaire : une voile de plus dans une
+           mêlée de douze, et qu'on ne peut ni couler ni éviter, ne serait qu'une
+           confusion. */
+        if (!_skirmish) WraithTick(frame, frame * _sky.DayRate / 60.0);
         // et la mer les voit : leur reflet et leur lumière sur l'eau
         int lamps = _ship.FillLamps(_sea.Lamps, _sea.LampRange, 0);
         foreach (var s in _others) lamps += s.FillLamps(_sea.Lamps, _sea.LampRange, lamps);
@@ -1911,14 +1927,15 @@ public partial class ShipDemo : Node3D
                 case Key.T when k.ShiftPressed: (_seaFog ??= new SeaFog(_fogRules)).Force(3); Say("La brume monte sur l'eau"); break;
                 case Key.T: SetAutoWeather(!_weather.On); break;
                 // ⇧J : une averse et le serpent de mer, qui ne vit que dans la pluie
-                case Key.J when k.ShiftPressed: SummonSerpent(); break;
+                case Key.J when k.ShiftPressed: if (!BestiaireMuet()) SummonSerpent(); break;
                 case Key.J: GoToStorm(0); break;
                 // le radoub : mâts replantés, toile renverguée — pour recommencer un essai
                 case Key.R: Salvage(); break;
                 // le kraken, tout de suite contre elle — pour le voir sans attendre une minute au cœur d'un grain
                 // ⇧K : la baleine, qui vient charger — pour la voir sans attendre au large
-                case Key.K when k.ShiftPressed: SummonWhale(); break;
+                case Key.K when k.ShiftPressed: if (!BestiaireMuet()) SummonWhale(); break;
                 case Key.K:
+                    if (BestiaireMuet()) break;
                     // il ne vit qu'au cœur des dépressions : hors d'elles, il replongerait à l'image suivante
                     if (!_inSquall || _squall.Inten < _krakenRules.MinInten) GoToStorm(0.2);
                     _kraken.Summon(true, PreyOf(_ship));
@@ -1969,10 +1986,10 @@ public partial class ShipDemo : Node3D
                     break;
                 case Key.Y: BlowUp(_ship); break;
                 // ⇧U : le vaisseau fantôme, tout de suite — U appelle une voile, ⇧U celle qui n'en est pas une
-                case Key.U when k.ShiftPressed: SummonWraith(); break;
+                case Key.U when k.ShiftPressed: if (!BestiaireMuet()) SummonWraith(); break;
                 case Key.U: SpawnPirate(900); break;
                 case Key.P when k.ShiftPressed: ToggleColours(); break;
-                case Key.P: GoToGhosts(true); break;
+                case Key.P: if (!BestiaireMuet()) GoToGhosts(true); break;
                 /* ⇧L COUVRE LES FEUX — L comme lunette, ⇧L comme lanternes. Un
                    navire qui veut ne pas être vu la nuit éteint, et c est la seule
                    chose qu il puisse faire. */
@@ -2495,13 +2512,26 @@ public partial class ShipDemo : Node3D
             if (_storms.At(o.X + b.Pos.X, o.Z + b.Pos.Z, _t, out var q)) _orage.Add((PreyOf(s), q.Inten));
         }
 
-        // le kraken ne prend pas les spectres ; la foudre, si
-        _orageKraken.Clear();
-        foreach (var it in _orage) if (!_preyShip[it.Prey].IsGhost) _orageKraken.Add(it);
-        _kraken.Update(dt, _orageKraken, _sea.Core, _t, _alive ??= PreyAlive);
-        _krakenNode.Sync(_kraken);
-        WhaleTick(dt);
-        SerpentTick(dt);
+        /* PAS DE MONSTRES EN ESCARMOUCHE (demandé). Une escarmouche est une
+           BATAILLE NAVALE : douze coques qui se cherchent sous leurs pavillons,
+           et l'on a déjà fort à faire. Le kraken qui enlace, la baleine qui
+           charge et le serpent qui sort de la pluie sont l'affaire du jeu libre
+           et de l'Histoire, où l'on navigue seul et où une rencontre est un
+           événement — pas un troisième camp dans une mêlée.
+
+           LE TEMPS, LUI, RESTE : le gros temps, la foudre et l'incendie ne sont
+           pas du bestiaire, ce sont les conditions de la bataille, et une
+           escarmouche sous un grain vaut mieux qu'une escarmouche par calme. */
+        if (!_skirmish)
+        {
+            // le kraken ne prend pas les spectres ; la foudre, si
+            _orageKraken.Clear();
+            foreach (var it in _orage) if (!_preyShip[it.Prey].IsGhost) _orageKraken.Add(it);
+            _kraken.Update(dt, _orageKraken, _sea.Core, _t, _alive ??= PreyAlive);
+            _krakenNode.Sync(_kraken);
+            WhaleTick(dt);
+            SerpentTick(dt);
+        }
 
         foreach (var (prey, inten) in _orage)
             if (_stormRng.NextDouble() < _lightRules.StrikeChance(inten, dt)) StrikeSomewhere(_preyShip[prey]);
@@ -2516,6 +2546,20 @@ public partial class ShipDemo : Node3D
         var h = _sky.Core.Horizon;
         _cordage.Step(dt, _allShips, _sea.Core, _t, _cam, _sea.Core.WindVec, new Vec3d(h.R, h.G, h.B));
         _splinters.Step(dt, _sea.Core, _t, _spray.Pool);
+    }
+
+    /// <summary>
+    /// LE BESTIAIRE SE TAIT EN ESCARMOUCHE, et il le DIT. Les touches qui
+    /// l'appellent ne pouvaient plus rien faire une fois son pas coupé — un
+    /// kraken convoqué serait resté figé sous la mer, jamais mis à jour ni
+    /// dessiné. Une commande qui ne fait rien SANS RIEN DIRE est le pire des
+    /// deux : on la retape, on croit le clavier mort.
+    /// </summary>
+    bool BestiaireMuet()
+    {
+        if (!_skirmish) return false;
+        Say("Pas de monstres en escarmouche : c'est une bataille navale");
+        return true;
     }
 
     /* LA FOUDRE TOMBE SUR LA PLUS HAUTE TÊTE DE MÂT encore debout. L'éclair du

@@ -49,6 +49,13 @@ public partial class ShipDemo
         [JsonPropertyName("force")] public double Force { get; set; } = 4;
         [JsonPropertyName("vent")] public double Vent { get; set; } = 105;
         [JsonPropertyName("meteoAuto")] public bool MeteoAuto { get; set; }
+        /// <summary>
+        /// Le défilement du jour, en heures de ciel par minute réelle. Zéro veut
+        /// dire « pas enregistré » — une partie d'avant garde alors le taux du
+        /// démarrage plutôt que d'arrêter le soleil, ce qui serait le pire des
+        /// deux sens possibles pour un champ manquant.
+        /// </summary>
+        [JsonPropertyName("defilement")] public double Defilement { get; set; }
         [JsonPropertyName("nuages")] public double Nuages { get; set; } = 0.06;
         [JsonPropertyName("sous")] public long Sous { get; set; }
         [JsonPropertyName("poudre")] public int Poudre { get; set; }
@@ -126,6 +133,7 @@ public partial class ShipDemo
             CalDebut = _calendar.Start.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
             CalJour = _calendar.Day,
             Force = _force, Vent = _windDeg, MeteoAuto = _weather.On, Nuages = _cloud,
+            Defilement = _sky.DayRate,
             Sous = _purse.Sous, Poudre = p.Powder,
             Voiles = _ship.Ctrl.SailsSet, Toile = _ship.Ctrl.Canvas, Ris = _reef,
             Ecoute = _ship.Ctrl.Sheet, Pavillon = _colours,
@@ -307,6 +315,8 @@ public partial class ShipDemo
         _sky.Core.SetTimeOfDay(s.Heure, _sky.Latitude);
 
         _force = s.Force; _windDeg = s.Vent; _cloud = s.Nuages;
+        // le pas du jour qu'elle avait : zéro veut dire « pas enregistré »
+        if (s.Defilement > 0) SetDayRate(s.Defilement);
         _weather.On = s.MeteoAuto;
         if (_weather.On) _weather.Sync(_force, _windDeg);
         Restate();

@@ -103,6 +103,11 @@ uniform float u_refract = 1.0;
    dès le premier centimètre : les rides brisent l'image, et une eau de rade
    porte toujours sa part de particules. 1 : une vitre ; 0 : de l'encre. */
 uniform float u_veil = 0.55;
+/* LE COLLIER D'ÉCUME AU BORDÉ, un facteur : 1 est le réglage, 0 l'efface, 2 le
+   double. Il naît du MOUVEMENT de l'eau le long d'elle — son erre, ou la mer
+   quand elle est stoppée. Par calme plat et machine arrêtée, il n'y en a pas, et
+   c'est ce qu'il faut : rien ne remue, rien ne blanchit. */
+uniform float u_collar = 1.0;
 /* LA VASE D'UN BASSIN. Une rade n'a pas l'eau du large : elle reçoit la terre,
    les rivières et le remuement des coques, et l'on n'y voit pas le fond par onze
    mètres — ce que les caustiques, en éclairant le sable, ont rendu criant
@@ -741,7 +746,23 @@ void fragment() {
 		   s'arrêter sur une ligne. L'écume s'accumule contre une coque et fuit
 		   dessous ; un bord intérieur franc se lit comme une décalcomanie posée
 		   sur l'eau. */
-		float collar = (1.0 - smoothstep(0.0, 0.85, gap_m))
+		/* CE QUI FAIT LE COLLIER N'EST PAS SON ERRE, C'EST LE MOUVEMENT DE L'EAU
+		   LE LONG DE SON BORDÉ — et il y en a deux sources : ce qu'elle fait,
+		   et ce que la mer fait.
+
+		   Un navire STOPPÉ SUR UNE MER PLATE n'a pas de collier, et c'est juste :
+		   rien ne remue, rien ne blanchit, la ligne d'eau est nette (signalé).
+		   Mais le même navire stoppé dans une mer formée en a un — brisé, qui
+		   monte et descend avec chaque lame le long de sa muraille.
+
+		   u_storm porte exactement la bonne chose : il vaut zéro à force 5 et
+		   monte jusqu'à un vers force 8. C'est donc LUI le second terme, sans
+		   qu'on ait à écrire un seuil : « à partir de force 5 » est déjà dedans.
+
+		   Il était une constante, réglée sur un navire en route — donc présent à
+		   l'arrêt par calme plat, et absent quand on le cherchait. */
+		float remous = max(way, u_storm);
+		float collar = (1.0 - smoothstep(0.0, 0.85 + 0.45 * remous, gap_m))
 		             * smoothstep(-1.3, -0.1, gap_m);
 
 		/* La vague d'étrave : pas une bande sur sa moitié avant, mais une
@@ -766,7 +787,12 @@ void fragment() {
 		   tache deux fois blanche. */
 
 		hull_foam = max(hull_foam,
-			clamp(collar * 0.70 + bow * (0.55 + 0.75 * fast), 0.0, 1.0) * u_ship_afloat[i]);
+			/* IL NAÎT AVEC LE MOUVEMENT, en racine plutôt qu'en droite ligne : un
+			   navire qui gagne ses deux premiers nœuds blanchit déjà le long de
+			   son bordé, et c'est le dernier tiers de son erre qui n'y ajoute
+			   presque plus. */
+			clamp(collar * 0.70 * pow(remous, 0.6) * u_collar
+			      + bow * (0.55 + 0.75 * fast), 0.0, 1.0) * u_ship_afloat[i]);
 	}
 	hull_foam *= (0.45 + 0.80 * fn);
 

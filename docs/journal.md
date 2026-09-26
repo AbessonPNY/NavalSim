@@ -10553,6 +10553,145 @@ croire.
 Éprouvée au pire : force 9,9, creux 1,8, toile établie, trois courses — 7 à 11°
 de moyenne, 13 à 20° de pointe, **aucun chavirage**.
 
+### Et ce que le lest change à son assise
+
+Relevé ensuite, « elle ne me semble pas plus basse » — mesuré plutôt que discuté,
+au démarrage, qui l'annonce déjà :
+
+| déplacement | assise | tirant | immersion |
+|---|---|---|---|
+| 240 t (avant) | 0,570 m | 2,90 m | 32,6 % |
+| **300 t** | **0,212 m** | **3,25 m** | **40,7 %** |
+| 360 t | −0,124 m | 3,61 m | 48,9 % |
+
+Elle est donc bien descendue de **trente-six centimètres**, et son tirant a gagné
+trente-cinq. Sur une coque de trente mètres cela se voit à la ligne d'eau — mais
+il faut RELANCER le jeu : les fiches sont lues au démarrage, et une partie en
+cours garde la coque qu'elle a mise à l'eau.
+
+Trois cent soixante la mettrait au niveau du Speedwell (49 % contre 53), au prix
+d'un galion qui n'a plus rien d'un galion : ils flottaient haut, c'était leur
+défaut et leur allure.
+
+## Le jour tourne deux fois moins vite en jeu libre (Godot)
+
+Demandé : le jeu libre doit commencer à ×0,5. Quarante-huit minutes réelles pour
+un jour de mer, contre douze à ×2.
+
+L'Histoire garde son pas — une quête se mène en quelques heures de jeu et doit
+voir la nuit tomber dans la même séance. Mais une sortie libre est une vie à
+bord, et une journée de douze minutes n'en est pas une : on n'a pas le temps de
+traverser qu'il fait déjà nuit deux fois.
+
+Deux points qui valaient d'être faits proprement plutôt que d'écrire une ligne :
+
+**Le curseur suit.** Régler le ciel seul laissait la console montrer l'ancien
+taux, et le premier frôlement du curseur le rendait — une valeur affichée qui
+n'est pas la valeur vraie est pire que pas de valeur du tout.
+
+**Et l'enregistrement s'en souvient.** Sans cela une partie libre commencée à
+×0,5 serait reprise à ×2, ce qui est le genre d'incohérence qu'on met une heure
+à croire. Le champ absent vaut « pas enregistré » et garde le taux du démarrage,
+et non « zéro », qui aurait arrêté le soleil des parties d'avant — de deux sens
+possibles pour un champ manquant, c'était le pire.
+
+## Pas de monstres en escarmouche (Godot)
+
+Demandé : « le mode escarmouche n'a pas tout le bestiaire marin d'activé, ce
+serait trop dur. On se concentre sur la bataille navale. »
+
+Juste, et pour une raison qui vaut au-delà de la difficulté : une escarmouche est
+douze coques qui se cherchent sous leurs pavillons, et le kraken qui enlace, la
+baleine qui charge, le serpent qui sort de la pluie et le vaisseau qui rôde y
+seraient un TROISIÈME CAMP — un camp qu'on ne peut ni couler, ni éviter, ni
+compter dans la ligne. Ils sont l'affaire du jeu libre et de l'Histoire, où l'on
+navigue seul et où une rencontre est un événement.
+
+**Le temps, lui, reste.** Le gros temps, la foudre et l'incendie ne sont pas du
+bestiaire : ce sont les conditions de la bataille, et une escarmouche sous un
+grain vaut mieux qu'une escarmouche par calme plat.
+
+Trois points, et les deux derniers sont les intéressants :
+
+**Leur pas est coupé**, ce qui suffit à ce qu'il n'en vienne plus.
+
+**Mais un pas qu'on ne fait plus ne défait pas ce qu'il avait fait.** Un kraken
+déjà accroché au bord serait resté accroché, figé, pour toute l'escarmouche — et
+une baleine à sept cents mètres serait restée peinte là. Le départ d'une
+escarmouche plonge donc le kraken (il lâche tout, c'est déjà écrit), efface ce
+qui se dessinait et renvoie le fantôme. **Vider un état vaut mieux que cesser de
+le mettre à jour.**
+
+**Et les touches le DISENT.** K, ⇧K, ⇧J, ⇧U et P ne pouvaient plus rien faire une
+fois le pas coupé — un kraken convoqué serait resté sous la mer, jamais mis à
+jour ni dessiné. Une commande qui ne fait rien SANS RIEN DIRE est le pire des
+deux : on la retape, on croit le clavier mort. Elles répondent « pas de monstres
+en escarmouche : c'est une bataille navale ».
+
+Les rencontres de voiles étaient déjà écartées (`Encounters`), et les dauphins,
+les mouettes et les bancs de poissons restent : ce n'est pas du bestiaire, c'est
+du décor.
+
+## Le collier d'écume, et ce qui le fait (Godot)
+
+Signalé : « à l'arrêt, le collier d'écume d'un navire n'apparaît pas ». J'ai
+d'abord compris l'inverse de ce qu'il fallait — que le collier manquait et qu'il
+fallait le rendre visible — et la correction disait alors : « même stoppée, la
+mer travaille le long d'elle ». Précision reçue, et elle renverse tout : **à
+l'arrêt il ne DOIT pas se voir, sauf par mer formée à partir de force 5.**
+
+Ce qui est juste, et plus juste que ce que j'avais écrit : un navire stoppé sur
+une mer plate n'a pas de collier, rien ne remue, rien ne blanchit, la ligne d'eau
+est nette. Le même navire stoppé dans une mer formée en a un — brisé, qui monte
+et descend avec chaque lame le long de sa muraille.
+
+Le collier n'est donc **ni son erre ni une constante, mais le MOUVEMENT DE L'EAU
+le long de son bordé**, qui a deux sources : ce qu'elle fait, et ce que la mer
+fait. `remous = max(erre, u_storm)`, et `u_storm` porte exactement la bonne
+chose puisqu'il vaut zéro à force 5 et monte vers un à force 8 : **« à partir de
+force 5 » était déjà dans le moteur**, il n'y avait aucun seuil à écrire.
+
+Il naît en racine du mouvement plutôt qu'en droite ligne : un navire qui gagne
+ses deux premiers nœuds blanchit déjà le long de son bordé, et c'est le dernier
+tiers de son erre qui n'y ajoute presque plus.
+
+Ce qu'il valait avant : une constante réglée sur un navire en route, donc présent
+à l'arrêt par calme plat — exactement là où il ne faut pas — et noyé dans le
+sillage là où on ne le regarde pas.
+
+### Ce que la mesure a dit, et ce qu'elle n'a pas dit
+
+Mesuré au pixel avant de comprendre la demande, la caméra plantée à trente-huit
+mètres, la part claire d'une boîte autour de la coque :
+
+| | part claire | moyenne |
+|---|---|---|
+| collier forcé à 1 | 90,5 % | 0,749 |
+| collier ôté | 6,33 % | 0,2316 |
+| collier tel qu'il était | 6,73 % | 0,2321 |
+
+La première ligne dit que le chemin fonctionne — forcé, il remplit l'écran. La
+troisième dit qu'il ne pesait que quatre dixièmes de point. Ces chiffres restent
+vrais et utiles : ils disent que le collier a toujours été FAIBLE, et c'est
+pourquoi son absence par calme ne choquait personne.
+
+**Et une note sur la mesure elle-même, qui m'a coûté trois courses :** compter
+les pixels « clairs » au-dessus d'un seuil ne dit rien d'une bande fine. Le
+collier fait un mètre et demi sur une coque de trente, vue de biais : quelques
+milliers de pixels, et son doublement ne bougeait le compteur de seuil que de
+trois centièmes de point. C'est la MOYENNE qui l'a montré. **Un seuil mesure une
+surface, une moyenne mesure une lumière** — et ce qu'on cherchait était une
+lumière.
+
+**Et une leçon qui n'est pas technique :** j'ai mesuré, corrigé et rédigé une
+page entière avant de m'apercevoir que j'avais lu la demande à l'envers. « Le
+collier n'apparaît pas à l'arrêt » se lit dans les deux sens, et j'ai pris celui
+qui donnait du travail au lieu de demander. Une phrase ambiguë sur ce qu'on
+ATTEND — et non sur ce qu'on observe — vaut une question.
+
+`u_collar` dans `ocean.gdshader` le règle, comme `u_veil` et `u_silt` : 1 le
+réglage, 0 l'efface, 2 le double.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

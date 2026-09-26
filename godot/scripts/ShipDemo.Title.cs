@@ -216,6 +216,13 @@ public partial class ShipDemo : Node3D
         _quests?.Stop();
         SaveQuests();
         Home();
+        /* LE JOUR TOURNE DEUX FOIS MOINS VITE EN JEU LIBRE (demandé) : ×0,5, soit
+           quarante-huit minutes réelles pour un jour de mer, contre douze à ×2.
+           L'Histoire garde son pas — une quête se mène en quelques heures de jeu
+           et doit voir la nuit tomber dans la même séance —, mais une sortie libre
+           est une vie à bord, et une journée de douze minutes n'en est pas une :
+           on n'a pas le temps de traverser qu'il fait déjà nuit deux fois. */
+        SetDayRate(0.5);
         Play();
     }
 
