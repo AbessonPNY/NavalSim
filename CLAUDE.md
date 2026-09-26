@@ -188,6 +188,7 @@ La musique n'est pas embarquée (trop lourde). `node build.js` écrit
   l'aviron et ne mouille pas ; reste sa console de barre, encore celle d'un
   navire, et elle n'a pas de `.glb`.
 
+- **La toile se voit encore sans lumière** (signalé le 26/09, capture) : coque et mer à 0,12, voiles à 0,55. L'émission du tissage suit maintenant le ciel (`night.canvas`, plancher 0,05) et la toile est passée à 0xd8cdb4 — il reste donc l'ALBÉDO, éclairé par la lune : 0,84 en linéaire contre 0,15 pour le bordé, soit six fois. Pistes : baisser `u_translucency` (0,45, le BACKLIGHT rend la toile de tous côtés), ou faire tomber l'albédo de la toile avec la nuit comme l'émission.
 - **Journal de bord** : écrit et les pages tournent (⇧I, ← →, ⇧Entrée).
   Reste le modèle du livre sur le bureau — une surface nommée `journal` suffit,
   rien à coder.
