@@ -3694,7 +3694,8 @@ public partial class ShipDemo : Node3D
                    --sun fige le soleil, --heure pose la NUIT. */
                 case "--heure": _sky.Core.SetTimeOfDay(args[i + 1].ToFloat(), _sky.Latitude); _sky.Apply(); break;
                 // les feux couverts tout de suite, comme ⇧L : pour juger ce qui reste visible
-                case "--feux": _ship.Douse(args[i + 1] == "0", _t); break;
+                // comme la touche : un ordre, et le bord choisit comment l exécuter
+                case "--feux": _ship.OrderLanterns(args[i + 1] != "0", _t, _sky.Core.Night); break;
                 case "--foudre": StrikeSomewhere(_ship); break;
                 // le coup à l'eau seul, pour le régler : --pres 1
                 case "--pres": if (args[i + 1] != "0") StrikeAlongside(_ship); break;

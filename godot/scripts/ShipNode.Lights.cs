@@ -104,7 +104,59 @@ public partial class ShipNode
 
     /// <summary>La tournée est-elle finie ? Pour le dire au joueur.</summary>
     public bool Snuffed => Dark && _lanterns.Count > 0;
+
+    /// <summary>Ce qu'un guetteur voit : allumés, et pas couverts.</summary>
+    public bool LanternsShowing => !Dark && (_lit || LanternsOrdered);
+
+    /// <summary>
+    /// ALLUMER OU ÉTEINDRE, quelle que soit l'heure — un seul ordre, et le bord
+    /// choisit comment l'exécuter.
+    ///
+    /// De nuit, allumer veut dire DÉCOUVRIR : la tournée repart de l'arrière et
+    /// chaque flamme revient. De jour, il n'y a rien à découvrir, il faut
+    /// battre le briquet — c'est l'ordre.
+    ///
+    /// ET L'ORDRE NE SURVIT PAS À SA RAISON : allumer la nuit ne pose aucun
+    /// ordre, puisque l'heure le fait déjà ; éteindre le jour n'en pose pas non
+    /// plus. Un ordre ne reste inscrit que lorsqu'il CONTREDIT l'heure, si bien
+    /// qu'un capitaine qui allume dans la brume de midi voit ses feux se
+    /// confondre tout seuls avec ceux du soir venu, et un autre qui les couvre à
+    /// minuit les retrouve à la nuit suivante s'il les a redécouverts.
+    /// </summary>
+    public void OrderLanterns(bool lit, double t, double night)
+    {
+        /* CE QUE L'HEURE FERAIT D'ELLE-MÊME, tiré du CIEL et non de l'état courant.
+           Se fier à _lit paraissait naturel et ne l'était pas : il ne vaut qu'APRÈS
+           la première image, si bien qu'un ordre donné au démarrage — par la ligne
+           de commande — tombait dans le vide. Un ordre d'éteindre à minuit laissait
+           les feux allumés (relevé : ordre False, on 1,00, montrés True). */
+        bool heure = night >= LightAt;
+        if (lit)
+        {
+            LanternsOrdered = !heure;     // de nuit, l'heure suffit : pas d'ordre à garder
+            Douse(false, t);
+        }
+        else
+        {
+            LanternsOrdered = false;
+            if (heure) Douse(true, t);    // de jour, il n'y a rien à couvrir
+        }
+    }
     readonly List<(BaseMaterial3D Mat, double Base)> _nightMats = new();
+    /// <summary>
+    /// LES FEUX ALLUMÉS SUR ORDRE, quelle que soit l'heure.
+    ///
+    /// Un navire n'allume pas qu'à la nuit : par gros temps, dans un grain ou
+    /// dans la brume, on montre ses feux en plein jour pour ne pas se faire
+    /// aborder — c'est même la seule raison pour laquelle on le fait, puisque
+    /// autrement c'est se signaler pour rien.
+    ///
+    /// Faux ne veut PAS dire éteint : cela veut dire « comme l'heure le veut ».
+    /// Couvrir les feux est une autre affaire, et c'est <see cref="Dark"/>, qui
+    /// a sa tournée et son homme qui marche.
+    /// </summary>
+    public bool LanternsOrdered;
+
     bool _lit;
     /// <summary>Ses feux sont-ils allumés : la nuit, par la règle des fanaux.</summary>
     public bool Lit => _lit;
@@ -688,6 +740,13 @@ public partial class ShipNode
     public void SetLantern(double night, double t, Vector3 camPos, NavalSim.Core.Sky sky)
     {
         double on = Math.Max(0, Math.Min(1, night));
+        /* L'ORDRE DU CAPITAINE PASSE AVANT L'HEURE, et il suffit de le poser ICI :
+           « on » commande tout ce qui suit — le seuil qui allume, l'éclat de la
+           flamme, l'opacité du halo, la lueur des fenêtres de poupe. Un ordre
+           écrit à la source donne donc exactement la même lumière qu'une nuit,
+           sans qu'une seule des lignes d'en dessous ait à connaître son
+           existence. */
+        if (LanternsOrdered) on = 1;
         // ALLUMÉ OU ÉTEINT, jamais à mi-feu ; deux seuils, sinon un soleil qui
         // hésite à la limite ferait battre tout le bord
         if (on >= LightAt) _lit = true;

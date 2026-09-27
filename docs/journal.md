@@ -11293,6 +11293,61 @@ mesures étaient bridées à 16,67 ms — la synchro — sans que rien ne le sig
 Une médiane exactement égale à 16,67 doit désormais être lue comme un
 AVERTISSEMENT et non comme un résultat.
 
+## Les feux s'allument sur ordre, et pas seulement à la nuit (Godot)
+
+Demandé : pouvoir allumer les fanaux à la main par gros temps ou dans la brume.
+
+⇧L ne savait que COUVRIR. De jour, « rallumez les feux » ne rallumait rien,
+puisque c'était l'heure qui décidait seule — la touche ne servait donc que la
+nuit. Or on allume en plein jour, et pour une raison précise : par gros temps,
+dans un grain ou dans la brume, un navire montre ses feux pour ne pas se faire
+aborder. C'est même la seule raison de le faire, puisque autrement c'est se
+signaler pour rien.
+
+### Un seul ordre, et il est toujours l'inverse de ce qu'on voit
+
+La touche demande le contraire de ce qui brûle, et le bord choisit comment
+l'exécuter : découvrir s'il n'y avait qu'un voile, battre le briquet s'il fait
+jour. Le joueur n'a qu'un ordre à connaître et il vaut à toute heure.
+
+Le mécanisme tient en une ligne, et c'est ce qui le rend sûr : l'ordre est posé
+**à la source**, sur le `on` qui commande tout ce qui suit — le seuil qui
+allume, l'éclat de la flamme, l'opacité du halo, la lueur des fenêtres de poupe.
+
+    if (LanternsOrdered) on = 1;
+
+Aucune des lignes d'en dessous n'a besoin de savoir qu'un ordre existe, et un
+feu allumé de jour donne donc exactement la même lumière qu'une nuit.
+
+### L'ordre ne survit pas à sa raison
+
+Allumer la nuit n'inscrit AUCUN ordre, puisque l'heure le fait déjà ; éteindre le
+jour non plus. Un ordre n'est retenu que lorsqu'il CONTREDIT l'heure.
+
+Ce n'est pas une astuce : c'est ce qui évite qu'un capitaine qui allume dans la
+brume de midi se retrouve, trois jours plus tard, avec un ordre oublié qui
+l'empêche de couvrir ses feux devant un corsaire. Les quatre cas, relevés :
+
+| heure | ordre donné | ordre gardé | couverts | montrés |
+|---|---|---|---|---|
+| midi | éteindre | non | non | **non** |
+| midi | allumer | **oui** | non | **oui** |
+| minuit | éteindre | non | **oui** | **non** |
+| minuit | allumer | non | non | **oui** |
+
+### Et le défaut que la sonde a attrapé
+
+L'ordre lisait d'abord l'ÉTAT COURANT (`_lit`) pour savoir si l'heure suffisait.
+Cela paraissait naturel et ne l'était pas : cet état ne vaut qu'APRÈS la
+première image. Un ordre donné au démarrage — par la ligne de commande — tombait
+donc dans le vide, et « éteindre à minuit » laissait les feux allumés (relevé :
+ordre False, on 1,00, montrés True).
+
+Il lit maintenant la NUIT elle-même, qui est vraie dès la première ligne.
+C'est la même famille de faute que la matière de toile gardée en cache ou que le
+maillage né après la passe qui devait le ranger : **une valeur qui n'est juste
+qu'à partir de la deuxième image est un piège pour tout ce qui parle avant.**
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

@@ -289,6 +289,7 @@ public partial class ShipDemo : Node3D
         _ship.Ctrl.Canvas = 1;
         _reef = 0;
         _colours = true;
+        _ship.LanternsOrdered = false;     // et les feux reprennent l'heure
         _ship.ShowColours(true, true);
         _sky.Core.SetTimeOfDay(10, _sky.Latitude);
         /* LE VENT DU DÉPART, TOUJOURS LE MÊME : belle brise (force 4) par 105°,

@@ -19,18 +19,30 @@ namespace NavalSim;
 /// </summary>
 public partial class ShipDemo : Node3D
 {
+    /// <summary>
+    /// ⇧L — UN SEUL ORDRE, ET IL EST TOUJOURS L'INVERSE DE CE QU'ON VOIT.
+    ///
+    /// La touche ne couvrait que les feux, donc elle ne servait que la nuit : de
+    /// jour, « rallumez » ne rallumait rien, puisque c'est l'heure qui décidait
+    /// seule. Or on allume en plein jour, et pour une bonne raison — par gros
+    /// temps, dans un grain ou dans la brume, un navire montre ses feux pour ne
+    /// pas se faire aborder (demandé).
+    ///
+    /// On demande donc le contraire de ce qui brûle, et le bord se débrouille :
+    /// découvrir s'il n'y avait qu'un voile, battre le briquet s'il faisait
+    /// jour. Le joueur n'a qu'un ordre à connaître, et il vaut à toute heure.
+    /// </summary>
     void Douse()
     {
-        bool dark = !_ship.Dark;
-        _ship.Douse(dark, _t);
-        /* CE QU'ON EN DIT dépend de l'heure : couvrir les feux en plein jour est
-           une manœuvre sans objet, et le dire vaut mieux que de laisser croire
-           qu'il ne s'est rien passé. */
+        bool montre = _ship.LanternsShowing;
+        _ship.OrderLanterns(!montre, _t, _sky.Core.Night);
         bool nuit = _sky.Core.Night > 0.15;
-        Say(dark
-            ? (nuit ? "Couvrez les feux !" : "Feux couverts — il fait jour")
-            : "Rallumez les feux !");
-        if (nuit) JournalLog(dark ? "Feux couverts." : "Feux rallumés.");
+        /* CE QU'ON EN DIT : allumer de jour est une manœuvre de MAUVAIS TEMPS, et
+           le dire est la seule façon d'apprendre au joueur à quoi elle sert. */
+        Say(montre
+            ? (nuit ? "Couvrez les feux !" : "On souffle les fanaux")
+            : (nuit ? "Rallumez les feux !" : "Allumez les feux — qu'on nous voie !"));
+        JournalLog(montre ? "Feux couverts." : "Feux allumés.");
     }
 
     /// <summary>
