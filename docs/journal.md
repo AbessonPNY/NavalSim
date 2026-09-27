@@ -11252,10 +11252,10 @@ pas une ligne.
 Signalé : la lanterne arrière ne projette pas d ombre, et l éclairage du navire
 en paraît moins vrai.
 
-Ce n était pas un défaut. La fabrique pose bien , le code met
- par défaut, et la sonde l a confirmé en trois lignes — les trois fanaux
+Ce n était pas un défaut. La fabrique pose bien `ShadowEnabled`, le code met
+`true` par défaut, et la sonde l a confirmé en trois lignes — les trois fanaux
 du galion avaient la bonne énergie, la bonne portée, le bon masque, et
-. C est  qui portait , un ancien choix
+`ombre False`. C est `reglages.ini` qui portait `ombres=false`, un ancien choix
 resté là.
 
 ### Ce que coûte une ombre de fanal
@@ -11287,7 +11287,7 @@ il se voit, et pas ailleurs.
 
 ### Et une faute de mesure qui traînait depuis longtemps
 
- était placé AVANT le  dans mes lignes de commande. Godot mange
+`--vsync 0` était placé AVANT le `--` dans mes lignes de commande. Godot mange
 tout ce qui précède le séparateur : le jeu ne l a jamais vu, et toutes ces
 mesures étaient bridées à 16,67 ms — la synchro — sans que rien ne le signale.
 Une médiane exactement égale à 16,67 doit désormais être lue comme un
