@@ -64,7 +64,8 @@ uniform float u_storm = 0.0;      // le couvercle, de 0 à 1
  *   ciel pâle (cadran 0)   0,878   bleu/rouge 1,13
  *   0,10/0,26/0,28         0,245   bleu/rouge 2,3   — trop noir sous le bordé
  *   0,20/0,51/0,55         0,427   bleu/rouge 2,6   — juste, et INVISIBLE
- *   0,20/0,75/0,85         0,589   bleu/rouge 3,9
+ *   0,20/0,62/0,70         0,511   bleu/rouge 3,2   — RETENU
+ *   0,20/0,75/0,85         0,589   bleu/rouge 3,9   — la toile y perd trop
  *
  * Le troisième était le bon chiffre : R −10,3 / V −4,9 / B −4,0 dans l ombre,
  * cinquante fois le bruit, le rouge perdant 2,6 fois ce que perd le bleu. Il
@@ -75,8 +76,21 @@ uniform float u_storm = 0.0;      // le couvercle, de 0 à 1
  * Le quatrième garde le rouge et rend la lumière, si bien que l ombre change de
  * TEINTE sans perdre de LUMIERE — la mer éclaire au lieu d assombrir. Et la
  * scène d avant n était pas physique non plus : un ciel pâle sous la quille est
- * faux. On choisit entre deux approximations, pas contre la vérité. */
-uniform vec3  u_sea_tint   = vec3(0.20, 0.75, 0.85);
+ * faux. On choisit entre deux approximations, pas contre la vérité.
+ *
+ * ET LA TOILE A TRANCHÉ LE RESTE. Les voiles AU SOLEIL ne bougent pas d un
+ * niveau (225,3 -> 225,9) ; ce sont leurs faces À L OMBRE qui virent, parce
+ * qu elles sont claires et n ont que l ambiante pour vivre. Leur chaleur, en
+ * V-R, sur le masque des voiles : sans rebond −14 à −16 ; à 0,51/0,55 −10,3 ;
+ * à 0,62/0,70 −10,8 ; à 0,75/0,85 −7,8.
+ *
+ * 0,62/0,70 rend donc à la toile la chaleur qu elle avait sous le chiffre
+ * JUSTE — l écart avec 0,51/0,55 est dans le bruit, une toile qui fasseye ne se
+ * mesure pas à mieux que deux niveaux d un lancement à l autre — tout en donnant
+ * au bordé 4,1 fois plus de rouge que de bleu au lieu de 2,6. Mieux que le
+ * chiffre juste pour la coque, sans rien coûter à la toile : c est là qu on
+ * s arrête. */
+uniform vec3  u_sea_tint   = vec3(0.20, 0.62, 0.70);
 uniform float u_sea_bounce = 1.0;
 
 /* L'hémisphère du bas, teinté par l'eau. Le fondu part SOUS l'horizon et non à

@@ -11202,6 +11202,51 @@ repassait derrière avec la valeur du menu. **Les deux captures de comparaison
 seraient sorties identiques sans qu'on le voie** — et on aurait conclu que
 l'effet n'atteignait pas l'image. Le drapeau passe maintenant par le réglage.
 
+### La toile a tranché le reste — et une région n'est pas un masque
+
+Signalé le lendemain : les voiles virent trop au vert. Deux mesures fausses
+avant d'y voir clair, et elles ont la même cause.
+
+**Je mesurais un RECTANGLE en haut de l'image**, en gardant les pixels clairs,
+et je l'appelais « la toile ». Il contenait surtout du **ciel** — clair et bleu.
+D'où deux conclusions données pour sûres et toutes deux fausses : « le rebond ne
+touche pas la toile » (il la touche) et « la couleur de la fiche n'atteint pas
+les voiles » (elle les atteint).
+
+Ce qui a débloqué, et c'est la troisième fois dans ce projet : **peindre en
+rouge**. La toile mise à `0xff0000`, les pixels qui ont bougé SONT les voiles —
+19,3 % de l'image. Une sonde grossière ne sert pas qu'à voir un défaut : elle
+**fabrique le masque** que la mesure attendait. Une région se choisit à la main
+et se trompe ; un masque se déduit d'une différence et ne ment pas.
+
+Avec le bon masque, tout se range :
+
+- les voiles **au soleil** ne bougent pas d'un niveau (225,3 → 225,9) ;
+- ce sont leurs faces **à l'ombre** qui virent, parce qu'elles sont claires et
+  n'ont que l'ambiante pour vivre ;
+- et `appearance.canvas` marche très bien, mais c'est une **faible poignée** :
+  couper le pigment de 18 % (`0xd8cdb4` → `0xb3a892`) ne retire que 4 % à midi,
+  l'émission du tissage et la translucidité ne dépendant pas de l'albédo. La
+  nuit, où l'émission tombe avec le jour, elle en retire 10 % — ce qui répond,
+  elle, à l'autre plainte du journal sur les voiles qu'on voit dans le noir.
+  Essai non retenu.
+
+**Le réglage final : 0,20 / 0,62 / 0,70.** Chaleur de la toile à l'ombre, en
+V−R : sans rebond −14 à −16 ; à 0,51/0,55 −10,3 ; à 0,62/0,70 −10,8 ; à
+0,75/0,85 −7,8. Et ce que le rebond donne au bordé, en rouge perdu contre bleu
+perdu : 2,6× — 4,1× — 8,4×.
+
+Donc 0,62/0,70 **rend à la toile la chaleur qu'elle avait sous le chiffre
+juste** — l'écart avec 0,51/0,55 est dans le bruit, une voile qui fasseye ne se
+mesure pas à mieux que deux niveaux d'un lancement à l'autre — tout en donnant
+au bordé 4,1 fois au lieu de 2,6. Ce n'est pas un compromis entre la coque et
+les voiles : c'est mieux que le chiffre physique sur la coque, sans rien coûter
+à la toile.
+
+Reste ouvert, et personne ne creuse : une **sensibilité propre à la toile pour
+le bas du ciel** découplerait coque et voiles pour de bon. Une heure de shader,
+pas une ligne.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code
