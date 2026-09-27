@@ -417,7 +417,21 @@ public partial class ShipDemo : Node3D
         if (spec == null) return;
         for (int i = 0; i < n; i++)
         {
-            var s = new ShipNode { LanternShadows = _settings.LanternShadows, WithMastLantern = _settings.MastLantern };
+            /* LES AUTRES COQUES N OMBRENT PAS LEURS FANAUX, ET C EST MESURÉ.
+
+               Une omni qui porte ombre rend un CUBE — six faces — à chaque image où
+               elle est visible, et c est la dépense la plus chère du projet par
+               lumière. La nuit, synchro coupée : un navire seul passe de 4,55 à
+               5,56 ms quand on les allume, et une escarmouche de douze coques de
+               14,78 à 16,67 — soit le budget entier atteint par cette seule case.
+
+               Or l essentiel de ce qu elles donnent est sur LE PONT OÙ L ON EST :
+               le mât dont l ombre tourne sur le gaillard, le pavois qui coupe la
+               lumière du fanal. Les autres coques, la nuit, ne sont que des feux à
+               distance — on ne lit pas l ombre d un hauban sur un navire qu on voit
+               à deux encablures. On paie donc l effet là où il se voit, et pas
+               ailleurs : la moitié de la dépense s en va sans qu il en manque rien. */
+            var s = new ShipNode { LanternShadows = false, WithMastLantern = _settings.MastLantern };
             AddChild(s);
             /* UNE MISE À L EAU QUI ÉCHOUE NE LAISSE RIEN : sans cela, une coque à
                demi née restait dans la scène sans être de la flotte — immobile,
@@ -3848,6 +3862,12 @@ public partial class ShipDemo : Node3D
                 // sans synchro verticale : pour mesurer ce que la machine tient vraiment
                 // par les réglages (sans les enregistrer) : une autre option qui les réapplique ne la défait pas
                 case "--vsync": _settings.VSync = args[i + 1] != "0"; ApplySettings(); break;
+                // les ombres des fanaux : une omni qui porte ombre rend un CUBE par image
+                case "--ombres":
+                    _settings.LanternShadows = args[i + 1] == "1";
+                    // le navire commandé SEUL, comme le réglage : voir SpawnFleet
+                    _ship.SetLanternShadows(_settings.LanternShadows);
+                    break;
                 case "--ssao": _sky.Env.SsaoEnabled = args[i + 1] == "1"; break;
                 case "--ssil": _sky.Env.SsilEnabled = args[i + 1] == "1"; break;
                 case "--frametimes": _ftLeft = args[i + 1].ToInt(); _ftGc0 = GC.GetTotalPauseDuration(); break;

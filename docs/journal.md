@@ -11247,6 +11247,52 @@ Reste ouvert, et personne ne creuse : une **sensibilité propre à la toile pour
 le bas du ciel** découplerait coque et voiles pour de bon. Une heure de shader,
 pas une ligne.
 
+## Les fanaux n ombrent que le bord qu on commande (Godot)
+
+Signalé : la lanterne arrière ne projette pas d ombre, et l éclairage du navire
+en paraît moins vrai.
+
+Ce n était pas un défaut. La fabrique pose bien , le code met
+ par défaut, et la sonde l a confirmé en trois lignes — les trois fanaux
+du galion avaient la bonne énergie, la bonne portée, le bon masque, et
+. C est  qui portait , un ancien choix
+resté là.
+
+### Ce que coûte une ombre de fanal
+
+Une omni qui porte ombre rend un CUBE — six faces — à chaque image où elle est
+visible. C est la dépense la plus chère du projet par lumière. La nuit, synchro
+verticale coupée :
+
+| | sans | avec | écart |
+|---|---|---|---|
+| un navire | 4,55 ms | 5,56 ms | +1,01 ms |
+| escarmouche, 12 coques | 14,78 ms | 16,67 ms | +1,89 ms |
+
+Douze coques ne coûtent pas douze fois un navire : les fanaux lointains sortent
+d eux-mêmes, trente-deux mètres de portée et Godot écarte ce qui ne porte plus.
+Mais 16,67 ms, c est le budget ENTIER atteint par une seule case à cocher.
+
+### D où la règle
+
+**Seul le navire commandé ombre ses fanaux.** L essentiel de ce que ces ombres
+donnent est sur LE PONT OÙ L ON EST — le mât dont l ombre tourne sur le
+gaillard, le pavois qui coupe la lumière du fanal. Les autres coques, la nuit,
+ne sont que des feux à distance : on ne lit pas l ombre d un hauban sur un
+navire vu à deux encablures.
+
+Mesuré après : l escarmouche de nuit passe de +1,89 ms à **+0,58 ms**, soit 1,3
+ms rendue sur 1,9, et la médiane retombe de 16,67 à 15,39. On paie l effet là où
+il se voit, et pas ailleurs.
+
+### Et une faute de mesure qui traînait depuis longtemps
+
+ était placé AVANT le  dans mes lignes de commande. Godot mange
+tout ce qui précède le séparateur : le jeu ne l a jamais vu, et toutes ces
+mesures étaient bridées à 16,67 ms — la synchro — sans que rien ne le signale.
+Une médiane exactement égale à 16,67 doit désormais être lue comme un
+AVERTISSEMENT et non comme un résultat.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code
