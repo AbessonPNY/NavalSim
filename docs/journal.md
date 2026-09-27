@@ -11088,6 +11088,120 @@ répétant pas d'une case à l'autre — mais une progression n'est pas un hasar
 elle aurait fini par se voir sur une voilure nombreuse. C'est exactement la
 faute qu'on venait de corriger, commise en la corrigeant.
 
+## La mer dans l'hémisphère du bas — l'illumination globale de cette scène (Godot)
+
+Parti d'une question : peut-on approcher Cycles ou Lumen, ou Godot a-t-il une
+limite ? La réponse tient en une phrase : **dans cette scène, le plus gros terme
+d'éclairage indirect n'est pas un rebond de géométrie, c'est la mer** — et aucun
+système de GI ne savait le donner.
+
+### Pourquoi les trois systèmes de Godot sont écartés
+
+**LightmapGI** cuit la lumière dans des textures, pour une géométrie fixe ET un
+soleil fixe. Il y a ici un calendrier, un cycle jour-nuit et une météo : il
+faudrait une cuisson par heure. La seule niche serait un intérieur clos qui ne
+voit jamais le soleil — la chambre à la seule bougie —, un gain joli et minuscule.
+
+**SDFGI** ne fait rebondir que la géométrie STATIQUE. Au large il n'y a que le
+navire (mobile) et la mer (déplacée au sommet, donc plate pour lui) : il
+coûterait ses 3 à 6 ms pour n'éclairer rien. Et ses cascades sont en espace
+monde — **l'origine flottante les invaliderait tous les 1500 m**, avec un
+indirect qui se rallume en pleine navigation.
+
+**VoxelGI** a les mêmes défauts dans un volume borné.
+
+Reste le **SSIL**, déjà en place, et qui se trouve bien mieux adapté ici
+qu'ailleurs : dans un niveau clos, l'espace écran manque tout ce qui est hors
+champ ; sur une mer vide, ce qui renvoie de la lumière — la coque, la toile, le
+pont, l'eau — est presque toujours dans l'image.
+
+### Ce qui manquait vraiment, et qui ne coûte rien
+
+Le ciel du projet borne sa hauteur à zéro :
+
+    float h = clamp(dir.y, 0.0, 1.0);
+
+Sous l'horizon il rendait donc la couleur d'HORIZON — un blanc bleuté très pâle.
+L'ambiante venant du ciel (`AmbientSource.Sky`), **tout ce qui regarde vers le bas
+était éclairé par un ciel pâle venu d'en dessous, jamais par l'eau.** Or une
+coque au soleil reçoit par le fond la lumière de kilomètres carrés de mer, et
+c'est l'un des signes les plus reconnaissables d'une photo de navire.
+
+Peindre le bas du ciel avec la couleur de l'eau, c'est du transport de lumière
+au sens propre, sans cache, sans cascade et sans reconvergence.
+
+**Dans la passe cubemap SEULE** (`AT_CUBEMAP_PASS`), qui est celle qui nourrit
+l'ambiante et les reflets. Le fond qu'on voit n'y touche pas : sous l'horizon on
+regarde la mer elle-même, et repeindre le ciel derrière elle n'ouvrirait que la
+couture que `naval_sky` existe pour éviter. La mer, qui appelle le même ciel pour
+son propre miroir, n'en reçoit rien non plus — elle ne se reflète pas elle-même.
+
+**Une teinte et non une couleur** : ce que l'eau renvoie est ce que le ciel lui
+donne, multiplié par ce qu'elle en garde. Écrit ainsi, il suit la lumière tout
+seul — la nuit l'eau est noire sans qu'on l'écrive nulle part.
+
+### Comment on mesure une différence qu'on ne voit pas
+
+C'est la leçon de méthode de la soirée, et elle resservira.
+
+Deux captures du même cadre, cadran à 0 puis à 1, se ressemblaient trop pour
+qu'on tranche à l'œil. Premier réflexe : compter les pixels qui changent. Faux —
+**deux lancements du MÊME réglage diffèrent déjà sur 27 % des pixels, de 2,9
+niveaux en moyenne** (antialiasing temporel, houle, tirages). L'écart absolu ne
+dit donc rien.
+
+Ce qui tranche est le **BIAIS SIGNÉ** : la moyenne des écarts avec leur signe,
+qui annule le bruit et ne garde que le déplacement systématique. Relevé dans
+l'ombre de la coque :
+
+    signal  R −10,33   V −4,89   B −4,03
+    bruit   R  −0,19   V −0,08   B −0,02
+
+Cinquante fois le bruit, le rouge perdant 2,6 fois ce que perd le bleu : le
+virage vers le bleu-vert était réel, exact, et **invisible**.
+
+### Juste et invisible, contre assumé et lisible
+
+Le diagnostic est venu du chiffre : ce réglage **assombrissait plus qu'il ne
+verdissait**. L'éclairement par le bas tombait de 0,878 à 0,427, et l'œil lit
+d'abord « plus sombre » — le virage de couleur passe dessous.
+
+Quatre valeurs essayées, l'éclairement au nadir intégré en cosinus à midi :
+
+| teinte | lumière | bleu/rouge | verdict |
+|---|---|---|---|
+| ciel pâle (cadran 0) | 0,878 | 1,13 | faux |
+| 0,10 / 0,26 / 0,28 | 0,245 | 2,3 | trop noir sous le bordé |
+| 0,20 / 0,51 / 0,55 | 0,427 | 2,6 | juste, et invisible |
+| **0,20 / 0,75 / 0,85** | **0,589** | **3,9** | retenu |
+
+Le quatrième garde le rouge bas — c'est lui qui fait la couleur, et l'eau
+l'absorbe vraiment — et rend le vert et le bleu, si bien que l'ombre change de
+TEINTE sans perdre de LUMIÈRE. Mesuré : R −10,24 / V −2,30 / B −1,23, le rouge
+perdant maintenant **8,3 fois** ce que perd le bleu, et la luminance de l'ombre
+ne tombant plus que de 39,3 à 36,5.
+
+**Le rouge est le chiffre juste, le vert et le bleu sont un choix.** Une eau ne
+renvoie pas 80 % du bleu qu'elle reçoit — mais la scène d'avant, un ciel pâle
+sous la quille, n'était pas physique non plus : on choisit entre deux
+approximations, pas contre la vérité.
+
+Effet de bord à connaître : **les voiles bougent plus que la coque**, leur toile
+étant translucide et leur face à l'ombre prenant son jour de l'ambiante. Si
+c'est trop, la poignée est `u_translucency` — baisser la mer pour sauver la
+toile reviendrait à défaire la coque.
+
+### Et une faute qui ne se serait pas vue
+
+Le cadran allait de 0 à 2. Au-delà de 1, `mix` **extrapole** au lieu de
+mélanger : à 2, le rouge passait sous zéro. Borné dans le shader, et le curseur
+s'arrête à 1.
+
+L'autre, plus vicieuse : `--rebond` ne réglait que le ciel, et `ApplySettings`
+repassait derrière avec la valeur du menu. **Les deux captures de comparaison
+seraient sorties identiques sans qu'on le voie** — et on aurait conclu que
+l'effet n'atteignait pas l'image. Le drapeau passe maintenant par le réglage.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

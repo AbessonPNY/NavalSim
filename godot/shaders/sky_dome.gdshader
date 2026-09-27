@@ -86,7 +86,15 @@ void sky() {
 	   QUELQUE PART, celui-ci est au-dessus d'elle. */
 	c += vec3(0.62, 0.70, 0.92) * u_flash * (1.6 - 0.9 * clamp(dir.y, 0.0, 1.0));
 
+	/* ET LA MER DANS L'HÉMISPHÈRE DU BAS, mais DANS LA CARTE DE RADIANCE SEULE.
+	 *
+	 * C'est elle qui nourrit l'ambiante et les reflets, donc c'est là que le
+	 * rebond de l'eau doit vivre. Le fond, lui, n'y touche pas : sous l'horizon
+	 * on voit la MER elle-même, dessinée par son propre shader, et repeindre le
+	 * ciel derrière elle ne ferait qu'ouvrir la couture que naval_sky évite —
+	 * ou rien du tout là où la mer le couvre déjà. */
 	// le fond est VU, donc desencode ; la passe cubemap nourrit la lumiere
 	// ambiante et garde les valeurs brutes — sans l'eblouissement, qui n'eclaire rien
-	COLOR = AT_CUBEMAP_PASS ? c * u_env_gain : naval_display(c) + u_dazzle * naval_glare(normalize(dir));
+	COLOR = AT_CUBEMAP_PASS ? naval_sea_light(dir, c) * u_env_gain
+	                        : naval_display(c) + u_dazzle * naval_glare(normalize(dir));
 }

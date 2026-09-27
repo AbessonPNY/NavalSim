@@ -84,6 +84,13 @@ public sealed class Settings
 
     // [lumiere] — l'étude de la lumière du soleil (voir SkyNode)
     public float SunStrength = 1.25f, SunWarmth = 0.35f, SkyShade = 0.85f;
+    /// <summary>
+    /// CE QUE LA MER RENVOIE VERS LE HAUT, en part de ce qu'elle renvoie vraiment.
+    /// Le plus gros terme d'éclairage indirect de cette scène, et le seul que le
+    /// ciel ne donnait pas : à 0, le dessous du bordé et des voiles est éclairé
+    /// par un ciel pâle venu d'en dessous, comme avant ; à 1, par l'eau.
+    /// </summary>
+    public float SeaBounce = 1.0f;
 
     // [carte]
     /// <summary>La largeur du bec de la plume, en unités de carte : le plein d'un trait fait le double.</summary>
@@ -139,6 +146,7 @@ public sealed class Settings
         s.SunStrength = (float)cf.GetValue("lumiere", "force_du_soleil", s.SunStrength);
         s.SunWarmth = (float)cf.GetValue("lumiere", "chaleur_du_soleil", s.SunWarmth);
         s.SkyShade = (float)cf.GetValue("lumiere", "lumiere_du_ciel_dans_l_ombre", s.SkyShade);
+        s.SeaBounce = (float)cf.GetValue("lumiere", "rebond_de_la_mer", s.SeaBounce);
         s.Sound = (bool)cf.GetValue("son", "bruitages", s.Sound);
         s.Music = (bool)cf.GetValue("son", "musique", s.Music);
         s.Volume = (float)cf.GetValue("son", "volume", s.Volume);
@@ -189,6 +197,7 @@ public sealed class Settings
         cf.SetValue("lumiere", "force_du_soleil", SunStrength);
         cf.SetValue("lumiere", "chaleur_du_soleil", SunWarmth);
         cf.SetValue("lumiere", "lumiere_du_ciel_dans_l_ombre", SkyShade);
+        cf.SetValue("lumiere", "rebond_de_la_mer", SeaBounce);
         cf.SetValue("son", "bruitages", Sound);
         cf.SetValue("son", "musique", Music);
         cf.SetValue("son", "volume", Volume);

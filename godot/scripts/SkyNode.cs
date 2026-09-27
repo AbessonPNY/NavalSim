@@ -68,6 +68,8 @@ public partial class SkyNode : Node3D
        Il règle donc aussi la radiance du dôme (sa passe cubemap, qui nourrit
        ambiante et reflets) et l'intensité du SSIL. */
     public float SunStrength = 1.25f, SunWarmth = 0.35f, SkyShade = 0.85f;
+    /// <summary>Ce que la mer renvoie vers le haut — voir u_sea_bounce dans sky.gdshaderinc.</summary>
+    public float SeaBounce = 1.0f;
 
     /* LE SOLEIL DE LA PAGE, DANS L'UNITÉ DE GODOT. three.js (r160, éclairage
        physique) divise l'éclairement direct par π — la réflectance de Lambert —,
@@ -235,6 +237,11 @@ public partial class SkyNode : Node3D
         Env.AmbientLightEnergy = (float)Math.Max(0.02, Core.HemiIntensity * AmbientGain * SkyShade * (1 + OvercastSky * g));
         Env.SsilIntensity = Math.Max(0, SkyShade);
         _domeMat.SetShaderParameter("u_env_gain", (float)Math.Max(0, SkyShade * (1 + 0.5 * OvercastSky * g)));
+        /* LE REBOND DE LA MER, et il ne va QU'au dôme : c'est lui qui rend la
+           carte de radiance, donc lui seul qui décide de l'ambiante et des
+           reflets. La mer, qui appelle le même ciel pour son propre miroir, n'en
+           veut pas — elle ne se reflète pas elle-même. */
+        _domeMat.SetShaderParameter("u_sea_bounce", Math.Max(0f, SeaBounce));
 
         PushTo(_domeMat);
         // le disque de la lune et sa phase n'appartiennent qu'au dôme

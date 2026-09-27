@@ -20,6 +20,77 @@ uniform float u_cloud = 0.12;     // la couverture, de 0 au couvert
 uniform float u_sky_time = 0.0;   // le pont de nuages dérive avec le jour
 uniform float u_storm = 0.0;      // le couvercle, de 0 à 1
 
+/* CE QUE LA MER RENVOIE VERS LE HAUT — et c'est le plus gros terme
+ * d'éclairage indirect de cette scène.
+ *
+ * Une coque au soleil reçoit par en dessous la lumière de kilomètres carrés
+ * d'eau, et c'est l'un des signes les plus reconnaissables d'une photo de
+ * navire : le dessous du bordé et le dessous des voiles sont VERTS. Or le ciel
+ * de ce projet borne sa hauteur à zéro — sous l'horizon il rendait la couleur
+ * d'HORIZON, un blanc bleuté très pâle. Tout ce qui regarde vers le bas était
+ * donc éclairé par un ciel pâle venu d'en dessous, jamais par l'eau, et le SSIL
+ * n'en rattrapait que la part visible à l'écran.
+ *
+ * C'est de l'illumination globale au sens propre — un vrai transport de
+ * lumière — pour le prix d'une ligne, sans cache, sans cascade et sans
+ * reconvergence. SDFGI et VoxelGI, eux, sont écartés pour une raison écrite
+ * dans SkyNode.cs : ils supposent une géométrie immobile, quand rien ici ne
+ * l'est, et les cascades de SDFGI seraient invalidées à chaque glissement de
+ * l'origine flottante.
+ *
+ * UNE TEINTE ET NON UNE COULEUR : ce que l'eau renvoie est ce que le ciel lui
+ * donne, multiplié par ce qu'elle en garde. Écrit ainsi, il suit la lumière
+ * tout seul — la nuit, l'eau est noire sans qu'on l'écrive nulle part, et sous
+ * un grain elle est grise. C'est la règle de la maison : ce qui réfléchit suit
+ * la lumière.
+ *
+ * Ce n'est PAS « u_shallow » de la mer, et le confondre serait une faute : celle-là
+ * est le pigment de l'eau vue de dessus, celle-ci la part qui ressort vers le
+ * haut. Deux quantités voisines, deux mesures, deux maisons.
+ *
+ * u_sea_bounce est son cadran : 0 rend exactement l'image d'avant.
+ *
+ * LE NIVEAU, LUI, EST ICI et se monte en bloc — le cadran, en baissant, reprend
+ * aussi la COULEUR, ce qui n est pas la même chose que baisser la lumière.
+ * LE ROUGE EST LE CHIFFRE JUSTE, LE VERT ET LE BLEU SONT UN CHOIX. L eau
+ * absorbe vraiment le rouge, et c est lui qui fait la couleur : il reste bas.
+ * Le vert et le bleu, eux, sont montés au-delà de ce qu une eau renvoie — et
+ * c est assumé, pour la raison que voici.
+ *
+ * Relevé, éclairement reçu par une face au nadir, intégré en cosinus à midi,
+ * puis mesuré au pixel sur deux captures du même cadre (biais signé dans
+ * l ombre de la coque, contre le bruit de deux lancements identiques) :
+ *
+ *   ciel pâle (cadran 0)   0,878   bleu/rouge 1,13
+ *   0,10/0,26/0,28         0,245   bleu/rouge 2,3   — trop noir sous le bordé
+ *   0,20/0,51/0,55         0,427   bleu/rouge 2,6   — juste, et INVISIBLE
+ *   0,20/0,75/0,85         0,589   bleu/rouge 3,9
+ *
+ * Le troisième était le bon chiffre : R −10,3 / V −4,9 / B −4,0 dans l ombre,
+ * cinquante fois le bruit, le rouge perdant 2,6 fois ce que perd le bleu. Il
+ * allait donc exactement dans le bon sens — et il ne se voyait pas, parce qu il
+ * ASSOMBRIT plus qu il ne verdit : l oeil lit « plus sombre » et le virage de
+ * couleur passe dessous.
+ *
+ * Le quatrième garde le rouge et rend la lumière, si bien que l ombre change de
+ * TEINTE sans perdre de LUMIERE — la mer éclaire au lieu d assombrir. Et la
+ * scène d avant n était pas physique non plus : un ciel pâle sous la quille est
+ * faux. On choisit entre deux approximations, pas contre la vérité. */
+uniform vec3  u_sea_tint   = vec3(0.20, 0.75, 0.85);
+uniform float u_sea_bounce = 1.0;
+
+/* L'hémisphère du bas, teinté par l'eau. Le fondu part SOUS l'horizon et non à
+   l'horizon même : la ligne d'eau est déjà tenue par la brume et par la mer
+   elle-même, et y poser une seconde transition y ferait la couture que tout ce
+   fichier existe pour éviter. */
+vec3 naval_sea_light(vec3 dir, vec3 sky) {
+	/* BORNÉ À UN : au-delà, le mélange EXTRAPOLE au lieu de mélanger, et la
+	   teinte passe de l autre côté de la mer — à deux, le rouge tombe sous zéro.
+	   Le cadran dose entre le ciel pâle d avant et l eau, rien de plus. */
+	float w = min(1.0, smoothstep(0.02, 0.45, clamp(-dir.y, 0.0, 1.0)) * u_sea_bounce);
+	return mix(sky, sky * u_sea_tint, w);
+}
+
 /* CE QUE L'ECRAN MONTRE, ET POURQUOI IL FAUT DEFAIRE L'ENCODAGE.
    Aucun shader d'origine n'inclut `colorspace_fragment`, et three.js ne l'ajoute
    qu'a ses materiaux integres : la mer et le ciel y ecrivent leur valeur TELLE

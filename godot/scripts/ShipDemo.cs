@@ -588,6 +588,7 @@ public partial class ShipDemo : Node3D
         AudioServer.SetBusVolumeDb(0, Mathf.LinearToDb(Math.Clamp(s.Volume, 0.001f, 1f)));
         _sky.Env.SsaoEnabled = s.Occlusion;
         _sky.SunStrength = s.SunStrength; _sky.SunWarmth = s.SunWarmth; _sky.SkyShade = s.SkyShade;
+        _sky.SeaBounce = s.SeaBounce;
         _sky.Apply();
         _sky.Env.SsilEnabled = s.IndirectLight;
         DisplayServer.WindowSetVsyncMode(s.VSync ? DisplayServer.VSyncMode.Enabled : DisplayServer.VSyncMode.Disabled);
@@ -789,6 +790,7 @@ public partial class ShipDemo : Node3D
         Slide("Force du soleil", 0.5, 5, 0.05, st.SunStrength, x => st.SunStrength = x);
         Slide("Chaleur du soleil", 0, 1, 0.05, st.SunWarmth, x => st.SunWarmth = x);
         Slide("Éclairage ambiant", 0, 1.5, 0.05, st.SkyShade, x => st.SkyShade = x);
+        Slide("Rebond de la mer", 0, 1, 0.05, st.SeaBounce, x => st.SeaBounce = x);
         Title("Carte", 15);
         Slide("Épaisseur de la plume", 0.5, 4, 0.1, st.PenWidth, x =>
         {
@@ -3776,6 +3778,13 @@ public partial class ShipDemo : Node3D
                 /* TOUS les instruments, et non les deux étiquettes de gauche : une
                    capture de la mer ou de la toile n a que faire du comptoir, de la
                    rose et de la barre de pièces. */
+                // ce que la mer renvoie vers le haut : 0 rend l'image d'avant
+                /* PAR LE RÉGLAGE et non par le ciel seul : ApplySettings repasse
+                   derrière et rendrait au ciel la valeur du menu — deux captures
+                   de comparaison seraient sorties identiques sans qu on le voie. */
+                case "--rebond":
+                    _settings.SeaBounce = args[i + 1].ToFloat();
+                    _sky.SeaBounce = _settings.SeaBounce; _sky.Apply(); break;
                 case "--masquer": _hudOn = args[i + 1] != "1"; _info.Visible = _sunPanel.Visible = _hudOn; break;
                 case "--panneau-mer": _seaPanel.Visible = args[i + 1] == "1"; break;
                 // la mer aux valeurs par défaut, sans toucher au fichier : pour comparer
