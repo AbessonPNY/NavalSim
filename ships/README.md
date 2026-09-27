@@ -306,6 +306,58 @@ chargement — c'est une erreur de fiche, pas de physique.
 | `dragAft` | quille plus profonde à l'arrière |
 | `forefootLift` / `counterLift` | relevé de l'étrave et de la voûte |
 
+## Peindre une voile — `appearance.canvasMap`
+
+Une image par SORTE de voile, et non par voile : un galion porte neuf carrées,
+qui seraient neuf programmes là où un suffit.
+
+```json
+"appearance": {
+  "canvas": "0xd8cdb4",
+  "canvasMap": {
+    "square": "ships/textures/toile-carree.jpg",
+    "lateen": "ships/textures/toile-latine.jpg"
+  }
+}
+```
+
+| clé | ce qu'elle habille |
+|---|---|
+| `square` | les carrées : basses voiles, huniers, perroquets |
+| `gaff` | les auriques, sur leur bôme |
+| `jib` | les focs et voiles d'étai |
+| `lateen` | l'antenne d'artimon |
+
+`canvas` RESTE et multiplie l'image au lieu de passer au blanc : c'est le ton de
+la toile, et une voile peinte garde le même blanc cassé que ses voisines unies.
+Un motif sur un matériau blanc est un drap à côté d'un foc.
+
+### La planche d'UV, et pourquoi elle est indispensable
+
+**Une voile n'est pas un rectangle.** Ses chutes rentrent à mi-hauteur, sa
+bordure remonte au milieu, et une latine se referme carrément sur son pic : un
+motif peint au centre honnête d'une image n'arrive pas au centre honnête du
+tissu. Il n'y a aucun moyen de le savoir sans peindre et regarder — sauf à
+dessiner la correspondance :
+
+```bash
+node tools/uv-chart.js carree     # ships/textures/uv-carree-repere.png
+node tools/uv-chart.js latine     # ships/textures/uv-latine-repere.png
+```
+
+Les deux planches ne se ressemblent pas, et il faut le savoir avant de
+commencer :
+
+- une **carrée** a sa têtière en HAUT de l'image, et sa laize court de haut en
+  bas ; la bande sombre du haut est la ralingue, cachée contre la vergue ;
+- une **latine** est peinte LA TÊTE EN BAS. Sa bordure est en haut de l'image,
+  son pic est écrasé sur le bord du bas, l'antenne est à gauche et la chute à
+  droite. Le bas de l'image ne couvre presque plus de tissu : les deux guides
+  qui convergent le disent, et rien d'utile ne peut y tenir.
+
+Les quatre coins colorés existent pour rendre impossible la seule faute qu'une
+planche doit empêcher : une image retournée ou en miroir.
+
 ## Gréements
 
 `rig.type` vaut `"gaff"` (bôme pivotante), `"square"` (vergues carrées) ou

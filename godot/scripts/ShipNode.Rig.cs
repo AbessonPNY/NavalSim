@@ -1006,7 +1006,12 @@ public partial class ShipNode
         double un = Math.Sqrt(ux * ux + uz * uz);
         var side = new Vec3d(uz / un, 0, -ux / un);
         _latPivot.AddChild(SailSurface(new[] { L(T, T.Y), L(P, clewY), L(P, P.Y) },
-            side, new SailCut { Kind = "jib", UPeak = 0.40, VPeak = 0.34, VPin0 = true, Crown = 0.80 }));
+            /* SA PROPRE SORTE, et c'est ce qui lui donne droit à sa propre texture.
+               Elle partageait « jib » avec les focs : une image posée sous cette
+               clé serait arrivée sur les trois. Rien d'autre ne dépend du nom —
+               seul « square » branche quelque part (seize colonnes et des festons
+               de ferlage) —, donc la toile est taillée exactement comme avant. */
+            side, new SailCut { Kind = "lateen", UPeak = 0.40, VPeak = 0.34, VPin0 = true, Crown = 0.80 }));
         // l'antenne tourne avec sa toile, et tombe avec son mât
         _latYard?.Reparent(_latPivot, true);
         _latMast = _damage.Count - 1;
