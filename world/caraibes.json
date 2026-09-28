@@ -38,7 +38,7 @@
 
   "ports": [
     { "key": "port-royal", "name": "Port-Royal", "lat": 17.9425, "lon": -76.8330, "quay": 0,
-      "start": true, "mole": true, "note": "au bout des Palisadoes, quais côté port" },
+      "start": true, "note": "au bout des Palisadoes, quais côté port ; port NATUREL — le môle a été retiré, l'ouvrage du bassin est modelé à la main" },
 
     { "key": "passage-fort", "name": "Passage Fort", "lat": 17.9550, "lon": -76.8950, "quay": 120,
       "note": "le débarcadère de St Jago de la Vega, au fond de la rade ; premier des ports de la Jamaïque, qu on suit ensuite dans le sens des aiguilles" },
