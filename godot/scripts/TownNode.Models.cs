@@ -182,10 +182,15 @@ public partial class TownNode
                     mm.SetInstanceTransform(k, new Transform3D(basis, at));
                     mm.SetInstanceColor(k, Walls[(int)(Frac(Math.Sin(h.X * 3.17 + h.Z * 7.31) * 9187.71) * Walls.Length) % Walls.Length]);
                 }
+                /* LE VERRE NE JETTE PAS D'OMBRE. Il est transparent le jour et ne
+                   doit rien laisser de lui ; une ombre portée serait la seule
+                   trace d'un panneau qu'on a fait disparaître exprès. */
+                bool vitre = ReferenceEquals(face.Mat, _glass);
                 holder.AddChild(new MultiMeshInstance3D
                 {
                     Multimesh = mm, MaterialOverride = face.Mat,
-                    CastShadow = GeometryInstance3D.ShadowCastingSetting.On,
+                    CastShadow = vitre ? GeometryInstance3D.ShadowCastingSetting.Off
+                                       : GeometryInstance3D.ShadowCastingSetting.On,
                     ExtraCullMargin = 400
                 });
             }

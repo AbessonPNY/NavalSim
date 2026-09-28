@@ -8,6 +8,10 @@
  * chaude quand les murs prennent celle de la lune.
  */
 shader_type spatial;
+/* MÉLANGÉE, ET SANS OMBRE PORTÉE. Une vitre invisible qui jette une ombre serait
+   la plus visible des fenêtres — et c'est bien ce qu'elle ferait de jour, quand
+   il ne doit rien rester d'elle. Le reste suit le mur. */
+render_mode blend_mix, depth_draw_opaque;
 
 uniform float u_night = 0.0;          // 0 le jour, 1 la nuit — la même que les fanaux
 uniform vec3 u_warm = vec3(1.0, 0.66, 0.30);
@@ -27,8 +31,25 @@ void vertex() {
 }
 
 void fragment() {
+	/* ELLE N'EXISTE QUE LA NUIT.
+	 *
+	 * Le jour, la fenêtre est PEINTE dans l'albédo du bâtiment : ce panneau-ci
+	 * est posé devant elle à la main, et s'il porte la moindre matière il cache
+	 * ce qu'il est censé montrer. Il s'efface donc entièrement — alpha zéro —
+	 * et le bois, le linteau, les carreaux du modéliste restent seuls à l'œil.
+	 *
+	 * La nuit, il s'allume, et lui seul : les murs prennent la couleur de la
+	 * lune pendant qu'il garde sa chaleur, ce qui est la règle de la maison —
+	 * ce qui réfléchit suit la lumière, ce qui ÉMET ne la suit pas.
+	 *
+	 * Et une maison éteinte reste transparente : on y voit alors la fenêtre
+	 * peinte, sombre sous la lune, ce qui est exactement ce qu'on veut voir
+	 * d'une maison où l'on dort. Les 45 % de maisons non tirées n'ont donc plus
+	 * une vitre grise posée dessus, elles ont leur vraie fenêtre. */
+	float on = u_night * v_lit;
 	ALBEDO = u_glass;
 	ROUGHNESS = 0.25;
 	SPECULAR = 0.6;
-	EMISSION = u_warm * (u_gain * u_night * v_lit);
+	EMISSION = u_warm * (u_gain * on);
+	ALPHA = on;
 }
