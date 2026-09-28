@@ -11487,6 +11487,68 @@ trois fois la même raison.
 Les touches ⇧O, ⇧R et ⇧X n'ont jamais eu ce défaut : elles s'appuient en jeu,
 bien après `Home()`. Seule la ligne de commande mentait.
 
+## Le gréement dans l'axe, et la coupe en deux de ShipNode.Rig.cs (Godot)
+
+Un sloop à un mât, gréé aurique, dont le modèle arrivait — et le moteur le
+refusait par une phrase qu'il avait lui-même écrite :
+
+    "aucune vergue dans le modèle — elle navigue à sec de toile.
+     Un modèle aurique ou latin demande son propre chemin de gréement."
+
+### La coupe, d'abord
+
+1410 lignes, dont 827 pour la seule reconnaissance d'un modèle importé. Les deux
+moitiés ne font pas le même métier, et c'est ce qui rendait la couture évidente :
+l'une **dessine** un gréement d'après une fiche, et sait donc où tout se trouve ;
+l'autre le **reconnaît** dans un maillage fait par quelqu'un d'autre — quel îlot
+de triangles est un mât, lequel une vergue, lequel un beaupré, et lesquels n'en
+sont pas malgré leur forme. Un travail d'épreuves et de refus.
+
+    ShipNode.Rig.cs        1410 → 584 lignes
+    ShipNode.RigModel.cs          852 lignes
+
+Déplacement PUR, aucune ligne récrite, sous la même classe partielle : le
+compilateur doit rendre le même programme, et le galion grée et flotte au
+centième près comme avant (0,212 m d'assise, 40,7 % d'immersion). C'est ce qui
+rend un déplacement vérifiable — on ne mélange jamais un rangement et un
+changement.
+
+### L'épreuve qui manquait était la symétrique de celle qui existait
+
+Une vergue est longue EN TRAVERS ; une bôme est longue DANS L'AXE. Aucune
+épreuve du fichier ne pouvait donc voir une bôme, quoi qu'on modelât. Une garde
+demande réflexion et une seule : ce qui déborde l'étrave est un BEAUPRÉ, qui a
+son épreuve et son sort — il tombe vers l'avant sur ses jottereaux quand un mât
+passe par-dessus bord. On mesure donc l'extrémité AVANT de l'espar, qui est au
+mât ; ce qui dépasse le tableau ne gêne pas.
+
+**C'est le modèle qui décide de la coupe, et non la fiche.** Avec une corne la
+toile a quatre côtés ; sans elle elle monte en pointe au capelage — la voile du
+sloop des Antilles. Le modéliste essaie les deux sans qu'on touche à rien, et
+les points sont donnés dans l'ordre du gréement DESSINÉ (amure, écoute, pic,
+gorge) si bien que la même coupe les reçoit.
+
+Le foc a son propre pivot, celui des focs, qui ne brasse qu'aux trois quarts :
+un foc est bordé à part, et le voir suivre la bôme au degré près serait le seul
+détail qu'un marin verrait de loin.
+
+### Et je suis retombé dans le piège que le fichier signale
+
+Mon épreuve mesurait l'épaisseur comme `max(X, Y)`. Or sur un espar EN PENTE, Y
+est la pente et non le bois : la bôme du sloop monte de 86 cm vers l'arrière sur
+3,84 de long, et elle était refusée comme « épaisse de 86 centimètres ». C'est un
+cylindre de DOUZE centimètres.
+
+Le commentaire du beaupré, vingt lignes plus haut dans le même fichier, raconte
+exactement cette faute — relevée en son temps sur la frégate, dont le beaupré
+monte de 5,17 m sur 11,22 de long. **Je l'ai relue après l'avoir refaite.**
+
+La garde juste est celle qu'il emploie : l'épaisseur se mesure EN TRAVERS et
+seulement là, plus un « plus couché que debout » qui écarte le mât sans rien
+dire de son embonpoint.
+
+Relevé après : 2 voiles, 2 pivots, sur un modèle qui n'en portait aucune.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code
