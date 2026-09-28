@@ -202,7 +202,6 @@ public partial class ShipDemo
         if (_world == null) return null;
         var b = _ship.Physics.Body.Pos;
         var o = _sea.Core.Origin;
-        var ports = _world.Isles.FindAll(i => i.Port.Hx != 0 || i.Port.Hz != 0);
         for (int k = 0; k < 60; k++)
         {
             double a = _metRng.NextDouble() * Math.PI * 2;
@@ -218,18 +217,35 @@ public partial class ShipDemo
                     return (new Vec3d(lx, 0, lz), new Vec3d(b.X + o.X, 0, b.Z + o.Z));
                 continue;
             }
-            var open = ports.FindAll(p => ClearWater(wx, wz, p.Port.Hx, p.Port.Hz, _metRules.ClearWater));
-            if (open.Count > 0)
-            {
-                var p = open[_metRng.Next(open.Count)];
-                return (new Vec3d(lx, 0, lz), new Vec3d(p.Port.Hx, 0, p.Port.Hz));
-            }
-            // aucun port ralliable : un point du large, droit devant
-            double c = _metRng.NextDouble() * Math.PI * 2;
-            double fx = wx + Math.Sin(c) * 15000, fz = wz + Math.Cos(c) * 15000;
-            if (ClearWater(wx, wz, fx, fz, 0)) return (new Vec3d(lx, 0, lz), new Vec3d(fx, 0, fz));
+            if (Destination(wx, wz) is { } to) return (new Vec3d(lx, 0, lz), to);
         }
         return null;
+    }
+
+    /// <summary>
+    /// OÙ VA UN NAVIRE parti de (<paramref name="wx"/>, <paramref name="wz"/>), en
+    /// mètres VRAIS : un port dont la route est claire, tiré au sort parmi ceux
+    /// qu'on peut rallier, et à défaut un point du large droit devant. Null quand
+    /// ni l'un ni l'autre ne s'offre — un fond de baie fermé, par exemple.
+    ///
+    /// Sorti d'Offing parce qu'il a maintenant deux usagers : la rencontre au
+    /// large, qui cherche EN MÊME TEMPS d'où l'on vient et où l'on va, et la
+    /// flotte d'essai, qui sait déjà d'où puisqu'on la pose à côté de soi.
+    /// </summary>
+    Vec3d? Destination(double wx, double wz)
+    {
+        if (_world == null) return null;
+        var ports = _world.Isles.FindAll(i => i.Port.Hx != 0 || i.Port.Hz != 0);
+        var open = ports.FindAll(p => ClearWater(wx, wz, p.Port.Hx, p.Port.Hz, _metRules.ClearWater));
+        if (open.Count > 0)
+        {
+            var p = open[_metRng.Next(open.Count)];
+            return new Vec3d(p.Port.Hx, 0, p.Port.Hz);
+        }
+        // aucun port ralliable : un point du large, droit devant
+        double c = _metRng.NextDouble() * Math.PI * 2;
+        double fx = wx + Math.Sin(c) * 15000, fz = wz + Math.Cos(c) * 15000;
+        return ClearWater(wx, wz, fx, fz, 0) ? new Vec3d(fx, 0, fz) : null;
     }
 
     /// <summary>Les fiches qu'on peut croiser, pirates d'un côté, pavillon national de l'autre.</summary>

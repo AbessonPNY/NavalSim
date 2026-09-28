@@ -7746,6 +7746,36 @@ le dit. Aussi : la pose prend la hauteur de la mer À L'ENDROIT (`Sample`),
 l'équilibre de `Settle` étant pris sur une mer aplatie. **La page a le même
 défaut** (`launch()` ne regarde pas le fond).
 
+**Elle portait de la toile, et elle ne naviguait pas.** Demandé si une coque
+mise à l'eau par ce panneau sait gréer et suivre le vent. Gréer, oui,
+entièrement — `Build` passe par le chemin du navire commandé, gréement dessiné
+d'après la fiche ou reconnu dans le `.glb`, et `Rigging` lui fait tourner
+mâture et avaries à chaque image. `SpawnFleet` lui établit même les voiles
+(`SailsSet`, écoute 0,6).
+
+Et pourtant elle ne naviguait pas, parce que `Steer` ne donne la barre qu'à
+QUATRE titres : un pirate, un spectre, un navire qui a un ennemi connu, un
+navire qui a un port. Une coque du panneau n'est rien de tout cela, et `Steer`
+retournait sans avoir rien écrit : safran à zéro, donc cap de naissance tenu
+tout droit ; écoute figée à 0,6, donc trop bordée au largue et trop filée au
+près. Elle n'apprenait à naviguer qu'en apprenant à haïr — un boulet reçu la
+remplissait dans `_hostile`, et alors seulement elle réglait.
+
+Le remède tient en une ligne de `LaunchBeside` : un port, et la barre s'éveille.
+Mais le CHOIX du port était enfermé dans `Offing`, qui cherche en même temps
+d'où l'on vient et où l'on va. Il en sort sous le nom de `Destination(wx, wz)`
+— un port dont la route est claire, à défaut un point du large — et la rencontre
+au large s'en sert comme avant. Une définition, deux usagers.
+
+Le pavillon noir est écarté : `Arm` lui a déjà donné son métier, et `Steer`
+passe le pirate avant tout le reste ; un but n'y ferait que dormir. `--flotte`
+reste à l'écart aussi, mais pour une autre raison — c'est un banc de mesure,
+n coques sur une grille, et leur donner une route changerait ce qu'il compte.
+
+Relevé en jeu, galion posé au large : *but à 10 596 m, barre 0,31 → 0,71,
+écoute 0,98 → 0,87, 0,85 → 2,57 nd*. La barre bouge et l'écoute se règle ; avant
+la ligne, les deux dormaient.
+
 ## Deux bordées couchaient une frégate : le trou, le charpentier, le bord
 
 Signalé : deux bordées reçues, et la Roter Löwe d'en face se couchait sur le

@@ -122,6 +122,15 @@ public partial class ShipDemo
         b.AngVel = Vec3d.Zero;
         b.Quat = me.Quat;
         s.SyncTransform();
+        /* ET ELLE VA QUELQUE PART. Sans but, Steer ne lui donne pas la barre : elle
+           tenait le cap de sa naissance, écoute figée à 0,6, sans jamais régler —
+           elle portait de la toile mais ne naviguait pas. Un port ralliable suffit
+           à lui rendre les deux, parce que c'est le MÊME but qu'on donne au
+           marchand rencontré au large et la même barre qui l'y mène.
+
+           Sauf sous pavillon noir : Arm lui a déjà donné son métier, et Steer
+           passe le pirate avant tout le reste — un but ne ferait qu'y dormir. */
+        if (!_pirates.ContainsKey(s) && Destination(o.X + x, o.Z + z) is { } to) _bound[s] = to;
         Say(s.Spec.Name + " est à l'eau");
         DrawFleet();
     }
