@@ -88,6 +88,94 @@ public partial class ShipDemo
     double Wait() => _metRules.IntervalMin + _metRng.NextDouble() * (_metRules.IntervalMax - _metRules.IntervalMin);
 
     // ------------------------------------------------------------------
+    //  DE QUOI LES ÉPROUVER
+    // ------------------------------------------------------------------
+
+    /* CE QU'IL FAUT POUR VOIR UNE RENCONTRE, ET POURQUOI ON NE LE VOYAIT PAS.
+     *
+     * Le règlement est bon en jeu et intenable à l'essai : rien ne paraît à
+     * moins de 2500 m d'une côte, la pendule tire entre 55 s et DOUZE MINUTES,
+     * et la voile naît à quatre ou cinq kilomètres. Éprouver une rencontre
+     * demandait donc de sortir au large, d'y rester, d'attendre, puis de
+     * distinguer une tache à l'horizon — et de recommencer pour en voir une
+     * autre. Une paire aux prises, qui ne sort qu'une fois sur cinq, ne se
+     * voyait pour ainsi dire jamais.
+     *
+     * Deux leviers, donc, et pas un de plus : se porter au large, et faire
+     * venir la prochaine tout de suite. Ce qui suit reste le jeu — même
+     * distance, même tirage de navire, même vigie, même lunette. On force
+     * QUAND, jamais QUOI.
+     */
+
+    /// <summary>
+    /// ⇧O — GAGNER LE LARGE : l'atterrage le plus proche, hors de vue de toute
+    /// côte, là où le jeu accepte enfin de croiser quelqu'un.
+    ///
+    /// Le déplacement passe par l'ORIGINE FLOTTANTE et non par un décalage
+    /// écrit à la main : on pose la coque à sa nouvelle position LOCALE, et le
+    /// glissement du monde, à la fin de l'image, recentre tout le reste — mer,
+    /// écume, embruns, boulets, épaves. C'est la seule liste que ce projet ait
+    /// déjà oublié de tenir deux fois ; on ne s'en écrit pas une seconde.
+    ///
+    /// Ce qui flottait autour reste au port : on part SEUL, sans quoi la flotte
+    /// du mouillage suivrait le glissement et se retrouverait au large avec
+    /// nous, ce qui n'est pas une rencontre mais un déménagement.
+    /// </summary>
+    void GoOffshore()
+    {
+        if (_world == null || _ship == null || _inTitle) return;
+        NavalSim.Core.ApproachSpec? best = null;
+        double bd = double.MaxValue;
+        var home = _world.StartPort;
+        double hx = home?.X ?? 0, hz = home?.Z ?? 0;
+        foreach (var ap in _world.Region.Approaches)
+        {
+            var g = _world.Geo.ToXZ(ap.Lat, ap.Lon);
+            double d = (g.X - hx) * (g.X - hx) + (g.Z - hz) * (g.Z - hz);
+            if (d < bd) { bd = d; best = ap; }
+        }
+        if (best == null) { Say("Aucun atterrage dans cette région"); return; }
+
+        foreach (var other in new List<ShipNode>(_others)) RemoveShip(other);
+        _met.Clear(); _noticed.Clear(); _bound.Clear();
+
+        var at = _world.Geo.ToXZ(best.Lat, best.Lon);
+        var o = _sea.Core.Origin;
+        var b = _ship.Physics.Body;
+        b.Pos = new Vec3d(at.X - o.X, b.Pos.Y, at.Z - o.Z);
+        b.Vel = Vec3d.Zero;
+        b.AngVel = Vec3d.Zero;
+        _ship.SyncTransform();
+        _nextSail = _t + 2;                  // et la première vient presque tout de suite
+        double loin = _world.ShoreDistance(at.X, at.Z);
+        Say($"Au large — {loin / 1852:F1} mille(s) de toute terre");
+    }
+
+    /// <summary>
+    /// ⇧R une voile, ⇧X deux aux prises — la prochaine rencontre, tout de suite.
+    ///
+    /// À la VRAIE distance, avec le vrai tirage : on saute l'attente, rien
+    /// d'autre. Une voile qui paraîtrait à deux cents mètres ne serait pas une
+    /// rencontre, ce serait un abordage.
+    /// </summary>
+    void ForceEncounter(bool pair)
+    {
+        if (_world == null || _ship == null || _inTitle) return;
+        if (_skirmish || _ghosts.Active) { Say("Pas ici : la mer est déjà pleine"); return; }
+        var me = _ship.Physics.Body.Pos;
+        var o = _sea.Core.Origin;
+        if (_portHere != null || _world.ShoreDistance(o.X + me.X, o.Z + me.Z) < _metRules.LandDistance)
+        {
+            // le dire, plutôt que de ne rien faire : c'est la règle du jeu, pas une panne
+            Say("Trop près de la terre — on croise des voiles AU LARGE (⇧O)");
+            return;
+        }
+        if (_fleet.Count + (pair ? 2 : 1) > Config.MaxShips) { Say("Trop de monde à flot"); return; }
+        if (pair) Affair(); else Sail();
+        _nextSail = _t + Wait();
+    }
+
+    // ------------------------------------------------------------------
     //  OÙ LA POSER
     // ------------------------------------------------------------------
 

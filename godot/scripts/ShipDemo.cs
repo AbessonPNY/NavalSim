@@ -1964,6 +1964,9 @@ public partial class ShipDemo : Node3D
                 case Key.J when k.ShiftPressed: if (!BestiaireMuet()) SummonSerpent(); break;
                 case Key.J: GoToStorm(0); break;
                 // le radoub : mâts replantés, toile renverguée — pour recommencer un essai
+                /* ⇧R : UNE RENCONTRE TOUT DE SUITE — R relève les avaries, ⇧R fait
+                   venir la voile qu on aurait attendue douze minutes. */
+                case Key.R when k.ShiftPressed: ForceEncounter(false); break;
                 case Key.R: Salvage(); break;
                 // le kraken, tout de suite contre elle — pour le voir sans attendre une minute au cœur d'un grain
                 // ⇧K : la baleine, qui vient charger — pour la voir sans attendre au large
@@ -2003,6 +2006,9 @@ public partial class ShipDemo : Node3D
                 // ⇧C : la chambre seule — le capitaine dort parfois
                 case Key.C when k.ShiftPressed: DouseCabin(); break;
                 case Key.C: CycleCamera(); break;
+                // ⇧X : DEUX NAVIRES AUX PRISES — deux sabres en croix, et la seule
+                // rencontre qu on ne voyait pour ainsi dire jamais (une sur cinq)
+                case Key.X when k.ShiftPressed: ForceEncounter(true); break;
                 case Key.X: if (_fixed) Plant(); break;
                 /* LE PLAN D'ARRIMAGE, sur la seule place de lettre qui ne servait à
                    rien : le Z d'un QWERTY, le W d'un AZERTY. Par son EMPLACEMENT,
@@ -2010,6 +2016,8 @@ public partial class ShipDemo : Node3D
                    disent la lettre du clavier qu'on a sous les doigts. */
                 case Key.Z: ToggleStow(); break;
                 // l'occlusion ambiante et l'illumination globale, pour juger à l'œil
+                // ⇧O : GAGNER LE LARGE, là où l on croise des voiles
+                case Key.O when k.ShiftPressed: GoOffshore(); break;
                 case Key.O: _settings.Occlusion = !_settings.Occlusion; Changed(); break;
                 case Key.Tab: CycleGunSide(); break;
                 /* ⇧Y : LE FEU À BORD — Y fait sauter la soute, ⇧Y allume ce qui
@@ -3723,6 +3731,9 @@ public partial class ShipDemo : Node3D
                 // LES DAUPHINS : les faire venir tout de suite
                 // LE VAISSEAU FANTÔME : le faire paraître tout de suite
                 case "--fantome": if (args[i + 1] != "0") SummonWraith(); break;
+                // gagner le large, puis faire venir une voile ou deux aux prises
+                case "--large": if (args[i + 1] != "0") GoOffshore(); break;
+                case "--rencontre": ForceEncounter(args[i + 1].StartsWith("p")); break;
                 // LA CHALOUPE : l affaler tout de suite
                 case "--chaloupe": if (args[i + 1] != "0") GD.Print("chaloupe : " + BoatSwing()); break;
                 case "--dauphins":
