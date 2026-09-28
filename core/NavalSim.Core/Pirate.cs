@@ -126,6 +126,33 @@ public sealed class Pirate
     }
 
     /// <summary>Ne tire que pendant la CHASSE : à l'abordage, ses boulets frapperaient la coque qu'il vient piller.</summary>
+    /// <summary>
+    /// ON LUI A TIRÉ DESSUS — il laisse sa prise et se retourne.
+    ///
+    /// Il n'avait AUCUN moyen de savoir qu'on le canonnait : il choisit sa proie
+    /// par la PROXIMITÉ et la garde jusqu'à ce qu'elle coule. Un pirate déjà
+    /// occupé à un marchand encaissait donc des bordées sans lever la tête, et
+    /// le joueur qui l'attaquait n'obtenait rien — ni riposte, ni fuite, ni même
+    /// un regard (signalé).
+    ///
+    /// Le registre des hostiles, qui sert à tous les autres navires, l'écarte
+    /// exprès : on le croyait capable de se défendre tout seul. Il ne l'était
+    /// pas. Voici son chemin à lui.
+    ///
+    /// CELUI QUI FUIT NE SE RETOURNE PAS : un pirate qui a rompu le combat et
+    /// court à l'horizon ne revient pas parce qu'on lui envoie un boulet — il
+    /// courrait à sa perte, et ce serait le contraire de ce que la fuite veut
+    /// dire. Et l'oubli est levé au passage : celui qu'il avait déjà pillé, donc
+    /// rayé de ses proies, redevient une cible s'il ose tirer.
+    /// </summary>
+    public void Provoke(ShipPhysics by, double t)
+    {
+        if (by == null || by.Foundered || State == Phase.Fuite) return;
+        Ignore.Remove(by);
+        Cible = by;
+        State = Phase.Chasse;
+    }
+
     public ShipPhysics? Enemy => State == Phase.Chasse ? Cible : null;
 
     public void Rebase(double dx, double dz) => Fuite = new Vec3d(Fuite.X - dx, Fuite.Y, Fuite.Z - dz);

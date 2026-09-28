@@ -11422,6 +11422,71 @@ non comme une bille.
 
 Coût d'un sabordage complet, explosion et embruns compris : **7,58 ms**.
 
+## Un pirate qu'on canonne ne levait pas la tête (Godot)
+
+Signalé après le premier essai des rencontres : « le pirate ne s'en est pas pris
+à moi quand je l'ai attaqué ».
+
+Il y a DEUX systèmes de haine dans ce jeu, et le défaut était dans les deux —
+la même faute, deux portes.
+
+### L'IA du pirate ne lisait rien de ce qui lui tombait dessus
+
+`Pirate.Pilot` choisit sa proie par la PROXIMITÉ et la garde jusqu'à ce qu'elle
+coule. Aucun de ses chemins ne regarde qui tire. Et `Struck` l'excluait
+explicitement du registre des hostiles — `!_pirates.ContainsKey(s)` — en le
+croyant capable de se défendre tout seul. Il ne l'était pas : un pirate occupé à
+un marchand encaissait des bordées sans lever la tête.
+
+D'où `Provoke`, son chemin à lui : il laisse sa prise et se retourne. Deux
+garde-fous, et ils comptent tous les deux. **Celui qui FUIT ne se retourne
+pas** : un pirate qui a rompu le combat et court à l'horizon ne revient pas
+parce qu'on lui envoie un boulet — il courrait à sa perte, et ce serait le
+contraire de ce que la fuite veut dire. Et **l'oubli est levé** : celui qu'il
+avait déjà pillé, donc rayé de ses proies, redevient une cible s'il ose tirer.
+
+### Et « pas déjà hostile » protégeait de tout nouvel agresseur
+
+La paire aux prises n'emploie pas l'IA du pirate mais le registre : deux entrées
+croisées, chacun l'ennemi de l'autre. Or la règle d'hostilité portait
+`!_hostile.ContainsKey(s)`. Cela paraissait prudent — ne pas réécrire une haine
+déjà inscrite — et c'était exactement le défaut : **un navire engagé contre un
+autre encaissait les bordées d'un TIERS sans jamais changer de cible.**
+
+Le dernier qui tire devient l'ennemi. Mesuré sur une paire :
+
+    avant   Galion pirate en voulait à Roter Löwe
+    après   Galion pirate en veut à NOUS
+
+Le compte à rebours de la bordée est CONSERVÉ quand l'ennemi change : sans cela,
+changer de cible offrirait un tir gratuit à chaque coup reçu. Risque assumé :
+deux agresseurs qui frappent tour à tour se renvoient sa cible comme une balle —
+cela se verra en escarmouche avant de se voir en mer.
+
+### Et la leçon de méthode, qui est la plus chère
+
+**J'ai annoncé l'essai réussi sur un message, et le message ne prouvait rien.**
+
+`--large` et `--rencontre` agissaient pendant la LECTURE de la ligne de
+commande. Or `Home()` passe derrière au démarrage : il vide la flotte et
+recentre la coque. La rencontre naissait donc bel et bien — la console écrivait
+« aux prises à 4543 m » — puis **disparaissait dans la seconde, sans un mot**.
+
+J'ai tenu cette ligne pour une preuve pendant trois essais. Elle ne disait que
+« c'est né », jamais « c'est là ». Il a fallu compter la flotte APRÈS :
+
+    image  20   0 autre(s), 0 hostile(s)          ← tout avait disparu
+    image 420   2 autre(s), 2 hostile(s), à 4,5 km  ← après correction
+
+C'est la même famille que les valeurs qui ne valent qu'à partir de la deuxième
+image : **un message dit qu'une chose a EU LIEU, jamais qu'elle a TENU.** Les
+deux drapeaux attendent maintenant que le jeu soit posé, comme le boulet
+d'épreuve et les trous de voile avant eux — trois fois la même minuterie pour
+trois fois la même raison.
+
+Les touches ⇧O, ⇧R et ⇧X n'ont jamais eu ce défaut : elles s'appuient en jeu,
+bien après `Home()`. Seule la ligne de commande mentait.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

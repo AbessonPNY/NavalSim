@@ -1107,6 +1107,15 @@ public partial class ShipDemo : Node3D
        vergues — un mètre de haut au lieu de cinq (relevé). Un boulet lâché à la
        ligne de commande traversait donc un navire à sec de toile et ne trouvait
        rien. */
+    /* CES DEUX-LÀ ATTENDENT, COMME LE BOULET D'ÉPREUVE, ET POUR LA MÊME RAISON —
+       mais elle est ici plus vicieuse. La ligne de commande est lue AVANT que le
+       jeu ait fini de se mettre en place, et Home() passe derrière : il vide la
+       flotte et recentre la coque. Une rencontre forcée au démarrage naissait
+       donc bel et bien — le message le disait, « aux prises à 4543 m » — puis
+       disparaissait dans la seconde, sans un mot. J'ai cru l'essai réussi sur ce
+       message, et il ne prouvait rien : il faut compter la flotte APRÈS. */
+    double _largeIn = -1, _metIn = -1;
+    bool _metPair;
     double _shotIn = -1, _shotY, _holesIn = -1;
     int _holesWanted;
 
@@ -1115,6 +1124,8 @@ public partial class ShipDemo : Node3D
         // le monde n'est pas encore bâti : le rideau est seul à l'écran
         if (!_booted) return;
         if (_serpentIn > 0 && (_serpentIn -= delta) <= 0) SummonSerpent();
+        if (_largeIn > 0 && (_largeIn -= delta) <= 0) GoOffshore();
+        if (_metIn > 0 && (_metIn -= delta) <= 0) ForceEncounter(_metPair);
         if (_shotIn > 0 && (_shotIn -= delta) <= 0) TestShot(_shotY);
         if (_holesIn > 0 && (_holesIn -= delta) <= 0) TestHoles(_holesWanted);
         if (_flipIn > 0 && (_flipIn -= delta) <= 0)
@@ -2918,8 +2929,36 @@ public partial class ShipDemo : Node3D
         /* UN BOULET D'UN NAVIRE DE SON PAVILLON NE FAIT PAS UN ENNEMI. C'est la
            règle de l'escarmouche, et elle vaut partout : entre gens du même bord,
            un coup au but est une maladresse, pas une déclaration. */
-        if (shooter != null && s != _ship && shooter != s && !_pirates.ContainsKey(s) && !_hostile.ContainsKey(s)
-            && !s.IsGhost && !shooter.IsGhost && !Allied(s, shooter)) _hostile[s] = (shooter, 0);
+        /* ET CELUI QUI TIRE LE DERNIER DEVIENT L'ENNEMI, même si l'on en avait
+           déjà un. La condition portait « pas déjà hostile », ce qui paraissait
+           prudent et ne l'était pas : un navire engagé contre un autre encaissait
+           les bordées d'un TIERS sans jamais lever la tête. C'est exactement ce
+           qu'on voit d'une paire aux prises — on canonne le pirate qui s'acharne
+           sur un marchand, et il continue comme si de rien n'était (signalé).
+
+           Le compte à rebours de la bordée est CONSERVÉ quand l'ennemi change :
+           sans cela, changer de cible offrirait un tir gratuit à chaque coup
+           reçu. Et l'on n'écrit rien quand c'est le même — inutile de remettre
+           la pendule à zéro soixante fois par seconde.
+
+           Le risque assumé : deux agresseurs qui frappent tour à tour se
+           renvoient sa cible comme une balle. Cela se verra en escarmouche avant
+           de se voir en mer, où l'on est rarement deux à canonner le même. */
+        if (shooter != null && s != _ship && shooter != s && !_pirates.ContainsKey(s)
+            && !s.IsGhost && !shooter.IsGhost && !Allied(s, shooter))
+        {
+            _hostile.TryGetValue(s, out var deja);
+            if (deja.Foe != shooter) _hostile[s] = (shooter, deja.Rearm);
+        }
+        /* ET UN PIRATE QU'ON CANONNE SE RETOURNE. Il n'est pas au registre des
+           hostiles — on le croyait capable de se défendre seul —, mais il ne
+           lisait rien de ce qui lui tombait dessus : sa proie se choisit à la
+           proximité et se garde jusqu'au naufrage. On l'attaquait donc sans qu'il
+           lève la tête (signalé). Entre gens du même pavillon noir, en revanche,
+           un coup au but reste une maladresse. */
+        if (shooter != null && s != shooter && !s.IsGhost && !shooter.IsGhost
+            && !Allied(s, shooter) && _pirates.TryGetValue(s, out var corsaire))
+            corsaire.Provoke(from, _t);
 
         var w = new Vector3((float)world.X, (float)world.Y, (float)world.Z);
         // le bois d'abord, quoi qu'on ait touché : le même événement vu du dehors
@@ -3732,8 +3771,10 @@ public partial class ShipDemo : Node3D
                 // LE VAISSEAU FANTÔME : le faire paraître tout de suite
                 case "--fantome": if (args[i + 1] != "0") SummonWraith(); break;
                 // gagner le large, puis faire venir une voile ou deux aux prises
-                case "--large": if (args[i + 1] != "0") GoOffshore(); break;
-                case "--rencontre": ForceEncounter(args[i + 1].StartsWith("p")); break;
+                // le large d'abord, la voile une seconde après : elle doit naître
+                // d'un navire DÉJÀ au large, sinon la règle des 2500 m la refuse
+                case "--large": if (args[i + 1] != "0") _largeIn = 1.5; break;
+                case "--rencontre": _metPair = args[i + 1].StartsWith("p"); _metIn = 2.5; break;
                 // LA CHALOUPE : l affaler tout de suite
                 case "--chaloupe": if (args[i + 1] != "0") GD.Print("chaloupe : " + BoatSwing()); break;
                 case "--dauphins":
