@@ -753,6 +753,15 @@ public partial class ShipDemo : Node3D
             box.AddChild(l);
             return l;
         }
+        /* UN BOUTON QUI FAIT, là où tout le reste RÈGLE. Le menu n'avait que des
+           cases et des curseurs : il ne savait pas porter un ordre. */
+        Button Action(string text, Action go)
+        {
+            var bt = new Button { Text = text, FocusMode = Control.FocusModeEnum.None };
+            bt.Pressed += go;
+            box.AddChild(bt);
+            return bt;
+        }
         CheckBox Check(string text, bool value, Action<bool> set)
         {
             var c = new CheckBox { Text = text, ButtonPressed = value, FocusMode = Control.FocusModeEnum.None };
@@ -795,6 +804,10 @@ public partial class ShipDemo : Node3D
             Choice("Scénario", qlabels.ToArray(),
                 _quests.Active == null ? 0 : _quests.List.IndexOf(_quests.Active) + 1, PickQuest);
         }
+        Title("Le bord", 15);
+        /* EN TÊTE, parce que c'est le seul ORDRE du menu et qu'on le cherche : le
+           reste se règle une fois, celui-ci se donne en cours de route. */
+        Action("Revenir au ponton", BackToBerth);
         Title("Lanternes", 15);
         Check("Ombres des lanternes", st.LanternShadows, on => st.LanternShadows = on);
         Check("Lanterne du grand mât", st.MastLantern, on => st.MastLantern = on);
@@ -1114,7 +1127,7 @@ public partial class ShipDemo : Node3D
        donc bel et bien — le message le disait, « aux prises à 4543 m » — puis
        disparaissait dans la seconde, sans un mot. J'ai cru l'essai réussi sur ce
        message, et il ne prouvait rien : il faut compter la flotte APRÈS. */
-    double _largeIn = -1, _metIn = -1;
+    double _largeIn = -1, _metIn = -1, _pontonIn = -1;
     bool _metPair;
     double _shotIn = -1, _shotY, _holesIn = -1;
     int _holesWanted;
@@ -1125,6 +1138,7 @@ public partial class ShipDemo : Node3D
         if (!_booted) return;
         if (_serpentIn > 0 && (_serpentIn -= delta) <= 0) SummonSerpent();
         if (_largeIn > 0 && (_largeIn -= delta) <= 0) GoOffshore();
+        if (_pontonIn > 0 && (_pontonIn -= delta) <= 0) BackToBerth();
         if (_metIn > 0 && (_metIn -= delta) <= 0) ForceEncounter(_metPair);
         if (_shotIn > 0 && (_shotIn -= delta) <= 0) TestShot(_shotY);
         if (_holesIn > 0 && (_holesIn -= delta) <= 0) TestHoles(_holesWanted);
@@ -3649,6 +3663,51 @@ public partial class ShipDemo : Node3D
             $"à quai : {home.Name}, {NavalSim.Core.Geo.Format(fix.Lat, true)} {NavalSim.Core.Geo.Format(fix.Lon, false)}, {-bed:F1} m d'eau"));
     }
 
+    /// <summary>
+    /// REVENIR AU PONTON — se ramener au port de départ sans rien déranger de ce
+    /// qui navigue.
+    ///
+    /// C'est le cousin de <see cref="Moor()"/>, et toute la différence tient en
+    /// une ligne qu'il ne fait PAS : il ne touche pas à l'origine.
+    ///
+    /// Moor() déplace l'ORIGINE du monde jusqu'au ponton et pose la coque à zéro.
+    /// C'est juste au départ d'une partie, où rien d'autre ne flotte — mais un
+    /// changement d'origine emmène tout le monde avec lui : les voiles croisées,
+    /// le pirate qu'on fuyait, l'épave qu'on venait de faire, tous se
+    /// retrouveraient au port. Ce ne serait pas un retour, ce serait un
+    /// déménagement.
+    ///
+    /// Ici on ne bouge QUE la coque, en lui donnant la position locale qui la
+    /// met au ponton. Tout le reste garde la sienne, donc sa place vraie. Le
+    /// glissement du monde, en fin d'image, recentrera l'ensemble — c'est un pur
+    /// changement de repère, il ne déplace personne.
+    ///
+    /// L'ESTIME EST RECALÉE, parce qu'on sait où l'on est : un capitaine qui
+    /// rentre au port relève sa position sur les amers. Sans cela le point
+    /// estimé resterait au large, avec l'erreur qu'on venait d'accumuler.
+    /// </summary>
+    void BackToBerth()
+    {
+        if (_inTitle || _ship == null || _world?.StartPort is not NavalSim.Core.Isle home) return;
+        var (x, z, heading) = NavalSim.Core.Berth.At(home, _ship.Spec.L, _ship.Spec.B);
+        var o = _sea.Core.Origin;
+        var b = _ship.Physics.Body;
+        b.Pos = new Vec3d(x - o.X, b.Pos.Y, z - o.Z);
+        b.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), heading);
+        b.Vel = Vec3d.Zero;
+        b.AngVel = Vec3d.Zero;
+        _ship.SyncTransform();
+        /* On rentre AU PONTON, donc sous voiles serrées et machine stoppée : y
+           arriver toute toile dehors ferait repartir la coque à la seconde même,
+           et le joueur croirait le bouton cassé. */
+        _ship.Ctrl.SailsSet = false;
+        _ship.Ctrl.Throttle = 0;
+        _reck?.Fix(TruePos().X, TruePos().Z);
+        _menu.Visible = false;
+        Say($"De retour à {home.Name}");
+        JournalLog($"Retour au ponton de {home.Name}.");
+    }
+
     /// <summary>L'élan de B, en fois la poussée de la machine ; et le délai d'un double appui, en ms.</summary>
     const double BoostThrust = 45;
     const ulong BoostTwice = 400;
@@ -3774,6 +3833,8 @@ public partial class ShipDemo : Node3D
                 // le large d'abord, la voile une seconde après : elle doit naître
                 // d'un navire DÉJÀ au large, sinon la règle des 2500 m la refuse
                 case "--large": if (args[i + 1] != "0") _largeIn = 1.5; break;
+                // le retour au ponton, comme le bouton du menu
+                case "--ponton": if (args[i + 1] != "0") _pontonIn = args[i + 1].ToFloat(); break;
                 case "--rencontre": _metPair = args[i + 1].StartsWith("p"); _metIn = 2.5; break;
                 // LA CHALOUPE : l affaler tout de suite
                 case "--chaloupe": if (args[i + 1] != "0") GD.Print("chaloupe : " + BoatSwing()); break;
