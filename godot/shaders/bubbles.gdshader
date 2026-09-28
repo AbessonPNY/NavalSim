@@ -17,19 +17,37 @@ uniform vec3 u_color : source_color = vec3(0.93, 0.96, 0.99);
 uniform float u_gain = 1.0;
 uniform float u_opacity = 0.85;   // presque opaque : de l'air dans de l'eau ne se traverse pas
 
+/* AU-DELÀ DE QUEL RAYON UNE BULLE CESSE D'ÊTRE UNE PERLE. Sous le centimètre,
+   la tension de surface l'emporte et la bulle est une sphère ; au-delà de
+   quelques-uns, c'est la poussée qui gagne et elle s'aplatit en CALOTTE, plus
+   large que haute, avec un dessous creux. Douze centimètres est le milieu de
+   cette bascule, et c'est ce qui sépare la poussière de fines d'une poche qu'on
+   suit du regard. */
+const float CAP_R = 0.12;
+
 varying float v_seed;
+varying float v_cap;      // 0 : une perle ; 1 : une calotte
 
 void vertex() {
 	v_seed = INSTANCE_CUSTOM.x;
-	// un panneau toujours face à l'œil, à la taille que lui donne son instance
+	v_cap = clamp(INSTANCE_CUSTOM.y / CAP_R, 0.0, 1.0);
+	// un panneau toujours face à l'œil, à la taille que lui donne son instance —
+	// et ÉCRASÉ pour une calotte, qui est plus large que haute
 	vec4 c = MODELVIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0);
 	float s = length(MODEL_MATRIX[0].xyz);
-	POSITION = PROJECTION_MATRIX * vec4(c.xyz + vec3(VERTEX.xy * s, 0.0), 1.0);
+	vec2 sc = vec2(1.0 + 0.34 * v_cap, 1.0 - 0.36 * v_cap);
+	POSITION = PROJECTION_MATRIX * vec4(c.xyz + vec3(VERTEX.xy * s * sc, 0.0), 1.0);
 }
 
 void fragment() {
 	vec2 d = UV - 0.5;
 	float r = length(d) * 2.0;
+	/* ET SON CONTOUR N'EST PAS UN CERCLE PARFAIT. Une bulle qui monte se déforme
+	   sans cesse ; un disque net se lit comme une bille. Trois lobes tirés de sa
+	   propre graine suffisent à ce qu'aucune ne ressemble à sa voisine, et la
+	   calotte se creuse en plus par le DESSOUS, qui est son vrai signe. */
+	float ang = atan(d.y, d.x);
+	r *= 1.0 + 0.07 * sin(ang * 3.0 + v_seed) + 0.22 * v_cap * smoothstep(0.0, -1.0, sin(ang));
 	if (r > 1.0) discard;
 	/* Le bord brille et le centre reste pâle : c'est ainsi qu'on voit une bulle.
 	   Un anneau trop mince et trop bleu la faisait lire comme du néon — relevé sur
@@ -42,6 +60,11 @@ void fragment() {
 	float edge = smoothstep(1.0, 0.86, r);
 	float body = 0.72 + 0.28 * (1.0 - r * r);
 	float glint = pow(max(0.0, 1.0 - length(d - vec2(-0.18, 0.18)) * 5.0), 2.0) * 0.5;
+	/* Une calotte est SOMBRE PAR LE BAS : son dessous creux ne renvoie rien vers
+	   l'œil, quand son dos rond prend toute la lumière d'en haut. C'est ce dégradé,
+	   et non la forme seule, qui la fait lire comme une poche d'air et non comme
+	   une grosse perle. */
+	body *= 1.0 - 0.45 * v_cap * smoothstep(0.1, -0.5, d.y * 2.0);
 	ALBEDO = naval_display(u_color * (body + glint) * u_gain);
 	ALPHA = edge * u_opacity;
 }

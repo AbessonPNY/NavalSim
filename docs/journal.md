@@ -11348,6 +11348,80 @@ C'est la même famille de faute que la matière de toile gardée en cache ou que
 maillage né après la passe qui devait le ranger : **une valeur qui n'est juste
 qu'à partir de la deuxième image est un piège pour tout ce qui parle avant.**
 
+## Le panache d'une épave : trois choses, et aucune dans le solveur (Godot)
+
+Signalé : les bulles qui s'échappent d'une épave sont trop simplistes.
+
+Le premier réflexe était d'aller voir `WreckAir`, et c'était le mauvais. Le
+noyau était déjà fin : il compte l'air que chaque compartiment expire, le lâche
+par GORGÉES dont la taille suit le débit, le fait monter à la vitesse de Davies
+et Taylor, élargit le panache avec la profondeur et garde son dernier souffle
+pour l'instant où le plus haut de ses hauts passe sous l'eau. Tout ce qui
+manquait se jouait ENTRE lui et l'œil.
+
+### C'était un chapelet, pas un nuage
+
+Deux à sept bulles par gorgée, plafonnées à sept, avec un commentaire qui
+l'assumait — « l'effet doit rester DISCRET ». Or un chapelet se COMPTE du
+regard, et c'est précisément ce qui le trahissait : l'œil voit sept objets là où
+il attend une masse.
+
+Le nombre suit maintenant le volume ET LE TRAJET, de 8 à 46 : une poche qui
+traverse vingt mètres d'eau a vingt mètres pour se déchirer, quand celle qui
+part d'un mètre de fond arrive presque entière. Relevé pendant un naufrage :
+**800 à 1000 bulles vivantes** au lieu de quelques dizaines.
+
+### Toutes montaient à la même allure, et c'était le pire
+
+La vitesse était tirée au hasard autour de celle de la poche — `rise * (0,75 +
+0,5·rand)` —, **sans aucun rapport avec la taille de la bulle**. C'est ce détail
+qui tuait l'effet, et il faut le dire précisément : un panache réel SE TRIE en
+montant, les grosses filent et les fines traînent, si bien qu'il s'étire et se
+délie. Toutes à la même vitesse, il défile d'un bloc, comme un décor.
+
+La vitesse vient donc du RAYON, par la loi que le noyau utilisait déjà —
+promue en `WreckAir.RiseSpeed`, une définition pour deux usagers, ce qui garantit
+en plus que les bulles qu'on regarde arrivent quand la gerbe crève.
+
+    rayon   1,7 cm … 59 cm    (moyenne 15)
+    montée  0,28 … 1,80 m/s
+
+Six fois d'écart. Et chaque bulle a du coup sa PROPRE durée de vie, tirée de sa
+propre vitesse : sans cela les fines disparaissaient en pleine eau pendant que
+les grosses étaient encore en route.
+
+Le spectre de tailles n'existait pas davantage — toutes avaient le même calibre
+à un tiers près. Une puissance 2,6 met l'essentiel du tirage en bas de la gamme
+et laisse passer de loin en loin une grosse, qui est celle qu'on suit du regard.
+
+### Le dessin contredisait le modèle
+
+`WreckAir` calcule un `spread` qui enfle avec la profondeur — le bouillon d'une
+épave profonde est vaste et lent, celui d'une coque en surface est serré — et ne
+le disait à PERSONNE. Les bulles sortaient d'une boîte d'un mètre et demi,
+qu'elles viennent de deux mètres ou de trente. `OnSlug` porte maintenant la
+largeur du panache.
+
+C'est la même faute que la demi-laize mesurée dans le repère de la voile quand
+les flammes s'étalaient dans celui du bord : **une grandeur calculée juste, et
+que celui qui dessine ne reçoit pas.**
+
+### Deux retouches de forme
+
+Le zigzag était une hélice PARFAITE — `sin(2,7·t)` et `cos(2,1·t)` en quadrature
+—, ce qui se lit comme un ressort. Deux cadences qui ne tombent pas juste l'une
+sur l'autre donnent une route qui ne se referme jamais. Et l'amplitude suit la
+taille pendant que la cadence fait l'inverse : une fine frétille, une grosse
+calotte se balance.
+
+Et les grosses sont des CALOTTES. Sous le centimètre la tension de surface
+l'emporte et la bulle est une sphère ; au-delà de quelques-uns c'est la poussée
+qui gagne, et la poche s'aplatit, plus large que haute, creuse et sombre par le
+dessous. C'est ce dégradé, plus que la forme, qui la fait lire comme de l'air et
+non comme une bille.
+
+Coût d'un sabordage complet, explosion et embruns compris : **7,58 ms**.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

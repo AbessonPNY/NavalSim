@@ -23,8 +23,8 @@ public partial class ShipDemo
         // la gerbe basse que chaque poche soulève en crevant, et le bouillon qui reste
         _wreckAir.OnBurst = (at, water, speed, jet) => _spray.Pool.Burst(at, water, speed, jet);
         // ce qu'on voit du trajet : la poche elle-même, qui monte en chapelet
-        _wreckAir.OnSlug = (at, v, rise, travel) =>
-            _bubbles.Slug(new Vector3((float)at.X, (float)at.Y, (float)at.Z), v, rise, travel);
+        _wreckAir.OnSlug = (at, v, rise, travel, spread) =>
+            _bubbles.Slug(new Vector3((float)at.X, (float)at.Y, (float)at.Z), v, rise, travel, spread);
         _flotsam.BottleOneIn = _bottleOneIn;
         // ce qui crève la surface en remontant jette son peu d'eau, par la même réserve
         _flotsam.OnBreak = (at, water, speed) => _spray.Pool.Burst(at, water, speed);

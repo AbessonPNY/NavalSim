@@ -54,13 +54,42 @@ public sealed class WreckAir
     public Action<Vec3d, double, double, double>? OnBurst;
     /// <summary>Son dernier souffle : où, et combien de mètres cubes d'un coup.</summary>
     public Action<Vec3d, double>? OnLastBreath;
-    /// <summary>Une poche qui PART du fond : d'où (monde), son volume, sa vitesse de montée, et combien de temps elle a à monter.</summary>
-    public Action<Vec3d, double, double, double>? OnSlug;
+    /// <summary>
+    /// Une poche qui PART du fond : d'où (monde), son volume, sa vitesse de
+    /// montée, le temps qu'elle a à monter, et LA LARGEUR DU PANACHE.
+    ///
+    /// Cette dernière manquait, et le dessin contredisait donc le modèle : ici on
+    /// sait qu'un panache s'élargit avec la profondeur — il vaut des mètres
+    /// au-dessus d'une épave par vingt brasses —, mais les bulles qu'on voyait
+    /// monter sortaient toujours d'une boîte d'un mètre et demi, quelle que soit
+    /// la profondeur d'où elles venaient.
+    /// </summary>
+    public Action<Vec3d, double, double, double, double>? OnSlug;
 
     /// <summary>Les bouillons de cette image, le plus fort d'abord — à poser dans le champ d'écume.</summary>
     public IReadOnlyList<Boil> Boils => _list;
 
     public WreckAir(Func<double>? random = null) { _rng = random ?? new Random().NextDouble; }
+
+    /// <summary>
+    /// LA VITESSE DE MONTÉE D'UNE POCHE D'AIR — la seule loi de tout ceci, et
+    /// elle sert maintenant aux deux bouts : ici pour savoir QUAND l'air arrive,
+    /// et aux bulles qu'on voit monter pour savoir à quelle allure chacune s'en
+    /// va. Les deux doivent venir du même calcul, sans quoi le chapelet qu'on
+    /// regarde n'arrive pas quand la gerbe crève.
+    ///
+    /// Davies et Taylor : une calotte sphérique monte à 0,71·√(g·r), quelle que
+    /// soit sa forme de détail. Sous quelques centimètres la loi ne vaut plus —
+    /// une petite bulle est une sphère tenue par sa tension de surface, et sa
+    /// vitesse plafonne autour de 0,25 m/s quelle que soit sa taille. Le maximum
+    /// donne ce second régime sans qu'on ait à l'écrire.
+    ///
+    /// C'EST CE QUI TRIE UN PANACHE : les grosses filent à un mètre et demi par
+    /// seconde, les fines traînent à un quart. Un chapelet dont toutes les bulles
+    /// montent à la même allure se lit comme un décor qui défile ; celui-ci
+    /// s'étire de lui-même, les grosses en tête.
+    /// </summary>
+    public static double RiseSpeed(double r) => Math.Max(0.25, 0.71 * Math.Sqrt(9.81 * r));
 
     /* L'air ne sort pas d'une coque en filet continu mais par GORGÉES — il
        s'amasse sous un barrot jusqu'à ce que la poche déborde. La taille suit le
@@ -101,7 +130,7 @@ public sealed class WreckAir
                     s.Owed -= V;
                     s.Gulp = NextGulp(s.Flux);
                     double r = Math.Cbrt(3 * V / (4 * Math.PI));
-                    double rise = 0.71 * Math.Sqrt(9.81 * r);
+                    double rise = RiseSpeed(r);
                     /* Un panache s'élargit en montant : plus elle est profonde,
                        plus large est la tache qu'il crève — le bouillon au-dessus
                        d'une épave profonde est vaste et lent, celui d'une coque
@@ -135,7 +164,7 @@ public sealed class WreckAir
                     }
                     _rising.Add(new Slug { X = x, Z = z, V = V, R = r, Rise = rise, Spread = spread, At = Clock + depth / rise });
                     // et on la MONTRE : sans cela l'air ne se voyait qu'en crevant la surface
-                    OnSlug?.Invoke(new Vec3d(x, c.Vent.Y, z), V, rise, depth / rise);
+                    OnSlug?.Invoke(new Vec3d(x, c.Vent.Y, z), V, rise, depth / rise, spread);
                 }
                 if (s.Owed > 20) s.Owed = 20;      // jamais un arriéré qui éclate d'un coup
             }
@@ -243,14 +272,14 @@ public sealed class WreckAir
         foreach (var (off, share, delay) in shots)
         {
             double v = V * share, r = Math.Cbrt(3 * v / (4 * Math.PI));
-            double rise0 = 0.71 * Math.Sqrt(9.81 * r);
+            double rise0 = RiseSpeed(r);
             _rising.Add(new Slug
             {
                 X = last.X + fx * off * L, Z = last.Z + fz * off * L,
                 V = v, R = r, Rise = rise0, Spread = 0.25 * L,
                 At = Clock + delay, Big = true
             });
-            OnSlug?.Invoke(new Vec3d(last.X + fx * off * L, last.Y - 1.0, last.Z + fz * off * L), v, rise0, delay);
+            OnSlug?.Invoke(new Vec3d(last.X + fx * off * L, last.Y - 1.0, last.Z + fz * off * L), v, rise0, delay, 0.25 * L);
         }
         OnLastBreath?.Invoke(last, V);
     }
