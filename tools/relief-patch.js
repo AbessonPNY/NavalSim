@@ -30,7 +30,17 @@ const sheetPath = path.join(root, 'world', 'caraibes.json');
 
 const region = JSON.parse(fs.readFileSync(sheetPath, 'utf8'));
 const img = decodeGreyPng(fs.readFileSync(path.join(root, region.relief.image)));
-const W = new Naval.World(region, img);
+/* LES RELIEFS LOCAUX, SANS QUOI ON REPEINT UNE AUTRE TERRE QUE LE JEU.
+   Cet outil promet de peindre « d après le relief ACTUEL », et il le lit par
+   W._grey — lequel applique les patchs. Or le monde bâti ici n en recevait
+   aucun : relancé sur un lieu DÉJÀ sculpté, il aurait rendu le gris de la grande
+   image et APLATI la sculpture, en promettant l inverse dans son propre en-tête.
+   Avec eux, il se relit lui-même et ne détruit rien. */
+const patches = (region.patches || []).map(p => {
+  const f = path.join(root, p.image);
+  return fs.existsSync(f) ? Object.assign({}, p, { img: decodeGreyPng(fs.readFileSync(f)) }) : null;
+}).filter(Boolean);
+const W = new Naval.World(region, img, patches);
 
 const isle = W.isles.find(i => i.key === key);
 const town = (region.towns || []).find(t => t.key === key);

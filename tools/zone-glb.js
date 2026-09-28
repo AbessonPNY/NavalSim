@@ -35,7 +35,18 @@ let STEP = Number(process.argv[5] || 0);
 
 const region = JSON.parse(fs.readFileSync(path.join(root, 'world', 'caraibes.json'), 'utf8'));
 const img = decodeGreyPng(fs.readFileSync(path.join(root, region.relief.image)));
-const W = new Naval.World(region, img);
+/* LES RELIEFS LOCAUX, SANS QUOI ON EXPORTE UNE AUTRE TERRE QUE LE JEU.
+   Le constructeur prend un TROISIÈME argument que cet outil ne lui donnait pas :
+   le monde bâti ici ignorait donc tous les patchs, et rendait le relief de la
+   grande image là où le jeu, lui, montre la sculpture fine. L outil connaissait
+   pourtant les patchs — il en lit un pour choisir son pas — mais ne les passait
+   jamais au monde. Le banc de parité, lui, les charge depuis toujours : il
+   compare deux formules, pas deux terres. */
+const patches = (region.patches || []).map(p => {
+  const f = path.join(root, p.image);
+  return fs.existsSync(f) ? Object.assign({}, p, { img: decodeGreyPng(fs.readFileSync(f)) }) : null;
+}).filter(Boolean);
+const W = new Naval.World(region, img, patches);
 
 const isle = W.isles.find(i => i.key === key);
 const town = (region.towns || []).find(t => t.key === key);
