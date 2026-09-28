@@ -509,12 +509,29 @@ public sealed partial class ShipPhysics
     /* ------------------------------------------------------------------ */
 
     /// <summary>
-    /// L'échouage se sonde en TROIS POINTS, jamais sur les sondes de carène.
+    /// L'échouage se sonde en TROIS STATIONS, jamais sur les sondes de carène.
     /// <c>HeightAt</c> balaie la grille des îles ; l'appeler trois cents fois par
     /// sous-pas coûterait plus cher que tout le solveur réuni. L'étrave, le milieu
     /// et l'étambot suffisent à tout ce qui compte : elle s'ensable par l'avant
     /// sur une plage en pente douce, pivote sur un haut-fond qui la prend par le
     /// travers, ou s'assoit sur une quille droite.
+    ///
+    /// MAIS CINQ POINTS DE LA MEMBRURE À CHAQUE STATION, et non le seul point de
+    /// quille — quille, les deux bouchains, les deux plats-bords. La quille n'est
+    /// le point le plus bas que tant qu'elle est DROITE ; couchée, c'est son
+    /// bordé, et retournée, c'est son plat-bord. Sondée sur la seule quille, une
+    /// épave qui se retournait sur le fond y passait au travers : galion sabordé
+    /// par onze mètres d'eau, quille tenue à −11,26 pendant que le reste
+    /// descendait à −15,13 — quatre mètres DANS le sable — pour finir enterrée la
+    /// quille en l'air, ce qui se voyait comme une disparition.
+    ///
+    /// LE FOND N'EST LU QU'UNE FOIS PAR STATION, sur l'axe de la coque, et les
+    /// cinq points sont éprouvés contre cette hauteur-là. C'est une approximation,
+    /// et elle est bonne exactement là où elle sert : les points hauts de la
+    /// membrure ne touchent que couchée ou retournée, et ils sont alors presque à
+    /// l'aplomb de cet axe. Droite, ils sont deux mètres au-dessus de la quille et
+    /// ne touchent jamais — un échouage ordinaire ne change pas d'un cheveu, et le
+    /// prix reste de trois <c>HeightAt</c>, comme avant.
     ///
     /// Le fond répond comme un ressort raide très amorti, appliqué AU point de
     /// contact — donc elle se soulève, gîte et embarde exactement comme la
@@ -528,6 +545,7 @@ public sealed partial class ShipPhysics
         var S = Spec; var b = Body;
         double ox = ocean.Origin.X, oz = ocean.Origin.Z;
         double keel = -(S.Hull.KeelDepth + S.Hull.KeelExtra);
+        double rail = S.Hull.FreeboardMid;
         // elle porte tout son poids à un tiers de mètre de pénétration
         double kSpring = b.Mass * Config.G / (0.33 * 3);
 
@@ -538,37 +556,51 @@ public sealed partial class ShipPhysics
         for (int s = 0; s < stations.Length; s++)
         {
             double f = stations[s];
-            Vec3d pw = b.Quat.Rotate(new Vec3d(0, keel, f * S.L)) + b.Pos;
-            double bed = World.HeightAt(ox + pw.X, oz + pw.Z);
-            double pen = bed - pw.Y;
-            if (pen <= 0) continue;
-            Aground = Math.Max(Aground, pen);
+            double zl = f * S.L, hw = Lines.HalfB(f + 0.5);
 
-            Vec3d r = pw - cog;
-            // la vitesse de CE point, pour que l'amortissement combatte le vrai mouvement
-            Vec3d vp = b.AngVel.Cross(r) + b.Vel;
+            /* Le fond sous l'AXE de la membrure : c'est le seul point d'elle qui
+               reste dessous de quelque façon qu'elle soit tombée. */
+            Vec3d axis = b.Quat.Rotate(new Vec3d(0, 0, zl)) + b.Pos;
+            double bed = World.HeightAt(ox + axis.X, oz + axis.Z);
 
-            double upF = kSpring * Math.Min(pen, 2.5) - vp.Y * b.Mass * 1.2;
-            double fy = Math.Max(0, upF);
-            force.Y += fy;
-            torque.X += -r.Z * fy;
-            torque.Z += r.X * fy;
-
-            // et elle laboure : le sable et la roche tiennent une coque bien
-            // plus fort que l'eau ne le fait
-            Vec3d fVec = new Vec3d(-vp.X, 0, -vp.Z) * (b.Mass * 0.9);
-            force += fVec;
-            torque += r.Cross(fVec);
-
-            /* Talonnée en vitesse, elle S'OUVRE. Une coque ne rebondit pas sur la
-               roche, et le trou est là où elle a frappé — donc l'échouage devient
-               enfin une vraie cause de l'envahissement déjà écrit. */
-            if (spd > 2.2 && _hardAgo <= 0)
+            for (int k = 0; k < 5; k++)
             {
-                int comp = Math.Min(Comps.Length - 1, Math.Max(0,
-                    (int)Math.Floor(((f * S.L + S.L / 2) / S.L) * Comps.Length)));
-                MakeBreach(comp, Math.Min(0.45, 0.06 * (spd - 2.0)), 0.06);
-                _hardAgo = 5;          // elle ne peut pas être percée deux fois dans un souffle
+                if (k > 0 && hw < 0.05) break;   // une membrure sans largeur n'a que sa quille
+                // quille, puis les deux bouchains, puis les deux plats-bords
+                double lx = k == 0 ? 0 : (k % 2 == 1 ? -hw : hw);
+                double ly = k == 0 ? keel : (k <= 2 ? 0 : rail);
+
+                Vec3d pw = b.Quat.Rotate(new Vec3d(lx, ly, zl)) + b.Pos;
+                double pen = bed - pw.Y;
+                if (pen <= 0) continue;
+                Aground = Math.Max(Aground, pen);
+
+                Vec3d r = pw - cog;
+                // la vitesse de CE point, pour que l'amortissement combatte le vrai mouvement
+                Vec3d vp = b.AngVel.Cross(r) + b.Vel;
+
+                double upF = kSpring * Math.Min(pen, 2.5) - vp.Y * b.Mass * 1.2;
+                double fy = Math.Max(0, upF);
+                force.Y += fy;
+                torque.X += -r.Z * fy;
+                torque.Z += r.X * fy;
+
+                // et elle laboure : le sable et la roche tiennent une coque bien
+                // plus fort que l'eau ne le fait
+                Vec3d fVec = new Vec3d(-vp.X, 0, -vp.Z) * (b.Mass * 0.9);
+                force += fVec;
+                torque += r.Cross(fVec);
+
+                /* Talonnée en vitesse, elle S'OUVRE. Une coque ne rebondit pas sur la
+                   roche, et le trou est là où elle a frappé — donc l'échouage devient
+                   enfin une vraie cause de l'envahissement déjà écrit. */
+                if (spd > 2.2 && _hardAgo <= 0)
+                {
+                    int comp = Math.Min(Comps.Length - 1, Math.Max(0,
+                        (int)Math.Floor(((zl + S.L / 2) / S.L) * Comps.Length)));
+                    MakeBreach(comp, Math.Min(0.45, 0.06 * (spd - 2.0)), 0.06);
+                    _hardAgo = 5;          // elle ne peut pas être percée deux fois dans un souffle
+                }
             }
         }
     }

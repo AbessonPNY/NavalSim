@@ -7323,6 +7323,76 @@ les deux reliefs ont été comparés à la même capture, et le relevé tient mi
 une berge franche au lieu d'un dégradé, et quinze maisons de plus à Port-Royal
 (49 → 64). Gardé pour cela, et non pour la raison qui l'avait fait écrire.
 
+## Une épave traversait le sable : la quille n'est pas toujours le point le plus bas
+
+Signalé : « les navires passent à travers le sable quand ils s'échouent ; ils
+sombrent sur le flanc mais se retournent et disparaissent. »
+
+### Ce qui se passait, en nombres
+
+Galion sabordé au ponton de Port-Royal, onze mètres d'eau, sonde à 2 s :
+
+    quille y -11,26 | point le plus bas -11,59 | fond -11,00 | Aground 0,26 | haut.y  1,00
+    quille y -11,26 | point le plus bas -12,99 | fond -11,00 | Aground 0,25 | haut.y  0,88
+    quille y -11,26 | point le plus bas -13,49 | fond -11,00 | Aground 0,25 | haut.y  0,80
+    ...
+    quille y -11,26 | point le plus bas -15,13 | fond -11,00 | Aground 0,26 | haut.y -1,00
+
+Elle se posait bien — 0,26 m de pénétration, exactement le tiers de mètre du
+ressort. Puis elle se retournait, et pendant tout le retournement **la quille
+restait clouée à −11,26 pendant que le reste d'elle descendait à −15,13**,
+quatre mètres dans le sable. Elle finissait enterrée, la quille en l'air : ce
+n'est pas qu'elle disparaissait, c'est qu'il ne dépassait plus qu'un trait de
+bois à la surface du fond.
+
+### La cause
+
+L'échouage se sondait en trois points — étrave, milieu, étambot — tous **sur la
+ligne de quille**. Or la quille n'est le point le plus bas d'un navire que tant
+qu'il est DROIT. Couché, c'est son bordé ; retourné, c'est son plat-bord. Les
+trois sondes tenaient donc obstinément une arête qui ne portait plus rien,
+pendant que la coque entière glissait à travers le fond sans que rien ne la lise.
+
+Et le mécanisme s'entretenait : chavirée à demi, la quille touchait encore et
+freinait le roulis d'un côté seulement, ce qui l'aidait à finir le tour.
+
+### Le remède, et son prix
+
+Cinq points de la MEMBRURE à chaque station, au lieu du seul point de quille :
+quille, les deux bouchains (±HalfB, à la flottaison), les deux plats-bords
+(±HalfB, au franc-bord). Le contour de la section, pris avec le même `HalfB`
+dont sont bâties la grille de sondes, la coque visible et l'abordage — une
+définition, plusieurs usagers.
+
+**Et le prix ne bouge pas.** `HeightAt` balaie la grille des îles, c'est lui
+qu'il faut compter, et il reste appelé TROIS fois : une par station, sur l'axe
+de la membrure, les cinq points étant ensuite éprouvés contre cette hauteur-là.
+C'est une approximation, et il faut dire pourquoi elle est bonne : les points
+hauts de la membrure ne touchent que couchée ou retournée, et ils sont alors
+presque à l'aplomb de cet axe ; droite, ils sont deux mètres au-dessus de la
+quille et ne touchent jamais. **Un échouage ordinaire ne change pas d'un
+cheveu** — c'est ce qui rendait la correction sûre.
+
+Relevé après, même essai :
+
+    quille y -11,22 | point le plus bas -11,71 | fond -11,00 | Aground 0,22 | haut.y 0,87
+
+et elle n'a plus bougé de la fin de la course. Elle s'assied gîtée de 29°, la
+quille à 22 cm dans le sable et le bouchain bas à 71 cm : une épave couchée sur
+son fond, ce qu'elle aurait toujours dû être.
+
+### Deux choses apprises
+
+**Le même défaut était dans les deux moteurs**, mot pour mot — `_ground` de la
+page et `Ground` du noyau sont deux écritures du même texte, commentaires
+compris. Corriger l'un sans l'autre aurait fait diverger la page en silence.
+
+**Ma première sonde mesurait un coin de boîte.** Elle balayait (±HalfB, quille)
+— un point qui n'existe pas sur une carène, où la largeur est en haut et la
+profondeur au milieu — et rendait 2,08 m d'enfoncement là où la coque n'en avait
+que 0,71. La conclusion était bonne malgré tout, mais le nombre était faux : une
+sonde doit suivre le CONTOUR qu'elle prétend mesurer, pas son enveloppe.
+
 ## Les quêtes portées, et les rades de la Jamaïque (Godot)
 
 Demandé : le système de quêtes, et la première — celle qui apprend à jouer —

@@ -535,12 +535,28 @@ Naval.ShipPhysics = class ShipPhysics {
 
   /* She takes the ground.
 
-     The seabed is sampled at THREE points along her keel — stem, midships and
-     sternpost — never at every probe. `heightAt` scans the island grid, and
-     calling it three hundred times a substep would cost more than the whole
-     solver put together. Three points are enough for everything that matters:
-     she strands by the bow on a shelving beach, pivots on a shoal that catches
-     her amidships, or sits down on an even keel.
+     The seabed is sampled at THREE STATIONS — stem, midships and sternpost —
+     never at every probe. `heightAt` scans the island grid, and calling it
+     three hundred times a substep would cost more than the whole solver put
+     together. Three stations are enough for everything that matters: she
+     strands by the bow on a shelving beach, pivots on a shoal that catches her
+     amidships, or sits down on an even keel.
+
+     But FIVE POINTS OF THE FRAME at each station, not the keel point alone —
+     keel, both bilges, both rails. The keel is her lowest point only while she
+     is UPRIGHT; on her beam ends it is her planking, and capsized it is her
+     rail. Sounded on the keel alone, a wreck that rolled over on the bottom
+     went straight through it: a galleon scuttled in eleven metres held her keel
+     at -11.26 while the rest of her went down to -15.13 — four metres INSIDE
+     the sand — and ended up buried keel-up, which read as her vanishing.
+
+     THE BOTTOM IS READ ONCE PER STATION, on the hull's axis, and the five
+     points are tested against that one height. It is an approximation, and it
+     is a good one exactly where it earns its keep: the high points of the frame
+     only ever touch when she is on her side or upside down, and they are then
+     all but plumb under that axis. Upright they sit two metres above the keel
+     and never touch — an ordinary grounding is unchanged to the millimetre, and
+     the price is still three `heightAt` calls, as before.
 
      The bottom answers as a stiff spring with heavy damping, applied AT the
      point of contact — so she lifts, heels and slews exactly as the geometry
@@ -551,6 +567,7 @@ Naval.ShipPhysics = class ShipPhysics {
     if(!this.world || !ocean) return;
     const C = this.C, S = this.spec, b = this.body, O = ocean.origin;
     const keel = -(S.hull.keelDepth + S.hull.keelExtra);
+    const rail = S.hull.freeboardMid;
     // supports her whole weight at a third of a metre of penetration
     const kSpring = b.mass*C.G/(0.33*3);
 
@@ -560,35 +577,48 @@ Naval.ShipPhysics = class ShipPhysics {
     const stations = [0.42, 0.0, -0.45];
     for(let s=0;s<stations.length;s++){
       const f = stations[s];
-      this._pw.set(0, keel, f*S.L).applyQuaternion(b.quat).add(b.pos);
+      const zl = f*S.L, hw = this.lines.halfB(f + 0.5);
+
+      /* The bottom under the frame's AXIS: the one point of her that stays
+         underneath however she has fallen. */
+      this._pw.set(0, 0, zl).applyQuaternion(b.quat).add(b.pos);
       const bed = this.world.heightAt(O.x + this._pw.x, O.z + this._pw.z);
-      const pen = bed - this._pw.y;
-      if(pen <= 0) continue;
-      this.aground = Math.max(this.aground, pen);
 
-      this._r.copy(this._pw).sub(cog);
-      // velocity of this very point, so the damping fights the real motion
-      this._tmp.copy(b.angVel).cross(this._r).add(b.vel);
+      for(let k=0;k<5;k++){
+        if(k > 0 && hw < 0.05) break;     // a frame with no breadth has only her keel
+        // keel, then both bilges, then both rails
+        const lx = k === 0 ? 0 : (k % 2 === 1 ? -hw : hw);
+        const ly = k === 0 ? keel : (k <= 2 ? 0 : rail);
 
-      const up = kSpring*Math.min(pen, 2.5) - this._tmp.y*b.mass*1.2;
-      const fy = Math.max(0, up);
-      force.y += fy;
-      torque.x += -this._r.z * fy;
-      torque.z +=  this._r.x * fy;
+        this._pw.set(lx, ly, zl).applyQuaternion(b.quat).add(b.pos);
+        const pen = bed - this._pw.y;
+        if(pen <= 0) continue;
+        this.aground = Math.max(this.aground, pen);
 
-      // and she drags: sand and rock hold a hull far harder than water does
-      this._fVec.set(-this._tmp.x, 0, -this._tmp.z).multiplyScalar(b.mass*0.9);
-      force.add(this._fVec);
-      torque.add(this._mom.crossVectors(this._r, this._fVec));
+        this._r.copy(this._pw).sub(cog);
+        // velocity of this very point, so the damping fights the real motion
+        this._tmp.copy(b.angVel).cross(this._r).add(b.vel);
 
-      /* Driven on at speed she opens. A hull does not bounce off rock, and the
-         hole is where she struck — so running aground finally becomes a real
-         cause of the flooding that was already written. */
-      if(spd > 2.2 && this._hardAgo <= 0){
-        const comp = Math.min(this.comps.length-1, Math.max(0,
-                       Math.floor(((f*S.L + S.L/2)/S.L)*this.comps.length)));
-        this.breach(comp, Math.min(0.45, 0.06*(spd - 2.0)), 0.06);
-        this._hardAgo = 5;              // she cannot be holed twice in a breath
+        const up = kSpring*Math.min(pen, 2.5) - this._tmp.y*b.mass*1.2;
+        const fy = Math.max(0, up);
+        force.y += fy;
+        torque.x += -this._r.z * fy;
+        torque.z +=  this._r.x * fy;
+
+        // and she drags: sand and rock hold a hull far harder than water does
+        this._fVec.set(-this._tmp.x, 0, -this._tmp.z).multiplyScalar(b.mass*0.9);
+        force.add(this._fVec);
+        torque.add(this._mom.crossVectors(this._r, this._fVec));
+
+        /* Driven on at speed she opens. A hull does not bounce off rock, and the
+           hole is where she struck — so running aground finally becomes a real
+           cause of the flooding that was already written. */
+        if(spd > 2.2 && this._hardAgo <= 0){
+          const comp = Math.min(this.comps.length-1, Math.max(0,
+                         Math.floor(((zl + S.L/2)/S.L)*this.comps.length)));
+          this.breach(comp, Math.min(0.45, 0.06*(spd - 2.0)), 0.06);
+          this._hardAgo = 5;              // she cannot be holed twice in a breath
+        }
       }
     }
   }

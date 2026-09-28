@@ -197,7 +197,7 @@ public sealed partial class ShipPhysics
     /// </summary>
     public readonly double[] OarPhase = new double[2];
     public readonly double[] OarInput = new double[2];
-    public double Aground;          // mètres dont sa quille est DANS le fond
+    public double Aground;          // mètres dont sa coque est DANS le fond
     public double Touching;         // mètres dont son bordé est DANS une autre coque
     public bool Foundered;
     /// <summary>
