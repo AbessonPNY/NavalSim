@@ -69,8 +69,12 @@ function read(i) {
 /* ---- la silhouette, par les extremes de chaque colonne ---- */
 function sil(P, h, v, hn, vn) {
   const W = 74, H = 19;
-  const hs = P.map(p => p[h]), vs = P.map(p => p[v]);
-  const h0 = Math.min(...hs), h1 = Math.max(...hs), v0 = Math.min(...vs), v1 = Math.max(...vs);
+  // en boucle, pour la même raison que l'étendue : un terrain a six cent mille sommets
+  let h0 = Infinity, h1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+  for (const p of P) {
+    if (p[h] < h0) h0 = p[h]; if (p[h] > h1) h1 = p[h];
+    if (p[v] < v0) v0 = p[v]; if (p[v] > v1) v1 = p[v];
+  }
   const lo = Array(W).fill(null), hi = Array(W).fill(null);
   for (const p of P) {
     const x = Math.round((p[h] - h0) / (h1 - h0 || 1) * (W - 1));
@@ -101,9 +105,15 @@ for (let m = 0; m < js.meshes.length; m++) {
                 ` · attributs : ${has} · matiere : ${mat}` +
                 (prim.targets ? ` · ${prim.targets.length} formes cles` : ''));
   }
+  /* EN BOUCLE ET NON PAR ÉTALEMENT : `Math.min(...a)` passe le tableau entier en
+     ARGUMENTS, et la pile d'appel déborde au-delà de quelques dizaines de
+     milliers. Un maillage de terrain en compte six cent mille, et l'outil
+     mourait dessus — précisément sur les fichiers qu'on a le plus besoin
+     d'inspecter. */
   const ext = [0, 1, 2].map(k => {
-    const a = P.map(p => p[k]);
-    return { lo: Math.min(...a), hi: Math.max(...a) };
+    let lo = Infinity, hi = -Infinity;
+    for (const p of P) { if (p[k] < lo) lo = p[k]; if (p[k] > hi) hi = p[k]; }
+    return { lo, hi };
   });
   console.log('  etendue : ' + ['X', 'Y', 'Z'].map((s, k) =>
     `${s} ${(ext[k].hi - ext[k].lo).toFixed(2)} (${ext[k].lo.toFixed(2)} a ${ext[k].hi.toFixed(2)})`).join(' · '));
@@ -136,7 +146,10 @@ for (let m = 0; m < js.meshes.length; m++) {
      raison sur ce qui nage, et elle epargne de lire une silhouette a l'oeil. */
   {
     const t = P.map(q => (q[0]-c[0])*v[0] + (q[1]-c[1])*v[1] + (q[2]-c[2])*v[2]);
-    const lo = Math.min(...t), hi = Math.max(...t), d = hi - lo;
+    // en boucle, pour la même raison que l'étendue plus haut
+    let lo = Infinity, hi = -Infinity;
+    for (const x of t) { if (x < lo) lo = x; if (x > hi) hi = x; }
+    const d = hi - lo;
     const bout = frac => {
       const s2 = P.filter((q, i) => frac < 0 ? t[i] < lo + 0.10 * d : t[i] > hi - 0.10 * d);
       if (s2.length < 3) return 0;
