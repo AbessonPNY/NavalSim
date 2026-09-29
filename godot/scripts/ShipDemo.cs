@@ -4106,8 +4106,21 @@ public partial class ShipDemo : Node3D
                     // le navire commandé SEUL, comme le réglage : voir SpawnFleet
                     _ship.SetLanternShadows(_settings.LanternShadows);
                     break;
-                case "--ssao": _sky.Env.SsaoEnabled = args[i + 1] == "1"; break;
-                case "--ssil": _sky.Env.SsilEnabled = args[i + 1] == "1"; break;
+                /* PAR LE RÉGLAGE, ET NON PAR L'ENVIRONNEMENT.
+
+                   Ces deux-là écrivaient droit sur _sky.Env, que ApplySettings
+                   reprend ensuite sur _settings (voir plus haut, SsaoEnabled et
+                   SsilEnabled). Le levier tenait donc jusqu'au prochain appel —
+                   l'ouverture du menu, un changement de réglage — et pas au-delà :
+                   qui mesurait avec lui mesurait la valeur du fichier de réglages,
+                   pas la sienne, sans que rien ne le dise.
+
+                   C'est la faute exacte du rebond de la mer, qui avait failli
+                   rendre deux captures de comparaison identiques. Un levier de banc
+                   doit emprunter le chemin du joueur, sinon il n'éprouve pas ce que
+                   le joueur obtient — et ApplySettings EST ce chemin. */
+                case "--ssao": _settings.Occlusion = args[i + 1] == "1"; ApplySettings(); break;
+                case "--ssil": _settings.IndirectLight = args[i + 1] == "1"; ApplySettings(); break;
                 case "--frametimes": _ftLeft = args[i + 1].ToInt(); _ftGc0 = GC.GetTotalPauseDuration(); break;
                 // le soleil figé à cette hauteur : pour éprouver la nuit sans attendre
                 case "--sun": _sky.DayRate = 0; _sky.Core.SetSun(args[i + 1].ToFloat(), _sky.Core.SunBearingDeg); _sky.Apply();
