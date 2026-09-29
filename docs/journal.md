@@ -7323,6 +7323,95 @@ les deux reliefs ont été comparés à la même capture, et le relevé tient mi
 une berge franche au lieu d'un dégradé, et quinze maisons de plus à Port-Royal
 (49 → 64). Gardé pour cela, et non pour la raison qui l'avait fait écrire.
 
+## Douze denrées au lieu d'une : le commerce devient un métier
+
+Demandé : mêler les deux systèmes — le fret sous contrat qu'on porte, et le
+négoce libre qu'on achète bas pour revendre haut. Et, dans le même souffle :
+« mets ces valeurs dans un json, ne les mets pas en dur dans le code ».
+
+### La clé du hachage, et c'est tout
+
+Le cours était une fonction pure du PORT et de l'heure. Il est maintenant
+fonction du couple MARCHANDISE/PORT — une chaîne salée, `sucre/montego-bay` —
+et c'est le seul changement qui compte. Avec une seule denrée, un port était
+cher ou bon marché ; avec douze, le sucre peut être haut là où l'indigo est bas,
+et c'est cet écart-là, et non le niveau d'un port, qui fait choisir une route.
+
+La règle est UNIFORME : aucune denrée n'est le cas particulier d'une autre, pas
+même l'épice qui fut longtemps la seule. Ses cours ne sont donc plus ceux
+d'avant, et c'est sans conséquence — un cours ne se retient pas d'une partie à
+l'autre.
+
+### En fiche, et non en dur
+
+`market/marchandises.json` : key, nom, prix moyen, note. Les deux moteurs la
+lisent — embarquée dans la page par le build, lue sur le disque par Godot.
+
+C'est une entorse assumée au commentaire du marché, qui se vantait de n'avoir
+« aucun état à tenir, aucun fichier à charger ». Il avait raison pour le COURS,
+qui reste une fonction pure ; il avait tort pour la LISTE, qui est une décision
+de jeu et doit se prendre sans recompiler. La fiche est lue une fois, au
+démarrage ; la fonction reste pure derrière.
+
+**Une denrée absente de la liste se porte mais ne se vend nulle part.** C'est ce
+qui distingue une cargaison d'un chargement : les vivres et la viande du
+chapitre 1 se livrent et ne se bradent pas. Et c'est aussi ce qui règle le
+pillage — un pirate emporte tout ce qui a un cours, et laisse le reste. Il ne
+prenait que les épices, du temps où c'était la seule ; un pirate qui laisserait
+l'indigo pour n'emporter que le poivre serait un pirate de comédie.
+
+### Ce qu'on dit du dehors
+
+Quatorze ports fois douze denrées font cent soixante-huit chiffres : un tableau
+que personne ne lit. Le comptoir dit donc, pour chaque port, **la denrée qui s'y
+paie le mieux** — et au RAPPORT, non au chiffre. Comparer les prix bruts rendrait
+toujours l'indigo, qui vaut six fois le sucre par nature et non par occasion ;
+le rapport dit ce qui est cher POUR ELLE, c'est-à-dire ce qu'il y a à y gagner.
+
+La rumeur d'un navire parlé et le carnet d'une bouteille suivent la même règle.
+
+### Relevé à Port-Royal
+
+    Sucre                moyen  150   ici  119 /  93   rapport 0,71
+    Rhum                 moyen  180   ici  288 / 226   rapport 1,43
+    Indigo               moyen  900   ici  736 / 578   rapport 0,73
+    Épices               moyen  620   ici  908 / 714   rapport 1,31
+    Cacao                moyen  520   ici  371 / 291   rapport 0,64
+    la mieux payée ici = Rhum
+
+Et l'arithmétique d'un achat, vérifiée à la pièce : 5 t de sucre à 119 plus 2 t
+d'indigo à 736 font 2 067, et la bourse passe de 24 000 à 21 933. Revendu sur
+place, le sucre rend 5 × 93 = 465. **La perte de 130 pièces est la marge du
+négociant**, prise des deux côtés : c'est ce qui fait qu'un aller-retour à vide
+entre deux ports au même cours coûte de l'argent.
+
+    PARITE TENUE — 16 434 hachages au bit, 12 060 cours à la pièce,
+                   180 « la mieux payée », 168 nouvelles, 135 rumeurs.
+
+### Et le navire d'un chapitre
+
+Dit dans le même échange : le sloop pour les cinq premières missions, les trois
+cents tonneaux plus tard ou en jeu libre. D'où `"ship"` sur une fiche de quête.
+
+Deux précautions, et elles valent d'être écrites :
+
+**Le navire AVANT le port.** `StartQuest` arme la coque puis appelle `Home()` ;
+dans l'autre ordre, la mise à l'eau replacerait le navire au large et le chapitre
+commencerait hors du port.
+
+**Et jamais à la reprise d'une partie enregistrée.** La sauvegarde sait déjà quel
+bord on menait ; réimposer celui du chapitre effacerait un navire que le joueur a
+gagné.
+
+Le levier `--quete` passe désormais par `StartQuest` et non par `Start` : un
+levier qui court-circuite le chemin du menu n'éprouve pas ce que le joueur fait,
+et celui-ci ne l'éprouvait pas — il a fallu le voir armer le chaland pour s'en
+apercevoir.
+
+Relevé : `Chaland Bourrasque` au démarrage, puis `Sloop Experiment 1677` dès que
+le chapitre commence. Et le sloop porte bien les six tonnes du fret : 22 t de
+déplacement, cale de 53,9 m³ en cinq compartiments, 28 t chargé.
+
 ## Le premier fret, et ce que le banc de parité cachait
 
 Demandé : que le jeu commence par des voyages de Port-Royal au Hog Crawle, les

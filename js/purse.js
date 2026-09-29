@@ -38,10 +38,30 @@ Naval.Purse = class Purse {
 Naval.Market = {
   SOUS_PAR_ECU: 60,
 
-  /* Le cours moyen d'une tonne d'épices, en pièces. Les épices étaient la
-     cargaison la plus chère qu'un navire pût porter — c'est pour elles qu'on
-     armait, et c'est pour cela qu'elles font une raison de traverser. */
-  EPICE: 620,
+  /* CE QU'ON CHARGE ET CE QU'ON REVEND, lu dans market/marchandises.json.
+
+     EN FICHE ET NON EN DUR : ajouter une denrée ou changer un cours est une
+     decision de jeu, pas de programme, et elle doit se prendre sans rebatir
+     quoi que ce soit. Les deux moteurs lisent la meme fiche.
+
+     Vide tant que personne ne l'a lue : le comptoir ne montre alors rien, ce
+     qui vaut mieux qu'un cours invente. */
+  WARES: [],
+  MARGE: 0.12,
+
+  charger(data){
+    if(!data) return this;
+    if(typeof data.marge === 'number') this.MARGE = data.marge;
+    this.WARES = (data.marchandises || []).map(w => ({
+      key: w.key, nom: w.nom, prix: w.prix, note: w.note || ''
+    }));
+    return this;
+  },
+
+  denree(key){
+    for(const w of this.WARES) if(w.key === key) return w;
+    return null;
+  },
 
   /* Une charge de poudre : ce que consomme un coup de canon. Une bordée de
      douze pièces coûte donc cinq écus, et cent charges en coûtent quarante —
@@ -119,21 +139,54 @@ Naval.Market = {
     return this.PALIER;
   },
 
-  /* Le cours des épices à ce port, en pièces la tonne. */
-  spice(key, t){
+  /* LA CLÉ DU HACHAGE : la marchandise ET le port. C'est tout ce qu'il fallait
+     pour que le commerce devienne un metier — le sucre peut etre haut a Montego
+     Bay quand l'indigo y est bas, et c'est cet ecart-la, et non le niveau
+     general d'un port, qui fait choisir une route.
+
+     La regle est UNIFORME : aucune denree n'est le cas particulier d'une autre,
+     pas meme l'epice qui fut longtemps la seule. Ses cours ne sont donc plus
+     ceux d'avant, et c'est sans consequence : un cours est une fonction pure du
+     lieu et de l'heure, rien ne le retient d'une partie a l'autre. */
+  _sel(good, port){ return good + '/' + port; },
+
+  /* Le cours d'une denrée à ce port, en pièces la tonne. */
+  price(good, port, t){
+    const w = this.denree(good);
+    if(!w) return 0;
     const T = this.PALIER, n = Math.floor(t/T), u = t/T - n;
     const e = u*u*(3 - 2*u);
-    const a = this._h(key, n), b = this._h(key, n + 1);
+    const k = this._sel(good, port);
+    const a = this._h(k, n), b = this._h(k, n + 1);
     const f = a + (b - a)*e;
     /* De 0,55 à 1,45 du cours moyen. Un rapport de deux entre le port le moins
        cher et le plus cher, ce qui rend la destination intéressante à choisir
        sans que le mauvais choix soit ruineux. */
-    return Math.round(this.EPICE * (0.55 + 0.90*f));
+    return Math.round(w.prix * (0.55 + 0.90*f));
+  },
+
+  /* Le rapport du cours à sa moyenne : 1 est le cours ordinaire, 1,45 le plus haut. */
+  ratio(good, port, t){
+    const w = this.denree(good);
+    return !w || w.prix <= 0 ? 0 : this.price(good, port, t) / w.prix;
   },
 
   // ce que le négociant demande, et ce qu'il consent à payer
-  buyPrice(key, t){  return Math.round(this.spice(key, t) * (1 + this.MARGE)); },
-  sellPrice(key, t){ return Math.round(this.spice(key, t) * (1 - this.MARGE)); },
+  buyPrice(good, port, t){  return Math.round(this.price(good, port, t) * (1 + this.MARGE)); },
+  sellPrice(good, port, t){ return Math.round(this.price(good, port, t) * (1 - this.MARGE)); },
+
+  /* LA DENRÉE QUI S'Y PAIE LE MIEUX — au RAPPORT et non au chiffre. Comparer
+     les prix bruts rendrait toujours l'indigo, qui vaut six fois le sucre par
+     nature et non par occasion ; le rapport dit ce qui est cher POUR ELLE,
+     c'est-a-dire ce qu'il y a a y gagner. */
+  best(port, t){
+    let best = null, top = -1;
+    for(const w of this.WARES){
+      const r = this.ratio(w.key, port, t);
+      if(r > top){ top = r; best = w; }
+    }
+    return best;
+  },
 
   /* Écus et pièces, pour l'affichage. Une bourse de 1 500 se lit « 25 ⊙ 0 ». */
   format(sous){
@@ -159,10 +212,16 @@ Naval.Market = {
      — comme les îles, comme les dépressions, comme le cours lui-même. */
   NOUVELLE: 2.6,                     // m/s : cinq nœuds, l'allure d'un aviso
 
+  /* LA NOUVELLE PORTE UNE DENRÉE, et une seule. Quatorze ports fois douze
+     denrees font cent soixante-huit chiffres : un tableau que personne ne lit.
+     Le negociant dit donc ce qui se paie le mieux la-bas — c'est la phrase
+     qu'un homme du metier dirait, et c'est celle qui decide. */
   news(from, to, t){
     const lag = Math.hypot(from.x - to.x, from.z - to.z) / this.NOUVELLE;
+    const w = this.best(to.key, t - lag);
     return { key:to.key, name:to.name, lag,
-             sell:this.sellPrice(to.key, t - lag) };
+             good: w ? w.key : '', goodName: w ? w.nom : '',
+             sell: w ? this.sellPrice(w.key, to.key, t - lag) : 0 };
   },
 
   /* L'âge d'une nouvelle, dit comme on le dirait. Un chiffre périmé SANS son
@@ -192,8 +251,12 @@ Naval.Market = {
   VOILES: ['un brick', 'une flûte', 'une barque de pêche', 'un aviso',
            'une caravelle', 'un sloop', 'une galiote'],
 
+  /* LA DENRÉE DONT IL PARLE est tiree sur le meme nombre que sa voile : un
+     capitaine ne parle pas de tout, il parle de ce qu'il vient de vendre. */
   rumour(isl, t, rnd){
-    const r = this.spice(isl.key, t) / this.EPICE;
+    if(!this.WARES.length) return { voile:'', port:isl.name, good:'', mot:'', lie:'', fort:false, faible:false };
+    const w = this.WARES[Math.floor(rnd*this.WARES.length) % this.WARES.length];
+    const r = this.ratio(w.key, isl.key, t);
     let mot = this.BANDES[this.BANDES.length-1][1];
     for(const [seuil, texte] of this.BANDES) if(r >= seuil){ mot = texte; break; }
     const v = this.VOILES[Math.floor(rnd*this.VOILES.length) % this.VOILES.length];
@@ -203,6 +266,6 @@ Naval.Market = {
        une bande demanderait de se souvenir d'aller corriger une phrase
        ailleurs. */
     const lie = /^[aeiouyàâéèêëîïôöûù]/i.test(mot) ? 'qu’' : 'que ';
-    return { voile:v, port:isl.name, mot, lie, fort:r >= 1.10, faible:r < 0.92 };
+    return { voile:v, port:isl.name, good:w.nom, mot, lie, fort:r >= 1.10, faible:r < 0.92 };
   }
 };

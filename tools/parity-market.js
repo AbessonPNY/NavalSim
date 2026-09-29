@@ -20,10 +20,18 @@ const region = JSON.parse(fs.readFileSync(path.join(root, 'world', 'caraibes.jso
 const W = new Naval.World(region, decodeGreyPng(fs.readFileSync(path.join(root, region.relief.image))));
 const MK = Naval.Market;
 
+/* LES MARCHANDISES, lues de la meme fiche que les deux moteurs : un banc qui
+   relevait ses propres cours ne prouverait rien. */
+MK.charger(JSON.parse(fs.readFileSync(path.join(root, 'market', 'marchandises.json'), 'utf8')));
+
 // le palier recale sur le monde, comme la page le fait au chargement
 const palier = MK.tune(W.longestLeg);
 
+/* Les clefs SALEES comme le jeu les sale — marchandise/port — plus quelques
+   clefs nues, pour que le portage du hachage reste eprouve sur des chaines
+   quelconques. */
 const keys = W.isles.map(i => i.key).concat(['', 'x', 'tombouctou']);
+for (const w of MK.WARES) for (const i of W.isles) keys.push(MK._sel(w.key, i.key));
 const hashes = [];
 for (const k of keys) for (let n = -6; n <= 240; n += 3) hashes.push({ key: k, n, h: MK._h(k, n) });
 
@@ -32,14 +40,25 @@ const times = [];
 for (let i = 0; i < 60; i++) times.push(i * palier * 0.37 + 13.25);
 times.push(0, palier, palier - 0.001, palier + 0.001, -palier * 2.5, -1, 1e6 + 0.5);
 const prices = [];
-for (const isl of W.isles) for (const t of times)
-  prices.push({ key: isl.key, t, spice: MK.spice(isl.key, t), buy: MK.buyPrice(isl.key, t), sell: MK.sellPrice(isl.key, t) });
+for (const w of MK.WARES) for (const isl of W.isles) for (const t of times)
+  prices.push({ good: w.key, key: isl.key, t,
+                price: MK.price(w.key, isl.key, t),
+                ratio: MK.ratio(w.key, isl.key, t),
+                buy: MK.buyPrice(w.key, isl.key, t),
+                sell: MK.sellPrice(w.key, isl.key, t) });
+
+// la denree qui se paie le mieux : c'est elle que portent les nouvelles
+const bests = [];
+for (const isl of W.isles) for (const t of times.slice(0, 12)) {
+  const b = MK.best(isl.key, t);
+  bests.push({ key: isl.key, t, good: b ? b.key : '' });
+}
 
 const news = [];
 for (const from of W.isles.slice(0, 4)) for (const to of W.isles) if (to !== from)
   for (const t of [0, 5000, 123456.75]) {
     const n = MK.news(from, to, t);
-    news.push({ from: from.key, to: to.key, t, lag: n.lag, sell: n.sell });
+    news.push({ from: from.key, to: to.key, t, lag: n.lag, good: n.good, sell: n.sell });
   }
 
 const ages = [0, 29, 30, 31, 89.9, 3570, 3599, 3600, 3629.9, 7385, 86399, 200000].map(l => ({ lag: l, s: MK.age(l) }));
@@ -47,7 +66,7 @@ const ages = [0, 29, 30, 31, 89.9, 3570, 3599, 3600, 3629.9, 7385, 86399, 200000
 const rumours = [];
 for (const isl of W.isles) for (const t of [0, 7777, 99999]) for (const rnd of [0, 0.31, 0.999]) {
   const r = MK.rumour(isl, t, rnd);
-  rumours.push({ key: isl.key, t, rnd, voile: r.voile, port: r.port, mot: r.mot, lie: r.lie, fort: r.fort, faible: r.faible });
+  rumours.push({ key: isl.key, t, rnd, voile: r.voile, port: r.port, good: r.good, mot: r.mot, lie: r.lie, fort: r.fort, faible: r.faible });
 }
 
 // la bourse : une suite d operations et ce que chacune a rendu
@@ -58,7 +77,7 @@ const purse = ops.map(([op, n]) => {
   return { op, n, ok, sous: P.sous, ecus: P.ecus, pieces: P.pieces };
 });
 
-const out = { palier, longestLeg: W.longestLeg, hashes, prices, news, ages, rumours, purse };
+const out = { palier, longestLeg: W.longestLeg, hashes, prices, bests, news, ages, rumours, purse };
 const dest = path.join(root, 'core', 'parity-market.json');
 fs.writeFileSync(dest, JSON.stringify(out));
 console.log('releve du commerce ecrit : ' + dest);

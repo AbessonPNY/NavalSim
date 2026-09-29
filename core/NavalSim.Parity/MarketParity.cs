@@ -36,6 +36,10 @@ public static class MarketParity
         var (w, h, grey) = GreyPng.Decode(File.ReadAllBytes(Path.GetFullPath(Path.Combine(worldDir, "..", region.Relief.Image))));
         var world = new World(region, w, h, grey);
         var mk = new Market();
+        /* LA MEME FICHE QUE LE JEU ET QUE LE RELEVE : un banc qui lirait ses
+           propres cours ne prouverait rien. */
+        mk.Wares = Goods.FromJson(File.ReadAllText(
+            Path.GetFullPath(Path.Combine(worldDir, "..", "market", "marchandises.json"))));
         double palier = mk.Tune(world.LongestLeg);
         if (palier != d.GetProperty("palier").GetDouble())
             Fail($"palier : JS {d.GetProperty("palier").GetDouble()}, C# {palier}");
@@ -56,14 +60,28 @@ public static class MarketParity
         foreach (var e in d.GetProperty("prices").EnumerateArray())
         {
             np++;
+            string g = e.GetProperty("good").GetString()!;
             string k = e.GetProperty("key").GetString()!;
             double t = e.GetProperty("t").GetDouble();
-            if (mk.Spice(k, t) != e.GetProperty("spice").GetDouble()
-                || mk.BuyPrice(k, t) != e.GetProperty("buy").GetDouble()
-                || mk.SellPrice(k, t) != e.GetProperty("sell").GetDouble())
-            { badP++; Fail($"cours {k} a t={t} : JS {e.GetProperty("spice").GetDouble()}, C# {mk.Spice(k, t)}"); }
+            if (mk.Price(g, k, t) != e.GetProperty("price").GetDouble()
+                || Math.Abs(mk.Ratio(g, k, t) - e.GetProperty("ratio").GetDouble()) > 1e-12
+                || mk.BuyPrice(g, k, t) != e.GetProperty("buy").GetDouble()
+                || mk.SellPrice(g, k, t) != e.GetProperty("sell").GetDouble())
+            { badP++; Fail($"cours {g} a {k}, t={t} : JS {e.GetProperty("price").GetDouble()}, C# {mk.Price(g, k, t)}"); }
         }
         Console.WriteLine($"  {(badP == 0 ? "OK   " : "ECART")} cours, {np} releves          {badP} different(s) -- a la piece");
+
+        // --- la denree qui se paie le mieux : c'est elle que portent les nouvelles ---
+        int nb = 0, badBest = 0;
+        foreach (var e in d.GetProperty("bests").EnumerateArray())
+        {
+            nb++;
+            string k = e.GetProperty("key").GetString()!;
+            var b = mk.Best(k, e.GetProperty("t").GetDouble());
+            if ((b?.Key ?? "") != e.GetProperty("good").GetString())
+            { badBest++; Fail($"la mieux payee a {k} : JS « {e.GetProperty("good").GetString()} », C# « {b?.Key} »"); }
+        }
+        Console.WriteLine($"  {(badBest == 0 ? "OK   " : "ECART")} la mieux payee, {nb} releves   {badBest} different(s)");
 
         // --- les nouvelles : leur âge et leur chiffre ---
         int nn = 0, badN = 0; double worstLag = 0;
@@ -75,7 +93,8 @@ public static class MarketParity
             var n = mk.NewsOf(from, to, e.GetProperty("t").GetDouble());
             double dl = Math.Abs(n.Lag - e.GetProperty("lag").GetDouble());
             worstLag = Math.Max(worstLag, dl);
-            if (dl > 1e-6 || n.Sell != e.GetProperty("sell").GetDouble()) { badN++; Fail($"nouvelle {from.Key} -> {to.Key}"); }
+            if (dl > 1e-6 || n.Sell != e.GetProperty("sell").GetDouble()
+                || n.Good != e.GetProperty("good").GetString()) { badN++; Fail($"nouvelle {from.Key} -> {to.Key}"); }
         }
         Console.WriteLine($"  {(badN == 0 ? "OK   " : "ECART")} nouvelles, {nn}               retard pire ecart {worstLag:E1} s");
 
@@ -94,6 +113,7 @@ public static class MarketParity
             var r = mk.RumourOf(isl, e.GetProperty("t").GetDouble(), e.GetProperty("rnd").GetDouble());
             if (r.Voile != e.GetProperty("voile").GetString() || r.Mot != e.GetProperty("mot").GetString()
                 || r.Lie != e.GetProperty("lie").GetString() || r.Port != e.GetProperty("port").GetString()
+                || r.Good != e.GetProperty("good").GetString()
                 || r.Fort != e.GetProperty("fort").GetBoolean() || r.Faible != e.GetProperty("faible").GetBoolean())
             { badT++; Fail($"rumeur {isl.Key} : JS « {e.GetProperty("mot").GetString()} », C# « {r.Mot} »"); }
         }

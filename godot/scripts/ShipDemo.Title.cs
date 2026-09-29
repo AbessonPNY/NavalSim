@@ -248,6 +248,21 @@ public partial class ShipDemo : Node3D
         if (_quests == null) return;
         _msgs.Clear();
         if (_msgBox != null) _msgBox.Visible = false;
+        /* LE BORD DU CHAPITRE, AVANT LE PORT. Une quête peut nommer le navire
+           qu'elle se court : on l'arme d'abord, puis Home() le met à son poste —
+           dans l'autre ordre, la mise à l'eau replacerait la coque au large et
+           l'on commencerait le chapitre hors du port.
+
+           Ici seulement, et jamais à la reprise d'une partie enregistrée : la
+           sauvegarde sait déjà quel bord on menait, et l'imposer à nouveau
+           effacerait un navire que le joueur a gagné. */
+        var q = _quests.List.Find(x => x.Id == id);
+        if (q is { Ship.Length: > 0 })
+        {
+            int idx = _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == q.Ship);
+            if (idx < 0) GD.PushWarning($"[{id}] le navire « {q.Ship} » n'a pas de fiche — on garde celui qu'on a.");
+            else if (idx != _index) Launch(idx);
+        }
         Home();
         _quests.Start(id);
         SaveQuests();

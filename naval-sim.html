@@ -40,7 +40,7 @@
     <div class="purse">
       <div class="pu"><b id="roEcus">0</b><small>écus</small><i id="roPieces">0</i><small>p</small></div>
       <div class="pu"><b id="roPowder">0</b><small>coups</small></div>
-      <div class="pu"><b id="roSpice">0</b><small>t épices</small></div>
+      <div class="pu"><b id="roCargo">0</b><small>t en cale</small></div>
     </div>
     <div class="hair"></div>
     <div class="readouts">
@@ -170,11 +170,7 @@
     <div id="market">
       <div class="mkHead"><b id="mkPort">—</b><span id="mkNote">au large</span></div>
       <div id="mkBody" hidden>
-        <div class="mkRow"><span class="k">Épices, la tonne</span>
-          <span class="v"><span id="mkBuy">—</span> / <span id="mkSell">—</span></span></div>
-        <div class="mkBtns">
-          <button id="mkBuy10">Acheter 10 t</button><button id="mkSell10">Vendre 10 t</button>
-        </div>
+        <div id="mkWares"></div>
         <div class="mkRow"><span class="k">Poudre, la charge</span>
           <span class="v"><span id="mkPow">—</span></span></div>
         <div class="mkBtns">
@@ -1006,9 +1002,30 @@ async function main(){
      d'arrimage n'est pas du fret, c'est une panne. Le niveau est donc LU sur
      LEVELS plutôt que réécrit ici : une seule définition, deux usagers. */
   const NIVEAU_FOND = LEVELS[LEVELS.length - 1].y;
-  function chargerEpices(t){
-    const mid = Math.floor(Naval.Config.NCOMP/2);
-    physics.loadCargo(mid, NIVEAU_FOND, 0, t, 'epice');
+  /* UNE LIGNE PAR DENRÉE, bâtie UNE FOIS d'après la fiche : le nombre de
+     marchandises ne change pas en cours de partie, et refaire les boutons à
+     chaque rafraîchissement les jetterait sous le pointeur. Cinq tonnes et non
+     dix : le sloop des premières missions en déplace vingt-deux, et un bouton
+     qui échoue neuf fois sur dix n'est pas un bouton. */
+  /* ET ELLE ATTEND LA FICHE. Bâtie tout de suite, elle l'était sur une liste
+     vide : les marchandises arrivent par fetch, donc APRÈS le premier tour de
+     script. On la bâtit donc quand elles sont là, et une seule fois. */
+  const mkRows = [];
+  function batirMarchandises(){
+    const box = document.getElementById('mkWares');
+    if(!box || mkRows.length) return;
+    for(const w of MK.WARES){
+      const row = document.createElement('div');
+      row.className = 'mkWare';
+      row.title = w.note || '';
+      row.innerHTML = '<span class="k"></span><span class="v"></span><i class="a"></i>'
+                    + '<button>+5 t</button><button>−5 t</button>';
+      row.children[0].textContent = w.nom;
+      row.children[3].onclick = () => acheter(w.key, 5);
+      row.children[4].onclick = () => vendre(w.key, 5);
+      box.appendChild(row);
+      mkRows.push({ w, prix: row.children[1], bord: row.children[2] });
+    }
   }
 
   function refreshMarket(){
@@ -1019,8 +1036,11 @@ async function main(){
     el('mkNote').textContent = portIci ? 'comptoir ouvert' : 'au large';
     el('mkBody').hidden = !portIci;
     if(portIci){
-      el('mkBuy').textContent  = MK.buyPrice(portIci.key, t);
-      el('mkSell').textContent = MK.sellPrice(portIci.key, t);
+      for(const r of mkRows){
+        r.prix.textContent = MK.buyPrice(r.w.key, portIci.key, t) + ' / ' + MK.sellPrice(r.w.key, portIci.key, t);
+        const n = physics.cargoOf(r.w.key);
+        r.bord.textContent = n < 0.05 ? '' : n.toFixed(1) + ' t';
+      }
       el('mkPow').textContent  = MK.POUDRE;
 
       /* CE QU'ON SAIT D'AILLEURS : le prix ferme, et son âge à côté. Un chiffre
@@ -1037,36 +1057,40 @@ async function main(){
         row.className = 'nwRow';
         row.innerHTML = '<span class="p"></span><b></b><span class="a"></span>';
         row.children[0].textContent = n.name;
-        row.children[1].textContent = n.sell;
+        row.children[1].textContent = n.goodName.toLowerCase() + ' ' + n.sell;
         row.children[2].textContent = MK.age(n.lag);
         list.appendChild(row);
       }
     }
     el('roEcus').textContent   = purse.ecus;
     el('roPieces').textContent = purse.pieces;
-    el('roSpice').textContent  = physics.cargoOf('epice').toFixed(1);
+    el('roCargo').textContent  = physics.cargoTonnes.toFixed(1);
     el('roPowder').textContent = physics.powder;
   }
 
-  function acheterEpices(t){
+  function acheter(good, t){
     if(!portIci) return;
-    const prix = MK.buyPrice(portIci.key, ocean.uniforms.uTime.value) * t;
+    const w = MK.denree(good);
+    if(!w) return;
+    const prix = MK.buyPrice(good, portIci.key, ocean.uniforms.uTime.value) * t;
     if(!purse.take(prix)){ dire('Bourse trop courte'); return; }
-    chargerEpices(t);
-    dire(t + ' t d’épices à ' + prix + ' pièces');
+    physics.loadCargo(Math.floor(Naval.Config.NCOMP/2), NIVEAU_FOND, 0, t, good);
+    dire(t + ' t — ' + w.nom.toLowerCase() + ' — ' + prix + ' pièces');
     refreshStow(); refreshMarket();
   }
 
-  function vendreEpices(t){
+  function vendre(good, t){
     if(!portIci) return;
+    const w = MK.denree(good);
+    if(!w) return;
     /* On ne vend que ce qu'on porte RÉELLEMENT. Jeter sa cargaison par-dessus
        bord la fait perdre, ce qui est le comportement juste : c'est la cale
        qui fait foi, pas un compteur tenu à côté d'elle. */
-    const sorti = physics.unloadKind('epice', t);
+    const sorti = physics.unloadKind(good, t);
     if(sorti < 0.05){ dire('Rien à vendre'); return; }
-    const gain = Math.round(MK.sellPrice(portIci.key, ocean.uniforms.uTime.value) * sorti);
+    const gain = Math.round(MK.sellPrice(good, portIci.key, ocean.uniforms.uTime.value) * sorti);
     purse.add(gain);
-    dire(sorti.toFixed(1) + ' t vendues — ' + gain + ' pièces');
+    dire(sorti.toFixed(1) + ' t de ' + w.nom.toLowerCase() + ' — ' + gain + ' pièces');
     refreshStow(); refreshMarket();
   }
 
@@ -1081,8 +1105,6 @@ async function main(){
     refreshMarket();
   }
 
-  document.getElementById('mkBuy10').onclick   = ()=> acheterEpices(10);
-  document.getElementById('mkSell10').onclick  = ()=> vendreEpices(10);
   document.getElementById('mkPow25').onclick   = ()=> acheterPoudre(25);
   document.getElementById('mkPowFull').onclick = ()=> acheterPoudre(9999);
 
@@ -1162,9 +1184,14 @@ async function main(){
         for(const i of world.isles){ const dd = Math.hypot(i.x - it.x, i.z - it.z); if(dd < bd){ bd = dd; isl = i; } }
       }
       const tw = d.t != null ? d.t : ocean.uniforms.uTime.value;
+      /* LA DENRÉE QUI S'Y PAYAIT LE MIEUX, et non plus l'épice : un carnet
+         trouvé dans une bouteille note ce qui valait la peine ce jour-là. */
+      const wb = MK.best(isl.key, tw);
+      if(!wb) return;
       montrerEncart('Bouteille à la mer', 'Carnet de ' + nom + ' : ' + aNom(isl.name)
-        + ', l’épice se payait ' + MK.buyPrice(isl.key, tw) + ' la tonne et se revendait '
-        + MK.sellPrice(isl.key, tw) + ' — relevé ' + MK.age(Math.max(0, ocean.uniforms.uTime.value - tw)) + '.');
+        + ', ' + wb.nom.toLowerCase() + ' se payait ' + MK.buyPrice(wb.key, isl.key, tw)
+        + ' la tonne et se revendait ' + MK.sellPrice(wb.key, isl.key, tw)
+        + ' — relevé ' + MK.age(Math.max(0, ocean.uniforms.uTime.value - tw)) + '.');
       return;
     }
     // la carte : une cargaison posée sur les hauts-fonds d'une île
@@ -1207,7 +1234,7 @@ async function main(){
     const r = Naval.Market.rumour(cible, ocean.uniforms.uTime.value, Math.random());
     const el = document.getElementById('ruText');
     el.textContent = 'Nous avons parlé ' + r.voile + ' venant de ' + r.port
-                   + '. Il dit ' + r.lie + r.mot + ' là-bas.';
+                   + '. Il dit ' + r.lie + r.mot + ' là-bas, pour ' + r.good.toLowerCase() + '.';
     el.className = 'ruBody' + (r.fort ? ' fort' : r.faible ? ' faible' : '');
     ruEl.hidden = false;
     return true;
@@ -2191,6 +2218,18 @@ async function main(){
     // la musique d'ambiance : coupée par défaut, place aux bruits du bord
     sound: { music:false } };
   flotsam.bottleOneIn = () => REGLAGES.wreck.bottleOneIn;
+  /* LES MARCHANDISES, comme les réglages : embarquées par le build dans la page
+     publiée, cherchées sur le serveur de dev sinon. Une page qui n'en trouve
+     pas ouvre un comptoir sans denrée — on le dit dans la console plutôt que
+     d'inventer des cours. */
+  (async ()=>{
+    let g = Naval.GOODS_DATA;
+    if(!g){ try{ const r = await fetch('market/marchandises.json', { cache:'no-cache' }); if(r.ok) g = await r.json(); }catch(e){} }
+    if(g) MK.charger(g); else console.warn('market/marchandises.json introuvable — le comptoir n’a rien à vendre.');
+    batirMarchandises();
+    refreshMarket();
+  })();
+
   (async ()=>{
     let s = Naval.SETTINGS;
     if(!s){ try{ const r = await fetch('settings.json', { cache:'no-cache' }); if(r.ok) s = await r.json(); }catch(e){} }

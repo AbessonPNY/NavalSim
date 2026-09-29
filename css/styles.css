@@ -472,6 +472,22 @@
   .mkRow .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
     color:var(--muted);text-transform:uppercase}
   .mkRow .v{font-family:var(--mono);font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums}
+  /* UNE LIGNE DE DENRÉE : le nom, le cours, ce qu'on en porte, et deux boutons
+     étroits. Le tout sur une seule ligne, parce que douze denrées empilées sur
+     trois lignes chacune ne tiendraient pas sous le comptoir. */
+  #mkWares{max-height:190px;overflow-y:auto;margin-top:6px}
+  .mkWare{display:grid;grid-template-columns:1fr auto 44px 34px 34px;gap:5px;
+    align-items:center;margin-top:3px}
+  .mkWare .k{font-family:var(--mono);font-size:10px;color:var(--ink);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mkWare .v{font-family:var(--mono);font-size:11px;color:var(--accent);
+    font-variant-numeric:tabular-nums;white-space:nowrap}
+  .mkWare .a{font-family:var(--mono);font-size:9.5px;color:var(--muted);
+    font-style:normal;text-align:right;font-variant-numeric:tabular-nums}
+  .mkWare button{font-family:var(--mono);font-size:9.5px;color:var(--muted);
+    background:var(--panel);border:1px solid var(--edge-soft);border-radius:4px;
+    padding:3px 0;cursor:pointer}
+  .mkWare button:hover{color:var(--accent);border-color:var(--edge)}
   .mkBtns{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:4px}
   .mkBtns button{font-family:var(--mono);font-size:10px;color:var(--muted);
     background:var(--panel);border:1px solid var(--edge-soft);border-radius:5px;

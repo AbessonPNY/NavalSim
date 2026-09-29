@@ -32,12 +32,36 @@ public partial class ShipDemo : Node3D
     const double HoldFloor = 0.18;
 
     PanelContainer? _mkPanel;
-    Label? _mkPort, _mkSpice, _mkPowder, _mkHold;
+    Label? _mkPort, _mkPowder, _mkHold;
     Control? _mkPowderRow;
+    /// <summary>Une ligne de denrée : son nom, son cours, ce qu'on en porte, et les deux boutons.</summary>
+    readonly List<(Good W, Label Name, Label Price, Label Aboard)> _mkRows = new();
+    VBoxContainer? _mkWares;
     GridContainer? _mkNews;
+
+    /// <summary>
+    /// LES MARCHANDISES, lues AVANT le panneau, puisque c'est la fiche qui dit
+    /// combien de lignes il porte. Fichier absent ou abîmé : la liste reste vide
+    /// et le comptoir ne montre que la poudre — on le dit, plutôt que d'inventer
+    /// des cours que personne n'a écrits.
+    /// </summary>
+    void LoadWares()
+    {
+        string path = Assets.Path("market/marchandises.json");
+        try
+        {
+            _market.Wares = Goods.FromJson(System.IO.File.ReadAllText(path));
+            GD.Print($"{_market.Wares.List.Count} marchandise(s) au comptoir");
+        }
+        catch (Exception e)
+        {
+            GD.PushWarning($"market/marchandises.json illisible ({e.Message}) — le comptoir n'a rien à vendre.");
+        }
+    }
 
     void BuildMarket(CanvasLayer layer)
     {
+        LoadWares();
         if (_world != null) _market.Tune(_world.LongestLeg);
 
         _mkPanel = new PanelContainer
@@ -73,8 +97,24 @@ public partial class ShipDemo : Node3D
 
         _mkPort = L("—", 18, gold);
         L("comptoir ouvert", 12, dim);
-        _mkSpice = L("", 15, ink);
-        Buttons(box, ("Acheter 10 t", () => BuySpice(10)), ("Vendre 10 t", () => SellSpice(10)));
+
+        /* UNE LIGNE PAR DENRÉE, et elle défile : douze marchandises ne tiennent
+           pas sous le comptoir, et couper la liste cacherait justement celles
+           qu'on ne connaît pas encore. Le tableau est bâti UNE FOIS d'après la
+           fiche — le nombre de denrées ne change pas en cours de partie, et
+           refaire les boutons à chaque image les jetterait sous le pointeur,
+           comme le panneau de flotte l'a appris. */
+        var wscroll = new ScrollContainer
+        {
+            CustomMinimumSize = new Vector2(0, 186),
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
+        };
+        _mkWares = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        _mkWares.AddThemeConstantOverride("separation", 2);
+        wscroll.AddChild(_mkWares);
+        box.AddChild(wscroll);
+        foreach (var w in _market.Wares.List) WareRow(w, ink, dim);
+
         _mkPowder = L("", 15, ink);
         _mkPowderRow = Buttons(box, ("Embarquer 25 coups", () => BuyPowder(25)), ("Faire le plein", () => BuyPowder(int.MaxValue)));
         _mkHold = L("", 13, dim);
@@ -92,6 +132,47 @@ public partial class ShipDemo : Node3D
         _mkNews.AddThemeConstantOverride("v_separation", 1);
         scroll.AddChild(_mkNews);
         box.AddChild(scroll);
+    }
+
+    /// <summary>
+    /// UNE DENRÉE, SA LIGNE. Le nom à gauche, le cours au milieu — ce qu'on
+    /// demande et ce qu'on consent —, ce qu'on en porte à droite, et deux
+    /// boutons dessous.
+    ///
+    /// CINQ TONNES ET NON DIX : le sloop des premières missions en déplace
+    /// vingt-deux, et un bouton qui échoue neuf fois sur dix n'est pas un
+    /// bouton. Le plan d'arrimage reste là pour les gros lots.
+    /// </summary>
+    void WareRow(Good w, Color ink, Color dim)
+    {
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 8);
+        Label C(string text, int size, Color col, HorizontalAlignment al, int min)
+        {
+            var l = new Label
+            {
+                Text = text, HorizontalAlignment = al, CustomMinimumSize = new Vector2(min, 0),
+                SizeFlagsHorizontal = min == 0 ? Control.SizeFlags.ExpandFill : Control.SizeFlags.Fill
+            };
+            l.AddThemeFontSizeOverride("font_size", size);
+            l.AddThemeColorOverride("font_color", col);
+            l.TooltipText = w.Note;
+            row.AddChild(l);
+            return l;
+        }
+        var name = C(w.Name, 14, ink, HorizontalAlignment.Left, 0);
+        var price = C("", 14, new Color(0.95f, 0.88f, 0.66f), HorizontalAlignment.Right, 86);
+        var aboard = C("", 12, dim, HorizontalAlignment.Right, 52);
+
+        var acheter = new Button { Text = "+5 t", FocusMode = Control.FocusModeEnum.None };
+        acheter.Pressed += () => Buy(w.Key, 5);
+        row.AddChild(acheter);
+        var vendre = new Button { Text = "−5 t", FocusMode = Control.FocusModeEnum.None };
+        vendre.Pressed += () => Sell(w.Key, 5);
+        row.AddChild(vendre);
+
+        _mkWares!.AddChild(row);
+        _mkRows.Add((w, name, price, aboard));
     }
 
     static Control Buttons(VBoxContainer box, params (string Text, Action Do)[] bs)
@@ -147,12 +228,18 @@ public partial class ShipDemo : Node3D
         double t = _sea.Core.Time;
         var p = _ship.Physics;
         _mkPort!.Text = _portHere.Name;
-        _mkSpice!.Text = FormattableString.Invariant(
-            $"Épices, la tonne     {_market.BuyPrice(_portHere.Key, t):F0} / {_market.SellPrice(_portHere.Key, t):F0}");
+        foreach (var (w, _, price, aboard) in _mkRows)
+        {
+            price.Text = FormattableString.Invariant(
+                $"{_market.BuyPrice(w.Key, _portHere.Key, t):F0} / {_market.SellPrice(w.Key, _portHere.Key, t):F0}");
+            double n = p.CargoOf(w.Key);
+            aboard.Text = n < 0.05 ? "" : FormattableString.Invariant($"{n:F1} t");
+        }
         _mkPowder!.Text = FormattableString.Invariant($"Poudre, la charge    {Market.Poudre:F0}");
         // un bord sans pièces n'a pas de soute à remplir
         _mkPowder.Visible = _mkPowderRow!.Visible = p.PowderMax > 0;
-        _mkHold!.Text = $"à bord : {p.CargoOf("epice"):F1} t d'épices, {p.Powder} / {p.PowderMax} charges";
+        _mkHold!.Text = FormattableString.Invariant(
+            $"cale : {p.CargoTonnes:F1} t    soute : {p.Powder} / {p.PowderMax} charges");
 
         /* CE QU'ON SAIT D'AILLEURS : le prix ferme, et son âge à côté. Les plus
            fraîches d'abord — c'est l'ordre dans lequel on leur fait confiance. */
@@ -174,29 +261,34 @@ public partial class ShipDemo : Node3D
         for (int i = 0; i < news.Count; i++)
         {
             ((Label)_mkNews.GetChild(i * 3)).Text = news[i].Name;
-            ((Label)_mkNews.GetChild(i * 3 + 1)).Text = FormattableString.Invariant($"{news[i].Sell:F0}");
+            ((Label)_mkNews.GetChild(i * 3 + 1)).Text = FormattableString.Invariant(
+                $"{news[i].GoodName.ToLowerInvariant()} {news[i].Sell:F0}");
             ((Label)_mkNews.GetChild(i * 3 + 2)).Text = Market.Age(news[i].Lag);
         }
     }
 
-    void BuySpice(double tonnes)
+    void Buy(string good, double tonnes)
     {
         if (_portHere == null) return;
-        double prix = _market.BuyPrice(_portHere.Key, _sea.Core.Time) * tonnes;
+        var w = _market.Wares.ByKey(good);
+        if (w == null) return;
+        double prix = _market.BuyPrice(good, _portHere.Key, _sea.Core.Time) * tonnes;
         if (!_purse.Take(prix)) { Say("Bourse trop courte"); return; }
-        _ship.Physics.LoadCargo(Config.NComp / 2, HoldFloor, 0, tonnes, "epice");
-        Say(FormattableString.Invariant($"{tonnes:F0} t d'épices à {prix:F0} pièces"));
+        _ship.Physics.LoadCargo(Config.NComp / 2, HoldFloor, 0, tonnes, good);
+        Say(FormattableString.Invariant($"{tonnes:F0} t — {w.Name.ToLowerInvariant()} — {prix:F0} pièces"));
         MarketTick();
     }
 
-    void SellSpice(double tonnes)
+    void Sell(string good, double tonnes)
     {
         if (_portHere == null) return;
-        double sorti = _ship.Physics.UnloadKind("epice", tonnes);
+        var w = _market.Wares.ByKey(good);
+        if (w == null) return;
+        double sorti = _ship.Physics.UnloadKind(good, tonnes);
         if (sorti < 0.05) { Say("Rien à vendre"); return; }
-        double gain = Js.Round(_market.SellPrice(_portHere.Key, _sea.Core.Time) * sorti);
+        double gain = Js.Round(_market.SellPrice(good, _portHere.Key, _sea.Core.Time) * sorti);
         _purse.Add(gain);
-        Say(FormattableString.Invariant($"{sorti:F1} t vendues — {gain:F0} pièces"));
+        Say(FormattableString.Invariant($"{sorti:F1} t de {w.Name.ToLowerInvariant()} — {gain:F0} pièces"));
         MarketTick();
     }
 
@@ -215,18 +307,25 @@ public partial class ShipDemo : Node3D
 
     /// <summary>La ligne de la bourse, pour les instruments : les écus, les pièces, ce que porte la cale.</summary>
     string PurseLine() =>
-        $"bourse     {_purse.Ecus} écus {_purse.Pieces} pièces    épices {_ship.Physics.CargoOf("epice"):F1} t\n";
+        FormattableString.Invariant(
+            $"bourse     {_purse.Ecus} écus {_purse.Pieces} pièces    cale {_ship.Physics.CargoTonnes:F1} t\n");
 
     /// <summary>
-    /// ABORDÉS : le pirate emporte la moitié de la bourse et toutes les épices —
-    /// ce que la page lui fait prendre. Le reste de la cale n'est pas à lui.
+    /// ABORDÉS : le pirate emporte la moitié de la bourse et TOUT CE QUI SE VEND.
+    ///
+    /// La page ne lui laissait prendre que les épices, du temps où c'était la
+    /// seule denrée. Un pirate qui laisserait l'indigo pour n'emporter que le
+    /// poivre serait un pirate de comédie : il prend ce qui a un cours, et
+    /// laisse le reste — les vivres d'un fret sous contrat ne valent rien pour
+    /// lui, et c'est justement ce qui distingue une cargaison d'un chargement.
     /// </summary>
     string Pillage()
     {
         long sous = _purse.Sous / 2;
         _purse.Take(sous);
-        double tonnes = _ship.Physics.UnloadKind("epice", 1e6);
+        double tonnes = 0;
+        foreach (var w in _market.Wares.List) tonnes += _ship.Physics.UnloadKind(w.Key, 1e6);
         return $"Abordés ! Le pirate emporte {sous / Market.SousParEcu} écus"
-             + (tonnes > 0.05 ? FormattableString.Invariant($" et {tonnes:F1} t d'épices") : "");
+             + (tonnes > 0.05 ? FormattableString.Invariant($" et {tonnes:F1} t de cargaison") : "");
     }
 }

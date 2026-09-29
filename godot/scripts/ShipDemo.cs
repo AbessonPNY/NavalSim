@@ -3995,7 +3995,9 @@ public partial class ShipDemo : Node3D
                 // la carte ouverte d emblee, pour la juger
                 case "--carte-ouverte": if (args[i + 1] != "0") ToggleChart(); break;
                 // une quete lancee d emblee, par son id : --quete apprendre-la-mer
-                case "--quete": _quests?.Start(args[i + 1]); break;
+                // PAR LA MEME PORTE QUE LE MENU, sinon le levier n eprouve pas ce que le joueur fait :
+                // StartQuest arme le navire que la fiche impose, Start ne le fait pas.
+                case "--quete": StartQuest(args[i + 1]); break;
                 /* un navire parlé tout de suite : une chose qu on ne peut éprouver
                    qu en attendant huit minutes est une chose qu on n éprouve pas */
                 case "--parler": if (args[i + 1] != "0") Speak(); break;

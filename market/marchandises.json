@@ -1,0 +1,21 @@
+{
+  "_aide": "CE QU'ON CHARGE ET CE QU'ON REVEND. Une marchandise : key (le mot que porte la cale, jamais montre au joueur), nom (ce qu'il lit), prix (le cours MOYEN de la tonne, en pieces d'argent, 60 pour un ecu) et note (pourquoi elle est la, pour qui relira). Le cours vrai d'un port oscille entre 0,55 et 1,45 fois ce prix moyen, en une courbe continue propre au couple marchandise/port : le sucre peut etre cher a Montego Bay quand l'indigo y est bas, et c'est cet ecart-la qui fait un voyage. Le negociant prend sa marge des deux cotes (marge), si bien qu'un aller-retour a vide entre deux ports au meme cours PERD de l'argent. Une marchandise absente de cette liste se porte mais ne se vend nulle part : c'est le cas des vivres et de la viande d'un fret sous contrat, qu'on livre et qu'on ne brade pas. Ajouter une ligne suffit ; rien a ecrire dans le code. Les prix sont ceux de la Jamaique de 1690, ou le sucre est la grande denree et l'indigo le plus cher au poids. LE CAFE N'Y EST PAS : il n'arrive a l'ile qu'en 1728.",
+
+  "marge": 0.12,
+  "_marge": "La marge du negociant, prise sur le prix affiche, des deux cotes.",
+
+  "marchandises": [
+    { "key": "sucre",    "nom": "Sucre",             "prix": 150, "note": "la grande denree, celle pour qui l'ile existe : lourde, partout, et jamais chere" },
+    { "key": "melasse",  "nom": "Mélasse",           "prix":  90, "note": "ce que le sucre laisse au fond de la forme" },
+    { "key": "rhum",     "nom": "Rhum",              "prix": 180, "note": "et ce qu'on tire de la melasse ; le kill-devil des flibustiers" },
+    { "key": "indigo",   "nom": "Indigo",            "prix": 900, "note": "la teinture bleue, la plus chere au poids : une barrique vaut une cargaison de sucre" },
+    { "key": "epice",    "nom": "Épices",            "prix": 620, "note": "le cours de reference du jeu, celui pour qui l'on armait" },
+    { "key": "cacao",    "nom": "Cacao",             "prix": 520, "note": "les cacaoyeres de l'ile, en declin depuis la maladie des annees 1670" },
+    { "key": "gingembre","nom": "Gingembre",         "prix": 380, "note": "un vrai export jamaiquain, leger et cher" },
+    { "key": "piment",   "nom": "Poivre de Jamaïque","prix": 340, "note": "le piment de la Jamaique, natif de l'ile et de nulle part ailleurs" },
+    { "key": "tabac",    "nom": "Tabac",             "prix": 300, "note": "" },
+    { "key": "campeche", "nom": "Bois de campêche",  "prix": 260, "note": "le bois de teinture, coupe souvent illicitement dans la baie de Campeche" },
+    { "key": "coton",    "nom": "Coton",             "prix": 260, "note": "" },
+    { "key": "cuirs",    "nom": "Cuirs",             "prix": 120, "note": "les peaux du betail sauvage, ce que les boucaniers vendaient avant de se faire pirates" }
+  ]
+}

@@ -38,6 +38,14 @@ Pendant une quête :
 }
 ```
 
+`ship` (Godot) : le navire que la quête impose — le nom de sa fiche, sans
+`.json` (`"ship": "sloop"`). Un chapitre se court sur le bord qu'il raconte : on
+ne porte pas six tonnes de vivres à travers une rade dans un galion de trois
+cents tonneaux parce qu'on l'avait sous la main. Le mot n'a d'effet qu'au **début**
+de la quête ; reprendre une partie enregistrée garde le bord que la sauvegarde
+connaît, sans quoi l'on effacerait un navire que le joueur a gagné. Fiche
+introuvable : on garde le navire courant, avec un avertissement.
+
 `kind` et `chapter` (Godot) : `"kind": "story"` fait de la quête un chapitre de l'**Histoire** (écran de titre → Histoire lance le premier chapitre pas encore fini, dans l'ordre de `chapter`) ; sinon c'est une **mission**, qu'on choisit dans la liste (Missions). Absent : mission.
 
 `region` (Godot) : la carte où la quête se joue — le nom de la fiche de

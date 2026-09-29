@@ -140,6 +140,17 @@ public sealed class QuestSpec
     /// </summary>
     public string Kind = "mission";
     public int Chapter;
+    /// <summary>
+    /// LE NAVIRE QU'ELLE IMPOSE, s'il y en a un : le nom de sa fiche, sans
+    /// l'extension. Un chapitre se court sur le bord qu'il raconte — on ne porte
+    /// pas six tonnes de vivres à travers une rade dans un galion de trois cents
+    /// tonneaux parce qu'on l'avait sous la main. Vide : celui qu'on a.
+    ///
+    /// Le mot n'a de sens qu'au DÉBUT d'une quête. Reprendre une partie
+    /// enregistrée ne le relit pas : la sauvegarde sait déjà quel bord on menait,
+    /// et l'imposer à nouveau effacerait un navire que le joueur a gagné.
+    /// </summary>
+    public string Ship = "";
     public readonly List<QuestStep> Steps = new();
 
     /// <summary>
@@ -167,6 +178,7 @@ public sealed class QuestSpec
         };
         if (Str(r, "kind") is { Length: > 0 } kind) q.Kind = kind;
         if (r.TryGetProperty("chapter", out var ch) && ch.ValueKind == JsonValueKind.Number) q.Chapter = ch.GetInt32();
+        q.Ship = Str(r, "ship");
         if (r.TryGetProperty("steps", out var steps) && steps.ValueKind == JsonValueKind.Array)
             foreach (var st in steps.EnumerateArray())
                 q.Steps.Add(QuestStep.FromJson(st));

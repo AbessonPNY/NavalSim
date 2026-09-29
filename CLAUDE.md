@@ -70,6 +70,9 @@ Réglages d'aspect à l'œil (Godot, en tête de shader) : **`u_shadow`** dans `
 Monde : `world/caraibes.json` + `world/caraibes-relief.png` (relief peint en gris), format dans `world/README.md` ; `tools/region-heightmap.js` repart des côtes réelles. Godot : une région par fiche de `world/` (la Tortue : `world/tortue.json`), reliées par des **traversées** comptées et non naviguées (`core/Passage.cs`, atterrages `approaches`) — changer de région recharge la scène.
 Quêtes : `quests/*.json`, format dans `quests/README.md` (`Naval.app.allerQuete()` pour sauter à l'étape).
 Objets flottants : `props/Props.json`. Pavillons : `ships/textures/flags/flags.json`.
+Marchandises : `market/marchandises.json`, format dans `market/README.md` — ce
+qu'on charge et ce qu'on revend ; une denrée absente se porte mais ne se vend
+nulle part (le fret sous contrat).
 Fiches navires : `ships/*.json`, format dans `ships/README.md`. Kraken, dauphins, baleine et marins en `.glb` : `creatures/README.md`.
 
 ## Règles à ne jamais casser

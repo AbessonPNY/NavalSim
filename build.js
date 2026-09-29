@@ -355,6 +355,21 @@ if (fs.existsSync(REGION)) {
   inlined.push('world/caraibes.json');
 }
 
+/* LES MARCHANDISES (market/marchandises.json) : la page publiée ne peut rien
+   charger de local, donc la liste des denrées y entre comme les réglages et les
+   fiches. Absente, le comptoir n'a rien à vendre — et on le dit plutôt que de
+   laisser une page muette. */
+let goodsData = null;
+const GFILE = path.join(ROOT, 'market', 'marchandises.json');
+if (fs.existsSync(GFILE)) {
+  try {
+    goodsData = JSON.parse(fs.readFileSync(GFILE, 'utf8'));
+    inlined.push('market/marchandises.json');
+  } catch (e) {
+    console.warn('  WARNING: market/marchandises.json illisible (' + e.message + ') — le comptoir sera vide');
+  }
+} else console.warn('  WARNING: market/marchandises.json absent — le comptoir sera vide');
+
 /* LES QUÊTES (quests/*.json) : toutes, dans l'ordre du dossier, portées dans
    la page ; et un quests/index.json pour un hébergeur statique, comme les
    navires. */
@@ -382,6 +397,7 @@ const shipBlob = '<script>\nwindow.Naval = window.Naval || {};\n' +
   (settingsData ? 'Naval.SETTINGS = ' + JSON.stringify(settingsData) + ';\n' : '') +
   (flagsData ? 'Naval.FLAGS_DATA = ' + JSON.stringify(flagsData) + ';\n' : '') +
   (questsData ? 'Naval.QUESTS_DATA = ' + JSON.stringify(questsData) + ';\n' : '') +
+  (goodsData ? 'Naval.GOODS_DATA = ' + JSON.stringify(goodsData) + ';\n' : '') +
   (regionData ? 'Naval.REGION_DATA = ' + JSON.stringify(regionData) + ';\n' : '') +
   '</scr' + 'ipt>\n';
 

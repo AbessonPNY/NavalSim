@@ -85,9 +85,13 @@ public partial class ShipDemo : Node3D
                 if (d < best) { best = d; near = i; }
             }
             double tw = _sea.Core.Time - age;
+            /* LA DENRÉE QUI S'Y PAYAIT LE MIEUX, et non plus l'épice : un carnet
+               trouvé dans une bouteille note ce qui valait la peine ce jour-là. */
+            var w = _market.Best(near!.Key, tw);
+            if (w == null) return;
             ShowEncart("Bouteille à la mer", FormattableString.Invariant(
-                $"Carnet {DeNom(nom)} : {ANom(near!.Name)}, l'épice se payait {_market.BuyPrice(near.Key, tw):F0} la tonne ")
-                + FormattableString.Invariant($"et se revendait {_market.SellPrice(near.Key, tw):F0} — relevé {Market.Age(age)}."));
+                $"Carnet {DeNom(nom)} : {ANom(near.Name)}, {w.Name.ToLowerInvariant()} se payait {_market.BuyPrice(w.Key, near.Key, tw):F0} la tonne ")
+                + FormattableString.Invariant($"et se revendait {_market.SellPrice(w.Key, near.Key, tw):F0} — relevé {Market.Age(age)}."));
             return;
         }
 
