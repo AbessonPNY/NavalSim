@@ -33,6 +33,56 @@ public sealed class PlaceSpec
     public bool Offset => Bearing != null || Miles != null || Distance != null;
 }
 
+/// <summary>
+/// LE FRET D'UNE ÉTAPE — ce qu'il faut avoir à bord pour qu'elle compte, ce
+/// qu'on y laisse, ce qu'on y prend, et ce qu'on en touche.
+///
+/// C'est ce qui fait la différence entre un fil tendu d'un lieu à l'autre et un
+/// VOYAGE : sans cargaison, aller quelque part et en revenir ne se distingue pas
+/// d'une promenade. Et tout passe par la cale réelle — du poids qui enfonce la
+/// coque et déplace son centre de gravité —, jamais par un compteur à part : un
+/// navire qui porte six tonnes doit s'asseoir de six tonnes.
+///
+/// <see cref="Needs"/> est une GARDE et non une consigne : sur le chemin normal
+/// c'est l'étape d'avant qui a chargé la cale, et le joueur n'a rien à faire.
+/// Elle ne mord que s'il a jeté sa cargaison par-dessus bord — auquel cas il
+/// n'est pas payé, ce qui est la seule réponse juste.
+/// </summary>
+public sealed class Freight
+{
+    /// <summary>Ce qu'il faut à bord, et combien de tonnes, pour que l'étape compte.</summary>
+    public string Needs = "";
+    public double NeedsTonnes;
+    /// <summary>Ce qu'on débarque ici — tout ce qu'on en porte.</summary>
+    public string Unload = "";
+    /// <summary>Ce qu'on embarque ici, et combien.</summary>
+    public string Load = "";
+    public double LoadTonnes;
+    /// <summary>Ce qu'on touche, en pièces d'argent (60 pour un écu).</summary>
+    public double Pay;
+
+    public static Freight? FromJson(JsonElement e)
+    {
+        if (e.ValueKind != JsonValueKind.Object) return null;
+        var f = new Freight
+        {
+            Unload = QuestStep.Str(e, "unload"),
+            Pay = QuestStep.Opt(e, "pay") ?? 0
+        };
+        if (e.TryGetProperty("needs", out var n) && n.ValueKind == JsonValueKind.Object)
+        {
+            f.Needs = QuestStep.Str(n, "kind");
+            f.NeedsTonnes = QuestStep.Opt(n, "tonnes") ?? 0;
+        }
+        if (e.TryGetProperty("load", out var l) && l.ValueKind == JsonValueKind.Object)
+        {
+            f.Load = QuestStep.Str(l, "kind");
+            f.LoadTonnes = QuestStep.Opt(l, "tonnes") ?? 0;
+        }
+        return f;
+    }
+}
+
 /// <summary>Une étape : un lieu, ce qu'on y fait, et ce qui s'écrit à l'écran.</summary>
 public sealed class QuestStep
 {
@@ -40,6 +90,8 @@ public sealed class QuestStep
     public Goal Goal = Goal.Reach;
     public PlaceSpec At = new();
     public double? Radius, MaxSpeed, Hold;
+    /// <summary>Le fret de l'étape, ou nul : voir <see cref="Freight"/>.</summary>
+    public Freight? Cargo;
 
     /// <summary>Le rayon du lieu : celui de la fiche, sinon celui de l'objectif.</summary>
     public double R => Radius ?? Quests.Radius(Goal);
@@ -53,6 +105,7 @@ public sealed class QuestStep
             Goal = Quests.GoalOf(Str(s, "goal")),
             Radius = Opt(s, "radius"), MaxSpeed = Opt(s, "maxSpeed"), Hold = Opt(s, "hold")
         };
+        if (s.TryGetProperty("cargo", out var cg)) step.Cargo = Freight.FromJson(cg);
         if (s.TryGetProperty("at", out var at) && at.ValueKind == JsonValueKind.Object)
             step.At = new PlaceSpec
             {
@@ -161,6 +214,19 @@ public sealed class Quests
 
     /// <summary>(titre, texte) — un message pour l'écran.</summary>
     public Action<string, string>? OnShow;
+    /// <summary>
+    /// COMBIEN DE TONNES DE CE GENRE LA COQUE PORTE — branché par l'hôte, parce
+    /// que la cale est à elle et non au scénario. Nul : aucune garde de fret ne
+    /// mord, ce qui est le bon défaut — une quête sans cargaison ne doit pas
+    /// dépendre d'un branchement que personne n'a fait.
+    /// </summary>
+    public Func<string, double>? Aboard;
+    /// <summary>
+    /// LE FRET D'UNE ÉTAPE QUI VIENT D'ÊTRE REMPLIE : à l'hôte de débarquer,
+    /// d'embarquer et de payer. Le scénario dit QUOI, la cale et la bourse
+    /// savent COMMENT — et c'est la même séparation que partout ailleurs ici.
+    /// </summary>
+    public Action<Freight>? OnFreight;
     /// <summary>L'objectif a changé.</summary>
     public Action? OnChange;
 
@@ -290,6 +356,12 @@ public sealed class Quests
                 break;
             default: met = inside; break;
         }
+        /* LA GARDE DU FRET, APRÈS l'objectif et jamais avant : arriver sans la
+           cargaison, c'est arriver quand même — l'étape n'est simplement pas
+           remplie, et le joueur reste devant son objectif au lieu de le voir
+           s'accomplir à vide. */
+        if (met && step.Cargo is { } c && c.Needs.Length > 0
+            && (Aboard?.Invoke(c.Needs) ?? 0) + 1e-6 < c.NeedsTonnes) met = false;
         if (met) Advance();
     }
 
@@ -297,6 +369,10 @@ public sealed class Quests
     {
         var q = Active!;
         var s = Current!;
+        /* LE FRET AVANT LE MESSAGE : celui-ci dit ce qui vient de se passer
+           (« on roule les barriques à bord »), et il mentirait d'une image s'il
+           paraissait avant que ce soit fait. */
+        if (s.Cargo is { } c) OnFreight?.Invoke(c);
         if (s.Message.Length > 0) OnShow?.Invoke(s.Title, s.Message);
         Step++;
         Hold = 0;

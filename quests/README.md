@@ -55,6 +55,40 @@ dit « dans les eaux de la Jamaïque ». Absent : partout. La page l'ignore.
 | `message` | texte affiché quand l'étape est remplie |
 | `maxSpeed` | pour `stop` : vitesse maximale en nœuds (1 par défaut) |
 | `hold` | pour `stop` : secondes à tenir (8 par défaut) |
+| `cargo` | le fret de l'étape (voir plus bas) |
+
+### Le fret (`cargo`)
+
+Ce qui fait la différence entre un fil tendu d'un lieu à l'autre et un
+**voyage** : sans cargaison, aller quelque part et en revenir ne se distingue
+pas d'une promenade.
+
+```json
+"cargo": {
+  "needs":  { "kind": "vivres", "tonnes": 6 },
+  "unload": "vivres",
+  "load":   { "kind": "viande", "tonnes": 5 },
+  "pay":    720
+}
+```
+
+| champ | rôle |
+|---|---|
+| `needs` | ce qu'il faut à bord pour que l'étape compte. C'est une **garde**, pas une consigne : sur le chemin normal c'est l'étape d'avant qui a chargé la cale. Elle ne mord que si le joueur a jeté sa cargaison — auquel cas il n'est pas payé |
+| `unload` | ce qu'on débarque ici, tout ce qu'on en porte |
+| `load` | ce qu'on embarque ici, et combien de tonnes |
+| `pay` | ce qu'on touche, en **pièces d'argent** (60 pour un écu) |
+
+Tout passe par la cale réelle — du poids qui enfonce la coque et déplace son
+centre de gravité —, jamais par un compteur à part : un navire qui prend six
+tonnes s'assied de six tonnes, et le joueur le lit sur sa ligne d'eau. On
+débarque avant d'embarquer, comme à tout quai. Rangé au fond de la cale et au
+milieu, là où le comptoir met ses épices ; le joueur peut le rarrimer ensuite,
+c'est son affaire.
+
+La nature (`kind`) est un mot libre : `vivres`, `viande`, `epice`, ce qu'on
+veut. Seules les épices ont un cours ; le reste se porte sans se vendre, ce qui
+est exactement ce qu'il faut pour un fret payé au voyage.
 
 ### Objectifs
 

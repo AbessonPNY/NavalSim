@@ -44,9 +44,17 @@ for (let i = hpEnd; i < modelSrc.length; i++) {
 }
 const hullProfile = eval('({' + modelSrc.slice(hpAt, hpEnd) + '})').hullProfile;
 
+/* LE DOSSIER DES FICHES N'EST PAS FAIT QUE DE FICHES. Il porte aussi
+   index.json, que le build ecrit, et libre.json, la liste des navires qu'on
+   peut prendre en jeu libre. Nommer les intrus un a un, c'est garantir que le
+   prochain fera tomber le banc en silence : une fiche est un objet QUI A UN ID
+   ET UNE COQUE, et c'est ce qu'on demande. Le pendant C# emploie la meme regle. */
+const isSpec = j => j && !Array.isArray(j) && typeof j.id === 'string' && j.hull;
+
 const out = {};
-for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.json') && f !== 'index.json')) {
+for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.json'))) {
   const json = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+  if (!isSpec(json)) continue;
   const spec = new Naval.ShipSpec(json);
   const hl = new Naval.HullLines(spec);
 

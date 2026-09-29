@@ -732,6 +732,27 @@ async function main(){
     questFile.push({ title, text });
     if(!questShown) questSuivant();
   };
+  /* LA CALE ET LA BOURSE AU BOUT DU FIL. A quest step may carry freight: what
+     must be aboard for it to count, what is landed here, what is taken on, and
+     what it pays. It all goes through the SAME loadCargo the counting house and
+     the stowage plan use, so six tonnes of victuals sink her by six tonnes and
+     the player reads it on her waterline. Bottom of the hold amidships, where
+     the counting house stows its spice: it is where cargo one did not stow
+     oneself belongs, and she stiffens rather than goes tender. Landed before
+     loaded, as at any quay. */
+  quests.aboard = kind => physics.cargoOf(kind);
+  quests.onFreight = f => {
+    if(f.unload){
+      const t = physics.cargoOf(f.unload);
+      if(t > 0) physics.unloadKind(f.unload, t);
+    }
+    if(f.load && f.load.kind && f.load.tonnes > 0)
+      physics.loadCargo(Math.floor(Naval.Config.NCOMP/2), NIVEAU_FOND, 0, f.load.tonnes, f.load.kind);
+    if(f.pay > 0){
+      purse.add(f.pay);
+      dire('Payé : ' + Math.floor(f.pay / Naval.Market.SOUS_PAR_ECU) + ' écus');
+    }
+  };
   function questMenu(){
     const v = quests.active ? quests.active.id : '';
     questSel.length = 1;

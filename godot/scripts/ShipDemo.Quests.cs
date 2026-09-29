@@ -20,6 +20,40 @@ namespace NavalSim;
 public partial class ShipDemo : Node3D
 {
     Quests? _quests;
+
+    /// <summary>
+    /// LE FRET D'UNE ÉTAPE, VERSÉ DANS LA VRAIE CALE. Le scénario dit quoi ; ici
+    /// on le fait passer par <see cref="ShipPhysics.LoadCargo"/>, le même chemin
+    /// que le comptoir et le plan d'arrimage — donc six tonnes de vivres
+    /// enfoncent la coque de six tonnes, et le joueur le voit à sa ligne d'eau.
+    ///
+    /// AU FOND DE LA CALE ET AU MILIEU, comme les épices du comptoir : c'est là
+    /// qu'on range ce qu'on n'a pas choisi d'arrimer soi-même, et la coque s'en
+    /// raidit au lieu de devenir molle. Le joueur peut le déplacer ensuite, c'est
+    /// son affaire.
+    ///
+    /// On DÉBARQUE AVANT D'EMBARQUER : à quai on décharge d'abord, et une cale
+    /// qui recevrait les deux à la fois pourrait passer un instant au-delà de ce
+    /// qu'elle tient.
+    /// </summary>
+    void Freight(NavalSim.Core.Freight f)
+    {
+        var p = _ship.Physics;
+        if (f.Unload.Length > 0)
+        {
+            double t = p.CargoOf(f.Unload);
+            if (t > 0) p.UnloadKind(f.Unload, t);
+        }
+        if (f.Load.Length > 0 && f.LoadTonnes > 0)
+            p.LoadCargo(Config.NComp / 2, HoldFloor, 0, f.LoadTonnes, f.Load);
+        if (f.Pay > 0)
+        {
+            _purse.Add(f.Pay);
+            long ecus = (long)f.Pay / Market.SousParEcu;
+            Say($"Payé : {ecus} écus");
+            JournalLog(FormattableString.Invariant($"Fret réglé : {ecus} écus."));
+        }
+    }
     Label? _aimLine;
     PanelContainer? _msgBox;
     Label? _msgTitle, _msgText;
@@ -36,7 +70,13 @@ public partial class ShipDemo : Node3D
     void LoadQuests()
     {
         if (_world == null) return;
-        _quests = new Quests(_world) { OnShow = ShowNotice, OnChange = () => { AimLine(); SaveQuests(); } };
+        _quests = new Quests(_world)
+        {
+            OnShow = ShowNotice,
+            OnChange = () => { AimLine(); SaveQuests(); },
+            Aboard = k => _ship.Physics.CargoOf(k),
+            OnFreight = Freight
+        };
         string dir = System.IO.Path.Combine(WorldLoad.Folder, "quests");
         if (!System.IO.Directory.Exists(dir)) return;
 

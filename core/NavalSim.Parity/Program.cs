@@ -47,10 +47,17 @@ foreach (var entry in doc.RootElement.EnumerateObject())
     string id = entry.Name;
     var rec = entry.Value;
 
+    /* LE DOSSIER DES FICHES N'EST PAS FAIT QUE DE FICHES. Il porte aussi
+       index.json, que le build écrit, et libre.json, la liste des navires
+       qu'on peut prendre en jeu libre — ni l'un ni l'autre n'a d'« id », et
+       GetProperty faisait tomber le banc entier sur le premier rencontré. Une
+       fiche est un fichier QUI A UN ID : on le demande, on ne le suppose pas. */
     string specFile = Directory.GetFiles(shipsDir, "*.json")
-        .FirstOrDefault(f => Path.GetFileName(f) != "index.json"
-                          && JsonDocument.Parse(File.ReadAllText(f))
-                                 .RootElement.GetProperty("id").GetString() == id) ?? "";
+        .FirstOrDefault(f => JsonDocument.Parse(File.ReadAllText(f))
+                                 .RootElement is { ValueKind: JsonValueKind.Object } root
+                          && root.TryGetProperty("id", out var pid)
+                          && pid.ValueKind == JsonValueKind.String
+                          && pid.GetString() == id) ?? "";
     if (specFile.Length == 0) { Console.Error.WriteLine($"  {id}: fiche introuvable"); failures++; continue; }
 
     var spec = ShipSpec.FromJson(File.ReadAllText(specFile));
@@ -108,12 +115,29 @@ foreach (var entry in doc.RootElement.EnumerateObject())
             Check($"mastZ[{i}]", mastZ[i].GetDouble(), spec.Masts[i].Z);
 
     // --- le plan de formes, station par station ---
+    /* UN NaN SE COMPARE À UN NaN. JSON.stringify écrit « null » pour un NaN, et
+       GetDouble tombait dessus : le banc s'arrêtait sur la première coque qui en
+       produisait un (la caisse, un point de son beamFactor). Or ce qu'on veut
+       savoir n'est pas s'il y a un NaN mais si les DEUX moteurs en font un au
+       même endroit — c'est encore de la parité, et en faire une panne du banc
+       revenait à ne plus vérifier les coques suivantes du tout. */
     void Curve(string name, Func<double, double> f)
     {
         var arr = rec.GetProperty(name);
         int n = arr.GetArrayLength() - 1;
         for (int i = 0; i <= n; i++)
-            Check($"{name}({(double)i / n:F4})", arr[i].GetDouble(), f((double)i / n));
+        {
+            double at = (double)i / n, mine = f(at);
+            bool jsNaN = arr[i].ValueKind == JsonValueKind.Null;
+            if (jsNaN || double.IsNaN(mine))
+            {
+                if (jsNaN != double.IsNaN(mine))
+                    Console.Error.WriteLine($"  ECART {name}({at:F4}) : "
+                        + (jsNaN ? "JS NaN, C# " + mine : "JS " + arr[i].GetDouble() + ", C# NaN"));
+                continue;
+            }
+            Check($"{name}({at:F4})", arr[i].GetDouble(), mine);
+        }
     }
     Curve("deckY", hl.DeckY);
     Curve("keelY", hl.KeelY);
@@ -144,7 +168,17 @@ foreach (var entry in doc.RootElement.EnumerateObject())
     }
     else
         for (int i = 0; i < built.Positions.Length; i++)
+        {
+            // meme regle que pour les courbes : un NaN se compare a un NaN
+            bool jn = jsPos[i].ValueKind == JsonValueKind.Null;
+            if (jn || double.IsNaN(built.Positions[i]))
+            {
+                if (jn != double.IsNaN(built.Positions[i]))
+                    Console.Error.WriteLine($"  ECART mesh.pos[{i}] : un seul des deux est NaN");
+                continue;
+            }
             CheckMesh($"mesh.pos[{i}]", jsPos[i].GetDouble(), built.Positions[i]);
+        }
 
     if (jsIdx.GetArrayLength() != built.Indices.Length)
     {

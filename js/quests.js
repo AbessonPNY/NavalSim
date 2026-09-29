@@ -154,11 +154,22 @@ Naval.Quests = class Quests {
       this.hold = still ? this.hold + dt : 0;
       met = this.hold >= (step.hold != null ? step.hold : 8);
     }
+    /* The freight gate, AFTER the goal and never before: arriving without the
+       cargo is still arriving — the step simply is not met, and the player is
+       left facing her objective instead of watching it complete on an empty
+       hold. aboard() unset: no gate bites, which is the right default. */
+    if(met && step.cargo && step.cargo.needs
+       && (this.aboard ? this.aboard(step.cargo.needs.kind) : 0) + 1e-6 < (step.cargo.needs.tonnes || 0))
+      met = false;
     if(met) this._advance();
   }
 
   _advance(){
     const q = this.active, s = this.current();
+    /* The freight before the message: the message says what has just happened
+       ("the casks are rolled aboard"), and it would lie by one frame if it came
+       before it was done. */
+    if(s.cargo && this.onFreight) this.onFreight(s.cargo);
     if(this.onShow && s.message) this.onShow(s.title || '', s.message);
     this.step++;
     this.hold = 0;

@@ -7323,6 +7323,84 @@ les deux reliefs ont été comparés à la même capture, et le relevé tient mi
 une berge franche au lieu d'un dégradé, et quinze maisons de plus à Port-Royal
 (49 → 64). Gardé pour cela, et non pour la raison qui l'avait fait écrire.
 
+## Le premier fret, et ce que le banc de parité cachait
+
+Demandé : que le jeu commence par des voyages de Port-Royal au Hog Crawle, les
+vivres à l'aller, la viande au retour, et le premier salaire du joueur au bout.
+
+### Une quête ne savait que tendre un fil
+
+Les étapes nommaient un lieu et ce qu'il fallait y faire — entrer, sortir,
+s'arrêter, s'amarrer. Aucune ne savait porter quoi que ce soit, et sans
+cargaison, aller quelque part et en revenir ne se distingue pas d'une promenade.
+
+D'où `cargo` sur une étape : ce qu'il faut à bord pour qu'elle compte
+(`needs`), ce qu'on y laisse (`unload`), ce qu'on y prend (`load`), ce qu'on
+en touche (`pay`).
+
+**Tout passe par la cale réelle.** Six tonnes de vivres partent par le même
+`LoadCargo` que les épices du comptoir et le lest du plan d'arrimage : elles
+enfoncent la coque de six tonnes, déplacent son centre de gravité, et le joueur
+le lit sur sa ligne d'eau. Un compteur à part aurait été plus simple et aurait
+menti.
+
+Deux choix de placement, et leurs raisons :
+
+**La garde APRÈS l'objectif, jamais avant.** Arriver sans la cargaison, c'est
+arriver quand même : l'étape n'est simplement pas remplie, et le joueur reste
+devant son objectif au lieu de le voir s'accomplir à vide.
+
+**Le fret AVANT le message.** Celui-ci dit ce qui vient de se passer (« les
+barriques roulent à bord »), et il mentirait d'une image s'il paraissait avant
+que ce soit fait.
+
+### L'essai, et son témoin
+
+    etape 0  vivres 0,0  viande 0,0  bourse 24000   (à quai, Port-Royal)
+    etape 1  vivres 6,0  viande 0,0  bourse 24000   (chargé)
+    etape 2  vivres 0,0  viande 5,0  bourse 24000   (échangé au crawle)
+    finie    vivres 0,0  viande 0,0  bourse 24720   (livré, payé)
+
+24 720 − 24 000 = 720 pièces, soit les douze écus de la fiche. Et le témoin,
+même course en jetant la cargaison à la mer avant d'arriver au crawle :
+
+    etape 1  vivres 0,0  viande 0,0  bourse 24000   ... et elle n'avance plus
+
+Amarré au bon endroit, au bon objectif, et rien ne se passe. C'est la seule
+réponse juste à qui jette le fret de son affréteur.
+
+### Et le banc de parité était cassé depuis des jours — par moi
+
+En le passant après coup, il est tombé. Deux fois, puis trois :
+
+1. `ships/libre.json` — la liste des navires du jeu libre, que j'ai ajoutée il y
+   a quelques jours — n'est pas une fiche : pas d'`id`, pas de `hull`. Les deux
+   moitiés du banc (le relevé JS et le comparateur C#) la lisaient comme une
+   coque et tombaient dessus. **Le banc des coques ne tournait donc plus du
+   tout**, et rien ne l'avait dit.
+2. `ships/index.json` est un TABLEAU : la garde écrite pour le point 1 tombait
+   dessus à son tour.
+3. La caisse en bois rend un NaN au dernier point de son `beamFactor`
+   (station 64 sur 64, t = 1,0000), qui se propage en 15 sommets NaN sur 585 de
+   son maillage. `GetDouble()` sur le `null` de JSON arrêtait le banc net.
+
+Le premier est une faute de ma part, les deux autres sont ce qu'elle cachait.
+La règle retenue : **une fiche est un fichier qui a un `id` et une `hull`** — on
+le demande, on ne nomme pas les intrus un à un, sinon le prochain refera tomber
+le banc en silence.
+
+Pour le NaN : il se compare maintenant à un NaN. Ce qu'on veut savoir n'est pas
+s'il y en a un, mais si **les deux moteurs en font un au même endroit** — c'est
+encore de la parité, et en faire une panne du banc revenait à ne plus vérifier
+les coques suivantes. Ils le font : la caisse est cohérente d'un moteur à
+l'autre. Le NaN lui-même reste à regarder un jour ; il est au bout d'une coque
+qui n'est qu'une caisse flottante, et personne ne l'a jamais vu.
+
+Relevé réparé : **13 navires** au lieu des 8 du vieux relevé — boussole, caisse,
+sloop, speedwell et vedette n'avaient jamais été comparées.
+
+    PARITE TENUE — coques, mer, toile, temps, terre, quêtes, marché.
+
 ## Le débarcadère : un troisième état entre le port et la ville
 
 Kingston est dans le monde depuis longtemps, déclarée VILLE et non port : 420
