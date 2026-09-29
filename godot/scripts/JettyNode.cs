@@ -344,6 +344,10 @@ public partial class JettyNode : Node3D
 
         const double Taille = 1.75;                 // un homme, en mètres
         double k = f.Height > 0.01 ? Taille / f.Height : 1;
+        /* POSÉ SUR SES PIEDS, et non sur son origine : une cuisson ne commence pas
+           forcément à la pose de repos, et celle-ci tient l'homme seize
+           centimètres plus haut. Le plancher est mesuré au chargement. */
+        double pieds = f.Floor * k;
 
         var mat = (ShaderMaterial)f.Material.Duplicate();
         /* SA MATIÈRE EST PARTAGÉE, SON DÉPHASAGE NE L'EST PAS. Duplicate() sur un
@@ -353,7 +357,7 @@ public partial class JettyNode : Node3D
         {
             Mesh = f.Mesh,
             MaterialOverride = mat,
-            Position = new Vector3((float)(len * 0.66), (float)(deckY + 0.17), (float)(hw - 1.0)),
+            Position = new Vector3((float)(len * 0.66), (float)(deckY + 0.17 - pieds), (float)(hw - 1.0)),
             // +x du repère va vers le large ; le maillage regarde -z, d'où le quart de tour
             Rotation = new Vector3(0, Mathf.Pi * 0.5f, 0),
             Scale = new Vector3((float)k, (float)k, (float)k),

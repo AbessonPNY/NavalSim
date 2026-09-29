@@ -7323,6 +7323,93 @@ les deux reliefs ont été comparés à la même capture, et le relevé tient mi
 une berge franche au lieu d'un dégradé, et quinze maisons de plus à Port-Royal
 (49 → 64). Gardé pour cela, et non pour la raison qui l'avait fait écrire.
 
+## Un figurant cuit dans une texture (VAT), et quatre fausses pistes
+
+Demandé : un pirate qui attend sur le ponton, animé sans squelette. Chaque
+sommet a sa colonne dans une texture, chaque image de l'animation sa ligne ; le
+sommet y lit son déplacement et s'écarte de sa pose de repos. Aucun os, aucune
+peau à calculer, et Godot instancie les figurants entre eux — vingt hommes sur
+la plage coûtent à peu près ce qu'un seul coûte à dessiner.
+
+### La faute, et elle était mienne d'un bout à l'autre
+
+Il se déformait « comme de la gélatine ». J'ai cherché, dans l'ordre : une
+animation non cyclique (vraie, mesurée à 36× le pas ordinaire), une dérive du
+corps entier (vraie, les pieds bougeaient autant que la tête), une perte de
+précision (vraie, Godot ramenait le PNG 16 bits à huit). **Trois constats justes
+et trois fausses pistes** : aucun n'était la cause.
+
+La cause était l'ORIENTATION DES DÉPLACEMENTS. VAT Toolkit cuit dans le repère
+de Blender — Z vers le haut — et l'exportateur glTF convertit le maillage sans
+convertir la cuisson. J'avais vérifié à l'œil que les NORMALES demandaient la
+conversion, et supposé que les positions ne la demandaient pas. Une supposition
+présentée comme un fait, et l'auteur a recuit quatre fois à cause d'elle.
+
+### Ce qui a fini par trancher : un corps ne s'étire pas
+
+Une épreuve sans rendu, et j'aurais dû commencer par là. On prend cinq cents
+ARÊTES RÉELLES du maillage (plus d'un centimètre — les minuscules donnent 200 %
+pour un millimètre), on mesure leur longueur au repos puis à quatre instants de
+l'animation, et l'on essaie **les quarante-huit orientations possibles**. Celle
+qui garde les arêtes rigides est la vraie :
+
+    axes RBV signes +++     2,08 %     <- la bonne
+    axes RBV signes +-+     4,53 %
+    la pire                10,56 %
+
+Et sur la cuisson précédente, celle que je croyais bonne :
+
+    identite (x, y, z)      7,78 %     <- ce que je faisais
+    (x, z, y)               1,32 %     <- la correction
+
+Un pour cent d'étirement, c'est la chair qui travaille. Huit, c'est un corps qui
+se déforme. **Le bon geste : quand on ne peut pas voir, trouver l'invariant.**
+
+### Trois choses que Godot ne fait pas, et qu'il a fallu écrire
+
+**Il ne lit pas un EXR à l'exécution** : son chargeur OpenEXR est un greffon
+d'éditeur, et `Image.LoadFromFile` rend une erreur. Le nôtre était le cas
+facile — non compressé, demi-flottants — donc on l'ouvre à la main plutôt que
+d'imposer une conversion au modeleur.
+
+**Il ramène un PNG 16 bits à huit.** Relevé : `Rgb8` sur un fichier 16 bits,
+soit 1,5 mm par pas au lieu de 5,7 micromètres. Sur un corps d'un mètre c'est un
+grésillement, et c'est une perte SILENCIEUSE — l'image se charge sans erreur.
+D'où un décodeur PNG 16 bits, soixante lignes contre une dégradation invisible.
+
+**Il ne peut pas deviner la normalisation.** « Normalize » remappe les
+déplacements de [min, max] vers [0, 1] et n'écrit ces bornes NULLE PART : elles
+ne sont qu'affichées dans le panneau de l'extension. Une fiche `<cuisson>.json`
+les porte, et le chargeur REFUSE de deviner — un facteur inventé donnerait un
+résultat plausible et faux.
+
+### Deux mesures qui remplacent un réglage à la main
+
+**Le plancher.** Une cuisson ne commence pas forcément à la pose de repos :
+celle-ci tient l'homme 8,5 cm plus haut d'un bout à l'autre, soit quinze une
+fois à la taille d'un homme — il flottait au-dessus du tablier, signalé. Le
+chargeur cherche donc le point le plus bas atteint sur toute l'animation, en ne
+regardant que le bas du corps. Un MINIMUM et non une moyenne : posé sur la
+moyenne, il s'enfoncerait dans le pont la moitié du temps.
+
+**La cuisson la plus récente.** On recuit dix fois avant qu'un personnage
+tienne ; exiger un nom exact obligerait à renommer trois fichiers à chaque
+essai. Les cuissons se repèrent par leur SUFFIXE, la plus fraîche l'emporte, et
+le jeu DIT laquelle il a prise — un choix automatique qu'on ne voit pas est un
+piège : on croit essayer la nouvelle et l'on regarde l'ancienne.
+
+### Ce qui reste ouvert
+
+L'animation n'est toujours pas cyclique (38,9× le pas ordinaire au raccord), et
+elle est lue en aller-retour faute de mieux. Un fondu croisé de vingt images la
+rendrait franche — éprouvé : le pire pas de tout le clip tombe à 2,3× et pas au
+raccord — mais il faudrait le construire. Une vraie boucle d'attente vaudrait
+mieux.
+
+Et le semis n'est fait qu'au port de départ : le dessin est instancié donc
+gratuit, mais le semis lui-même coûte, et treize plages que le joueur ne verra
+peut-être jamais ne le valent pas encore.
+
 ## Un fanal éteint portait son ombre
 
 Demandé, après la mesure des ombres : « l'ombre dont tu parlais était celle des

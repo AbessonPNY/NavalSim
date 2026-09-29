@@ -43,7 +43,24 @@ uniform float u_rough = 0.85;
 
 /// <summary>Combien de lignes porte la texture, c'est-à-dire d'images.</summary>
 uniform float u_frames = 249.0;
-/// <summary>Les images par seconde de la scène qui a cuit : 24 chez Blender par défaut.</summary>
+/// <summary>
+/// LA CADENCE DE LECTURE, et ce n'est pas forcément celle de la cuisson.
+///
+/// Vingt-quatre est le taux de la scène Blender, donc la vitesse VRAIE du
+/// mouvement. Mais cette cuisson-ci n'est pas cyclique : lue en aller-retour,
+/// elle met 248 images à l'aller et autant au retour, soit VINGT SECONDES pour
+/// un cycle à sa vitesse d'origine — et un corps qui met vingt secondes à
+/// osciller ne ressemble à rien de vivant.
+///
+/// On l'a poussée à 72 un moment, en croyant que la lenteur faisait la
+/// gélatine. Elle ne la faisait pas : la cause était une DÉRIVE DU CORPS dans
+/// la cuisson — les pieds se déplaçaient de cinq centimètres, mesurés. Accélérer
+/// ne faisait que patiner plus vite. On revient donc à la vitesse vraie, et la
+/// justesse viendra de l'animation, pas de sa cadence de lecture.
+///
+/// Le cycle, en secondes : 2 × (images / u_fps) en aller-retour, (images / u_fps)
+/// en boucle franche.
+/// </summary>
 uniform float u_fps = 24.0;
 /// <summary>1 : aller-retour (cuisson non cyclique). 0 : boucle franche.</summary>
 uniform float u_pingpong = 1.0;
@@ -54,7 +71,7 @@ uniform float u_pingpong = 1.0;
    également plausibles sur un homme debout, donc aucune lecture des chiffres ne
    tranche : on regarde, et on bascule ce nombre. 0 = tel quel, 1 = Z-up rendu
    en Y-up. */
-uniform int u_axes = 0;
+uniform int u_axes = 1;
 
 /// <summary>Zéro fige la pose de repos — pour juger le maillage seul.</summary>
 uniform float u_amp = 1.0;
@@ -71,7 +88,11 @@ uniform int u_nrmaxes = 1;
 instance uniform float u_phase = 0.0;
 
 vec3 naval_vat_axes(vec3 v) {
-	return u_axes == 1 ? vec3(v.x, v.z, -v.y) : v;
+	// 1 : Blender (Z en haut) rendu en glTF (Y en haut). LE SIGNE EST POSITIF —
+	// mesure sur la rigidite des aretes : (x, z, y) donne 2,08 % de variation,
+	// (x, z, -y) en donne 4,53, et la pire orientation 10,56. Un corps ne
+	// s etire pas, donc la plus rigide est la vraie.
+	return u_axes == 1 ? vec3(v.x, v.z, v.y) : v;
 }
 
 void vertex() {
@@ -98,7 +119,7 @@ void vertex() {
 	   donc remappé de [-1, 1] vers [0, 1] : on le défait. */
 	if (u_texnrm > 0.5) {
 		vec3 n = mix(texture(u_nrm, c0).rgb, texture(u_nrm, c1).rgb, k) * 2.0 - 1.0;
-		NORMAL = normalize(u_nrmaxes == 1 ? vec3(n.x, n.z, -n.y) : n);
+		NORMAL = normalize(u_nrmaxes == 1 ? vec3(n.x, n.z, n.y) : n);
 	}
 }
 

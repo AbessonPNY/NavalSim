@@ -252,6 +252,8 @@ public partial class ShipDemo : Node3D
             { _fishNode.QueueFree(); _fishNode = null; }
             _town = new TownNode(_world);
             AddChild(_town);
+            _folk = new FolkNode(_world);
+            AddChild(_folk);
             _jetty = new JettyNode(_world);
             AddChild(_jetty);
             _book = LoadBook();
@@ -1268,6 +1270,11 @@ public partial class ShipDemo : Node3D
             {
                 _town.Update(here, new Vec3d(wo.X, 0, wo.Z));
                 foreach (var m in _town.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
+            }
+            if (_folk != null)
+            {
+                _folk.Update(here, new Vec3d(wo.X, 0, wo.Z));
+                foreach (var m in _folk.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
             }
             if (_anchor2 != null)
             {
@@ -3545,6 +3552,7 @@ public partial class ShipDemo : Node3D
     public NavalSim.Core.World? _world;
     LandNode? _land;
     TownNode? _town;
+    FolkNode? _folk;
     JettyNode? _jetty;
     ChartNode? _chart;
     bool _dressed;
@@ -3761,6 +3769,23 @@ public partial class ShipDemo : Node3D
             _town.Build(t.Name, g.X, g.Z, t.Radius, t.Houses, seed += 7919);
         }
         GD.Print(FormattableString.Invariant($"villes bâties en {watch.Elapsed.TotalMilliseconds:F0} ms"));
+        Plage();
+    }
+
+    /// <summary>
+    /// DU MONDE SUR LA PLAGE DU PORT DE DÉPART.
+    ///
+    /// Semé après les villes et pour la même raison : c'est du décor posé une
+    /// fois, quand rien ne bouge encore. Et seulement là où le joueur commence —
+    /// quatorze plages peuplées coûteraient quatorze fois le semis pour treize
+    /// endroits qu'il ne verra peut-être jamais, et le semis est le seul travail
+    /// coûteux ici (le dessin, lui, est instancié).
+    /// </summary>
+    void Plage()
+    {
+        if (_folk == null || _world?.StartPort is not NavalSim.Core.Isle home) return;
+        if (Vat.Load("pirate_0001") is not Vat.Figure f) return;
+        _folk.Plant(f, home.Name, home.X, home.Z, 320, 20, 20260929);
     }
 
     /// <summary>

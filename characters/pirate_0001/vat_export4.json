@@ -1,0 +1,6 @@
+{
+  "_aide": "LES DEUX NOMBRES QUE LE PNG NE PORTE PAS. Avec « Normalize (for PNG) » coche, VAT Toolkit remappe les deplacements de [min, max] vers [0, 1] avant de les ecrire — et il n'ecrit ces bornes nulle part. Sans elles, on lit des nombres sans unite. Elles sont affichees dans le panneau de l'extension, juste sous Wrap : « Min: ... Max: ... ». Une fiche par cuisson, nommee comme elle.",
+  "min": -0.1760,
+  "max": 0.1986,
+  "note": "cuisson du 29/09 : Offsets, VAT Texture, Flip Y, Normalize, 249 images a 24 im/s"
+}
