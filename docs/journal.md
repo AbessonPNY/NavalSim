@@ -7323,6 +7323,142 @@ les deux reliefs ont été comparés à la même capture, et le relevé tient mi
 une berge franche au lieu d'un dégradé, et quinze maisons de plus à Port-Royal
 (49 → 64). Gardé pour cela, et non pour la raison qui l'avait fait écrire.
 
+## Un fanal éteint portait son ombre
+
+Demandé, après la mesure des ombres : « l'ombre dont tu parlais était celle des
+fanaux ? Donc de jour, lumières éteintes, il n'y a pas les mille appels ? »
+
+Excellente question, et je n'avais pas contrôlé l'heure de mes courses. La
+réponse est **non** :
+
+    heure   ombres des fanaux   sans elles
+    13 h        1125 appels      636
+     3 h        1124 appels      666
+
+**Identique à midi et à trois heures du matin.** Relevé à treize heures, les
+trois omnis du navire portent une ombre avec une énergie de **0,00** : elles
+n'éclairent rien et Godot rend quand même leur cube de six faces.
+
+Car une omni à ombre rend son cube QUELLE QUE SOIT SON ÉNERGIE. Le projet
+éteint ses fanaux par l'intensité — c'est sa règle, et elle est bonne — mais
+l'intensité ne dit rien à la carte d'ombre.
+
+### Le remède, et pourquoi il ne contredit pas la règle
+
+Lier `ShadowEnabled` à la tournée d'allumage : `LanternShadows && on > 0.01`,
+le seuil qui éteint déjà la flamme, pour qu'ombre et lumière s'allument au même
+instant plutôt qu'à deux seuils qui finiraient par diverger. Et **on ne bascule
+que sur changement** : écrire `ShadowEnabled` à chaque image ferait relouer une
+carte d'ombre soixante fois par seconde.
+
+« Ne jamais ajouter, retirer ou masquer une lumière en jeu » vise **three.js**,
+qui recompile tout contre le NOMBRE de lumières visibles. Ici la lumière reste
+là, son ombre seule s'endort — et le menu bascule déjà `ShadowEnabled` à chaud
+par `SetLanternShadows`.
+
+    heure   avant   apres
+    13 h     1125     637     (= l interrupteur coupe, 636)
+     3 h     1124    1127     (la nuit garde ses ombres)
+
+**488 appels rendus toute la journée, sans rien changer à l'œil** — puisque ces
+lanternes n'éclairaient rien.
+
+### Trois erreurs enchaînées, et leur cause commune
+
+Sur ce seul point j'ai dit successivement, et à tort :
+
+1. que les trois omnis venaient du `.glb` — lu dans la profondeur du chemin
+   (`/Ship/@Node3D@961/@Node3D@993/…`) au lieu d'ouvrir le fichier. **Les deux
+   modèles ne déclarent aucune lumière** : zéro `KHR_lights_punctual` ;
+2. que la case du menu ne les gouvernait pas — mon test comptait 7 avant et 7
+   après, parce que quelque chose réappliquait le réglage entre mes deux
+   comptes ;
+3. et, la veille, que le coût venait des « cinquante-sept mailles » du galion.
+
+La cause est la même trois fois : **une lecture unique, prise sur un chemin qui
+n'est pas celui du joueur.** Le relevé qui a tranché passe par `--ombres`,
+c'est-à-dire par le vrai réglage, et il est cohérent jour et nuit. La règle à
+retenir : quand on mesure l'effet d'un réglage, on l'actionne PAR LE RÉGLAGE.
+
+## Les ombres, et deux corrections
+
+Demandé d'où venaient les mille appels de dessin d'une image. La réponse tient en
+un mot, et elle m'a fait corriger deux fois ce que j'avais avancé.
+
+### L'ablation, et ses deux pièges
+
+Éteindre chaque sous-arbre à tour de rôle et lire le compteur. Première tentative :
+des coûts NÉGATIFS — éteindre un nœud faisait MONTER les appels. La caméra
+d'orbite tournait pendant la mesure, et la vue changeait plus que l'ablation.
+Vue plantée (`--eye`, `--look`) et moyenne sur vingt images, les nombres
+deviennent lisibles. Second piège : les nœuds du projet sont anonymes
+(`@Node3D@993`), on les nomme donc par leur type et leur nombre de visuels.
+
+    depart : 1114 appels
+       972   LE NAVIRE ENTIER          — 87 % de l'image
+       542   son .glb  [42 mailles]
+       227   un sous-arbre [10 visuels]
+       148   un sous-arbre [3 visuels]
+       107   SkyNode
+        60   LandNode  [257 visuels]
+
+**Quarante-deux mailles pour cinq cent quarante-deux appels : treize par maille.**
+Ce ne sont pas quarante-deux objets dessinés une fois.
+
+### Ce sont les ombres
+
+    depart                                1111 appels
+    sans l'ombre portée PAR le navire      522   (−589)
+    sans l'ombre de SES FANAUX             650   (−461)
+    sans aucune ombre de la scene          520   (−591)
+    34 lumieres, toutes a ombre
+
+**Plus de la moitié de l'image est faite d'ombres**, et presque toutes viennent du
+navire commandé se projetant dans ses propres fanaux. Une omni qui porte ombre
+rend un CUBE — six faces — par image ; le projet le savait et l'avait écrit, et
+c'est pour cela que les AUTRES coques n'ombrent pas leurs fanaux. Le navire du
+joueur, lui, le fait.
+
+### Première correction : le facteur treize
+
+J'avais chiffré le gain d'une fusion des mailles à « 42 appels sur 1030, soit
+4 % ». **Faux par un facteur treize** : une maille en moins, ce sont treize
+appels en moins. Fusionner 57 mailles en 15 en gagnerait de l'ordre de 350.
+
+### Seconde correction : une paire de courses ne prouve rien
+
+Premier essai en temps : 6,25 ms avec les ombres contre 5,00 sans. **Course
+polluée** — la sonde allumait et éteignait pendant que `--frametimes` comptait.
+Refaite proprement, la paire suivante donnait 5,56 contre 6,25, soit l'inverse.
+J'ai failli conclure « les appels ne coûtent rien » sur ce couple-là.
+
+Trois répétitions ont tranché :
+
+    essai     avec ombres      sans ombres
+      1      5,27 / 6,64      4,55 / 6,67
+      2      5,25 / 8,80      4,77 / 8,33
+      3      6,90 / 10,29     4,34 / 6,06
+
+**Trois sur trois dans le même sens.** Médiane des médianes : 5,27 → 4,55, soit
+**0,72 ms**, 14 % de l'image, pour 461 appels. Environ 1,5 µs l'appel.
+
+La leçon de méthode est la vraie prise du jour : **le bruit d'une course à
+l'autre est de l'ordre de l'effet qu'on mesure**. Une paire suffit à faire
+conclure dans les deux sens ; trois paires suffisent à voir clair. Tous les
+chiffres d'une seule course donnés aujourd'hui sont à relire avec ça en tête.
+
+### Et donc, faut-il fusionner les mailles ?
+
+Non, mais pour UNE raison et non deux. Le gain serait réel (≈ 0,5 ms), et mon
+premier argument — « 4 %, ça ne vaut pas la peine » — ne tient pas. Ce qui tient,
+c'est que le moteur reconnaît mâts et vergues EN MESURANT CHAQUE MAILLE, et que
+`SplitPrimitives` va jusqu'à re-séparer ce que Godot avait fusionné, pour cette
+raison exacte. Fusionner, c'est perdre la mâture.
+
+Le même gain se prend ailleurs et sans risque : **l'ombre des fanaux du navire
+commandé**. Et il s'est révélé plus large encore — voir « Un fanal éteint portait
+son ombre » ci-dessous, où l'on découvre qu'elle était payée EN PLEIN MIDI.
+
 ## Le plafond que personne ne vérifiait
 
 Un personnage de 59 000 triangles posé dans le sloop pour éprouver la charge, et
@@ -7763,9 +7899,11 @@ même protocole :
 
 **Onze fois plus de triangles, et c'est très légèrement plus rapide.** Huit cent
 mille triangles de coques à l'écran ne se voient pas. Et le sloop chargé de son
-marin bat le Roter Löwe, qui a trois fois moins de géométrie — ce qui coûte chez
-le galion est son gréement, ses cinquante-sept mailles et ses voiles, pas ses
-sommets.
+marin bat le Roter Löwe, qui a trois fois moins de géométrie.
+
+*(J'ai d'abord attribué l'écart à ses cinquante-sept mailles. C'était une
+hypothèse présentée comme un résultat, et elle était fausse : voir « Les
+ombres, et deux corrections » plus bas.)*
 
 Le même sloop lourd, le nombre variant :
 

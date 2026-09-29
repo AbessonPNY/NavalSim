@@ -37,6 +37,8 @@ public partial class ShipNode
     }
 
     readonly List<Lantern> _lanterns = new();
+    /// <summary>L'ombre des fanaux telle qu'elle est POSÉE en ce moment, pour ne l'écrire que lorsqu'elle change.</summary>
+    bool _lanternShadowsLive;
 
     /* COUVRIR LES FEUX, ET COMMENT ILS S'ÉTEIGNENT.
      *
@@ -481,6 +483,10 @@ public partial class ShipNode
     public void SetLanternShadows(bool on)
     {
         LanternShadows = on;
+        /* Posé tout de suite pour que le menu réponde à l'instant ; la tournée
+           d'allumage le reprendra au prochain changement de jour ou de nuit, et
+           _lanternShadowsLive garde les deux d'accord. */
+        _lanternShadowsLive = on;
         foreach (var L in _lanterns) L.Light.ShadowEnabled = on;
     }
 
@@ -773,6 +779,36 @@ public partial class ShipNode
         }
         var gp = GlobalPosition;
         far *= Math.Sqrt(sky.HazeTransmit(new Vec3d(camPos.X, camPos.Y, camPos.Z), new Vec3d(gp.X, gp.Y, gp.Z)));
+
+        /* UN FANAL ÉTEINT NE PORTE PAS D'OMBRE, et il la portait.
+
+           Une omni à ombre rend un CUBE — six faces — à chaque image où elle est
+           visible, et Godot le rend QUELLE QUE SOIT SON ÉNERGIE : une lanterne à
+           zéro en plein midi coûtait exactement ce qu'elle coûte à minuit.
+           Mesuré sur le galion, vue plantée, à treize heures :
+
+               ombres des fanaux      1125 appels   mediane 5,56 ms
+               sans elles              636 appels   mediane 4,49 ms
+
+           489 appels et 1,07 ms — 19 % de l'image — pour trois lampes qui
+           n'éclairaient rien. Trois paires de courses, toutes dans le même sens.
+
+           ON NE BASCULE QUE SUR CHANGEMENT. Écrire ShadowEnabled à chaque image
+           ferait relouer une carte d'ombre soixante fois par seconde ; et le
+           seuil est celui qui éteint déjà la flamme (on <= 0,01), pour qu'ombre
+           et lumière s'allument au même instant plutôt qu'à deux seuils qui
+           finiraient par diverger.
+
+           Ceci ne contredit pas « ne jamais masquer une lumière en jeu » : cette
+           règle vise three.js, qui recompile tout contre le NOMBRE de lumières
+           visibles. La lumière reste là, son ombre seule s'endort — et le menu
+           bascule déjà ShadowEnabled à chaud par SetLanternShadows. */
+        bool veut = LanternShadows && on > 0.01;
+        if (veut != _lanternShadowsLive)
+        {
+            _lanternShadowsLive = veut;
+            foreach (var L in _lanterns) L.Light.ShadowEnabled = veut;
+        }
 
         foreach (var L in _lanterns)
         {
