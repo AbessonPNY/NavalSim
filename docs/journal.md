@@ -7323,6 +7323,57 @@ les deux reliefs ont été comparés à la même capture, et le relevé tient mi
 une berge franche au lieu d'un dégradé, et quinze maisons de plus à Port-Royal
 (49 → 64). Gardé pour cela, et non pour la raison qui l'avait fait écrire.
 
+## Le plafond que personne ne vérifiait
+
+Un personnage de 59 000 triangles posé dans le sloop pour éprouver la charge, et
+la page est sortie à **21,9 Mo** pour un plafond de 16,4. Code de sortie 0. Pas
+un mot.
+
+Or `CLAUDE.md` disait « `node build.js` vérifie la limite », et
+`tools/page-models.js` finissait par « Vérifiez ensuite avec node build.js : la
+limite est de 16 Mo ». **Aucun des deux n'était vrai.** Il n'y avait pas une
+ligne dans `build.js` qui regardât la taille du fichier écrit.
+
+C'est la panne muette contre laquelle tout le reste de ce fichier est écrit — il
+refuse un `<script src>` local survivant, un `url()` qui traîne, une fonte non
+inlinée — et le plafond, qui est la contrainte la plus dure de la publication,
+n'était gardé par rien. **Un build qui réussit en mentant est pire qu'un build
+qui échoue.**
+
+### Ce qui pèse ne se devine pas après coup
+
+Première version de l'avertissement : trier `inlined` par la taille des fichiers
+sur le disque. Elle a rendu `js/ship-model.js` et deux sons comme « les cinq plus
+gros », alors que le coupable était un `.glb` de 4,5 Mo.
+
+`inlined` ne porte que les scripts et les feuilles ; les modèles, les sons et les
+images entrent par un autre chemin, et **en base64 ou en data: URI**, si bien que
+leur taille sur le disque n'est pas celle qu'ils occupent. Le registre est donc
+rempli LÀ OÙ L'ON EMBARQUE, avec le nombre d'octets qu'on vient d'écrire — et il
+désigne le bon fichier :
+
+    ATTENTION : la page fait 21899.1 KB, le plafond est de 16384.0 KB.
+         4580.8 KB  ships/models/sloop_1700s.glb
+         4163.6 KB  ships/models/roter_lowe_1597.glb
+         1450.5 KB  ships/models/laCouronne17e.glb
+
+**Avertissement et non échec** : la page écrite reste utile pour essayer en
+local, et l'auteur sait souvent qu'il déborde — il vient de poser un modèle lourd
+exprès. Ce qu'il ne doit pas pouvoir faire, c'est déborder sans le savoir.
+
+### Et le remède était déjà écrit
+
+`"ships/models/sloop_1700s.glb": { "page": false }` dans
+`godot-models/allegement.json`. Godot garde les 67 844 triangles, la copie de
+page est effacée, et la page dessine la coque d'après ses lignes — comme La
+Boussole depuis le 26. La page revient à **15 791 Ko**.
+
+C'est le deuxième modèle à sortir par cette porte, et les deux pour la même
+raison : ce qui pèse chez eux est la **géométrie**, qu'aucune borne de texture ne
+réduit. `page-models.js` avait d'ailleurs dit « rien à faire » sur le sloop et
+recopié les 4,5 Mo tels quels — il n'allège que les images, et il ne ment pas,
+mais il ne suffisait pas.
+
 ## Douze denrées au lieu d'une : le commerce devient un métier
 
 Demandé : mêler les deux systèmes — le fret sous contrat qu'on porte, et le
@@ -7699,9 +7750,40 @@ l'image plus lente, il la rend IRRÉGULIÈRE — et à douze coques une image su
 vingt passe déjà les 16,67 ms. C'est là le vrai plafond, et il ne se déplacera
 pas en allégeant les modèles.
 
-À retenir pour le modeleur : au-delà de 22 000 triangles par navire sans que
-cela se voie ; le chiffre exact où cela mordrait n'est pas mesuré, faute d'un
-modèle plus lourd sous la main.
+### Éprouvé ensuite sur un modèle trois fois plus lourd
+
+Un marin de 59 000 triangles posé dans le sloop pour éprouver la charge l'a fait
+passer de 6 172 à **67 844 triangles** — onze fois la géométrie. Douze coques,
+même protocole :
+
+    modele            tri/navire  a douze coques   mediane    p95
+    Sloop (avant)          6 172          74 064   4,33 ms  11,11 ms
+    Sloop + marin         67 844         814 128   4,17 ms  10,61 ms
+    Roter Lowe            22 125         265 500   5,00 ms  16,67 ms
+
+**Onze fois plus de triangles, et c'est très légèrement plus rapide.** Huit cent
+mille triangles de coques à l'écran ne se voient pas. Et le sloop chargé de son
+marin bat le Roter Löwe, qui a trois fois moins de géométrie — ce qui coûte chez
+le galion est son gréement, ses cinquante-sept mailles et ses voiles, pas ses
+sommets.
+
+Le même sloop lourd, le nombre variant :
+
+    coques        1      4      8     12     16
+    mediane    4,17   4,17   4,17   4,48   4,17  ms
+    p95        5,00   6,25   8,48   9,72  12,50  ms
+
+**La médiane ne bouge pas.** Quatre relevés sur cinq donnent 4,17 ms au
+centième, d'une coque à seize. C'est le p95 qui monte, et il monte droit.
+
+Et à SEIZE coques de 67 844 triangles — un million quatre-vingt-cinq mille
+triangles — le p95 est encore à 12,50 ms, sous les 16,67 du budget. Plus
+confortable que douze Roter Löwe, qui y touchaient.
+
+La question était : combien de polygones pour rester jouable à six contre six ?
+La réponse mesurée est : **ce n'est pas la bonne question.** La densité du
+maillage ne coûte rien dans toute la plage qu'on sait produire ; ce qui coûte est
+le NOMBRE de coques, et il se paie en régularité, pas en vitesse.
 
 ## Une épave traversait le sable : la quille n'est pas toujours le point le plus bas
 

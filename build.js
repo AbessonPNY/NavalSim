@@ -14,6 +14,12 @@ const path = require('path');
 const ROOT = __dirname;
 const SRC = path.join(ROOT, 'naval-sim.html');
 const OUT_DIR = path.join(ROOT, 'dist');
+/* CE QUI PÈSE DANS LA PAGE, relevé là où on l'embarque. On ne peut pas le
+   deviner après coup : un .glb entre en base64 et une image en data: URI, donc
+   leur taille sur le disque n'est pas celle qu'ils occupent — et le registre
+   dit ce qui a VRAIMENT été mis dedans. */
+const pesee = [];
+
 const OUT = path.join(OUT_DIR, 'naval-sim.html');
 
 let html = fs.readFileSync(SRC, 'utf8');
@@ -89,6 +95,7 @@ for (const rel of shipList) {
       const bytes = fs.readFileSync(p);
       spec.model.glbBase64 = bytes.toString('base64');
       console.log('  embedded ' + spec.model.glb + '  (' + (bytes.length/1024).toFixed(1) + ' KB)');
+      pesee.push({ f: spec.model.glb, n: bytes.length });
     } else if (horsPage[spec.model.glb]) {
       console.log('  hors page (page: false) : ' + spec.model.glb + ' — ' + spec.id +
                   ' aura sa coque dessinée');
@@ -225,6 +232,7 @@ if (fs.existsSync(SOUND_DIR)) {
     soundData[cle] = 'data:' + SOUND_MIME[ext] + ';base64,' + bytes.toString('base64');
     inlined.push('medias/sound/' + f);
     console.log('  embedded medias/sound/' + f + '  (' + (bytes.length/1024).toFixed(0) + ' KB)');
+    pesee.push({ f: 'medias/sound/' + f, n: bytes.length });
     for (const autre of SOUND_EXT) {
       if (autre !== ext && present.has(nom + autre))
         console.log('    (medias/sound/' + nom + autre + ' n\'est plus utilise)');
@@ -248,6 +256,7 @@ if (fs.existsSync(PROPS)) {
       const bytes = fs.readFileSync(p);
       d.glbBase64 = bytes.toString('base64');
       console.log('  embedded ' + d.glb + '  (objet ' + kind + ', ' + (bytes.length/1024).toFixed(1) + ' KB)');
+      pesee.push({ f: d.glb, n: bytes.length });
     } else {
       console.warn('  WARNING: ' + d.glb + ' is missing — ' + kind + ' sera dessiné par le code');
     }
@@ -271,6 +280,7 @@ if (fs.existsSync(SETTINGS)) {
       const bytes = fs.readFileSync(p);
       kr.glbBase64 = bytes.toString('base64');
       console.log('  embedded ' + kr.glb + '  (' + what + ', ' + (bytes.length/1024).toFixed(1) + ' KB)');
+      pesee.push({ f: kr.glb, n: bytes.length });
     } else {
       console.warn('  WARNING: ' + kr.glb + ' is missing — ' + what + ' dessinés par le code');
       delete kr.glb;
@@ -461,6 +471,30 @@ const kb = n => (n / 1024).toFixed(1) + ' KB';
 console.log('inlined ' + inlined.length + ' files:');
 for (const f of inlined) console.log('  - ' + f);
 console.log('wrote dist/naval-sim.html  (' + kb(Buffer.byteLength(html)) + ')');
+
+/* LE PLAFOND DES SEIZE MÉGAOCTETS, ENFIN VÉRIFIÉ ICI.
+
+   CLAUDE.md et tools/page-models.js disaient tous deux « node build.js vérifie
+   la limite ». Il ne la vérifiait pas. Une page de 21,9 Mo est sortie sans un
+   mot le jour où un modèle de 68 000 triangles est entré dans une fiche — et
+   c'est exactement la panne muette contre laquelle tout le reste de ce fichier
+   est écrit : un build qui réussit en mentant est pire qu'un build qui échoue.
+
+   AVERTISSEMENT ET NON ÉCHEC. La page écrite reste utile pour essayer en local,
+   et l'auteur sait souvent qu'il déborde — il vient de poser un modèle lourd
+   exprès. Ce qu'il ne doit pas pouvoir faire, c'est déborder SANS LE SAVOIR. */
+const PAGE_MAX = 16 * 1024 * 1024;
+const taille = Buffer.byteLength(html);
+if (taille > PAGE_MAX) {
+  const gros = pesee.slice().sort((a, b) => b.n - a.n).slice(0, 5);
+  console.warn('');
+  console.warn('  ATTENTION : la page fait ' + kb(taille) + ', le plafond est de ' + kb(PAGE_MAX) + '.');
+  console.warn('  Elle ne se publiera pas en l etat. Les cinq plus gros fichiers embarques :');
+  for (const g of gros) console.warn('    ' + kb(g.n).padStart(12) + '  ' + g.f);
+  console.warn('  Ce qui ne tient pas se marque « "page": false » dans godot-models/allegement.json :');
+  console.warn('  Godot garde la pleine definition, et la page dessine la coque d apres ses lignes.');
+  console.warn('');
+}
 
 // A blocked local <script src> is the exact failure this build prevents, so
 // refuse to ship a file that still carries one.
