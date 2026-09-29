@@ -7323,6 +7323,109 @@ les deux reliefs ont été comparés à la même capture, et le relevé tient mi
 une berge franche au lieu d'un dégradé, et quinze maisons de plus à Port-Royal
 (49 → 64). Gardé pour cela, et non pour la raison qui l'avait fait écrire.
 
+## Pas de quartier : le pirate garde rancune (Godot)
+
+Demandé : un navire abordé était pillé et rendu à la mer intact, quoi qu'il eût
+fait. « Il est pillé et laissé sur place sans dégâts, SEULEMENT si le navire n'a
+pas usé des canons contre lui. Sinon un navire abordé sera détruit. »
+
+### Où la décision se prend
+
+Pas dans le jeu : **dans le pirate**. Il tenait déjà deux registres — `Ignore`,
+les proies déjà pillées qu'il laisse un quart d'heure, et `Cible`, celle qu'il
+chasse. Il lui en manquait un troisième, et c'est le seul qui ne s'efface pas :
+
+    public readonly HashSet<ShipPhysics> Rancune = new();
+
+`Provoke` l'inscrit — c'est-à-dire la fonction par laquelle il apprend qu'on lui
+a tiré dessus, écrite le mois dernier quand il encaissait des bordées sans lever
+la tête. Elle était déjà là ; il suffisait de lui faire retenir le nom.
+
+**Et la rancune se prend AVANT les gardes de `Provoke`.** Celle-ci refusait la
+provocation d'un pirate en fuite, avec raison — il ne se retourne pas pour un
+boulet. Mais « il ne se retourne pas » n'est pas « il n'a rien senti » : mise
+après la garde, la ligne aurait oublié exactement le joueur qui l'a canonné
+pendant sa retraite, et c'est celui-là qu'il faut brûler.
+
+Au bout des cinq secondes bord à bord, `Pilot` ne rend plus une issue mais deux :
+
+    return Rancune.Contains(prey) ? "carnage" : "pillage";
+
+Le pirate ne décide rien à l'abordage — il relit son registre. C'est la victime
+qui a choisi.
+
+### Ce que le jeu en fait
+
+`carnage` fait sauter la soute (`BlowUp`, déjà écrit pour `--soute`), pour tout
+le monde : un marchand qui a ouvert ses sabords saute comme le joueur. Un écran
+posé sur une coque intacte aurait menti ; ce qu'on voit doit être ce qui est
+arrivé, et le joueur a le droit de regarder son navire brûler pendant qu'il lit
+la sentence.
+
+Pour lui s'ajoute `Captured()` : le bandeau du naufrage porte « Votre navire est
+capturé — les pirates ne font pas de quartier », et `_UnhandledInput` prend tout
+comme au titre. Sans cela il barrerait une épave en feu, et **R la radouberait** —
+la sentence n'aurait servi à rien. Ne restent que ⏎ (reprendre) et Échap (titre).
+
+`LoadGame` recharge la scène entière : la coque en feu ne survit pas à la
+reprise, il n'y a rien à nettoyer. Et `SaveMode()` sort de `Collect` pour que la
+reprise cherche dans la même liste que l'enregistrement — deux copies de « quel
+menu suis-je » auraient fini par différer.
+
+### L'essai, et son témoin
+
+Sonde : pirate à 60 m, quatre voies d'eau pour qu'il la juge abîmée, `Provoke`
+appelé comme un boulet l'appellerait.
+
+    tenu 5,0 | capture True  | bandeau True  | « Votre navire est capturé… » | voies 6 | sombrée True
+    tenu 5,0 | capture False | bandeau False | « Votre navire a sombré ! »   | voies 3 | sombrée False
+
+La première ligne est l'essai, la seconde le TÉMOIN — même scène, sans la
+provocation. Sans le témoin je n'aurais montré que la branche neuve ; avec lui je
+montre aussi que l'ancienne tient : il pille, il s'en va, la coque est intacte et
+le charpentier rebouche (quatre voies, puis trois).
+
+La page n'a pas de sauvegardes : « reprendre au dernier point » n'y veut rien
+dire, et elle garde son pillage.
+
+## Le nombre de polygones n'est pas ce qui limite une flotte (Godot)
+
+Demandé : combien de polygones un navire peut-il porter pour rester jouable à
+six contre six ? Douze coques exactement, rencontres éteintes, 570 images,
+`--vsync 0`, médiane :
+
+    modele          mailles  matieres  triangles   mediane
+    Galion pirate        12         4      7 862    3,44 ms
+    Sloop Experiment     10         3      6 172    4,33 ms
+    Roter Lowe           57        15     22 125    4,55 ms
+    La Boussole          57        15     22 125    4,55 ms
+    HMS Speedwell        35         3      1 626    5,00 ms
+
+**Le plus lourd en triangles est le plus rapide ; le plus léger est le plus
+lent.** Quatre fois et demie plus de triangles, 1,5 ms de moins. Et ce n'est pas
+du bruit : les deux fiches qui partagent le même `.glb` rendent 4,55 et 4,55 — la
+médiane est reproductible au centième, donc l'écart entre modèles est réel, il
+ne vient simplement pas de là. Le nombre de mailles ne l'explique pas davantage
+(57 va plus vite que 35).
+
+### Ce qui coûte vraiment, c'est le NOMBRE de coques, et il coûte en à-coups
+
+Même modèle (Roter Löwe, 22 125 triangles), le nombre variant :
+
+    coques ajoutees     0      3      7     11     15
+    mediane          4,76   6,06   5,56   5,56   4,55
+    p95              5,00   8,33  12,63  18,33  19,69
+    au-dela 1,5x        3     26     82    124     60
+
+**La médiane ne monte pas. Le p95 triple.** Ajouter des coques ne rend pas
+l'image plus lente, il la rend IRRÉGULIÈRE — et à douze coques une image sur
+vingt passe déjà les 16,67 ms. C'est là le vrai plafond, et il ne se déplacera
+pas en allégeant les modèles.
+
+À retenir pour le modeleur : au-delà de 22 000 triangles par navire sans que
+cela se voie ; le chiffre exact où cela mordrait n'est pas mesuré, faute d'un
+modèle plus lourd sous la main.
+
 ## Une épave traversait le sable : la quille n'est pas toujours le point le plus bas
 
 Signalé : « les navires passent à travers le sable quand ils s'échouent ; ils

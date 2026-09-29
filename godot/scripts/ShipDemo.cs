@@ -1948,6 +1948,21 @@ public partial class ShipDemo : Node3D
             GetViewport().SetInputAsHandled();
             return;
         }
+        /* NAVIRE CAPTURÉ : la partie est finie et la console ne répond plus. Tout
+           est pris, comme au titre, sinon le joueur barrerait une épave en feu et
+           R la radouberait — ce qui rendrait la sentence sans objet. Il ne reste
+           que ⏎, qui reprend, et Échap, qui rend le titre. */
+        if (_captured)
+        {
+            if (e is InputEventKey ck && ck.Pressed && !ck.Echo)
+            {
+                Key ckey = ck.PhysicalKeycode != Key.None ? ck.PhysicalKeycode : ck.Keycode;
+                if (ckey is Key.Enter or Key.KpEnter) ResumeSave();
+                else if (ckey == Key.Escape) { _captured = false; Found(); Open(); MainItems(); }
+            }
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         if (e is InputEventKey gk && (gk.PhysicalKeycode != Key.None ? gk.PhysicalKeycode : gk.Keycode) == Key.G)
         {
             if (!gk.Pressed) _salvo = false;
@@ -3235,6 +3250,21 @@ public partial class ShipDemo : Node3D
                         string name = "un navire";
                         foreach (var o in _others) if (o.Physics == prey) { name = o.Spec.Name; break; }
                         Say("Le pirate aborde et pille " + name);
+                    }
+                }
+                /* PAS DE QUARTIER — la prise avait tiré. Le pillage lui a déjà
+                   tout pris ; ce qui suit est la vengeance, et elle est la même
+                   pour tout le monde : la soute saute. Pour le joueur, c'est la
+                   fin de la partie. */
+                else if (ev == "carnage")
+                {
+                    if (mine) Captured();
+                    else foreach (var o in _others) if (o.Physics == prey)
+                    {
+                        BlowUp(o);
+                        if ((prey.Body.Pos - _ship.Physics.Body.Pos).Length < 6000)
+                            Say($"Le pirate ne fait pas de quartier — {o.Spec.Name} saute");
+                        break;
                     }
                 }
             }

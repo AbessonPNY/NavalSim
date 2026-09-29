@@ -11,6 +11,9 @@ namespace NavalSim.Core;
 ///     dans son sillage puis à couple par la hanche : le seul secteur où une
 ///     bordée ne porte pas ;
 ///   · PILLAGE — tenu cinq secondes bord à bord, presque à la même vitesse ;
+///     et là, DEUX ISSUES : rendue sans un coup elle est pillée et laissée sur
+///     l'eau ; l'ayant canonné, il ne lui fait pas de quartier et met le feu aux
+///     poudres avant de partir (<see cref="Rancune"/>) ;
 ///   · FUITE — il s'éloigne trois minutes, et laisse sa victime un quart d'heure.
 /// « Abîmée » se lit sur ce qui existe déjà : personne n'arbitre, ce sont les
 /// dégâts réels qui décident.
@@ -24,6 +27,14 @@ public sealed class Pirate
     public ShipPhysics? Cible;
     /// <summary>Les proies déjà pillées, et jusqu'à quelle heure il les laisse.</summary>
     public readonly Dictionary<ShipPhysics, double> Ignore = new();
+    /// <summary>
+    /// CEUX QUI LUI ONT TIRÉ DESSUS, et qu'il n'oublie jamais. Un marchand qui
+    /// se laisse prendre est pillé et rendu à la mer ; un qui a ouvert ses
+    /// sabords a fait de l'abordage un combat, et on ne lui fait pas de quartier.
+    /// C'est le seul registre du pirate qui ne s'efface pas avec le temps :
+    /// <see cref="Ignore"/> tient un quart d'heure, celui-ci tient la rancune.
+    /// </summary>
+    public readonly HashSet<ShipPhysics> Rancune = new();
     public double Tenu, FuiteJusque;
     public Vec3d Fuite;                      // local : à décaler au recentrage
     /// <summary>La garde de la chasse : le plein fouet de ses pièces.</summary>
@@ -49,7 +60,8 @@ public sealed class Pirate
     /// <summary>
     /// Une image : où il va (écrit dans <paramref name="helm"/>), et ce qui se passe.
     /// Rend « abordage » quand il cesse le feu pour venir à couple, « pillage » quand
-    /// il a pillé, sinon rien. <paramref name="player"/> : la coque qu'on barre.
+    /// il a pillé, « carnage » quand il a pillé une coque qui l'avait canonné, sinon
+    /// rien. <paramref name="player"/> : la coque qu'on barre.
     /// </summary>
     public string? Pilot(double dt, double t, ShipPhysics self, AutoHelm helm, IReadOnlyList<Sail> fleet, ShipPhysics player)
     {
@@ -122,7 +134,12 @@ public sealed class Pirate
         if (al == 0) al = 1;
         Fuite = new Vec3d(b.Pos.X + ax / al * 3000, 0, b.Pos.Z + az / al * 3000);
         Cible = null;
-        return "pillage";
+        /* ET C'EST ICI QUE SE PAIE CE QU'ON LUI A FAIT. Il n'a pas deux humeurs
+           mais deux issues, et c'est la victime qui a choisi laquelle : rendue
+           sans un coup, elle est pillée et laissée sur l'eau ; l'ayant canonné,
+           elle est brûlée. Le pirate ne le décide pas au moment de l'abordage —
+           il ne fait que relire son registre. */
+        return Rancune.Contains(prey) ? "carnage" : "pillage";
     }
 
     /// <summary>Ne tire que pendant la CHASSE : à l'abordage, ses boulets frapperaient la coque qu'il vient piller.</summary>
@@ -147,7 +164,14 @@ public sealed class Pirate
     /// </summary>
     public void Provoke(ShipPhysics by, double t)
     {
-        if (by == null || by.Foundered || State == Phase.Fuite) return;
+        if (by == null) return;
+        /* LA RANCUNE SE PREND AVANT TOUT LE RESTE, et même de celui qu'il fuit :
+           un boulet reçu est un boulet reçu, et c'est ce qu'on lui demandera plus
+           tard, quand il l'aura rattrapé et qu'il faudra décider s'il le pille ou
+           s'il le brûle. Mise après les gardes ci-dessous, elle aurait oublié
+           exactement le joueur qui l'a canonné pendant sa retraite. */
+        Rancune.Add(by);
+        if (by.Foundered || State == Phase.Fuite) return;
         Ignore.Remove(by);
         Cible = by;
         State = Phase.Chasse;

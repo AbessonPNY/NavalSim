@@ -116,9 +116,48 @@ public partial class ShipDemo
        chavirage sur un coup de roulis. */
     bool Capsized() => _ship.Physics.Body.Quat.Rotate(new Vec3d(0, 1, 0)).Y < 0.17;
 
+    /// <summary>
+    /// CAPTURÉE, ET BRÛLÉE. Le pirate qu'on a canonné ne se contente pas de
+    /// piller : il met le feu aux poudres avant de partir. C'est la seule fin
+    /// dont on ne revient pas — <see cref="Salvage"/> n'y peut rien, et la barre
+    /// ne répond plus.
+    ///
+    /// La soute saute pour de bon (<c>BlowUp</c>) plutôt qu'un écran posé sur une
+    /// coque intacte : ce qu'on voit doit être ce qui est arrivé, et le joueur a
+    /// le droit de regarder son navire brûler pendant qu'il lit la sentence.
+    /// </summary>
+    bool _captured;
+
+    void Captured()
+    {
+        if (_captured || _lostBox == null) return;
+        _captured = true;
+        BlowUp(_ship);
+        _lostTitle!.Text = "Votre navire est capturé — les pirates ne font pas de quartier.";
+        _lostHow!.Text = LastSave() != null
+            ? "⏎ pour reprendre au dernier point de sauvegarde.        Échap : le titre."
+            : "Aucune partie enregistrée.        Échap pour revenir au titre.";
+        _lostBox.Visible = true;
+        JournalLog("Capturés. Les pirates n'ont pas fait de quartier.");
+    }
+
+    /// <summary>
+    /// REPRENDRE — la partie enregistrée la plus fraîche du mode où l'on est.
+    /// <c>LoadGame</c> recharge la scène entière, donc la coque en feu ne survit
+    /// pas à la reprise : il n'y a rien à nettoyer ici.
+    /// </summary>
+    void ResumeSave()
+    {
+        var s = LastSave();
+        _captured = false;
+        Found();
+        if (s != null) LoadGame(s);
+        else { Open(); MainItems(); }
+    }
+
     void LostTick()
     {
-        if (_lostBox == null) return;
+        if (_lostBox == null || _captured) return;   // capturée : le bandeau est à elle
         _capsizedFor = Capsized() && !_ship.Physics.Foundered ? _capsizedFor + (double)GetProcessDeltaTime() : 0;
         if (_capsizedFor > 3)
         {
@@ -157,6 +196,7 @@ public partial class ShipDemo
     /// </summary>
     void Salvage()
     {
+        if (_captured) return;                 // on ne radoube pas un navire qu'on n'a plus
         // le radoub éteint ce qui brûlait : on ne répare pas un navire en feu
         Douse(_ship);
         bool sunk = _lost || _ship.Physics.Foundered;

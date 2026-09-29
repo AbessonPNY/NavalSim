@@ -137,11 +137,7 @@ public partial class ShipDemo
             Sous = _purse.Sous, Poudre = p.Powder,
             Voiles = _ship.Ctrl.SailsSet, Toile = _ship.Ctrl.Canvas, Ris = _reef,
             Ecoute = _ship.Ctrl.Sheet, Pavillon = _colours,
-            /* TROIS MENUS, TROIS LISTES : la quête en cours dit laquelle. Un
-               chapitre, c'est l'Histoire ; une autre quête, c'est une mission ;
-               pas de quête, c'est le jeu libre. */
-            Mode = _quests?.Active == null ? "libre"
-                 : _quests.Active.Kind == "story" ? "histoire" : "mission"
+            Mode = SaveMode()
         };
         foreach (var c in p.Cargo)
             s.Cargo.Add(new Colis { Cale = c.Hold, Niveau = c.Level, Bord = c.Side, Kg = c.Kg, Nature = c.Kind });
@@ -192,6 +188,25 @@ public partial class ShipDemo
     /// Vrai si le JOUEUR l'a demandé, faux si c'est le jeu qui enregistre en
     /// passant (retour au menu, sortie du jeu).
     /// </param>
+    /// <summary>
+    /// DE QUEL MENU VIENT LA PARTIE EN COURS. Trois menus, trois listes, et la
+    /// quête en cours dit laquelle : un chapitre, c'est l'Histoire ; une autre
+    /// quête, c'est une mission ; pas de quête, c'est le jeu libre.
+    ///
+    /// Une fonction plutôt qu'une expression recopiée : la capture par les
+    /// pirates a besoin de la même réponse pour savoir dans quelle liste chercher
+    /// le point de reprise, et deux copies auraient fini par différer.
+    /// </summary>
+    string SaveMode() => _quests?.Active == null ? "libre"
+                       : _quests.Active.Kind == "story" ? "histoire" : "mission";
+
+    /// <summary>La partie enregistrée la plus fraîche du mode où l'on est, ou nulle.</summary>
+    SaveState? LastSave()
+    {
+        var l = Saves(SaveMode());
+        return l.Count > 0 ? l[0] : null;
+    }
+
     void SaveGame(bool asked = true)
     {
         /* UNE ESCARMOUCHE NE SE REPREND PAS. C'est une bataille montée d'un bloc,
