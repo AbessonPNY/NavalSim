@@ -1644,8 +1644,49 @@ public partial class ShipDemo : Node3D
         1 => _ship.Spec.Decks[_deck].Name,
         2 => "Fixe",
         3 => "Mi-eau",
+        4 => "Ponton",
         _ => "Orbite"
     };
+
+    /* ------------------------------------------------------------------ */
+    /*  LA VUE DU PONTON                                                   */
+    /* ------------------------------------------------------------------ */
+
+    /// <summary>À quelle distance d'un ponton la vue est offerte, en mètres.</summary>
+    const double JettyView = 800;
+
+    /// <summary>
+    /// Hauteur de l'œil au-dessus du tablier. Le tablier lui-même est à
+    /// <see cref="NavalSim.Core.Berth.DeckY"/> : la somme fait un homme debout sur
+    /// le musoir, et c'est le seul point de vue du jeu qui ne soit pas à bord.
+    /// </summary>
+    const double JettyEye = 1.65;
+
+    /// <summary>
+    /// LE PONTON LE PLUS PROCHE, s'il est à portée — sa tête, en mètres MONDE
+    /// VRAIS, et le nom de son port.
+    ///
+    /// Un port n'a pas forcément de ponton (Kingston est sur la rive d'en face,
+    /// et n'en a pas) : ceux-là ont une tête à l'origine, et c'est ainsi que le
+    /// reste du jeu les écarte déjà — on lit la même condition ici plutôt que
+    /// d'en inventer une seconde.
+    /// </summary>
+    (Vec3d Head, string Name)? NearJetty()
+    {
+        if (_world == null) return null;
+        var (tx, tz) = TruePos();
+        double best = JettyView * JettyView;
+        (Vec3d, string)? found = null;
+        foreach (var i in _world.Isles)
+        {
+            var w = i.Port;
+            if (w.Hx == 0 && w.Hz == 0) continue;
+            double dx = w.Hx - tx, dz = w.Hz - tz;
+            double d2 = dx * dx + dz * dz;
+            if (d2 < best) { best = d2; found = (new Vec3d(w.Hx, 0, w.Hz), i.Name); }
+        }
+        return found;
+    }
 
     /// <summary>
     /// C : Orbite, puis chaque vue à bord de la fiche dans l'ordre, puis Fixe —
@@ -1663,6 +1704,15 @@ public partial class ShipDemo : Node3D
         else if (_camMode == 1 && _deck + 1 < _ship.Spec.Decks.Count) { _deck++; EnterDeck(); }
         else if (_camMode == 1) { _camMode = 2; SetLens(OutsideFov, OutsideNear); Plant(); }
         else if (_camMode == 2) { _camMode = 3; SetLens(OutsideFov, OutsideNear); }
+        /* LE PONTON N'EST DANS LE CYCLE QUE S'IL EST LÀ. Une vue qu'on propose au
+           large montrerait la mer vide depuis un musoir à vingt milles ; et la
+           sauter en silence vaut mieux qu'un refus, parce qu'une touche qui ne
+           fait rien se lit comme une panne. */
+        else if (_camMode == 3 && NearJetty() is { } j)
+        {
+            _camMode = 4; SetLens(OutsideFov, OutsideNear);
+            Say("Du ponton de " + j.Name);
+        }
         else _camMode = 0;
         UpdateInfo();
     }
@@ -1792,6 +1842,44 @@ public partial class ShipDemo : Node3D
             var look = _ship.Position;
             _cam.LookAt(new Vector3(look.X, at.Y, look.Z), Vector3.Up);
             return;
+        }
+
+        /* DU PONTON : l'œil immobile sur le musoir, à hauteur d'homme, qui SUIT le
+           navire. C'est l'inverse exact de toutes les autres vues — celles-ci sont
+           portées par la coque et regardent le monde ; celle-là est portée par le
+           monde et regarde la coque.
+
+           L'ŒIL EST EN COORDONNÉES LOCALES. La tête du ponton est un point du
+           monde, donc en mètres vrais, et l'origine glisse sous lui : on la
+           retranche à chaque image plutôt que de retenir un point qui se
+           périmerait au premier recentrage.
+
+           ET ELLE SE REND QUAND ON S'EN VA : la coque sortie des huit cents
+           mètres, la vue redevient l'orbite. Laissée en place, elle montrerait un
+           point à l'horizon et le joueur croirait le jeu bloqué. */
+        if (_camMode == 4)
+        {
+            if (NearJetty() is not { } jv)
+            {
+                _camMode = 0;
+                Say("Le ponton est hors de vue");
+                UpdateInfo();
+            }
+            else
+            {
+                var jo = _sea.Core.Origin;
+                var jat = new Vector3((float)(jv.Head.X - jo.X),
+                                      (float)(NavalSim.Core.Berth.DeckY + JettyEye),
+                                      (float)(jv.Head.Z - jo.Z));
+                var jlook = _ship.Position + Vector3.Up * (float)(_ship.Spec.Hull.FreeboardMid);
+                // à couple du musoir même, l'œil serait DANS la coque : on ne vise pas un point où l'on est
+                if (jat.DistanceSquaredTo(jlook) > 4f)
+                {
+                    _cam.Position = jat;
+                    _cam.LookAt(jlook, Vector3.Up);
+                    return;
+                }
+            }
         }
 
         if (_fixed)

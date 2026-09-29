@@ -7323,6 +7323,48 @@ les deux reliefs ont été comparés à la même capture, et le relevé tient mi
 une berge franche au lieu d'un dégradé, et quinze maisons de plus à Port-Royal
 (49 → 64). Gardé pour cela, et non pour la raison qui l'avait fait écrire.
 
+## La vue du ponton (Godot)
+
+Demandé : une vue depuis le ponton, offerte quand on est à moins de huit cents
+mètres de l'un d'eux.
+
+C'est la première vue du jeu qui ne soit **pas à bord**, et c'est ce qui la rend
+intéressante à écrire. Toutes les autres sont portées par la coque et regardent
+le monde ; celle-là est portée par le monde et regarde la coque. Deux
+conséquences, toutes deux des pièges connus du projet :
+
+**L'œil est en mètres VRAIS, la caméra en local.** La tête du ponton est un point
+du monde ; l'origine flottante glisse dessous. On retranche l'origine à chaque
+image plutôt que de retenir un point, qui se périmerait au premier recentrage —
+la faute que `Moor()` avait déjà enseignée.
+
+**Elle se rend quand on s'en va.** Laissée en place au large, elle montrerait un
+point à l'horizon et le joueur croirait le jeu bloqué. Sortie des huit cents
+mètres, la vue redevient l'orbite et le dit.
+
+**Et elle n'est dans le cycle de C que s'il y a un ponton.** Sautée en silence
+plutôt que refusée : une touche qui ne fait rien se lit comme une panne, et l'on
+n'offre pas une vue qui montrerait la mer vide depuis un musoir à vingt milles.
+
+La tête du ponton se lit sur `PortWorks.Hx/Hz`, la hauteur du tablier sur
+`Berth.DeckY` — les cotes du ponton vivent là et pas dans ce qui le dessine, et
+la vue s'y range comme le reste. Un port sans ponton (Kingston, sur la rive d'en
+face) a sa tête à l'origine, et c'est la condition que le reste du jeu emploie
+déjà pour l'écarter : on la relit plutôt que d'en inventer une seconde.
+
+### L'essai, en trois temps
+
+    au port   Mi-eau → Ponton → Orbite     oeil y 3,35 m
+    au large  Mi-eau → Orbite               quatre cycles, jamais de Ponton
+    en fuite  Ponton … GoOffshore … Orbite  oeil 3,35 → 9,0 m
+
+3,35 m est exactement `Berth.DeckY` (1,70) + la hauteur d'œil (1,65) : un homme
+debout sur le musoir. Le nombre n'a pas été choisi à l'affichage, il tombe des
+deux constantes — c'est ce qui prouve que la vue est posée sur le tablier et non
+à une hauteur écrite à la main.
+
+La page garde ses vues : son `camera-rig.js` n'a rien de commun avec celui-ci.
+
 ## Pas de quartier : le pirate garde rancune (Godot)
 
 Demandé : un navire abordé était pillé et rendu à la mer intact, quoi qu'il eût
