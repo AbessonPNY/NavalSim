@@ -31,6 +31,13 @@ public sealed class PortSpec
     public string Key = "", Name = "";
     public double Lat, Lon, Quay;
     public bool Start, Mole;
+    /// <summary>
+    /// UN DÉBARCADÈRE ET RIEN D'AUTRE. Un port bâtit sa ville, tient son marché
+    /// et reçoit les marchands ; celui-ci n'a que son ponton. C'est le cas d'un
+    /// enclos à bétail ou d'une anse où l'on charge — un endroit où l'on
+    /// accoste, pas un endroit où l'on commerce.
+    /// </summary>
+    public bool Wild;
 }
 
 /// <summary>Un modèle posé sur la terre : world/assets.</summary>
@@ -123,7 +130,7 @@ public sealed class RegionSpec
                 {
                     Key = Str(p, "key"), Name = Str(p, "name"),
                     Lat = Num(p, "lat"), Lon = Num(p, "lon"), Quay = Num(p, "quay"),
-                    Start = Bool(p, "start"), Mole = Bool(p, "mole")
+                    Start = Bool(p, "start"), Mole = Bool(p, "mole"), Wild = Bool(p, "wild")
                 });
         if (r.TryGetProperty("towns", out var tw) && tw.ValueKind == JsonValueKind.Array)
             foreach (var t in tw.EnumerateArray())
@@ -183,6 +190,8 @@ public sealed class Isle
     public string Key = "", Name = "";
     public double X, Z, R = 600, RShore;
     public bool Start;
+    /// <summary>Un débarcadère sans ville ni marché : voir <see cref="PortSpec.Wild"/>.</summary>
+    public bool Wild;
     public double Lat, Lon;
     public PortWorks Port = new();
 }
@@ -572,7 +581,7 @@ public sealed class World : IGround
         return new Isle
         {
             Key = P.Key, Name = P.Name, X = x, Z = z, R = 600, RShore = 0,
-            Start = P.Start, Lat = P.Lat, Lon = P.Lon, Port = port
+            Start = P.Start, Wild = P.Wild, Lat = P.Lat, Lon = P.Lon, Port = port
         };
     }
 

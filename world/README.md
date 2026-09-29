@@ -121,6 +121,7 @@ Dans `world/caraibes.json` → `ports` :
 | `quay` | …dans ce relèvement (degrés vrais, 0 nord, 90 est) : c'est la direction où le ponton avance dans l'eau |
 | `start` | le port où la partie commence |
 | `mole` | `true` : un bassin fermé par un môle, qui abrite de la houle (par défaut non : un port naturel) |
+| `wild` | `true` : un **débarcadère** — le ponton seul, sans ville, sans marché, et où aucun marchand ne fait route. Un enclos à bétail, une anse où l'on charge : un endroit où l'on accoste, pas où l'on commerce |
 
 Le ponton va du rivage jusqu'à 9 m d'eau (150 m au plus). Un port dont le
 rivage est introuvable à 3 km dans ce relèvement est ignoré, avec un message

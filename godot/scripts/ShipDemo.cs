@@ -3750,7 +3750,11 @@ public partial class ShipDemo : Node3D
         var watch = System.Diagnostics.Stopwatch.StartNew();
         uint seed = 1;
         foreach (var isl in _world.Isles)
+        {
+            // un débarcadère n'a pas de ville : c'est ce qui le distingue d'un port
+            if (isl.Wild) continue;
             _town.Build(isl.Name, isl.X, isl.Z, 420, 150, seed += 7919);
+        }
         foreach (var t in _world.Region.Towns)
         {
             var g = _world.Geo.ToXZ(t.Lat, t.Lon);

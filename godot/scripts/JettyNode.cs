@@ -269,20 +269,33 @@ public partial class JettyNode : Node3D
 
         /* Et du fret sur le quai, à côté d'elle. Trois fûts et deux caisses ne
            coûtent rien et disent ce que la passerelle ne peut pas dire seule :
-           que ce quai sert à charger. */
-        var barrel = new CylinderMesh { TopRadius = 0.42f, BottomRadius = 0.42f, Height = 0.95f, RadialSegments = 9 };
-        var crate = new BoxMesh { Size = new Vector3(1.05f, 0.85f, 1.05f) };
-        var rng = new RandomNumberGenerator();
-        rng.Seed = (ulong)isl.Key.GetHashCode();
-        (double At, int Sx, bool Cask)[] fret =
+           que ce quai sert à charger.
+
+           RIEN AU DÉBARCADÈRE, pour cette raison exactement : il ne sert pas à
+           charger des fûts. Un quai nu se lit tout de suite comme un endroit où
+           l'on aborde et d'où l'on repart, et c'est ce qu'on veut qu'il dise.
+
+           ET SEULEMENT LE FRET. Ceci a d'abord été écrit `if (isl.Wild) return;`
+           juste au-dessus, ce qui emportait aussi LES BITTES — vingt lignes plus
+           bas, et dont le commentaire dit qu'elles sont la raison d'être de tout
+           l'ouvrage. Un débarcadère sans bitte n'est pas plus sauvage : c'est une
+           planche sur l'eau à laquelle on ne peut pas s'amarrer. */
+        if (!isl.Wild)
         {
-            (gAt - 4.2, -1, true), (gAt - 5.1, -1, true), (gAt - 4.6, 1, false),
-            (gAt - 6.4, -1, false), (gAt - 2.6, -1, true)
-        };
-        foreach (var (at, sx, cask) in fret)
-            Put(cask ? barrel : crate, _bittMat,
-                new Vector3((float)at, (float)(deckY + 0.17 + (cask ? 0.475 : 0.425)), (float)(sx * (hw - 1.15))),
-                new Vector3(0, rng.Randf() * 1.2f, 0));
+            var barrel = new CylinderMesh { TopRadius = 0.42f, BottomRadius = 0.42f, Height = 0.95f, RadialSegments = 9 };
+            var crate = new BoxMesh { Size = new Vector3(1.05f, 0.85f, 1.05f) };
+            var rng = new RandomNumberGenerator();
+            rng.Seed = (ulong)isl.Key.GetHashCode();
+            (double At, int Sx, bool Cask)[] fret =
+            {
+                (gAt - 4.2, -1, true), (gAt - 5.1, -1, true), (gAt - 4.6, 1, false),
+                (gAt - 6.4, -1, false), (gAt - 2.6, -1, true)
+            };
+            foreach (var (at, sx, cask) in fret)
+                Put(cask ? barrel : crate, _bittMat,
+                    new Vector3((float)at, (float)(deckY + 0.17 + (cask ? 0.475 : 0.425)), (float)(sx * (hw - 1.15))),
+                    new Vector3(0, rng.Randf() * 1.2f, 0));
+        }
 
         /* LES BITTES au musoir, et elles sont la raison d'être de tout
            l'ouvrage : un ponton existe pour qu'on puisse s'y amarrer. Deux au

@@ -7323,6 +7323,74 @@ les deux reliefs ont été comparés à la même capture, et le relevé tient mi
 une berge franche au lieu d'un dégradé, et quinze maisons de plus à Port-Royal
 (49 → 64). Gardé pour cela, et non pour la raison qui l'avait fait écrire.
 
+## Le débarcadère : un troisième état entre le port et la ville
+
+Kingston est dans le monde depuis longtemps, déclarée VILLE et non port : 420
+maisons, pas de ponton. Demandé si c'était un oubli. Ce n'en était pas un, et la
+date le dit — la partie commence le 8 octobre 1690, et Kingston a été fondée en
+juillet 1692, après le séisme du 7 juin qui a englouti Port-Royal. En 1690 le
+site est le *hog crawle* du colonel Barry, un enclos à cochons sur la plaine de
+Liguanea. Le port de la rade, en 1690, c'est Passage Fort — et il est dans la
+liste.
+
+Relevé au passage, parce que je l'avais dit de travers : **Port-Royal est deux
+fois plus près de Kingston que Passage Fort** (2 110 m de jeu contre 4 354), ce
+qui est logique une fois qu'on regarde la rade — on traverse le chenal, on ne
+contourne pas la baie. C'est exactement pourquoi les rescapés de 1692 se sont
+installés là : une heure de chaloupe.
+
+Kingston reste donc une ville. Mais un crawle qui engraisse des porcs pour
+Port-Royal les envoie PAR L'EAU — la route, à la Jamaïque de 1690, c'est la
+rade —, et il lui faut donc un endroit où charger.
+
+### Ce que le format ne savait pas dire
+
+Un lieu était soit un **port** — ponton, poste d'amarrage, marché, ville de
+150 maisons bâtie autour, et destination des marchands — soit une **ville** :
+des maisons, rien d'autre. Rien entre les deux.
+
+D'où `wild` sur une fiche de port : **un débarcadère**. Le ponton seul.
+
+    port         ponton  amarrage  marché  ville  destination
+    ordinaire      oui      oui      oui    oui       oui
+    wild: true     oui      oui      non    non       non
+    (ville)        non      non      non    oui       non
+
+Trois lignes de garde, une par chose qu'il n'a pas, et chacune à l'endroit qui
+décide déjà : `BuildTowns`, `PortInFront` (le marché), `Destination` (où va un
+marchand). Plus le fret du quai, qui disparaît : cinq fûts et deux caisses
+disent « ici on charge », et c'est justement ce qu'on ne veut pas dire.
+
+### Et j'ai failli lui ôter ses bittes
+
+Le fret est posé vingt lignes AVANT les bittes, dans la même fonction. Écrit
+`if (isl.Wild) return;` au-dessus du fret, j'emportais les deux — et le
+commentaire des bittes, que je venais de lire, dit en toutes lettres qu'elles
+sont **la raison d'être de tout l'ouvrage** : un ponton existe pour qu'on puisse
+s'y amarrer. Un débarcadère sans bitte n'est pas plus sauvage, c'est une planche
+sur l'eau.
+
+Relevé en le relisant, pas en le voyant — la sonde ne comptait que les pontons
+bâtis, pas ce qu'il y avait dessus. **Un `return` anticipé emporte tout ce qui
+suit, y compris ce qu'on n'a pas en tête**, et c'est la raison de préférer
+`if (!x) { ... }` quand on ne fait qu'écarter un morceau.
+
+### Le lieu, et l'essai
+
+    hog-crawle   17.960  -76.760   rivage 153 m   jetée 28 m   tête -11,0 m   abri 1,00
+
+Rive nord de la rade, à l'est de Kingston, 1 506 m de jeu d'elle et 3 183 de
+Port-Royal. Sa jetée fait 28 m, la plus courte de l'île avec celle de
+Port-Royal — c'est le relief qui la donne, pas un réglage.
+
+Amarré à son poste :
+
+    vue « Hog Crawle de Samuel Barry » | marché AUCUN | pontons bâtis 3 | villes bâties 15
+
+Quinze villes pour quinze îles et une ville de fiche : 14 ports ordinaires +
+Kingston. **La seizième n'existe pas**, et c'est le débarcadère. Le ponton, lui,
+est bien parmi les trois bâtis alentour, et la vue du ponton l'offre par son nom.
+
 ## La vue du ponton (Godot)
 
 Demandé : une vue depuis le ponton, offerte quand on est à moins de huit cents

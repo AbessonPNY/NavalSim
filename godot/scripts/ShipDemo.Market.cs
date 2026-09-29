@@ -122,6 +122,11 @@ public partial class ShipDemo : Node3D
         double wx = o.X + b.Pos.X, wz = o.Z + b.Pos.Z;
         foreach (var isl in _world.Isles)
         {
+            /* PAS DE MARCHÉ AU DÉBARCADÈRE. On s'y amarre, on n'y vend rien :
+               un enclos à cochons n'a ni entrepôt, ni courtier, ni cours des
+               épices. Le panneau ne s'ouvre donc pas, et c'est la seule chose
+               que le joueur remarquera vraiment en accostant là. */
+            if (isl.Wild) continue;
             double dx = wx - isl.Port.Hx, dz = wz - isl.Port.Hz;
             if (dx * dx + dz * dz < 220 * 220) return isl;
         }

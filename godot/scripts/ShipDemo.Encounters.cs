@@ -235,7 +235,8 @@ public partial class ShipDemo
     Vec3d? Destination(double wx, double wz)
     {
         if (_world == null) return null;
-        var ports = _world.Isles.FindAll(i => i.Port.Hx != 0 || i.Port.Hz != 0);
+        // un marchand fait route vers un PORT : on ne traverse pas la mer pour un enclos à cochons
+        var ports = _world.Isles.FindAll(i => !i.Wild && (i.Port.Hx != 0 || i.Port.Hz != 0));
         var open = ports.FindAll(p => ClearWater(wx, wz, p.Port.Hx, p.Port.Hz, _metRules.ClearWater));
         if (open.Count > 0)
         {
