@@ -36,6 +36,15 @@ public partial class JettyNode : Node3D
 
     StandardMaterial3D _deckMat = null!, _pileMat = null!, _bittMat = null!, _moleMat = null!;
 
+    /* UN FIGURANT SUR LE QUAI, chargé UNE FOIS pour tous les pontons : maillage
+       et matière partagés, donc Godot les instancie et quatorze ports coûtent un
+       appel de dessin. Ce qui les distingue est leur déphasage, posé par
+       instance — deux hommes qui respirent au même rythme se lisent comme un
+       seul objet dupliqué. */
+    Vat.Figure? _figure;
+    bool _figureCherchee;
+
+
     public JettyNode(World world) { _world = world; }
 
     public override void _Ready()
@@ -297,6 +306,16 @@ public partial class JettyNode : Node3D
                     new Vector3(0, rng.Randf() * 1.2f, 0));
         }
 
+        /* ET QUELQU'UN QUI ATTEND. Un quai désert se lit comme un décor ; un
+           homme dessus se lit comme un port. Il est posé comme le fret — sur le
+           tablier, d'un bord —, mais aux deux tiers du musoir plutôt qu'au pied
+           de la passerelle : on le veut visible de la mer, c'est de là qu'on
+           arrive.
+
+           PAS AU DÉBARCADÈRE : un enclos à cochons n'a pas de badaud, et c'est
+           la même raison qui lui refuse son fret. */
+        if (!isl.Wild) Figurant(frame, len, deckY, hw, isl.Key);
+
         /* LES BITTES au musoir, et elles sont la raison d'être de tout
            l'ouvrage : un ponton existe pour qu'on puisse s'y amarrer. Deux au
            bout, là où une coque à couple prend ses bouts — et une à la racine,
@@ -306,6 +325,50 @@ public partial class JettyNode : Node3D
         foreach (int side in new[] { -1, 1 })
             Put(bitt, _bittMat, new Vector3((float)(len - 1.6), (float)(deckY + 0.65), (float)(side * (hw - 0.45))));
         Put(bitt, _bittMat, new Vector3(2.2f, (float)(deckY + 0.65), (float)(hw - 0.45)));
+    }
+
+    /// <summary>
+    /// POSER LE FIGURANT sur le tablier. Son maillage sort normalisé à un mètre
+    /// de haut (c'est ainsi que la cuisson le rend), on le ramène donc à la
+    /// taille d'un homme — et l'échelle emporte aussi ses déplacements, qui sont
+    /// dans le même repère, si bien qu'il ne se met pas à gigoter deux fois plus
+    /// que son corps.
+    ///
+    /// Il regarde LE LARGE, dans l'axe du ponton : c'est de là qu'arrive ce
+    /// qu'on attend. Un homme de dos à la mer sur un quai passe pour une erreur.
+    /// </summary>
+    void Figurant(Node3D frame, double len, double deckY, double hw, string key)
+    {
+        if (!_figureCherchee) { _figureCherchee = true; _figure = Vat.Load("pirate_0001"); }
+        if (_figure is not Vat.Figure f) return;
+
+        const double Taille = 1.75;                 // un homme, en mètres
+        double k = f.Height > 0.01 ? Taille / f.Height : 1;
+
+        var mat = (ShaderMaterial)f.Material.Duplicate();
+        /* SA MATIÈRE EST PARTAGÉE, SON DÉPHASAGE NE L'EST PAS. Duplicate() sur un
+           ShaderMaterial garde le même shader et les mêmes textures — donc
+           l'instanciation tient — et ne sépare que les uniformes d'instance. */
+        var mi = new MeshInstance3D
+        {
+            Mesh = f.Mesh,
+            MaterialOverride = mat,
+            Position = new Vector3((float)(len * 0.66), (float)(deckY + 0.17), (float)(hw - 1.0)),
+            // +x du repère va vers le large ; le maillage regarde -z, d'où le quart de tour
+            Rotation = new Vector3(0, Mathf.Pi * 0.5f, 0),
+            Scale = new Vector3((float)k, (float)k, (float)k),
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.On
+        };
+        // un port, un pas : le hachage du nom suffit, et il ne change pas d'une partie à l'autre
+        mi.SetInstanceShaderParameter("u_phase", (float)(Math.Abs(key.GetHashCode() % 997) / 997.0));
+
+        /* LA BRUME EN DERNIER, comme tout ce que ce fichier pose : sans elle le
+           figurant reste net quand son ponton s'efface, et il flotte. */
+        var haze = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+        mat.NextPass = haze;
+        Hazed.Add(haze);
+
+        frame.AddChild(mi);
     }
 
     /// <summary>Bâtir ce qui est à portée, poser tout le monde contre l'origine.</summary>
