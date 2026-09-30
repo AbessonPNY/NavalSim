@@ -271,6 +271,7 @@ public sealed partial class ShipPhysics
 
         Sails(ctrl, ocean, cog, ref force, ref torque, fwd, right);
         Ground(dt, ref force, ref torque, cog, ocean);
+        Jetty(dt, ref force, ref torque, cog, ocean);
         Collide(dt, ref force, ref torque, cog, neighbours);
         Moor(ref force, ref torque, cog, ocean);
 
@@ -543,6 +544,106 @@ public sealed partial class ShipPhysics
     /// géométrie l'impose. Rien ne décide qu'elle est échouée ; les forces le
     /// font, comme rien ne décide qu'elle flotte.
     /// </summary>
+    /// <summary>
+    /// LE PONTON EST UN MUR, et c'est tout ce qu'il a besoin d'être.
+    ///
+    /// Il n'y a pas de moteur physique ici, donc pas de boîte de collision : il y a
+    /// des forces. Un ponton est un SEGMENT dans le plan — de sa racine à son
+    /// musoir, deux points que PortWorks tient déjà (Sx,Sz → Hx,Hz) — et une
+    /// demi-largeur de tablier. Un point de bordé qui entre dans cette bande est
+    /// repoussé perpendiculairement, par le même ressort raide et amorti que le
+    /// fond. Rien ne décide qu'elle touche ; les forces le font.
+    ///
+    /// UN MUR VERTICAL SUR TOUTE LA HAUTEUR, et non un tablier à 1,70 m : les pieux
+    /// descendent jusqu'au fond, donc une quille ne passe pas plus dessous qu'un
+    /// pavois ne passe au travers. Se donner la peine de distinguer les deux
+    /// n'apporterait qu'un cas où le navire traverse.
+    ///
+    /// SUR LES DEUX BORDÉS DE TROIS MEMBRURES — les mêmes stations que l'échouage.
+    /// Le point de quille ne sert à rien ici : un ponton se prend par le flanc, et
+    /// c'est le flanc qui doit toucher. Trois stations suffisent à ce qui compte :
+    /// aborder de biais, pivoter sur le musoir, ranger le long du tablier.
+    ///
+    /// LE POSTE D'AMARRAGE EST HORS DE PORTÉE, et c'est vérifié : Berth.At laisse
+    /// 4,5 m entre le bordé et le bord du tablier. Un navire à son poste n'est donc
+    /// jamais repoussé — sans quoi il partirait tout seul à la première image.
+    /// </summary>
+    void Jetty(double dt, ref Vec3d force, ref Vec3d torque, in Vec3d cog, Ocean ocean)
+    {
+        if (Jetties.Length == 0) return;
+        var S = Spec; var b = Body;
+        double ox = ocean.Origin.X, oz = ocean.Origin.Z;
+        double wx = ox + b.Pos.X, wz = oz + b.Pos.Z;
+        double hw = Berth.Width * 0.5;
+        // le même ressort que le fond : tout son poids à un tiers de mètre
+        double kSpring = b.Mass * Config.G / (0.33 * 3);
+
+        foreach (var p in Jetties)
+        {
+
+            /* REJET PAR UN CERCLE D'ABORD. Quinze ports, trois stations, deux
+               bordés, à chaque sous-pas : le test de segment coûterait plus que le
+               reste du solveur si on le faisait partout. */
+            double mx = (p.Sx + p.Hx) * 0.5, mz = (p.Sz + p.Hz) * 0.5;
+            double ex = p.Hx - p.Sx, ez = p.Hz - p.Sz;
+            double half = 0.5 * Math.Sqrt(ex * ex + ez * ez);
+            double gx = wx - mx, gz = wz - mz, reach = half + S.L + hw;
+            if (gx * gx + gz * gz > reach * reach) continue;
+
+            double ee = Math.Max(1e-9, ex * ex + ez * ez);
+            ReadOnlySpan<double> stations = stackalloc double[] { 0.42, 0.0, -0.45 };
+            for (int st = 0; st < stations.Length; st++)
+            {
+                double zl = stations[st] * S.L, hb = Lines.HalfB(stations[st] + 0.5);
+                if (hb < 0.05) continue;               // une membrure sans largeur n'a pas de flanc
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    Vec3d pw = b.Quat.Rotate(new Vec3d(side * hb, 0, zl)) + b.Pos;
+                    double px = ox + pw.X, pz = oz + pw.Z;
+
+                    // le point le plus proche DU SEGMENT, bornes comprises
+                    double t = Math.Clamp(((px - p.Sx) * ex + (pz - p.Sz) * ez) / ee, 0, 1);
+                    double nx = px - (p.Sx + ex * t), nz = pz - (p.Sz + ez * t);
+                    double d = Math.Sqrt(nx * nx + nz * nz);
+                    if (d >= hw) continue;
+
+                    /* AU CŒUR MÊME DU TABLIER la normale n'existe pas : on prend la
+                       perpendiculaire au ponton, du côté où le navire se trouve.
+                       Sans ce repli, une division par zéro enverrait la coque à
+                       l'infini — ce qui n'arrive qu'une fois sur mille, donc au
+                       pire moment. */
+                    if (d < 1e-4)
+                    {
+                        double L = Math.Sqrt(ee);
+                        nx = -ez / L; nz = ex / L;
+                        if (nx * gx + nz * gz < 0) { nx = -nx; nz = -nz; }
+                        d = 1e-4;
+                    }
+                    nx /= d; nz /= d;
+                    double pen = hw - d;
+
+                    Vec3d r = pw - cog;
+                    Vec3d vp = b.AngVel.Cross(r) + b.Vel;
+                    // ce qui rentre dans le bois, et ce qui glisse le long
+                    double vn = vp.X * nx + vp.Z * nz;
+                    double push = Math.Max(0, kSpring * Math.Min(pen, 2.0) - vn * b.Mass * 1.2);
+                    var fv = new Vec3d(nx * push, 0, nz * push);
+
+                    /* ET ELLE FROTTE. Une coque qui range le long d'un ponton ne
+                       glisse pas sur du verre : le bois mord, et c'est ce
+                       frottement qui la fait s'arrêter au lieu de riper. Pris sur
+                       la vitesse TANGENTE, donc sans rien retirer à l'accostage
+                       lui-même. */
+                    double tanx = vp.X - vn * nx, tanz = vp.Z - vn * nz;
+                    fv += new Vec3d(-tanx, 0, -tanz) * (b.Mass * 0.35 * Math.Min(1, pen / 0.5));
+
+                    force += fv;
+                    torque += r.Cross(fv);
+                }
+            }
+        }
+    }
+
     void Ground(double dt, ref Vec3d force, ref Vec3d torque, in Vec3d cog, Ocean ocean)
     {
         Aground = 0;

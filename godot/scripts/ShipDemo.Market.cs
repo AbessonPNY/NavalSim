@@ -23,6 +23,13 @@ public partial class ShipDemo : Node3D
     Purse _purse = new(Market.Depart);
     readonly Market _market = new();
     Isle? _portHere;
+    /// <summary>Sans erre au poste : c'est ce qui autorise les boutons, non la présence du port.</summary>
+    bool _alongside;
+    /// <summary>Le sous-titre : il dit pourquoi les boutons ne répondent pas.</summary>
+    Label? _mkState;
+    /// <summary>Le rayon des denrées, la poudre et leurs boutons : ils n'existent qu'à quai.</summary>
+    Control? _mkSale;
+    Label? _mkFar;
 
     /* OÙ L'ON RANGE CE QU'ON ACHÈTE : au fond, au milieu, ce qui est l'arrimage
        sûr. Et sur le niveau le plus bas que le plan d'arrimage de la page
@@ -119,7 +126,7 @@ public partial class ShipDemo : Node3D
         var dim = new Color(0.66f, 0.70f, 0.74f);
 
         _mkPort = L("—", 18, gold);
-        L("comptoir ouvert", 12, dim);
+        _mkState = L("comptoir ouvert", 12, dim);
 
         /* UNE LIGNE PAR DENRÉE, et elle défile : douze marchandises ne tiennent
            pas sous le comptoir, et couper la liste cacherait justement celles
@@ -136,11 +143,15 @@ public partial class ShipDemo : Node3D
         _mkWares.AddThemeConstantOverride("separation", 2);
         wscroll.AddChild(_mkWares);
         box.AddChild(wscroll);
+        _mkSale = wscroll;
         foreach (var w in _market.Wares.List) WareRow(w, ink, dim);
 
         _mkPowder = L("", 15, ink);
         _mkPowderRow = Buttons(box, ("Embarquer 25 coups", () => BuyPowder(25)), ("Faire le plein", () => BuyPowder(int.MaxValue)));
         _mkHold = L("", 13, dim);
+        /* CE QUI REMPLACE LE COMPTOIR TANT QU'ON N'EST PAS RANGÉ LE LONG. Une place
+           vide se lit comme un défaut ; une phrase se lit comme une consigne. */
+        _mkFar = L("Rangez-vous le long du ponton pour charger.", 13, gold);
         L("Aux autres ports, à la dernière nouvelle", 13, gold);
         /* UN TABLEAU QUI DÉFILE : vingt ports ne tiennent pas sous le comptoir,
            et couper la liste cacherait justement les plus lointains — ceux dont
@@ -198,7 +209,10 @@ public partial class ShipDemo : Node3D
         _mkRows.Add((w, name, price, aboard));
     }
 
-    static Control Buttons(VBoxContainer box, params (string Text, Action Do)[] bs)
+    /// <summary>Tous les boutons du comptoir, pour les griser d'un coup tant qu'elle a de l'erre.</summary>
+    readonly List<Button> _mkButtons = new();
+
+    Control Buttons(VBoxContainer box, params (string Text, Action Do)[] bs)
     {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 6);
@@ -207,22 +221,48 @@ public partial class ShipDemo : Node3D
             var b = new Button { Text = text, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, FocusMode = Control.FocusModeEnum.None };
             b.Pressed += act;
             row.AddChild(b);
+            _mkButtons.Add(b);
         }
         box.AddChild(row);
         return row;
     }
 
     /// <summary>
-    /// ON NE NÉGOCIE QU'À QUAI, et « à quai » se mesure plutôt que se décrète :
-    /// près du musoir et sans erre. Un navire qui passe au large d'un port ne
-    /// commerce pas avec lui, et un navire lancé à six nœuds ne débarque rien.
+    /// LE COMPTOIR S'OUVRE À L'APPROCHE, IL NE SE NÉGOCIE QU'À QUAI — et ce sont
+    /// deux questions différentes qu'on confondait.
+    ///
+    /// Le panneau ne paraissait qu'une fois le navire stoppé, si bien qu'on ne
+    /// savait ce que le port offrait qu'après y être arrivé. Or c'est en approchant
+    /// qu'on décide d'y entrer. Il paraît donc dans le rayon, quelle que soit
+    /// l'erre ; ce sont les BOUTONS qui attendent qu'elle tombe, et le bandeau le
+    /// dit — signalé, et la distinction valait d'être faite plutôt que de déplacer
+    /// un seuil.
     /// </summary>
+    /// <summary>
+    /// EST-ELLE RANGÉE LE LONG DE CE PONTON ? La distance de la coque au SEGMENT
+    /// du tablier, non à son musoir : on s'amarre le long, et un navire à mi-ponton
+    /// est plus à quai qu'un navire au bout.
+    /// </summary>
+    bool Alongside(Isle isl)
+    {
+        var p = isl.Port;
+        if (p.Hx == 0 && p.Hz == 0) return false;
+        var o = _sea.Core.Origin;
+        double wx = o.X + _ship.Physics.Body.Pos.X, wz = o.Z + _ship.Physics.Body.Pos.Z;
+        double ex = p.Hx - p.Sx, ez = p.Hz - p.Sz;
+        double ee = Math.Max(1e-9, ex * ex + ez * ez);
+        double u = Math.Clamp(((wx - p.Sx) * ex + (wz - p.Sz) * ez) / ee, 0, 1);
+        double dx = wx - (p.Sx + ex * u), dz = wz - (p.Sz + ez * u);
+        // demi-tablier + demi-bau + une marge de manœuvre
+        double seuil = NavalSim.Core.Berth.Width * 0.5 + _ship.Spec.B * 0.5 + 7;
+        return dx * dx + dz * dz < seuil * seuil;
+    }
+
     Isle? PortInFront()
     {
         if (_world == null) return null;
         var o = _sea.Core.Origin;
         var b = _ship.Physics.Body;
-        if (Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z) > 0.8) return null;
         double wx = o.X + b.Pos.X, wz = o.Z + b.Pos.Z;
         foreach (var isl in _world.Isles)
         {
@@ -238,6 +278,29 @@ public partial class ShipDemo : Node3D
     }
 
     /// <summary>À chaque tour du bandeau : le comptoir s'ouvre ou se ferme, les chiffres se relisent.</summary>
+    /// <summary>Le comptoir ouvre à 5 h et ferme à 22 h. Les heures d'un port, pas d'une boutique.</summary>
+    public const double Ouvre = 5, Ferme = 22;
+
+    /// <summary>Ouvert maintenant ?</summary>
+    bool MarketOpen => _sky.Core.DayTime >= Ouvre && _sky.Core.DayTime < Ferme;
+
+    /// <summary>
+    /// CE QUE LE MARCHÉ A PASSÉ FERMÉ, en secondes. L'horloge des cours est celle
+    /// du jeu MOINS cela : les prix avancent de 5 h à 22 h et se figent la nuit.
+    ///
+    /// UN COMPTEUR ET NON UNE FORMULE, parce que le joueur règle lui-même le
+    /// défilement du jour : l'heure n'est pas une fonction fixe du temps de jeu, et
+    /// toute formule qui le supposerait mentirait dès qu'il touche au curseur.
+    ///
+    /// C'est le TEMPS FERMÉ qu'on accumule, et non le temps ouvert : ainsi une
+    /// partie neuve part avec les deux horloges à la même valeur, et une
+    /// sauvegarde d'avant ce jour reprend sans décalage.
+    /// </summary>
+    double _mkShut;
+
+    /// <summary>L'heure des cours : celle du jeu, moins les nuits.</summary>
+    double MarketTime => _sea.Core.Time - _mkShut;
+
     void MarketTick()
     {
         if (_mkPanel == null) return;
@@ -246,9 +309,52 @@ public partial class ShipDemo : Node3D
         // on entre : la manœuvre de port a ses propres cris
         if (avant == null && _portHere != null) Shout("port", 0.2, 20);
         _mkPanel.Visible = _portHere != null && _hudOn && !_inTitle;
+        /* À QUAI : LE LONG DU PONTON ET SANS ERRE.
+
+           « Dans le rayon » ouvrait le comptoir à deux cents mètres, ce qui est la
+           bonne distance pour VOIR un port et la mauvaise pour y charger. On mesure
+           donc la distance au SEGMENT du ponton, pas à son musoir : ranger le long
+           du tablier est ce qu'on fait vraiment, et le musoir n'en est qu'un bout.
+           Le seuil laisse le poste d'amarrage dedans — Berth.At met le bordé à
+           4,5 m du tablier — et rien au-delà d'une largeur de navire. */
+        var bv = _ship.Physics.Body.Vel;
+        double erre = Math.Sqrt(bv.X * bv.X + bv.Z * bv.Z);
+        _alongside = erre <= 0.8 && MarketOpen && _portHere != null && Alongside(_portHere);
+        if (_mkPanel.Visible)
+        {
+            /* ON DIT POURQUOI, ET AVEC L'ALLURE. Un bouton gris sans raison se lit
+               comme une panne ; avec le chiffre, il se lit comme une manœuvre qui
+               n'est pas finie — et l'on sait de combien il faut encore abattre. */
+            /* ON DIT LAQUELLE DES TROIS RAISONS, dans l'ordre où le joueur peut y
+               remédier : l'heure ne se force pas, l'erre se laisse tomber, la
+               distance se rattrape à la barre. */
+            if (_mkState != null)
+                _mkState.Text = !MarketOpen
+                        ? FormattableString.Invariant($"comptoir fermé — il ouvre à {Ouvre:F0} h")
+                    : erre > 0.8 ? FormattableString.Invariant($"trop d'erre pour commercer — {erre * 1.94384:F1} nds")
+                    : !_alongside ? "au large du ponton"
+                    : "comptoir ouvert";
+            /* LE RAYON DISPARAÎT, IL NE SE GRISE PAS. Des boutons gris qu'on ne peut
+               pas atteindre depuis le large ne renseignent sur rien ; ce qui renseigne
+               depuis le large, ce sont les COURS, et eux restent. */
+            if (_mkSale != null) _mkSale.Visible = _alongside;
+            if (_mkPowderRow != null) _mkPowderRow.Visible = _alongside;
+            if (_mkPowder != null) _mkPowder.Visible = _alongside;
+            if (_mkFar != null)
+            {
+                _mkFar.Visible = !_alongside;
+                /* LA MEME RAISON QUE LE BANDEAU, dite en consigne. Deux phrases qui
+                   se contredisent — « fermé » en haut, « rangez-vous » en bas —
+                   valent moins qu une seule : le joueur croit avoir mal lu. */
+                _mkFar.Text = !MarketOpen ? FormattableString.Invariant($"Le comptoir rouvre à {Ouvre:F0} h.")
+                            : erre > 0.8 ? "Laissez tomber l erre pour charger."
+                            : "Rangez-vous le long du ponton pour charger.";
+            }
+            foreach (var bt in _mkButtons) bt.Disabled = !_alongside;
+        }
         if (_portHere == null) return;
 
-        double t = _sea.Core.Time;
+        double t = MarketTime;
         var p = _ship.Physics;
         _mkPort!.Text = _portHere.Name;
         foreach (var (w, _, price, aboard) in _mkRows)
@@ -266,8 +372,38 @@ public partial class ShipDemo : Node3D
 
         /* CE QU'ON SAIT D'AILLEURS : le prix ferme, et son âge à côté. Les plus
            fraîches d'abord — c'est l'ordre dans lequel on leur fait confiance. */
+        /* UNE NOUVELLE EST UN ÉVÉNEMENT, PAS UNE FENÊTRE.
+
+           Le noyau rend « le cours qu'il faisait là-bas il y a `lag` » — une
+           fenêtre qui GLISSE avec l'heure. Le retard étant une constante (la
+           distance divisée par la vitesse d'une nouvelle), l'âge affiché ne
+           bougeait jamais pendant que le prix, lui, changeait sans cesse : « les
+           prix changent sans que l'heure se rafraîchisse », signalé, et c'est
+           exactement ce que le modèle produisait.
+
+           Or un renseignement n'est pas une fenêtre : c'est un homme qui est
+           arrivé, un jour, avec le chiffre qu'il avait en partant. Entre deux
+           arrivées le chiffre ne bouge pas et VIEILLIT ; à l'arrivée suivante il
+           saute et rajeunit. On quantifie donc l'heure sur la cadence des
+           traversées — une nouvelle par voyage, ce que le retard mesure déjà — et
+           l'on demande au noyau le cours de CETTE arrivée-là.
+
+           HORS DU NOYAU, et c'est délibéré : Market est partagé avec la page et
+           tenu par le banc de parité. Ce qui change ici est la façon de LIRE la
+           nouvelle, pas la façon de la calculer — le banc reste vert, et la page
+           garde ce qu'elle avait. */
         var news = new List<News>();
-        foreach (var isl in _world!.Isles) if (isl != _portHere) news.Add(_market.NewsOf(_portHere, isl, t));
+        foreach (var isl in _world!.Isles)
+        {
+            if (isl == _portHere) continue;
+            var brut = _market.NewsOf(_portHere, isl, t);       // pour connaître le retard
+            double pas = Math.Max(60, brut.Lag);                // une nouvelle par traversée
+            double arrivee = Math.Floor(t / pas) * pas;         // la dernière qui soit arrivée
+            var n = _market.NewsOf(_portHere, isl, arrivee);
+            /* SON ÂGE MAINTENANT : ce que le chiffre avait déjà en arrivant, plus
+               le temps passé depuis. Il grandit jusqu'à la prochaine arrivée. */
+            news.Add(n with { Lag = t - arrivee + n.Lag });
+        }
         news.Sort((a, b) => a.Lag.CompareTo(b.Lag));
         while (_mkNews!.GetChildCount() < news.Count * 3)
         {
@@ -302,7 +438,7 @@ public partial class ShipDemo : Node3D
         if (_portHere == null) return;
         var w = _market.Wares.ByKey(good);
         if (w == null) return;
-        double prix = _market.BuyPrice(good, _portHere.Key, _sea.Core.Time) * tonnes;
+        double prix = _market.BuyPrice(good, _portHere.Key, MarketTime) * tonnes;
         if (!_purse.Take(prix)) { Say("Bourse trop courte"); return; }
         _ship.Physics.LoadCargo(Config.NComp / 2, HoldFloor, 0, tonnes, good);
         Say(FormattableString.Invariant($"{tonnes:F0} t — {w.Name.ToLowerInvariant()} — {prix:F0} pièces"));
@@ -316,7 +452,7 @@ public partial class ShipDemo : Node3D
         if (w == null) return;
         double sorti = _ship.Physics.UnloadKind(good, tonnes);
         if (sorti < 0.05) { Say("Rien à vendre"); return; }
-        double gain = Js.Round(_market.SellPrice(good, _portHere.Key, _sea.Core.Time) * sorti);
+        double gain = Js.Round(_market.SellPrice(good, _portHere.Key, MarketTime) * sorti);
         _purse.Add(gain);
         Say(FormattableString.Invariant($"{sorti:F1} t de {w.Name.ToLowerInvariant()} — {gain:F0} pièces"));
         MarketTick();

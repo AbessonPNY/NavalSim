@@ -186,6 +186,19 @@ public sealed partial class ShipPhysics
     /// <summary>La terre. Posée par la page ; sans elle elle ne touche jamais.</summary>
     public IGround? World;
 
+    /// <summary>
+    /// LES PONTONS QU ELLE PEUT HEURTER, en metres MONDE VRAIS : de la racine au
+    /// musoir. Vide, rien ne l arrete — c est l etat d un banc de parite, et c est
+    /// pour cela que le banc ne voit pas cette force.
+    ///
+    /// DONNES A PART PLUTOT QUE LUS DANS LE MONDE. IGround est etroite expres : le
+    /// solveur demande une HAUTEUR DE FOND, pas une geographie. Lui ouvrir la liste
+    /// des iles pour trois segments l aurait rendu dependant de tout le monde
+    /// habite — les ports, les villes, les quetes — alors qu il n a besoin que de
+    /// quatre nombres par ponton. Ils ne bougent pas : la demo les pose une fois.
+    /// </summary>
+    public (double Sx, double Sz, double Hx, double Hz)[] Jetties = System.Array.Empty<(double, double, double, double)>();
+
     // ---- état d'avarie ----
     public double FloodVol, FloodTonnes, FloodRate, FreeSurfaceRise;
 

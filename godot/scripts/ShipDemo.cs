@@ -256,6 +256,11 @@ public partial class ShipDemo : Node3D
             AddChild(_folk);
             _jetty = new JettyNode(_world);
             AddChild(_jetty);
+            /* ET LE SOLVEUR APPREND OÙ ILS SONT. Une fois : un ponton ne bouge pas.
+               En mètres MONDE VRAIS, comme tout ce qui est « du monde » — le solveur
+               retranche l'origine lui-même, à chaque sous-pas. */
+            _jetties = _world.Isles.Where(i => i.Port.Hx != 0 || i.Port.Hz != 0)
+                                   .Select(i => (i.Port.Sx, i.Port.Sz, i.Port.Hx, i.Port.Hz)).ToArray();
             _book = LoadBook();
             _chart = new ChartNode(_world, _book)
             {
@@ -1088,6 +1093,7 @@ public partial class ShipDemo : Node3D
         _ship.Build(spec);
         // LE FOND, sans quoi elle ne touche jamais : le monde EST l'IGround du solveur
         _ship.Physics.World = _world;
+        _ship.Physics.Jetties = _jetties;
         _ship.Ctrl.SailsSet = false;
         _ship.Ctrl.Sheet = 0.6;
 
@@ -1590,6 +1596,11 @@ public partial class ShipDemo : Node3D
             ShipNode.Caustic?.SetShaderParameter(U.Wind, wu);
             _mist?.Material.SetShaderParameter(U.Wind, wu);
         }
+
+        /* LE TEMPS OU LE COMPTOIR EST FERME, compte ICI et non au tour du HUD :
+           celui-ci ne bat que toutes les 0,15 s et jette son reste, ce qui ferait
+           deriver l horloge des cours de quelques pour cent par jour. */
+        if (!MarketOpen) _mkShut += frame;
 
         _hudAcc += frame;
         if (_hudAcc > 0.15) { _hudAcc = 0; UpdateInfo(); AmbianceTick(); MarketTick(); JournalPortTick(); StowTick(); FleetTick(); }
@@ -3667,6 +3678,8 @@ public partial class ShipDemo : Node3D
     TownNode? _town;
     FolkNode? _folk;
     JettyNode? _jetty;
+    /// <summary>Les pontons, pour le solveur : il s'y cogne. Voir ShipPhysics.Jetties.</summary>
+    (double Sx, double Sz, double Hx, double Hz)[] _jetties = System.Array.Empty<(double, double, double, double)>();
     ChartNode? _chart;
     bool _dressed;
     /// <summary>--carte : la vue se penche sur la feuille dès qu'elle est trouvée.</summary>

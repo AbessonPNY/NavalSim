@@ -13199,6 +13199,113 @@ Et la boussole s efface sous le comptoir. Les deux occupaient le même coin et
 aucun ne se lisait ; le comptoir ne s ouvre que navire STOPPÉ à quai, où l on ne
 gouverne pas. Même règle que sous la carte ouverte, pour la même raison.
 
+## Le ponton devient un mur, et le comptoir s ouvre en approchant (Godot)
+
+Demandé : une boîte de collision aux pontons pour mieux accoster, et le panneau
+du port avant d avoir touché terre.
+
+### Il n y a pas de boîte, il y a des forces
+
+Pas de moteur physique ici, donc pas de collision au sens d un moteur. Mais un
+ponton est un SEGMENT dans le plan — de sa racine à son musoir, deux points que
+PortWorks tient déjà — et une demi-largeur de tablier. Un point de bordé qui entre
+dans cette bande est repoussé perpendiculairement, par le MÊME ressort raide et
+amorti que le fond. Rien ne décide qu elle touche ; les forces le font, comme rien
+ne décide qu elle flotte.
+
+Un MUR VERTICAL sur toute la hauteur, et non un tablier à 1,70 m : les pieux
+descendent jusqu au fond, donc une quille ne passe pas plus dessous qu un pavois
+au travers. Distinguer les deux n aurait ajouté qu un cas où le navire traverse.
+
+SUR LES DEUX BORDÉS DE TROIS MEMBRURES, les mêmes stations que l échouage — mais
+sans le point de quille, qui ne sert à rien ici : un ponton se prend par le flanc.
+
+### Ce qu il a fallu vérifier avant d écrire une ligne
+
+Que le poste d amarrage soit HORS DE PORTÉE du mur. Berth.At laisse 4,5 m entre le
+bordé et le bord du tablier, contre 3,5 m de demi-largeur : un navire à son poste
+n est donc jamais repoussé. Sans cette vérification, chaque partie aurait commencé
+par un navire qui part tout seul — et l on aurait cherché la cause ailleurs.
+
+### Le solveur ne reçoit pas le monde, il reçoit des segments
+
+ShipPhysics ne voit le monde qu à travers IGround, volontairement étroite : il
+demande une HAUTEUR DE FOND, pas une géographie. Lui ouvrir la liste des îles pour
+trois segments l aurait rendu dépendant de tout le monde habité — les ports, les
+villes, les quêtes — alors qu il n a besoin que de quatre nombres par ponton. La
+démo les lui pose une fois ; un ponton ne bouge pas.
+
+Et le banc de parité tient sans rien changer : il ne donne pas de pontons, donc la
+force ne s exerce pas. Une garde sur un tableau vide vaut mieux qu une branche
+dans le banc.
+
+### Paraître et négocier sont deux questions
+
+Le panneau ne s ouvrait qu une fois le navire stoppé, si bien qu on ne savait ce
+que le port offrait qu APRÈS y être arrivé. Or c est en approchant qu on décide
+d y entrer. On les a donc séparées : le panneau paraît dans le rayon quelle que
+soit l erre, et ce sont les BOUTONS qui attendent qu elle tombe.
+
+Le bandeau dit pourquoi, et avec le chiffre : « trop d erre pour commercer — 3,4
+nds ». Un bouton gris sans raison se lit comme une panne ; avec l allure, il se lit
+comme une manœuvre qui n est pas finie.
+
+## Le comptoir a des heures, et la nouvelle vieillit (Godot)
+
+### Paraître, être à quai, être ouvert : trois questions
+
+Le panneau s ouvrait dès qu on entrait dans un rayon de deux cents mètres, ce qui
+est la bonne distance pour VOIR un port et la mauvaise pour y charger. Elles se
+séparent en trois :
+
+  · PARAÎTRE — dans le rayon, quelle que soit l erre. C est en approchant qu on
+    décide d entrer, donc les cours doivent se lire de loin ;
+  · ÊTRE À QUAI — la distance au SEGMENT du tablier, non à son musoir : on
+    s amarre le long, et un navire à mi-ponton est plus à quai qu un navire au
+    bout. Le seuil laisse le poste d amarrage dedans (Berth.At met le bordé à
+    4,5 m) et rien au-delà d une largeur de navire ;
+  · ÊTRE OUVERT — de 5 h à 22 h. Un port dort.
+
+Le rayon des denrées DISPARAÎT quand on n est pas à quai, il ne se grise pas : des
+boutons gris qu on ne peut pas atteindre depuis le large ne renseignent sur rien,
+alors que les COURS, eux, renseignent. Et le bandeau dit laquelle des trois
+raisons, dans l ordre où l on peut y remédier — l heure ne se force pas, l erre se
+laisse tomber, la distance se rattrape à la barre.
+
+### Les prix se figent la nuit, et c est un COMPTEUR
+
+« Les prix ne bougent pas de nuit, ils sont fixés entre 5 h et 22 h. » L horloge
+des cours est celle du jeu MOINS le temps passé fermé.
+
+Un compteur et non une formule, parce que le joueur règle lui-même le défilement
+du jour : l heure n est pas une fonction fixe du temps de jeu, et toute formule qui
+le supposerait mentirait dès qu il touche au curseur. C est le temps FERMÉ qu on
+accumule et non le temps ouvert — ainsi une partie neuve part avec les deux
+horloges à la même valeur, et une sauvegarde d avant ce jour reprend sans
+décalage. Compté à chaque image et non au tour du HUD, qui ne bat que toutes les
+0,15 s et jette son reste.
+
+### Une nouvelle est un ÉVÉNEMENT, pas une fenêtre
+
+Signalé : « les prix changent dans la liste des on-dit-que sans que l heure se
+rafraîchisse ». C était exactement ce que le modèle produisait. Le noyau rend « le
+cours qu il faisait là-bas il y a  » — une fenêtre qui GLISSE avec l heure —
+et le retard étant une constante (la distance divisée par la vitesse d une
+nouvelle), l âge affiché ne bougeait jamais pendant que le prix changeait sans
+cesse.
+
+Or un renseignement n est pas une fenêtre : c est un homme qui est arrivé, un
+jour, avec le chiffre qu il avait en partant. Entre deux arrivées le chiffre ne
+bouge pas et VIEILLIT ; à l arrivée suivante il saute et rajeunit. On quantifie
+donc l heure sur la cadence des traversées — une nouvelle par voyage, ce que le
+retard mesure déjà.
+
+HORS DU NOYAU, et c est délibéré : Market est partagé avec la page et tenu par le
+banc de parité. Ce qui change est la façon de LIRE la nouvelle, pas de la
+calculer — le banc reste vert (168 nouvelles, 135 rumeurs à la lettre) et la page
+garde ce qu elle avait. **Quand un défaut peut se corriger du côté du lecteur,
+l y corriger coûte moins qu une divergence dans une définition partagée.**
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

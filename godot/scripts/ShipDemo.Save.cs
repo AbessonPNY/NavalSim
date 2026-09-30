@@ -43,6 +43,8 @@ public partial class ShipDemo
         [JsonPropertyName("cap")] public double Cap { get; set; }
         [JsonPropertyName("erre")] public double Erre { get; set; }
         [JsonPropertyName("t")] public double T { get; set; }
+        /// <summary>Les nuits que le comptoir a passees ferme : l horloge des cours en depend.</summary>
+        [JsonPropertyName("marcheFerme")] public double MarcheFerme { get; set; }
         [JsonPropertyName("heure")] public double Heure { get; set; }
         [JsonPropertyName("calDebut")] public string CalDebut { get; set; } = "";
         [JsonPropertyName("calJour")] public int CalJour { get; set; }
@@ -129,7 +131,7 @@ public partial class ShipDemo
             X = tx, Z = tz,
             Cap = (Math.Atan2(-f.X, f.Z) * 180 / Math.PI + 360) % 360,       // l'est est −x
             Erre = Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z),
-            T = _t, Heure = _sky.Core.DayTime,
+            T = _t, MarcheFerme = _mkShut, Heure = _sky.Core.DayTime,
             CalDebut = _calendar.Start.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
             CalJour = _calendar.Day,
             Force = _force, Vent = _windDeg, MeteoAuto = _weather.On, Nuages = _cloud,
@@ -325,6 +327,7 @@ public partial class ShipDemo
 
         if (s.Journal.Length > 0) _journal.FromJson(s.Journal);
         _t = s.T;
+        _mkShut = s.MarcheFerme;
         _calendar.SetStart(s.CalDebut);
         for (int d = 0; d < s.CalJour; d++) _calendar.NextDay();
         _sky.Core.SetTimeOfDay(s.Heure, _sky.Latitude);
