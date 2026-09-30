@@ -155,7 +155,7 @@ public partial class ShipNode : Node3D
             TangentsForRelief(obj);
 
             // sa COQUE ramenée à la longueur que le solveur fait flotter
-            double k = m.Scale ?? HullScale(obj, m.LengthAxis);
+            double k = m.Scale ?? HullScale(obj, m.LengthAxis, Spec.L);
             obj.Scale = Vector3.One * (float)k;
             obj.Rotation = new Vector3(0, (float)m.RotationY, 0);
             var off = m.Offset;
@@ -248,7 +248,7 @@ public partial class ShipNode : Node3D
     /// sont longs mais n'enferment presque rien. Appelée avant toute
     /// transformation posée sur le modèle, donc dans son propre repère.
     /// </summary>
-    double HullScale(Node3D obj, string lengthAxis)
+    internal static double HullScale(Node3D obj, string lengthAxis, double wantL)
     {
         double best = -1, along = 0;
         foreach (var (mi, rel) in Meshes(obj))
@@ -257,7 +257,7 @@ public partial class ShipNode : Node3D
             double vol = (double)box.Size.X * box.Size.Y * box.Size.Z;
             if (vol > best) { best = vol; along = lengthAxis == "x" ? box.Size.X : box.Size.Z; }
         }
-        return along > 1e-6 ? Spec.L / along : 1;
+        return along > 1e-6 ? wantL / along : 1;
     }
 
     /// <summary>

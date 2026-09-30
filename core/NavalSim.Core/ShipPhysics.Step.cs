@@ -578,6 +578,11 @@ public sealed partial class ShipPhysics
         // le même ressort que le fond : tout son poids à un tiers de mètre
         double kSpring = b.Mass * Config.G / (0.33 * 3);
 
+        /* LA PILE EST RÉSERVÉE UNE FOIS, HORS DE LA BOUCLE. À l intérieur, chaque
+           tour en aurait repris — quinze pontons par sous-pas, et la pile déborde
+           sans que rien ne le dise. Signalé par l analyseur (CA2014), qui a vu ce
+           que la relecture n avait pas vu. */
+        ReadOnlySpan<double> stations = stackalloc double[] { 0.42, 0.0, -0.45 };
         foreach (var p in Jetties)
         {
 
@@ -591,7 +596,6 @@ public sealed partial class ShipPhysics
             if (gx * gx + gz * gz > reach * reach) continue;
 
             double ee = Math.Max(1e-9, ex * ex + ez * ez);
-            ReadOnlySpan<double> stations = stackalloc double[] { 0.42, 0.0, -0.45 };
             for (int st = 0; st < stations.Length; st++)
             {
                 double zl = stations[st] * S.L, hb = Lines.HalfB(stations[st] + 0.5);

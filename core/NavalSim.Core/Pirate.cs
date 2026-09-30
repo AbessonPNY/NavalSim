@@ -23,6 +23,17 @@ public sealed class Pirate
     public enum Phase { Chasse, Abordage, Fuite }
 
     public Phase State = Phase.Chasse;
+
+    /// <summary>
+    /// SES CROCHETS MORDENT-ILS ? Posé par le moteur à chaque image, avant Pilot.
+    ///
+    /// C est ce qui fait de l abordage une LUTTE et non un compte à rebours : le
+    /// temps de tenue ne court que tant qu un filin tient, et il RECULE quand il
+    /// n en tient plus. Couper les bouts ne se contente donc pas de retarder la
+    /// prise — elle défait ce qui était acquis, et c est ce qui donne une raison de
+    /// courir à la hache plutôt que de regarder.
+    /// </summary>
+    public bool Grappled;
     /// <summary>Sa proie, ou nulle.</summary>
     public ShipPhysics? Cible;
     /// <summary>Les proies déjà pillées, et jusqu'à quelle heure il les laisse.</summary>
@@ -122,7 +133,7 @@ public sealed class Pirate
             : pb.Pos - f * (Lp * 0.2) + s * (side * (Bp * 0.5 + Be * 0.5 + 1.5));
 
         double vrel = Hyp(b.Vel.X - pb.Vel.X, b.Vel.Z - pb.Vel.Z);
-        if (dist < (Lp + Le) * 0.45 && vrel < 2.5) Tenu += dt; else Tenu = Math.Max(0, Tenu - dt * 0.5);
+        if (dist < (Lp + Le) * 0.45 && vrel < 2.5 && Grappled) Tenu += dt; else Tenu = Math.Max(0, Tenu - dt * 0.5);
         if (dist > 1500) { State = Phase.Chasse; return null; }        // elle lui a échappé
         if (Tenu < 5) return null;
 

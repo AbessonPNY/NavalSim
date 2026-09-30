@@ -265,6 +265,22 @@ public partial class ShipNode
     static List<(Node3D Node, Transform3D Parent)> TakeRings(Node3D obj) => Detach(obj, RingNames);
 
     /// <summary>
+    /// ÔTER L APPAREIL D UN MODÈLE QU ON NE PILOTE PAS. Le téléporteur est au
+    /// navire du joueur, pas à la fiche : la Roter Löwe le porte dans son .glb, si
+    /// bien qu une copie amarrée au quai en héritait — trois anneaux lumineux sur
+    /// une coque qui dort, et la sphère avec.
+    ///
+    /// On les DÉTACHE plutôt que de les cacher : caché, un maillage coûte encore
+    /// son entrée dans la scène et sa boîte englobante, et une rade en portait
+    /// quarante-cinq.
+    /// </summary>
+    internal static void StripRings(Node3D obj)
+    {
+        foreach (var (n, _) in Detach(obj, RingNames)) n.QueueFree();
+        foreach (var (n, _) in Detach(obj, SphereNames)) n.QueueFree();
+    }
+
+    /// <summary>
     /// Détacher du modèle tout ce qui répond à <paramref name="re"/>. Les anneaux
     /// et la sphère d'énergie s'en servent tous deux : ce sont les mêmes raisons
     /// (protéger les mesures de coque) et la même mécanique.

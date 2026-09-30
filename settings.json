@@ -320,6 +320,12 @@
       "glb": "creatures/kraken.glb"
     }
   },
+  "mouillage": {
+    "_aide": "LES NAVIRES AMARRES DANS LES PORTS. Un port vide se lit comme un decor : on y met des coques qui ne naviguent pas. Ce ne sont PAS des navires du jeu — ni solveur, ni greement, ni barre : ils suivent la houle et gitent sur sa pente, et rien d autre, ce qui coute deux sondes par coque au lieu de deux cents. Le placement se decide sur la geographie du port : ce qui tient a quai s y amarre, le reste mouille en rade sur un fond qui porte, et le poste du joueur reste libre. Le semis est fixe pour un port donne : on y retrouve les memes navires a la meme place. portee : au-dela, le port n est plus dessine, en metres. navires : les fiches qu on y mouille.",
+    "enabled": true,
+    "portee": 3200,
+    "navires": ["sloop.json", "frigate17e.json", "frigate.json"]
+  },
   "wreck": {
     "bottleOneIn": 6
   }

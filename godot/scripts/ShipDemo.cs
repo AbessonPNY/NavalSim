@@ -256,6 +256,18 @@ public partial class ShipDemo : Node3D
             AddChild(_folk);
             _jetty = new JettyNode(_world);
             AddChild(_jetty);
+            _grappleNode = new GrappleNode();
+            AddChild(_grappleNode);
+            /* LES RADES, bâties une fois avec le monde : des navires amarrés ne
+               changent pas de place, et les mettre à l eau en cours de partie ferait
+               de la géométrie au pire moment. Le nœud naît ici avec la terre, mais
+               ses coques attendent Launch : leurs postes se mesurent au bau du
+               joueur, qui n a pas encore de navire. */
+            if (_mooredOn)
+            {
+                _moored = new MooredNode(_world) { Range = _mooredRange, Flotte = _mooredShips };
+                AddChild(_moored);
+            }
             /* ET LE SOLVEUR APPREND OÙ ILS SONT. Une fois : un ponton ne bouge pas.
                En mètres MONDE VRAIS, comme tout ce qui est « du monde » — le solveur
                retranche l'origine lui-même, à chaque sous-pas. */
@@ -302,6 +314,8 @@ public partial class ShipDemo : Node3D
             if (k >= 0) first = k;
         }
         Launch(first);
+        // et les rades, maintenant qu on connaît le navire dont il faut laisser le poste
+        _moored?.Build(System.IO.Path.Combine(Assets.Root, "ships"), _sea.Core, _ship.Spec.L, _ship.Spec.B);
         // les réglages du fichier d'abord ; la ligne de commande, lue ensuite, a le dernier mot
         ApplySettings();
         SetupCapture();
@@ -1214,6 +1228,13 @@ public partial class ShipDemo : Node3D
         foreach (var s2 in _others) s2.SetOars(frame);
         // les lanternes pendues suivent le roulis en vrais pendules
         _ship.SwingLanterns(frame);
+        /* LES FILINS APRÈS LES SOLVEURS : une contrainte corrige ce que
+           l'intégration vient de faire. La poser avant reviendrait à corriger
+           l'image d'avant, et le bout paraîtrait élastique d'un pas de temps. */
+        _grapples.Step(frame);
+        _ship.SyncTransform();
+        _grappleNode?.Sync(_grapples);
+
         // et ce qui tourne sur elle sans rien devoir a la houle
         _ship.SpinRings(frame);
         /* SON REFLET, retourné autour du plan d eau SOUS LE NAVIRE — pas autour du
@@ -1351,6 +1372,11 @@ public partial class ShipDemo : Node3D
             CompassTick();
             ReckonTick(frame);
             RumourTick(frame);
+            if (_moored != null)
+            {
+                _moored.Update(here, new Vec3d(wo.X, 0, wo.Z), _sea.Core, _t);
+                foreach (var m in _moored.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
+            }
             if (_jetty != null)
             {
                 _jetty.Update(here, new Vec3d(wo.X, 0, wo.Z));
@@ -2256,6 +2282,17 @@ public partial class ShipDemo : Node3D
                 // ⇧X : DEUX NAVIRES AUX PRISES — deux sabres en croix, et la seule
                 // rencontre qu on ne voyait pour ainsi dire jamais (une sur cinq)
                 case Key.X when k.ShiftPressed: ForceEncounter(true); break;
+                /* ⇧Q : LE PIRATE PASSE À L ABORDAGE SUR-LE-CHAMP. Il n y vient
+                   normalement qu après avoir démâté ou troué sa proie, ce qui prend
+                   un combat entier — trop long pour juger des filins. */
+                case Key.Q when k.ShiftPressed:
+                {
+                    int n = 0;
+                    foreach (var pr in _pirates.Values)
+                        if (pr.Cible != null) { pr.State = Pirate.Phase.Abordage; pr.Tenu = 0; n++; }
+                    Say(n > 0 ? $"{n} pirate(s) à l abordage" : "Aucun pirate en chasse");
+                    break;
+                }
                 case Key.X: if (_fixed) Plant(); break;
                 /* LE PLAN D'ARRIMAGE, sur la seule place de lettre qui ne servait à
                    rien : le Z d'un QWERTY, le W d'un AZERTY. Par son EMPLACEMENT,
@@ -2287,6 +2324,12 @@ public partial class ShipDemo : Node3D
                    haut par la bordée, avec son propre SetInputAsHandled, et rien
                    de ce qui porte G n'atteint jamais ce switch. Signalé en jeu. */
                 case Key.A when k.ShiftPressed: ArmJump(); break;
+                // ⇧D comme « détacher » : la hache sur les filins d'abordage
+                case Key.D when k.ShiftPressed:
+                    Say(_grapples.Cut(_ship.Physics)
+                        ? (_grapples.Holds(_ship.Physics) ? "Un filin tranché — il en tient encore" : "Le dernier filin est tranché !")
+                        : "Aucun filin à trancher");
+                    break;
                 case Key.L when k.ShiftPressed: Douse(); break;
                 case Key.L: ToggleSpyglass(); break;
                 // la carte du capitaine : I comme « inscrire »
@@ -2480,6 +2523,11 @@ public partial class ShipDemo : Node3D
         if (!_saidFog && _seaFog.Amount > 0.3) { _saidFog = true; if (!_inTitle) Say("La brume monte sur l'eau"); }
         else if (_saidFog && _seaFog.Amount < 0.1) { _saidFog = false; if (!_inTitle) Say("La brume se lève"); }
     }
+    /// <summary>La rade des ports : tenue, portée, et les fiches qu on y mouille.</summary>
+    bool _mooredOn = true;
+    double _mooredRange = 3200;
+    string[] _mooredShips = { "sloop.json", "frigate17e.json", "frigate.json" };
+
     Climate _climate = new();
     (double Amount, bool Snow) _fall;
 
@@ -2544,6 +2592,17 @@ public partial class ShipDemo : Node3D
             {
                 if (st.TryGetProperty("lightning", out var li)) _lightRules = LightningSettings.FromJson(li);
                 if (st.TryGetProperty("kraken", out var kr)) _krakenRules = KrakenSettings.FromJson(kr);
+            }
+            if (root.TryGetProperty("mouillage", out var mo2))
+            {
+                if (mo2.TryGetProperty("enabled", out var me)) _mooredOn = me.GetBoolean();
+                if (mo2.TryGetProperty("portee", out var mp)) _mooredRange = mp.GetDouble();
+                if (mo2.TryGetProperty("navires", out var mn) && mn.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    var l = new List<string>();
+                    foreach (var e in mn.EnumerateArray()) if (e.GetString() is { } q) l.Add(q);
+                    if (l.Count > 0) _mooredShips = l.ToArray();
+                }
             }
             if (root.TryGetProperty("climate", out var k))
                 _climate = new Climate(ClimateSettings.FromJson(k));
@@ -3456,7 +3515,26 @@ public partial class ShipDemo : Node3D
             _sails.Add(new Pirate.Sail(_ship.Physics, _ship.Battery, IsJolly(_ship)));
             // un vrai pirate ne chasse pas les spectres
             foreach (var o in _others) if (!o.IsGhost) _sails.Add(new Pirate.Sail(o.Physics, o.Battery, IsJolly(o)));
+            p.Grappled = prey != null && _grapples.Holds(prey);
             string? ev = p.Pilot(dt, _t, s.Physics, h, _sails, _ship.Physics);
+
+            /* LA VOLÉE. Il lance quand il est à portée de crochet et qu'il n'en a
+               plus un seul qui tienne — donc au premier abordage, et de nouveau
+               chaque fois qu'on lui a tout coupé. Le délai empêche seulement de
+               relancer à chaque image pendant que les crochets volent encore. */
+            if (prey != null && p.State == Pirate.Phase.Abordage && !_grapples.Holds(prey))
+            {
+                var pb2 = prey.Body; var sb2 = s.Physics.Body;
+                double bord = Math.Sqrt((pb2.Pos.X - sb2.Pos.X) * (pb2.Pos.X - sb2.Pos.X)
+                                      + (pb2.Pos.Z - sb2.Pos.Z) * (pb2.Pos.Z - sb2.Pos.Z))
+                            - (s.Physics.Spec.B + prey.Spec.B) * 0.5;
+                if (bord < Grapple.Portee && _t - _volee.GetValueOrDefault(s.Physics, -99) > 6)
+                {
+                    _volee[s.Physics] = _t;
+                    _grapples.Throw(s.Physics, prey, _grappleRng);
+                    if (prey == _ship.Physics) Say("Des grappins ! Coupez les filins (⇧D)");
+                }
+            }
             if (ev != null && prey != null)
             {
                 bool mine = prey == _ship.Physics;
@@ -3678,6 +3756,15 @@ public partial class ShipDemo : Node3D
     TownNode? _town;
     FolkNode? _folk;
     JettyNode? _jetty;
+
+    /// <summary>Les filins d'abordage : la règle est dans le noyau, le dessin dans GrappleNode.</summary>
+    readonly Grapple _grapples = new();
+    GrappleNode? _grappleNode;
+    MooredNode? _moored;
+    /// <summary>Quand chaque pirate a lancé sa dernière volée : on ne relance pas à chaque image.</summary>
+    readonly Dictionary<ShipPhysics, double> _volee = new();
+    /// <summary>Le sort des crochets. Semé en dur : une volée doit se rejouer à l identique au banc.</summary>
+    readonly Random _grappleRng = new(20261001);
     /// <summary>Les pontons, pour le solveur : il s'y cogne. Voir ShipPhysics.Jetties.</summary>
     (double Sx, double Sz, double Hx, double Hz)[] _jetties = System.Array.Empty<(double, double, double, double)>();
     ChartNode? _chart;
@@ -4280,6 +4367,8 @@ public partial class ShipDemo : Node3D
                 case "--vsync": _settings.VSync = args[i + 1] != "0"; ApplySettings(); break;
                 // la charge forcee, pour un banc : la rampe met vingt secondes
                 case "--anneaux": _forceRings = args[i + 1].ToFloat(); break;
+                case "--rade": MooredNode.Debug = args[i + 1] != "0";
+                    GD.Print($"[rade] joueur a ({_ship.Physics.Body.Pos.X:F0}, {_ship.Physics.Body.Pos.Z:F0}) local"); break;
                 // les ombres des fanaux : une omni qui porte ombre rend un CUBE par image
                 case "--ombres":
                     _settings.LanternShadows = args[i + 1] == "1";

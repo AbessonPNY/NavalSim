@@ -13306,6 +13306,158 @@ calculer — le banc reste vert (168 nouvelles, 135 rumeurs à la lettre) et la 
 garde ce qu elle avait. **Quand un défaut peut se corriger du côté du lecteur,
 l y corriger coûte moins qu une divergence dans une définition partagée.**
 
+## Les filins à crochet : l abordage cesse de se subir (Godot)
+
+Demandé : des filins que les pirates lancent pour agripper un navire. Trois
+options possibles à chaque fois, et l option qui MORD a été choisie — les bouts
+TIRENT, on les coupe à la touche, et plusieurs crochets partent dont certains
+ratent.
+
+Avant eux, l abordage se subissait : le pirate se rangeait à couple, cinq secondes
+passaient, le navire était pillé, et il n y avait rien à faire entre les deux.
+
+### Une CONTRAINTE, pas un ressort
+
+C est la décision qui gouverne tout le reste. Un ressort entre deux coques de
+trois cents tonnes demande une raideur énorme pour ne pas s étirer, et une
+raideur énorme au pas du solveur DIVERGE au premier choc — la coque part à
+l infini, ce qui est exactement la panne qu un abordage ne doit jamais produire,
+parce qu elle arrive au moment le plus tendu.
+
+Une contrainte ne peut pas diverger : elle RETIRE la vitesse d écartement au lieu
+d ajouter une force, et la même correction appliquée deux fois ne fait rien la
+seconde. Même raison que la chaîne de Verlet des bouts rompus.
+
+Et un bout NE POUSSE PAS : il ne fait rien tant qu il a du mou. C est ce qui le
+distingue d une barre, et ce qui laisse les deux coques rouler l une contre
+l autre sans se repousser.
+
+### DEUX MESURES QUI ONT TOUT CHANGÉ
+
+Le banc (`core/NavalSim.Lab -- filins`) lance une volée entre deux frégates et
+tourne dix minutes. Ce qu on y cherche n est pas « est-ce joli » mais « est-ce que
+cela diverge ».
+
+Premier relevé : l écart se refermait bien, mais la paire partait à **43 m/s**. La
+cause était dans le chiffre même : 2,9 m entre deux centres de coques larges de
+7,25. Je les halais l une DANS l autre — il n y a pas de collision coque contre
+coque dans ce jeu, donc rien ne les séparait, et la géométrie des ancres finissait
+par se retourner. Le plancher du halage était une CONSTANTE (2,5 m) là où il
+devait être une cote.
+
+Second relevé, plancher mis à la somme des demi-baux : plus de divergence, mais
+l écart se stabilisait à 4,4 m — toujours au travers. Un filin tendu de l étrave
+de l un à la poupe de l autre est OBLIQUE : le raccourcir jusqu à la somme des
+demi-baux le tire en diagonale, et les coques se rentrent dedans pendant que le
+bout se croit satisfait. Le plancher est donc l HYPOTÉNUSE — les baux en travers,
+l écart des ancres en long.
+
+    pire vitesse atteinte   ecart stabilise
+      plancher constant        43,09 m/s        2,9 m   -> diverge
+      plancher = baux           2,43 m/s        4,4 m   -> se chevauchent
+      plancher = hypotenuse     0,32 m/s       12,3 m   -> tient
+
+**Un plancher écrit en constante là où il dépend de la géométrie est un piège qui
+ne se voit qu au banc** : à l œil, les trois versions ressemblent à des filins qui
+tirent.
+
+### Ce que cela change au jeu
+
+Le temps de tenue du pirate ne court plus que tant qu un filin TIENT, et il RECULE
+quand il n en tient plus. Couper les bouts ne retarde donc pas la prise : elle
+défait ce qui était acquis. C est ce qui donne une raison de courir à la hache
+plutôt que de regarder.
+
+⇧D tranche le filin le plus RAIDE — celui qu on voit et celui qui tire. Couper au
+hasard donnerait l impression que la hache manque. ⇧Q met les pirates en chasse
+droit à l abordage, pour en juger sans livrer un combat entier.
+
+### Et le dessin n est pas celui du cordage
+
+Le cordage partagé simule des chaînes de Verlet et les peint par un shader qui lit
+une texture de points : c est ce qu il faut pour des bouts qui PENDENT. Un filin
+d abordage est tendu entre deux points connus — ni mou à simuler, ni forme à
+trouver. Un cylindre orienté suffit et coûte le dixième. Un crochet qui vole n est
+pas encore un filin : on tend le bout jusqu où il en est de sa course, et l on VOIT
+ceux qui manquent retomber.
+
+## Les ports ne sont plus vides (Godot)
+
+Un port où l'on est le seul navire ne se lit pas comme un port. Mais y ranger
+trois coques le long du quai ne marche pas non plus, et le chiffre le dit tout
+de suite : **le ponton de Port-Royal fait vingt-huit mètres**. Un vaisseau de
+ligne en fait soixante-dix. Il n'y tient pas — et la vraie raison n'est pas la
+place, c'est qu'un vaisseau de ligne ne s'amarre PAS à un ponton de bois. Il
+mouille en rade, et l'on va à son bord en chaloupe.
+
+D'où deux sortes de postes, et c'est la géographie qui tranche (`Moored.cs`) :
+à quai ce qui tient dans la longueur restante, au mouillage tout le reste, sur
+un fond qui porte. On sert le quai **du plus petit au plus grand** : servir dans
+l'ordre d'arrivée aurait fait qu'un vaisseau présenté le premier occupe tout le
+quai en n'y tenant pas, pendant que les sloops derrière vont au large.
+
+Le poste du joueur n'est pas seulement évité, il est **inatteignable** : `Berth.At`
+le pose du côté `(−sa, ca)`, les autres vont donc en face. Une comparaison de
+distances, elle, aurait fini par mentir pour un navire un peu long.
+
+Trois vérifications au mouillage, dont deux ne se voient pas à l'œil :
+le fond porte le tirant plus 2,5 m de marge ; le **rond d'évitage** est libre —
+un navire sur son ancre tourne autour d'elle, donc il lui faut un rond et non un
+point, faute que l'on ne voit qu'au premier changement de vent, quand deux coques
+se traversent ; et la passe du ponton reste franche, puisque le joueur doit y
+entrer. Le semis est déterministe, tiré d'une graine prise sur la clé du port :
+une rade retrouve ses navires à la même place d'une partie à l'autre, sans qu'on
+ait rien à écrire nulle part. C'est la règle des badauds de la plage.
+
+Éprouvé au banc sur les quinze ports (`dotnet run --project core/NavalSim.Lab -- mouillage`) :
+**45 navires posés, 16 à quai, 29 en rade, 0 sans place**, et le moins d'eau sous
+un poste est de 10,9 m pour un tirant maximal de 6,6.
+
+### Ce ne sont pas des ShipNode, et c'est tout le sujet
+
+Un navire du jeu porte un solveur à six degrés de liberté, deux cents sondes de
+carène, un gréement, des pièces et une barre ; seize coques coûtent déjà 16,8 ms
+l'image, ce qui est le plafond mesuré. Quarante-cinq en feraient trois fois trop
+— et aucune ne navigue.
+
+Un navire amarré n'a besoin de rien de tout cela : il lui faut se tenir à la
+hauteur de l'eau et rouler un peu. **Deux sondes de houle par coque et par image**,
+contre deux cents. La gîte se lit sur la PENTE de l'eau, prise sur une demi-
+longueur et non sur un mètre : un navire est un filtre passe-bas sur la houle, et
+sa longueur EST le filtre — à un mètre, une coque de soixante-dix mètres suivrait
+la moindre ride au lieu de la traverser.
+
+Un seul port est dessiné, celui dont on approche ; les autres gardent leurs nœuds
+cachés, comme les villes et les badauds, et pour la même raison — ce qui coûte
+n'est pas de les tenir, c'est de les peindre. Mesuré à Port-Royal, deux courses
+de 600 images chacune, avec et sans :
+
+| | notre _Process | rendu côté processeur | carte graphique |
+|---|---|---|---|
+| sans la rade | 2,86 – 2,96 ms | 0,23 – 0,24 ms | 2,93 – 2,96 ms |
+| avec la rade | 2,90 – 2,92 ms | 0,33 – 0,34 ms | 2,94 ms |
+
+**Un dixième de milliseconde**, tout entier dans le tri des instances, et rien
+du tout sur la carte ni dans le solveur. C'est le prix d'un port habité.
+
+### Deux choses que la capture a montrées et que le banc ne pouvait pas voir
+
+**Quinze téléporteurs en Jamaïque.** Les anneaux gyroscopiques et la sphère
+d'énergie vivent dans le `.glb` de la Roter Löwe — ils sont à SON capitaine, pas
+à la fiche. Chaque copie amarrée les héritait, et tournait au mouillage. On les
+détache maintenant à la copie (`ShipNode.StripRings`) plutôt que de les cacher :
+caché, un maillage coûte encore son entrée dans la scène et sa boîte englobante,
+et une rade en portait quarante-cinq.
+
+**L'assise ne se devine pas.** Poser la coque à la hauteur de l'eau la fait
+flotter trop haut ou trop bas de tout ce qui sépare l'origine du `.glb` de sa
+flottaison — et l'œil le voit tout de suite, le liston blanc du fond découvert.
+On demande donc son assise au solveur, par le MÊME `Settle` que le navire du
+joueur : trois fois au chargement, jamais après.
+
+Réglable dans `settings.json` (`mouillage` : tenue, portée, et les fiches qu'on y
+mouille) ; `-- --rade 1` dit où chaque poste est tombé.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

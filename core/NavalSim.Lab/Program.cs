@@ -46,6 +46,8 @@ switch (mode)
     case "calibres": Calibres(); break;
     case "anneaux": Anneaux(); break;
     case "saut": Saut(); break;
+    case "filins": Filins(); break;
+    case "mouillage": Mouillage(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -888,4 +890,127 @@ void Saut()
         if (Teleport.Check(world, x, z, draft, L) == Teleport.Verdict.Bon) bons++;
     }
     Console.WriteLine($"au large (plus de 3 km de toute terre) : {bons}/{essais} points acceptes");
+}
+
+/* LES FILINS D ABORDAGE, EPROUVES.
+
+   Ce qu on veut savoir n est pas « est-ce joli » mais « est-ce que cela
+   diverge ». Une contrainte entre deux coques de trois cents tonnes, appliquee
+   soixante fois par seconde, est exactement le genre de chose qui part a
+   l infini sans prevenir — et un abordage qui envoie le navire dans l espace est
+   la pire panne possible, parce qu elle arrive au moment le plus tendu.
+
+   On lance donc une volee entre deux fregates, on tourne dix minutes, et l on
+   regarde trois choses : l ecart entre les coques (il doit se refermer et non
+   osciller), la vitesse de chacune (elle doit rester finie), et le fait que rien
+   ne soit NaN. */
+void Filins()
+{
+    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, "frigate17e.json")));
+    var ocean = new Ocean { Swell = 1.0, Time = 0 };
+    ocean.SetSeaState(3, 210);
+
+    ShipPhysics Neuf(double x, double z)
+    {
+        var p = new ShipPhysics(spec, new HullLines(spec));
+        var c = new Controls { Throttle = 0, Rudder = 0, Sheet = 0.6, SailsSet = false };
+        p.Settle(ocean, c);
+        p.Body.Pos = new Vec3d(x, p.Body.Pos.Y, z);
+        return p;
+    }
+
+    // deux fregates bord a bord, a dix-huit metres — une portee de crochet
+    var pirate = Neuf(0, 0);
+    var proie = Neuf(18, 0);
+    var ctrl = new Controls { Throttle = 0, Rudder = 0, Sheet = 0.6, SailsSet = false };
+
+    var g = new Grapple();
+    g.Throw(pirate, proie, new Random(20261001));
+    Console.WriteLine($"volee de {Grapple.Volee} crochets : {g.Lines.Count} partis");
+
+    double dt = 1.0 / 60, t = 0, pireV = 0;
+    bool nan = false;
+    Console.WriteLine("   t (s)   ecart   mordus   vitesse pirate   vitesse proie");
+    for (int k = 0; k <= 60 * 600; k++)
+    {
+        pirate.Step(dt, ocean, ctrl, t);
+        proie.Step(dt, ocean, ctrl, t);
+        g.Step(dt);
+        t += dt;
+
+        double ecart = Hypo(proie.Body.Pos.X - pirate.Body.Pos.X, proie.Body.Pos.Z - pirate.Body.Pos.Z);
+        double v1 = Hypo(pirate.Body.Vel.X, pirate.Body.Vel.Z), v2 = Hypo(proie.Body.Vel.X, proie.Body.Vel.Z);
+        pireV = Math.Max(pireV, Math.Max(v1, v2));
+        if (double.IsNaN(ecart) || double.IsNaN(v1) || double.IsNaN(v2)) { nan = true; break; }
+
+        if (k % (60 * 60) == 0 || k == 60 * 30)
+            Console.WriteLine($"   {t,5:F0}   {ecart,6:F2}   {g.Held,6}   {v1,14:F3}   {v2,12:F3}");
+    }
+
+    Console.WriteLine();
+    Console.WriteLine($"pire vitesse atteinte : {pireV:F2} m/s   NaN : {(nan ? "OUI" : "non")}");
+    Console.WriteLine(!nan && pireV < 12 ? "-> la contrainte tient" : "-> ELLE DIVERGE");
+
+    // et la coupe : un bout a la fois, le plus raide
+    Console.WriteLine();
+    int reste = g.Held;
+    while (g.Cut(proie)) { Console.WriteLine($"   coupe : il en reste {g.Held}"); if (--reste < 0) break; }
+    Console.WriteLine($"apres la hache : {g.Held} filin(s), {g.Lines.Count} bout(s) en tout");
+}
+
+static double Hypo(double a, double b) => Math.Sqrt(a * a + b * b);
+
+/* LES NAVIRES AU MOUILLAGE, EPROUVES SUR LES QUATORZE PORTS.
+
+   Trois choses a verifier, et aucune ne se voit a l oeil depuis un seul port :
+   que chaque poste porte assez d eau, qu aucun navire n en touche un autre, et
+   que le semis rende la MEME chose deux fois — une rade doit retrouver ses
+   navires a la meme place d une partie a l autre. */
+void Mouillage()
+{
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    var region = RegionSpec.FromJson(File.ReadAllText(Path.Combine(root, "world", "caraibes.json")));
+    var (iw, ih, grey) = GreyPng.Decode(File.ReadAllBytes(Path.Combine(root, region.Relief.Image)));
+    var world = new World(region, iw, ih, grey, m => Console.WriteLine("  ! " + m));
+
+    // les trois navires autorises : Roter Lowe, sloop, vaisseau de ligne
+    (string Nom, double L, double B, double Draft)[] flotte =
+    {
+        ("sloop",      10.6,  3.50, 1.55),
+        ("roter lowe", 30.0,  7.25, 3.85),
+        ("belliqueuse",70.0, 14.50, 6.60),
+    };
+    var dims = new List<(double, double, double)>();
+    foreach (var f in flotte) dims.Add((f.L, f.B, f.Draft));
+
+    int total = 0, quai = 0, rade = 0, manques = 0;
+    double pireEau = 99;
+    Console.WriteLine($"{"port",-24}{"ponton",8}{"places",8}  detail");
+    foreach (var isl in world.Isles)
+    {
+        if (isl.Port.Hx == 0 && isl.Port.Hz == 0) continue;
+        uint g = 0; foreach (char c in isl.Key) g = g * 131 + c;
+        var ps = Moored.Postes(world, isl, dims, 30, 7.25, g);
+        var deux = Moored.Postes(world, isl, dims, 30, 7.25, g);
+        bool memes = ps.Count == deux.Count;
+        for (int i = 0; i < ps.Count && memes; i++)
+            memes = Math.Abs(ps[i].X - deux[i].X) < 1e-9 && Math.Abs(ps[i].Z - deux[i].Z) < 1e-9;
+
+        var mots = new List<string>();
+        for (int i = 0; i < ps.Count; i++)
+        {
+            double fond = -world.HeightAt(ps[i].X, ps[i].Z);
+            pireEau = Math.Min(pireEau, fond);
+            mots.Add((ps[i].Mouille ? "rade" : "quai") + $" {fond:F1} m");
+            if (ps[i].Mouille) rade++; else quai++;
+        }
+        manques += dims.Count - ps.Count;
+        total += ps.Count;
+        Console.WriteLine($"{isl.Name,-24}{isl.Port.Reach,7:F0}m{ps.Count,8}  {string.Join(", ", mots)}{(memes ? "" : "   !! SEMIS INSTABLE")}");
+    }
+
+    Console.WriteLine();
+    Console.WriteLine($"{total} navire(s) poses : {quai} a quai, {rade} en rade ; {manques} sans place");
+    Console.WriteLine($"le moins d eau sous un poste : {pireEau:F1} m");
+    Console.WriteLine(pireEau > 6.6 + Moored.Sous - 0.2 ? "-> tous portent leur tirant" : "-> UN POSTE EST TROP MAIGRE");
 }
