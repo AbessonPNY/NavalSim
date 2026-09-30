@@ -182,6 +182,10 @@ public partial class ShipNode : Node3D
             // et les anneaux reviennent, sur leurs pivots, une fois l'échelle connue
             MountRings(rings, k, m);
             MountSphere(bulle, k, m);
+            // une seule lampe pour l appareil entier, quoi qu il porte
+            MountLamp();
+            // et sa copie retournée, que la mer ne peut pas faire elle-même
+            MountMirror();
             // et l'échouage sonde le bois qu'on voit, non la cote de la fiche
             MeasureKeel();
             // sur tout ce qui est à bord, y compris les espars que RigModel vient

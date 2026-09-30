@@ -12907,6 +12907,223 @@ Le ponton est donc retenu en entrant, en mètres monde vrais. La portée se mesu
 sur LUI et non sur le plus proche, sans quoi s éloigner de l un en s approchant
 d un autre ne rendrait jamais la vue.
 
+## Le téléporteur éclaire, et la mer le voit (Godot)
+
+Demandé : que l effet soit spectaculaire. Il ne se reflétait pas dans l eau et
+n éclairait ni le navire ni ce qui l entoure — ce qui est logique, une émission
+de shader n étant pas une lumière : elle se voit, elle ne porte pas.
+
+### Une lampe, et une seule
+
+Au CENTRE de la sphère, ce qui est une approximation assumée : ce qui brille est
+une coquille de vingt mètres, pas un point. Mais tout le navire est DEDANS, mâts
+compris, et depuis l intérieur d une coquille lumineuse une source au centre
+donne presque la même chose — la lumière vient d en face, où qu on se tienne.
+
+Une seule, aussi, parce que la mer n en tient que HUIT (NLAMP), partagées par la
+flotte entière et déjà prises par les fanaux.
+
+Elle suit la charge AU CARRÉ. Linéaire, elle éblouirait tout le long des vingt
+secondes ; au carré elle n existe vraiment que sur la fin, comme la bulle, et
+c est la fin qui doit être spectaculaire.
+
+Ses OMBRES ne s allument qu à mi-charge. On sait depuis les fanaux qu un omni
+rend son cube d ombre QUELLE QUE SOIT son énergie : la couper ne suffit pas, il
+faut couper l ombre elle-même. Elles ne servent que les dernières secondes, où le
+gréement doit se découper sur le pont.
+
+### LA MER RÉFLÉCHISSAIT TOUT EN ORANGE
+
+Le défaut trouvé en chemin, et il attendait depuis le début : la couleur des feux
+était une CONSTANTE du shader de l océan — (1 ; 0,473 ; 0,130), une flamme. Cela
+allait tant que tout ce qui éclairait l eau était un fanal. Un téléporteur
+blanc-bleu s y serait reflété ORANGE, ce qui n a l air ni d une erreur ni d un
+choix, juste d une mer qui ne le voit pas.
+
+La mer tient donc une couleur par feu. Les lanternes écrivent la valeur exacte
+d avant (ShipNode.LampWarm) : rien ne change pour elles, ce qui était la condition
+pour toucher un shader qu on ne peut pas juger sans le lancer.
+
+### Ce que la mer reçoit, au chiffre
+
+    formule du shader : w (1-(d/R)^4)^2 / d^2
+
+    distance   un fanal    le teleporteur   rapport
+       10 m    2,55e-2     9,00e-2          x4
+       30 m    2,17e-4     9,96e-3          x46
+       50 m    hors portee 3,48e-3
+      120 m    hors portee 1,32e-4
+
+Le rapport s envole à trente mètres parce que le fanal y est presque au bout de
+sa portée quand le téléporteur est encore au début de la sienne. C est exactement
+l effet voulu : un fanal fait une tache sous la poupe, celui-ci allume la mer sur
+cent mètres.
+
+## La mer ne peut pas refléter ce qui n'est pas encore là (Godot)
+
+Signalé deux fois : pas de reflet des anneaux ni de la sphère. J'ai cherché deux
+fois au mauvais endroit avant de regarder la seule ligne qui décidait.
+
+### La faute de méthode, avant la faute technique
+
+Premier réflexe : le miroir de la mer est en espace écran et compare le rayon
+renvoyé au tampon de PROFONDEUR ; mes anneaux étaient en `depth_draw_never`,
+donc invisibles pour lui. Raisonnement juste, précédent dans le projet
+(`coins.gdshader` l'a fait avant pour la passe sous-marine) — et sans effet.
+
+Ce que je n'avais pas lu, et qui tenait en un mot :
+
+    render_mode world_vertex_coords, cull_disabled, unshaded, depth_draw_always;
+
+Pas de `blend_` : **la mer est OPAQUE**, donc dessinée avant la passe
+transparente où vivent les anneaux et la bulle. Son image et sa profondeur sont
+celles d'un monde où ils n'existent pas encore. Aucune écriture de profondeur ne
+peut rattraper un ORDRE DE PASSE.
+
+La leçon : **avant de faire écrire une profondeur, vérifier QUAND le lecteur
+lit.** Une passe qui lit ne voit que ce qui est déjà passé, et cela ne se déduit
+pas du shader qui écrit — cela se lit dans le shader qui LIT.
+
+### Une sphère de lumière n'est pas un point
+
+Le chemin qui marche était déjà là : le tableau de feux de la mer (NLAMP), celui
+des fanaux, qui fait reflet ET lumière dans l'eau. Une seule lampe au centre
+posait « une lumière blanche fixe au centre du reflet », ce qui est exactement ce
+qu'un point doit donner. On en met donc CINQ, réparties sur le cercle de
+l'appareil et tournant lentement avec lui.
+
+Cinq et pas huit : le tableau vaut pour la flotte ENTIÈRE, et laisser trois
+places évite qu'un navire perde ses fanaux parce qu'un autre charge son
+téléporteur.
+
+    irradiance lue par la mer, a pleine charge
+    distance    un fanal    les cinq ensemble
+       15 m     1,05e-2     4,80e-1
+       30 m     2,17e-4     1,19e-1
+       60 m     hors portee 2,80e-2
+
+Et deux nombres séparés, qui n'avaient aucune raison d'être le même : ce que la
+lampe ÉCLAIRE (9, pour une coque à vingt mètres) et ce que la mer en REÇOIT
+(×12, pour se voir contre un soleil de midi). Un fanal n'est pas visible à midi,
+et c'est juste ; un téléporteur doit l'être.
+
+### Opaque ne doit pas vouloir dire uniforme
+
+Corrigé en chemin, et c'était le plus visible des trois défauts : la bulle à
+pleine charge était un DISQUE BLANC DÉCOUPÉ. Émission plate à 4 en linéaire,
+opacité 1, aucune structure — plus de navire, plus d'anneaux, rien à refléter.
+
+Le remède n'est pas de baisser l'opacité, qui est ce qu'on demandait, mais de
+garder du relief DANS la lumière : un cœur sous le blanc (0,55 du gain), qui
+garde donc sa couleur, et un bord qui brûle à six fois. Une sphère éclairée par
+le dedans fait cela d'elle-même, sa tranche étant la plus épaisse à traverser ;
+ici c'est obtenu par l'émission plutôt que par l'épaisseur, mais l'œil ne lit que
+le résultat.
+
+### Et les orbites
+
+La référence demandée montre six à huit boucles entrecroisées. Le système n'a
+jamais été limité à deux — mais ses DÉFAUTS l'étaient : la règle « chacun à
+−0,618 fois le précédent » allait pour deux et mettait le cinquième à l'arrêt.
+Les défauts tirent maintenant la vitesse du nombre d'or DANS une bande vive au
+lieu de l'empiler, et prennent l'axe à tour de rôle parmi les trois. Huit anneaux
+déposés dans le .glb font la figure sans qu'on écrive une ligne de fiche.
+
+## Le reflet du téléporteur, et trois pièges de Godot (Godot)
+
+Demandé : le miroir de la sphère et des anneaux dans l eau. Il a fallu six essais
+et trois captures pour y arriver, et les trois causes valent chacune d être
+écrites — aucune ne se devine, et chacune se déguise en autre chose.
+
+### Pourquoi il faut le DESSINER
+
+Le miroir de la mer est en espace écran : il relit l image déjà rendue. Or la mer
+est un matériau OPAQUE, donc dessinée AVANT la passe transparente où vivent les
+anneaux et la bulle. Elle ne peut pas refléter ce qui n existe pas encore, et
+aucune écriture de profondeur ne rattrape un ordre de passe.
+
+On retourne donc la GÉOMÉTRIE : une copie de l appareil, symétrique du plan
+d eau, pendue à la SCÈNE et non au navire — enfant du navire, elle serait
+retournée dans son repère à lui, qui roule et tangue, alors que le miroir d une
+mer est celui du monde. Vérifié à la main, navire gîté de vingt degrés : chaque
+point tombe bien en 2·seaY − y.
+
+### PIÈGE 1 — `return` est interdit dans fragment()
+
+    SHADER ERROR: Using 'return' in the 'fragment' processor function is incorrect.
+    ERROR: Shader compilation failed.
+
+Godot le refuse. Le shader entier cesse alors de compiler, il ne le dit qu une
+fois dans la console au milieu du reste, et la pièce disparaît sans autre signe.
+
+Ce qui rend le piège vicieux : mes sondes de débogage étaient écrites AVEC un
+`return` — elles cassaient donc exactement ce qu elles devaient mesurer, et j ai
+passé trois essais à interpréter des images produites par un shader mort. **Une
+sonde doit être écrite dans le sous-ensemble le plus prudent du langage**, jamais
+dans celui qu on suppose disponible.
+
+### PIÈGE 2 — DEPTH_TEXTURE ne se lit pas sous depth_test_disabled
+
+Le masque devait ne peindre que sur l eau : relire la profondeur laissée par la
+passe opaque et refuser tout ce qui n est pas à hauteur de mer. Mesuré en peignant
+la valeur brute : **elle vaut zéro partout**. Le matériau a besoin de
+`depth_test_disabled` pour passer par-dessus la mer, et c est cela même qui le
+prive de la texture de profondeur.
+
+Or le critère juste n avait jamais besoin de cette lecture : ce qu il faut
+peindre, c est ce qui est SOUS LE PLAN D EAU, et le fragment le sait de lui-même.
+Le masque est donc géométrique. **Quand une donnée se dérobe, demander si on en
+avait vraiment besoin** — ici la réponse était non, et la version sans elle est
+plus simple ET plus juste.
+
+### PIÈGE 3 — le monde est relatif à la caméra
+
+Godot rend les grands mondes en coordonnées relatives à la caméra. Un « y monde »
+reconstruit par INV_VIEW_MATRIX vaut donc la hauteur MOINS celle de l œil, et
+toute comparaison à une hauteur de mer absolue est fausse. Deux endroits en
+souffraient — le masque et le fondu de profondeur — et tous deux échouaient en
+SILENCE, l un en refusant tout, l autre en éteignant tout.
+
+Le remède est le même : ne rien comparer en monde. ShipNode transporte le PLAN
+D EAU lui-même dans le repère de la vue et le pousse au shader ; tout s y mesure
+alors dans un repère que le shader reçoit plutôt que dans un qu il devine.
+
+Éprouvé avant de s en servir : trois points du plan, transportés, rendent une
+distance de 0,0000. C est cette vérification qui a permis d écarter le plan et de
+chercher ailleurs — sans elle j aurais soupçonné la bonne moitié du calcul.
+
+### PIÈGE 4 — un effet qui déforme doit vivre à la finesse de ce qu il déforme
+
+Le reflet marchait, mais sa brisure était un ZIGZAG À FACETTES, signalé comme
+« une déformation étrange ». La question posée était : est-ce la résolution ? Oui,
+mais celle du MAILLAGE, pas celle de l écran — et le rapport le disait :
+
+    anneau : 64 sommets -> 3,7 m entre deux sommets, a 19 m de rayon
+    deplacement applique : jusqu a 7 m
+
+Je ridais le reflet en bougeant ses SOMMETS, d un décalage deux fois plus grand
+que la maille. Une telle géométrie ne peut pas onduler : elle ne peut que plier.
+
+La brisure est passée au FRAGMENT — on lit la houle sous chaque pixel, le même
+gerstner.gdshaderinc que la mer, et l on éteint le reflet là où la facette penche.
+C est d ailleurs plus juste physiquement : une eau ridée ne DÉPLACE pas un reflet,
+elle renvoie ailleurs ce qu elle ne renvoie plus vers l œil.
+
+Dix-huit composantes par pixel : c est ce que la mer paie déjà sur tout l écran,
+et le reflet n en couvre qu un coin, quelques secondes par saut.
+
+### Et les cadrans
+
+    --reflet 0   aucun
+    --reflet 1   normal
+    --reflet 2   sans masque ni fondu
+    --reflet 3   masque seul
+    --reflet 4   peindre la decision du masque
+    --anneaux x  forcer la charge, la rampe mettant vingt secondes
+
+Ils restent, parce qu une panne de reflet ne se diagnostique pas autrement : un
+masque qui refuse tout et une géométrie absente donnent la même image — rien.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

@@ -591,6 +591,12 @@ public partial class ShipDemo : Node3D
     // la lueur tourne à l'armement : son programme compilé au démarrage, pas au crépuscule
     int _glowPrime = 3;
 
+    /// <summary>--reflet : 0 aucun, 1 normal, 2 sans masque (diagnostic).</summary>
+    int _refletMode = 1;
+
+    /// <summary>--anneaux : la charge imposee, ou -1 pour laisser faire la rampe.</summary>
+    float _forceRings = -1;
+
     /// <summary>Le seuil de la lueur, en linéaire — voir ApplySettings pour d'où il sort.</summary>
     const float GlowThreshold = 0.319f;
     /// <summary>Et celui qu'on lui impose de JOUR quand les anneaux brûlent : voir plus bas.</summary>
@@ -1204,6 +1210,19 @@ public partial class ShipDemo : Node3D
         _ship.SwingLanterns(frame);
         // et ce qui tourne sur elle sans rien devoir a la houle
         _ship.SpinRings(frame);
+        /* SON REFLET, retourné autour du plan d eau SOUS LE NAVIRE — pas autour du
+           zéro : un miroir calé sur le zéro hydrographique décollerait de l eau à
+           chaque lame. */
+        {
+            var sp = _ship.GlobalPosition;
+            _ship.ForcedLevel = _forceRings;
+            _ship.MirrorOn = _refletMode != 0;
+            _ship.MirrorMask = _refletMode != 2;
+            _ship.MirrorFade = _refletMode != 2 && _refletMode != 3;
+            _ship.MirrorDebug = _refletMode == 4;
+            _ship.SyncMirror(_sea.Core.Sample(sp.X, sp.Z, _t), _cam);
+            foreach (var m in _ship.MirrorMaterials) PushSeaTo(m);
+        }
         JumpTick(frame);
         StepOthers(frame);
         long a2 = GC.GetAllocatedBytesForCurrentThread();
@@ -1355,13 +1374,7 @@ public partial class ShipDemo : Node3D
         if (ShipNode.Caustic is ShaderMaterial hc) PushSea(hc);
         // la brume rasante se pose sur la MÊME houle, et prend la couleur du ciel
         if (_mist != null) PushSea(_mist.Material);
-        void PushSea(ShaderMaterial m)
-        {
-            _sea.PushWaves(m);
-            m.SetShaderParameter(U.Sharp, (float)_sea.Core.Sharp);
-            m.SetShaderParameter("u_sunlit", (float)_sky.Sunlit);
-            _sky.PushTo(m);
-        }
+        void PushSea(ShaderMaterial m) => PushSeaTo(m);
         // après le recentrage : la mer et le champ lisent la coque où elle EST
         _sea.TrackShips(_fleet);
         // la cible rendue à l'image d'avant, avec l'heure et l'ancre de CETTE passe
@@ -1425,8 +1438,13 @@ public partial class ShipDemo : Node3D
            confusion. */
         if (!_skirmish) WraithTick(frame, frame * _sky.DayRate / 60.0);
         // et la mer les voit : leur reflet et leur lumière sur l'eau
-        int lamps = _ship.FillLamps(_sea.Lamps, _sea.LampRange, 0);
-        foreach (var s in _others) lamps += s.FillLamps(_sea.Lamps, _sea.LampRange, lamps);
+        /* LE TELEPORTEUR EN PREMIER : les huit places sont partagees par la flotte
+           et les fanaux les prennent volontiers toutes. Une sphere de vingt metres
+           qui ne se refleterait pas parce qu un feu de poupe avait pris le dernier
+           creneau serait une panne difficile a comprendre. */
+        int lamps = _ship.FillRingLamp(_sea.Lamps, _sea.LampRange, _sea.LampCol, _sea.LampSize, 0);
+        lamps += _ship.FillLamps(_sea.Lamps, _sea.LampRange, _sea.LampCol, _sea.LampSize, lamps);
+        foreach (var s in _others) lamps += s.FillLamps(_sea.Lamps, _sea.LampRange, _sea.LampCol, _sea.LampSize, lamps);
         _sea.PushLamps(lamps);
         /* L'ŒIL SOUS LA SURFACE : la mer le dit à son shader, qui dessine alors sa
            face de dessous — la fenêtre de Snell. */
@@ -3830,6 +3848,13 @@ public partial class ShipDemo : Node3D
         _sea.Material?.SetShaderParameter("u_harbour_pass", pass);
         _foam.Set("u_harbour", v);
         _foam.Set("u_harbour_pass", pass);
+        // le reflet du teleporteur ride sur la MEME mer, donc sur le meme abri
+        if (_ship != null)
+            foreach (var m in _ship.MirrorMaterials)
+            {
+                m.SetShaderParameter("u_harbour", v);
+                m.SetShaderParameter("u_harbour_pass", pass);
+            }
         // la lumière du fond lit le même abri : une rade calme n'a pas les
         // nervures d'une rade battue
         _land?.Ground.SetShaderParameter("u_harbour", v);
@@ -3888,6 +3913,19 @@ public partial class ShipDemo : Node3D
     /// la coque reste à zéro, et tout ce qui se calcule près d'elle garde sa
     /// précision. C'est ce que fait la page au lancement.
     /// </summary>
+    /// <summary>
+    /// LA MER, POUSSÉE À QUI LA LIT — houle, aiguisage, soleil et ciel. Tout ce qui
+    /// inclut gerstner.gdshaderinc en a besoin : la mer elle-même, l écume, les
+    /// caustiques, la brume rasante, et le reflet du téléporteur.
+    /// </summary>
+    void PushSeaTo(ShaderMaterial m)
+    {
+        _sea.PushWaves(m);
+        m.SetShaderParameter(U.Sharp, (float)_sea.Core.Sharp);
+        m.SetShaderParameter("u_sunlit", (float)_sky.Sunlit);
+        _sky.PushTo(m);
+    }
+
     void Moor()
     {
         if (_world?.StartPort is not NavalSim.Core.Isle home) return;
@@ -4220,6 +4258,8 @@ public partial class ShipDemo : Node3D
                 // sans synchro verticale : pour mesurer ce que la machine tient vraiment
                 // par les réglages (sans les enregistrer) : une autre option qui les réapplique ne la défait pas
                 case "--vsync": _settings.VSync = args[i + 1] != "0"; ApplySettings(); break;
+                // la charge forcee, pour un banc : la rampe met vingt secondes
+                case "--anneaux": _forceRings = args[i + 1].ToFloat(); break;
                 // les ombres des fanaux : une omni qui porte ombre rend un CUBE par image
                 case "--ombres":
                     _settings.LanternShadows = args[i + 1] == "1";
@@ -4260,6 +4300,13 @@ public partial class ShipDemo : Node3D
                 case "--masque": _settings.FilmMask = args[i + 1] == "1"; ApplySettings(); break;
                 case "--expo": _settings.AutoExposure = args[i + 1] == "1"; ApplySettings(); break;
                 case "--lueur": _settings.Glow = args[i + 1] == "1"; ApplySettings(); break;
+                /* LE REFLET DU TELEPORTEUR : 0 aucun, 1 normal, 2 SANS SON MASQUE.
+                   Un masque qui refuse tout et une geometrie absente donnent la meme
+                   image — rien. Ce cadran separe les deux en un lancement, ce qui vaut
+                   mieux qu une hypothese de plus. */
+                case "--reflet":
+                    _refletMode = args[i + 1].ToInt();
+                    break;
                 case "--dof": _settings.Dof = args[i + 1] == "1"; ApplySettings(); break;
                 case "--flou": _settings.MotionBlur = args[i + 1] == "1"; ApplySettings(); break;
                 case "--parallele": _settings.ParallelSolvers = args[i + 1] == "1"; break;

@@ -61,6 +61,15 @@ public partial class ShipDemo
     {
         if (_inTitle || _ship == null || _world == null) return;
         if (Jumping) { CancelJump("Les anneaux retombent"); return; }
+        /* PAS D'ANNEAUX, PAS DE SAUT. Ce n'était pas vérifié, et le trou est de
+           ceux qui se voient mal : le saut marchait sur n'importe quelle coque, en
+           silence, sans rien à regarder — ce qui ressemble exactement à des anneaux
+           qui ne s'allument pas. Signalé en jeu comme tel. */
+        if (_ship.RingCount == 0)
+        {
+            Say($"{_ship.Spec.Name} ne porte pas d'anneaux");
+            return;
+        }
         if (_jumpTarget is not { } t) { Say(Teleport.Say(Teleport.Verdict.SansCible)); return; }
 
         var v = Teleport.Check(_world, t.X, t.Z, _ship.Physics.Draft, _ship.Spec.L);

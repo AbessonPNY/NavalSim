@@ -649,6 +649,38 @@ rayon en mètres, et **élancement** (rayon sur demi-épaisseur). Sous 3, la pi�
 ne se lit pas comme un anneau, son axe est arbitraire, et un avertissement le
 signale.
 
+### Plusieurs anneaux : la figure des orbites
+
+Le nombre n'est pas limité — mettez-en six ou huit dans le `.glb`, inclinés
+différemment, et vous obtenez la figure d'orbites entrecroisées plutôt qu'un
+manège. **Sans rien écrire dans la fiche**, chacun prend :
+
+- une **vitesse** tirée du nombre d'or, dans une bande vive (3 à 8 tr/min), de
+  sens alterné — le rapport ne bouclant jamais, ils ne se réalignent pas ;
+- un **axe** pris à tour de rôle parmi vertical, étrave et travers.
+
+Huit anneaux donnent par exemple 3,3 / −6,6 / 4,6 / −7,9 / 5,9 / −3,8 / 7,1 /
+−5,1 tr/min sur les trois axes. Une ligne de fiche reste souveraine si un anneau
+précis doit faire autre chose.
+
+### Ce que la mer en voit — et ce qu'elle ne peut PAS voir
+
+**La mer ne reflète jamais les anneaux ni la bulle directement, et c'est
+structurel.** Son miroir est en espace écran ; or la mer est un matériau OPAQUE,
+donc dessinée AVANT la passe transparente où ils vivent. Son image et sa
+profondeur sont celles d'un monde où ils n'existent pas encore. Leur donner
+`depth_draw_always` ne rattrape rien — essayé, mesuré, rendu.
+
+Ce qu'ils posent sur l'eau passe donc par les **feux** de la mer, et l'appareil y
+prend **cinq places** réparties sur son cercle plutôt qu'une seule au centre : un
+point ne pose qu'une étincelle, cinq posent une tache large. Ils tournent
+lentement avec lui, sinon leurs traînées resteraient plantées comme des piquets.
+
+Trois molettes, en tête de `ShipNode.Rings.cs` : `LampEnergy` (9, ce que la lampe
+éclaire), `LampSeaGain` (×12, ce que la mer en reçoit — les deux n'ont aucune
+raison d'être le même nombre) et `LampPoints` (5 ; le tableau de la mer n'en tient
+que huit pour toute la flotte, et il faut en laisser aux fanaux).
+
 **Pour changer sa vitesse** — facultatif. Sans ces lignes, le premier anneau
 tourne à 6 tr/min et chacun des suivants à −0,618 fois le précédent, un rapport
 choisi pour qu'ils ne se réalignent jamais tout à fait.

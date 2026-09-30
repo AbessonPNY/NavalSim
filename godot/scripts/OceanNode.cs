@@ -136,6 +136,10 @@ public partial class OceanNode : Node3D
     // les feux du bord, pour la mer qu'aucune lampe du moteur n'atteint (NLAMP)
     public readonly Vector4[] Lamps = new Vector4[8];
     public readonly float[] LampRange = new float[8];
+    /// <summary>Et la couleur de chacun : une lanterne n'éclaire pas comme un téléporteur.</summary>
+    public readonly Vector3[] LampCol = new Vector3[8];
+    /// <summary>Son rayon en mètres : nul pour un fanal, vingt pour une sphère. Voir u_lamp_size.</summary>
+    public readonly float[] LampSize = new float[8];
 
     /// <summary>Les <paramref name="count"/> premiers feux de <see cref="Lamps"/>, vers la mer.</summary>
     public void PushLamps(int count)
@@ -145,6 +149,8 @@ public partial class OceanNode : Node3D
         if (count == 0) return;
         _mat.SetNow(U.Lamp, Lamps);
         _mat.SetNow(U.LampRange, LampRange);
+        _mat.SetNow(U.LampCol, LampCol);
+        _mat.SetNow(U.LampSize, LampSize);
     }
 
     // ------------------------------------------------------------------

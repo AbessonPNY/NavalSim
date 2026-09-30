@@ -509,7 +509,15 @@ public partial class ShipNode
     /// Ses feux tels que la mer doit les voir : position monde et énergie de
     /// l'instant (flamme comprise), portée à part. Rend le nombre écrit.
     /// </summary>
-    public int FillLamps(Vector4[] lamp, float[] range, int start)
+    /// <summary>
+    /// LA COULEUR D'UNE FLAMME, VUE PAR LA MER. Elle était une constante du shader
+    /// de l'océan, valable tant que tout ce qui éclairait l'eau était un fanal.
+    /// Elle est passée ici parce que la mer tient maintenant une couleur par feu,
+    /// et c'est la valeur exacte d'avant : rien ne change pour les lanternes.
+    /// </summary>
+    public static readonly Vector3 LampWarm = new(1.0f, 0.473f, 0.130f);
+
+    public int FillLamps(Vector4[] lamp, float[] range, Vector3[] col, float[] size, int start)
     {
         int n = start;
         foreach (var L in _lanterns)
@@ -519,6 +527,8 @@ public partial class ShipNode
             var p = L.Light.GlobalPosition;
             lamp[n] = new Vector4(p.X, p.Y, p.Z, L.Light.LightEnergy);
             range[n] = L.Light.OmniRange;
+            col[n] = LampWarm;
+            size[n] = 0;                 // un fanal EST un point, a l'echelle de la mer
             n++;
         }
         return n - start;

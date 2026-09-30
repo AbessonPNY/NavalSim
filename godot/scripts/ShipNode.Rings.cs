@@ -132,6 +132,111 @@ public partial class ShipNode
 
     /// <summary>Vrai dès qu'un anneau est visible : la démo relève le seuil de lueur là-dessus.</summary>
     public bool RingsLit => _ringsLit;
+
+    /// <summary>Combien d'anneaux elle porte. Zéro : elle n'a pas de téléporteur.</summary>
+    public int RingCount => _rings.Count;
+
+    /// <summary>Porte-t-elle la bulle ? Un téléporteur peut s'en passer, c'est un décor.</summary>
+    public bool HasSphere => _sphere != null;
+
+    // ------------------------------------------------------------------
+    //  CE QU'ELLE ÉCLAIRE
+    // ------------------------------------------------------------------
+
+    /* UNE SEULE LAMPE, AU CENTRE DE LA SPHÈRE, et c'est une approximation qu'il
+       faut assumer : ce qui brille est une COQUILLE de vingt mètres, pas un point.
+       Mais tout le navire est DEDANS — mâts compris, la sphère montant à près de
+       vingt-cinq mètres — et depuis l'intérieur d'une coquille lumineuse, une
+       source au centre donne presque la même chose : la lumière vient d'en face,
+       quel que soit l'endroit du bord où l'on se tient.
+
+       UNE SEULE, AUSSI, PARCE QUE LA MER N'EN TIENT QUE HUIT (NLAMP), partagées
+       par toute la flotte et déjà prises par les fanaux. */
+    OmniLight3D? _ringLamp;
+
+    /// <summary>Sa portée à pleine charge, en mètres : au-delà de la sphère, pour que l'eau s'allume autour.</summary>
+    public double LampRange = 140;
+    /// <summary>Et sa force à pleine charge.</summary>
+    public double LampEnergy = 9;
+
+    /// <summary>
+    /// CE QUE LA MER EN REÇOIT, en fois l'énergie de la lampe — et les deux
+    /// nombres n'ont aucune raison d'être le même.
+    ///
+    /// La lampe éclaire une coque à vingt mètres, où neuf suffit largement ; le
+    /// reflet, lui, doit se voir SUR UNE MER DE PLEIN JOUR, contre un soleil qui
+    /// vaut cent mille fois un fanal. Un fanal n'est pas visible à midi et c'est
+    /// juste ; un téléporteur doit l'être, et c'est ce gain qui le permet sans
+    /// aller brûler la coque.
+    /// </summary>
+    public double LampSeaGain = 12;
+
+    /// <summary>
+    /// SUR COMBIEN DE POINTS LA MER LE VOIT. Une lampe ponctuelle ne pose qu'un
+    /// point de lumière sur l'eau, et c'est ce qu'on voyait : une étincelle fixe
+    /// au milieu du reflet. Une coquille de vingt mètres doit poser une large
+    /// tache — on la répartit donc sur un cercle.
+    ///
+    /// Cinq et pas huit : le tableau de la mer n'en tient que huit pour la flotte
+    /// entière, et laisser trois places aux fanaux évite qu'un navire perde ses
+    /// feux parce qu'un autre charge son téléporteur.
+    /// </summary>
+    public int LampPoints = 5;
+
+    /// <summary>Le rayon de l'appareil, en mètres : le plus grand anneau.</summary>
+    double _apparatusR;
+
+    // ------------------------------------------------------------------
+    //  LE REFLET DANS L'EAU
+    // ------------------------------------------------------------------
+
+    /* IL FAUT LE DESSINER, et ce n'est pas un choix. Le miroir de la mer est en
+       espace écran : il relit l'image déjà rendue. Or la mer est un matériau
+       OPAQUE, donc dessinée AVANT la passe transparente où vivent les anneaux et
+       la bulle — son image est celle d'un monde où ils n'existent pas encore.
+       Aucune écriture de profondeur ne rattrape un ordre de passe.
+
+       Reste ce que la page faisait déjà : rendre une seconde fois depuis un œil
+       en miroir. Ici c'est la GÉOMÉTRIE qu'on retourne plutôt que l'œil — une
+       copie de l'appareil, symétrique du plan d'eau, peinte par
+       teleport_mirror.gdshader.
+
+       LA COPIE EST HORS DU NAVIRE, sous la scène. Enfant du navire, elle serait
+       retournée dans SON repère, qui roule et tangue ; le miroir d'une mer est
+       celui du monde, et il ne suit ni la gîte ni l'assiette. */
+    /// <summary>Le masque a l eau. Coupe (--reflet 2), le reflet se peint partout : diagnostic.</summary>
+    public bool MirrorMask = true;
+    /// <summary>Le fondu avec la profondeur (--reflet 3 le coupe seul).</summary>
+    public bool MirrorFade = true;
+    /// <summary>--reflet 4 : peindre la distance au plan au lieu du reflet.</summary>
+    public bool MirrorDebug;
+
+    /// <summary>Le reflet est-il dessine du tout ? (--reflet 0 le coupe)</summary>
+    public bool MirrorOn = true;
+
+    /// <summary>
+    /// FORCER LA CHARGE, pour un banc : la rampe met vingt secondes, et une
+    /// capture ne peut pas les attendre. Rend la main a la rampe avec un negatif.
+    /// </summary>
+    public double ForcedLevel = -1;
+
+    Node3D? _mirror;
+    readonly List<(Node3D Twin, Node3D Of)> _mirrorPairs = new();
+    /// <summary>Ses matières, et laquelle suit la bulle plutôt que les anneaux.</summary>
+    readonly List<(ShaderMaterial Mat, bool Sphere)> _mirrorMats = new();
+
+    /// <summary>Les matières du reflet : la démo leur pousse la houle qui les ride.</summary>
+    public IEnumerable<ShaderMaterial> MirrorMaterials { get { foreach (var m in _mirrorMats) yield return m.Mat; } }
+
+    /* LES OMBRES NE S'ALLUMENT QUE SUR LA FIN. Une lampe de cette portée qui
+       ombre coûte son cube entier à chaque image, et l'on sait depuis les fanaux
+       qu'un omni rend son cube QUEL QUE SOIT son énergie — le couper ne suffit
+       pas, il faut couper l'ombre elle-même. Elles s'allument donc à mi-charge,
+       quand la lumière est assez forte pour qu'elles se voient, et pour les
+       dernières secondes seulement : c'est là que le gréement doit se découper
+       sur le pont. */
+    public double LampShadowFrom = 0.45;
+    bool _lampShadows;
     /// <summary>Leurs pivots, pour que LocalBounds ne compte pas leur envergure.</summary>
     readonly HashSet<Node3D> _ringPivots = new();
 
@@ -203,6 +308,7 @@ public partial class ShipNode
     void MountRings(List<(Node3D Node, Transform3D Parent)> found, double k, ModelSpec m)
     {
         if (found.Count == 0) return;
+        GD.Print($"[{Spec.Id}] {found.Count} anneau(x) trouvé(s) dans le modèle");
         var ry = new Quaternion(Vector3.Up, (float)m.RotationY);
         var off = new Vector3((float)m.Offset[0], (float)m.Offset[1], (float)m.Offset[2]);
 
@@ -265,12 +371,21 @@ public partial class ShipNode
                deux maillages d'un même anneau n'ont pas le même repère. Un
                override plutôt qu'une retouche : le matériau du .glb reste celui
                de l'auteur, et rien n'est perdu si l'on veut le rendre. */
+            /* APRÈS LE REPARENTAGE, DONC DANS LE REPÈRE DU PIVOT, où le centre de
+               l'anneau est l'ORIGINE par construction. Écrit avec « parent » dans
+               la chaîne, comme au-dessus, on inversait une transformée qui n'est
+               plus celle du maillage : le centre et l'axe poussés au shader
+               tombaient à côté, et les bandes ne couraient plus le long de
+               l'anneau mais en travers.
+
+               La leçon : <c>Meshes(nd)</c> rend la transformée COURANTE, et deux
+               lignes plus haut on vient justement de la réécrire. */
             var glow = new List<ShaderMaterial>();
             foreach (var (mi, t) in Meshes(nd))
             {
-                var inv = (parent * t).AffineInverse();
-                var gm = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/ring_glow.gdshader") };
-                gm.SetShaderParameter("u_centre", inv * c);
+                var inv = t.AffineInverse();
+                var gm = new ShaderMaterial { Shader = LoadShader("res://shaders/ring_glow.gdshader") };
+                gm.SetShaderParameter("u_centre", inv * Vector3.Zero);
                 gm.SetShaderParameter("u_axis", (inv.Basis * axis).Normalized());
                 mi.MaterialOverride = gm;
                 mi.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;   // de la lumière n'ombre pas
@@ -278,13 +393,24 @@ public partial class ShipNode
             }
 
             var sp = RingFor(m, nd.Name);
-            /* DEUX ANNEAUX À LA MÊME VITESSE SE RETROUVENT toujours dans la même
+            /* DEUX ANNEAUX À LA MÊME VITESSE se retrouvent toujours dans la même
                figure, et l'ensemble se lit comme une pièce unique. Faute de fiche,
-               chacun tourne à −0,618 fois le précédent : le sens s'inverse, et le
-               rapport n'étant pas une fraction simple, ils ne se réalignent
-               jamais tout à fait. */
-            double rpm = sp?.Rpm ?? BaseRpm * Math.Pow(-0.618, i);
-            string mode = sp?.Spin ?? "vertical";
+               chacun prend donc la sienne — mais TOUTES VIVES.
+
+               La règle d'avant (−0,618 fois le précédent) allait pour deux et ne
+               vaut plus pour huit : le cinquième anneau tournait à un dixième de
+               tour par minute, c'est-à-dire à l'arrêt. On garde le nombre d'or
+               pour l'irrégularité — sa partie fractionnaire ne boucle jamais, donc
+               les anneaux ne se réalignent pas — mais on le fait jouer DANS une
+               bande de vitesses, au lieu de l'empiler. Le sens alterne. */
+            double frac = (i * 0.6180339887) % 1.0;
+            double rpm = sp?.Rpm ?? BaseRpm * (0.55 + 0.9 * frac) * (i % 2 == 0 ? 1 : -1);
+            /* ET LES AXES SE CROISENT, faute de fiche : vertical, étrave, travers,
+               puis on recommence. Huit anneaux qui tourneraient tous autour de la
+               verticale feraient un manège ; alternés, ils font la figure d'orbites
+               entrecroisées — celle qu'on cherche. Une fiche qui nomme l'axe reste
+               souveraine. */
+            string mode = sp?.Spin ?? (i % 3) switch { 0 => "vertical", 1 => "etrave", _ => "travers" };
             Vector3 spin = SpinAxis(axis, mode);
             /* UN ANNEAU QUI TOURNE AUTOUR DE SA NORMALE NE TOURNE PAS : il balaie
                sa figure de depart, et il ne reste que le scintillement de ses
@@ -304,6 +430,7 @@ public partial class ShipNode
             _rings.Add(ring);
             if (sp != null && !sp.On) RingsOrdered = false;
             _ringPivots.Add(pivot);
+            _apparatusR = Math.Max(_apparatusR, rmax * k);
             GD.Print(FormattableString.Invariant(
                 $"[{Spec.Id}] anneau {nd.Name} : normale ({axis.X:F2}, {axis.Y:F2}, {axis.Z:F2}), tourne « {mode} » autour de ({spin.X:F2}, {spin.Y:F2}, {spin.Z:F2}), rayon {rmax * k:F1} m, élancement {elan:F0}, {rpm:F1} tr/min"));
         }
@@ -354,6 +481,7 @@ public partial class ShipNode
     void MountSphere(List<(Node3D Node, Transform3D Parent)> found, double k, ModelSpec m)
     {
         if (found.Count == 0) return;
+
         var ry = new Quaternion(Vector3.Up, (float)m.RotationY);
         var off = new Vector3((float)m.Offset[0], (float)m.Offset[1], (float)m.Offset[2]);
 
@@ -380,7 +508,7 @@ public partial class ShipNode
             {
                 var gm = new ShaderMaterial
                 {
-                    Shader = GD.Load<Shader>("res://shaders/energy_sphere.gdshader"),
+                    Shader = LoadShader("res://shaders/energy_sphere.gdshader"),
                     /* APRÈS LES ANNEAUX, qui sont dedans. Deux transparences au même
                        rang se départagent sur le centre de leur objet, et les trois
                        ont le même centre — rien ne les départagerait. */
@@ -394,6 +522,192 @@ public partial class ShipNode
         GD.Print($"[{Spec.Id}] sphère d'énergie : {_sphereGlow.Count} maillage(s)");
     }
 
+    /// <summary>
+    /// LA LAMPE DU TÉLÉPORTEUR, bâtie une fois et jamais retirée — on ne fait pas
+    /// naître une lumière en jeu. Elle est ÉTEINTE et INVISIBLE au repos, ce qui
+    /// ne coûte rien, et c'est son énergie qui la fait exister.
+    ///
+    /// Posée au centre de la sphère s'il y en a une, sinon à celui du premier
+    /// anneau : dans les deux cas le centre de l'appareil, qui est aussi le centre
+    /// du navire à quelques mètres près.
+    /// </summary>
+    public void MountLamp()
+    {
+        /* AU CENTRE DE L APPAREIL, qui est celui des anneaux : leur pivot est
+           plante dessus par construction. Le pivot de la sphere, lui, porte le
+           decalage du modele et non le centre de la bulle — s en servir mettait
+           la lampe a la flottaison, deux metres trop bas et trois trop en
+           arriere. A defaut d anneaux, on prend ce qu il y a.
+
+           Appelee APRES les deux montages, pour qu il n y en ait qu une quoi que
+           le modele porte. */
+        if (_ringLamp != null) return;
+        Vector3 centre = _rings.Count > 0 ? _rings[0].Pivot.Position
+                       : _sphere != null ? _sphere.Position : Vector3.Zero;
+        if (_rings.Count == 0 && _sphere == null) return;
+        _ringLamp = new OmniLight3D
+        {
+            Name = "lampe_anneaux",
+            Position = centre,
+            LightColor = new Color(0.55f, 0.74f, 1.0f),
+            LightEnergy = 0,
+            OmniRange = (float)LampRange,
+            /* UNE ATTÉNUATION MOLLE (0,6 au lieu de 1) : une coquille lumineuse
+               n'a pas la décroissance en carré d'un point, et une chute trop raide
+               laisserait la mer noire à trente mètres du bord pendant que le pont
+               serait éblouissant. */
+            OmniAttenuation = 0.6f,
+            ShadowEnabled = false,
+            OmniShadowMode = OmniLight3D.ShadowMode.Cube,
+            ShadowBias = 0.06f,
+            Visible = false
+        };
+        AddChild(_ringLamp);
+    }
+
+    /// <summary>
+    /// BÂTIR LA COPIE RETOURNÉE : un jumeau par pivot, portant les mêmes maillages
+    /// — partagés, non recopiés — sous une matière de reflet.
+    ///
+    /// Appelée après les deux montages, comme la lampe. Rien n'est créé en jeu :
+    /// les jumeaux existent dès la mise à l'eau et ne coûtent que tant qu'ils sont
+    /// visibles.
+    /// </summary>
+    void MountMirror()
+    {
+        if (_mirror != null || (_rings.Count == 0 && _sphere == null)) return;
+        var sh = LoadShader("res://shaders/teleport_mirror.gdshader");
+        if (sh == null) return;
+
+        /* PAS ENCORE PENDU. Il le sera à la première image, au parent du navire —
+           voir SyncMirror. Le faire ici obligerait à savoir si le navire est déjà
+           dans l arbre au moment où son modèle se charge, ce qui dépend de qui le
+           met à l eau ; le reporter à la première image ne dépend de rien. */
+        _mirror = new Node3D { Name = $"reflet_{Spec.Id}", Visible = false };
+        GD.Print($"[{Spec.Id}] reflet : shader chargé");
+
+        foreach (var r in _rings) Twin(r.Pivot, 0);
+        if (_sphere != null) Twin(_sphere, 1);
+        GD.Print($"[{Spec.Id}] reflet : {_mirrorPairs.Count} jumeau(x), {_mirrorMats.Count} matière(s)");
+
+        void Twin(Node3D of, float sphere)
+        {
+            var twin = new Node3D { Name = "r_" + of.Name };
+            _mirror.AddChild(twin);
+            _mirrorPairs.Add((twin, of));
+            /* LA TRANSFORMÉE RENDUE PAR Meshes() CONTIENT DÉJÀ CELLE DU PIVOT —
+                elle part de lui. La reposer sur le jumeau, qui porte déjà la même,
+                l applique DEUX FOIS : la copie se retrouve tournée deux fois et
+                mise au carré de l échelle, donc ailleurs. On retire donc la part du
+                pivot pour ne garder que la place du maillage DANS lui. */
+            var undo = of.Transform.AffineInverse();
+            foreach (var (mi, t) in Meshes(of))
+            {
+                var gm = new ShaderMaterial { Shader = sh };
+                gm.SetShaderParameter("u_sphere", sphere);
+                /* LE CENTRE ET L'AXE DE L'ANNEAU, pris sur la matière de l'original :
+                   le reflet doit lire le MÊME angle, sinon ses bandes ne seraient pas
+                   celles qu'on voit au-dessus. */
+                if (mi.MaterialOverride is ShaderMaterial src)
+                {
+                    gm.SetShaderParameter("u_centre", src.GetShaderParameter("u_centre"));
+                    gm.SetShaderParameter("u_axis", src.GetShaderParameter("u_axis"));
+                }
+                twin.AddChild(new MeshInstance3D
+                {
+                    Mesh = mi.Mesh,               // partagé : un reflet n'est pas une seconde géométrie
+                    Transform = undo * t,
+                    MaterialOverride = gm,
+                    CastShadow = GeometryInstance3D.ShadowCastingSetting.Off
+                });
+                _mirrorMats.Add((gm, sphere > 0.5f));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Poser le reflet pour cette image : la copie prend la place du navire,
+    /// retournée autour du plan d'eau, et chaque jumeau la pose de son pivot.
+    ///
+    /// <paramref name="seaY"/> est le niveau de la mer sous le navire, en mètres
+    /// monde. C'est le plan du miroir, et il monte et descend avec la houle — un
+    /// reflet calé sur le zéro hydrographique décollerait de l'eau à chaque lame.
+    /// </summary>
+    public void SyncMirror(double seaY, Camera3D cam)
+    {
+        if (_mirror == null) return;
+        /* SOUS LA SCÈNE ET NON SOUS LE NAVIRE : le miroir d une mer est celui du
+           MONDE, et il ne suit ni la gîte ni l assiette. Enfant du navire, la copie
+           serait retournée dans son repère à lui, qui roule. */
+        if (_mirror.GetParent() == null)
+        {
+            if (GetParent() is not Node p) return;
+            p.AddChild(_mirror);
+        }
+        bool on = MirrorOn && (_ringsLit || _sphereShown);
+        if (_mirror.Visible != on) _mirror.Visible = on;
+        if (!on) return;
+
+        /* LE MIROIR : y devient 2·seaY − y. En transformée, c'est une échelle
+           négative en y suivie d'une montée de deux fois le niveau. Le déterminant
+           est négatif, donc les faces s'inversent — les matières du reflet sont en
+           cull_disabled, ce qui rend la question sans objet. */
+        var m = new Transform3D(
+            new Basis(new Vector3(1, 0, 0), new Vector3(0, -1, 0), new Vector3(0, 0, 1)),
+            new Vector3(0, (float)(2 * seaY), 0));
+        _mirror.GlobalTransform = m * GlobalTransform;
+        foreach (var (twin, of) in _mirrorPairs) twin.Transform = of.Transform;
+        /* LE PLAN D EAU EN ESPACE VUE. Godot rend les grands mondes en
+           coordonnees RELATIVES A LA CAMERA : une hauteur de mer absolue ne veut
+           rien dire dans le shader. On transporte donc le PLAN lui-meme dans le
+           repere de la vue, ou tout est coherent par construction. */
+        var w2v = cam.GlobalTransform.AffineInverse();
+        var pv = w2v * new Plane(Vector3.Up, (float)seaY);
+        var plane = new Vector4(pv.Normal.X, pv.Normal.Y, pv.Normal.Z, pv.D);
+        foreach (var (gm, isSphere) in _mirrorMats)
+        {
+            gm.SetShaderParameter("u_level", (float)(isSphere ? SphereLevel : RingLevel));
+            gm.SetShaderParameter("u_sea_y", (float)seaY);
+            gm.SetShaderParameter("u_sea_plane", plane);
+            gm.SetShaderParameter("u_mask", MirrorMask ? 1f : 0f);
+            gm.SetShaderParameter("u_fade_on", MirrorFade ? 1f : 0f);
+            gm.SetShaderParameter("u_debug", MirrorDebug ? 1f : 0f);
+        }
+    }
+
+    /// <summary>La copie s en va avec le navire : rien ne doit rester dans la scène.</summary>
+    public override void _ExitTree()
+    {
+        if (_mirror != null && _mirror.GetParent() is Node p) { p.RemoveChild(_mirror); _mirror.QueueFree(); _mirror = null; }
+    }
+
+    /// <summary>
+    /// LE TÉLÉPORTEUR VU PAR LA MER — son reflet sur l'eau et sa lumière DANS
+    /// l'eau, par le même tableau que les fanaux (voir FillLamps).
+    ///
+    /// Il passe AVANT eux et prend donc toujours une place : les huit sont
+    /// partagées par la flotte entière, et une sphère de vingt mètres qui ne se
+    /// refléterait pas parce qu'un fanal de poupe avait pris le dernier créneau
+    /// serait une panne difficile à comprendre.
+    /// </summary>
+    public int FillRingLamp(Vector4[] lamp, float[] range, Vector3[] col, float[] size, int start)
+    {
+        if (_ringLamp == null || start >= lamp.Length || RingLevel <= 0.01) return 0;
+        /* UNE SEULE, MAIS LARGE. Cinq points répartis sur le cercle donnaient cinq
+           ÉTINCELLES, et cela se voyait pour ce que c'était : cinq lampes posées
+           sur l'eau. La faute n'était pas dans le nombre mais dans le modèle — la
+           mer traitait chaque feu comme un point, alors que celui-ci fait vingt
+           mètres de rayon. On lui dit donc sa TAILLE, et son lobe s'étale de
+           lui-même en une traînée. */
+        var p = _ringLamp.GlobalPosition;
+        var c = _ringLamp.LightColor;
+        lamp[start] = new Vector4(p.X, p.Y, p.Z, (float)(_ringLamp.LightEnergy * LampSeaGain));
+        range[start] = _ringLamp.OmniRange;
+        col[start] = new Vector3(c.R, c.G, c.B);
+        size[start] = (float)(_apparatusR > 1 ? _apparatusR : 12);
+        return 1;
+    }
+
     /// <summary>La ligne de fiche qui parle de cet anneau, s'il y en a une.</summary>
     static RingSpec? RingFor(ModelSpec m, string name)
     {
@@ -401,6 +715,23 @@ public partial class ShipNode
             if (string.IsNullOrEmpty(r.Match) || name.Contains(r.Match, StringComparison.OrdinalIgnoreCase))
                 return r;
         return null;
+    }
+
+    /// <summary>
+    /// CHARGER UN SHADER EN LE DISANT S'IL MANQUE.
+    ///
+    /// Un <c>ShaderMaterial</c> dont le shader est nul ne dessine RIEN, et ne se
+    /// plaint pas : la pièce disparaît, tout le reste marche, et l'on cherche la
+    /// panne dans la logique. Deux fichiers ajoutés hors de l'éditeur ont
+    /// exactement ce profil tant que Godot ne les a pas vus passer.
+    /// </summary>
+    static Shader? LoadShader(string path)
+    {
+        var sh = GD.Load<Shader>(path);
+        if (sh == null)
+            GD.PushError($"{path} : shader introuvable — la pièce qui l'attend ne sera PAS dessinée. "
+                       + "Godot ne l'a peut-être pas importé ; rouvrir l'éditeur une fois suffit.");
+        return sh;
     }
 
     /// <summary>
@@ -458,11 +789,15 @@ public partial class ShipNode
 
         /* LA CHARGE MONTE ET DESCEND EN RAMPE, jamais d'un coup : c'est la rampe
            qui fait lire « il charge » plutôt que « quelqu'un a appuyé ». */
-        double want = RingsOrdered ? 1 : 0;
-        if (RingLevel != want)
+        if (ForcedLevel >= 0) RingLevel = Math.Clamp(ForcedLevel, 0, 1);
+        else
         {
-            double step = dt / (RingsOrdered ? Math.Max(0.01, RingsRise) : Math.Max(0.01, RingsFall));
-            RingLevel = want > RingLevel ? Math.Min(want, RingLevel + step) : Math.Max(want, RingLevel - step);
+            double want = RingsOrdered ? 1 : 0;
+            if (RingLevel != want)
+            {
+                double step = dt / (RingsOrdered ? Math.Max(0.01, RingsRise) : Math.Max(0.01, RingsFall));
+                RingLevel = want > RingLevel ? Math.Min(want, RingLevel + step) : Math.Max(want, RingLevel - step);
+            }
         }
 
         /* ÉTEINT NE COÛTE RIEN, et c'est tout l'intérêt de cacher plutôt que de
@@ -496,7 +831,34 @@ public partial class ShipNode
             _ringsLit = lit;
             foreach (var r in _rings) r.Pivot.Visible = lit;
         }
-        if (!lit) return;
+        if (!lit)
+        {
+            /* ÉTEINTE POUR DE BON : invisible ET sans ombre. Une lampe laissée
+               visible à énergie nulle rendrait encore son cube d'ombre — la leçon
+               des fanaux, qui coûtait une milliseconde vingt-quatre heures sur
+               vingt-quatre. */
+            if (_ringLamp != null && _ringLamp.Visible)
+            {
+                _ringLamp.Visible = false;
+                _ringLamp.LightEnergy = 0;
+                if (_lampShadows) { _lampShadows = false; _ringLamp.ShadowEnabled = false; }
+            }
+            return;
+        }
+
+        /* LA LAMPE SUIT LA CHARGE AU CARRÉ. Linéaire, elle éblouirait tout le
+           long des vingt secondes ; au carré, elle n'existe vraiment que sur la
+           fin, comme la bulle — et c'est la fin qui doit être spectaculaire. */
+        if (_ringLamp != null)
+        {
+            double e = RingLevel * RingLevel;
+            _ringLamp.Visible = true;
+            _ringLamp.LightEnergy = (float)(LampEnergy * e);
+            // du bleu au blanc, comme tout le reste de l'appareil
+            _ringLamp.LightColor = new Color(0.30f, 0.52f, 1.0f).Lerp(new Color(0.88f, 0.94f, 1.0f), (float)RingLevel);
+            bool om = RingLevel > LampShadowFrom;
+            if (om != _lampShadows) { _lampShadows = om; _ringLamp.ShadowEnabled = om; }
+        }
 
         _ringClock += dt;
         if (_ringClock > 3600) _ringClock -= 3600;     // les décimales d'un flottant ne durent pas une partie

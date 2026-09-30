@@ -81,11 +81,28 @@ uniform float u_moon_lit = 0.0;
 #define NLAMP 8
 uniform vec4  u_lamp[NLAMP];
 uniform float u_lamp_range[NLAMP];
+/* LA COULEUR DE CHAQUE FEU, et non plus une seule pour tous. Elle était une
+   constante de flamme (1 ; 0,473 ; 0,130), ce qui allait tant que la mer ne
+   voyait que des lanternes. Les anneaux du téléporteur sont blanc-bleu : leur
+   reflet serait sorti orange, ce qui n'a l'air ni d'une erreur ni d'un choix,
+   juste d'une mer qui ne les voit pas. */
+uniform vec3  u_lamp_col[NLAMP];
+/* LE RAYON DE CHAQUE FEU, en mètres. Zéro pour un fanal, qui est un point à
+   l'échelle de la mer ; vingt pour une sphère d'énergie, qui n'en est pas un.
+
+   Sans lui, tout ce qui éclaire l'eau y fait un SCINTILLEMENT, c'est-à-dire un
+   point — et une source de vingt mètres rendue par cinq points donne cinq
+   étincelles au lieu d'une large traînée. Ce n'est pas un défaut de réglage,
+   c'est un modèle faux : un chemin de lune est large parce que la lune a un
+   diamètre apparent, pas parce qu'elle est brillante. */
+uniform float u_lamp_size[NLAMP];
 uniform int   u_lamp_count = 0;
 // leurs deux forces, réglables (reglages.ini, [lanternes])
 uniform float u_lamp_reflection = 2.4;
 uniform float u_lamp_water = 0.6;
 // 0xffb765, la flamme de _lanternAt, en linéaire
+/* Gardée pour mémoire : c'était la couleur de TOUS les feux, et c'est celle que
+   le C# écrit encore pour une lanterne (ShipNode.LampWarm). */
 const vec3 LAMP_COL = vec3(1.0, 0.473, 0.130);
 
 /* CE QUI EST SOUS LA SURFACE, VU À TRAVERS ELLE. L'image et la profondeur déjà
@@ -657,11 +674,18 @@ void fragment() {
 		win *= win;
 		float irr = u_lamp[i].w * win / max(dl * dl, 0.01);
 		if (irr <= 1e-5) continue;
-		vec3 lc = LAMP_COL * irr * max(dot(N, L), 0.0);
+		vec3 lc = u_lamp_col[i] * irr * max(dot(N, L), 0.0);
 		vec3 Hl = normalize(L + V);
 		float nhl = max(dot(N, Hl), 0.0);
-		float ddl = nhl * nhl * (a * a - 1.0) + 1.0;
-		float Dl = (a * a) / (3.14159265 * ddl * ddl);
+		/* LA TAILLE APPARENTE DE LA SOURCE ÉLARGIT SON LOBE. Le demi-angle sous
+		   lequel on la voit est rayon/distance ; ajouté à la rugosité, il étale le
+		   scintillement en traînée, exactement comme la mer étale le soleil quand
+		   elle se ride. Un fanal a un rayon nul et retrouve donc le lobe d'avant,
+		   au bit près. L'énergie, elle, ne change pas : D est normalisée, on
+		   ÉTALE la même lumière au lieu d'en ajouter. */
+		float al = clamp(a + u_lamp_size[i] / max(dl, 1.0), a, 1.0);
+		float ddl = nhl * nhl * (al * al - 1.0) + 1.0;
+		float Dl = (al * al) / (3.14159265 * ddl * ddl);
 		float Fl = 0.02 + 0.98 * pow(1.0 - max(dot(V, Hl), 0.0), 5.0);
 		c += lc * Dl * Fl * u_lamp_reflection;
 		c += lc * (u_shallow * u_lamp_water + vec3(0.02));
