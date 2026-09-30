@@ -44,6 +44,7 @@ switch (mode)
     case "allures": Allures(); break;
     case "ris": Ris(); break;
     case "calibres": Calibres(); break;
+    case "anneaux": Anneaux(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -764,4 +765,57 @@ void Calibres()
         }
         Console.WriteLine($"calibre {k:F2} : portee {shot.P.X,4:F0} m, reste {at200,3:F0} m/s a 200 m, {at400,3:F0} a 400 ; trou {0.025 * k * k * 1e4,4:F0} cm2, recul {3000 * k * k,5:F0} kg.m/s");
     }
+}
+
+/* LA NORMALE D'UN ANNEAU, EPROUVEE CONTRE DES TORES D'INCLINAISON CONNUE.
+   On ne peut pas juger a l'oeil qu'un anneau tourne autour du bon axe : un
+   anneau qui tourne autour d'un axe FAUX tourne quand meme, il balaie
+   seulement au lieu de pivoter, et par mer formee cela se confond avec le
+   roulis. D'ou une epreuve sans rendu, sur des tores dont on sait la reponse.
+
+   Rings.Axis est PURE et partagee avec js/ship-model.js (Naval.ringAxis) ;
+   scratchpad n'existe plus d'une session a l'autre, ce banc reste. */
+void Anneaux()
+{
+    (string Nom, Vec3d N, double R, double r)[] cas =
+    {
+        ("vertical dans l'axe (normale = travers)", new Vec3d(1, 0, 0), 20, 0.7),
+        ("vertical en travers (normale = etrave)",   new Vec3d(0, 0, 1), 20, 0.7),
+        ("couche a plat (normale = verticale)",      new Vec3d(0, 1, 0), 20, 0.7),
+        ("incline 30 deg sur l'axe",                new Vec3d(Math.Cos(Math.PI / 6), Math.Sin(Math.PI / 6), 0), 20, 0.7),
+        ("incline 45 deg quelconque",               new Vec3d(0.5, 0.7071, 0.5), 20, 0.7),
+        ("incline 12 deg, presque plat",            new Vec3d(Math.Sin(0.209), Math.Cos(0.209), 0), 20, 0.7),
+        ("tube epais R=20 r=6",                     new Vec3d(0.3, 0.8, -0.52), 20, 6),
+    };
+    double pire = 0;
+    foreach (var c in cas)
+    {
+        var n = c.N.Normalized();
+        // deux vecteurs de son plan
+        var a = Math.Abs(n.X) < 0.9 ? new Vec3d(1, 0, 0) : new Vec3d(0, 1, 0);
+        var u = a.Cross(n).Normalized();
+        var w = n.Cross(u).Normalized();
+        double xx = 0, xy = 0, xz = 0, yy = 0, yz = 0, zz = 0;
+        int np = 0;
+        for (int p = 0; p < 96; p++)
+        {
+            double th = 2 * Math.PI * p / 96, cu = Math.Cos(th), su = Math.Sin(th);
+            for (int q = 0; q < 16; q++)
+            {
+                double ph = 2 * Math.PI * q / 16, rad = c.R + c.r * Math.Cos(ph), h = c.r * Math.Sin(ph);
+                // le tore est centre sur zero : la covariance se prend telle quelle
+                double dx = u.X * cu * rad + w.X * su * rad + n.X * h;
+                double dy = u.Y * cu * rad + w.Y * su * rad + n.Y * h;
+                double dz = u.Z * cu * rad + w.Z * su * rad + n.Z * h;
+                xx += dx * dx; xy += dx * dy; xz += dx * dz;
+                yy += dy * dy; yz += dy * dz; zz += dz * dz; np++;
+            }
+        }
+        var got = Rings.Axis(xx / np, xy / np, xz / np, yy / np, yz / np, zz / np);
+        double dot = Math.Abs(got.X * n.X + got.Y * n.Y + got.Z * n.Z);
+        double deg = Math.Acos(Math.Min(1, dot)) * 180 / Math.PI;
+        pire = Math.Max(pire, deg);
+        Console.WriteLine($"{c.Nom,-42} ecart {deg,7:F4} deg");
+    }
+    Console.WriteLine($"\npire ecart : {pire:F4} deg {(pire < 0.5 ? "-> OK" : "-> NON")}");
 }

@@ -53,7 +53,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `jetty.js` | le ponton d'un port |
 | `chart.js` | la carte marine |
 | `quests.js` | les quêtes : étapes, lieux, objectifs (`quests/*.json`) |
-| `ship-model.js` | coque, gréement, voiles, pavillons, lanternes, safran, fenêtres de nuit, avirons, .glb |
+| `ship-model.js` | coque, gréement, voiles, pavillons, lanternes, safran, fenêtres de nuit, avirons, anneaux (ce qui tourne sans se déformer, `ShipNode.Rings.cs` côté Godot), .glb |
 | `ship-physics.js` | sondes, corps rigide 6 ddl, gouvernail, voiles, avirons |
 | `controls.js` · `camera-rig.js` · `hud.js` | barre, caméras (vues à bord dans la fiche), instruments |
 | `helm.js` | la barre des navires qui ne sont pas le vôtre |

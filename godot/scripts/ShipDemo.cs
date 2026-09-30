@@ -546,6 +546,7 @@ public partial class ShipDemo : Node3D
             s.StreamFlags(_t);
             s.RecoilTick(_gunnery.Clock, _gunRules.RecoilSpeed);
             s.SwingLanterns(frame);
+            s.SpinRings(frame);
         }
     }
 
@@ -1196,6 +1197,8 @@ public partial class ShipDemo : Node3D
         foreach (var s2 in _others) s2.SetOars(frame);
         // les lanternes pendues suivent le roulis en vrais pendules
         _ship.SwingLanterns(frame);
+        // et ce qui tourne sur elle sans rien devoir a la houle
+        _ship.SpinRings(frame);
         StepOthers(frame);
         long a2 = GC.GetAllocatedBytesForCurrentThread();
         _allocPhys += a1 - a0; _allocSails += a2 - a1; _allocFrames++;

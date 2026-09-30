@@ -150,6 +150,60 @@ Naval.glowTexture = function(){
    est en bois, jamais en verre. Une seule définition, deux usagers. */
 Naval.GLOW_NAMES = /fenetre|fen\u00eatre|window|vitre|hublot|glass|verre|lamp|lanterne|lantern|glow/i;
 
+/* LA NORMALE D'UN ANNEAU, LUE SUR LA COVARIANCE DE SES SOMMETS : la direction
+   dans laquelle il est MINCE.
+
+   La boite englobante ne sert a rien ici — elle est alignee sur les axes, et un
+   anneau incline n'est mince selon aucun d'eux. Ce qui marche a toute
+   inclinaison est la direction de moindre VARIANCE : sur un tore de rayon R et
+   de tube r, les sommets s'ecartent de R dans le plan et de r seulement en
+   travers, et r est petit devant R par definition d'un anneau.
+
+   Le plus petit vecteur propre de la covariance C est le plus GRAND de
+   tr(C).I - C, qui a les memes vecteurs propres dans l'ordre inverse — et un
+   plus grand vecteur propre se prend par iteration de puissance, en vingt lignes
+   et sans solveur. C'est meme le cas facile : les deux valeurs propres du plan
+   sont EGALES sur un anneau rond, donc degenerees, mais celle qu'on cherche est
+   justement l'isolee, la seule que l'iteration puisse atteindre. Plusieurs
+   departs, parce qu'un seul pourrait se trouver orthogonal a la reponse.
+
+   Jumelle de RingAxis dans godot/scripts/ShipNode.Rings.cs. */
+Naval.ringAxis = function(xx, xy, xz, yy, yz, zz){
+  const tr = xx + yy + zz;
+  const mxx = tr-xx, myy = tr-yy, mzz = tr-zz, mxy = -xy, mxz = -xz, myz = -yz;
+  const u = new THREE.Vector3(), w = new THREE.Vector3(), best = new THREE.Vector3(0, 1, 0);
+  let bestQ = -Infinity;
+  for(const seed of [[1,0,0], [0,1,0], [0,0,1], [0.577,0.577,0.577]]){
+    u.set(seed[0], seed[1], seed[2]);
+    for(let it=0; it<96; it++){
+      w.set(mxx*u.x + mxy*u.y + mxz*u.z,
+            mxy*u.x + myy*u.y + myz*u.z,
+            mxz*u.x + myz*u.y + mzz*u.z);
+      if(w.length() < 1e-9) break;
+      u.copy(w).normalize();
+    }
+    const q = u.x*(mxx*u.x + mxy*u.y + mxz*u.z)
+            + u.y*(mxy*u.x + myy*u.y + myz*u.z)
+            + u.z*(mxz*u.x + myz*u.y + mzz*u.z);
+    if(q > bestQ){ bestQ = q; best.copy(u); }
+  }
+  /* LE SIGNE EST ARBITRAIRE — un vecteur propre vaut au signe pres — mais il
+     decide du SENS de rotation, qui doit etre le meme d'une partie a l'autre. On
+     le fixe sur la plus grande composante. */
+  const ax = Math.abs(best.x), ay = Math.abs(best.y), az = Math.abs(best.z);
+  const dom = (ax >= ay && ax >= az) ? best.x : (ay >= az ? best.y : best.z);
+  if(dom < 0) best.negate();
+  return best.normalize();
+};
+
+/* ET CEUX QUI DISENT « JE TOURNE » : un anneau gyroscopique. Meme regle que
+   ci-dessus, et meme raison d'etre une seule definition — Godot en tient la
+   jumelle dans ShipNode.Rings.cs, ou tout le pourquoi est ecrit. */
+/* Le nom doit COMMENCER le mot : 'ring' en simple sous-chaine attraperait
+   mooring, steering, bearing, spring — et une piece de coque arrachee au
+   modele pour tourner est une panne qui ne ressemble pas a sa cause. */
+Naval.RING_NAMES = /(^|[^a-z0-9])(anneau|gyro|ring)/i;
+
 /* LA NUIT TOMBE D'UN COUP SUR LES FEUX, et c'est ce que fait un équipage :
    on allume les fanaux quand il fait nuit et on les souffle à l'aube, on ne les
    baisse pas pendant une heure de crépuscule. `night` du stage monte de 0 au
@@ -226,6 +280,7 @@ Naval.ShipModel = class ShipModel {
     this.procedural = new THREE.Group();     // everything we build ourselves
     this.group.add(this.procedural);
     this.rigs = [];                          // what braces or swings when trimmed
+    this.rings = [];                         // ce qui tourne sur elle, voir _mountRings
     this.falls = [];                         // and what can come down, mast and all
     /* Cut rigging is HER state, so it lives on her: she asks for the ends, and
        the shared pool in cordage.js hangs them. A hull that leaves the fleet
@@ -865,6 +920,12 @@ Naval.ShipModel = class ShipModel {
       }
       const obj = gltf.scene;
 
+      /* LES ANNEAUX SORTENT EN PREMIER, avant la moindre mesure : _hullScale et
+         _deckProfile cherchent la coque en prenant le maillage le plus VOLUMINEUX,
+         et un anneau qui ceint le navire enferme plus d'air que la coque n'enferme
+         de bois — il serait pris pour elle. */
+      const rings = this._takeRings(obj);
+
       // Scale her HULL to the length the solver is using — never the whole
       // object. See _hullScale.
       const k = (m.scale != null) ? m.scale : this._hullScale(obj, m.lengthAxis);
@@ -879,6 +940,8 @@ Naval.ShipModel = class ShipModel {
       this.group.add(obj);
       this.modelRoot = obj;
       this.rigs = []; this.canvases = [];   // the procedural rig went with the hull
+      for(const r of this.rings) r.pivot.removeFromParent();
+      this.rings.length = 0;
       this.falls = []; this._shareTot = 0;
       this.rigCuts.length = 0; this.rigEpoch++;   // and so did anything hanging off it
       this._rigModel();
@@ -889,6 +952,7 @@ Naval.ShipModel = class ShipModel {
       this._buildRudder();
       this._buildCrew();
       this._findNightGlow();
+      this._mountRings(rings, k, m);
       return true;
     }catch(err){
       console.warn('[' + this.spec.id + '] could not load ' + (m.glb || 'embedded model') +
@@ -944,6 +1008,95 @@ Naval.ShipModel = class ShipModel {
       if(vol > best){ best = vol; along = (lengthAxis === 'x' ? size.x : size.z); }
     });
     return along > 1e-6 ? this.spec.L/along : 1;
+  }
+
+  /* CE QUI TOURNE SUR ELLE SANS SE DEFORMER — les anneaux. Le pourquoi entier
+     est dans godot/scripts/ShipNode.Rings.cs, dont ceci est la jumelle ; en deux
+     lignes : une rotation est RIGIDE, donc elle se dit en seize nombres et jamais
+     en cuisson, et une cuisson ne saurait de toute facon pas ce que fait le
+     navire — or on lui demande precisement de rester d'aplomb quand il roule.
+
+     Detacher du modele tout ce qui porte un nom d'anneau, avec la transformee qui
+     ramene le PARENT de chaque piece dans le repere du modele. Appelee avant que
+     l'objet recoive echelle et rotation : les coordonnees rendues sont celles de
+     Blender. On ne DESCEND PAS dans un anneau reconnu — il part entier, avec ses
+     ferrures et ses demi-tores ; le decouper en morceaux qui tourneraient chacun
+     autour de leur propre centre l'ouvrirait en fleur. */
+  _takeRings(obj){
+    const found = [];
+    const walk = (n, acc) => {
+      for(const c of n.children.slice()){
+        c.updateMatrix();
+        if(Naval.RING_NAMES.test(c.name || '')){ found.push({ node:c, parent:acc.clone() }); continue; }
+        walk(c, acc.clone().multiply(c.matrix));
+      }
+    };
+    walk(obj, new THREE.Matrix4());
+    for(const f of found) f.node.removeFromParent();
+    return found;
+  }
+
+  /* Pendre chaque anneau a un pivot plante au CENTRE de l'anneau, sous le NAVIRE
+     et non sous le modele. Sous le navire, parce qu'un pivot place dans le modele
+     heriterait de son orientation, et c'est justement celle qu'on veut lui
+     retirer. Au centre de l'anneau, parce qu'un anneau qui tourne autour d'un
+     autre point balaie au lieu de pivoter. Le pivot porte l'echelle, la rotation
+     et le decalage que la fiche impose au modele : au repos, l'anneau se retrouve
+     exactement la ou Blender l'avait mis. */
+  _mountRings(found, k, m){
+    this._ringModelQ = new THREE.Quaternion()
+      .setFromAxisAngle(new THREE.Vector3(0, 1, 0), m.rotationY || 0);
+    if(!found.length) return;
+    const off = m.offset || [0,0,0];
+    const v = new THREE.Vector3(), mat = new THREE.Matrix4();
+    const specs = m.rings || [];
+
+    for(let i=0;i<found.length;i++){
+      const node = found[i].node, parent = found[i].parent;
+      const inModel = parent.clone().multiply(node.matrix);
+      node.updateMatrixWorld(true);              // detache : ses enfants restent dans SON repere
+
+      /* Deux passes plutot qu'un tableau de sommets : le centre d'abord, la
+         covariance ensuite. Une seule fois par mise a l'eau. */
+      const each = fn => node.traverse(o => {
+        if(!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+        const pos = o.geometry.attributes.position;
+        mat.multiplyMatrices(parent, o.matrixWorld);
+        for(let j=0;j<pos.count;j++) fn(v.fromBufferAttribute(pos, j).applyMatrix4(mat));
+      });
+      const c = new THREE.Vector3();
+      let n = 0;
+      each(p => { c.add(p); n++; });
+      if(n < 3){ console.warn('[' + this.spec.id + '] ' + node.name + ' : pas de sommets, anneau ignore.'); continue; }
+      c.divideScalar(n);
+      let xx=0, xy=0, xz=0, yy=0, yz=0, zz=0;
+      each(p => {
+        const dx = p.x-c.x, dy = p.y-c.y, dz = p.z-c.z;
+        xx += dx*dx; xy += dx*dy; xz += dx*dz; yy += dy*dy; yz += dy*dz; zz += dz*dz;
+      });
+      const axis = Naval.ringAxis(xx/n, xy/n, xz/n, yy/n, yz/n, zz/n);
+
+      const pivot = new THREE.Object3D();
+      pivot.name = 'pivot_' + node.name;
+      pivot.position.set(off[0], off[1], off[2])
+           .add(c.clone().multiplyScalar(k).applyQuaternion(this._ringModelQ));
+      pivot.scale.setScalar(k);
+      pivot.quaternion.copy(this._ringModelQ);
+      this.group.add(pivot);
+      // sa place d'origine dans le modele, ramenee sur le centre de l'anneau
+      node.matrix.copy(inModel).premultiply(new THREE.Matrix4().makeTranslation(-c.x, -c.y, -c.z));
+      node.matrix.decompose(node.position, node.quaternion, node.scale);
+      pivot.add(node);
+
+      const sp = specs.find(s => !s.match || (node.name || '').toLowerCase().includes(String(s.match).toLowerCase()));
+      /* DEUX ANNEAUX A LA MEME VITESSE se retrouvent toujours dans la meme figure,
+         et l'ensemble se lit comme une piece unique. Faute de fiche, chacun tourne
+         a -0,618 fois le precedent : le sens s'inverse, et le rapport n'etant pas
+         une fraction simple, ils ne se realignent jamais tout a fait. */
+      const rpm = (sp && sp.rpm != null) ? sp.rpm : 6 * Math.pow(-0.618, i);
+      this.rings.push({ pivot, axis, rate: rpm*Math.PI*2/60, phase: 0,
+                        steady: sp && sp.steady != null ? !!sp.steady : true });
+    }
   }
 
   /* Every mesh of the loaded model, measured in the hull's own frame. Runs once
@@ -2928,6 +3081,41 @@ Naval.ShipModel = class ShipModel {
     const brace = ss((rate - C.braceFrom)/Math.max(0.1, C.braceFull - C.braceFrom));
     const b = u.uCrewBrace.value;
     u.uCrewBrace.value = b + (brace - b)*(1 - Math.exp(-dt/(brace > b ? 0.25 : 1.2)));
+  }
+
+  /* UNE IMAGE D'ANNEAUX. Sans frais pour un navire qui n'en porte pas.
+
+     L'ASSIETTE SE RETIRE PAR L'INVERSE. Le pivot est enfant du navire, donc son
+     orientation dans le monde vaut Q_navire . Q_local. On veut qu'elle vaille le
+     CAP SEUL ; il suffit donc d'ecrire Q_local = Q_navire^-1 . Cap, et le roulis
+     et le tangage s'en vont d'eux-memes, quels qu'ils soient. Aucun angle a
+     extraire, aucun cas particulier a quatre-vingt-dix degres, et cela tient
+     encore sur une coque chaviree.
+
+     LE CAP SE LIT SUR LE VECTEUR D'ETRAVE, comme partout ailleurs — jamais sur
+     un angle d'Euler. atan2(x, z) et non atan2(-x, z) : ce n'est pas le cap du
+     compas mais l'angle de la rotation autour de +y qui amene (0,0,1) sur
+     l'etrave. */
+  spinRings(body, dt){
+    if(!this.rings.length) return;
+    const T = this._ringTmp || (this._ringTmp = {
+      fwd: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0),
+      level: new THREE.Quaternion(), inv: new THREE.Quaternion(), spin: new THREE.Quaternion() });
+    T.fwd.set(0, 0, 1).applyQuaternion(body.quat);
+    T.level.setFromAxisAngle(T.up, Math.atan2(T.fwd.x, T.fwd.z));
+    T.inv.copy(body.quat).invert();
+    for(const r of this.rings){
+      /* La phase est repliee sur un tour : une partie qui dure la ferait sinon
+         monter a des dizaines de milliers de radians, ou un flottant n'a plus
+         assez de decimales pour un pas d'image — l'anneau saccade au bout d'une
+         heure de jeu. */
+      r.phase += r.rate*dt;
+      if(r.phase > Math.PI*2) r.phase -= Math.PI*2;
+      else if(r.phase < -Math.PI*2) r.phase += Math.PI*2;
+      T.spin.setFromAxisAngle(r.axis, r.phase);
+      if(r.steady) r.pivot.quaternion.copy(T.inv).multiply(T.level).multiply(this._ringModelQ).multiply(T.spin);
+      else r.pivot.quaternion.copy(this._ringModelQ).multiply(T.spin);
+    }
   }
 
   /* Put her into the lighting: her own shadows, and the layer that the

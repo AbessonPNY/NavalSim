@@ -12384,6 +12384,96 @@ dire de son embonpoint.
 
 Relevé après : 2 voiles, 2 pivots, sur un modèle qui n'en portait aucune.
 
+## Deux anneaux qui tournent, et la coque qui n'est plus la plus grosse pièce (Godot + page)
+
+Demandé : deux anneaux lumineux gyroscopiques autour du navire, modelés dans
+Blender. Un vertical, un incliné, et **ils ignorent le roulis**. Question posée
+avant d'ouvrir Blender : les animer là-bas, ou laisser le jeu le faire ?
+
+Le jeu. C'est exactement le cas consigné la veille au sujet du VAT — une
+rotation est une transformation RIGIDE, seize nombres dans une matrice — mais
+trois raisons de plus valaient d'être écrites, parce qu'elles ne se voient pas
+depuis Blender :
+
+1. **Aucun des deux moteurs ne lit les animations glTF.** Les `.glb` sont
+   ouverts à l'exécution (`GltfDocument`, `GLTFLoader`) et rien ne pilote
+   d'`AnimationPlayer` ni d'`AnimationMixer`. Animer dans Blender aurait
+   voulu dire construire cette plomberie DEUX FOIS pour remplacer deux lignes.
+2. **Un gyroscope, par définition, ne suit pas le roulis** — et une cuisson ne
+   connaît pas le roulis. Ce qu'on demande est justement ce qu'une animation
+   exportée est incapable de faire.
+3. Parentés au nœud du navire, ils l'accompagnent sans qu'on écrive rien.
+
+### Ce qui aurait cassé en silence, et qui est la vraie leçon
+
+Un anneau qui CEINT le navire enferme plus d'air que la coque n'enferme de bois.
+Or quatre endroits au moins cherchent la coque en prenant **le maillage le plus
+volumineux** : `HullScale`, `MakeProfile`, `DeckProfile`, `HullPart` — et
+leurs jumelles de la page. L'anneau serait devenu la coque, et l'échelle du
+modèle, le collier d'écume, le profil de flottaison et la batterie seraient
+partis avec lui. Rien n'aurait levé d'erreur.
+
+D'où le seul choix d'architecture qui compte ici : **les anneaux sortent du
+modèle avant la moindre mesure**, dès après `SplitPrimitives`, et reviennent
+ensuite sur leurs propres pivots, sous le NAVIRE et non sous le modèle. Rien en
+aval ne les voit jamais. Ils sont aussi retirés de `LocalBounds`, sans quoi le
+flou de mouvement flouterait comme du bord toute l'eau qu'ils enferment.
+
+### L'assiette se retire par l'inverse, et non par des angles
+
+Le pivot est enfant du navire, donc son orientation dans le monde vaut
+`Q_navire · Q_local`. On la veut égale au CAP SEUL ; il suffit donc d'écrire :
+
+    Q_local = Q_navire⁻¹ · Cap
+
+et le roulis et le tangage s'en vont d'eux-mêmes, quels qu'ils soient. Aucun
+angle à extraire, aucun cas particulier à quatre-vingt-dix degrés, et cela tient
+encore sur une coque chavirée. Le cap se lit sur le vecteur d'étrave, comme
+partout — avec ici `atan2(x, z)` et non `atan2(−x, z)` : ce n'est pas le cap
+du compas, mais l'angle de la rotation autour de +y qui amène (0,0,1) sur
+l'étrave.
+
+### L'inclinaison est celle du MAILLAGE, et se lit sur ses sommets
+
+Demander l'angle dans la fiche aurait créé deux vérités à tenir d'accord. On le
+mesure : un anneau est MINCE dans une seule direction, celle de sa normale. La
+boîte englobante ne le dit pas — elle est alignée sur les axes, et un anneau
+incliné n'est mince selon aucun d'eux. Ce qui marche à toute inclinaison est la
+direction de moindre VARIANCE, c'est-à-dire le plus petit vecteur propre de la
+covariance, c'est-à-dire le plus GRAND de `tr(C)·I − C` — et un plus grand
+vecteur propre se prend par itération de puissance, en vingt lignes et sans
+solveur. Le cas est même favorable : sur un anneau rond les deux valeurs propres
+du plan sont ÉGALES, donc dégénérées, mais celle qu'on cherche est justement
+l'isolée, la seule que l'itération puisse atteindre.
+
+**Éprouvé plutôt que regardé**, et c'est délibéré : un anneau qui tourne autour
+d'un axe FAUX tourne quand même — il balaie au lieu de pivoter — et par mer
+formée cela se confond avec le roulis. On ne peut donc pas en juger à l'œil. Sept
+tores d'inclinaison connue, dans les deux moteurs :
+
+    vertical dans l'axe · en travers · couché à plat
+    incliné 30° · 45° quelconque · 12° presque plat · tube épais R=20 r=6
+
+    pire écart : 0,0000 degré, des deux côtés
+
+La fonction est donc dans le NOYAU (`Rings.Axis`), pas dans le nœud de rendu :
+elle est pure, les deux moteurs doivent en donner le même chiffre, et le banc
+l'éprouve sans moteur — `dotnet run --project core/NavalSim.Lab -- anneaux`.
+
+### Deux petites décisions qui s'expliquent mal après coup
+
+**Le nom doit COMMENCER le mot.** `ring` en simple sous-chaîne attrape
+`mooring`, `steering`, `bearing`, `spring` — et une pièce de coque arrachée
+au modèle pour la faire tourner est une panne qui ne ressemble pas à sa cause.
+
+**Faute de fiche, chaque anneau tourne à −0,618 fois le précédent.** Deux
+anneaux à la même vitesse se retrouvent toujours dans la même figure et
+l'ensemble se lit comme une pièce unique ; le sens s'inverse, et le rapport
+n'étant pas une fraction simple, ils ne se réalignent jamais tout à fait.
+
+Ce qui reste à voir en jeu, et qui se dira à l'œil : à vingt degrés de bande, un
+anneau resté horizontal traverse la coque s'il est trop serré.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

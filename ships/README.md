@@ -504,6 +504,59 @@ préceintes et le fil du bois, au-delà le bordé paraît sculpté. Blanc = en
 relief. À ne pas mettre sur une rugosité peinte en aplats, dont chaque bord
 deviendrait une arête.
 
+### Anneaux — ce qui tourne sur elle
+
+Une pièce du .glb dont le **nom commence par** `anneau`, `gyro` ou `ring` — au
+début du nom, ou après un séparateur — est sortie du modèle au chargement,
+pendue à un pivot planté en son centre, et mise à tourner. Rien à déclarer : le
+nom suffit. `anneau_gyro_1`, `Gyroscope`, `Ring.001` sont pris ; `mooring`,
+`steering_wheel`, `spring` et `bearing` ne le sont pas, et c'est exprès — une
+pièce de coque arrachée au modèle pour la faire tourner serait une panne qui ne
+ressemble pas à sa cause.
+
+**À faire dans Blender**
+
+| | |
+|---|---|
+| un maillage par anneau | un objet qui se nomme `anneau_gyro_1`, et ses ferrures dans le même objet — tout ce qui est dedans tourne avec lui |
+| **pas d'animation** | ni clé, ni armature, ni cuisson. Une rotation est rigide : le jeu la fait, en seize nombres. Le journal dit pourquoi, longuement |
+| **l'inclinaison est celle du maillage** | modelez l'anneau dans son plan, vertical ou penché. Aucun angle n'est écrit dans la fiche, donc rien ne peut se contredire |
+| **lumineux = matière émissive** | pas de lampe dans le .glb. Le bloom s'en charge, et une lumière de plus coûte à chaque image |
+| l'origine de l'objet est libre | le centre de rotation est calculé sur les sommets, pas sur l'origine Blender |
+
+**Ce qu'il fait en jeu**
+
+Il garde le **cap** du navire, et ignore le **roulis** et le **tangage** : la
+coque travaille sous lui, il reste d'aplomb. C'est ce qui le fait lire comme un
+gyroscope plutôt que comme une pièce boulonnée au pont. Il tourne sur la normale
+de son propre plan, trouvée en lisant ses sommets — un anneau est mince dans une
+seule direction, et c'est celle-là.
+
+Conséquence à connaître : à vingt degrés de bande, un anneau resté horizontal
+**traverse la coque** s'il est trop serré. Voyez large.
+
+**Pour changer sa vitesse** — facultatif. Sans ces lignes, le premier anneau
+tourne à 6 tr/min et chacun des suivants à −0,618 fois le précédent, un rapport
+choisi pour qu'ils ne se réalignent jamais tout à fait.
+
+```json
+"model": {
+  "glb": "...",
+  "rings": [
+    { "match": "gyro_1", "rpm": 6 },
+    { "match": "gyro_2", "rpm": -3.7, "steady": true }
+  ]
+}
+```
+
+`match` est un morceau du nom, sans égard à la casse (vide ou absent : tous les
+anneaux). `rpm` est en tours par minute, le signe donnant le sens. `steady` à
+`false` le boulonne au pont : il roule alors avec la coque.
+
+Lu par `godot/scripts/ShipNode.Rings.cs` et `js/ship-model.js` ; l'axe est
+calculé par `Rings.Axis` dans le noyau, éprouvé par
+`dotnet run --project core/NavalSim.Lab -- anneaux`.
+
 ### Pavillon
 
 ```json

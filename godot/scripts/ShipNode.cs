@@ -143,6 +143,11 @@ public partial class ShipNode : Node3D
             }
 
             SplitPrimitives(obj);
+            /* LES ANNEAUX SORTENT EN PREMIER, avant la moindre mesure. Tout ce qui
+               suit cherche la coque en prenant le maillage le plus VOLUMINEUX, et
+               un anneau qui ceint le navire enferme plus d'air que la coque
+               n'enferme de bois : il serait pris pour elle. Voir ShipNode.Rings.cs. */
+            var rings = TakeRings(obj);
             ReliefFromRoughness(obj, m.Relief ?? 0);
             // et les tangentes des reliefs que le modèle apporte lui-même
             TangentsForRelief(obj);
@@ -172,6 +177,8 @@ public partial class ShipNode : Node3D
             FindGuns();
             // ce qui est dedans ne reçoit plus la lumière des fanaux du pont
             MarkInside();
+            // et les anneaux reviennent, sur leurs pivots, une fois l'échelle connue
+            MountRings(rings, k, m);
             // sur tout ce qui est à bord, y compris les espars que RigModel vient
             // de sortir du modèle pour les pendre dans leurs pivots
             AttachHaze(this);
@@ -498,6 +505,10 @@ public partial class ShipNode : Node3D
         while (stack.Count > 0)
         {
             var n = stack.Pop();
+            /* NI LES ANNEAUX : ils ceignent le navire, donc leur envergure est
+               plusieurs fois la sienne, et le flou de mouvement flouterait
+               comme du bord toute l'eau qu'ils enferment. */
+            if (n is Node3D ring && _ringPivots.Contains(ring)) continue;
             // pas les lumières : leur « boîte » est leur portée
             if (n is GeometryInstance3D g && g.Visible)
             {

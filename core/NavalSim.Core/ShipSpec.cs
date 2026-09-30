@@ -134,6 +134,14 @@ public sealed class ModelSpec
     /// <summary>Le gain de pente du relief tiré de la rugosité (voir ReliefMap) ; absent, aucun.</summary>
     [JsonPropertyName("relief")]     public double? Relief { get; set; }
     /// <summary>
+    /// CE QUI TOURNE SUR ELLE — un anneau par ligne. La liste est FACULTATIVE :
+    /// une piece du .glb dont le nom porte « anneau », « gyro » ou « ring » est
+    /// reconnue et mise a tourner sans qu'on ecrive rien ici. Ces lignes ne
+    /// servent qu'a lui donner une autre vitesse, ou a la faire rouler avec la
+    /// coque. Voir ShipNode.Rings.cs.
+    /// </summary>
+    [JsonPropertyName("rings")]      public List<RingSpec> Rings { get; set; } = new();
+    /// <summary>
     /// CE QUI EST DEDANS — des morceaux de nom de maillage, sans égard à la casse.
     /// Ce qui correspond est à l'INTÉRIEUR de la coque, et les feux du pont ne
     /// l'éclairent pas : un fanal est dehors, et ce qui est dehors n'entre pas.
@@ -150,6 +158,25 @@ public sealed class ModelSpec
     /// dedans », et le bord entier reprend la lumière des fanaux.
     /// </summary>
     [JsonPropertyName("inside")]     public string[]? Inside { get; set; }
+}
+
+/// <summary>
+/// UN ANNEAU QUI TOURNE. Son inclinaison n'est PAS ici : elle est celle du
+/// maillage, lue sur ses sommets. Deux nombres suffisent donc, et l'on ne risque
+/// pas qu'une fiche et un .glb se contredisent.
+/// </summary>
+public sealed class RingSpec
+{
+    /// <summary>Un morceau de son nom, sans egard a la casse. Vide : tous les anneaux.</summary>
+    [JsonPropertyName("match")]  public string Match { get; set; } = "";
+    /// <summary>Tours par minute ; le signe donne le sens.</summary>
+    [JsonPropertyName("rpm")]    public double Rpm { get; set; } = 6;
+    /// <summary>
+    /// Vrai (par defaut) : il ignore le roulis et le tangage, et ne garde que le
+    /// cap — c'est ce qui le fait lire comme un gyroscope. Faux : il est boulonne
+    /// au pont et roule avec la coque.
+    /// </summary>
+    [JsonPropertyName("steady")] public bool Steady { get; set; } = true;
 }
 
 /// <summary>
