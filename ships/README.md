@@ -518,7 +518,7 @@ ressemble pas à sa cause.
 
 | | |
 |---|---|
-| un maillage par anneau | un objet qui se nomme `anneau_gyro_1`, et ses ferrures dans le même objet — tout ce qui est dedans tourne avec lui |
+| un maillage par anneau | un objet qui se nomme `anneau_gyro_1`. Ses ferrures et sa géométrie de lueur peuvent être dedans : tout ce qu'il contient tourne avec lui — **sauf un autre objet dont le nom est aussi un nom d'anneau**, qui ouvre son propre pivot. Parenter les anneaux entre eux dans Blender ne casse donc rien |
 | **pas d'animation** | ni clé, ni armature, ni cuisson. Une rotation est rigide : le jeu la fait, en seize nombres. Le journal dit pourquoi, longuement |
 | **l'inclinaison est celle du maillage** | modelez l'anneau dans son plan, vertical ou penché. Aucun angle n'est écrit dans la fiche, donc rien ne peut se contredire |
 | **lumineux = matière émissive** | pas de lampe dans le .glb. Le bloom s'en charge, et une lumière de plus coûte à chaque image |
@@ -532,8 +532,13 @@ gyroscope plutôt que comme une pièce boulonnée au pont. Il tourne sur la norm
 de son propre plan, trouvée en lisant ses sommets — un anneau est mince dans une
 seule direction, et c'est celle-là.
 
-Conséquence à connaître : à vingt degrés de bande, un anneau resté horizontal
-**traverse la coque** s'il est trop serré. Voyez large.
+Deux conséquences à connaître. À vingt degrés de bande, un anneau resté
+horizontal **traverse la coque** s'il est trop serré : voyez large. Et un grand
+anneau incliné **plonge sous la quille** — son arc bas reste dans l'eau, ce qui
+peut être très beau ou tout à fait involontaire, mais ne s'anticipe pas depuis
+Blender. La console le dit à la mise à l'eau : axe, rayon en mètres et
+**élancement** (rayon sur demi-épaisseur). Sous 3, la pièce ne se lit pas comme
+un anneau, son axe est arbitraire, et un avertissement le signale.
 
 **Pour changer sa vitesse** — facultatif. Sans ces lignes, le premier anneau
 tourne à 6 tr/min et chacun des suivants à −0,618 fois le précédent, un rapport

@@ -1019,21 +1019,27 @@ Naval.ShipModel = class ShipModel {
      Detacher du modele tout ce qui porte un nom d'anneau, avec la transformee qui
      ramene le PARENT de chaque piece dans le repere du modele. Appelee avant que
      l'objet recoive echelle et rotation : les coordonnees rendues sont celles de
-     Blender. On ne DESCEND PAS dans un anneau reconnu — il part entier, avec ses
-     ferrures et ses demi-tores ; le decouper en morceaux qui tourneraient chacun
-     autour de leur propre centre l'ouvrirait en fleur. */
+     Blender. Un anneau emporte ses sous-pieces — ferrures, geometrie de lueur,
+     demi-tores — mais PAS un autre anneau : Blender parente volontiers deux
+     objets l'un a l'autre, et pris ensemble deux anneaux ne forment plus un
+     anneau du tout. Leur direction de moindre variance ne veut alors plus rien
+     dire, et l'ensemble BALAIE au lieu de pivoter — ce qui tourne quand meme,
+     donc ce qui a l'air de marcher. On descend, et chaque nom d'anneau
+     rencontre ouvre son propre pivot ; le plus profond se detache en premier. */
   _takeRings(obj){
     const found = [];
-    const walk = (n, acc) => {
+    const walk = (n, acc, d) => {
       for(const c of n.children.slice()){
         c.updateMatrix();
-        if(Naval.RING_NAMES.test(c.name || '')){ found.push({ node:c, parent:acc.clone() }); continue; }
-        walk(c, acc.clone().multiply(c.matrix));
+        if(Naval.RING_NAMES.test(c.name || '')) found.push({ node:c, parent:acc.clone(), depth:d });
+        walk(c, acc.clone().multiply(c.matrix), d + 1);
       }
     };
-    walk(obj, new THREE.Matrix4());
-    for(const f of found) f.node.removeFromParent();
-    return found;
+    walk(obj, new THREE.Matrix4(), 1);
+    for(const f of found.slice().sort((a, b) => b.depth - a.depth)) f.node.removeFromParent();
+    // rendus dans un ordre STABLE : la vitesse par defaut depend du rang
+    return found.sort((a, b) => a.depth - b.depth ||
+                                (a.node.name < b.node.name ? -1 : a.node.name > b.node.name ? 1 : 0));
   }
 
   /* Pendre chaque anneau a un pivot plante au CENTRE de l'anneau, sous le NAVIRE
@@ -1075,6 +1081,23 @@ Naval.ShipModel = class ShipModel {
         xx += dx*dx; xy += dx*dy; xz += dx*dz; yy += dy*dy; yz += dy*dz; zz += dz*dz;
       });
       const axis = Naval.ringAxis(xx/n, xy/n, xz/n, yy/n, yz/n, zz/n);
+
+      /* L'EPREUVE QUI DIT SI C'EST VRAIMENT UN ANNEAU : son rayon contre sa
+         demi-epaisseur. Un anneau est mince, donc elance. En dessous de trois, la
+         direction de moindre variance ne distingue plus rien, l'axe trouve est
+         arbitraire, et la piece BALAIERA au lieu de pivoter — ce qui tourne quand
+         meme, donc ce qui ne se verrait qu'a l'oeil, par mer plate, de profil. */
+      let rmax = 0, emax = 0;
+      each(p => {
+        const dx = p.x-c.x, dy = p.y-c.y, dz = p.z-c.z;
+        const h = dx*axis.x + dy*axis.y + dz*axis.z;
+        rmax = Math.max(rmax, Math.hypot(dx - h*axis.x, dy - h*axis.y, dz - h*axis.z));
+        emax = Math.max(emax, Math.abs(h));
+      });
+      const elan = rmax/Math.max(1e-9, emax);
+      if(elan < 3) console.warn('[' + this.spec.id + '] ' + node.name + ' : elancement ' +
+        elan.toFixed(1) + ' — cette piece ne se lit pas comme un anneau, son axe est ' +
+        'arbitraire. Deux anneaux parentes l un a l autre ?');
 
       const pivot = new THREE.Object3D();
       pivot.name = 'pivot_' + node.name;

@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using NavalSim.Core;
 
@@ -75,31 +76,37 @@ public partial class ShipNode
     /// alors que <c>obj</c> n'a encore reçu ni échelle ni rotation : les
     /// coordonnées rendues sont donc celles de Blender, à l'échelle de Blender.
     ///
-    /// On ne DESCEND PAS dans un anneau reconnu : il part entier, avec ses
-    /// sous-pièces (un anneau modelé en deux demi-tores, ses ferrures, la
-    /// géométrie de sa lueur). Le découper en morceaux qui tourneraient chacun
-    /// autour de leur propre centre l'ouvrirait en fleur.
+    /// UN ANNEAU EMPORTE SES SOUS-PIÈCES — ferrures, géométrie de lueur, demi-
+    /// tores — mais PAS un autre anneau. Blender parente volontiers deux objets
+    /// l'un à l'autre, et un export où `anneau_2` est enfant de `anneau_1` est
+    /// arrivé du premier coup. Pris ensemble, les deux ne forment plus un anneau
+    /// du tout : leur direction de moindre variance ne veut plus rien dire, et
+    /// l'ensemble se met à BALAYER au lieu de pivoter — ce qui tourne quand même,
+    /// donc ce qui a l'air de marcher. On descend donc, et chaque nom d'anneau
+    /// rencontré ouvre son propre pivot.
+    ///
+    /// LE PLUS PROFOND SE DÉTACHE EN PREMIER, sans quoi on retirerait le parent
+    /// de l'arbre avant d'avoir pu en sortir l'enfant.
     /// </summary>
     static List<(Node3D Node, Transform3D Parent)> TakeRings(Node3D obj)
     {
-        var found = new List<(Node3D, Transform3D)>();
-        var stack = new Stack<(Node Node, Transform3D Acc)>();
-        stack.Push((obj, Transform3D.Identity));
+        var found = new List<(Node3D Node, Transform3D Parent, int Depth)>();
+        var stack = new Stack<(Node Node, Transform3D Acc, int Depth)>();
+        stack.Push((obj, Transform3D.Identity, 0));
         while (stack.Count > 0)
         {
-            var (n, acc) = stack.Pop();
-            if (n != obj && n is Node3D nd && RingNames.IsMatch(nd.Name))
-            {
-                found.Add((nd, acc));
-                continue;
-            }
+            var (n, acc, d) = stack.Pop();
+            if (n != obj && n is Node3D nd && RingNames.IsMatch(nd.Name)) found.Add((nd, acc, d));
             // acc mène du repère PARENT de n au repère du modèle ; pour ses
             // enfants, le repère parent est celui de n lui-même
             var next = n != obj && n is Node3D c3 ? acc * c3.Transform : acc;
-            foreach (var kid in n.GetChildren()) stack.Push((kid, next));
+            foreach (var kid in n.GetChildren()) stack.Push((kid, next, d + 1));
         }
-        foreach (var (nd, _) in found) nd.GetParent()?.RemoveChild(nd);
-        return found;
+        foreach (var f in found.OrderByDescending(f => f.Depth))
+            f.Node.GetParent()?.RemoveChild(f.Node);
+        // rendus dans un ordre STABLE : la vitesse par défaut dépend du rang
+        return found.OrderBy(f => f.Depth).ThenBy(f => f.Node.Name.ToString(), StringComparer.Ordinal)
+                    .Select(f => (f.Node, f.Parent)).ToList();
     }
 
     // ------------------------------------------------------------------
@@ -146,6 +153,25 @@ public partial class ShipNode
             c /= pts.Count;
             Vector3 axis = RingAxis(pts, c);
 
+            /* L'ÉPREUVE QUI DIT SI C'EST VRAIMENT UN ANNEAU : son rayon contre sa
+               demi-épaisseur. Un anneau est mince, donc élancé — vingt fois, sur
+               les deux qu'on a vus. En dessous de trois, la direction de moindre
+               variance ne distingue plus rien, l'axe trouvé est arbitraire, et la
+               pièce BALAIERA au lieu de pivoter. Cela tourne quand même : sans ce
+               mot, la panne ne se verrait qu'à l'œil, par mer plate, de profil. */
+            double rmax = 0, emax = 0;
+            foreach (var p in pts)
+            {
+                var d = p - c;
+                double h = d.Dot(axis);
+                rmax = Math.Max(rmax, (d - axis * (float)h).Length());
+                emax = Math.Max(emax, Math.Abs(h));
+            }
+            double elan = rmax / Math.Max(1e-9, emax);
+            if (elan < 3)
+                GD.PushWarning(FormattableString.Invariant(
+                    $"[{Spec.Id}] {nd.Name} : élancement {elan:F1} — cette pièce ne se lit pas comme un anneau, son axe est arbitraire. Deux anneaux parentés l'un à l'autre ?"));
+
             var pivot = new Node3D
             {
                 Name = $"pivot_{nd.Name}",
@@ -174,7 +200,7 @@ public partial class ShipNode
             });
             _ringPivots.Add(pivot);
             GD.Print(FormattableString.Invariant(
-                $"[{Spec.Id}] anneau {nd.Name} : axe ({axis.X:F2}, {axis.Y:F2}, {axis.Z:F2}), {rpm:F1} tr/min"));
+                $"[{Spec.Id}] anneau {nd.Name} : axe ({axis.X:F2}, {axis.Y:F2}, {axis.Z:F2}), rayon {rmax * k:F1} m, élancement {elan:F0}, {rpm:F1} tr/min"));
         }
     }
 

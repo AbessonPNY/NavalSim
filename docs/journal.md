@@ -12471,8 +12471,43 @@ anneaux à la même vitesse se retrouvent toujours dans la même figure et
 l'ensemble se lit comme une pièce unique ; le sens s'inverse, et le rapport
 n'étant pas une fraction simple, ils ne se réalignent jamais tout à fait.
 
+### Le premier export : deux anneaux qui n'en faisaient qu'un
+
+Le `.glb` livré parentait `anneau_2` à `anneau_1` — Blender le fait sans qu'on
+le demande. Or la première version s'ARRÊTAIT au premier nom d'anneau rencontré
+et emportait tout ce qui était dessous, par une règle qui se défendait bien :
+un anneau modelé en deux demi-tores doit partir entier, sans quoi chaque moitié
+tournerait autour de son propre centre et l'ensemble s'ouvrirait en fleur.
+
+Les deux anneaux n'en formaient donc plus qu'un, et leur direction de moindre
+variance ne voulait plus rien dire. **Cela aurait tourné quand même** : l'axe
+trouvé n'était pas absurde, simplement faux, et une pièce qui tourne autour d'un
+axe faux BALAIE au lieu de pivoter — par mer formée, cela se confond avec le
+roulis. C'est la panne qui a l'air de marcher, et c'est la troisième de cette
+famille dans ce journal après la gélatine du VAT et le cadran de gîte qui
+affichait zéro par construction.
+
+Ce qui l'a montrée : **l'élancement**, rayon sur demi-épaisseur. 20,8 pour
+chaque anneau pris seul, **2,0** pour les deux ensemble — un anneau est mince
+par définition, un tas ne l'est pas. Le chiffre est maintenant relevé à chaque
+mise à l'eau, et sous 3 un avertissement le dit. Le nombre qui départage n'a rien
+d'arbitraire : entre 2 et 20 il n'y a pas d'ambiguïté à trancher.
+
+La règle est donc devenue : **un anneau emporte ses sous-pièces mais jamais un
+autre anneau**, et le plus profond se détache en premier. Rien à refaire dans
+Blender, ce qui était le but — parenter deux objets est un geste trop banal pour
+qu'on demande à l'auteur de s'en souvenir.
+
+En passant, mon script d'audit disait l'inclinaison des plans à l'envers : il
+affichait le COMPLÉMENT de l'angle de la normale à la verticale. Une normale
+verticale donne un plan horizontal, pas l'inverse. À quarante-cinq degrés les
+deux coïncident, ce qui est la pire valeur possible pour s'en apercevoir, et
+j'ai annoncé « aucun des deux n'est vertical » sur un modèle qui en portait un.
+
 Ce qui reste à voir en jeu, et qui se dira à l'œil : à vingt degrés de bande, un
-anneau resté horizontal traverse la coque s'il est trop serré.
+anneau resté horizontal traverse la coque s'il est trop serré ; et les grands
+anneaux inclinés plongent sous la quille — 5,8 et 9,8 m sous celle de la Roter
+Löwe — donc leur arc bas reste dans l'eau.
 
 ## Conventions
 
