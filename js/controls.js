@@ -112,6 +112,9 @@ Naval.Controls = class Controls {
       if(k==='i' && this.onShot) this.onShot();       // I comme image
       if(k==='l' && !e.repeat && this.onSpyglass) this.onSpyglass();   // L comme lunette
       if(k==='o' && !e.repeat && this.onBigChart) this.onBigChart();   // O comme océan : la grande carte
+      /* Les anneaux. Y parce que G, la lettre de « gyroscope », est la bordée —
+         et que des lettres de la page il ne restait que Y et U. */
+      if(k==='y' && !e.repeat && this.onRings) this.onRings();
       /* G to starboard, shift for the other side: one mnemonic, two batteries.
          A TAP is one gun; HOLDING it is the whole broadside. The two are told
          apart by the browser's own auto-repeat flag rather than by a timer of

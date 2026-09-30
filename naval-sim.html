@@ -783,6 +783,15 @@ async function main(){
     questSel.blur();
   });
   // pour le débogage : aller au lieu de l'étape en cours
+  /* LES ANNEAUX — les allumer ou les eteindre. La lueur ne suit pas d un coup :
+     elle monte en trois secondes et demie et retombe en moins de deux, de sorte
+     qu on VOIT charger. Eteints ils sont caches, donc gratuits. */
+  function anneaux(on){
+    ship.ringsOrdered = on === undefined ? !ship.ringsOrdered : !!on;
+    parler(ship.ringsOrdered ? 'Les anneaux s’allument' : 'Les anneaux s’éteignent');
+    return ship.ringsOrdered;
+  }
+
   function allerQuete(){
     const s = quests.current();
     if(!s) return 'aucune quête en cours';
@@ -1567,6 +1576,7 @@ async function main(){
         dire(on ? 'Lunette ×' + Math.round(power) : 'Lunette rangée');
       controls.onSpyglass = ()=> spyglass.toggle();
       controls.onBigChart = ()=> basculerGrandeCarte();
+      controls.onRings = ()=> anneaux();
       // la capture redessine la scène : elle doit repasser par les deux couches
       capture.post = ()=> { bloom.render(); spyglass.render(); };
       /* LA POUDRE SE CONSOMME, une charge par coup, et c'est ce qui donne un
@@ -2945,7 +2955,7 @@ async function main(){
                 get spyglass(){ return spyglass; },
                 storms, get squall(){ return squall; }, kraken, lightning, foudroyer,
                 ghosts, fantomes, ghostCtx, calendar, climate, snow, dolphins,
-                quests, allerQuete,
+                quests, allerQuete, anneaux,
                 get fleet(){ return fleet; } };
 
   /* ------------------------- PRESSER LE TEMPS -------------------------

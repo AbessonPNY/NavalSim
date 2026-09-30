@@ -263,6 +263,15 @@ public partial class ShipDemo : Node3D
         if (e is InputEventMouseButton mb)
         {
             var at = Under(mb.Position);
+            /* ⇧CLIC POSE LA CIBLE DU SAUT. Le clic simple est la plume, le droit
+               une note, la molette la loupe, le milieu le déplacement : ⇧ était ce
+               qui restait, et c'est aussi ce que font les logiciels de carte pour
+               « poser un point » plutôt que « tracer ». */
+            if (mb.ButtonIndex == MouseButton.Left && mb.ShiftPressed)
+            {
+                if (mb.Pressed && at != null) SetJumpTarget(at.Value.X, at.Value.Z);
+                return at != null;
+            }
             if (mb.ButtonIndex == MouseButton.Left)
             {
                 /* HORS DE LA FEUILLE, le clic n'est pas à la plume : il va à

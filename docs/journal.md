@@ -12504,10 +12504,408 @@ verticale donne un plan horizontal, pas l'inverse. À quarante-cinq degrés les
 deux coïncident, ce qui est la pire valeur possible pour s'en apercevoir, et
 j'ai annoncé « aucun des deux n'est vertical » sur un modèle qui en portait un.
 
+### Un cercle qui tourne sur sa normale ne tourne pas
+
+Signalé après essai : « les anneaux tournent sur eux-mêmes ». C'était vrai, et
+c'était ma faute d'un bout à l'autre — j'avais fait tourner chaque anneau autour
+de **sa propre normale**, ce qui est le geste que le mot « axe » suggère et qui
+est ici exactement le mauvais.
+
+Un cercle qui tourne dans son propre plan **balaie sa figure de départ**. Il n'y
+a rien à voir, littéralement : la géométrie occupée à l'instant t est celle de
+l'instant zéro. Sur un tore lisse le résultat serait parfaitement immobile ; sur
+une bande à trente-deux facettes il ne reste qu'un scintillement d'arêtes, qui se
+lit comme un défaut de rendu et non comme un mouvement. Un anneau ne devient
+visiblement mobile qu'autour d'un **diamètre**.
+
+La leçon est de méthode plutôt que de géométrie : **la normale d'un anneau est ce
+qu'il faut MESURER, pas ce autour de quoi il faut tourner.** Les deux sont liés —
+le diamètre se déduit de la normale — mais les confondre donne un mouvement nul
+qu'aucun banc n'attrape, puisque tous les chiffres sont justes. Seul l'œil pouvait
+le dire, et il l'a dit du premier coup.
+
+Trois modes, donc, et le défaut est `vertical` : le diamètre le plus proche de la
+verticale, autour duquel le cerceau balaie comme un portail qui tourne.
+`horizontal` le fait basculer bout sur bout. `normale` garde l'ancien
+comportement, qui a son emploi le jour où un anneau portera un motif ou une lueur
+qui court le long de lui.
+
+Un anneau posé À PLAT n'a aucune verticale dans son plan : on prend alors l'axe
+d'étrave. Un repli qui rendrait un vecteur nul rendrait un quaternion invalide, et
+un anneau immobile sans un mot est pire qu'un anneau qui tourne autrement que
+prévu.
+
+### Ce qu'un diamètre fait balayer, et ce que cela coûte à mesurer
+
+Tourner autour d'un diamètre fait passer l'anneau partout dans la BOULE de son
+rayon. La question n'est donc plus « dépasse-t-il la coque » mais « son rayon
+dépasse-t-il la distance de son centre au point le plus éloigné du navire », mâts
+et beaupré compris. Mesuré sur la Roter Löwe :
+
+    point du navire le plus loin du centre des anneaux   17,7 m
+      (une pièce de poupe, x=0 y=7,9 z=−13,7 — ni le mât, ni le beaupré)
+
+    anneau_1   rayon 19,0 m   passe au large de 1,3 m
+    anneau_2   rayon 17,5 m   il manque 0,2 m : il effleure la poupe
+
+Deux décimètres sur dix-sept mètres. **Les boîtes englobantes ne suffisaient pas
+pour trancher cela** : prises sur les AABB de chaque maillage, elles donnaient
+18,4 m au lieu de 17,7 — un coin de boîte n'est pas un sommet — et concluaient à
+0,9 m de manque au lieu de 0,2. Quand la marge est du même ordre que l'erreur de
+la méthode, il faut lire les vrais sommets. Quatorze mégaoctets à parcourir une
+fois, pour une réponse qu'on ne pouvait pas deviner.
+
 Ce qui reste à voir en jeu, et qui se dira à l'œil : à vingt degrés de bande, un
 anneau resté horizontal traverse la coque s'il est trop serré ; et les grands
 anneaux inclinés plongent sous la quille — 5,8 et 9,8 m sous celle de la Roter
-Löwe — donc leur arc bas reste dans l'eau.
+Löwe dans le premier export — donc leur arc bas reste dans l'eau.
+
+## La lueur des anneaux, et pourquoi le halo de jour n'existe que dans Godot
+
+Demandé : que les anneaux fassent une lumière blanc-bleu, qu'on puisse les
+allumer et les éteindre sans que l'extinction coûte, et qu'ils servent plus tard
+de téléporteur.
+
+### Éteint doit vouloir dire absent
+
+« En évitant la consommation de ressources inutile » a une réponse nette, et ce
+n'est pas celle qu'on écrit d'instinct. Laisser la lueur à zéro paraît suffisant
+— l'anneau ajoute du noir, donc rien — mais il coûte encore ses appels de dessin,
+sa géométrie, sa rotation et ses uniformes, à chaque image, pour un résultat
+invisible. On CACHE donc les pivots dès que la charge tombe sous un millième, et
+`SpinRings` sort avant tout le reste. Vérifié à la main, la boucle de la page
+étant gelée par le volet : après extinction, l'horloge des anneaux et leur phase
+ne bougent plus d'un chiffre.
+
+La rampe, elle, est indispensable : 3,5 s pour monter, 1,8 s pour retomber. Un
+téléporteur qui s'allume d'un coup n'a l'air de rien charger — c'est la montée
+qui raconte, pas l'état.
+
+### Le bleu et le blanc ne sont pas un choix de palette
+
+Un arc électrique va du bleu au blanc à mesure qu'il chauffe. En faisant courir
+la couleur du froid vers le chaud avec la charge, l'œil lit une montée d'ÉNERGIE
+sans qu'on ait à l'écrire nulle part. C'est la même économie que les autres
+signaux du bord : on donne à voir la cause, pas un cadran.
+
+L'angle le long de l'anneau est CALCULÉ à partir de son centre et de sa normale,
+et non lu dans l'UV. Les UV d'un anneau dépendent de la façon dont il a été
+déplié, qui n'est pas une chose qu'on peut demander à l'auteur de tenir d'une
+version à l'autre. Chaque matière porte donc le centre et la normale DANS LE
+REPÈRE DE SON PROPRE MAILLAGE — deux maillages d'un même anneau n'ont pas le même
+repère, et une matière partagée aurait été fausse pour l'un des deux.
+
+### LE POINT DUR : un halo de jour
+
+La lueur de ce projet est coupée le jour, dans les deux moteurs, et le commentaire
+qui le dit donne la raison : le soleil sur la houle déborde le seuil et voilerait
+la mer entière. Or un téléporteur qui ne brille qu'après le coucher ne sert à
+rien.
+
+**Godot peut le faire, la page ne peut pas, et la différence est dans ce que
+chacun donne à lire à sa passe de lueur.**
+
+Godot la fait lire l'image en HDR, AVANT l'encodage : ce qui émet à 6 y vaut
+vraiment 6, et une mer ensoleillée plafonne bien plus bas. Il suffit donc de
+RELEVER le seuil pendant la charge — 0,319 devient 1,6 — pour qu'il ne reste que
+les anneaux au-dessus. La mer ne bloome pas, eux si.
+
+La page recopie l'image AFFICHÉE (`copyFramebufferToTexture` sur le tampon de
+dessin), où tout ce qui dépasse a déjà été écrêté au même blanc. Un anneau à 6 et
+un reflet de soleil à 3 y sont le même pixel : aucun seuil ne peut les
+distinguer, quel qu'il soit. Ce n'est pas un réglage manquant, c'est une
+information perdue avant la passe.
+
+La page garde donc sa lueur de nuit seule, et c'est le premier endroit où les
+deux moteurs ne montrent pas la même chose pour une raison qui n'est ni un
+modèle ni un plafond de taille. La consigne reste tenue — une seule définition,
+une seule fiche — mais elle valait d'être écrite ici, pour qu'on ne cherche pas
+un jour le réglage qui manque.
+
+## Le saut par les anneaux (Godot)
+
+Demandé : le système activé, vingt secondes pendant lesquelles les anneaux
+accélèrent, puis le navire saute sur un point posé à la main sur la carte — et
+rien ne se passe si ce point est à terre.
+
+### ⇧G ne marchait pas, et la raison valait d'être notée
+
+Signalé en jeu. La touche était pourtant écrite dans le `switch` des commandes.
+Elle n'y arrivait jamais : G est intercepté trente lignes plus haut par la
+bordée, qui a son propre `SetInputAsHandled` et son propre `return` — le
+chemin de G ne passe pas par le switch du tout. Un cas ajouté là est du code
+mort qui compile.
+
+La leçon est générale à ce fichier : **lire la liste des `case` ne suffit pas à
+savoir si une touche est libre.** Il faut lire ce qui rend AVANT eux. ⇧A, donc,
+pour « anneaux » — et il ne restait de toute façon que A, D, E, Q, S, W et Z avec
+⇧, toutes les autres lettres étant prises d'une façon ou d'une autre.
+
+### À quoi il sert, et c est ce qui décide du reste
+
+Dit après essai, et c est la raison d être de tout ce qui précède : le saut
+permet de GARDER de longues distances dans le monde tout en épargnant au joueur
+la navigation d un point A à un point B quand elle ne raconte rien.
+
+Les deux moitiés comptent autant. La Jamaïque à 0,4 et les traversées comptées
+entre régions existent pour que les distances soient VRAIES ; un monde où tout
+est à vingt minutes n a plus de géographie, et plus rien à décider. Mais une
+traversée qu on a déjà faite trois fois n apprend plus rien, et la refaire n est
+pas de la navigation, c est de l attente.
+
+Le saut tranche entre les deux sans rien retirer : la distance reste ce qu elle
+est, et c est le joueur qui décide quand elle vaut d être parcourue. C est aussi
+pourquoi il coûte vingt secondes à découvert plutôt que rien — un raccourci
+gratuit et illimité ne ménagerait pas la navigation, il la supprimerait.
+
+### La durée est une règle, pas une ambiance
+
+Vingt secondes n'est pas un chiffre d'effet. Un saut instantané serait une touche
+de triche ; vingt secondes sont un ENGAGEMENT — on les passe à découvert, sans
+pouvoir fuir, et un pirate qui approche a le temps d'arriver. C'est le délai qui
+fait du téléporteur une décision.
+
+Elles sont aussi la JAUGE : `RingsRise` reçoit la durée de charge, si bien que la
+rampe de lumière des anneaux est exactement ce qui reste à attendre. Aucun cadran
+à dessiner, rien à tenir d'accord — ce qu'on voit tourner de plus en plus vite
+EST le compte à rebours.
+
+Avec une correction mesurée à l'œil : la vitesse ne suit pas la charge tout droit
+mais par son **cube**. Une montée linéaire sur vingt secondes ne se voit pas —
+l'œil ne compare qu'à ce qu'il vient de voir, et un dixième de plus par seconde
+n'est rien. Au cube, ils tournent encore posément à trois secondes du saut et
+hurlent la dernière.
+
+### Un navire n'est pas un point
+
+« Si le point venait à être sur les terres, le saut ne marcherait pas » a une
+réponse plus large que sa lettre. Trois refus, pas un :
+
+- **à terre** — le relief au-dessus de l'eau ;
+- **pas assez d'eau** — il y en a, mais pas sous la quille ;
+- **trop serré** — assez d'eau au point visé, pas autour.
+
+Le troisième est celui qu'on n'écrit pas spontanément, et c'est le seul qui
+protège vraiment : arriver le nez dans une falaise parce que le pixel sous la
+souris était bleu serait un défaut que le joueur imputerait au jeu, avec raison.
+On sonde donc huit points sur un cercle d'une longueur de navire — de quoi tenir
+la coque entière quel que soit le cap d'arrivée, qu'on ne connaît pas encore au
+moment où l'on juge le point.
+
+**Le refus est prononcé EN POSANT la cible**, pas au moment du saut. L'apprendre
+vingt secondes plus tard, anneaux allumés, serait une punition pour une faute
+qu'on pouvait signaler aussitôt. Et rejugé à l'arrivée de la charge, parce que
+vingt secondes suffisent à changer ce qu'on avait vu.
+
+Éprouvé sur le vrai relief plutôt qu'à l'œil — un refus qui ne refuse pas ne se
+verrait qu'après coup, quand on cherche pourquoi on est dans une colline
+(`dotnet run --project core/NavalSim.Lab -- saut`) :
+
+    tête de jetée de Port-Royal   −11,0 m d'eau   -> Serre   (la côte est là)
+    à 100 m vers le large         +9,3 m          -> Terre   (on traverse l'île)
+    à 200 m                       −11,1 m         -> Bon
+    au large, 200 points tirés au hasard          -> 200 acceptés
+
+### Et le saut lui-même ne touche pas à l'origine
+
+Même raison que pour le retour au ponton, et elle vaut d'être redite : changer
+l'origine du monde emmène tout le monde avec elle, si bien que le pirate qu'on
+fuyait sauterait aussi. Ce ne serait pas un saut, ce serait un déménagement. On
+ne déplace donc QUE la coque ; le glissement de fin d'image recentre l'ensemble,
+et c'est un pur changement de repère qui ne déplace personne.
+
+Le navire arrive **stoppé, voiles serrées**, et l'estime est recalée sur le point
+— on sait exactement où l'on arrive, puisqu'on l'a désigné soi-même.
+
+## La coque flottait au-dessus du sable (Godot)
+
+Signalé : échouée, elle est « légèrement surélevée ». Et la question qui allait
+avec — « tu as mis une boîte de collision ? » — appelait un non : il n'y a pas
+de moteur physique ici. L'échouage se sonde en trois membrures de cinq points
+contre le relief, et le fond répond comme un ressort.
+
+La cause n'était pas dans ce code mais dans un DÉSACCORD entre deux quilles :
+
+    quille sondée par le solveur   y = −3,85 m   (keelDepth 3,2 + keelExtra 0,65)
+    bas de coque du modèle         y = −2,97 m
+                                   écart 0,88 m
+
+La sonde était donc SOUS le bois. Elle touchait le sable pendant que la coque
+dessinée flottait au-dessus, ce qui est exactement ce qu'on voyait.
+
+### Et ce n'était pas un travers d'un modèle
+
+Mesuré sur les dix fiches qui ont un .glb et un plan de formes, avant de décider
+quoi que ce soit :
+
+    frigate (La Couronne)   +1,53 m      pirate          +0,46 m
+    boussole / frigate17e   +0,88 m      speedwell       −0,13 m
+    cotre / sloop           +0,55 m      caisse-bois     −0,18 m
+    barge                   +0,43 m      bouee-canard    +0,06 m
+
+Aucun ne tombe juste, et le pire fait un mètre et demi. Ce n'était donc pas une
+fiche à corriger mais une règle qui manquait — et l'avoir mesuré partout AVANT
+de choisir a évité de rogner une cote pour un seul navire.
+
+### C'est le DESSIN qu'on sonde, pas la fiche
+
+Deux corrections possibles, et l'une est un piège. Rogner `keelDepth` ferait
+poser le maillage, mais les cotes d'une fiche forment un tout cohérent dont
+dépendent le déplacement, le tirant d'eau et le redressement : on ferait FLOTTER
+le navire autrement pour qu'il s'échoue joliment. Poser le modèle plus bas
+(`model.offset`) le ferait naviguer enfoncé de 88 cm, avec sa flottaison montée
+d'autant sur le bordé.
+
+La bonne réponse était déjà écrite ailleurs dans ce projet, au profil d'écume :
+« un modèle se mesure sur SON maillage de coque, puisque c'est la forme que
+l'œil voit ». L'échouage est le même cas — ce qui doit toucher le sable est ce
+qu'on voit toucher. On mesure donc le bas de coque à la mise à l'eau et l'on
+relève les cinq points d'autant (`ShipPhysics.GroundLift`). La fiche n'est pas
+touchée, la flottaison ne bouge pas d'un millimètre, et la parité tient : le
+champ vaut zéro pour une coque procédurale, qui n'a qu'une quille.
+
+Avec un garde-fou LARGE plutôt qu'aucun : au-delà de deux mètres, ce n'est plus
+un désaccord de cotes mais un modèle mal posé ou mal mis à l'échelle, et le
+corriger en silence ferait s'échouer le navire en l'air. On le dit, et on n'y
+touche pas.
+
+## La bulle du saut, et la bille de trois centimètres (Godot)
+
+Ajouté au modèle : `energie_sphere`, une sphère de vingt mètres de rayon
+centrée sur le navire, à faire paraître en fondu quand les anneaux vont très
+vite, à éclaircir en même temps que son alpha monte jusqu'à devenir opaque, et à
+faire disparaître très vite à la fin du saut.
+
+### Le troisième objet à sortir du modèle, et la même raison
+
+Sa boîte englobante fait **trente-cinq fois** le volume de celle de la coque.
+Elle aurait donc été prise pour la coque par tout ce qui cherche « le maillage le
+plus volumineux » — l'échelle du modèle, le profil d'écume, la batterie, et la
+mesure de quille écrite une heure plus tôt, qui aurait mis la quille à moins
+vingt et un mètres. La machinerie des anneaux a été généralisée en un `Detach`
+qui prend un motif : mêmes raisons, même mécanique, une seule copie.
+
+### LA BILLE
+
+Premier motif écrit : « energie | energy | sphere | sphère ». Or le modèle porte
+déjà un nœud nommé **Sphere** — une bille de trois centimètres en métal noir,
+une ferrure quelconque. Elle aurait été arrachée à la coque et transformée en
+bulle d'énergie qui grandit avant chaque saut, et **rien ne l'aurait signalé** :
+pas d'erreur, pas d'avertissement, juste une pièce du bord disparue et un point
+bleu clignotant quelque part sur le pont.
+
+C'est la deuxième fois dans la même journée qu'un motif trop large allait
+emporter une pièce de coque — `ring` attrapait mooring, steering, bearing,
+spring. La règle se dégage : **un motif qui DÉTACHE une pièce du modèle doit
+être le mot le plus rare qu'on puisse exiger de l'auteur**, jamais le mot
+descriptif. Le nom retenu est `energie` seul, qui ne veut rien dire d'autre
+sur un navire de 1597.
+
+### La bulle s allumait d un coup, et bleue
+
+Signalé au premier essai, et les deux défauts n en faisaient qu un seul.
+
+Le liseré de bord etait ecrit :
+
+    rim = pow(1 - face, 2.6) * (1 - lvl * 0.82)
+
+À niveau ZÉRO ce facteur vaut 1, donc la tranche de la coquille valait un alpha
+plein à l instant même où la bulle devenait visible. Elle ne montait pas : elle
+paraissait. Et elle paraissait dans sa couleur FROIDE, puisque rien n était
+encore chargé — d où « bleue au lieu de blanc ». Un seul facteur manquant, deux
+symptômes qui n avaient l air de rien avoir en commun.
+
+    ALPHA a la tranche      lvl 0,00   0,05   0,20   0,60   1,00
+      avant                      1,00   0,96   0,88   0,87   1,00
+      apres                      0,00   0,05   0,20   0,60   1,00
+
+La correction est de multiplier TOUT par le niveau, ce qui est la seule forme
+qui garantisse qu une chose invisible à zéro le reste. La leçon est petite et
+vaut d être retenue : **une somme de termes ne s annule pas parce que l un de
+ses facteurs s annule.** Chaque terme doit s annuler pour son compte, ou bien
+l ensemble doit être multiplié une fois pour toutes.
+
+Corrigé aussi, et c est indépendant : le blanc de fin était trop bleu. En
+linéaire — Godot convertit les `source_color` — le rouge n atteignait que 0,48
+fois le bleu à pleine charge, ce qui reste un bleu franc. Le haut de gamme est
+monté à 0,94/0,97/1,00 et la couleur blanchit désormais en puissance 0,6, donc
+AVANT de se fermer : à mi-charge elle est aux trois quarts du blanc pour un
+quart d opacité. L ordre inverse donnait un mur bleu qui s éclaircit après coup,
+ce qui ne se lit pas comme une montée en puissance.
+
+    rouge/bleu    lvl 0,20   0,50   0,80   1,00
+      avant           0,15   0,29   0,41   0,48
+      apres           0,42   0,64   0,79   0,87
+
+### Une opacité qui monte ne se lit pas comme une charge
+
+Faire simplement croître l'alpha de 0 à 1 donne un voile qu'on tire. Deux termes
+séparés donnent une bulle qui se ferme :
+
+  · le **liseré** de bord (fresnel), fort au début et noyé à la fin — la tranche
+    d'une coquille de savon ;
+  · le **remplissage**, au carré du niveau, donc tardif : le cœur reste clair
+    pendant que le bord brille déjà, puis se ferme d'un coup.
+
+Et la lumière s'éclaircit AVEC l'alpha : une surface qui devient à la fois plus
+opaque et plus claire se lit comme une charge, là où une opacité seule se lirait
+comme une fumée.
+
+Deux faces, parce que la caméra de pont est DEDANS : en ne gardant que les faces
+avant, la coquille disparaîtrait pour qui la regarde de l'intérieur — le point de
+vue le plus intéressant des sept dernières secondes.
+
+### La chronologie, établie avant de la voir
+
+    t (s)   anneaux   vitesse   bulle
+       12     0,60      x2,00    0,000
+       14     0,70      x2,83    0,114
+       16     0,80      x3,92    0,461
+       18     0,90      x5,30    0,829
+       20     1,00      x7,00    1,000
+
+    apres le saut : bulle eteinte a +0,7 s, anneaux encore a 0,61
+
+La bulle NE REDESCEND PAS avec les anneaux, et c'est ce qui a été demandé : elle
+a sa propre chute, cinq fois plus rapide. En montant elle suit la charge, en
+descendant elle mène.
+
+## La vue du ponton regarde où on la tourne (Godot)
+
+Elle faisait un LookAt sur la coque à chaque image. Demandé : une caméra libre,
+non ciblée sur le navire.
+
+Ce que le verrouillage coûtait, et qui ne saute aux yeux qu une fois levé : on ne
+pouvait ni regarder le port derrière soi, ni voir arriver une autre voile, ni
+simplement laisser le navire sortir du cadre. Et le mouvement lui-même était
+faux — un homme debout sur un musoir ne tourne pas la tête au millimètre pour ne
+pas lâcher un bateau des yeux.
+
+Elle a donc son cap et son inclinaison, que la souris mène, comme les vues à
+bord ont les leurs. Avec une réserve qui vaut pour toutes les vues libres :
+**elle s ouvre sur le navire, puis s en détache.** Entrer dans une vue qui
+regarde une direction quelconque oblige à chercher où l on est avant de pouvoir
+s en servir ; on vise donc au premier instant, une seule fois, et l on lâche. Le
+cap de visée se prend sur le vecteur qui va de la tête du ponton à la coque,
+comme tout cap ici, et non sur un angle d Euler.
+
+La molette y devient la FOCALE et non la distance, comme dans les vues à bord :
+sur un musoir on plisse les yeux, on ne fait pas un pas en arrière.
+
+### Et le ponton se fige sur celui où l on est monté
+
+Il était relu à chaque image comme le plus proche DU NAVIRE. C était juste tant
+que la vue suivait la coque : le point de vue avait beau sauter d un musoir à
+l autre, il montrait toujours la même chose. Le regard devenu libre, le saut se
+VOIT — on se retrouve ailleurs en regardant ailleurs, sans avoir rien fait.
+
+C est une conséquence qu on ne pouvait pas deviner avant d avoir libéré le
+regard, et c est pour cela qu elle vaut d être notée : **rendre une chose libre
+rend visible tout ce qui la déplaçait en silence.**
+
+Le ponton est donc retenu en entrant, en mètres monde vrais. La portée se mesure
+sur LUI et non sur le plus proche, sans quoi s éloigner de l un en s approchant
+d un autre ne rendrait jamais la vue.
 
 ## Conventions
 

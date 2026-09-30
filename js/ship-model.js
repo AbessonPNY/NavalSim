@@ -204,6 +204,77 @@ Naval.ringAxis = function(xx, xy, xz, yy, yz, zz){
    modele pour tourner est une panne qui ne ressemble pas a sa cause. */
 Naval.RING_NAMES = /(^|[^a-z0-9])(anneau|gyro|ring)/i;
 
+/* AUTOUR DE QUOI UN ANNEAU TOURNE, a partir de la normale de son plan. Jumelle
+   de SpinAxis dans godot/scripts/ShipNode.Rings.cs, ou le pourquoi est ecrit ;
+   en une phrase : faire tourner un cercle autour de SA PROPRE NORMALE ne se voit
+   pas — la figure balayee est la figure de depart — donc il faut un DIAMETRE. */
+/* LA LUEUR DES ANNEAUX — jumelle de godot/shaders/ring_glow.gdshader, ou tout le
+   pourquoi est ecrit : additive parce que c est de la LUMIERE et non de la
+   matiere, sans ombre, sans brume, et l angle calcule plutot que lu dans l UV
+   pour qu un anneau redeplie dans Blender ne change rien.
+
+   toneMapped a false : le ton mapping ramenerait a 1 ce qui doit deborder. */
+Naval.ringGlowMaterial = function(centre, axis){
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uCold:   { value: new THREE.Color(0.16, 0.42, 1.00) },
+      uHot:    { value: new THREE.Color(0.78, 0.90, 1.00) },
+      uLevel:  { value: 0 },
+      uEnergy: { value: 6.0 },
+      uCentre: { value: centre.clone() },
+      uAxis:   { value: axis.clone() },
+      uTime:   { value: 0 },
+      uBands:  { value: 3.0 },
+      uTurns:  { value: 0.35 }
+    },
+    vertexShader: `
+      uniform vec3 uCentre;
+      uniform vec3 uAxis;
+      varying float vAng;
+      void main(){
+        vec3 n = normalize(uAxis);
+        vec3 a = abs(n.x) < 0.9 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
+        vec3 u = normalize(cross(a, n));
+        vec3 w = cross(n, u);
+        vec3 d = position - uCentre;
+        vAng = atan(dot(d, w), dot(d, u)) * 0.15915494 + 0.5;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      uniform vec3 uCold;
+      uniform vec3 uHot;
+      uniform float uLevel;
+      uniform float uEnergy;
+      uniform float uTime;
+      uniform float uBands;
+      uniform float uTurns;
+      varying float vAng;
+      void main(){
+        float lvl = clamp(uLevel, 0.0, 1.0);
+        float band = fract(vAng * uBands - uTime * uTurns * (0.4 + 1.6 * lvl));
+        float crest = 1.0 - abs(band - 0.5) * 2.0;
+        float glow = smoothstep(mix(0.82, 0.30, lvl), 1.0, crest);
+        float body = mix(0.06, 0.40, lvl);
+        vec3 col = mix(uCold, uHot, lvl * (0.30 + 0.70 * glow));
+        gl_FragColor = vec4(col * uEnergy * lvl * (body + glow * (0.5 + 1.1 * lvl)), 1.0);
+      }`,
+    blending: THREE.AdditiveBlending,
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    toneMapped: false,
+    fog: false
+  });
+};
+
+Naval.ringSpinAxis = function(n, mode){
+  // sa propre normale : il tourne DANS son plan, donc sans rien montrer
+  if(mode === 'normale') return n.clone();
+  if(mode === 'travers' || mode === 'x') return new THREE.Vector3(1, 0, 0);
+  if(mode === 'etrave' || mode === '\u00e9trave' || mode === 'z') return new THREE.Vector3(0, 0, 1);
+  return new THREE.Vector3(0, 1, 0);
+};
+
 /* LA NUIT TOMBE D'UN COUP SUR LES FEUX, et c'est ce que fait un équipage :
    on allume les fanaux quand il fait nuit et on les souffle à l'aube, on ne les
    baisse pas pendant une heure de crépuscule. `night` du stage monte de 0 au
@@ -281,6 +352,12 @@ Naval.ShipModel = class ShipModel {
     this.group.add(this.procedural);
     this.rigs = [];                          // what braces or swings when trimmed
     this.rings = [];                         // ce qui tourne sur elle, voir _mountRings
+    /* LA CHARGE DES ANNEAUX. Ce que le jeu demande, et ou en est la rampe : un
+       teleporteur qui s allume d un coup n a l air de rien charger. */
+    this.ringsOrdered = true;
+    this.ringLevel = 0;
+    this._ringsLit = false;
+    this._ringClock = 0;
     this.falls = [];                         // and what can come down, mast and all
     /* Cut rigging is HER state, so it lives on her: she asks for the ends, and
        the shared pool in cordage.js hangs them. A hull that leaves the fleet
@@ -1099,6 +1176,21 @@ Naval.ShipModel = class ShipModel {
         elan.toFixed(1) + ' — cette piece ne se lit pas comme un anneau, son axe est ' +
         'arbitraire. Deux anneaux parentes l un a l autre ?');
 
+      /* LA MATIERE DE LUEUR, UNE PAR MAILLAGE ET NON UNE PAR ANNEAU : elle porte
+         le centre et la normale DANS LE REPERE DE SON MAILLAGE, et deux maillages
+         d un meme anneau n ont pas le meme repere. */
+      const glow = [];
+      node.traverse(o => {
+        if(!o.isMesh || !o.geometry) return;
+        const inv = new THREE.Matrix4().multiplyMatrices(parent, o.matrixWorld).invert();
+        const gm = Naval.ringGlowMaterial(c.clone().applyMatrix4(inv),
+                                          axis.clone().transformDirection(inv).normalize());
+        o.material = gm;
+        o.castShadow = false;                // de la lumiere n ombre pas
+        o.receiveShadow = false;
+        glow.push(gm);
+      });
+
       const pivot = new THREE.Object3D();
       pivot.name = 'pivot_' + node.name;
       pivot.position.set(off[0], off[1], off[2])
@@ -1117,8 +1209,18 @@ Naval.ShipModel = class ShipModel {
          a -0,618 fois le precedent : le sens s'inverse, et le rapport n'etant pas
          une fraction simple, ils ne se realignent jamais tout a fait. */
       const rpm = (sp && sp.rpm != null) ? sp.rpm : 6 * Math.pow(-0.618, i);
-      this.rings.push({ pivot, axis, rate: rpm*Math.PI*2/60, phase: 0,
+      const mode = (sp && sp.spin) || 'vertical';
+      const spin = Naval.ringSpinAxis(axis, mode);
+      /* UN ANNEAU QUI TOURNE AUTOUR DE SA NORMALE NE TOURNE PAS : il balaie sa
+         figure de depart, et il ne reste que le scintillement de ses facettes.
+         Signale parce que cela ne se voit qu a l oeil, et se prend pour un defaut
+         de rendu plutot que pour un mauvais reglage. */
+      if(mode !== 'normale' && Math.abs(spin.dot(axis)) > 0.99)
+        console.warn('[' + this.spec.id + '] ' + node.name + ' : l axe ' + mode +
+          ' est celui de sa normale — il tournera dans son propre plan, donc sans rien montrer.');
+      this.rings.push({ pivot, axis: spin, rate: rpm*Math.PI*2/60, phase: 0, glow,
                         steady: sp && sp.steady != null ? !!sp.steady : true });
+      if(sp && sp.on === false) this.ringsOrdered = false;
     }
   }
 
@@ -3121,6 +3223,33 @@ Naval.ShipModel = class ShipModel {
      l'etrave. */
   spinRings(body, dt){
     if(!this.rings.length) return;
+
+    /* LA CHARGE MONTE ET DESCEND EN RAMPE, jamais d un coup : c est elle qui fait
+       lire « il charge » plutot que « quelqu un a appuye ». */
+    const want = this.ringsOrdered ? 1 : 0;
+    if(this.ringLevel !== want){
+      const step = dt/(this.ringsOrdered ? 3.5 : 1.8);
+      this.ringLevel = want > this.ringLevel ? Math.min(want, this.ringLevel + step)
+                                             : Math.max(want, this.ringLevel - step);
+    }
+    /* ETEINT NE COUTE RIEN, et c est tout l interet de CACHER plutot que de
+       laisser la lueur a zero : un anneau invisible ne se dessine pas, ne tourne
+       pas et ne pousse aucun uniforme. A zero il couterait encore sa geometrie a
+       chaque image, pour ajouter du noir. */
+    const lit = this.ringLevel > 0.001;
+    if(lit !== this._ringsLit){
+      this._ringsLit = lit;
+      for(const r of this.rings) r.pivot.visible = lit;
+    }
+    if(!lit) return;
+    this._ringClock += dt;
+    if(this._ringClock > 3600) this._ringClock -= 3600;
+    for(const r of this.rings)
+      for(const g of r.glow){
+        g.uniforms.uLevel.value = this.ringLevel;
+        g.uniforms.uTime.value = this._ringClock;
+      }
+
     const T = this._ringTmp || (this._ringTmp = {
       fwd: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0),
       level: new THREE.Quaternion(), inv: new THREE.Quaternion(), spin: new THREE.Quaternion() });
@@ -3132,7 +3261,8 @@ Naval.ShipModel = class ShipModel {
          monter a des dizaines de milliers de radians, ou un flottant n'a plus
          assez de decimales pour un pas d'image — l'anneau saccade au bout d'une
          heure de jeu. */
-      r.phase += r.rate*dt;
+      // ils prennent leur vitesse en meme temps que leur lumiere
+      r.phase += r.rate*(0.25 + 0.75*this.ringLevel)*dt;
       if(r.phase > Math.PI*2) r.phase -= Math.PI*2;
       else if(r.phase < -Math.PI*2) r.phase += Math.PI*2;
       T.spin.setFromAxisAngle(r.axis, r.phase);

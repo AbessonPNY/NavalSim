@@ -177,6 +177,34 @@ public sealed class RingSpec
     /// au pont et roule avec la coque.
     /// </summary>
     [JsonPropertyName("steady")] public bool Steady { get; set; } = true;
+    /// <summary>
+    /// AUTOUR DE QUOI IL TOURNE — un axe NOMME et FIXE, dans le repere du navire.
+    ///
+    ///   "vertical"  (defaut) (0,1,0)  le cerceau balaie comme un portail ;
+    ///   "etrave"              (0,0,1)  il bascule bout sur bout ;
+    ///   "travers"             (1,0,0)  il roule d'un bord sur l'autre ;
+    ///   "normale"   sa propre normale. Il tourne alors DANS son plan, ce qui,
+    ///               sur un cercle, ne se voit pas — la geometrie balayee est
+    ///               identique a l'arret. A garder pour un anneau qui porte un
+    ///               motif, une denture ou une lueur qui court.
+    ///
+    /// NOMMES plutot que x/y/z : l'auteur pense dans les axes de Blender (Z en
+    /// haut, Y vers l'avant), le moteur dans ceux du glTF (Y en haut, Z vers
+    /// l'avant), et « l'axe Z » ne designe donc pas la meme chose des deux cotes
+    /// de l'export. Un mot ne peut pas se tromper de convention. Les lettres
+    /// x/y/z restent acceptees, dans celle du MOTEUR.
+    ///
+    /// Les trois premiers font tourner l'anneau autour d'un DIAMETRE, donc il
+    /// balaie une SPHERE de son rayon : un anneau plus petit que le navire
+    /// traversera la mature.
+    /// </summary>
+    [JsonPropertyName("spin")]   public string Spin { get; set; } = "vertical";
+    /// <summary>
+    /// ALLUME AU DEPART. Vrai par defaut ; a mettre a false le jour ou les anneaux
+    /// ne serviront qu au teleporteur, pour que le navire appareille sans eux. Une
+    /// seule ligne de fiche suffit alors, sans rien changer au code.
+    /// </summary>
+    [JsonPropertyName("on")]     public bool On { get; set; } = true;
 }
 
 /// <summary>

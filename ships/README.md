@@ -528,17 +528,126 @@ ressemble pas à sa cause.
 
 Il garde le **cap** du navire, et ignore le **roulis** et le **tangage** : la
 coque travaille sous lui, il reste d'aplomb. C'est ce qui le fait lire comme un
-gyroscope plutôt que comme une pièce boulonnée au pont. Il tourne sur la normale
-de son propre plan, trouvée en lisant ses sommets — un anneau est mince dans une
-seule direction, et c'est celle-là.
+gyroscope plutôt que comme une pièce boulonnée au pont.
 
-Deux conséquences à connaître. À vingt degrés de bande, un anneau resté
-horizontal **traverse la coque** s'il est trop serré : voyez large. Et un grand
-anneau incliné **plonge sous la quille** — son arc bas reste dans l'eau, ce qui
-peut être très beau ou tout à fait involontaire, mais ne s'anticipe pas depuis
-Blender. La console le dit à la mise à l'eau : axe, rayon en mètres et
-**élancement** (rayon sur demi-épaisseur). Sous 3, la pièce ne se lit pas comme
-un anneau, son axe est arbitraire, et un avertissement le signale.
+**Il tourne autour d'un DIAMÈTRE, jamais autour de sa normale.** C'est le contraire
+de ce qu'on croit en le modelant : un cercle qui tourne dans son propre plan
+balaie exactement sa figure de départ, donc **on ne voit rien** — il n'en reste
+que le scintillement des facettes, qui se lit comme un défaut. Le plan de
+l'anneau est trouvé en lisant ses sommets (il est mince dans une seule
+direction) ; le diamètre autour duquel il tourne se choisit par `spin` :
+
+| `spin` | l'axe, dans le repère du navire | ce qu'on voit |
+|---|---|---|
+| `vertical` (défaut) | (0, 1, 0) — le **Z de Blender** | le cerceau balaie comme un portail qui tourne |
+| `etrave` | (0, 0, 1) — le **Y de Blender** | il bascule bout sur bout |
+| `travers` | (1, 0, 0) — le **X de Blender** | il roule d'un bord sur l'autre |
+| `normale` | sa propre normale | rien, sauf s'il porte un motif, une denture ou une lueur qui court |
+
+### La lueur
+
+Les anneaux portent leur propre matière — **additive, blanc-bleu, sans ombre et
+sans brume**, parce que c'est de la lumière et non de la matière. Le matériau du
+`.glb` n'est pas retouché ; il reçoit un override, et on peut le rendre.
+
+Le **bleu est celui du repos, le blanc celui de la pleine charge** : un arc
+électrique va du bleu au blanc à mesure qu'il chauffe, et l'œil lit cette montée
+comme une montée d'énergie sans qu'on ait rien à expliquer. Des bandes courent le
+long de l'anneau, d'autant plus vite et larges qu'il est chargé.
+
+**Allumer, éteindre :** `⇧G` dans Godot, `Y` dans la page (ou
+`Naval.app.anneaux()`). La lueur monte en 3,5 s et retombe en 1,8 s — un
+téléporteur qui s'allume d'un coup n'a l'air de rien charger, et la rampe est ce
+qui fait lire la charge. La vitesse de rotation monte avec elle.
+
+**Éteints, ils sont cachés — donc gratuits.** Pas de dessin, pas de rotation,
+pas un uniforme poussé. Laisser la lueur à zéro aurait encore coûté leur
+géométrie à chaque image, pour ajouter du noir. Mettre `"on": false` dans la
+ligne de fiche les laisse éteints au départ.
+
+### La sphère d'énergie
+
+Un maillage dont le nom porte `energie` (ou `energy`) est sorti du modèle
+comme les anneaux, et devient la **bulle du saut**. Rien à déclarer non plus.
+
+Elle paraît **quand les anneaux vont déjà vite** — au-delà des deux tiers de la
+charge, soit les sept dernières secondes des vingt — commence en bulle de savon
+dont on ne voit que la tranche, puis se remplit et s'éclaircit jusqu'à cacher le
+navire. Après le saut elle s'efface en **sept dixièmes de seconde**, bien avant
+les anneaux : la bulle est l'effet, les anneaux sont la machine, et l'effet
+cesse d'abord.
+
+Le nom doit porter **énergie**, pas « sphère » : un modèle a le droit d'avoir
+une sphère qui n'est qu'une ferrure, et celui de la Roter Löwe en a une.
+
+### Le saut
+
+Les anneaux sont un **téléporteur**. La manœuvre, en jeu :
+
+1. la carte ouverte (`I`), **⇧clic** pose la cible — reposer au même endroit la
+   lève ;
+2. **⇧A** arme le saut (⇧G ne peut pas servir : G est la bordée, et elle
+   intercepte la touche avant le reste) ;
+3. les anneaux montent en régime pendant **vingt secondes**, de plus en plus vite
+   et de plus en plus blancs — leur rampe *est* la jauge, il n'y a pas de cadran ;
+4. le navire saute, stoppé et voiles serrées.
+
+⇧A pendant la charge l'interrompt. Vingt secondes, c'est long, et c'est voulu :
+on les passe à découvert, un pirate qui approche a le temps d'arriver, et le
+saut devient une décision au lieu d'un raccourci.
+
+**Une cible à terre est refusée**, et on le sait en la posant, pas vingt secondes
+plus tard. Le refus porte aussi sur ce qui est à terre sans en avoir l'air : pas
+assez d'eau pour la quille, ou la côte trop près — le saut exige un rond d'eau
+navigable d'une longueur de navire tout autour du point, parce qu'un navire n'est
+pas un point et qu'arriver le nez dans une falaise parce que le pixel sous la
+souris était bleu serait un défaut qu'on imputerait au jeu, avec raison. Le
+cercle bleu dessiné sur la carte EST ce rond d'eau, à l'échelle ; barré, la cible
+est refusée.
+
+La règle est dans le noyau (`core/NavalSim.Core/Teleport.cs`), éprouvée par
+`dotnet run --project core/NavalSim.Lab -- saut` : on la passe sur le vrai
+relief, du sommet d'une île au large, et l'on regarde où elle bascule.
+
+**Le halo de jour n'existe que dans Godot**, et ce n'est pas un oubli. Sa lueur
+lit l'image en HDR, avant l'encodage : on peut donc relever son seuil au-dessus
+de ce qu'une mer ensoleillée atteint et sous ce que les anneaux émettent, et ne
+laisser déborder qu'eux. Le bloom de la page recopie l'image **affichée**, où
+tout ce qui dépasse est déjà écrêté au même blanc — la mer et les anneaux y sont
+indiscernables, et c'est pourquoi il reste coupé le jour. La nuit, les deux
+moteurs font le même halo.
+
+Les axes sont **nommés** et non appelés x/y/z, parce que Blender met Z en haut et
+Y vers l'avant là où le glTF met Y en haut et Z vers l'avant : « l'axe Z » ne
+désigne pas la même chose des deux côtés de l'export, et un mot ne peut pas se
+tromper de convention. (`x`, `y`, `z` restent acceptés, dans celle du moteur.)
+
+Ils sont aussi **fixes**, et non déduits du plan de l'anneau : un axe déduit
+changerait dès qu'on repenche la pièce dans Blender, et ce qu'on avait réglé à
+l'œil se déferait sans qu'on ait touché à la fiche.
+
+Deux anneaux perpendiculaires avec l'un `vertical` et l'autre `etrave` donnent
+la figure d'une sphère armillaire — des gimbaux dont les axes diffèrent. Chaque
+anneau garde son axe **propre au navire** : parenter les anneaux entre eux dans
+Blender ne les fait pas s'emporter l'un l'autre.
+
+Trois conséquences à connaître, dont aucune ne s'anticipe depuis Blender.
+
+**Il balaie une sphère.** Tourner autour d'un diamètre veut dire que l'anneau
+passe partout dans la boule de son rayon : pour rester au large de tout, son
+rayon doit dépasser la distance de son centre au point le plus éloigné du navire
+— mâts et beaupré compris, pas la coque seule. Sinon il les traverse.
+
+**Un grand anneau incliné plonge sous la quille**, et son arc bas reste dans
+l'eau. Très beau, ou tout à fait involontaire.
+
+**À vingt degrés de bande, un anneau resté horizontal traverse la coque** s'il
+est trop serré.
+
+La console dit tout cela à la mise à l'eau : normale, mode et axe de rotation,
+rayon en mètres, et **élancement** (rayon sur demi-épaisseur). Sous 3, la pièce
+ne se lit pas comme un anneau, son axe est arbitraire, et un avertissement le
+signale.
 
 **Pour changer sa vitesse** — facultatif. Sans ces lignes, le premier anneau
 tourne à 6 tr/min et chacun des suivants à −0,618 fois le précédent, un rapport
@@ -548,15 +657,16 @@ choisi pour qu'ils ne se réalignent jamais tout à fait.
 "model": {
   "glb": "...",
   "rings": [
-    { "match": "gyro_1", "rpm": 6 },
-    { "match": "gyro_2", "rpm": -3.7, "steady": true }
+    { "match": "gyro_1", "rpm": 6,    "spin": "vertical" },
+    { "match": "gyro_2", "rpm": -3.7, "spin": "etrave", "steady": true }
   ]
 }
 ```
 
 `match` est un morceau du nom, sans égard à la casse (vide ou absent : tous les
-anneaux). `rpm` est en tours par minute, le signe donnant le sens. `steady` à
-`false` le boulonne au pont : il roule alors avec la coque.
+anneaux). `rpm` est en tours par minute, le signe donnant le sens. `spin` est
+l'axe, voir le tableau plus haut. `steady` à `false` le boulonne au pont : il
+roule alors avec la coque.
 
 Lu par `godot/scripts/ShipNode.Rings.cs` et `js/ship-model.js` ; l'axe est
 calculé par `Rings.Axis` dans le noyau, éprouvé par

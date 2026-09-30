@@ -260,7 +260,7 @@ public partial class ShipDemo : Node3D
             _chart = new ChartNode(_world, _book)
             {
                 PenWidth = _settings.PenWidth,
-                Aim = QuestPlace, Marks = () => _flotsam.Marks(),
+                Aim = QuestPlace, Jump = JumpPlace, Marks = () => _flotsam.Marks(),
                 // où l'on croit être, et — au débogage seulement — où l'on est
                 Where = () => _reck != null && _reck.Known && _reckRules.Enabled ? (_reck.X, _reck.Z, _reck.SigN, _reck.SigE) : null,
                 Truth = () => _ship == null ? null : TruePos()
@@ -590,6 +590,11 @@ public partial class ShipDemo : Node3D
     bool _dofMarkerKeep;
     // la lueur tourne à l'armement : son programme compilé au démarrage, pas au crépuscule
     int _glowPrime = 3;
+
+    /// <summary>Le seuil de la lueur, en linéaire — voir ApplySettings pour d'où il sort.</summary>
+    const float GlowThreshold = 0.319f;
+    /// <summary>Et celui qu'on lui impose de JOUR quand les anneaux brûlent : voir plus bas.</summary>
+    const float GlowDayThreshold = 1.6f;
     PanelContainer _menu = null!;
     // O et G changent ces deux-là au clavier : le menu les relit à l'ouverture
     CheckBox _chkOcclusion = null!, _chkIndirect = null!;
@@ -656,7 +661,7 @@ public partial class ShipDemo : Node3D
            sur ≈ 25 px en 1080p : les niveaux 2 et 3 de Godot, au quart et au
            huitième, couvrent la même largeur. */
         var env = _sky.Env;
-        env.GlowHdrThreshold = 0.319f;
+        env.GlowHdrThreshold = GlowThreshold;
         env.GlowHdrScale = 0.355f;
         env.GlowBloom = 0;
         env.GlowBlendMode = Godot.Environment.GlowBlendModeEnum.Additive;
@@ -1199,6 +1204,7 @@ public partial class ShipDemo : Node3D
         _ship.SwingLanterns(frame);
         // et ce qui tourne sur elle sans rien devoir a la houle
         _ship.SpinRings(frame);
+        JumpTick(frame);
         StepOthers(frame);
         long a2 = GC.GetAllocatedBytesForCurrentThread();
         _allocPhys += a1 - a0; _allocSails += a2 - a1; _allocFrames++;
@@ -1388,7 +1394,21 @@ public partial class ShipDemo : Node3D
            n'a pas passé 0,02 : le soleil sur la houle déborderait le seuil et
            voilerait la mer. Allumée aux premières images pour être compilée. */
         if (_glowPrime > 0) _glowPrime--;
-        _sky.Env.GlowEnabled = _settings.Glow && (_glowPrime > 0 || _sky.Core.Night > 0.02);
+        /* LES ANNEAUX ALLUMENT LA LUEUR EN PLEIN JOUR, ce que rien d'autre ne fait.
+           Le seuil de nuit (0,319 en linéaire) est SOUS le soleil sur la houle :
+           l'ouvrir de jour voilerait la mer entière, et c'est pour cela qu'elle
+           est coupée le jour. On le relève donc pendant la charge, au-dessus de
+           tout ce qu'une mer ensoleillée atteint et sous ce qu'un anneau émet
+           (u_energy = 6) : il ne reste alors qu'eux au-dessus du seuil.
+
+           1,6 est un premier chiffre, à juger à l'œil contre un soleil au zénith.
+           La nuit, rien à faire : le seuil ordinaire suffit et les anneaux le
+           passent de très loin. */
+        bool ringsLit = _ship != null && _ship.RingsLit;
+        bool day = _sky.Core.Night <= 0.02;
+        _sky.Env.GlowEnabled = _settings.Glow && (_glowPrime > 0 || !day || ringsLit);
+        float want = ringsLit && day ? GlowDayThreshold : GlowThreshold;
+        if (_sky.Env.GlowHdrThreshold != want) _sky.Env.GlowHdrThreshold = want;
         _dofMarker.Visible = _settings.Dof && (_menu.Visible || _dofMarkerKeep);
         if (_dofMarker.Visible)
             _dofMarker.Draw(_cam, _sea.Core, _t, _settings.DofNear, _settings.DofDistance, _settings.DofFade);
@@ -1673,6 +1693,33 @@ public partial class ShipDemo : Node3D
     const double JettyEye = 1.65;
 
     /// <summary>
+    /// SON REGARD, QUI EST LE SIEN. La vue du ponton suivait le navire à chaque
+    /// image : on ne pouvait ni regarder le port, ni voir arriver autre chose, ni
+    /// simplement laisser le navire sortir du cadre — et un homme debout sur un
+    /// musoir ne tourne pas la tête au millimètre pour ne pas lâcher un bateau des
+    /// yeux. Elle a donc son cap et son inclinaison, que la souris mène.
+    ///
+    /// ELLE S'OUVRE SUR LE NAVIRE et s'en détache ensuite : entrer dans une vue
+    /// qui regarde une direction quelconque oblige à chercher où l'on est avant de
+    /// pouvoir s'en servir. On vise au premier instant, puis on lâche.
+    /// </summary>
+    double _jettyYaw, _jettyPitch;
+
+    /// <summary>
+    /// LE PONTON OÙ L'ON EST MONTÉ, et dont on ne bouge plus tant qu'on y reste.
+    ///
+    /// Relire le plus proche à chaque image était juste tant que la vue suivait le
+    /// navire : le point de vue avait beau sauter d'un musoir à l'autre, il
+    /// montrait toujours la même chose. Le regard devenu libre, le saut se voit —
+    /// on se retrouve ailleurs en regardant ailleurs, sans avoir rien fait. On
+    /// retient donc le ponton choisi en entrant.
+    ///
+    /// EN MÈTRES MONDE VRAIS, comme tout ce qui est « du monde » : un point local
+    /// se périmerait au premier glissement de l'origine.
+    /// </summary>
+    (Vec3d Head, string Name)? _jettyHeld;
+
+    /// <summary>
     /// LE PONTON LE PLUS PROCHE, s'il est à portée — sa tête, en mètres MONDE
     /// VRAIS, et le nom de son port.
     ///
@@ -1681,6 +1728,14 @@ public partial class ShipDemo : Node3D
     /// reste du jeu les écarte déjà — on lit la même condition ici plutôt que
     /// d'en inventer une seconde.
     /// </summary>
+    /// <summary>Ce ponton-là est-il encore à portée du navire ?</summary>
+    bool InJettyView(Vec3d head)
+    {
+        var (tx, tz) = TruePos();
+        double dx = head.X - tx, dz = head.Z - tz;
+        return dx * dx + dz * dz < JettyView * JettyView;
+    }
+
     (Vec3d Head, string Name)? NearJetty()
     {
         if (_world == null) return null;
@@ -1721,6 +1776,8 @@ public partial class ShipDemo : Node3D
         else if (_camMode == 3 && NearJetty() is { } j)
         {
             _camMode = 4; SetLens(OutsideFov, OutsideNear);
+            _jettyHeld = j;                 // et l'on n'en bougera plus
+            AimJetty(j.Head);
             Say("Du ponton de " + j.Name);
         }
         else _camMode = 0;
@@ -1739,6 +1796,21 @@ public partial class ShipDemo : Node3D
     }
 
     void SetLens(float fov, float near) { _cam.Fov = fov; _cam.Near = near; }
+
+    /// <summary>
+    /// Poser le regard du ponton sur le navire — une fois, en y entrant. Le cap
+    /// se prend sur le vecteur qui va de la tête du ponton à la coque, comme tout
+    /// cap dans ce projet, et non sur un angle d'Euler.
+    /// </summary>
+    void AimJetty(Vec3d head)
+    {
+        var o = _sea.Core.Origin;
+        double dx = _ship.Position.X - (head.X - o.X);
+        double dz = _ship.Position.Z - (head.Z - o.Z);
+        double dy = _ship.Position.Y - (NavalSim.Core.Berth.DeckY + JettyEye);
+        _jettyYaw = Math.Atan2(dx, dz);
+        _jettyPitch = Math.Clamp(Math.Atan2(dy, Math.Sqrt(dx * dx + dz * dz)), -0.9, 0.9);
+    }
 
     void DeckCamera()
     {
@@ -1854,10 +1926,15 @@ public partial class ShipDemo : Node3D
             return;
         }
 
-        /* DU PONTON : l'œil immobile sur le musoir, à hauteur d'homme, qui SUIT le
-           navire. C'est l'inverse exact de toutes les autres vues — celles-ci sont
-           portées par la coque et regardent le monde ; celle-là est portée par le
-           monde et regarde la coque.
+        /* DU PONTON : l'œil immobile sur le musoir, à hauteur d'homme, et LIBRE.
+           C'est l'inverse exact de toutes les autres vues — celles-ci sont portées
+           par la coque et regardent le monde ; celle-là est portée par le monde et
+           regarde où on la tourne.
+
+           ELLE NE SUIT PLUS LE NAVIRE, et c'était le défaut : verrouillée sur la
+           coque, on ne pouvait ni regarder le port, ni voir arriver autre chose,
+           ni laisser le navire sortir du cadre. Elle s'ouvre sur lui — sans quoi
+           l'on cherche où l'on est en y entrant — puis elle s'en détache.
 
            L'ŒIL EST EN COORDONNÉES LOCALES. La tête du ponton est un point du
            monde, donc en mètres vrais, et l'origine glisse sous lui : on la
@@ -1865,13 +1942,17 @@ public partial class ShipDemo : Node3D
            périmerait au premier recentrage.
 
            ET ELLE SE REND QUAND ON S'EN VA : la coque sortie des huit cents
-           mètres, la vue redevient l'orbite. Laissée en place, elle montrerait un
-           point à l'horizon et le joueur croirait le jeu bloqué. */
+           mètres DE CE PONTON-LÀ, la vue redevient l'orbite. Laissée en place,
+           elle montrerait un point à l'horizon et le joueur croirait le jeu
+           bloqué. La portée se mesure sur le ponton RETENU et non sur le plus
+           proche, sans quoi s'éloigner de l'un en s'approchant d'un autre ne
+           rendrait jamais la vue. */
         if (_camMode == 4)
         {
-            if (NearJetty() is not { } jv)
+            if (_jettyHeld is not { } jv || !InJettyView(jv.Head))
             {
                 _camMode = 0;
+                _jettyHeld = null;
                 Say("Le ponton est hors de vue");
                 UpdateInfo();
             }
@@ -1881,14 +1962,13 @@ public partial class ShipDemo : Node3D
                 var jat = new Vector3((float)(jv.Head.X - jo.X),
                                       (float)(NavalSim.Core.Berth.DeckY + JettyEye),
                                       (float)(jv.Head.Z - jo.Z));
-                var jlook = _ship.Position + Vector3.Up * (float)(_ship.Spec.Hull.FreeboardMid);
-                // à couple du musoir même, l'œil serait DANS la coque : on ne vise pas un point où l'on est
-                if (jat.DistanceSquaredTo(jlook) > 4f)
-                {
-                    _cam.Position = jat;
-                    _cam.LookAt(jlook, Vector3.Up);
-                    return;
-                }
+                double cpj = Math.Cos(_jettyPitch);
+                var jdir = new Vector3((float)(Math.Sin(_jettyYaw) * cpj),
+                                       (float)Math.Sin(_jettyPitch),
+                                       (float)(Math.Cos(_jettyYaw) * cpj));
+                _cam.Position = jat;
+                _cam.LookAt(jat + jdir * 400f, Vector3.Up);
+                return;
             }
         }
 
@@ -2173,6 +2253,11 @@ public partial class ShipDemo : Node3D
                 /* ⇧L COUVRE LES FEUX — L comme lunette, ⇧L comme lanternes. Un
                    navire qui veut ne pas être vu la nuit éteint, et c est la seule
                    chose qu il puisse faire. */
+                /* LE SAUT. ⇧A comme « anneaux ». Ce n'est PAS ⇧G, qui serait la
+                   lettre de « gyroscope » : G est intercepté trente lignes plus
+                   haut par la bordée, avec son propre SetInputAsHandled, et rien
+                   de ce qui porte G n'atteint jamais ce switch. Signalé en jeu. */
+                case Key.A when k.ShiftPressed: ArmJump(); break;
                 case Key.L when k.ShiftPressed: Douse(); break;
                 case Key.L: ToggleSpyglass(); break;
                 // la carte du capitaine : I comme « inscrire »
@@ -2226,12 +2311,13 @@ public partial class ShipDemo : Node3D
             // à bord la molette change la focale, comme dans la page ; dehors, la distance
             else if (mb.ButtonIndex == MouseButton.WheelUp)
             {
-                if (_camMode == 1) _cam.Fov = Mathf.Clamp(_cam.Fov - 2, 12, 75);
+                // du ponton comme à bord : la molette est l'œil qui se plisse, pas un pas en arrière
+                if (_camMode == 1 || _camMode == 4) _cam.Fov = Mathf.Clamp(_cam.Fov - 2, 12, 75);
                 else _dist = Mathf.Max(10f, _dist * 0.9f);
             }
             else if (mb.ButtonIndex == MouseButton.WheelDown)
             {
-                if (_camMode == 1) _cam.Fov = Mathf.Clamp(_cam.Fov + 2, 12, 75);
+                if (_camMode == 1 || _camMode == 4) _cam.Fov = Mathf.Clamp(_cam.Fov + 2, 12, 75);
                 else _dist = Mathf.Min(900f, _dist * 1.11f);
             }
         }
@@ -2242,6 +2328,12 @@ public partial class ShipDemo : Node3D
                 // regarder autour À PARTIR du regard de la vue
                 _bridgeYaw -= mm.Relative.X * 0.004;
                 _bridgePitch = Math.Clamp(_bridgePitch - mm.Relative.Y * 0.004, -0.7, 0.7);
+            }
+            else if (_camMode == 4)
+            {
+                // sur le musoir, on tourne la tête comme on veut
+                _jettyYaw -= mm.Relative.X * 0.004;
+                _jettyPitch = Math.Clamp(_jettyPitch - mm.Relative.Y * 0.004, -0.9, 0.9);
             }
             else if (_fixed)
             {

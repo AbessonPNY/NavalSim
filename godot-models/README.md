@@ -74,6 +74,26 @@ silhouette, de quel bout est le nez :
 node tools/glb-look.js godot-models/ships/models/roter_lowe_1597.glb
 ```
 
+## ATTENTION — la copie de page peut être VOLONTAIREMENT en retard
+
+Depuis le 30 septembre 2026, la page n'est plus tenue à jour avec Godot. Une
+conséquence qui se paie ici : **relancer `node tools/page-models.js` n'est plus
+un geste anodin.** Il refabrique la copie de page depuis le modèle Godot, et y
+emporte tout ce que ce modèle a gagné depuis.
+
+Le cas vivant est la Roter Löwe. Son modèle Godot porte `energie_sphere`, une
+sphère de vingt mètres de rayon que `ShipNode` sort du modèle avant toute
+mesure — sans quoi elle serait prise pour la coque, sa boîte faisant trente-cinq
+fois le volume de celle-ci. **Le code de la page ne connaît pas ce nom.** La
+copie de page est donc restée à l'export d'avant, qui n'a que les anneaux ;
+la régénérer y ferait entrer la sphère, la page la prendrait pour la coque, et
+l'échelle du modèle, le collier d'écume, le profil de flottaison et la batterie
+partiraient avec elle.
+
+Avant de relancer l'outil sur un modèle, donc : vérifier que la page sait lire
+ce que le modèle contient. Sinon, laisser la copie où elle est — un modèle de
+page en retard est un modèle qui marche.
+
 ## Ce qu'on n'y met pas
 
 Les **fiches** (`ships/*.json`), le **monde**, les **quêtes**, les **réglages** :

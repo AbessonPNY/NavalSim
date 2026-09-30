@@ -50,19 +50,88 @@ public partial class ShipNode
     /// <summary>Le tour par minute du premier anneau, faute de fiche.</summary>
     const double BaseRpm = 6;
 
+    /// <summary>
+    /// LA SPHÈRE D'ÉNERGIE, si le modèle en porte une. Même règle de nom que les
+    /// anneaux, et même raison de la sortir du modèle : celle de la Roter Löwe
+    /// fait vingt mètres de rayon, donc une boîte trente-cinq fois plus grosse que
+    /// celle de la coque — elle serait prise pour la coque par tout ce qui cherche
+    /// « le maillage le plus volumineux », y compris la mesure de quille qui règle
+    /// l'échouage.
+    /// </summary>
+    /// LE MOT EST « ENERGIE », PAS « SPHERE ». Le modèle de la Roter Löwe porte
+    /// déjà un nœud nommé Sphere — une bille de trois centimètres en métal noir,
+    /// une ferrure quelconque. Un motif sur « sphere » l'aurait arrachée à la
+    /// coque pour en faire une bulle d'énergie qui grandit avant un saut, et rien
+    /// n'aurait signalé qu'une pièce du bord avait disparu.
+    static readonly Regex SphereNames = new("(^|[^a-z0-9])(energie|énergie|energy)", RegexOptions.IgnoreCase);
+
+    Node3D? _sphere;
+    readonly List<ShaderMaterial> _sphereGlow = new();
+    bool _sphereShown;
+
+    /// <summary>Où en est la bulle, de 0 à 1.</summary>
+    public double SphereLevel { get; private set; }
+
+    /// <summary>
+    /// À PARTIR DE QUELLE CHARGE elle paraît. Elle ne monte pas avec les anneaux
+    /// depuis le début : demandé, elle arrive « quand les anneaux vont très vite »,
+    /// et leur vitesse suit le CUBE de la charge — au-delà des deux tiers, elle
+    /// double tous les quelques secondes. C'est là que la bulle a un sens.
+    /// </summary>
+    public double SphereFrom = 0.62;
+
+    /// <summary>
+    /// Secondes pour qu'elle s'efface. Elle ne suit PAS la retombée des anneaux :
+    /// « disparaît très vite à la fin du saut ». Les anneaux mettent 1,8 s à
+    /// s'éteindre, elle un tiers de seconde — ce qui reste s'éteint derrière elle,
+    /// et non l'inverse.
+    /// </summary>
+    public double SphereFall = 0.32;
+
     sealed class Ring
     {
         public Node3D Pivot = null!;
-        /// <summary>La normale de son plan, dans le repère du MODÈLE.</summary>
+        /// <summary>Ce autour de quoi il TOURNE, dans le repère du modèle.</summary>
         public Vector3 Axis;
         /// <summary>rad/s — le signe donne le sens.</summary>
         public double Rate;
         public double Phase;
         /// <summary>Vrai : il ignore le roulis et le tangage. Faux : il roule avec la coque.</summary>
         public bool Steady;
+        /// <summary>Ses matières de lueur, une par maillage : c'est par elles que passe la charge.</summary>
+        public readonly List<ShaderMaterial> Glow = new();
     }
 
     readonly List<Ring> _rings = new();
+
+    // ------------------------------------------------------------------
+    //  LA CHARGE — ce qui les allume
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// CE QUE LE JEU DEMANDE : anneaux allumés ou éteints. La lueur ne suit pas
+    /// d'un coup — <see cref="RingLevel"/> monte et descend en rampe, parce qu'un
+    /// téléporteur qui s'allume instantanément n'a l'air de rien charger.
+    /// </summary>
+    public bool RingsOrdered { get; set; } = true;
+
+    /// <summary>Où en est la charge, de 0 à 1. Lisible pour caler un son ou un saut dessus.</summary>
+    public double RingLevel { get; private set; }
+
+    /// <summary>
+    /// Secondes pour monter à pleine charge, et pour retomber. La montée est
+    /// écrite par qui commande le saut : c'est SA durée de charge.
+    /// </summary>
+    public double RingsRise = 3.5, RingsFall = 1.8;
+
+    /// <summary>Combien de fois leur vitesse nominale ils atteignent à pleine charge.</summary>
+    public double RingBoost = 6;
+
+    bool _ringsLit;
+    double _ringClock;
+
+    /// <summary>Vrai dès qu'un anneau est visible : la démo relève le seuil de lueur là-dessus.</summary>
+    public bool RingsLit => _ringsLit;
     /// <summary>Leurs pivots, pour que LocalBounds ne compte pas leur envergure.</summary>
     readonly HashSet<Node3D> _ringPivots = new();
 
@@ -88,7 +157,14 @@ public partial class ShipNode
     /// LE PLUS PROFOND SE DÉTACHE EN PREMIER, sans quoi on retirerait le parent
     /// de l'arbre avant d'avoir pu en sortir l'enfant.
     /// </summary>
-    static List<(Node3D Node, Transform3D Parent)> TakeRings(Node3D obj)
+    static List<(Node3D Node, Transform3D Parent)> TakeRings(Node3D obj) => Detach(obj, RingNames);
+
+    /// <summary>
+    /// Détacher du modèle tout ce qui répond à <paramref name="re"/>. Les anneaux
+    /// et la sphère d'énergie s'en servent tous deux : ce sont les mêmes raisons
+    /// (protéger les mesures de coque) et la même mécanique.
+    /// </summary>
+    static List<(Node3D Node, Transform3D Parent)> Detach(Node3D obj, Regex re)
     {
         var found = new List<(Node3D Node, Transform3D Parent, int Depth)>();
         var stack = new Stack<(Node Node, Transform3D Acc, int Depth)>();
@@ -96,7 +172,7 @@ public partial class ShipNode
         while (stack.Count > 0)
         {
             var (n, acc, d) = stack.Pop();
-            if (n != obj && n is Node3D nd && RingNames.IsMatch(nd.Name)) found.Add((nd, acc, d));
+            if (n != obj && n is Node3D nd && re.IsMatch(nd.Name)) found.Add((nd, acc, d));
             // acc mène du repère PARENT de n au repère du modèle ; pour ses
             // enfants, le repère parent est celui de n lui-même
             var next = n != obj && n is Node3D c3 ? acc * c3.Transform : acc;
@@ -184,6 +260,23 @@ public partial class ShipNode
             // sa place d'origine dans le modèle, ramenée sur le centre de l'anneau
             nd.Transform = new Transform3D(Basis.Identity, -c) * inModel;
 
+            /* LA MATIÈRE DE LUEUR, UNE PAR MAILLAGE ET NON UNE PAR ANNEAU. Elle
+               porte le centre et la normale DANS LE REPÈRE DE SON MAILLAGE, et
+               deux maillages d'un même anneau n'ont pas le même repère. Un
+               override plutôt qu'une retouche : le matériau du .glb reste celui
+               de l'auteur, et rien n'est perdu si l'on veut le rendre. */
+            var glow = new List<ShaderMaterial>();
+            foreach (var (mi, t) in Meshes(nd))
+            {
+                var inv = (parent * t).AffineInverse();
+                var gm = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/ring_glow.gdshader") };
+                gm.SetShaderParameter("u_centre", inv * c);
+                gm.SetShaderParameter("u_axis", (inv.Basis * axis).Normalized());
+                mi.MaterialOverride = gm;
+                mi.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;   // de la lumière n'ombre pas
+                glow.Add(gm);
+            }
+
             var sp = RingFor(m, nd.Name);
             /* DEUX ANNEAUX À LA MÊME VITESSE SE RETROUVENT toujours dans la même
                figure, et l'ensemble se lit comme une pièce unique. Faute de fiche,
@@ -191,17 +284,114 @@ public partial class ShipNode
                rapport n'étant pas une fraction simple, ils ne se réalignent
                jamais tout à fait. */
             double rpm = sp?.Rpm ?? BaseRpm * Math.Pow(-0.618, i);
-            _rings.Add(new Ring
+            string mode = sp?.Spin ?? "vertical";
+            Vector3 spin = SpinAxis(axis, mode);
+            /* UN ANNEAU QUI TOURNE AUTOUR DE SA NORMALE NE TOURNE PAS : il balaie
+               sa figure de depart, et il ne reste que le scintillement de ses
+               facettes. La panne est signalee ici parce qu elle ne se voit qu a
+               l oeil et qu on la prend pour un defaut de rendu. */
+            if (mode != "normale" && Math.Abs(spin.Dot(axis)) > 0.99f)
+                GD.PushWarning(FormattableString.Invariant(
+                    $"[{Spec.Id}] {nd.Name} : l axe « {mode} » est celui de sa normale — il tournera dans son propre plan, donc sans rien montrer. Prenez un autre axe."));
+            var ring = new Ring
             {
                 Pivot = pivot,
-                Axis = axis,
+                Axis = spin,
                 Rate = rpm * Math.Tau / 60,
                 Steady = sp?.Steady ?? true
-            });
+            };
+            ring.Glow.AddRange(glow);
+            _rings.Add(ring);
+            if (sp != null && !sp.On) RingsOrdered = false;
             _ringPivots.Add(pivot);
             GD.Print(FormattableString.Invariant(
-                $"[{Spec.Id}] anneau {nd.Name} : axe ({axis.X:F2}, {axis.Y:F2}, {axis.Z:F2}), rayon {rmax * k:F1} m, élancement {elan:F0}, {rpm:F1} tr/min"));
+                $"[{Spec.Id}] anneau {nd.Name} : normale ({axis.X:F2}, {axis.Y:F2}, {axis.Z:F2}), tourne « {mode} » autour de ({spin.X:F2}, {spin.Y:F2}, {spin.Z:F2}), rayon {rmax * k:F1} m, élancement {elan:F0}, {rpm:F1} tr/min"));
         }
+    }
+
+    /// <summary>
+    /// AUTOUR DE QUOI L'ANNEAU TOURNE, à partir de la normale de son plan.
+    ///
+    /// Le piège, et c'est celui qui a été signalé en jeu : faire tourner un
+    /// cercle autour de SA PROPRE NORMALE ne se voit pas. La figure balayée est
+    /// exactement la figure de départ ; il n'en reste que le scintillement des
+    /// facettes, qui se lit comme un défaut et non comme un mouvement. Un anneau
+    /// ne devient visiblement mobile qu'en tournant autour d'un DIAMÈTRE.
+    ///
+    /// LES AXES SONT NOMMÉS ET FIXES, dans le repère du NAVIRE : « vertical »
+    /// (0,1,0) fait balayer le cerceau comme un portail qui tourne, « etrave »
+    /// (0,0,1) le fait basculer bout sur bout, « travers » (1,0,0) le fait rouler
+    /// d'un bord sur l'autre. « normale » rend l'ancien comportement, qui garde
+    /// son emploi sur un anneau porteur d'un motif ou d'une lueur qui court.
+    ///
+    /// NOMMÉS plutôt que x/y/z, parce que l'auteur pense dans les axes de Blender
+    /// — Z en haut, Y vers l'avant — et le moteur dans ceux du glTF — Y en haut,
+    /// Z vers l'avant. « l'axe Z » ne désigne donc pas la même chose des deux
+    /// côtés de l'export, et un mot ne peut pas se tromper de convention. Les
+    /// lettres restent acceptées, dans la convention du MOTEUR.
+    ///
+    /// FIXES, et non déduits du plan de l'anneau : un axe déduit change quand on
+    /// repenche la pièce dans Blender, et ce qu'on avait réglé à l'œil se défait
+    /// sans qu'on ait touché à la fiche.
+    /// </summary>
+    static Vector3 SpinAxis(Vector3 n, string mode) => mode switch
+    {
+        // sa propre normale : il tourne DANS son plan, donc sans rien montrer
+        "normale" => n,
+        "travers" or "x" => new Vector3(1, 0, 0),
+        "etrave" or "étrave" or "z" => new Vector3(0, 0, 1),
+        _ => new Vector3(0, 1, 0),
+    };
+
+    /// <summary>
+    /// Pendre la sphère à son propre nœud, sous le navire.
+    ///
+    /// Elle ne tourne pas et n'a pas à être tenue d'aplomb : une sphère centrée
+    /// sur le navire est la même vue de partout, et lui retirer le roulis ne se
+    /// verrait pas. Elle se contente donc de la place que le modèle lui donne,
+    /// portée par la coque.
+    /// </summary>
+    void MountSphere(List<(Node3D Node, Transform3D Parent)> found, double k, ModelSpec m)
+    {
+        if (found.Count == 0) return;
+        var ry = new Quaternion(Vector3.Up, (float)m.RotationY);
+        var off = new Vector3((float)m.Offset[0], (float)m.Offset[1], (float)m.Offset[2]);
+
+        var pivot = new Node3D
+        {
+            Name = "pivot_sphere",
+            Position = off,
+            Scale = Vector3.One * (float)k,
+            Quaternion = ry,
+            Visible = false
+        };
+        AddChild(pivot);
+        _sphere = pivot;
+        _ringPivots.Add(pivot);            // son envergure n'est pas celle du navire
+
+        foreach (var (nd, parent) in found)
+        {
+            var inModel = parent * nd.Transform;
+            nd.GetParent()?.RemoveChild(nd);
+            pivot.AddChild(nd);
+            nd.Transform = inModel;        // pas de recentrage : elle ne pivote pas
+
+            foreach (var (mi, t) in Meshes(nd))
+            {
+                var gm = new ShaderMaterial
+                {
+                    Shader = GD.Load<Shader>("res://shaders/energy_sphere.gdshader"),
+                    /* APRÈS LES ANNEAUX, qui sont dedans. Deux transparences au même
+                       rang se départagent sur le centre de leur objet, et les trois
+                       ont le même centre — rien ne les départagerait. */
+                    RenderPriority = 1
+                };
+                mi.MaterialOverride = gm;
+                mi.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
+                _sphereGlow.Add(gm);
+            }
+        }
+        GD.Print($"[{Spec.Id}] sphère d'énergie : {_sphereGlow.Count} maillage(s)");
     }
 
     /// <summary>La ligne de fiche qui parle de cet anneau, s'il y en a une.</summary>
@@ -211,6 +401,15 @@ public partial class ShipNode
             if (string.IsNullOrEmpty(r.Match) || name.Contains(r.Match, StringComparison.OrdinalIgnoreCase))
                 return r;
         return null;
+    }
+
+    /// <summary>
+    /// Une rampe adoucie aux deux bouts : 3t² − 2t³, la smoothstep.
+    /// </summary>
+    static double Ease(double t)
+    {
+        t = Math.Clamp(t, 0, 1);
+        return t * t * (3 - 2 * t);
     }
 
     /// <summary>
@@ -256,6 +455,58 @@ public partial class ShipNode
     public void SpinRings(double dt)
     {
         if (_rings.Count == 0) return;
+
+        /* LA CHARGE MONTE ET DESCEND EN RAMPE, jamais d'un coup : c'est la rampe
+           qui fait lire « il charge » plutôt que « quelqu'un a appuyé ». */
+        double want = RingsOrdered ? 1 : 0;
+        if (RingLevel != want)
+        {
+            double step = dt / (RingsOrdered ? Math.Max(0.01, RingsRise) : Math.Max(0.01, RingsFall));
+            RingLevel = want > RingLevel ? Math.Min(want, RingLevel + step) : Math.Max(want, RingLevel - step);
+        }
+
+        /* ÉTEINT NE COÛTE RIEN, et c'est tout l'intérêt de cacher plutôt que de
+           laisser la lueur à zéro. Un anneau invisible ne se dessine pas, ne
+           tourne pas, ne pousse aucun uniforme et ne compte dans aucune passe ;
+           un anneau à zéro coûterait encore deux appels de dessin et sa géométrie
+           chaque image, pour ajouter du noir. */
+        /* LA BULLE MONTE AVEC LES ANNEAUX MAIS NE REDESCEND PAS AVEC EUX. En
+           montant elle SUIT la charge, à partir de SphereFrom, avec une courbe
+           douce aux deux bouts ; en descendant elle a sa propre chute, bien plus
+           rapide — ce qui a été demandé, et ce qui est juste : la bulle est
+           l'effet, les anneaux sont la machine, et l'effet cesse d'abord. */
+        double veut = RingLevel <= SphereFrom ? 0
+                    : Ease((RingLevel - SphereFrom) / Math.Max(1e-6, 1 - SphereFrom));
+        SphereLevel = veut > SphereLevel
+            ? veut
+            : Math.Max(veut, SphereLevel - dt / Math.Max(0.01, SphereFall));
+
+        bool bulle = SphereLevel > 0.002;
+        if (_sphere != null && bulle != _sphereShown)
+        {
+            _sphereShown = bulle;
+            _sphere.Visible = bulle;       // absente, elle ne coûte rien
+        }
+        if (bulle)
+            foreach (var g in _sphereGlow) g.SetShaderParameter("u_level", (float)SphereLevel);
+
+        bool lit = RingLevel > 0.001;
+        if (lit != _ringsLit)
+        {
+            _ringsLit = lit;
+            foreach (var r in _rings) r.Pivot.Visible = lit;
+        }
+        if (!lit) return;
+
+        _ringClock += dt;
+        if (_ringClock > 3600) _ringClock -= 3600;     // les décimales d'un flottant ne durent pas une partie
+        foreach (var r in _rings)
+            foreach (var g in r.Glow)
+            {
+                g.SetShaderParameter("u_level", (float)RingLevel);
+                g.SetShaderParameter("u_time", (float)_ringClock);
+            }
+
         var q = Physics.Body.Quat;
         Vec3d fwd = q.Rotate(new Vec3d(0, 0, 1));
         /* atan2(x, z) et non atan2(−x, z) : ce n'est pas le cap du compas mais
@@ -270,7 +521,13 @@ public partial class ShipNode
                sinon monter à des dizaines de milliers de radians, où un flottant
                n'a plus assez de décimales pour un pas d'image — l'anneau se met
                à saccader au bout d'une heure de jeu. */
-            r.Phase += r.Rate * dt;
+            /* ILS S'EMBALLENT. La vitesse ne suit pas la charge tout droit mais
+               par son CUBE : trois secondes avant le saut ils tournent encore
+               posément, la dernière seconde ils hurlent. Une montée linéaire sur
+               vingt secondes ne se voit pas — l'œil ne compare qu'à ce qu'il vient
+               de voir, et un dixième de plus par seconde n'est rien. */
+            double v = 0.25 + RingLevel * (0.75 + RingBoost * RingLevel * RingLevel);
+            r.Phase += r.Rate * v * dt;
             if (r.Phase > Math.Tau) r.Phase -= Math.Tau;
             else if (r.Phase < -Math.Tau) r.Phase += Math.Tau;
 

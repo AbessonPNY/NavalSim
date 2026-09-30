@@ -148,6 +148,8 @@ public partial class ShipNode : Node3D
                un anneau qui ceint le navire enferme plus d'air que la coque
                n'enferme de bois : il serait pris pour elle. Voir ShipNode.Rings.cs. */
             var rings = TakeRings(obj);
+            // la sphere d energie aussi : vingt metres de rayon, elle serait prise pour la coque
+            var bulle = Detach(obj, SphereNames);
             ReliefFromRoughness(obj, m.Relief ?? 0);
             // et les tangentes des reliefs que le modèle apporte lui-même
             TangentsForRelief(obj);
@@ -179,6 +181,9 @@ public partial class ShipNode : Node3D
             MarkInside();
             // et les anneaux reviennent, sur leurs pivots, une fois l'échelle connue
             MountRings(rings, k, m);
+            MountSphere(bulle, k, m);
+            // et l'échouage sonde le bois qu'on voit, non la cote de la fiche
+            MeasureKeel();
             // sur tout ce qui est à bord, y compris les espars que RigModel vient
             // de sortir du modèle pour les pendre dans leurs pivots
             AttachHaze(this);
@@ -189,6 +194,43 @@ public partial class ShipNode : Node3D
             GD.PushWarning($"[{Spec.Id}] {m.Glb} : {e.Message} — elle garde sa coque procédurale.");
             return false;
         }
+    }
+
+    /// <summary>
+    /// OÙ EST LA QUILLE QU'ON VOIT, et de combien elle diffère de celle que le
+    /// solveur sonde. Le résultat va dans <see cref="ShipPhysics.GroundLift"/>,
+    /// qui explique pourquoi c'est le dessin qui décide.
+    ///
+    /// Sur la COQUE seule — le maillage le plus volumineux, comme partout ici. Ni
+    /// le gouvernail, qui pend plus bas sur certains modèles et qui touche avant
+    /// elle sans que ce soit un échouage ; ni les espars, qui n'ont rien à faire
+    /// sous l'eau ; ni les anneaux, déjà sortis du modèle.
+    ///
+    /// UN GARDE-FOU LARGE PLUTÔT QU'AUCUN : au-delà de deux mètres d'écart, ce
+    /// n'est plus un désaccord de plan de formes mais un modèle mal posé ou mal
+    /// mis à l'échelle, et le corriger en silence ferait s'échouer le navire en
+    /// l'air. On le dit et on n'y touche pas.
+    /// </summary>
+    void MeasureKeel()
+    {
+        Physics.GroundLift = 0;
+        if (ModelRoot == null || HullPart() is not { } hull) return;
+        double lo = double.MaxValue;
+        foreach (var v in hull.Verts) lo = Math.Min(lo, v.Y);
+        if (lo == double.MaxValue) return;
+
+        double fiche = -(Spec.Hull.KeelDepth + Spec.Hull.KeelExtra);
+        double lift = lo - fiche;
+        if (Math.Abs(lift) > 2.0)
+        {
+            GD.PushWarning(FormattableString.Invariant(
+                $"[{Spec.Id}] bas de coque à {lo:F2} m contre {fiche:F2} m au plan de formes : {lift:F2} m d'écart, trop pour un désaccord de cotes. Modèle mal posé ou mal mis à l'échelle ? L'échouage garde le plan."));
+            return;
+        }
+        Physics.GroundLift = lift;
+        if (Math.Abs(lift) > 0.05)
+            GD.Print(FormattableString.Invariant(
+                $"[{Spec.Id}] échouage : la coque dessinée s'arrête à {lo:F2} m, le plan de formes à {fiche:F2} — sondes relevées de {lift:F2} m"));
     }
 
     /// <summary>

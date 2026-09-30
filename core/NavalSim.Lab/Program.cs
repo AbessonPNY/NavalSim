@@ -45,6 +45,7 @@ switch (mode)
     case "ris": Ris(); break;
     case "calibres": Calibres(); break;
     case "anneaux": Anneaux(); break;
+    case "saut": Saut(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -818,4 +819,73 @@ void Anneaux()
         Console.WriteLine($"{c.Nom,-42} ecart {deg,7:F4} deg");
     }
     Console.WriteLine($"\npire ecart : {pire:F4} deg {(pire < 0.5 ? "-> OK" : "-> NON")}");
+}
+
+/* LE SAUT PAR LES ANNEAUX, EPROUVE SUR LE VRAI RELIEF.
+
+   Un refus qui ne refuse pas est la panne qu on ne verrait jamais en jouant :
+   on saute, on arrive dans une colline, et l on met vingt minutes a comprendre
+   que c est la REGLE qui avait dit oui. On la passe donc sur des points dont on
+   sait la reponse : le milieu d un port (a terre autour), le large, et une
+   couronne de points a distance croissante d une cote. */
+void Saut()
+{
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    var region = RegionSpec.FromJson(File.ReadAllText(Path.Combine(root, "world", "caraibes.json")));
+    var (w, h, grey) = GreyPng.Decode(File.ReadAllBytes(Path.Combine(root, region.Relief.Image)));
+    var world = new World(region, w, h, grey, m => Console.WriteLine("  ! " + m));
+
+    // la Roter Lowe : 30 m de coque, 3,85 m sous la flottaison
+    const double L = 30, draft = 3.85;
+    Console.WriteLine($"charge {Teleport.Charge:F0} s, rond d eau exige {Math.Max(10, L * Teleport.Clearance):F0} m");
+    Console.WriteLine();
+
+    var port = world.Isles[0];
+    Console.WriteLine($"depuis {port.Name} :");
+    (string Quoi, double X, double Z)[] cas =
+    {
+        ("le sommet de son ile",   port.X, port.Z),
+        ("la tete de sa jetee",    port.Port.Hx, port.Port.Hz),
+    };
+    foreach (var c in cas)
+        Console.WriteLine($"   {c.Quoi,-26} fond {world.HeightAt(c.X, c.Z),7:F1} m  ->  {Teleport.Check(world, c.X, c.Z, draft, L)}");
+
+    /* UNE COURONNE : on s ecarte de la tete de jetee vers le large et l on
+       regarde a quelle distance la regle passe du refus a l accord. */
+    Console.WriteLine();
+    Console.WriteLine("en s ecartant de la jetee vers le large :");
+    double bx = port.Port.Hx, bz = port.Port.Hz;
+    // la direction du large : celle ou le fond descend le plus vite
+    double best = 0, ba = 0;
+    for (int i = 0; i < 36; i++)
+    {
+        double a = i * Math.PI / 18;
+        double d = -world.HeightAt(bx + Math.Cos(a) * 1500, bz + Math.Sin(a) * 1500);
+        if (d > best) { best = d; ba = a; }
+    }
+    Teleport.Verdict? avant = null;
+    for (int m = 0; m <= 3000; m += 100)
+    {
+        double x = bx + Math.Cos(ba) * m, z = bz + Math.Sin(ba) * m;
+        var v = Teleport.Check(world, x, z, draft, L);
+        if (v != avant)
+        {
+            Console.WriteLine($"   a {m,5} m : fond {world.HeightAt(x, z),7:F1} m  ->  {v}");
+            avant = v;
+        }
+    }
+
+    /* ET LE LARGE : a trois milles de toute terre, tout doit passer. On tire au
+       hasard pour ne pas se rassurer sur un point choisi. */
+    Console.WriteLine();
+    var rnd = new Random(20260930);
+    int bons = 0, essais = 0;
+    while (essais < 200)
+    {
+        double x = world.Extent * rnd.NextDouble(), z = world.Extent * rnd.NextDouble();
+        if (world.ShoreDistance(x, z) < 3000) continue;
+        essais++;
+        if (Teleport.Check(world, x, z, draft, L) == Teleport.Verdict.Bon) bons++;
+    }
+    Console.WriteLine($"au large (plus de 3 km de toute terre) : {bons}/{essais} points acceptes");
 }

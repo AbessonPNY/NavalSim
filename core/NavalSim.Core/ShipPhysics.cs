@@ -198,6 +198,28 @@ public sealed partial class ShipPhysics
     public readonly double[] OarPhase = new double[2];
     public readonly double[] OarInput = new double[2];
     public double Aground;          // mètres dont sa coque est DANS le fond
+
+    /// <summary>
+    /// CE QUI SÉPARE LA QUILLE SONDÉE DE LA QUILLE QU'ON VOIT, en mètres, et
+    /// qu'il faut ajouter aux points d'échouage.
+    ///
+    /// Le solveur sonde le plan de formes : sa quille est à
+    /// -(keelDepth + keelExtra), une cote de la fiche. Un .glb, lui, a le bas de
+    /// coque que son auteur lui a donné, et rien ne l'oblige à tomber au même
+    /// endroit — sur la Roter Löwe il y a 88 cm d'écart, la sonde étant SOUS le
+    /// bois. Elle touchait donc le sable pendant que la coque dessinée flottait
+    /// au-dessus, signalé en jeu.
+    ///
+    /// LA FICHE N'EST PAS CORRIGÉE, et c'est délibéré : ses cotes forment un tout
+    /// cohérent dont dépendent le déplacement, le tirant d'eau et le redressement.
+    /// Les rogner pour faire poser un maillage ferait flotter le navire autrement
+    /// afin qu'il s'échoue joliment. C'est le DESSIN qu'on sonde, parce que
+    /// l'échouage est ce que l'œil voit toucher — la même règle que le profil
+    /// d'écume, qui se mesure déjà sur le maillage et non sur le plan.
+    ///
+    /// Nul pour une coque procédurale : là, les deux quilles sont la même.
+    /// </summary>
+    public double GroundLift;
     public double Touching;         // mètres dont son bordé est DANS une autre coque
     public bool Foundered;
     /// <summary>

@@ -525,6 +525,11 @@ public sealed partial class ShipPhysics
     /// descendait à −15,13 — quatre mètres DANS le sable — pour finir enterrée la
     /// quille en l'air, ce qui se voyait comme une disparition.
     ///
+    /// ET C'EST LE BOIS QU'ON VOIT QUI SONDE, pas la cote de la fiche : un .glb
+    /// n'a aucune raison d'avoir son bas de coque là où le plan de formes met sa
+    /// quille, et la Roter Löwe en montrait 88 cm d'écart — la sonde sous le bois,
+    /// donc la coque flottant au-dessus du sable. Voir <c>GroundLift</c>.
+    ///
     /// LE FOND N'EST LU QU'UNE FOIS PAR STATION, sur l'axe de la coque, et les
     /// cinq points sont éprouvés contre cette hauteur-là. C'est une approximation,
     /// et elle est bonne exactement là où elle sert : les points hauts de la
@@ -544,8 +549,10 @@ public sealed partial class ShipPhysics
         if (World == null) return;
         var S = Spec; var b = Body;
         double ox = ocean.Origin.X, oz = ocean.Origin.Z;
-        double keel = -(S.Hull.KeelDepth + S.Hull.KeelExtra);
-        double rail = S.Hull.FreeboardMid;
+        /* LE BOIS QU'ON VOIT, ET NON LA COTE DE LA FICHE : voir GroundLift. Les
+           cinq points montent du même écart, la membrure restant une membrure. */
+        double keel = -(S.Hull.KeelDepth + S.Hull.KeelExtra) + GroundLift;
+        double rail = S.Hull.FreeboardMid + GroundLift;
         // elle porte tout son poids à un tiers de mètre de pénétration
         double kSpring = b.Mass * Config.G / (0.33 * 3);
 
@@ -568,7 +575,7 @@ public sealed partial class ShipPhysics
                 if (k > 0 && hw < 0.05) break;   // une membrure sans largeur n'a que sa quille
                 // quille, puis les deux bouchains, puis les deux plats-bords
                 double lx = k == 0 ? 0 : (k % 2 == 1 ? -hw : hw);
-                double ly = k == 0 ? keel : (k <= 2 ? 0 : rail);
+                double ly = k == 0 ? keel : (k <= 2 ? GroundLift : rail);
 
                 Vec3d pw = b.Quat.Rotate(new Vec3d(lx, ly, zl)) + b.Pos;
                 double pen = bed - pw.Y;

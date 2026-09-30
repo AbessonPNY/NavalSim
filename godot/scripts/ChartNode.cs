@@ -67,6 +67,8 @@ public partial class ChartNode : Node
        connaît pas les quêtes : elle DEMANDE, et n'en garde rien. C'est ce qui
        permet de jouer sans aucune quête sans qu'une ligne d'ici ne s'en doute. */
     public Func<(double X, double Z, double R, string Name)?>? Aim;
+    /// <summary>La cible du saut par les anneaux, s'il y en a une — voir ShipDemo.Teleport.cs.</summary>
+    public Func<(double X, double Z, double R, string Name)?>? Jump;
 
     /* CE QUI FLOTTE ET QUI VAUT QU'ON Y AILLE — une bouteille à la dérive. Même
        règle que pour l'objectif : la carte DEMANDE, elle ne garde rien. Les
@@ -420,6 +422,31 @@ public partial class ChartNode : Node
                 if (aim.Name.Length > 0)
                     DrawString(_c._font, p + new Vector2(r + 5 * Q * Wk, 4 * Q * Wk), aim.Name,
                         HorizontalAlignment.Left, -1, Fs(15), gold);
+            }
+            /* LA CIBLE DU SAUT, en bleu d'anneau et non à la plume : ce n'est pas
+               une annotation du capitaine mais une marque de la machine, et l'œil
+               doit pouvoir l'en distinguer sans qu'on l'explique. Le cercle est le
+               rond d'eau que le saut exige, à l'échelle — on VOIT donc pourquoi une
+               cible trop près d'une côte est refusée. Refusée, elle est barrée. */
+            if (_c.Jump?.Invoke() is { } jp)
+            {
+                var p = At(jp.X, jp.Z);
+                float r = (float)Math.Max(5 * Q * Wk, jp.R / _c.MetresPerPixel * K);
+                bool no = jp.Name == "impossible";
+                var bleu = no ? new Color(0.72f, 0.24f, 0.20f) : new Color(0.38f, 0.66f, 0.98f);
+                DrawCircle(p, r, bleu, false, 1.6f * Q * Wk);
+                float br = 4.5f * Q * Wk;
+                DrawLine(p - new Vector2(br, 0), p + new Vector2(br, 0), bleu, 1.6f * Q * Wk);
+                DrawLine(p - new Vector2(0, br), p + new Vector2(0, br), bleu, 1.6f * Q * Wk);
+                if (no)
+                {
+                    float d = r * 0.7071f;
+                    DrawLine(p - new Vector2(d, d), p + new Vector2(d, d), bleu, 1.6f * Q * Wk);
+                    DrawLine(p - new Vector2(d, -d), p + new Vector2(d, -d), bleu, 1.6f * Q * Wk);
+                }
+                if (jp.Name.Length > 0 && !no)
+                    DrawString(_c._font, p + new Vector2(r + 5 * Q * Wk, 4 * Q * Wk), jp.Name,
+                        HorizontalAlignment.Left, -1, Fs(15), bleu);
             }
             /* OÙ L'ON CROIT ÊTRE : une petite croix de plume, et l'ellipse de ce
                qu'on n'en sait pas — un écart-type, plus large en longitude qu'en
