@@ -80,3 +80,16 @@ pontons par `JettyNode.Figurant`, aux deux tiers du musoir, face au large.
 Le maillage sort **normalisé à un mètre de haut** : c'est le chargeur qui le
 ramène à la taille d'un homme (1,75 m), et l'échelle emporte ses déplacements
 avec lui.
+
+## `vat_export` reste, et ce n'est pas un oubli
+
+Le dossier de `pirate_0001` porte deux cuissons : `vat_export4`, qui sert, et
+`vat_export`, qui ne sert plus. **Elle est gardée exprès.**
+
+C'est la seule qui reste en **EXR non normalisé**, donc le seul fichier qui
+éprouve encore ce chemin de lecture — celui que Godot ne sait pas ouvrir et que
+`Vat.LisExr` ouvre à la main. L'effacer laisserait soixante lignes de décodeur
+sans rien pour les vérifier, et la panne ne se découvrirait qu'au prochain
+modeleur qui choisirait ce format.
+
+Elle coûte 16,7 Mo. C'est le prix d'un témoin, et il est bas.
