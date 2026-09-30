@@ -59,6 +59,26 @@ public partial class ShipDemo : Node3D
         }
     }
 
+    /// <summary>
+    /// COUPER UN LIBELLÉ AU LIEU DE LE LAISSER POUSSER.
+    ///
+    /// La largeur MINIMALE d'un Label est celle de son texte entier, et un
+    /// conteneur respecte les minimums de ses enfants avant ses propres ancres.
+    /// « Hog Crawle de Samuel Barry » suivi de « bois de campêche 1234 » poussait
+    /// donc le panneau au-delà de sa boîte ; son bord gauche étant épinglé par
+    /// l'ancre, il grandissait VERS LA DROITE et sortait de l'écran — signalé.
+    ///
+    /// Coupé, son minimum retombe à zéro et la boîte redevient maîtresse. Les
+    /// points de suite disent qu'il manque quelque chose, ce qu'une coupe franche
+    /// ne dirait pas — et l'infobulle porte le texte entier.
+    /// </summary>
+    static Label Ellipse(Label l)
+    {
+        l.ClipText = true;
+        l.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        return l;
+    }
+
     void BuildMarket(CanvasLayer layer)
     {
         LoadWares();
@@ -66,7 +86,10 @@ public partial class ShipDemo : Node3D
 
         _mkPanel = new PanelContainer
         {
-            AnchorLeft = 1, AnchorRight = 1, OffsetLeft = -330, OffsetRight = -14, OffsetTop = 130,
+            /* LA LARGEUR EST TENUE PAR LES ANCRES, et il a fallu que le contenu la
+               respecte : voir Ellipse plus bas. Un peu plus large qu'avant parce que
+               le bandeau des autres ports porte des noms longs. */
+            AnchorLeft = 1, AnchorRight = 1, OffsetLeft = -392, OffsetRight = -14, OffsetTop = 130,
             Visible = false
         };
         _mkPanel.AddThemeStyleboxOverride("panel", new StyleBoxFlat
@@ -157,7 +180,7 @@ public partial class ShipDemo : Node3D
             l.AddThemeFontSizeOverride("font_size", size);
             l.AddThemeColorOverride("font_color", col);
             l.TooltipText = w.Note;
-            row.AddChild(l);
+            row.AddChild(Ellipse(l));
             return l;
         }
         var name = C(w.Name, 14, ink, HorizontalAlignment.Left, 0);
@@ -249,14 +272,21 @@ public partial class ShipDemo : Node3D
         while (_mkNews!.GetChildCount() < news.Count * 3)
         {
             int col = _mkNews.GetChildCount() % 3;
+            /* UNE LARGEUR MINIMALE AUX COLONNES QU ON COUPE, sans quoi elles
+               s ecrasent a RIEN : coupe, un libelle n a plus de minimum, et une
+               colonne en Fill prend justement son minimum. Le nom du port, lui,
+               est en ExpandFill et se partage ce qui reste — c est lui qu on
+               tronque, et c est le bon choix : un prix tronque ne veut rien dire,
+               un nom de port se devine. */
             var l = new Label
             {
                 HorizontalAlignment = col == 1 ? HorizontalAlignment.Right : HorizontalAlignment.Left,
-                SizeFlagsHorizontal = col == 0 ? Control.SizeFlags.ExpandFill : Control.SizeFlags.Fill
+                SizeFlagsHorizontal = col == 0 ? Control.SizeFlags.ExpandFill : Control.SizeFlags.Fill,
+                CustomMinimumSize = new Vector2(col == 1 ? 138 : col == 2 ? 88 : 0, 0)
             };
             l.AddThemeFontSizeOverride("font_size", 12);
             l.AddThemeColorOverride("font_color", col == 1 ? new Color(0.95f, 0.88f, 0.66f) : new Color(0.80f, 0.83f, 0.86f));
-            _mkNews.AddChild(l);
+            _mkNews.AddChild(Ellipse(l));
         }
         for (int i = 0; i < news.Count; i++)
         {

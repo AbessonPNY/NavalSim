@@ -17,6 +17,17 @@ uniform vec3  u_sun;              // direction VERS le soleil, unitaire
 uniform vec3  u_zenith  = vec3(0.12, 0.36, 0.52);
 uniform vec3  u_horizon = vec3(0.82, 0.89, 0.93);
 uniform float u_cloud = 0.12;     // la couverture, de 0 au couvert
+/* CE QUI DÉCHIRE LE BRUIT. On décale le point de lecture par un autre bruit
+   avant de lire : les motifs cessent d'être des taches molles et deviennent des
+   formes cisaillées, étirées, repliées. C'est ce qui sépare un nuage d'une tache
+   — un bruit fractal seul est toujours reconnaissable à ses bords ronds, quel
+   que soit le nombre d'octaves qu'on lui ajoute. 0 rend l'ancien ciel. */
+uniform float u_warp = 1.15;
+/* ET LA PART DE CUMULUS. Le ciel n'avait qu'une couche, haute et mince : rien ne
+   passait devant rien, donc aucune profondeur. Celle-ci est plus basse, plus
+   ronde et plus dense — elle CACHE le bleu là où le cirrus le laissait passer, et
+   c'est le glissement de l'une sur l'autre qui fait un ciel plutôt qu'un fond. */
+uniform float u_cumulus = 0.75;
 uniform float u_sky_time = 0.0;   // le pont de nuages dérive avec le jour
 uniform float u_storm = 0.0;      // le couvercle, de 0 à 1
 
@@ -192,15 +203,52 @@ float naval_noise2(vec2 p) {
  * travers de la traînée que dans sa longueur. Isotrope on obtient un ciel
  * pommelé — vrai, mais couvert. Étiré, on obtient des cirrus.
  */
-float naval_clouds(vec3 dir, float amt) {
-	float up = dir.y;
-	if (up < 0.02 || amt <= 0.0) return 0.0;
-
-	vec2 q = vec2(dir.x, dir.z) / up;
-	vec2 p = vec2(q.x * 4.2, q.y * 17.0) + vec2(u_sky_time * 0.012, u_sky_time * 0.030);
+/* LE BRUIT DÉCHIRÉ — trois octaves lues à un point qu'un autre bruit a déplacé.
+ *
+ * La déformation de domaine coûte deux lectures de plus et change tout : sans
+ * elle les motifs gardent les bords ronds du bruit de valeur, quel que soit le
+ * nombre d'octaves. Avec, ils s'étirent et se replient comme une masse que le
+ * vent cisaille. */
+float naval_fbm(vec2 p, float warp) {
+	if (warp > 0.001) {
+		vec2 w = vec2(naval_noise2(p * 0.63 + 11.3), naval_noise2(p * 0.63 + 47.1)) - 0.5;
+		p += w * warp;
+	}
 	float f  = naval_noise2(p) * 0.55;
 	f += naval_noise2(p * 2.13 + 3.7) * 0.28;
 	f += naval_noise2(p * 4.37 + 9.1) * 0.17;
+	return f;
+}
+
+/* DEUX COUCHES, ET C'EST LEUR GLISSEMENT QUI FAIT LE CIEL.
+ *
+ * <c>cirrus</c> est l'ancienne : haute, très étirée, et MINCE — le bleu passe au
+ * travers. <c>cumulus</c> est plus basse, presque isotrope et dense, et elle
+ * cache ce qu'il y a derrière.
+ *
+ * La couche basse est lue à une échelle PLUS GRANDE en q, ce qui la rapproche :
+ * projetées sur le même plan, deux couches ne se distinguent que par là. Elle
+ * dérive aussi plus vite, comme un pont de nuages bas sous des cirrus.
+ *
+ * Toutes deux sortent par des seuils : le curseur de couverture va toujours du
+ * beau temps au couvert, et c'est le PLANCHER qu'il relève — voir plus bas. */
+void naval_clouds2(vec3 dir, float amt, out float cirrus, out float cumulus) {
+	cirrus = 0.0; cumulus = 0.0;
+	float up = dir.y;
+	if (up < 0.02 || amt <= 0.0) return;
+
+	vec2 q = vec2(dir.x, dir.z) / up;
+
+	/* LA COUCHE BASSE D'ABORD, pour que sa lecture serve de témoin : elle est
+	   ronde là où l'autre est filée, donc les deux ne peuvent pas se confondre. */
+	vec2 pc = vec2(q.x * 1.45, q.y * 2.05) + vec2(u_sky_time * 0.026, u_sky_time * 0.017);
+	float fc = naval_fbm(pc, u_warp * 1.6);
+	fc = clamp((fc - 0.5) * 2.4 + 0.5, 0.0, 1.0);
+	cumulus = smoothstep(0.96 - amt * 0.60, 1.02 - amt * 0.34, fc)
+	        * smoothstep(0.03, 0.16, up) * u_cumulus;
+
+	vec2 p = vec2(q.x * 4.2, q.y * 17.0) + vec2(u_sky_time * 0.012, u_sky_time * 0.030);
+	float f = naval_fbm(p, u_warp);
 
 	/* Étiré. Trois octaves moyennées se serrent autour d'un demi, donc un seuil
 	   pris dans cette plage allume TOUT le ciel un peu et donne un lavis pâle et
@@ -219,8 +267,7 @@ float naval_clouds(vec3 dir, float amt) {
 	   lentement. Passer de 12 % à 6 % ne retirait que 14 % de nuage là où on en
 	   voulait la moitié. La pente monte avec le plancher pour que le couvert
 	   plein retombe exactement où il était. */
-	float c = smoothstep(0.93 - amt * 0.65, 0.99 - amt * 0.36, f);
-	return c * smoothstep(0.02, 0.11, up);
+	cirrus = smoothstep(0.93 - amt * 0.65, 0.99 - amt * 0.36, f) * smoothstep(0.02, 0.11, up);
 }
 
 /* La couverture est un PARAMÈTRE et non simplement u_cloud, pour un appelant :
@@ -249,13 +296,32 @@ vec3 naval_sky(vec3 dir, vec3 sun_dir, vec3 zenith, vec3 horizon, float cloud_am
 	   même événement vu des deux côtés, et lui écrire un second seuil laisserait
 	   les deux dériver. */
 	float dusk = 1.0 - smoothstep(0.02, -0.10, sun_dir.y);
-	float cl = naval_clouds(normalize(dir), cloud_amt) * (1.0 - u_storm) * dusk;
-	if (cl > 0.001) {
+	float veil = (1.0 - u_storm) * dusk;
+	float cir, cum;
+	naval_clouds2(normalize(dir), cloud_amt, cir, cum);
+	cir *= veil; cum *= veil;
+	if (cir + cum > 0.001) {
 		float sd0 = max(dot(normalize(dir), sun_dir), 0.0);
 		vec3 lit = mix(horizon * 1.22, vec3(1.0, 0.98, 0.94), 0.30);
 		// dessous gris, et un liseré vif là où le soleil est derrière eux
 		lit = mix(lit * 0.66, lit * 1.18, pow(sd0, 3.0));
-		c = mix(c, lit, cl * 0.62);   // les cirrus sont minces : le bleu passe au travers
+		/* LE CIRRUS D'ABORD, LE CUMULUS PAR-DESSUS : le haut est derrière le bas.
+		   Peindre dans l'autre ordre mettrait la couche fine devant la dense, et
+		   l'on verrait le cirrus « à travers » le cumulus, ce qui n'arrive pas. */
+		c = mix(c, lit, cir * 0.62);   // les cirrus sont minces : le bleu passe au travers
+		/* ET LE CUMULUS PORTE SON PROPRE OMBRE. Un nuage rond est clair dessus et
+		   sombre dessous, et c'est cela seul qui le fait lire comme un VOLUME ; le
+		   cirrus, qui n'a pas d'épaisseur, n'en a pas besoin. On prend la hauteur
+		   dans le ciel comme substitut du dessus : au zénith on voit le ventre,
+		   vers l'horizon on voit le flanc éclairé. */
+		/* LE VENTRE EST ÉCLAIRÉ PAR LE CIEL, et pas seulement assombri. Un simple
+		   facteur sur la couleur du dessus donne un gris brun qui se lit comme de la
+		   saleté : un dessous de nuage ne reçoit pas moins de lumière, il en reçoit
+		   une AUTRE — celle de la voûte, donc bleue. On mélange donc vers le ciel
+		   plutôt que vers le noir. */
+		vec3 ventre = mix(lit * 0.60, mix(horizon, zenith, 0.5), 0.42);
+		vec3 base = mix(ventre, lit, smoothstep(0.62, 0.06, dir.y));
+		c = mix(c, base, cum * 0.93);  // et lui cache le bleu
 	}
 
 	/* Les étoiles sortent à mesure que le soleil descend, et elles vivent SOUS

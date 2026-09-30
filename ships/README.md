@@ -590,7 +590,9 @@ Les anneaux sont un **téléporteur**. La manœuvre, en jeu :
    intercepte la touche avant le reste) ;
 3. les anneaux montent en régime pendant **vingt secondes**, de plus en plus vite
    et de plus en plus blancs — leur rampe *est* la jauge, il n'y a pas de cadran ;
-4. le navire saute, stoppé et voiles serrées.
+4. le navire saute — **en gardant son erre** : parti à dix nœuds, il arrive à dix
+   nœuds, au même cap et sous la même toile. Un appareil qui translate un navire
+   translate sa quantité de mouvement avec lui.
 
 ⇧A pendant la charge l'interrompt. Vingt secondes, c'est long, et c'est voulu :
 on les passe à découvert, un pirate qui approche a le temps d'arriver, et le

@@ -12714,8 +12714,28 @@ fuyait sauterait aussi. Ce ne serait pas un saut, ce serait un déménagement. O
 ne déplace donc QUE la coque ; le glissement de fin d'image recentre l'ensemble,
 et c'est un pur changement de repère qui ne déplace personne.
 
-Le navire arrive **stoppé, voiles serrées**, et l'estime est recalée sur le point
-— on sait exactement où l'on arrive, puisqu'on l'a désigné soi-même.
+Le navire **garde son erre**, et l'estime est recalée sur le point — on sait
+exactement où l'on arrive, puisqu'on l'a désigné soi-même.
+
+Il arrivait stoppé au premier jet, sur l'argument qu'il n'y avait « pas de sens à
+porter son erre d'un bout à l'autre de la carte ». C'était faux, et la question
+posée l'a montré : un appareil qui TRANSLATE un navire translate sa quantité de
+mouvement avec lui, et la conserver est plus physique que l'annuler. Il ne restait
+que la sécurité à l'arrivée — or le saut refuse déjà tout point qui n'a pas une
+longueur de navire d'eau libre autour de lui. On ne touche donc ni à la vitesse,
+ni au taux de rotation, ni à la toile : elle sort des anneaux au cap et à l'allure
+où elle y est entrée, et le vent étant le même sur toute la région, son vent
+apparent l'est aussi.
+
+Sa HAUTEUR, elle, est reprise sur la vague. La houle du point d'arrivée n'est pas
+celle du départ : partie d'une crête pour un creux, elle se retrouverait quatre
+mètres en l'air et tomberait. On lui garde donc sa hauteur RELATIVE À LA SURFACE,
+qui est la seule qui ait un sens — une coque flotte par rapport à l'eau, pas par
+rapport au zéro hydrographique.
+
+À retenir de l'échange : **une règle de jeu qu'on justifie par « cela n'aurait pas
+de sens » mérite d'être relue.** Ici le sens était dans l'autre camp, et le seul
+argument valable — la sécurité — était déjà couvert ailleurs.
 
 ## La coque flottait au-dessus du sable (Godot)
 
@@ -13035,6 +13055,35 @@ Demandé : le miroir de la sphère et des anneaux dans l eau. Il a fallu six ess
 et trois captures pour y arriver, et les trois causes valent chacune d être
 écrites — aucune ne se devine, et chacune se déguise en autre chose.
 
+### Pourquoi le navire, lui, se reflète tout seul
+
+Question posée en cours de route, et c est la bonne : pourquoi la coque se
+reflète-t-elle sans qu on ait rien écrit, quand ces deux pièces demandent tout ce
+qui suit ? Parce que le navire est OPAQUE, et que tout en découle.
+
+Un objet opaque est dessiné dans la passe opaque, qui se TERMINE avant que la mer
+ne soit dessinée. Quand le shader de la mer s exécute, la coque est déjà dans le
+tampon de couleur et dans celui de profondeur ; le lancer de rayon en espace
+écran la trouve donc, et en prend la couleur. Et comme ce calcul se fait SUR LA
+SURFACE DE LA MER, il part de la normale de la vague à ce pixel : l ondulation,
+la brisure et le suivi des creux ne sont pas ajoutés, ils sont INHÉRENTS — le
+rayon est courbé par la vraie facette.
+
+Une pièce transparente est dessinée APRÈS la mer. L image et la profondeur que
+celle-ci relit sont celles d un monde où la pièce n existe pas encore, et un
+matériau en depth_test_disabled ne peut même pas relire la profondeur.
+
+D où la formule qui résume toute cette section : **le navire reçoit un reflet
+calculé par l eau ; les anneaux reçoivent un reflet qu il faut peindre.** Tout ce
+que l eau faisait d elle-même est à refaire à la main — le miroir autour de la
+surface LOCALE, la brisure, le masque à l eau, l atténuation avec la profondeur.
+Les quatre pièges ci-dessous ne sont pas des défauts du projet : ce sont les
+quatre services que l opacité rendait sans qu on les voie.
+
+Le chemin difficile n est pas le moins bon, du reste. Le miroir en espace écran
+ne peut refléter que ce qui est À L ÉCRAN — son propre commentaire le dit, et son
+reflet s efface vers les bords. La copie dessinée n a pas cette limite.
+
 ### Pourquoi il faut le DESSINER
 
 Le miroir de la mer est en espace écran : il relit l image déjà rendue. Or la mer
@@ -13123,6 +13172,32 @@ et le reflet n en couvre qu un coin, quelques secondes par saut.
 
 Ils restent, parce qu une panne de reflet ne se diagnostique pas autrement : un
 masque qui refuse tout et une géométrie absente donnent la même image — rien.
+
+## Le comptoir sortait de l écran (Godot)
+
+Signalé : le panneau du port est décalé à droite et on ne le voit pas entier.
+Ses boutons +5 t / −5 t étaient carrément hors de l image, donc inutilisables.
+
+La cause tient en une phrase qui vaut pour toute l interface de ce projet :
+**la largeur MINIMALE d un Label est celle de son texte entier, et un conteneur
+respecte les minimums de ses enfants AVANT ses propres ancres.** « Hog Crawle de
+Samuel Barry » suivi de « bois de campêche 1234 » poussait donc le panneau au-delà
+de sa boîte ; son bord gauche étant épinglé par l ancre, il ne pouvait grandir que
+vers la DROITE, c est-à-dire hors de l écran.
+
+Le remède est de COUPER les libellés (ClipText + points de suite) : leur minimum
+retombe à zéro et la boîte redevient maîtresse. Avec une conséquence qu il a fallu
+rattraper dans la foulée — coupée, une colonne en Fill prend son minimum, donc
+ZÉRO, et les prix ont disparu. Il faut donc donner une largeur minimale aux
+colonnes qu on coupe.
+
+Ce qu on tronque se choisit : le NOM DU PORT, parce qu un nom se devine et qu un
+prix tronqué ne veut rien dire. C est la colonne en ExpandFill qui se partage ce
+qui reste, et c est elle qu il faut mettre sur ce qui supporte d être abrégé.
+
+Et la boussole s efface sous le comptoir. Les deux occupaient le même coin et
+aucun ne se lisait ; le comptoir ne s ouvre que navire STOPPÉ à quai, où l on ne
+gouverne pas. Même règle que sous la carte ouverte, pour la même raison.
 
 ## Conventions
 

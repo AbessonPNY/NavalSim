@@ -114,21 +114,35 @@ public partial class ShipDemo
 
     /// <summary>
     /// Le saut lui-même. La coque SEULE change de place — voir l'en-tête du
-    /// fichier — et elle arrive stoppée : porter son erre d'un bout à l'autre de
-    /// la carte n'aurait aucun sens, et arriver toute toile dehors dans un endroit
-    /// qu'on ne connaît pas est la meilleure façon de s'y jeter à la côte.
+    /// fichier — et elle GARDE SON ERRE.
+    ///
+    /// Elle arrivait stoppée, sur l'argument qu'il n'y avait pas de sens à porter
+    /// son erre d'un bout à l'autre de la carte. C'était faux : un appareil qui
+    /// translate un navire translate sa QUANTITÉ DE MOUVEMENT avec lui, et la
+    /// conserver est plus physique que l'annuler. Il ne restait que la sécurité à
+    /// l'arrivée — or le saut refuse déjà tout point qui n'a pas une longueur de
+    /// navire d'eau libre autour de lui.
+    ///
+    /// On ne touche donc ni à la vitesse, ni au taux de rotation, ni à la toile :
+    /// elle sort des anneaux au cap et à l'allure où elle y est entrée. Le vent
+    /// étant le même sur toute la région, son vent apparent l'est aussi — elle
+    /// tient sa vitesse sans qu'on ait rien à rattraper.
+    ///
+    /// SA HAUTEUR EST REPRISE SUR LA VAGUE et non gardée telle quelle. La houle du
+    /// point d'arrivée n'est pas celle du départ : partie d'une crête pour un
+    /// creux, elle se retrouverait quatre mètres en l'air et tomberait. On lui
+    /// garde donc sa hauteur RELATIVE À LA SURFACE, ce qui est la seule chose qui
+    /// ait un sens — une coque flotte par rapport à l'eau, pas par rapport au zéro.
     /// </summary>
     void DoJump(double x, double z)
     {
         var o = _sea.Core.Origin;
         var b = _ship.Physics.Body;
         var from = TruePos();
-        b.Pos = new Vec3d(x - o.X, b.Pos.Y, z - o.Z);
-        b.Vel = Vec3d.Zero;
-        b.AngVel = Vec3d.Zero;
+        double hFrom = _sea.Core.Sample(b.Pos.X, b.Pos.Z, _t);
+        double hTo = _sea.Core.Sample(x - o.X, z - o.Z, _t);
+        b.Pos = new Vec3d(x - o.X, b.Pos.Y + (hTo - hFrom), z - o.Z);
         _ship.SyncTransform();
-        _ship.Ctrl.SailsSet = false;
-        _ship.Ctrl.Throttle = 0;
         /* L'ESTIME EST RECALÉE : on sait exactement où l'on arrive, puisqu'on a
            désigné le point soi-même. Sans cela le point estimé resterait au départ,
            avec toute l'erreur accumulée, et la carte mentirait d'un bout de mer. */
@@ -139,7 +153,9 @@ public partial class ShipDemo
 
         double miles = Math.Sqrt((x - from.X) * (x - from.X) + (z - from.Z) * (z - from.Z)) / 1852;
         var fix = _world!.Geo.Fix(x, z);
-        Say($"Le navire a sauté — {Geo.Format(fix.Lat, true)} {Geo.Format(fix.Lon, false)}");
+        double kn = Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z) * 1.94384;
+        Say(FormattableString.Invariant(
+            $"Le navire a sauté — {Geo.Format(fix.Lat, true)} {Geo.Format(fix.Lon, false)}, {kn:F1} nds"));
         JournalLog(FormattableString.Invariant(
             $"Les anneaux nous ont portés à {miles:F0} milles, par {Geo.Format(fix.Lat, true)} {Geo.Format(fix.Lon, false)}."));
     }

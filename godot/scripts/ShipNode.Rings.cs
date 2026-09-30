@@ -678,7 +678,15 @@ public partial class ShipNode
     /// <summary>La copie s en va avec le navire : rien ne doit rester dans la scène.</summary>
     public override void _ExitTree()
     {
-        if (_mirror != null && _mirror.GetParent() is Node p) { p.RemoveChild(_mirror); _mirror.QueueFree(); _mirror = null; }
+        /* EN DIFFÉRÉ : on sort de l'arbre au moment où Godot est justement en
+           train d'en retirer des nœuds, et RemoveChild y est refusé — il le dit en
+           rouge à chaque fermeture. QueueFree seul suffirait à libérer la copie,
+           mais la détacher explicitement dit mieux ce qu'on veut : elle appartient
+           au navire, pas à la scène où on l'avait pendue. */
+        if (_mirror != null && _mirror.GetParent() is Node p)
+            p.CallDeferred(Node.MethodName.RemoveChild, _mirror);
+        _mirror?.QueueFree();
+        _mirror = null;
     }
 
     /// <summary>

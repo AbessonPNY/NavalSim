@@ -4002,7 +4002,12 @@ public partial class ShipDemo : Node3D
     void CompassTick()
     {
         if (_compass == null || _chart == null) return;
-        _compass.Visible = _hudOn && !_chartOpen && !_inTitle;
+        /* ET PAS PAR-DESSUS LE COMPTOIR. Le panneau du port occupe tout le côté
+           droit, la boussole est en bas à droite : les deux se recouvraient et
+           aucun des deux ne se lisait. Le comptoir ne s ouvre que navire STOPPÉ à
+           quai — on n y gouverne pas, donc la boussole n y sert à rien. C est la
+           même règle que sous la carte ouverte, pour la même raison. */
+        _compass.Visible = _hudOn && !_chartOpen && !_inTitle && _mkPanel?.Visible != true;
         if (!_compass.Visible) return;
         var s = GetViewport().GetVisibleRect().Size;
         float bottom = 0, right = 0;
@@ -4178,6 +4183,8 @@ public partial class ShipDemo : Node3D
                     break;
                 }
                 case "--nappe": _sheet = Math.Clamp(args[i + 1].ToFloat(), 0, 1); break;
+                // la couverture nuageuse imposee, pour juger le ciel sans attendre la meteo
+                case "--nuages": _cloud = Math.Clamp(args[i + 1].ToFloat(), 0, 1); break;
                 // l'œil tourné vers le soleil, un peu au-dessus de l'eau : pour juger sa route
                 case "--vers-soleil":
                     var sdir = _sky.Core.SunDir;
