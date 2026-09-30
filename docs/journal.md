@@ -7410,6 +7410,54 @@ Et le semis n'est fait qu'au port de départ : le dessin est instancié donc
 gratuit, mais le semis lui-même coûte, et treize plages que le joueur ne verra
 peut-être jamais ne le valent pas encore.
 
+### Et à bord ? Non — mais voici le raisonnement, pour ne pas le refaire
+
+Demandé : pourrait-on cuire des animations pour le navire, par exemple un objet
+qui tourne, non soumis à la gravité ? Décidé de ne pas le faire. Ce qui suit est
+consigné pour qu'on s'y réfère plutôt que d'y revenir.
+
+**LE VAT SERT À CE QUI SE DÉFORME, PAS À CE QUI BOUGE.** Un objet qui tourne,
+une bôme qui bat, une barrique qui roule, un safran qui vient : ce sont des
+transformations RIGIDES. Une rotation s'exprime en une matrice, que le GPU
+applique gratuitement à l'objet entier. Le VAT, lui, range la position de chaque
+sommet à chaque image — pour dire la même rotation il faudrait quatre
+mégaoctets là où seize nombres suffisent, et avec moins de précision.
+
+La règle, donc : **si un Transform peut le dire, il faut le dire comme ça.** Le
+VAT ne gagne sa place que lorsque la FORME change, c'est-à-dire lorsque aucune
+matrice ne décrit ce qui arrive au maillage.
+
+Ce qui, à bord, se déformerait sans avoir à réagir — et ce sont les seuls
+candidats : des animaux (un chien sur le pont, des poules en cage, un chat), un
+homme qui NE TRAVAILLE PAS (accoudé au pavois, endormi dans son hamac), du tissu
+qui n'est pas de la voile. Tout le reste du bord doit répondre au vent, à la
+barre ou à la houle, et une cuisson ne répond à rien — c'est la conclusion déjà
+tirée pour le marin qui manœuvre.
+
+Le navire qui bouge, lui, n'est pas un obstacle : on parente le figurant au
+ShipNode, ses déplacements sont en repère modèle, il embarque avec la coque sans
+qu'on écrive une ligne. La vraie réserve est ailleurs : **la cuisson est faite
+sur un sol plat**, donc sur un pont qui roule l'homme reste raide par rapport au
+bordé là où un marin compense.
+
+**CE QUE ÇA COÛTE, et c'est la contrainte qui décide.** La texture vaut
+sommets × images, et elle se paie en mémoire vidéo :
+
+    pirate_0001 : 7 620 sommets × 249 images = 1,9 M texels
+       positions × 8 octets (RVBA demi-flottants)  15,2 Mo
+       normales  × 3 octets                         5,7 Mo
+                                              ≈ 21 Mo
+
+Par CUISSON et non par figurant : les vingt de la plage se partagent ces 21 Mo,
+c'est tout l'intérêt de l'instanciation. Mais vingt personnages DIFFÉRENTS en
+feraient quatre cent vingt, ce qui n'est pas tenable.
+
+Le levier est direct, et les deux facteurs se multiplient : un marin à 2 000
+sommets sur 120 images coûte 1,9 Mo au lieu de 21 — onze fois moins. À retenir :
+les triangles ne coûtent rien à DESSINER, c'est mesuré ailleurs dans ce journal,
+mais ici ils coûtent en MÉMOIRE, et ce n'est pas le même budget. Pour du décor
+vivant, décimer sans remords et cuire court.
+
 ## Un fanal éteint portait son ombre
 
 Demandé, après la mesure des ombres : « l'ombre dont tu parlais était celle des
