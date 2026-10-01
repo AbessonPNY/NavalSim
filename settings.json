@@ -322,7 +322,7 @@
   },
   "flyby": {
     "_aide": "LA CAMERA DU DRONE (C, derniere vue). vitesse : l allure du drone, en part de celle reglee a l oeil (1) — 2 la double, 0,5 la divise par deux. En route, c est ce qu il gagne sur le navire a chaque passage (un tiers de son erre et 1,5 m/s, a 1) ; a l arret, la vitesse de ses tours (un tour en deux minutes, a 1). plan : combien de secondes dure un plan a l arret avant le fondu suivant. En route, un plan dure le temps d un passage le long du navire, et la vitesse le raccourcit. Godot seulement.",
-    "vitesse": 1.0,
+    "vitesse": 2.0,
     "plan": 6
   },
   "wind": {

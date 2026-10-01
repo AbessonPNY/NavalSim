@@ -564,7 +564,7 @@ public partial class SoundNode : Node3D
     /// Mettre une musique, ou la taire (<c>null</c>). Le morceau en place s'en va
     /// en douceur ; celui qui arrive monte de même.
     /// </summary>
-    public void Ambiance(string? file, double gain = 1)
+    public void Ambiance(string? file, double gain = 1, bool attack = false)
     {
         if ((file ?? "") == _ambSrc) return;
         /* LE MORCEAU EN PLACE S'EN VA EN FONDU PENDANT QUE L'AUTRE MONTE — deux
@@ -595,11 +595,14 @@ public partial class SoundNode : Node3D
         else if (stream is AudioStreamWav w) w.LoopMode = AudioStreamWav.LoopModeEnum.Forward;
         _amb ??= AddAmb();
         _amb.Stream = stream;
-        _amb.VolumeDb = Mathf.LinearToDb(0.001f);
         _ambNow = 0;
         // une bande peut demander plus que la nappe d'ambiance — le film, qui doit s'entendre
         _ambGoal = Math.Clamp(VolAmb * gain, 0, 1);
         _ambPeak = Math.Max(VolAmb, _ambGoal);
+        /* L'ATTAQUE DIRECTE : un morceau qui doit FRAPPER entre à son plein, sans
+           montée — celui qu'il remplace s'en va quand même en fondu. */
+        if (attack) _ambNow = _ambGoal;
+        _amb.VolumeDb = Mathf.LinearToDb((float)Math.Max(0.001, _ambNow));
         _amb.Play();
         GD.Print($"musique : {file}");
     }
@@ -634,7 +637,12 @@ public partial class SoundNode : Node3D
     double _seaDuck = 1, _seaDuckGoal = 1;
 
     /// <summary>La part de son volume que garde la mer : 1 entière, 0,4 sous la bande du cinéma.</summary>
-    public void DuckSea(double keep) => _seaDuckGoal = Math.Clamp(keep, 0, 1);
+    public void DuckSea(double keep, bool now = false)
+    {
+        _seaDuckGoal = Math.Clamp(keep, 0, 1);
+        // d'un coup, sous une musique qui attaque : en fondu, elle passerait encore sous le ressac
+        if (now) _seaDuck = _seaDuckGoal;
+    }
 
     public string SeaPlaying => _seaSrc;
 

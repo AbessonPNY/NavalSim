@@ -13683,6 +13683,10 @@ qu'il était ; il n'annonce plus « Cinéma » sur l'image.
 autres musiques. Le fondu se cale désormais sur le plein de CHAQUE morceau : calé sur le volume commun,
 une bande deux fois plus forte aurait mis cinq secondes à monter et à s'éteindre.
 
+**Attaque directe** (demandé) : la bande du film entre à son plein, sans montée, et la mer cède d'un coup
+sous elle — en fondu, elle passerait encore deux secondes et demie sous le ressac. La sortie, elle, reste
+en fondu : la musique s'éteint, la mer remonte.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

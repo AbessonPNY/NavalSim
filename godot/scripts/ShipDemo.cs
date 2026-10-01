@@ -3913,8 +3913,9 @@ public partial class ShipDemo : Node3D
            elle s'éteint en fondu et la situation reprend la main. */
         bool film = _cine && _ambCine.Length > 0;
         // la mer baisse de soixante pour cent sous la bande du film, et remonte après
-        _sound.DuckSea(film ? 0.4 : 1);
-        if (film) { _sound.Ambiance(_ambCine, _ambCineGain); return; }
+        _sound.DuckSea(film ? 0.4 : 1, now: film);
+        // le film frappe d'entrée : pas de montée (demandé), l'extinction reste en fondu
+        if (film) { _sound.Ambiance(_ambCine, _ambCineGain, attack: true); return; }
         if (!_settings.Music) { _sound.Ambiance(null); return; }
 
         double near = double.MaxValue;
