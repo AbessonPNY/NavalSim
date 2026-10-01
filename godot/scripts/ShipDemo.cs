@@ -2734,8 +2734,29 @@ public partial class ShipDemo : Node3D
     int _friendly;
     double _hitsAt = double.NegativeInfinity;
 
+    /* LES COUPS QU'ON REÇOIT, dits comme ceux qu'on porte : une bordée de dix
+       boulets ferait dix messages, on compte et l'on parle quand le tir retombe.
+       Le cri de l'équipage partait seul, et ne disait pas OÙ (signalé). */
+    int _takenHull, _takenSail, _takenMast;
+    double _takenAt = double.NegativeInfinity;
+
+    void TakenTick()
+    {
+        if (_takenHull + _takenSail + _takenMast == 0 || _t - _takenAt < 0.5) return;
+        var parts = new List<string>();
+        if (_takenHull > 0) parts.Add(_takenHull == 1 ? "un boulet dans la coque" : $"{_takenHull} boulets dans la coque");
+        if (_takenSail > 0) parts.Add(_takenSail == 1 ? "un dans la toile" : $"{_takenSail} dans la toile");
+        if (_takenMast > 0) parts.Add(_takenMast == 1 ? "un dans la mâture" : $"{_takenMast} dans la mâture");
+        string quoi = string.Join(", ", parts);
+        // une voie d'eau est ce qui demande une réponse : on la nomme
+        Say("Nous sommes touchés ! " + char.ToUpper(quoi[0]) + quoi[1..]
+            + (_takenHull > 0 ? " — voies d'eau, aux pompes" : ""));
+        _takenHull = _takenSail = _takenMast = 0;
+    }
+
     void HitsTick()
     {
+        TakenTick();
         if ((_hits == 0 && _friendly == 0) || _t - _hitsAt < 0.5) return;
         string ennemi = _hits > 1 ? $"Ennemi touché ! {_hits} coups au but"
                       : _hits == 1 ? "Ennemi touché !" : "";
@@ -3228,7 +3249,13 @@ public partial class ShipDemo : Node3D
     {
         if (t.Tag is not ShipNode s) return;
         // un coup au but PORTÉ PAR NOUS : compté ici, dit une fois la bordée finie
-        if (s == _ship) Shout("touche", 0, 4);
+        if (s == _ship)
+        {
+            Shout("touche", 0, 4);
+            // et le dire : compté comme les nôtres, annoncé une fois la bordée retombée
+            if (kind == "sail") _takenSail++; else if (kind == "mast") _takenMast++; else _takenHull++;
+            _takenAt = _t;
+        }
         if (from == _ship.Physics && s != _ship)
         {
             if (Allied(_ship, s)) _friendly++; else _hits++;
@@ -3517,6 +3544,35 @@ public partial class ShipDemo : Node3D
     }
 
     /// <summary>La coque qu'un navire a pour ennemi, ou nulle : le pirate pendant sa chasse, un navire provoqué contre qui l'a touché.</summary>
+    /* LE PIRATE QUI APPROCHE, ANNONCÉ À TEMPS. Une voile noire à l'horizon était
+       dite, puis plus rien jusqu'aux grappins — trop tard pour faire quoi que ce
+       soit (signalé). Deux crans, chacun une fois, du plus loin au plus près :
+       qu'on le tienne à distance tant qu'il est temps, puis qu'il est sur nous.
+       Le compte se rouvre quand il s'est éloigné, avec une marge pour qu'un
+       pirate qui louvoie à la limite ne le fasse pas répéter. */
+    readonly Dictionary<Pirate, int> _pirWarn = new();
+    // le second cran EN DEÇÀ de sa garde de tir (185 m) : à 185 il canonne, plus près il vient à couple
+    const double WarnFar = 900, WarnNear = 120, WarnReset = 1300;
+
+    void PirateWarn(ShipNode s, Pirate p)
+    {
+        if (s.IsGhost || p.Cible != _ship.Physics || p.State == Pirate.Phase.Fuite) { _pirWarn.Remove(p); return; }
+        var a = s.Physics.Body.Pos; var b = _ship.Physics.Body.Pos;
+        double d = Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Z - b.Z) * (a.Z - b.Z));
+        int stage = _pirWarn.GetValueOrDefault(p);
+        if (d > WarnReset) { if (stage != 0) _pirWarn[p] = 0; return; }
+        if (stage < 2 && d < WarnNear)
+        {
+            _pirWarn[p] = 2;
+            Say("Le pirate est sur nous ! Ne le laissez pas venir à couple — feu, ou virez de bord");
+        }
+        else if (stage < 1 && d < WarnFar)
+        {
+            _pirWarn[p] = 1;
+            Say(FormattableString.Invariant($"Un pirate se rapproche à {d:F0} m — tenez-le à distance, ne le laissez pas aborder"));
+        }
+    }
+
     ShipPhysics? EnemyOf(ShipNode s)
     {
         if (_pirates.TryGetValue(s, out var p)) return p.Enemy;
@@ -3543,6 +3599,7 @@ public partial class ShipDemo : Node3D
             foreach (var o in _others) if (!o.IsGhost) _sails.Add(new Pirate.Sail(o.Physics, o.Battery, IsJolly(o)));
             p.Grappled = prey != null && _grapples.Holds(prey);
             string? ev = p.Pilot(dt, _t, s.Physics, h, _sails, _ship.Physics);
+            PirateWarn(s, p);
 
             /* LA VOLÉE. Il lance quand il est à portée de crochet et qu'il n'en a
                plus un seul qui tienne — donc au premier abordage, et de nouveau
