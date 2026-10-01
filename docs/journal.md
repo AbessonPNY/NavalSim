@@ -13687,6 +13687,61 @@ une bande deux fois plus forte aurait mis cinq secondes à monter et à s'étein
 sous elle — en fondu, elle passerait encore deux secondes et demie sous le ressac. La sortie, elle, reste
 en fondu : la musique s'éteint, la mer remonte.
 
+## Les épaves et la cloche de Halley (Godot)
+
+Demandé, gravure à l'appui (la cloche de Halley, 1691 — la partie est en 1690) : les épaves restent, se
+sauvegardent, et l'on y descend en cloche avec une réserve d'air pour remonter un trésor. Formes simples
+d'abord, toutes les épaves, remontée d'office quand l'air manque.
+
+**Le registre** (`core/Wrecks.cs`) : tout navire qui sombre (sauf les spectres) est inscrit — fiche,
+place vraie, cap, fond, bau, date, valeur de son coffre (taille, cargaison, et ce qu'un pirate a pris ;
+une graine sur son identité fait varier d'un tiers). STATIQUE dans `ShipDemo` : une traversée recharge la
+scène et ne doit rien en perdre. Sauvegardé avec la partie (`epaves`), vidé par une partie neuve, et la
+remise à flot (R) efface l'épave du joueur. Sur la carte : le signe des cartes marines, une coque barrée de
+trois traits, pâle une fois pillée.
+
+**Au fond** (`WreckSiteNode.cs`) : le modèle couché de 15 à 35° sur un bord, la quille dans le sable, SANS
+SES MÂTS — à vingt mètres de fond un grand mât de trente-cinq perçait la surface ; reconnus comme ce qui est
+haut ET mince. Rompue par sa soute : deux tronçons recoupés. Le coffre par le travers, l'or qui luit un peu
+(à vingt mètres il fait sombre). Seules les proches sont bâties ; une épave qu'un navire vivant occupe
+encore n'est pas doublée.
+
+**La cloche** (`BellNode.cs`, `ShipDemo.Dive.cs`) : " (le 3 du haut), navire stoppé. Du bord qui a le plus
+d'eau dessous — à quai l'un donne sur le sable (vu : un coffre d'essai tombé à 4,6 m au-dessus de l'eau).
+S descend, Z remonte, Q/D et A/E la portent de 12 m au plus ; Entrée saisit un coffre à 3,5 m. LOI DE
+BOYLE : l'air n'occupe plus que 1/(1 + d/10,3) de la cloche, et l'eau MONTE dedans (un disque translucide,
+vu de l'intérieur) ; la réserve (420 s de surface, `settings.json` → `cloche.air`) fond d'autant plus vite —
+trois fois à vingt mètres. Alertes à la moitié, au quart, au dixième ; à bout, on la hisse d'office, coffre ou
+pas. Câble de 40 m (`cloche.cable`). Vue « Cloche » dans le cycle C quand elle est à l'eau. Essais :
+`-- --epave <m>` (le COFFRE à tant de mètres par tribord), `--cloche 1`, `--descendre <m>` — différés
+d'une seconde, le navire n'étant mis à son poste qu'après la ligne de commande.
+
+**À bord, la mer du pont** : `sons.json` → `mer.bord`, des bandes réservées aux vues subjectives (postes,
+pièces), même règle que les bandes générales ; la bascule se prend tout de suite au changement de vue.
+
+### Ce que renferment les coffres
+
+Demandé : des contenus variables — écus d'or, pierres précieuses, bijoux, objets anciens en or —, les
+écus à la bourse, LE RESTE GARDÉ À BORD ET VENDU AU COMPTOIR. Les modèles viendront ; d'ici là, formes
+simples (disque, gemme à huit facettes, anneau, coupe sur son pied).
+
+**Un manifeste à part** (`treasure/tresor.json`, `core/Treasure.cs`) : par sorte, son `.glb`, sa valeur
+moyenne en écus, son minimum, son maximum, ce qu'un pirate porte en plus ; `coffre.glb` pour le coffre
+(son couvercle : un nœud nommé « couvercle »). PAS au comptoir des denrées : celui-là compte à la TONNE et
+se partage avec la page sous le banc de parité. Les trésors se comptent à la PIÈCE ; leur cours suit la
+même courbe que les denrées (0,55 à 1,45, fonction pure du couple trésor/port et de l'heure), le joaillier
+garde 15 %.
+
+**Le coffre est tiré à l'inscription de l'épave**, sur son identité : la même épave rend le même coffre.
+Ses écus sont ce que vaut l'épave ; le reste se tire entre min et max. Une partie d'avant les trésors tire
+ses coffres à la reprise. **Fermé** au fond ; **le couvercle se lève** quand la cloche arrive dessus, et l'on
+voit ce qu'il renferme avant de le saisir ; vide et rabattu une fois pillé.
+
+**À bord** : l'inventaire des trésors, sauvegardé (`tresors`), vidé par une partie neuve. **Au comptoir** :
+« Trésors à bord », une ligne par sorte (le nombre à part — « 2 pièces d'orfèvrerie » ne tenait pas),
+le cours de l'unité, Vendre 1 et Tout, à quai seulement. Essai : `--epave 4.8 --cloche 1 --descendre 30
+--saisir 1` — vu : 240 écus d'or, 5 bijoux et 2 pièces d'orfèvrerie ; la bourse de 400 à 640 écus.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

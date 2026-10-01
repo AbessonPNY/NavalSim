@@ -67,6 +67,10 @@ public partial class ShipDemo
         [JsonPropertyName("ecoute")] public double Ecoute { get; set; }
         [JsonPropertyName("pavillon")] public bool Pavillon { get; set; } = true;
         [JsonPropertyName("cargo")] public List<Colis> Cargo { get; set; } = new();
+        /// <summary>Les épaves de la partie, de toutes les régions : ce sont des lieux, on les retrouve.</summary>
+        [JsonPropertyName("epaves")] public List<NavalSim.Core.Wreck> Epaves { get; set; } = new();
+        /// <summary>Les trésors à bord, à la pièce, par sorte.</summary>
+        [JsonPropertyName("tresors")] public Dictionary<string, int> Tresors { get; set; } = new();
         [JsonPropertyName("flotte")] public List<Coque> Flotte { get; set; } = new();
         /// <summary>Les quêtes et le carnet, tels qu'ils s'écrivent déjà dans user:// — recopiés ici.</summary>
         [JsonPropertyName("quetes")] public string Quetes { get; set; } = "";
@@ -143,6 +147,8 @@ public partial class ShipDemo
         };
         foreach (var c in p.Cargo)
             s.Cargo.Add(new Colis { Cale = c.Hold, Niveau = c.Level, Bord = c.Side, Kg = c.Kg, Nature = c.Kind });
+        s.Epaves.AddRange(Wrecks.All);
+        foreach (var (k, n) in _treasureHold) if (n > 0) s.Tresors[k] = n;
         // les coques à flot autour de vous ; les spectres ne se sauvent pas
         var o = _sea.Core.Origin;
         foreach (var other in _others)
@@ -321,6 +327,15 @@ public partial class ShipDemo
         var b = p.Body;
 
         _purse = new Purse(s.Sous);
+        Wrecks.Clear();
+        foreach (var w in s.Epaves)
+        {
+            // une partie d'avant les trésors : son coffre se tire à la reprise
+            if (w.Contents.Count == 0 && !w.Looted) w.Contents = _tresors.Draw(w.Id, w.Ecus, false);
+            Wrecks.Add(w);
+        }
+        _treasureHold.Clear();
+        foreach (var (k, n) in s.Tresors) _treasureHold[k] = n;
         p.Powder = Math.Min(s.Poudre, p.PowderMax);
         p.ClearCargo();
         foreach (var c in s.Cargo) p.LoadCargo(c.Cale, c.Niveau, c.Bord, c.Kg / 1000, c.Nature);

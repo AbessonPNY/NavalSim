@@ -258,6 +258,8 @@ public partial class ShipDemo : Node3D
             AddChild(_jetty);
             _grappleNode = new GrappleNode();
             AddChild(_grappleNode);
+            // les épaves au fond, et la cloche pour y descendre (ShipDemo.Dive.cs)
+            DiveBoot(System.IO.Path.Combine(Assets.Root, "ships"));
             /* LES RADES, bâties une fois avec le monde : des navires amarrés ne
                changent pas de place, et les mettre à l eau en cours de partie ferait
                de la géométrie au pire moment. Le nœud naît ici avec la terre, mais
@@ -277,7 +279,7 @@ public partial class ShipDemo : Node3D
             _chart = new ChartNode(_world, _book)
             {
                 PenWidth = _settings.PenWidth,
-                Aim = QuestPlace, Jump = JumpPlace, Marks = () => _flotsam.Marks(),
+                Aim = QuestPlace, Jump = JumpPlace, Marks = () => _flotsam.Marks(), Wrecks = WreckMarks,
                 // où l'on croit être, et — au débogage seulement — où l'on est
                 Where = () => _reck != null && _reck.Known && _reckRules.Enabled ? (_reck.X, _reck.Z, _reck.SigN, _reck.SigE) : null,
                 Truth = () => _ship == null ? null : TruePos()
@@ -1180,6 +1182,7 @@ public partial class ShipDemo : Node3D
         if (_serpentIn > 0 && (_serpentIn -= delta) <= 0) SummonSerpent();
         if (_largeIn > 0 && (_largeIn -= delta) <= 0) GoOffshore();
         if (_souteIn > 0 && (_souteIn -= delta) <= 0) BlowUp(_ship);
+        if (_diveTestIn > 0 && (_diveTestIn -= delta) <= 0) DiveTest();
         if (_pontonIn > 0 && (_pontonIn -= delta) <= 0) BackToBerth();
         if (_metIn > 0 && (_metIn -= delta) <= 0) ForceEncounter(_metPair);
         if (_shotIn > 0 && (_shotIn -= delta) <= 0) TestShot(_shotY);
@@ -1382,6 +1385,7 @@ public partial class ShipDemo : Node3D
             CompassTick();
             ReckonTick(frame);
             RumourTick(frame);
+            DiveTick(frame, here, new Vec3d(wo.X, 0, wo.Z));
             if (_moored != null)
             {
                 _moored.Update(here, new Vec3d(wo.X, 0, wo.Z), _sea.Core, _t);
@@ -1743,6 +1747,7 @@ public partial class ShipDemo : Node3D
         3 => "Mi-eau",
         4 => "Ponton",
         CamFlyBy => "Fly-By",
+        CamBell => "Cloche",
         _ => "Orbite"
     };
 
@@ -1834,7 +1839,9 @@ public partial class ShipDemo : Node3D
         LeaveCinema();                    // C choisit une autre vue : le cinéma s'arrête là
         SetGunPost(null);                 // changer de vue quitte la pièce
         DryLens();
-        if (_camMode == 0) { _camMode = 1; _deck = 0; EnterDeck(); }
+        // depuis la cloche, on revient à l'orbite ; la cloche reste au bout de son câble
+        if (_camMode == CamBell) { _camMode = 0; SetLens(OutsideFov, OutsideNear); }
+        else if (_camMode == 0) { _camMode = 1; _deck = 0; EnterDeck(); }
         else if (_camMode == 1 && _deck + 1 < _ship.Spec.Decks.Count) { _deck++; EnterDeck(); }
         else if (_camMode == 1) { _camMode = 2; SetLens(OutsideFov, OutsideNear); Plant(); }
         else if (_camMode == 2) { _camMode = 3; SetLens(OutsideFov, OutsideNear); }
@@ -1851,6 +1858,8 @@ public partial class ShipDemo : Node3D
         }
         // le drone ferme le cycle : après le ponton, ou après la vue mi-eau quand il n'y a pas de ponton
         else if (_camMode != CamFlyBy) { EnterFlyBy(); Say("Fly-By"); }
+        // la cloche ferme le cycle, quand elle est à l'eau
+        else if (_bellOut) { _camMode = CamBell; SetLens(70, OutsideNear); }
         else _camMode = 0;
         UpdateInfo();
     }
@@ -1984,6 +1993,12 @@ public partial class ShipDemo : Node3D
             return;
         }
 
+        if (_camMode == CamBell)
+        {
+            BellCamera();
+            return;
+        }
+
         /* MI-EAU : l'œil POSÉ SUR LA SURFACE, moitié dedans moitié dehors — la
            vue en coupe des photographes sous-marins. La hauteur n'est pas
            choisie, elle est LUE sur la houle à l'endroit de l'œil, si bien que la
@@ -2084,6 +2099,8 @@ public partial class ShipDemo : Node3D
     /// </summary>
     void ReadKeys(double dt)
     {
+        // la cloche à l'eau : le navire est stoppé, les mêmes touches mènent la cloche
+        if (_bellOut) { BellKeys(dt); return; }
         var c = _ship.Ctrl;
 
         double rud = 0;
@@ -2399,6 +2416,9 @@ public partial class ShipDemo : Node3D
                 case Key.H when k.ShiftPressed: _hudOn = !_hudOn; _sunPanel.Visible = _hudOn; break;
                 // é en AZERTY (le 2 de la rangée du haut), ou le 2 du pavé : le mode cinéma, et retour
                 case Key.Key2 or Key.Kp2 when !k.ShiftPressed && !k.Echo: ToggleCinema(); break;
+                // " en AZERTY (le 3 du haut), ou le 3 du pavé : la cloche à l'eau, ou hissée
+                case Key.Key3 or Key.Kp3 when !k.ShiftPressed && !k.Echo: ToggleBell(); break;
+                case Key.Enter or Key.KpEnter when _bellOut && !k.Echo: TakeChest(); break;
                 case Key.H: _info.Visible = !_info.Visible; break;
                 // le menu d'options ; « Quitter » y est désormais
                 case Key.F1: ToggleKeys(); break;
@@ -2637,6 +2657,13 @@ public partial class ShipDemo : Node3D
                 Config.WindGain = Math.Clamp(wg.GetDouble(), 0.1, 8);
             if (root.TryGetProperty("wind", out var wi2) && wi2.TryGetProperty("heel", out var wh2) && wh2.ValueKind == System.Text.Json.JsonValueKind.Number)
                 Config.WindHeel = Math.Clamp(wh2.GetDouble(), 0, 8);
+            if (root.TryGetProperty("cloche", out var cl))
+            {
+                if (cl.TryGetProperty("air", out var cla) && cla.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    _bellAirMax = Math.Clamp(cla.GetDouble(), 30, 7200);
+                if (cl.TryGetProperty("cable", out var clc) && clc.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    _bellCable = Math.Clamp(clc.GetDouble(), 5, 200);
+            }
             if (root.TryGetProperty("flyby", out var fb))
             {
                 // bornés : un drone arrêté ou un plan de zéro seconde ne filment plus rien
@@ -4523,6 +4550,14 @@ public partial class ShipDemo : Node3D
                 case "--mi-eau": _camMode = 3; SetLens(OutsideFov, OutsideNear); break;
                 case "--flyby": if (args[i + 1] != "0") EnterFlyBy(); break;
                 case "--cinema": if (args[i + 1] != "0") ToggleCinema(); break;
+                /* L'ESSAI DE PLONGÉE, une seconde APRÈS le départ : le navire n'est mis à
+                   son poste qu'après la ligne de commande, et une épave posée avant
+                   l'aurait été là où il n'est plus. */
+                case "--cloche": if (args[i + 1] != "0") _diveTest.Bell = true; _diveTestIn = 1.0; break;
+                case "--descendre": _diveTest.Rope = args[i + 1].ToFloat(); _diveTestIn = 1.0; break;
+                case "--saisir": _diveTest.Take = args[i + 1] != "0"; break;
+                // une épave d'essai, à tant de mètres par le travers : son coffre avec
+                case "--epave": _diveTest.Wreck = args[i + 1].ToFloat(); _diveTestIn = 1.0; break;
                 case "--mi-eau-haut": _splitLift = args[i + 1].ToFloat(); break;
                 case "--vue": _camMode = 1; _deck = Math.Clamp(args[i + 1].ToInt(), 0, _ship.Spec.Decks.Count - 1); EnterDeck(); break;
                 case "--msaa": _settings.Msaa = args[i + 1].ToInt(); ApplySettings(); break;

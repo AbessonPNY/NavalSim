@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using NavalSim.Core;
 
@@ -44,6 +45,10 @@ public partial class ShipDemo : Node3D
     /// <summary>Une ligne de denrée : son nom, son cours, ce qu'on en porte, et les deux boutons.</summary>
     readonly List<(Good W, Label Name, Label Price, Label Aboard)> _mkRows = new();
     VBoxContainer? _mkWares;
+    VBoxContainer? _mkTreasure;
+    (Color Ink, Color Dim, Color Gold) _mkTreasureInk;
+    string _mkTreasureSig = "";
+    readonly List<(string Kind, Label Price)> _mkTreasureRows = new();
     GridContainer? _mkNews;
 
     /// <summary>
@@ -145,6 +150,15 @@ public partial class ShipDemo : Node3D
         box.AddChild(wscroll);
         _mkSale = wscroll;
         foreach (var w in _market.Wares.List) WareRow(w, ink, dim);
+
+        /* LES TRÉSORS À BORD, à la pièce et non à la tonne : un rubis, une coupe,
+           une bague. Leur cours varie d'un port à l'autre comme celui des denrées,
+           et le joaillier garde sa marge. La section n'existe que s'il y a de quoi
+           vendre. */
+        _mkTreasure = new VBoxContainer { Visible = false };
+        _mkTreasure.AddThemeConstantOverride("separation", 2);
+        box.AddChild(_mkTreasure);
+        _mkTreasureInk = (ink, dim, gold);
 
         _mkPowder = L("", 15, ink);
         _mkPowderRow = Buttons(box, ("Embarquer 25 coups", () => BuyPowder(25)), ("Faire le plein", () => BuyPowder(int.MaxValue)));
@@ -364,6 +378,7 @@ public partial class ShipDemo : Node3D
             double n = p.CargoOf(w.Key);
             aboard.Text = n < 0.05 ? "" : FormattableString.Invariant($"{n:F1} t");
         }
+        TreasureRows(t);
         _mkPowder!.Text = FormattableString.Invariant($"Poudre, la charge    {Market.Poudre:F0}");
         // un bord sans pièces n'a pas de soute à remplir
         _mkPowder.Visible = _mkPowderRow!.Visible = p.PowderMax > 0;
@@ -455,6 +470,74 @@ public partial class ShipDemo : Node3D
         double gain = Js.Round(_market.SellPrice(good, _portHere.Key, MarketTime) * sorti);
         _purse.Add(gain);
         Say(FormattableString.Invariant($"{sorti:F1} t de {w.Name.ToLowerInvariant()} — {gain:F0} pièces"));
+        MarketTick();
+    }
+
+    /// <summary>
+    /// La section des trésors : rebâtie seulement quand ce qu'on porte change —
+    /// des boutons refaits à chaque image se déroberaient sous le pointeur —, et ses
+    /// cours mis à jour à chaque passage.
+    /// </summary>
+    void TreasureRows(double t)
+    {
+        if (_mkTreasure == null || _portHere == null) return;
+        var sig = string.Join(";", _treasureHold.Where(kv => kv.Value > 0).OrderBy(kv => kv.Key).Select(kv => kv.Key + "=" + kv.Value));
+        _mkTreasure.Visible = _alongside && sig.Length > 0;
+        if (sig != _mkTreasureSig)
+        {
+            _mkTreasureSig = sig;
+            foreach (var c in _mkTreasure.GetChildren()) c.QueueFree();
+            _mkTreasureRows.Clear();
+            var (ink, dim, gold) = _mkTreasureInk;
+            if (sig.Length > 0)
+            {
+                var head = new Label { Text = "Trésors à bord" };
+                head.AddThemeFontSizeOverride("font_size", 13);
+                head.AddThemeColorOverride("font_color", gold);
+                _mkTreasure.AddChild(head);
+            }
+            foreach (var (kind, n) in _treasureHold.Where(kv => kv.Value > 0).OrderBy(kv => kv.Key))
+            {
+                var k = _tresors.ByKey(kind);
+                var row = new HBoxContainer();
+                row.AddThemeConstantOverride("separation", 8);
+                // le nombre à part : « 2 pièces d'orfèvrerie » ne tenait pas dans la colonne
+                var count = new Label { Text = n.ToString(), HorizontalAlignment = HorizontalAlignment.Right, CustomMinimumSize = new Vector2(26, 0) };
+                count.AddThemeFontSizeOverride("font_size", 14);
+                count.AddThemeColorOverride("font_color", dim);
+                row.AddChild(count);
+                var name = new Label { Text = k?.Name ?? kind, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, TooltipText = k?.Note ?? "" };
+                name.AddThemeFontSizeOverride("font_size", 14);
+                name.AddThemeColorOverride("font_color", ink);
+                row.AddChild(Ellipse(name));
+                var price = new Label { HorizontalAlignment = HorizontalAlignment.Right, CustomMinimumSize = new Vector2(96, 0) };
+                price.AddThemeFontSizeOverride("font_size", 14);
+                price.AddThemeColorOverride("font_color", new Color(0.95f, 0.88f, 0.66f));
+                row.AddChild(price);
+                var one = new Button { Text = "Vendre 1", FocusMode = Control.FocusModeEnum.None };
+                one.Pressed += () => SellTreasure(kind, 1);
+                row.AddChild(one);
+                var all = new Button { Text = "Tout", FocusMode = Control.FocusModeEnum.None };
+                all.Pressed += () => SellTreasure(kind, int.MaxValue);
+                row.AddChild(all);
+                _mkTreasure.AddChild(row);
+                _mkTreasureRows.Add((kind, price));
+            }
+        }
+        foreach (var (kind, price) in _mkTreasureRows)
+            price.Text = FormattableString.Invariant($"{_tresors.SellPrice(kind, _portHere.Key, t, _market.Palier):F0} p. l'unité");
+    }
+
+    void SellTreasure(string kind, int n)
+    {
+        if (_portHere == null || !_alongside) return;
+        int have = _treasureHold.GetValueOrDefault(kind);
+        n = Math.Min(n, have);
+        if (n <= 0) { Say("Rien à vendre"); return; }
+        double gain = _tresors.SellPrice(kind, _portHere.Key, MarketTime, _market.Palier) * n;
+        _purse.Add(gain);
+        _treasureHold[kind] = have - n;
+        Say(FormattableString.Invariant($"{_tresors.Say(kind, n)} — {gain:F0} pièces ({gain / Market.SousParEcu:F0} écus)"));
         MarketTick();
     }
 

@@ -1,0 +1,55 @@
+{
+  "_aide": "LES TRÉSORS DES ÉPAVES (Godot). Ce qu'un coffre renferme, tiré une fois pour toutes à l'inscription de l'épave. bourse : true, la sorte va droit à la bourse (les écus) ; sinon elle reste à bord et se vend au comptoir, à la pièce, à un cours qui varie d'un port à l'autre (de 0,55 à 1,45 fois sa valeur, la courbe des denrées). valeur : le cours moyen d'une pièce, en écus. min / max : combien un coffre en renferme ; pirate : ce que porte en plus un pirate (multiplie max). Les écus d'un coffre, eux, sont ce que vaut l'épave (sa taille, sa cargaison, et ce qu'un pirate a pris). glb : le modèle à poser dans le coffre ouvert (vide : une forme simple, dessinée). coffre.glb : le modèle du coffre ; son couvercle doit être un nœud nommé « couvercle », qui pivote sur sa charnière. marge : ce que garde le joaillier quand il rachète.",
+  "coffre": {
+    "glb": ""
+  },
+  "marge": 0.15,
+  "contenus": [
+    {
+      "key": "ecus",
+      "nom": "Écus d'or",
+      "bourse": true,
+      "valeur": 1,
+      "glb": "",
+      "note": "la monnaie : comptée, et à la bourse"
+    },
+    {
+      "key": "pierres",
+      "nom": "Pierres précieuses",
+      "article": "une",
+      "unite": "pierre précieuse",
+      "unites": "pierres précieuses",
+      "valeur": 25,
+      "min": 0,
+      "max": 5,
+      "pirate": 2,
+      "glb": "",
+      "note": "émeraudes de la Nouvelle-Grenade, rubis, perles de Margarita"
+    },
+    {
+      "key": "bijoux",
+      "nom": "Bijoux",
+      "unite": "bijou",
+      "unites": "bijoux",
+      "valeur": 45,
+      "min": 0,
+      "max": 3,
+      "pirate": 2,
+      "glb": "",
+      "note": "bagues, croix, chaînes d'or : ce qu'on portait à bord, et ce qu'on avait pris"
+    },
+    {
+      "key": "orfevrerie",
+      "nom": "Objets anciens en or",
+      "article": "une",
+      "unite": "pièce d'orfèvrerie",
+      "unites": "pièces d'orfèvrerie",
+      "valeur": 90,
+      "min": 0,
+      "max": 2,
+      "pirate": 1.5,
+      "glb": "",
+      "note": "calices, plats, idoles des Indes : rares, et payés au poids de l'or et de l'histoire"
+    }
+  ]
+}

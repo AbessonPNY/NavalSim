@@ -43,6 +43,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `bloom.js` | la lueur des lumières trop vives, la nuit seulement |
 | `anchor.js` | mouiller et lever l'ancre |
 | `flotsam.js` | débris d'un naufrage, la bouteille, la cargaison échouée |
+| `Wrecks.cs` (Godot) | le registre des épaves (sauvegardé) et la cloche de Halley — `WreckSiteNode.cs`, `BellNode.cs`, `ShipDemo.Dive.cs` |
 | `ship-spec.js` | lit une fiche JSON et en **dérive** ce que le solveur consomme |
 | `hull-lines.js` | le plan de formes, en fonctions pures |
 | `stage.js` · `calendar.js` | renderer, scène, lumière, ciel, lune · la date et la saison |

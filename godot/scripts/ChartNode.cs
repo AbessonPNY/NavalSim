@@ -76,6 +76,8 @@ public partial class ChartNode : Node
        carnet, parce qu'on les a APPRISES et qu'elles doivent survivre à la
        fermeture du jeu. */
     public Func<System.Collections.Generic.IEnumerable<(double X, double Z, bool Cargo)>>? Marks;
+    /// <summary>Les épaves de la région, en mètres vrais, et si leur coffre a été pris.</summary>
+    public Func<System.Collections.Generic.IEnumerable<(double X, double Z, bool Looted)>>? Wrecks;
 
     /// <summary>Le point estimé et son incertitude (un écart-type, nord-sud et est-ouest) — nul sans estime.</summary>
     public Func<(double X, double Z, double SN, double SE)?>? Where;
@@ -394,6 +396,20 @@ public partial class ChartNode : Node
                     var pale = new Color(0.85f, 0.94f, 0.92f);
                     DrawCircle(p, 2f * Q * Wk, pale);
                     DrawCircle(p, 5f * Q * Wk, new Color(pale, 0.55f), false, 1f * Q * Wk);
+                }
+
+            /* LES ÉPAVES, au signe des cartes marines : une coque en trait, barrée de
+               trois mâts courts — le symbole qu'on lit depuis le dix-huitième siècle.
+               Pillée, elle passe à l'encre pâle : on sait qu'il n'y a plus rien. */
+            if (_c.Wrecks != null)
+                foreach (var wr in _c.Wrecks())
+                {
+                    var p = At(wr.X, wr.Z);
+                    var ink = wr.Looted ? new Color(0.28f, 0.19f, 0.12f, 0.4f) : new Color(0.22f, 0.12f, 0.08f);
+                    float a = 7f * Q * Wk, h = 3.5f * Q * Wk, lw = 1.6f * Q * Wk;
+                    DrawLine(p - new Vector2(a, 0), p + new Vector2(a, 0), ink, lw);
+                    for (int k = -1; k <= 1; k++)
+                        DrawLine(p + new Vector2(k * a * 0.55f, -h), p + new Vector2(k * a * 0.55f, h), ink, lw);
                 }
 
             // les traits de plume

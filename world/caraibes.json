@@ -58,7 +58,7 @@
     { "key": "port-morant", "name": "Port Morant", "lat": 17.8950, "lon": -76.3300, "quay": 170 },
     { "key": "yallahs", "name": "Yallahs", "lat": 17.8680, "lon": -76.5700, "quay": 180 },
     { "key": "hog-crawle", "name": "Hog Crawle de Samuel Barry", "lat": 17.9600, "lon": -76.7600, "quay": 180, "wild": true,
-      "note": "l'enclos à cochons du colonel Barry, sur la rive nord de la rade, là où Kingston sera fondée en 1692 ; un débarcadère et rien d'autre : ni ville, ni marché" }
+      "note": "l'enclos à cochons du colonel Barry, sur la rive nord de la rade ; un débarcadère et rien d'autre : ni ville, ni marché" }
   ],
 
   "assets": [

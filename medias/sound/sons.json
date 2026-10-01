@@ -46,10 +46,13 @@
   },
 
   "mer": {
-    "_aide": "Le fond sonore de la mer, PAR BANDES d'état de mer : la première dont maxForce dépasse la force courante l'emporte, donc rangez-les de la plus calme à la plus grosse. Le passage se fait en fondu. Au-delà de la dernière, la mer se tait plutôt que de sonner faux.",
+    "_aide": "Le fond sonore de la mer, PAR BANDES d'état de mer : la première dont maxForce dépasse la force courante l'emporte, donc rangez-les de la plus calme à la plus grosse. Le passage se fait en fondu. Au-delà de la dernière, la mer se tait plutôt que de sonner faux. « bord » : les bandes réservées aux vues SUBJECTIVES (les postes à bord et les pièces), même règle ; au-delà de leur plafond, ou hors du bord, ce sont les bandes générales.",
     "bandes": [
       { "fichier": "olas_del_mar_loopable.ogg", "maxForce": 4.5, "gain": 0.70 },
       { "fichier": "thunderstorm_ocean.ogg", "maxForce": 99, "gain": 0.80 }
+    ],
+    "bord": [
+      { "fichier": "vue_sur_navire_mer_calme.ogg", "maxForce": 4.5, "gain": 0.80 }
     ]
   },
 

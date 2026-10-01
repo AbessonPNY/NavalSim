@@ -670,6 +670,7 @@ public partial class SoundNode : Node3D
         _seaNow = 0;
         _seaGoal = _seaGain;
         _sea.Play();
+        GD.Print($"mer : {file}");
     }
 
     AudioStreamPlayer AddSea()

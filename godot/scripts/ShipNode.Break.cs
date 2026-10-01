@@ -19,6 +19,8 @@ public partial class ShipNode
 {
     /// <summary>Rompue : il ne reste d'elle que l'arrière.</summary>
     public bool Broken { get; private set; }
+    /// <summary>Où elle s'est rompue, le long d'elle : l'épave inscrite gît en deux tronçons coupés là.</summary>
+    public float BreakZ { get; private set; }
 
     /// <summary>
     /// La rompre à <paramref name="zCut"/> (repère du navire). <paramref name="bowHolder"/>
@@ -69,6 +71,7 @@ public partial class ShipNode
         AddChild(Cap(aftCut, zCut, +1, mat));
         bowHolder.AddChild(Cap(bowCut, zCut, -1, mat));
         Broken = true;
+        BreakZ = zCut;
         return mat;
     }
 

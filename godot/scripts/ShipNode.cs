@@ -518,7 +518,7 @@ public partial class ShipNode : Node3D
         prof.Heights = f;
     }
 
-    static ArrayMesh ToArrayMesh(in HullMesh hm)
+    internal static ArrayMesh ToArrayMesh(in HullMesh hm)
     {
         var verts = new Vector3[hm.Positions.Length / 3];
         for (int i = 0; i < verts.Length; i++)

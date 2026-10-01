@@ -30,6 +30,9 @@ public partial class ShipDemo
        suffit pour commencer : elle couvre alors jusqu'à son plafond, et au-delà
        la mer se tait plutôt que de mentir. */
     readonly List<(string File, double MaxForce, double Gain)> _seaBeds = new();
+    /// <summary>Celles des vues subjectives : la mer entendue du pont, pas du large (sons.json → mer.bord).</summary>
+    readonly List<(string File, double MaxForce, double Gain)> _seaBedsAboard = new();
+    bool _seaAboard;
     double _seaCheck;
     double _nextLife = -1;
     readonly Random _crewRng = new();
@@ -106,20 +109,26 @@ public partial class ShipDemo
             Board("eau", "sort", "eau-sort");
 
             // les bandes de mer
-            if (root.TryGetProperty("mer", out var mer) && mer.TryGetProperty("bandes", out var bandes)
-                && bandes.ValueKind == System.Text.Json.JsonValueKind.Array)
+            if (root.TryGetProperty("mer", out var mer))
             {
-                _seaBeds.Clear();
-                foreach (var e in bandes.EnumerateArray())
+                // les deux listes se lisent de même : générale, et réservée au bord
+                void Beds(string key, List<(string File, double MaxForce, double Gain)> into)
                 {
-                    if (e.ValueKind != System.Text.Json.JsonValueKind.Object) continue;
-                    string? f = e.TryGetProperty("fichier", out var fv) ? fv.GetString() : null;
-                    if (string.IsNullOrEmpty(f)) continue;
-                    double max = e.TryGetProperty("maxForce", out var mv) ? mv.GetDouble() : 99;
-                    double gain = e.TryGetProperty("gain", out var gv) ? gv.GetDouble() : 0.7;
-                    _seaBeds.Add((f, max, gain));
+                    if (!mer.TryGetProperty(key, out var bandes) || bandes.ValueKind != System.Text.Json.JsonValueKind.Array) return;
+                    into.Clear();
+                    foreach (var e in bandes.EnumerateArray())
+                    {
+                        if (e.ValueKind != System.Text.Json.JsonValueKind.Object) continue;
+                        string? f = e.TryGetProperty("fichier", out var fv) ? fv.GetString() : null;
+                        if (string.IsNullOrEmpty(f)) continue;
+                        double max = e.TryGetProperty("maxForce", out var mv) ? mv.GetDouble() : 99;
+                        double gain = e.TryGetProperty("gain", out var gv) ? gv.GetDouble() : 0.7;
+                        into.Add((f, max, gain));
+                    }
+                    into.Sort((a, b) => a.MaxForce.CompareTo(b.MaxForce));
                 }
-                _seaBeds.Sort((a, b) => a.MaxForce.CompareTo(b.MaxForce));
+                Beds("bandes", _seaBeds);
+                Beds("bord", _seaBedsAboard);
             }
 
             // ce qui étouffe, et de combien : cela s'écoute, donc cela se règle
@@ -155,9 +164,18 @@ public partial class ShipDemo
        SoundNode.Sea ne fait rien quand on lui redonne ce qu'il joue déjà. */
     void SeaBedTick()
     {
-        if (_sound == null || _seaBeds.Count == 0 || _t < _seaCheck) return;
+        if (_sound == null || _seaBeds.Count == 0) return;
+        /* À BORD, LA MER DU PONT — les postes de la fiche et les pièces : c'est
+           là qu'on l'entend contre le bordé et dans le gréement. Le passage d'une
+           vue à l'autre se prend tout de suite, sans attendre les deux secondes. */
+        bool aboard = _camMode == 1 || _gunPost != null;
+        if (_t < _seaCheck && aboard == _seaAboard) return;
+        _seaAboard = aboard;
         _seaCheck = _t + 2;
         double force = _sea.Core.SeaState;
+        if (aboard)
+            foreach (var b in _seaBedsAboard)
+                if (force <= b.MaxForce) { _sound.Sea(b.File, b.Gain); return; }
         foreach (var b in _seaBeds)
             if (force <= b.MaxForce) { _sound.Sea(b.File, b.Gain); return; }
         // au-delà de la dernière bande, elle se tait : mieux que de sonner faux

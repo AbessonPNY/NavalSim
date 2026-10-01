@@ -294,6 +294,8 @@ public partial class ShipDemo : Node3D
         ForgetBooks();
         // une partie neuve sur un navire entier, même si la dernière l'a vu se rompre
         if (_ship.Physics.Broken) Rebuild();
+        // une partie neuve n'a pas d'épaves : elles appartenaient à l'autre
+        Wrecks.Clear(); _recorded.Clear(); _liveWreck.Clear(); _playerWreck = null; _treasureHold.Clear();
         var b = _ship.Physics.Body;
         b.Vel = Vec3d.Zero;
         b.AngVel = Vec3d.Zero;
