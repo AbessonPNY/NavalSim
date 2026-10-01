@@ -121,10 +121,23 @@ public partial class ShipDemo
             + (_seaMaster != null ? " · " + _seaMaster : "") + "\n" +
             $"{_climate.Word()}{tombe}\n" +
             (_inSquall ? $"dépression à {_squall.Dist / 1852:F1} mille(s) du centre\n" : "") +
-            $"{_calendar.Date:dd/MM/yyyy}   {(int)h:00}:{(int)((h - Math.Floor(h)) * 60):00}";
+            $"{_calendar.Date:dd/MM/yyyy}   {(int)h:00}:{(int)((h - Math.Floor(h)) * 60):00}\n" +
+            // la vue où l on est, sous l heure : C les fait défiler sans dire laquelle on tient
+            $"vue : {CamName()}";
         _skyLine.Size = new Vector2(320, 0);
         float skyRight = s.X - right - 14 - (_sunPanel != null && _sunPanel.Visible ? _sunPanel.Size.X + 12 : 0);
         _skyLine.Position = new Vector2(skyRight - _skyLine.Size.X, top + 14);
+
+        /* LE COMPTOIR SOUS LA MÉTÉO, ET NON À UNE COTE FIXE : la météo gagne une
+           ligne par dépression, une autre pour la vue, et le panneau posé à 130 px
+           finissait par la couvrir. Il descend donc sous ce qui est le plus bas des
+           deux — la météo ou le panneau du soleil. */
+        if (_mkPanel != null && _mkPanel.Visible)
+        {
+            float under = _skyLine.Position.Y + _skyLine.Size.Y;
+            if (_sunPanel != null && _sunPanel.Visible) under = Math.Max(under, _sunPanel.Position.Y + _sunPanel.Size.Y);
+            _mkPanel.OffsetTop = Math.Max(130, under + 10);
+        }
 
         // le compte de la bataille, juste sous la météo
         if (_meleeLine != null && _meleeLine.Visible)

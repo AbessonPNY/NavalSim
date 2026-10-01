@@ -676,7 +676,9 @@ void Allures()
 {
     string name = args.Length > 1 ? args[1] : "frigate17e";
     var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
-    Console.WriteLine($"{spec.Name} : L {spec.L:F0} m, voilure {spec.SailArea:F0} m2");
+    // le facteur de vent en troisieme argument : « -- allures frigate17e 8 »
+    Config.WindGain = args.Length > 2 ? double.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture) : 1.0;
+    Console.WriteLine($"{spec.Name} : L {spec.L:F0} m, voilure {spec.SailArea:F0} m2, gain {Config.WindGain:F1}");
     foreach (double force in new[] { 2.0, 3.0, 4.0, 5.0 })
     {
         string line = $"force {force:F0} :";

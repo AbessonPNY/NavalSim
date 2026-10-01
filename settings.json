@@ -322,7 +322,7 @@
   },
   "wind": {
     "_aide": "LE DEGRE DE REALISME DU VENT. gain : le facteur dont on multiplie ce que le vent pousse dans les voiles — 1 est la physique, 2 double la force sur la toile. C est une FORCE et non une vitesse : la trainee de coque croit comme le carre de la vitesse, donc doubler la force n augmente la vitesse que d environ 40 % (pour la doubler, il faut le quadruple). Il multiplie la poussee, la derive et la gite ; pas ce que la toile endure, qui reste la pression reelle du vent (une toile ne se dechire pas plus tot parce qu on a choisi 2). heel : le facteur du COUPLE des voiles, c est a dire de la gite, a part de la poussee. 1 = la coque gite comme sous le vent reel, quel que soit gain ; mettre la meme valeur que gain rend la voilure plus grande en tout point ; 0 = aucune gite due au vent. Il multiplie aussi le moment d embardee (le lof). Ni gain ni heel ne touchent la mer : la houle suit la meteo seule. Godot seulement : la page garde la physique reelle.",
-    "gain": 3.0,
+    "gain": 8.0,
     "heel": 1.0
   },
   "mouillage": {
