@@ -31,6 +31,8 @@ public sealed class Settings
     public bool Occlusion = true;
     /// <summary>La lumière indirecte en espace écran (touche G).</summary>
     public bool IndirectLight = true;
+    /// <summary>Le plein écran SANS BORDURE : la fenêtre prend tout l'écran, barre des tâches comprise, et ne change pas la résolution du bureau.</summary>
+    public bool Fullscreen = false;
     /// <summary>La synchro verticale : voir la mémoire sur les écrans virtuels.</summary>
     public bool VSync = true;
     /// <summary>La profondeur de champ : net de DofNear à DofDistance mètres, flou en deçà et au-delà.</summary>
@@ -123,6 +125,7 @@ public sealed class Settings
         s.LampWater = (float)cf.GetValue("lanternes", "lumiere_dans_l_eau", s.LampWater);
         s.Occlusion = (bool)cf.GetValue("rendu", "occlusion_ambiante", s.Occlusion);
         s.IndirectLight = (bool)cf.GetValue("rendu", "lumiere_indirecte", s.IndirectLight);
+        s.Fullscreen = (bool)cf.GetValue("rendu", "plein_ecran", s.Fullscreen);
         s.VSync = (bool)cf.GetValue("rendu", "synchro_verticale", s.VSync);
         s.Dof = (bool)cf.GetValue("rendu", "profondeur_de_champ", s.Dof);
         s.DofDistance = (float)cf.GetValue("rendu", "profondeur_de_champ_distance", s.DofDistance);
@@ -174,6 +177,7 @@ public sealed class Settings
         cf.SetValue("lanternes", "lumiere_dans_l_eau", LampWater);
         cf.SetValue("rendu", "occlusion_ambiante", Occlusion);
         cf.SetValue("rendu", "lumiere_indirecte", IndirectLight);
+        cf.SetValue("rendu", "plein_ecran", Fullscreen);
         cf.SetValue("rendu", "synchro_verticale", VSync);
         cf.SetValue("rendu", "profondeur_de_champ", Dof);
         cf.SetValue("rendu", "profondeur_de_champ_distance", DofDistance);

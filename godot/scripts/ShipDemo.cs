@@ -638,6 +638,12 @@ public partial class ShipDemo : Node3D
         _sky.SeaBounce = s.SeaBounce;
         _sky.Apply();
         _sky.Env.SsilEnabled = s.IndirectLight;
+        /* LE PLEIN ÉCRAN SANS BORDURE (WindowMode.Fullscreen), pas l'exclusif : il
+           couvre la barre des tâches sans changer la résolution du bureau, et laisse
+           Alt+Tab et les écrans virtuels tranquilles. Seulement sur un changement —
+           réaffirmer le mode à chaque réglage ferait clignoter la fenêtre. */
+        var wantMode = s.Fullscreen ? DisplayServer.WindowMode.Fullscreen : DisplayServer.WindowMode.Windowed;
+        if (DisplayServer.WindowGetMode() != wantMode) DisplayServer.WindowSetMode(wantMode);
         DisplayServer.WindowSetVsyncMode(s.VSync ? DisplayServer.VSyncMode.Enabled : DisplayServer.VSyncMode.Disabled);
         /* Le lointain devient flou passé cette distance, sur une transition de la
            moitié : c'est la mer vers l'horizon, pas le navire qu'on regarde. */
@@ -868,6 +874,7 @@ public partial class ShipDemo : Node3D
         Title("Rendu", 15);
         _chkOcclusion = Check("Occlusion ambiante", st.Occlusion, on => st.Occlusion = on);
         _chkIndirect = Check("Lumière indirecte", st.IndirectLight, on => st.IndirectLight = on);
+        _chkFullscreen = Check("Plein écran (Alt+Entrée)", st.Fullscreen, on => st.Fullscreen = on);
         Check("Synchro verticale", st.VSync, on => st.VSync = on);
         Check("Profondeur de champ", st.Dof, on => st.Dof = on);
         // la zone nette : deux repères sur un curseur de 0 à l'infini
@@ -2165,8 +2172,20 @@ public partial class ShipDemo : Node3D
             $"F1 commandes      vue {CamName()}      ⇧H instruments";
     }
 
+    CheckBox? _chkFullscreen;
+
     public override void _UnhandledInput(InputEvent e)
     {
+        /* ALT+ENTRÉE, AVANT TOUT : le titre, la carte et le navire capturé prennent
+           chacun les touches, et le plein écran doit se basculer de partout. */
+        if (e is InputEventKey fk && fk.Pressed && !fk.Echo && fk.AltPressed && fk.Keycode is Key.Enter or Key.KpEnter)
+        {
+            _settings.Fullscreen = !_settings.Fullscreen;
+            _chkFullscreen?.SetPressedNoSignal(_settings.Fullscreen);
+            Changed();
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         if (!_booted) return;                       // rien à commander sous le rideau
         /* G : UN APPUI, une pièce ; TENU, la bordée entière — la répétition du clavier
            le dit, et un loquet empêche un long appui de lâcher bordée sur bordée.
@@ -4364,6 +4383,7 @@ public partial class ShipDemo : Node3D
                 // la régularité des images, mesurée : voir FrameStats
                 // sans synchro verticale : pour mesurer ce que la machine tient vraiment
                 // par les réglages (sans les enregistrer) : une autre option qui les réapplique ne la défait pas
+                case "--plein": _settings.Fullscreen = args[i + 1] != "0"; ApplySettings(); break;
                 case "--vsync": _settings.VSync = args[i + 1] != "0"; ApplySettings(); break;
                 // la charge forcee, pour un banc : la rampe met vingt secondes
                 case "--anneaux": _forceRings = args[i + 1].ToFloat(); break;
