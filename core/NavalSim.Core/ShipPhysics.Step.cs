@@ -247,9 +247,9 @@ public sealed partial class ShipPhysics
 
         // --- la résistance de coque : quadratique en route ; la quille lestée
         //     mord fort en travers, ce qui est ce qui borne la dérive ---
-        force += fwd * (-Math.Sign(vFwd) * vFwd * vFwd * S.Drag * inWater);
+        force += fwd * (-Math.Sign(vFwd) * vFwd * vFwd * S.Drag * inWater * HydroScale);
         force += right * ((-vRight * Math.Abs(vRight) * S.LateralQuad
-                           - vRight * S.LateralLinear) * inWater);
+                           - vRight * S.LateralLinear) * inWater * HydroScale);
 
         /* --- LE GOUVERNAIL ---
            Une force transversale à l'étambot, JAMAIS un couple pur. L'appliquer
@@ -366,9 +366,17 @@ public sealed partial class ShipPhysics
         {
             Vec3d axis = b.AngVel * (1 / wlen);
             Quatd dq = Quatd.FromAxisAngle(axis, wlen * dt);
+            Vec3d comBefore = RotateAboutCom ? b.Quat.Rotate(b.Com) : Vec3d.Zero;
             // premultiply : dq · quat, puis renormalisation — Godot VÉRIFIE la
             // norme d'un quaternion là où three.js laissait passer
             b.Quat = (dq * b.Quat).Normalized();
+            /* AUTOUR DE SON CENTRE DE GRAVITÉ, ce que dit la mécanique : l'origine
+               du repère est déplacée de ce que la rotation ferait faire au centre.
+               Négligeable pour un navire entier (son centre est à un mètre de
+               l'origine), faux pour une moitié dont il est à sept : elle pivotait
+               autour de sa tranche. Réservé aux moitiés, la page n'ayant que des
+               navires entiers. */
+            if (RotateAboutCom) b.Pos += comBefore - b.Quat.Rotate(b.Com);
         }
 
         if (Glide is double gy)
@@ -756,6 +764,7 @@ public sealed partial class ShipPhysics
         {
             double f = stations[s];
             double zl = f * S.L, hw = Lines.HalfB(f + 0.5);
+            if (zl < ZLo || zl > ZHi) continue;      // une moitié : cette membrure est partie avec l'autre
 
             /* Le fond sous l'AXE de la membrure : c'est le seul point d'elle qui
                reste dessous de quelque façon qu'elle soit tombée. */

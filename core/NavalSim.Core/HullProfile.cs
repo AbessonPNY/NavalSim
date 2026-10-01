@@ -89,6 +89,29 @@ public sealed class HullProfile
         return Finish(outp, spec);
     }
 
+    /// <summary>
+    /// CE QU'IL RESTE D'UNE COQUE ROMPUE : les stations hors de [lo, hi] (mètres
+    /// le long d'elle) n'ont plus de bordé. La mer efface l'eau DANS la coque
+    /// d'après ce profil ; sans la coupe, un trou d'eau serait resté là où l'autre
+    /// moitié n'est plus.
+    /// </summary>
+    public HullProfile Cut(ShipSpec spec, double lo, double hi)
+    {
+        int n = Fractions.Length;
+        var f = (float[])Fractions.Clone();
+        double L = spec.L;
+        for (int i = 0; i < n; i++)
+        {
+            double z = -L / 2 + (i + 0.5) / n * L;
+            if (z < lo || z > hi) f[i] = 0;
+        }
+        return new HullProfile(f, MaxHalfB, HalfLen, Math.Max(EndAft, lo), Math.Min(EndFwd, hi))
+        {
+            Top = Top,
+            Heights = Heights
+        };
+    }
+
     /// <summary>Le bas de la bande relevée, sous la flottaison : −2 % de la longueur.</summary>
     public static double BandLo(ShipSpec spec, double waterlineY) => waterlineY - 0.02 * spec.L;
     /// <summary>Le haut de la bande : +6 % de la longueur, le haut de sa préceinte.</summary>

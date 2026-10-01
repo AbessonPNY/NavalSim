@@ -1168,7 +1168,7 @@ public partial class ShipDemo : Node3D
        donc bel et bien — le message le disait, « aux prises à 4543 m » — puis
        disparaissait dans la seconde, sans un mot. J'ai cru l'essai réussi sur ce
        message, et il ne prouvait rien : il faut compter la flotte APRÈS. */
-    double _largeIn = -1, _metIn = -1, _pontonIn = -1;
+    double _largeIn = -1, _metIn = -1, _pontonIn = -1, _souteIn = -1;
     bool _metPair;
     double _shotIn = -1, _shotY, _holesIn = -1;
     int _holesWanted;
@@ -1179,6 +1179,7 @@ public partial class ShipDemo : Node3D
         if (!_booted) return;
         if (_serpentIn > 0 && (_serpentIn -= delta) <= 0) SummonSerpent();
         if (_largeIn > 0 && (_largeIn -= delta) <= 0) GoOffshore();
+        if (_souteIn > 0 && (_souteIn -= delta) <= 0) BlowUp(_ship);
         if (_pontonIn > 0 && (_pontonIn -= delta) <= 0) BackToBerth();
         if (_metIn > 0 && (_metIn -= delta) <= 0) ForceEncounter(_metPair);
         if (_shotIn > 0 && (_shotIn -= delta) <= 0) TestShot(_shotY);
@@ -1215,6 +1216,7 @@ public partial class ShipDemo : Node3D
         Rigging(_ship, frame);
         foreach (var s in _others) { Rigging(s, frame); Steer(s, frame); }
         StepSolvers(sub, dt, t);
+        StepHalves(sub, dt, t);
         // porter de la toile coûte de la toile, et au-delà, l'espar
         TearCanvas(_ship, frame, true); StrainMast(_ship, frame, true);
         foreach (var s in _others) { TearCanvas(s, frame, false); StrainMast(s, frame, false); }
@@ -1291,6 +1293,7 @@ public partial class ShipDemo : Node3D
             _bubbles.Rebase(dx, dz);
             _coins.Rebase(dx, dz);
             _anchor2?.Rebase(-dx, -dz);
+            RebaseHalves(dx, dz);
             // la seule chose qui ne suit PAS le navire : sans ceci elle resterait
             // à quinze cents mètres, à filmer de l'eau vide
             _anchor = new Vec3d(_anchor.X + dx, _anchor.Y, _anchor.Z + dz);
@@ -1393,6 +1396,7 @@ public partial class ShipDemo : Node3D
 
         UpdateCamera(frame);
         AimSpyglass(frame);                     // après la vue : sa position, la visée de la lunette
+        ShakeCamera(frame);                     // et la secousse par-dessus, une fois l'œil posé
         // les navires et la caméra de la MÊME image : le flou compare les deux
         _motionBlur.BeginShips();
         _motionBlur.AddShip(_ship.GlobalTransform, _ship.LocalBounds());
@@ -1737,6 +1741,7 @@ public partial class ShipDemo : Node3D
         2 => "Fixe",
         3 => "Mi-eau",
         4 => "Ponton",
+        CamFlyBy => "Fly-By",
         _ => "Orbite"
     };
 
@@ -1842,6 +1847,8 @@ public partial class ShipDemo : Node3D
             AimJetty(j.Head);
             Say("Du ponton de " + j.Name);
         }
+        // le drone ferme le cycle : après le ponton, ou après la vue mi-eau quand il n'y a pas de ponton
+        else if (_camMode != CamFlyBy) { EnterFlyBy(); Say("Fly-By"); }
         else _camMode = 0;
         UpdateInfo();
     }
@@ -1930,6 +1937,7 @@ public partial class ShipDemo : Node3D
 
     void UpdateCamera(double delta)
     {
+        if (_camMode != CamFlyBy) FlyByOff();
         var target = _follow
             ? _ship.Position + new Vector3(0, (float)(_ship.Spec.D * 0.3), 0)
             : Vector3.Zero;
@@ -1965,6 +1973,12 @@ public partial class ShipDemo : Node3D
         if (_camMode == 1)
         {
             DeckCamera();
+            return;
+        }
+
+        if (_camMode == CamFlyBy)
+        {
+            FlyByCamera(delta);
             return;
         }
 
@@ -3502,10 +3516,14 @@ public partial class ShipDemo : Node3D
             /* ET ON L'ENTEND, au même décalage que la flamme : elle sautait en
                SILENCE, ce que personne n'avait relevé parce qu'on la regarde. */
             _sound?.Blast(w, s.Spec.L / 40, delay);
+            // et le coup de bélier, au même retard que le fracas : la taille du navire fait la charge
+            Shock(w, s.Spec.L / 30 * sz, delay);
         }
         ph.BlowUp();
         s.DropAllMasts();
         if (s == _ship) Say("La soute saute !");
+        // et le navire se rompt là où elle était (ShipDemo.Breakup.cs)
+        BreakUp(s);
     }
 
     // ------------------------------------------------------------------
@@ -4274,7 +4292,8 @@ public partial class ShipDemo : Node3D
                 // le coup à l'eau seul, pour le régler : --pres 1
                 case "--pres": if (args[i + 1] != "0") StrikeAlongside(_ship); break;
                 case "--bordee": _gunSide = args[i + 1].ToInt(); Fire(false, true); break;
-                case "--soute": BlowUp(_ship); break;
+                // --soute 1 : tout de suite ; --soute 4 : dans quatre secondes, après un --large par exemple
+                case "--soute": if (args[i + 1].ToFloat() > 1) _souteIn = args[i + 1].ToFloat(); else BlowUp(_ship); break;
                 /* DES DÉPARTS DE FEU, tout de suite : pour le régler sans se faire
                    canonner. Le nombre compte plus que la force — c'est lui qui
                    décide, puisque l'effort de l'équipage se DIVISE. */
@@ -4482,6 +4501,7 @@ public partial class ShipDemo : Node3D
                 // ouvrir directement une vue à bord de la fiche
                 // l'œil posé sur la surface, moitié dedans moitié dehors
                 case "--mi-eau": _camMode = 3; SetLens(OutsideFov, OutsideNear); break;
+                case "--flyby": if (args[i + 1] != "0") EnterFlyBy(); break;
                 case "--mi-eau-haut": _splitLift = args[i + 1].ToFloat(); break;
                 case "--vue": _camMode = 1; _deck = Math.Clamp(args[i + 1].ToInt(), 0, _ship.Spec.Decks.Count - 1); EnterDeck(); break;
                 case "--msaa": _settings.Msaa = args[i + 1].ToInt(); ApplySettings(); break;

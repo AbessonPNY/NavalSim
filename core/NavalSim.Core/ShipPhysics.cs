@@ -337,6 +337,8 @@ public sealed partial class ShipPhysics
     double _underFor;
 
     Vec3d _dryCom;
+    /// <summary>Sa masse à sec et sa longueur : celles de la fiche, sauf pour une moitié (Split).</summary>
+    double _dryMass, _len;
     readonly Vec3d _ceL;
     readonly Vec3d _ce;
 
@@ -380,13 +382,15 @@ public sealed partial class ShipPhysics
         // l'arrière pour qu'elle flotte sur son assiette de dessin
         Body.Com = spec.Cog;
         _dryCom = spec.Cog;
+        _dryMass = spec.MassKg;
+        _len = spec.L;
         Body.Pos = new Vec3d(0, 0, 0);
         UpdateInertia();
     }
 
     void UpdateInertia()
     {
-        double m = Body.Mass, L = Spec.L, B = Spec.B, D = Spec.D;
+        double m = Body.Mass, L = _len, B = Spec.B, D = Spec.D;
         Body.Ib = new Vec3d(
             m / 12 * (D * D + L * L),     // autour de x (tangage)
             m / 12 * (B * B + L * L),     // autour de y (lacet)
@@ -681,7 +685,7 @@ public sealed partial class ShipPhysics
             if (c.Over > 0)
             {
                 double was = c.Vol;
-                c.Vol = Math.Min(c.Cap, c.Vol + 0.25 * c.HalfB * Math.Sqrt(2 * Config.G * c.Over) * dt);
+                c.Vol = Math.Min(c.Cap, c.Vol + 0.25 * DeckLeak * c.HalfB * Math.Sqrt(2 * Config.G * c.Over) * dt);
                 c.Air += c.Vol - was;
             }
         }
@@ -756,7 +760,7 @@ public sealed partial class ShipPhysics
         double cargoKg = 0;
         foreach (var p in Cargo) cargoKg += p.Kg;
         CargoTonnes = cargoKg / 1000;
-        Body.Mass = Spec.MassKg + wm + cargoKg;
+        Body.Mass = _dryMass + wm + cargoKg;
 
         if (wm < 1e-6 && cargoKg < 1e-6)
         {
@@ -769,7 +773,7 @@ public sealed partial class ShipPhysics
             Vec3d down = Body.Quat.Inverted().Rotate(new Vec3d(0, -1, 0));
             double lat = down.X, lon = down.Z;
 
-            Vec3d com = _dryCom * Spec.MassKg;
+            Vec3d com = _dryCom * _dryMass;
             // le fret d'abord : fixe dans son repère, et sans carène liquide à lui
             foreach (var p in Cargo) com += p.At * p.Kg;
 

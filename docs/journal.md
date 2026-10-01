@@ -13563,6 +13563,94 @@ vagues. À 1, le sloop perd son cap par force 9 (55°). Le temps passé en l'air
 presque pas (8,5 → 8,0 %) : le lancer est vertical, c'est le pilonnement qui reste à voir.
 Avec `wind.gain` 3, force 4 au travers : 8,3 → 7,0 nœuds. Parité : le banc met `SlamBrake = 0`.
 
+## La soute rompt le navire (Godot)
+
+*L'Orient* à Aboukir : le feu gagne la soute, et ce qui remonte n'est plus un navire mais deux
+tronçons. Demandé : que l'explosion de la soute le coupe en deux, sans passer par Blender.
+
+**Le solveur se coupe à une cloison** (`ShipPhysics.Split.cs`, `SplitOff(k)`). Les cinq
+compartiments sont tranchés sur les sondes, et leurs limites tombent ENTRE deux rangées (onze
+rangées, cinq compartiments : aucune ne tombe dessus) — chaque moitié emporte donc ses
+compartiments entiers, leur eau, leurs voies d'eau, sa cargaison. Un compartiment de l'autre
+bord y reste vide et sans capacité, et tout le solveur sait déjà l'ignorer. La masse se
+partage comme le volume de carène, le centre de chaque moitié au centroïde de la sienne,
+décalé du même écart pour que les deux moments refassent celui du navire entier (banc :
+718,2 m³ = 266,8 + 451,4 ; 300 t = 111,4 + 188,6). La tranche est une voie d'eau de la taille
+de la section.
+
+**Une moitié tourne autour de son centre de gravité** (`RotateAboutCom`). Le solveur tourne
+autour de l'origine du repère, ce qui ne se voit pas sur un navire entier (centre à un mètre)
+mais faisait pivoter une moitié autour de sa tranche (centre à sept). Réservé aux moitiés.
+
+**Trois réglages, trouvés au banc** (`-- soute <fiche> <cloison> <force> [pont] [inondable]`) :
+
+- *Les bouts gardent leur air* (`EndLeak` 0,06, `EndFill` 0,04). L'explosion ouvre tout le
+  navire ; coupé, le souffle a pris le MILIEU. Sans cela les deux moitiés s'emplissaient
+  ensemble et coulaient à plat en quatre secondes.
+- *Le chêne flotte* (`HalfFloodable` 0,75). Le solveur compte toute l'enveloppe comme de l'air ;
+  un quart en est du bois — membrures, ponts, cloisons. Sans cela la moitié avant (189 t à sec,
+  204 t de flottabilité dans ses deux compartiments intacts) était à fleur d'eau en trois
+  secondes et se dressait SOUS l'eau, à −20 m. Avec : elle se dresse de 29° à 53° à fleur d'eau
+  et sombre à 32 s ; la grosse moitié tient jusqu'à 53 s.
+- *Le pont presque debout embarque moins* (`HalfDeckLeak` 0,15) — un tronçon qui se dresse
+  présente son pont à la verticale.
+
+Ces trois écarts ne valent que pour les moitiés : un navire entier coule comme avant, et la
+parité tient.
+
+**Le bois se coupe à l'exécution** (`HullCut.cs`) : chaque triangle rangé d'un côté, ou recoupé
+(Sutherland–Hodgman sur un plan), ses sommets neufs interpolés en position, normale, UV et
+tangente. L'arrière reste CE navire, recoupé sur place ; l'avant est une copie du modèle,
+recoupée de l'autre côté, pendue à un nœud que le moteur fait suivre au corps de la moitié
+avant (`ShipDemo.Breakup.cs`). Ses matières perdent les blessures et la neige de l'arrière
+(lues dans le repère de l'arrière, qui ne va plus où il va) et gardent la brume. Les mâts dont
+le pied est à l'avant partent avec lui.
+
+**La tranche est bouchée d'après le plan de formes** — un maillage de coque n'est pas un
+volume fermé, on ne chaîne pas ses arêtes en un contour sûr — puis mise à l'échelle sur les
+points où la coque du modèle franchit le plan : du bois noir et des braises (bruit cellulaire,
+émission qui s'éteint en une vingtaine de secondes).
+
+**L'avant n'est pas de la flotte** : pas de place sur les seize, pas de rangée de profil — il
+s'emplit par sa tranche, l'eau dedans est la vraie. L'arrière garde sa rangée, RACCOURCIE
+(`HullProfile.Cut`) : sans cela la mer aurait gardé un trou d'eau là où l'avant n'est plus.
+L'épave glisse avec l'origine et disparaît à 40 m sous la mer. Un navire rompu ne se radoube
+pas : `R` et une partie neuve le remplacent entier (`Rebuild`).
+
+**Un piège** : la chute d'un mât est animée par la liste d'avaries de l'ARRIÈRE, qui tient des
+références aux mâts partis avec l'avant ; l'épave sombrée, ses nœuds sont libérés et
+`StepRigging` écrivait dans un objet détruit. Trois lectures gardées (`IsInstanceValid`).
+
+**Et la caméra tremble** (`ShipDemo.Shake.cs`), au retard du son : l'éclair est instantané, l'onde
+de pression voyage à 343 m/s comme le fracas. Mesuré : à 60 m le coup arrive 0,17 s après l'éclair,
+à 400 m 1,2 s après. Une secousse par charge (trois pour une soute), montée d'un coup et retombée
+en une seconde, rendue au carré de son niveau ; somme de sinus sans commune mesure, rien à allouer.
+Force `L/30` par l'onde, palier `ShockNear` 80 m (réglé à l'œil : 0,57 à la caméra orbitale, 0,17 à
+400 m). À la lunette, l'angle se divise par le grossissement.
+
+**Le prix** : la coupe se fait en une image — 42 ms sur la Roter Löwe, 16 sur le vaisseau
+de ligne —, au moment où l'éclair de la soute emplit l'écran. `-- --soute 4` fait sauter la
+soute quatre secondes après le départ (après un `--large`, par exemple).
+
+## Fly-By, la caméra du drone (Godot)
+
+Demandé : un drone de cinéma qui fait des travellings parallèles à la route, garde le navire dans
+l'axe sans le viser, plus rapide que lui ; à l'arrêt, des tours, un nouveau plan en fondu toutes
+les six secondes. `ShipDemo.FlyBy.cs`, dernière vue du cycle C (après le ponton, ou après mi-eau).
+
+- **En route** : un couloir tiré à côté de la route (1,4 à 2,4 longueurs, 0,1 à 0,6 de haut), parcouru
+  de l'arrière vers l'avant à l'erre du navire plus un tiers et 1,5 m/s ; au bout, fondu et autre couloir.
+  La route est LISSÉE sur quatre secondes, sans quoi le drone zigzaguait avec les embardées. À moins
+  d'une longueur et demie du bord, l'étrave sortait du cadre (capture) : écarté.
+- **Le cadrage** vise 0,15 longueur devant le milieu, pas le navire : il reste dans l'axe sans être au
+  centre. Le regard suit avec 0,9 s de retard, comme un opérateur. Objectif à 40°, plus serré que l'œil.
+- **À l'arrêt** : un tour en deux minutes, et un plan neuf toutes les 6 s. C'est contre la règle de
+  l'orbite (« une caméra qui bouge seule autour d'une chose capable de bouger est un instrument qui
+  ment ») — demandé quand même ; la lenteur et les fondus cassent l'illusion que le navire tourne.
+- Jamais sous la crête qui passe (+3 m) ni dans le relief (+6 m). Tout est tenu relativement au navire :
+  rien à décaler quand l'origine glisse. Le voile du fondu est sous le HUD, et se lève hors du drone.
+- Essai : `-- --flyby 1`.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

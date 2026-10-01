@@ -292,6 +292,8 @@ public partial class ShipDemo : Node3D
            que dans FreePlay et StartQuest, parce que Home() est le seul endroit par
            où passent les deux — et qu'une reprise, elle, n'y passe pas. */
         ForgetBooks();
+        // une partie neuve sur un navire entier, même si la dernière l'a vu se rompre
+        if (_ship.Physics.Broken) Rebuild();
         var b = _ship.Physics.Body;
         b.Vel = Vec3d.Zero;
         b.AngVel = Vec3d.Zero;

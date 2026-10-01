@@ -57,9 +57,9 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `quests.js` | les quêtes : étapes, lieux, objectifs (`quests/*.json`) |
 | `ship-model.js` | coque, gréement, voiles, pavillons, lanternes, safran, fenêtres de nuit, avirons, anneaux (ce qui tourne sans se déformer, `ShipNode.Rings.cs` côté Godot), .glb |
 | `ship-physics.js` | sondes, corps rigide 6 ddl, gouvernail, voiles, avirons |
-| `controls.js` · `camera-rig.js` · `hud.js` | barre, caméras (vues à bord dans la fiche), instruments |
+| `controls.js` · `camera-rig.js` · `hud.js` | barre, caméras (vues à bord dans la fiche ; sous Godot, le drone Fly-By, `ShipDemo.FlyBy.cs`), instruments |
 | `helm.js` | la barre des navires qui ne sont pas le vôtre |
-| `guns.js` · `explosion.js` | la bordée et sa fumée · la soute qui saute |
+| `guns.js` · `explosion.js` | la bordée et sa fumée · la soute qui saute — sous Godot elle **rompt le navire** (`ShipPhysics.Split.cs`, `HullCut.cs`, `ShipDemo.Breakup.cs`) |
 | `cordage.js` | les bouts rompus |
 | `crew.js` | les hommes sur le pont — **désactivés** (`crew.enabled`), gardés pour un marin qui manœuvre |
 | `gulls.js` · `dolphins.js` | les mouettes (à moins de 2 km des côtes) · les dauphins de l'étrave, par mer calme |

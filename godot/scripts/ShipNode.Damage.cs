@@ -39,9 +39,10 @@ public partial class ShipNode
 
     /// <summary>Les points d'attache du mât <paramref name="i"/>, et s'il est encore là (pas coulé).</summary>
     public IReadOnlyList<CordAnchor> CordAnchors(int i) =>
-        i >= 0 && i < _damage.Count ? _damage[i].Cords : Array.Empty<CordAnchor>();
+        i >= 0 && i < _damage.Count && IsInstanceValid(_damage[i].Fall) ? _damage[i].Cords : Array.Empty<CordAnchor>();
 
-    public bool MastVisible(int i) => i < 0 || i >= _damage.Count || _damage[i].Fall.Visible;
+    // un mât parti avec l'avant d'une coque rompue (ShipNode.Break) n'est plus à elle, et son épave a pu sombrer
+    public bool MastVisible(int i) => i < 0 || i >= _damage.Count || (IsInstanceValid(_damage[i].Fall) && _damage[i].Fall.Visible);
 
     sealed class Falling
     {
@@ -463,7 +464,7 @@ public partial class ShipNode
         foreach (var d in _damage)
         {
             var s = d.Down;
-            if (s == null) continue;
+            if (s == null || !IsInstanceValid(d.Fall)) continue;     // parti avec l'épave de l'avant, qui a sombré
             var f = d.Fall;
 
             if (s.A < s.Stop)

@@ -197,6 +197,8 @@ public partial class ShipDemo
     void Salvage()
     {
         if (_captured) return;                 // on ne radoube pas un navire qu'on n'a plus
+        // rompue, elle se remplace entière : on ne recoud pas une coque dont l'avant est au fond
+        if (_ship.Physics.Broken) Rebuild();
         // le radoub éteint ce qui brûlait : on ne répare pas un navire en feu
         Douse(_ship);
         bool sunk = _lost || _ship.Physics.Foundered;

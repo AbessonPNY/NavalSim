@@ -51,6 +51,7 @@ switch (mode)
     case "vent": Vent(); break;
     case "envol": Envol(); break;
     case "derive": Derive(); break;
+    case "soute": Soute(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -1167,4 +1168,58 @@ void Derive()
         Console.WriteLine(line);
     }
     Config.WindGain = 1.0;
+}
+
+/* LA SOUTE QUI LA COUPE EN DEUX, au banc : la masse et son moment se
+   retrouvent-ils dans les deux moitiés, et que fait chacune dans les trois
+   minutes qui suivent — l'assiette, l'enfoncement, le moment où elle sombre.
+     dotnet run --project core/NavalSim.Lab -c Release -- soute frigate17e 2 3 */
+void Soute()
+{
+    string name = args.Length > 1 ? args[1] : "frigate17e";
+    int k = args.Length > 2 ? int.Parse(args[2]) : 2;
+    double force = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 3;
+    if (args.Length > 4) ShipPhysics.HalfDeckLeak = double.Parse(args[4], CultureInfo.InvariantCulture);
+    if (args.Length > 5) ShipPhysics.HalfFloodable = double.Parse(args[5], CultureInfo.InvariantCulture);
+    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    var ocean = new Ocean { Swell = 1.0, Time = 0 };
+    ocean.SetSeaState(force, 0);
+    var aft = new ShipPhysics(spec, new HullLines(spec));
+    var ctrl = new Controls { Throttle = 0, Rudder = 0, Sheet = 0, SailsSet = false };
+    aft.Settle(ocean, ctrl);
+    double m0 = aft.Body.Mass, mz0 = aft.Body.Mass * aft.Body.Com.Z, v0 = aft.HullVolume;
+    aft.BlowUp();
+    var bow = aft.SplitOff(k);
+    double zc = aft.Bulkhead(k);
+    Console.WriteLine($"{spec.Name}, coupee a la cloison {k} (z = {zc:F1} m), force {force}, pont {ShipPhysics.HalfDeckLeak}, inondable {ShipPhysics.HalfFloodable}");
+    Console.WriteLine($"  volume   {v0:F1} m3 = {aft.HullVolume:F1} + {bow.HullVolume:F1}");
+    // la masse seche se lit en retirant l eau deja embarquee
+    double dryA = aft.Body.Mass - aft.FloodVol * Config.Rho, dryB = bow.Body.Mass - bow.FloodVol * Config.Rho;
+    Console.WriteLine($"  masse    {m0 / 1000:F1} t = {dryA / 1000:F1} + {dryB / 1000:F1} t a sec");
+    Console.WriteLine($"  sondes   {aft.Probes.Length} + {bow.Probes.Length}, voies d eau {aft.Breaches.Count} + {bow.Breaches.Count}");
+    double dt = 1.0 / 60, t = 0;
+    double sinkA = -1, sinkB = -1;
+    for (int i = 0; i <= 60 * 180; i++)
+    {
+        if (i % (60 * (t < 40 ? 3 : 30)) == 0)
+        {
+            string Row(ShipPhysics s)
+            {
+                var f = s.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+                double trim = Math.Asin(Math.Clamp(f.Y, -1, 1)) * 180 / Math.PI;
+                var c = s.Body.Quat.Rotate(s.Body.Com) + s.Body.Pos;
+                string comps = "";
+                foreach (var cc in s.Comps) if (cc.Cap > 0) comps += $" {cc.Vol:F0}/{cc.Cap:F0}";
+                return $"assiette {trim,6:F1} deg, centre a {c.Y,6:F1} m, eau {s.FloodVol,6:F0} m3 [{comps} ], immerge {s.SubmergedFrac * 100,5:F1} %, masse {s.Body.Mass / 1000:F0} t{(s.Foundered ? " SOMBREE" : "")}";
+            }
+            Console.WriteLine($"  t {t,4:F0} s  arriere : {Row(aft)}");
+            Console.WriteLine($"          avant   : {Row(bow)}");
+        }
+        aft.Step(dt, ocean, ctrl, t);
+        bow.Step(dt, ocean, ctrl, t);
+        t += dt;
+        if (sinkA < 0 && aft.Foundered) sinkA = t;
+        if (sinkB < 0 && bow.Foundered) sinkB = t;
+    }
+    Console.WriteLine($"  sombree : arriere a {(sinkA < 0 ? "jamais" : sinkA.ToString("F0") + " s")}, avant a {(sinkB < 0 ? "jamais" : sinkB.ToString("F0") + " s")}");
 }
