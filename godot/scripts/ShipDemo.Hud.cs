@@ -92,7 +92,7 @@ public partial class ShipDemo
 
         var s = GetViewport().GetVisibleRect().Size;
         float bottom = 0, right = 0, left = 0, top = 0;
-        if (_settings?.FilmMask == true)
+        if (FilmMaskOn)
         {
             if (s.X / s.Y < FilmAspect) { bottom = top = (s.Y - s.X / FilmAspect) * 0.5f; }
             else { right = left = (s.X - s.Y * FilmAspect) * 0.5f; }

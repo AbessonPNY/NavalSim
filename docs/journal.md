@@ -13649,7 +13649,39 @@ les six secondes. `ShipDemo.FlyBy.cs`, dernière vue du cycle C (après le ponto
   ment ») — demandé quand même ; la lenteur et les fondus cassent l'illusion que le navire tourne.
 - Jamais sous la crête qui passe (+3 m) ni dans le relief (+6 m). Tout est tenu relativement au navire :
   rien à décaler quand l'origine glisse. Le voile du fondu est sous le HUD, et se lève hors du drone.
+- Réglages : `settings.json` → `flyby.vitesse` (1 : l'allure réglée à l'œil ; multiplie le gain du travelling et
+  la vitesse des tours) et `flyby.plan` (6 s, un plan à l'arrêt).
 - Essai : `-- --flyby 1`.
+
+## Le mode cinéma : é (Godot)
+
+é (le 2 de la rangée du haut en AZERTY) ou le 2 du pavé numérique : le drone Fly-By, le masque 2,35
+et une mise au point sur le navire ; le même appui rend la vue d'avant (`ShipDemo.Cinema.cs`).
+
+**Rien n'est écrit dans reglages.ini** : le flou et le masque sont posés PAR-DESSUS les réglages
+(`FilmMaskOn`, et les attributs de la caméra après la vue), si bien qu'un passage au menu pendant le
+cinéma n'enregistre pas une profondeur de champ de cinéaste à la place de la sienne. C quitte le
+cinéma (la vue suivante est choisie, on ne rend pas l'ancienne).
+
+**La mise au point suit le navire** à chaque image : nette de la distance drone–coque ± 0,7 longueur,
+fondus à 50 % en deçà et 60 % au-delà, intensité 0,10. Le flou anamorphique éventuel est coupé
+pendant le mode. Essai : `-- --cinema 1`.
+
+**Sa bande** : `sons.json` → `musique.cinema` (« Tempête de mer.mp3 »). Elle passe même quand la musique
+d'ambiance est coupée — on a demandé un film. Deux pièges : le lecteur de musique n'ouvrait que l'ogg
+(il passe par `SoundNode.Read`, comme la mer) ; et il changeait de flux SUR PLACE, si bien que
+l'ancien morceau s'arrêtait net et que seul le nouveau montait. Deux lecteurs désormais, fondu croisé
+de 2,5 s ; et chaque morceau qui démarre s'écrit au journal (« musique : … »).
+
+**La bande passait sous le ressac** (signalé) : la mer baisse de 60 % tant qu'elle joue
+(`SoundNode.DuckSea`, au rythme du fondu de la musique), plutôt que de pousser la musique au-dessus de
+tout. Réservé à la bande du film : la musique d'ambiance reste exprès sous la mer. **Et l'image seule** :
+le mode masque ce que masquent H et ⇧H (instruments, soleil, météo, bourse, comptoir) et rend chacun tel
+qu'il était ; il n'annonce plus « Cinéma » sur l'image.
+
+**Et deux fois plus forte** : `sons.json` → `musique.cinema_volume` (2,0, borné à 3), en part du volume des
+autres musiques. Le fondu se cale désormais sur le plein de CHAQUE morceau : calé sur le volume commun,
+une bande deux fois plus forte aurait mis cinq secondes à monter et à s'éteindre.
 
 ## Conventions
 

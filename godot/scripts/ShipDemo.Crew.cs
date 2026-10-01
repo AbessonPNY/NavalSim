@@ -47,7 +47,8 @@ public partial class ShipDemo
     // ------------------------------------------------------------------
 
     /// <summary>Les deux musiques, nommées par le manifeste et non par le code.</summary>
-    string _ambCalme = "", _ambChaud = "";
+    string _ambCalme = "", _ambChaud = "", _ambCine = "";
+    double _ambCineGain = 1;
 
     /* TOUS LES SONS EN UN SEUL ENDROIT — medias/sound/sons.json (demandé).
        Ils étaient dispersés : quatre noms de fichiers en dur dans SoundNode, deux
@@ -138,6 +139,10 @@ public partial class ShipDemo
             {
                 if (mus.TryGetProperty("navigation", out var n) && n.GetString() is string sn) _ambCalme = sn;
                 if (mus.TryGetProperty("action", out var a) && a.GetString() is string sa) _ambChaud = sa;
+                // la bande du mode cinéma (é) : jouée tant qu'il dure, éteinte en fondu après
+                if (mus.TryGetProperty("cinema", out var ci) && ci.GetString() is string sc) _ambCine = sc;
+                if (mus.TryGetProperty("cinema_volume", out var cv) && cv.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    _ambCineGain = Math.Clamp(cv.GetDouble(), 0, 3);
             }
             GD.Print($"sons : {_seaBeds.Count} bande(s) de mer, musiques "
                    + (_ambCalme.Length > 0 || _ambChaud.Length > 0 ? "nommées" : "par défaut"));

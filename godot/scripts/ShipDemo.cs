@@ -589,7 +589,7 @@ public partial class ShipDemo : Node3D
     void LayoutMask()
     {
         Vector2 s = GetViewport().GetVisibleRect().Size;
-        bool on = _settings?.FilmMask == true;
+        bool on = FilmMaskOn;
         foreach (var r in _maskBars) r.Visible = on;
         if (!on || s.X <= 0 || s.Y <= 0) return;
         if (s.X / s.Y < FilmAspect)
@@ -1397,6 +1397,7 @@ public partial class ShipDemo : Node3D
         UpdateCamera(frame);
         AimSpyglass(frame);                     // après la vue : sa position, la visée de la lunette
         ShakeCamera(frame);                     // et la secousse par-dessus, une fois l'œil posé
+        CineFocus();                            // la mise au point du cinéma, sur l'œil posé
         // les navires et la caméra de la MÊME image : le flou compare les deux
         _motionBlur.BeginShips();
         _motionBlur.AddShip(_ship.GlobalTransform, _ship.LocalBounds());
@@ -1830,6 +1831,7 @@ public partial class ShipDemo : Node3D
         /* LA LUNETTE TIENT LA VUE : elle est à l œil, et changer de poste sous la
            lunette reviendrait à se téléporter le verre collé à l œil (signalé). */
         if (_glassUp) { Say("Baissez d abord la lunette"); return; }
+        LeaveCinema();                    // C choisit une autre vue : le cinéma s'arrête là
         SetGunPost(null);                 // changer de vue quitte la pièce
         DryLens();
         if (_camMode == 0) { _camMode = 1; _deck = 0; EnterDeck(); }
@@ -2395,6 +2397,8 @@ public partial class ShipDemo : Node3D
                    pour regarder ou filmer. Le menu reste sur Échap, et le masque de
                    cinéma, qui fait partie de l'image, reste en place. */
                 case Key.H when k.ShiftPressed: _hudOn = !_hudOn; _sunPanel.Visible = _hudOn; break;
+                // é en AZERTY (le 2 de la rangée du haut), ou le 2 du pavé : le mode cinéma, et retour
+                case Key.Key2 or Key.Kp2 when !k.ShiftPressed && !k.Echo: ToggleCinema(); break;
                 case Key.H: _info.Visible = !_info.Visible; break;
                 // le menu d'options ; « Quitter » y est désormais
                 case Key.F1: ToggleKeys(); break;
@@ -2633,6 +2637,14 @@ public partial class ShipDemo : Node3D
                 Config.WindGain = Math.Clamp(wg.GetDouble(), 0.1, 8);
             if (root.TryGetProperty("wind", out var wi2) && wi2.TryGetProperty("heel", out var wh2) && wh2.ValueKind == System.Text.Json.JsonValueKind.Number)
                 Config.WindHeel = Math.Clamp(wh2.GetDouble(), 0, 8);
+            if (root.TryGetProperty("flyby", out var fb))
+            {
+                // bornés : un drone arrêté ou un plan de zéro seconde ne filment plus rien
+                if (fb.TryGetProperty("vitesse", out var fv) && fv.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    _flySpeed = Math.Clamp(fv.GetDouble(), 0.1, 10);
+                if (fb.TryGetProperty("plan", out var fp) && fp.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    _flyHold = Math.Clamp(fp.GetDouble(), 1, 120);
+            }
             if (root.TryGetProperty("mouillage", out var mo2))
             {
                 if (mo2.TryGetProperty("enabled", out var me)) _mooredOn = me.GetBoolean();
@@ -3896,6 +3908,13 @@ public partial class ShipDemo : Node3D
     void AmbianceTick()
     {
         if (_sound == null) return;
+        /* LE CINÉMA A SA BANDE, et elle passe même quand la musique d'ambiance est
+           coupée : on a demandé un film, pas l'ambiance du jeu. À la sortie du mode,
+           elle s'éteint en fondu et la situation reprend la main. */
+        bool film = _cine && _ambCine.Length > 0;
+        // la mer baisse de soixante pour cent sous la bande du film, et remonte après
+        _sound.DuckSea(film ? 0.4 : 1);
+        if (film) { _sound.Ambiance(_ambCine, _ambCineGain); return; }
         if (!_settings.Music) { _sound.Ambiance(null); return; }
 
         double near = double.MaxValue;
@@ -4212,7 +4231,7 @@ public partial class ShipDemo : Node3D
         if (!_compass.Visible) return;
         var s = GetViewport().GetVisibleRect().Size;
         float bottom = 0, right = 0;
-        if (_settings?.FilmMask == true)
+        if (FilmMaskOn)
         {
             if (s.X / s.Y < FilmAspect) bottom = (s.Y - s.X / FilmAspect) * 0.5f;
             else right = (s.X - s.Y * FilmAspect) * 0.5f;
@@ -4502,6 +4521,7 @@ public partial class ShipDemo : Node3D
                 // l'œil posé sur la surface, moitié dedans moitié dehors
                 case "--mi-eau": _camMode = 3; SetLens(OutsideFov, OutsideNear); break;
                 case "--flyby": if (args[i + 1] != "0") EnterFlyBy(); break;
+                case "--cinema": if (args[i + 1] != "0") ToggleCinema(); break;
                 case "--mi-eau-haut": _splitLift = args[i + 1].ToFloat(); break;
                 case "--vue": _camMode = 1; _deck = Math.Clamp(args[i + 1].ToInt(), 0, _ship.Spec.Decks.Count - 1); EnterDeck(); break;
                 case "--msaa": _settings.Msaa = args[i + 1].ToInt(); ApplySettings(); break;

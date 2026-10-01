@@ -33,8 +33,10 @@ public partial class ShipDemo
     const int CamFlyBy = 5;
     /// <summary>L'objectif du drone : plus serré que l'œil, ce qui aplatit et fait cinéma.</summary>
     const float FlyFov = 40;
-    /// <summary>Un plan fixe, à l'arrêt, avant le fondu suivant.</summary>
-    const double FlyHold = 6;
+    /// <summary>Un plan à l'arrêt, en secondes, avant le fondu suivant (settings.json → flyby.plan).</summary>
+    double _flyHold = 6;
+    /// <summary>L'allure du drone, en part de celle réglée à l'œil (settings.json → flyby.vitesse).</summary>
+    double _flySpeed = 1;
     /// <summary>Le fondu au noir : sortie, puis entrée, en secondes chacune.</summary>
     const double FlyFade = 0.45;
 
@@ -159,18 +161,18 @@ public partial class ShipDemo
             /* LES TOURS : un tour en deux minutes, lent exprès — c'est la mer qui
                doit sembler bouger derrière lui, pas lui sur la mer. */
             _flyClock += dt;
-            _flyAngle += _flyTurn * dt * 2 * Math.PI / 120;
+            _flyAngle += _flyTurn * dt * 2 * Math.PI / 120 * _flySpeed;
             eye = ship + new Vector3((float)(Math.Sin(_flyAngle) * _flyR), (float)_flyH, (float)(Math.Cos(_flyAngle) * _flyR));
             // à côté de lui, pas sur lui : le centre de l'image glisse d'un dixième de longueur
             var off = (eye - ship).Cross(Vector3.Up).Normalized() * (float)(0.12 * L * _flyTurn);
             target = ship + new Vector3(0, (float)(0.15 * L), 0) + off;
-            if (_flyClock > FlyHold) FadeTo(NewShot);
+            if (_flyClock > _flyHold) FadeTo(NewShot);
         }
         else
         {
             /* LE TRAVELLING : le drone gagne sur le navire d'un tiers de son erre et
                d'un pas d'homme — lent, mais toujours devant à la fin. */
-            _flyAlong += (0.35 * speed + 1.5) * dt;
+            _flyAlong += (0.35 * speed + 1.5) * _flySpeed * dt;
             double bob = 0.04 * L * Math.Sin(_t * 0.31);          // une respiration, pas un roulis
             eye = ship + course * (float)_flyAlong + side * (float)_flySide + new Vector3(0, (float)(_flyH + bob), 0);
             target = ship + course * (float)(0.15 * L) + new Vector3(0, (float)(0.15 * L), 0);

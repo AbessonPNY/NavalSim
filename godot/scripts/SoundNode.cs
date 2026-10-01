@@ -551,9 +551,11 @@ public partial class SoundNode : Node3D
     /// <summary>Le fondu d'un morceau à l'autre.</summary>
     const double Fondu = 2.5;
 
-    AudioStreamPlayer? _amb;
+    AudioStreamPlayer? _amb, _ambOld;
     string _ambSrc = "";
-    double _ambGoal, _ambNow;
+    double _ambGoal, _ambNow, _ambOldNow;
+    /// <summary>Le plein de chacun, sur lequel se cale son fondu : 2,5 s quel que soit son volume.</summary>
+    double _ambPeak = VolAmb, _ambOldPeak = VolAmb;
 
     /// <summary>Ce qui joue, ou rien — pour que l'appelant n'ait pas à s'en souvenir.</summary>
     public string Playing => _ambSrc;
@@ -562,9 +564,20 @@ public partial class SoundNode : Node3D
     /// Mettre une musique, ou la taire (<c>null</c>). Le morceau en place s'en va
     /// en douceur ; celui qui arrive monte de même.
     /// </summary>
-    public void Ambiance(string? file)
+    public void Ambiance(string? file, double gain = 1)
     {
         if ((file ?? "") == _ambSrc) return;
+        /* LE MORCEAU EN PLACE S'EN VA EN FONDU PENDANT QUE L'AUTRE MONTE — deux
+           lecteurs, et non un seul dont on changeait le flux : l'ancien s'arrêtait
+           net et seul le nouveau montait, ce qui coupait la musique du cinéma au
+           milieu d'une phrase au premier changement de caméra. */
+        if (_amb != null && _amb.Playing && _ambNow > 0.0005)
+        {
+            (_amb, _ambOld) = (_ambOld, _amb);
+            _ambOldNow = _ambNow;
+            _ambOldPeak = Math.Max(VolAmb, _ambPeak);
+            _ambNow = 0;
+        }
         _ambSrc = file ?? "";
         if (string.IsNullOrEmpty(file)) { _ambGoal = 0; return; }
 
@@ -575,15 +588,20 @@ public partial class SoundNode : Node3D
             _ambSrc = "";
             return;
         }
-        var stream = AudioStreamOggVorbis.LoadFromFile(path);
-        if (stream == null) { _ambSrc = ""; return; }
-        stream.Loop = true;
+        // le même lecteur de fichiers que la mer : ogg, mp3 ou wav
+        if (Read(path) is not { } stream) { GD.PushWarning($"musique illisible : {file}"); _ambSrc = ""; return; }
+        if (stream is AudioStreamOggVorbis o) o.Loop = true;
+        else if (stream is AudioStreamMP3 m) m.Loop = true;
+        else if (stream is AudioStreamWav w) w.LoopMode = AudioStreamWav.LoopModeEnum.Forward;
         _amb ??= AddAmb();
         _amb.Stream = stream;
         _amb.VolumeDb = Mathf.LinearToDb(0.001f);
         _ambNow = 0;
-        _ambGoal = VolAmb;
+        // une bande peut demander plus que la nappe d'ambiance — le film, qui doit s'entendre
+        _ambGoal = Math.Clamp(VolAmb * gain, 0, 1);
+        _ambPeak = Math.Max(VolAmb, _ambGoal);
         _amb.Play();
+        GD.Print($"musique : {file}");
     }
 
     AudioStreamPlayer AddAmb()
@@ -610,6 +628,13 @@ public partial class SoundNode : Node3D
     AudioStreamPlayer? _sea;
     string _seaSrc = "";
     double _seaGoal, _seaNow, _seaGain = 0.7;
+    /* CE QUE LA MER GARDE SOUS UNE MUSIQUE QUI DOIT S'ENTENDRE : la bande du
+       cinéma passait sous le ressac, trop faible (signalé). On ne la pousse pas
+       au-dessus de tout — on baisse la mer, en fondu, du temps que dure le film. */
+    double _seaDuck = 1, _seaDuckGoal = 1;
+
+    /// <summary>La part de son volume que garde la mer : 1 entière, 0,4 sous la bande du cinéma.</summary>
+    public void DuckSea(double keep) => _seaDuckGoal = Math.Clamp(keep, 0, 1);
 
     public string SeaPlaying => _seaSrc;
 
@@ -654,14 +679,25 @@ public partial class SoundNode : Node3D
         else if (_seaNow > _seaGoal) _seaNow = Math.Max(_seaGoal, _seaNow - step);
         if (_seaNow <= 0.0005) { if (_sea.Playing) _sea.Stop(); return; }
         if (!_sea.Playing) _sea.Play();
-        _sea.VolumeDb = Mathf.LinearToDb((float)_seaNow);
+        // au rythme du fondu de la musique : la mer cède quand elle monte, revient quand elle s'éteint
+        double dstep = dt / Fondu;
+        _seaDuck = _seaDuck < _seaDuckGoal ? Math.Min(_seaDuckGoal, _seaDuck + dstep) : Math.Max(_seaDuckGoal, _seaDuck - dstep);
+        _sea.VolumeDb = Mathf.LinearToDb((float)Math.Max(0.0005, _seaNow * _seaDuck));
     }
 
     void AmbTick(double dt)
     {
         SeaTick(dt);
+        // le fondu se cale sur le plein de CHAQUE morceau : plus fort, il ne dure pas plus longtemps
+        double step = dt / Fondu * _ambPeak;
+        // celui qui s'en va
+        if (_ambOld != null && _ambOld.Playing)
+        {
+            _ambOldNow = Math.Max(0, _ambOldNow - dt / Fondu * _ambOldPeak);
+            if (_ambOldNow <= 0.0005) _ambOld.Stop();
+            else _ambOld.VolumeDb = Mathf.LinearToDb((float)_ambOldNow);
+        }
         if (_amb == null) return;
-        double step = dt / Fondu * VolAmb;
         if (_ambNow < _ambGoal) _ambNow = Math.Min(_ambGoal, _ambNow + step);
         else if (_ambNow > _ambGoal) _ambNow = Math.Max(_ambGoal, _ambNow - step);
         /* Ce qui s'est tu se tait POUR DE BON : un flux laissé en lecture à

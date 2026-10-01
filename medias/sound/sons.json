@@ -54,8 +54,10 @@
   },
 
   "musique": {
-    "_aide": "Elle suit la situation : une voile hostile en vue ou du fer en l'air, et l'on passe à « action » ; le calme revient quinze secondes après que tout s'est tu. Coupée par défaut (settings.json → sound.music).",
+    "_aide": "Elle suit la situation : une voile hostile en vue ou du fer en l'air, et l'on passe à « action » ; le calme revient quinze secondes après que tout s'est tu. Coupée par défaut (settings.json → sound.music). « cinema » est la bande du mode cinéma (é) : elle passe même musique coupée, et s'éteint en fondu au changement de caméra. cinema_volume : son volume en part de celui des autres musiques (2 : deux fois plus fort).",
     "navigation": "Vivaldi for Focus & Energy  Fireplace Classical Music.ogg",
-    "action": "Musique Action Epique - Musique avec Tension   Musique Libre de Droit.ogg"
+    "action": "Musique Action Epique - Musique avec Tension   Musique Libre de Droit.ogg",
+	"cinema": "Tempête de mer.mp3",
+	"cinema_volume": 2.0
   }
 }
