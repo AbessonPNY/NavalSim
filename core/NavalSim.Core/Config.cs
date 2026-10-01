@@ -49,8 +49,9 @@ public static class Config
 
     /// <summary>
     /// LE DEGRÉ DE RÉALISME DU VENT : le facteur dont on multiplie ce que le vent
-    /// pousse dans les voiles. 1 est la physique ; 2 double la force qui s'exerce
-    /// sur la toile, carré comme latine.
+    /// pousse dans les voiles VERS L'AVANT. 1 est la physique ; 2 double la poussée,
+    /// carré comme latine — la poussée en travers, elle, reste celle du vent réel,
+    /// sans quoi le navire dérivait en crabe (ShipPhysics.Boost).
     ///
     /// UNE FORCE, PAS UNE VITESSE : la traînée de coque croît comme le carré de
     /// la vitesse, donc doubler la poussée ne double PAS l'erre — elle monte d'un

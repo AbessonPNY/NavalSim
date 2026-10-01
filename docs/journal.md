@@ -13485,9 +13485,83 @@ soit `gain`. Mesuré force 6 gain 4 : 2,8° (heel 1) contre 4,4° (heel = gain).
 avec la physique : une vraie voile ne pousse pas plus sans coucher davantage. La mer ne
 dépend ni de l'un ni de l'autre : `WindGain` n'est lu que dans `Sails` et `Lateen`.
 
+**Le gain ne vaut que pour la poussée vers l'avant** (`ShipPhysics.Boost`). Multiplié en entier,
+il triplait aussi la poussée en travers, que la quille ne retient pas trois fois mieux : la
+Roter Löwe glissait en crabe (signalé). Banc `-- derive frigate17e 6`, dérive moyenne :
+
+| force 6 | vent à 45° | 60° | travers |
+|---|---|---|---|
+| gain 1 | 22° | 17° | 9° |
+| gain 3, force entière | 31° | 25° | 15° |
+| gain 3, poussée seule | 14° | 11° | 6° |
+
+Moins qu'au naturel : plus vite, la quille mord mieux. La vitesse est gardée (14,6 nœuds au
+travers contre 13,4). À gain 1, `Boost` rend la force au bit près — la parité le vérifie.
+
 **La toile n'est pas concernée** : `SailLoad` garde la pression réelle. Sinon force 4
 déchirerait ce que force 7 laisse entier, et un réglage de confort deviendrait une
 punition. Godot seulement — la page garde la physique réelle, par décision du 30/09.
+
+## L'étrave qui tombe (Godot)
+
+Signalé : par gros creux, catapultée par une crête, elle restait comme suspendue en l'air
+au lieu de piquer du nez. La cause était l'amortisseur de tangage et de roulis
+(`(1 − 3·dt)` par pas) : il s'appliquait **toujours**, coque hors de l'eau comprise. C'est
+l'image de ce que la mer oppose à une coque qui tangue — donc il ne vaut que ce qu'il reste
+de carène dans l'eau. En l'air, il tenait l'assiette.
+
+`ShipPhysics.Wet` : la carène mouillée rapportée à celle qui la porte au repos
+(`submergedVol·ρ / masse`, borné à 1). L'amortisseur de **tangage** passe de l'air seul (5 %)
+à l'eau pleine entre `Wet` 0,1 et 0,5 (`WetHoldLo/Hi`). Banc : `-- envol <fiche> <force> <angle>`,
+sous voiles, dix minutes.
+
+| | étrave qui tombe, moyenne | au plus | force 5 |
+|---|---|---|---|
+| Roter Löwe, force 9 | 2,6 → 3,6°/s | 4,6 → 9,3°/s | inchangé |
+| sloop, force 9 | 3,1 → 5,8°/s | 6,1 → 17,4°/s | |
+
+**Le roulis garde son amortisseur, et c'est mesuré.** Libéré avec le tangage, le banc la
+faisait chavirer (109° sous voiles, force 9). Une loi linéaire (0 à 1) fait tomber l'étrave
+deux fois plus vite encore, mais à force 9 la Roter Löwe perd son cap (59° d'écart moyen) :
+rejetée. Par force 5 rien ne bouge, au bit près.
+
+**Ce que ce changement ne règle pas** : le lancer lui-même. Par force 9 sous toute sa toile,
+la Roter Löwe est hors de l'eau 8 % du temps à 13,8 nœuds, le sloop 21 % à 17 nœuds : en
+l'air il n'y a plus de traînée de coque, elle ricoche de crête en crête. C'est le pilonnement
+(Archimède et `HeaveDamp`) et non le tangage, un autre sujet.
+
+**Deux pièges de parité.** `0,05 + 0,95` ne vaut pas 1 en virgule flottante : l'amortisseur
+s'écrit `1 − 0,95·(1 − s)` pour rendre 1 exactement à flot, et la formule d'origine est gardée
+tant qu'il est plein. Et les scénarios de parité lâchent la coque de haut, donc mesurent
+l'écart VOULU : ils jouent l'ancien amortisseur (`DampInAir`), celui de la page qu'on ne
+touche plus. `Settle` aussi, parce que c'est une relaxation et non une chute.
+
+### Le coup de frein d'une crête
+
+Signalé ensuite, capture à l'appui (la coque entière au-dessus de son sillage) : en frappant
+une crête elle devrait perdre de son élan. Oui : l'étrave chasse devant elle l'eau qu'elle
+enfonce et lui rend sa vitesse — ρ · débit · vitesse, par le coefficient de masse ajoutée
+(`ShipPhysics.SlamBrake`, 0,5). Horizontal seulement : le même choc pousse la coque vers le
+haut, et c'est déjà ce qui la catapulte.
+
+**Première écriture fausse** : le débit pris sur le détecteur de gerbe (toute cellule qui
+franchit la surface). La plupart la franchissent parce que la coque pilonne ou que la mer
+monte, et cette eau-là n'est poussée nulle part : par force 5 la Roter Löwe tombait de 5,2 à
+1,9 nœuds, et par force 9 elle s'arrêtait et perdait son cap. **Seule compte l'eau enfoncée
+en avançant** : la pente de la lame dans le sens de la marche par la vitesse du bordé (∇η·v,
+lue sur la normale que `Sample` calculait déjà), pour les cellules de la bande de flottaison.
+Mer plate : pente nulle, aucun frein.
+
+| Roter Löwe | sans frein | frein 0,5 | frein 1 |
+|---|---|---|---|
+| force 9, vent à 60° | 13,6 nd | 9,7 nd | 8,0 nd |
+| force 5, vent à 60° | 5,2 nd | 4,5 nd | 4,0 nd |
+| force 5, travers | 6,5 nd | 5,4 nd | 4,8 nd |
+
+0,5 retenu : 13 à 17 % de perte par mer moyenne, ce qu'un navire perd vraiment dans les
+vagues. À 1, le sloop perd son cap par force 9 (55°). Le temps passé en l'air ne baisse
+presque pas (8,5 → 8,0 %) : le lancer est vertical, c'est le pilonnement qui reste à voir.
+Avec `wind.gain` 3, force 4 au travers : 8,3 → 7,0 nœuds. Parité : le banc met `SlamBrake = 0`.
 
 ## Conventions
 

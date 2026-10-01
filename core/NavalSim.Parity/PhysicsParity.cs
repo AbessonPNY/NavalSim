@@ -44,7 +44,12 @@ public static class PhysicsParity
 
             var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, ship + ".json")));
             var lines = new HullLines(spec);
-            var phys = new ShipPhysics(spec, lines);
+            /* L'ANCIEN AMORTISSEUR DE TANGAGE, celui de la page. Godot amortit le
+               tangage par la seule carène mouillée (journal : « L'étrave qui tombe ») ;
+               la page, qu'on ne touche plus, le tient plein même hors de l'eau. Ce
+               banc éprouve le PORTAGE de l'algorithme commun, et la coque y part de
+               haut : sans cela il mesurerait l'écart voulu, et non un portage fautif. */
+            var phys = new ShipPhysics(spec, lines) { DampInAir = true, SlamBrake = 0 };
 
             var ocean = new Ocean { Swell = 1.35, Time = 0 };
             ocean.SetSeaState(sc.GetProperty("force").GetDouble(), sc.GetProperty("deg").GetDouble());
@@ -119,7 +124,7 @@ public static class PhysicsParity
             {
                 var ms = ShipSpec.FromJson(File.ReadAllText(
                     Path.Combine(shipsDir, jco.GetProperty("ship").GetString() + ".json")));
-                mate = new ShipPhysics(ms, new HullLines(ms));
+                mate = new ShipPhysics(ms, new HullLines(ms)) { DampInAir = true, SlamBrake = 0 };
                 mate.Body.Pos = new Vec3d(jco.GetProperty("dx").GetDouble(), 0, 0);
                 both = new List<ShipPhysics> { phys, mate };
             }

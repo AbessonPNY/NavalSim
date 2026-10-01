@@ -49,6 +49,8 @@ switch (mode)
     case "filins": Filins(); break;
     case "mouillage": Mouillage(); break;
     case "vent": Vent(); break;
+    case "envol": Envol(); break;
+    case "derive": Derive(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -1060,4 +1062,109 @@ void Vent()
         Console.WriteLine();
     }
     Config.WindGain = 1.0; Config.WindHeel = 1.0;
+}
+
+/* LA COQUE CATAPULTÉE PAR UNE CRÊTE : ce que fait son étrave quand elle sort de
+   l'eau. Sous voiles, vent de trois quarts avant, par gros temps, dix minutes.
+   Trois amortisseurs de tangage : l'ancien (plein même hors de l'eau), et deux
+   lois qui le règlent sur la carène mouillée.
+     dotnet run --project core/NavalSim.Lab -c Release -- envol frigate17e 9 */
+void Envol()
+{
+    string name = args.Length > 1 ? args[1] : "frigate17e";
+    double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 9;
+    double off = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 60;
+    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    Console.WriteLine($"{spec.Name}, force {force}, vent a {off} deg de l etrave, sous voiles, 10 min");
+    foreach (var (label, old, lo, hi, brk) in new[] { ("ancien, sans frein ", true, 0.1, 0.5, 0.0), ("etrave, sans frein ", false, 0.1, 0.5, 0.0), ("etrave, frein 0,5  ", false, 0.1, 0.5, 0.5), ("etrave, frein 1    ", false, 0.1, 0.5, 1.0) })
+    {
+        var ocean = new Ocean { Swell = 1.35, Time = 0 };
+        ocean.SetSeaState(force, 0);
+        var p2 = new ShipPhysics(spec, new HullLines(spec)) { DampInAir = old, WetHoldLo = lo, WetHoldHi = hi, SlamBrake = brk };
+        var ctrl = new Controls { Throttle = 0, Rudder = 0, Sheet = 0.3, SailsSet = true };
+        p2.Settle(ocean, ctrl);
+        double yaw = -off * Math.PI / 180;
+        p2.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), yaw);
+        double dt = 1.0 / 60, t = 0;
+        int n = 0, light = 0, air = 0;
+        double t2 = 0, t1 = 0, downPeak = 0, downSum = 0, wetMin = 1, sp = 0, he2 = 0, heelMax = 0;
+        int ep = 0; bool inLight = false; double epPeak = 0;
+        for (int k = 0; k < 60 * 600; k++)
+        {
+            if (p2.OptSheet is double o) ctrl.Sheet = o;
+            var f = p2.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+            double hdg = Math.Atan2(f.X, f.Z);
+            ctrl.Rudder = Math.Clamp(-(Math.IEEERemainder(yaw - hdg, 2 * Math.PI)) * 3, -1, 1);
+            p2.Step(dt, ocean, ctrl, t); t += dt;
+            if (k < 60 * 30) continue;
+            n++;
+            var fw = p2.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+            double trim = Math.Asin(Math.Clamp(fw.Y, -1, 1)) * 180 / Math.PI;
+            t1 += trim; t2 += trim * trim;
+            var right = p2.Body.Quat.Rotate(new Vec3d(1, 0, 0));
+            // + : l etrave qui tombe (rotation autour de +x local, tribord = -x)
+            double down = p2.Body.AngVel.Dot(right) * 180 / Math.PI;
+            sp += Math.Sqrt(p2.Body.Vel.X * p2.Body.Vel.X + p2.Body.Vel.Z * p2.Body.Vel.Z);
+            wetMin = Math.Min(wetMin, p2.Wet);
+            double herr = Math.IEEERemainder(yaw - Math.Atan2(fw.X, fw.Z), 2 * Math.PI) * 180 / Math.PI;
+            he2 += herr * herr;
+            var upv = p2.Body.Quat.Rotate(new Vec3d(0, 1, 0));
+            heelMax = Math.Max(heelMax, Math.Acos(Math.Clamp(upv.Y, -1, 1)) * 180 / Math.PI);
+            if (p2.Wet < 0.35) air++;
+            bool now = p2.Wet < 0.7;
+            if (now) { light++; epPeak = Math.Max(epPeak, down); downPeak = Math.Max(downPeak, down); }
+            if (inLight && !now) { ep++; downSum += epPeak; epPeak = 0; }
+            inLight = now;
+        }
+        double mean = t1 / n, rms = Math.Sqrt(Math.Max(0, t2 / n - mean * mean));
+        Console.WriteLine($"  {label} : allegee (mouille < 0,7) {100.0 * light / n,5:F2} %, en l air {100.0 * air / n,4:F2} %, "
+            + $"{ep} episode(s), etrave qui tombe : {(ep > 0 ? downSum / ep : 0),5:F1} deg/s en moyenne, {downPeak,5:F1} au plus ; "
+            + $"tangage ecart-type {rms:F2} deg, {sp / n / 0.5144:F1} nd, mouille min {wetMin:F2}, cap a {Math.Sqrt(he2 / n):F0} deg pres, inclinaison max {heelMax:F0} deg");
+    }
+}
+
+/* LA DÉRIVE : l'angle entre l'étrave et la route, par allure, selon le gain de
+   vent et le frein de crête. Une coque carrée dérive de 5 à 15° ; au-delà, elle
+   glisse en crabe.
+     dotnet run --project core/NavalSim.Lab -c Release -- derive frigate17e 4 */
+void Derive()
+{
+    string name = args.Length > 1 ? args[1] : "frigate17e";
+    double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 4;
+    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    Console.WriteLine($"{spec.Name}, force {force} : vitesse et derive (angle etrave / route), 4 min");
+    foreach (var (gain, brk) in new[] { (1.0, 0.0), (1.0, 0.5), (3.0, 0.0), (3.0, 0.5) })
+    {
+        Config.WindGain = gain;
+        string line = $"  gain {gain:F0}, frein {brk:F1} :";
+        foreach (double off in new[] { 45.0, 60.0, 90.0, 135.0 })
+        {
+            var ocean = new Ocean { Swell = 1.0, Time = 0 };
+            ocean.SetSeaState(force, 0);
+            var p2 = new ShipPhysics(spec, new HullLines(spec)) { SlamBrake = brk };
+            var ctrl = new Controls { Throttle = 0, Rudder = 0, Sheet = 0.3, SailsSet = true };
+            p2.Settle(ocean, ctrl);
+            double yaw = -off * Math.PI / 180;
+            p2.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), yaw);
+            double dt = 1.0 / 60, t = 0, lee = 0, sp = 0; int n = 0;
+            for (int k = 0; k < 60 * 240; k++)
+            {
+                if (p2.OptSheet is double o) ctrl.Sheet = o;
+                var f = p2.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+                double hdg = Math.Atan2(f.X, f.Z);
+                ctrl.Rudder = Math.Clamp(-(Math.IEEERemainder(yaw - hdg, 2 * Math.PI)) * 3, -1, 1);
+                p2.Step(dt, ocean, ctrl, t); t += dt;
+                if (k < 60 * 180) continue;
+                var v = p2.Body.Vel;
+                double vf = v.X * f.X + v.Z * f.Z;
+                var r = p2.Body.Quat.Rotate(new Vec3d(-1, 0, 0));
+                double vl = v.X * r.X + v.Z * r.Z;
+                lee += Math.Atan2(Math.Abs(vl), Math.Max(0.05, vf)) * 180 / Math.PI;
+                sp += Math.Sqrt(v.X * v.X + v.Z * v.Z); n++;
+            }
+            line += $"  {off,3:F0} deg {sp / n / 0.5144,5:F1} nd derive {lee / n,4:F1} deg";
+        }
+        Console.WriteLine(line);
+    }
+    Config.WindGain = 1.0;
 }

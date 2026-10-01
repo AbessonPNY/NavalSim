@@ -297,6 +297,25 @@ public sealed partial class ShipPhysics
     /// le solveur ne sait pas quel mât porte quoi.
     /// </summary>
     public bool LateenUp = true;
+
+    /// <summary>
+    /// L'ancien amortisseur de tangage et de roulis, qui tenait l'assiette même
+    /// coque hors de l'eau. Gardé pour que le banc (« envol ») compare les deux ;
+    /// rien dans le jeu ne le met.
+    /// </summary>
+    public bool DampInAir;
+
+    /// <summary>Entre ces deux parts de carène mouillée, l'amortisseur de tangage passe de l'air seul à l'eau pleine.</summary>
+    public double WetHoldLo = 0.1, WetHoldHi = 0.5;
+
+    /// <summary>
+    /// LE COUP DE FREIN D'UNE CRÊTE, en part de l'élan rendu à l'eau qu'elle
+    /// chasse (le coefficient de masse ajoutée). 0 : la page, qui n'en a pas.
+    /// </summary>
+    public double SlamBrake = 0.5;
+
+    /// <summary>Sa part de carène dans l'eau, rapportée à celle qui la porte au repos : 1 à flot, 0 en l'air.</summary>
+    public double Wet { get; private set; } = 1;
     /// <summary>L'angle où l'équipage l'a écartée de l'axe, radians (0 : pas de latine).</summary>
     public double LateenAngle;
     /// <summary>La part de toile encore ENTIÈRE. Un mât debout dont la voile a

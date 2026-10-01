@@ -65,7 +65,7 @@ public sealed partial class ShipPhysics
             ref Probe pr = ref Probes[i];
             Vec3d pw = b.Quat.Rotate(pr.Local) + b.Pos;
             if (pw.Y < lowestY) lowestY = pw.Y;
-            double depth = ocean.Sample(pw.X, pw.Z, t) - pw.Y;
+            double depth = ocean.Sample(pw.X, pw.Z, t, out Vec3d nrm) - pw.Y;
 
             /* À quel point cette cellule est pleine, et à quelle vitesse cela
                CHANGE. Le taux est tout le détecteur de gerbe, et c'est une
@@ -86,9 +86,42 @@ public sealed partial class ShipPhysics
             double df = f - pr.Frac;
             pr.Frac = f;
 
+            /* LE COUP DE FREIN D'UNE CRÊTE. L'étrave qui avance dans une lame
+               chasse devant elle l'eau qu'elle y enfonce, et lui rend son élan :
+               ce que l'eau gagne, elle le perd — ρ · débit · vitesse, par le
+               coefficient de masse ajoutée (SlamBrake).
+
+               MAIS SEULE L'EAU QU'ELLE ENFONCE EN AVANÇANT. Une première écriture
+               comptait toute cellule qui franchit la surface, et la plupart la
+               franchissent parce que la coque pilonne ou que la mer monte — cette
+               eau-là n'est poussée nulle part : par force 5, la Roter Löwe tombait
+               de 5,2 à 1,9 nœuds. La part due à l'avance est la PENTE de la lame
+               dans le sens de la marche par la vitesse du bordé, ∇η·v, pour les
+               cellules de la bande de flottaison seulement — une pleine ne gagne
+               plus rien, une sèche n'a encore rien. Par mer plate la pente est
+               nulle : rien ne freine.
+
+               Horizontal seulement : le même choc pousse la coque VERS LE HAUT, et
+               c'est déjà ce qui la catapulte. Appliqué au point qui entre — une
+               étrave qui enfourne freine de l'avant. */
+            if (SlamBrake > 0 && f > 0 && f < 1 && nrm.Y > 0.2)
+            {
+                Vec3d rs = pw - cog;
+                Vec3d vs = b.AngVel.Cross(rs) + b.Vel;
+                double rise = -(nrm.X * vs.X + nrm.Z * vs.Z) / nrm.Y;     // m/s : la lame qui monte contre le bordé
+                if (rise > 0)
+                {
+                    double ram = pr.Vol * rise / ProbeH;                  // m³/s enfoncés en avançant
+                    Vec3d brake = new Vec3d(vs.X, 0, vs.Z) * (-Config.Rho * SlamBrake * ram);
+                    force += brake;
+                    torque += rs.Cross(brake);
+                }
+            }
+
             if (df > 0 && _slamWarm <= 0)
             {
                 double drive = pr.Vol * df / dt;              // m³/s neufs déplacés ici
+
                 slamW += drive;
                 /* À quelle vitesse coque et mer se referment, en m/s — MAIS LIRE
                    LE PLAFOND. Une cellule ne peut se remplir que d'une cellule
@@ -137,6 +170,8 @@ public sealed partial class ShipPhysics
         }
 
         SubmergedFrac = submergedVol / HullVolume;
+        // la carène qui la porte au repos déplace sa masse : au-delà, elle est à flot
+        Wet = Math.Clamp(submergedVol * Config.Rho / b.Mass, 0, 1);
         Draft = Math.Max(0, ocean.Sample(cog.X, cog.Z, t) - lowestY);
 
         SlamRate = slamW; SlamSpeed = slamV;
@@ -290,12 +325,39 @@ public sealed partial class ShipPhysics
         Tb = b.Quat.Rotate(Tb);
         b.AngVel += Tb * dt;
 
-        /* Amortissement ANISOTROPE : on tient le roulis et le tangage
-           fermement, pour la stabilité, mais on laisse le lacet libre pour que
-           le gouvernail puisse réellement la faire tourner. Un amortisseur
-           isotrope étrangle l'évolution. */
+        /* LE TANGAGE, ET LUI SEUL, EST AMORTI PAR L'EAU QUI RESTE. Cet amortisseur
+           est l'image de ce que la mer oppose à une coque qui tangue — les vagues
+           qu'elle fait en tanguant, le frottement de son bordé —, donc il ne vaut
+           que ce qu'il reste de carène dans l'eau. Appliqué à plein l'étrave hors
+           de l'eau, il TENAIT l'assiette : catapultée par une crête, elle restait
+           suspendue au lieu de piquer du nez (signalé), et filait de crête en
+           crête sans traînée de coque.
+
+           LE ROULIS GARDE LE SIEN, et ce n'est pas une paresse : libéré avec le
+           tangage, le banc la faisait chavirer (109° sous voiles, force 9). Le
+           roulis d'un trois-mâts est tenu par bien autre chose que sa carène — la
+           toile qui freine en balayant l'air, les fonds qui rasent l'eau —, et
+           c'est ce qu'il reste ici dans un seul nombre.
+
+           Le lacet reste libre pour que le gouvernail puisse réellement la faire
+           tourner : un amortisseur isotrope étrangle l'évolution. */
+        // écrit pour rendre 1 EXACTEMENT à flot : 0,05 + 0,95 n en est pas un, en virgule flottante
+        double hold = DampInAir ? 1.0 : 1.0 - 0.95 * (1.0 - SmoothStep(WetHoldLo, WetHoldHi, Wet));
         double wy = b.AngVel.Dot(up);
-        b.AngVel = (b.AngVel - up * wy) * (1 - 3.0 * dt) + up * (wy * (1 - 0.5 * dt));
+        /* LA FORMULE D'ORIGINE TANT QUE L'EAU LA TIENT : à flot, rien ne change, et
+           la parité avec la page reste au bit près. Décomposer en trois axes donne
+           le même nombre aux arrondis près — et ces arrondis-là, qu'aucune mer ne
+           justifie, suffisaient à faire diverger le banc de parité en dix
+           minutes. On ne décompose donc que quand le tangage doit s'en distinguer. */
+        if (hold >= 1)
+            b.AngVel = (b.AngVel - up * wy) * (1 - 3.0 * dt) + up * (wy * (1 - 0.5 * dt));
+        else
+        {
+            double wp = b.AngVel.Dot(right), wr = b.AngVel.Dot(fwd);
+            b.AngVel = fwd * (wr * (1 - 3.0 * dt))
+                     + right * (wp * (1 - 3.0 * hold * dt))
+                     + up * (wy * (1 - 0.5 * dt));
+        }
         double al = b.AngVel.Length;
         if (al > 4) b.AngVel = b.AngVel * (4 / al);
 
@@ -344,6 +406,26 @@ public sealed partial class ShipPhysics
        coque et les vingt secondes sont CHOISIS, non mesurés — il n'y a rien
        dans ce modèle contre quoi les mesurer —, et c'est dit ici plutôt que
        laissé passer pour de la physique. */
+    /// <summary>
+    /// LE GAIN DE VENT SUR LA SEULE COMPOSANTE QUI FAIT AVANCER. Multiplié en
+    /// entier, il triplait aussi la poussée en travers, que la quille ne retient
+    /// pas trois fois mieux : à gain 3 elle dérivait de 30° au près par force 6,
+    /// contre 20 au naturel, et glissait en crabe (signalé). La composante en
+    /// travers reste donc celle du vent réel — elle dérive comme un vrai navire,
+    /// en allant plus vite. À gain 1, c'est la force elle-même, au bit près.
+    /// </summary>
+    static Vec3d Boost(in Vec3d f, in Vec3d fwd)
+    {
+        var ax = new Vec3d(fwd.X, 0, fwd.Z).Normalized();
+        return f + ax * ((Config.WindGain - 1) * f.Dot(ax));
+    }
+
+    static double SmoothStep(double a, double b, double x)
+    {
+        double u = Math.Clamp((x - a) / (b - a), 0, 1);
+        return u * u * (3 - 2 * u);
+    }
+
     void TrappedBreath(double dt, Ocean ocean, double t)
     {
         if (Foundered && !_trapFilled)
@@ -445,11 +527,10 @@ public sealed partial class ShipPhysics
         Vec3d lift = new Vec3d(app.Z, 0, -app.X).Normalized();
         if (lift.Dot(fwd) < 0) lift = -lift;              // la portance la pousse en avant
         sailF += lift * (CL * q);
-        /* LE FACTEUR DE VENT s'applique à ce qui PART dans la coque — poussée,
-           dérive, gîte — mais pas à ce que la TOILE endure, qui reste la pression
-           réelle : sinon force 4 déchirerait ce que force 7 laisse entier, et le
-           réglage de confort deviendrait une punition. */
-        var pushed = sailF * Config.WindGain;
+        /* LE FACTEUR DE VENT s'applique à la POUSSÉE, et à elle seule : ni à ce que
+           la TOILE endure, qui reste la pression réelle — sinon force 4 déchirerait
+           ce que force 7 laisse entier —, ni à la dérive. Voir Boost. */
+        var pushed = Boost(sailF, fwd);
         force += pushed;
 
         Vec3d arm = b.Quat.Rotate(_ce) + b.Pos - cog;
@@ -504,7 +585,7 @@ public sealed partial class ShipPhysics
         Vec3d lift = new Vec3d(app.Z, 0, -app.X).Normalized();
         if (lift.Dot(fwd) < 0) lift = -lift;
         f += lift * (CL * q);
-        Vec3d pushedL = f * Config.WindGain;              // voir Sails : poussée, pas toile
+        Vec3d pushedL = Boost(f, fwd);                    // voir Sails : la poussée seule
         force += pushedL;
         Vec3d arm = b.Quat.Rotate(_ceL) + b.Pos - cog;
         torque += arm.Cross(f * Config.WindHeel);
@@ -956,6 +1037,12 @@ public sealed partial class ShipPhysics
         ocean.SetSeaState(0, 0);
 
         Body.Pos = new Vec3d(0, 0.4, 0);
+        /* L'AMORTISSEUR PLEIN pendant qu'on la pose, même partie de haut : c'est
+           une relaxation et non une chute, il faut qu'elle converge et non qu'elle
+           tangue. Un amortisseur affaibli au départ ne change pas l'assise, il la
+           rend moins finie au bout du compte de pas. */
+        bool damp = DampInAir;
+        DampInAir = true;
         int steps = (int)Math.Round(1200 * Math.Sqrt(Spec.L / 24));
         double t = 0;
         for (int i = 0; i < steps; i++)
@@ -965,6 +1052,7 @@ public sealed partial class ShipPhysics
         }
         Body.Vel = Vec3d.Zero;
         Body.AngVel = Vec3d.Zero;
+        DampInAir = damp;
 
         ocean.SetSeaState(sea, deg);
         return Body.Pos.Y;
