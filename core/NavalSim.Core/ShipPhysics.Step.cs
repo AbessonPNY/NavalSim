@@ -445,11 +445,16 @@ public sealed partial class ShipPhysics
         Vec3d lift = new Vec3d(app.Z, 0, -app.X).Normalized();
         if (lift.Dot(fwd) < 0) lift = -lift;              // la portance la pousse en avant
         sailF += lift * (CL * q);
-        force += sailF;
+        /* LE FACTEUR DE VENT s'applique à ce qui PART dans la coque — poussée,
+           dérive, gîte — mais pas à ce que la TOILE endure, qui reste la pression
+           réelle : sinon force 4 déchirerait ce que force 7 laisse entier, et le
+           réglage de confort deviendrait une punition. */
+        var pushed = sailF * Config.WindGain;
+        force += pushed;
 
         Vec3d arm = b.Quat.Rotate(_ce) + b.Pos - cog;
-        torque += arm.Cross(sailF);
-        SailDrive = sailF.Dot(fwd);
+        torque += arm.Cross(sailF * Config.WindHeel);
+        SailDrive = pushed.Dot(fwd);
 
         /* La pression sur la toile, qui est ce qui la fait se creuser — par
            unité de toile QU'ELLE A ENCORE.
@@ -499,10 +504,11 @@ public sealed partial class ShipPhysics
         Vec3d lift = new Vec3d(app.Z, 0, -app.X).Normalized();
         if (lift.Dot(fwd) < 0) lift = -lift;
         f += lift * (CL * q);
-        force += f;
+        Vec3d pushedL = f * Config.WindGain;              // voir Sails : poussée, pas toile
+        force += pushedL;
         Vec3d arm = b.Quat.Rotate(_ceL) + b.Pos - cog;
-        torque += arm.Cross(f);
-        SailDrive += f.Dot(fwd);
+        torque += arm.Cross(f * Config.WindHeel);
+        SailDrive += pushedL.Dot(fwd);
     }
 
     /* ------------------------------------------------------------------ */

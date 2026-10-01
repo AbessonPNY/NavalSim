@@ -2612,6 +2612,13 @@ public partial class ShipDemo : Node3D
                 if (st.TryGetProperty("lightning", out var li)) _lightRules = LightningSettings.FromJson(li);
                 if (st.TryGetProperty("kraken", out var kr)) _krakenRules = KrakenSettings.FromJson(kr);
             }
+            /* LE VENT : un facteur de poussée, 1 étant la physique. Borné — un zéro
+               ou un négatif ferait pousser les voiles à rebours, et au-delà de huit
+               la gîte ne laisse plus rien à jouer. */
+            if (root.TryGetProperty("wind", out var wi) && wi.TryGetProperty("gain", out var wg) && wg.ValueKind == System.Text.Json.JsonValueKind.Number)
+                Config.WindGain = Math.Clamp(wg.GetDouble(), 0.1, 8);
+            if (root.TryGetProperty("wind", out var wi2) && wi2.TryGetProperty("heel", out var wh2) && wh2.ValueKind == System.Text.Json.JsonValueKind.Number)
+                Config.WindHeel = Math.Clamp(wh2.GetDouble(), 0, 8);
             if (root.TryGetProperty("mouillage", out var mo2))
             {
                 if (mo2.TryGetProperty("enabled", out var me)) _mooredOn = me.GetBoolean();

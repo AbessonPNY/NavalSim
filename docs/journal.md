@@ -13458,6 +13458,37 @@ joueur : trois fois au chargement, jamais après.
 Réglable dans `settings.json` (`mouillage` : tenue, portée, et les fiches qu'on y
 mouille) ; `-- --rade 1` dit où chaque poste est tombé.
 
+## Le degré de réalisme du vent (Godot)
+
+`settings.json` → `wind.gain` : le facteur dont on multiplie ce que le vent pousse dans
+les voiles. 1 est la physique. Lu dans `Config.WindGain` (noyau), appliqué dans `Sails`
+et `Lateen` à la force qui PART dans la coque — poussée, dérive, gîte.
+
+**Une force, pas une vitesse.** La traînée croît comme le carré de la vitesse, donc
+doubler la poussée n'en double pas l'erre. Mesuré au banc (`-- vent frigate17e`, vent par
+le travers, 4 minutes) :
+
+| force | gain 1 | gain 2 | gain 3 | gain 4 |
+|---|---|---|---|---|
+| 3 | 2,47 nd | 4,01 | 5,15 | 6,03 |
+| 4 | 4,33 nd | 6,69 | 8,30 | 9,58 |
+| 6 | 9,18 nd | 13,25 | 15,83 | 17,74 |
+
+Gain 2 rend donc ×1,5 à ×1,6 en vitesse ; pour DOUBLER l'erre, il faut un gain de 3,5 à
+4 aux petites forces. La gîte, liée au gain à ce stade, reste sage (4,4° au pire, force 6 gain 4) : cette coque
+gîte peu, mais le facteur la multiplie aussi, et une coque plus tendre le sentira.
+
+**La gîte est réglée à part** (`wind.heel`, `Config.WindHeel`, défaut 1) : c'était mon choix de la
+multiplier avec la force, pas une nécessité. `heel` multiplie le COUPLE des voiles — gîte et
+moment d'embardée — et non leur force ; à 1, la coque gîte comme sous le vent réel quel que
+soit `gain`. Mesuré force 6 gain 4 : 2,8° (heel 1) contre 4,4° (heel = gain). Un écart assumé
+avec la physique : une vraie voile ne pousse pas plus sans coucher davantage. La mer ne
+dépend ni de l'un ni de l'autre : `WindGain` n'est lu que dans `Sails` et `Lateen`.
+
+**La toile n'est pas concernée** : `SailLoad` garde la pression réelle. Sinon force 4
+déchirerait ce que force 7 laisse entier, et un réglage de confort deviendrait une
+punition. Godot seulement — la page garde la physique réelle, par décision du 30/09.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

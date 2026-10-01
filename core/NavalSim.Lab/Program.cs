@@ -48,6 +48,7 @@ switch (mode)
     case "saut": Saut(); break;
     case "filins": Filins(); break;
     case "mouillage": Mouillage(); break;
+    case "vent": Vent(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -1013,4 +1014,48 @@ void Mouillage()
     Console.WriteLine($"{total} navire(s) poses : {quai} a quai, {rade} en rade ; {manques} sans place");
     Console.WriteLine($"le moins d eau sous un poste : {pireEau:F1} m");
     Console.WriteLine(pireEau > 6.6 + Moored.Sous - 0.2 ? "-> tous portent leur tirant" : "-> UN POSTE EST TROP MAIGRE");
+}
+
+/* CE QUE RAPPORTE LE FACTEUR DE VENT : la même coque au travers, par force 4 et
+   force 6, pour chaque facteur. Vitesse, gîte et poussée.
+     dotnet run --project core/NavalSim.Lab -c Release -- vent frigate17e */
+void Vent()
+{
+    string name = args.Length > 1 ? args[1] : "frigate17e";
+    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    Console.WriteLine($"{spec.Name}, vent par le travers, 4 minutes");
+    foreach (double force in new[] { 3.0, 4.0, 6.0 })
+    {
+        foreach (double gain in new[] { 1.0, 1.5, 2.0, 3.0, 4.0 })
+        {
+            Config.WindGain = gain;
+            Config.WindHeel = args.Length > 2 && args[2] == "lie" ? gain : 1.0;
+            var ocean = new Ocean { Swell = 1.0, Time = 0 };
+            ocean.SetSeaState(force, 0);
+            var p2 = new ShipPhysics(spec, new HullLines(spec));
+            var ctrl = new Controls { Throttle = 0, Rudder = 0, Sheet = 0.3, SailsSet = true };
+            p2.Settle(ocean, ctrl);
+            double yaw = -90 * Math.PI / 180;
+            p2.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), yaw);
+            double dt = 1.0 / 60, t = 0, heel = 0, load = 0;
+            for (int k = 0; k < 60 * 240; k++)
+            {
+                if (p2.OptSheet is double o) ctrl.Sheet = o;
+                var f = p2.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+                double hdg = Math.Atan2(f.X, f.Z);
+                ctrl.Rudder = Math.Clamp(-(Math.IEEERemainder(yaw - hdg, 2 * Math.PI)) * 3, -1, 1);
+                p2.Step(dt, ocean, ctrl, t); t += dt;
+                if (k > 60 * 200)
+                {
+                    var up = p2.Body.Quat.Rotate(new Vec3d(0, 1, 0));
+                    heel = Math.Max(heel, Math.Abs(Math.Asin(Math.Clamp(up.X, -1, 1)) * 180 / Math.PI));
+                    load = Math.Max(load, p2.SailLoad);
+                }
+            }
+            var v = p2.Body.Vel;
+            Console.WriteLine($"force {force:F0}  gain {gain,3:F1} : {Math.Sqrt(v.X * v.X + v.Z * v.Z) / 0.5144,5:F2} nd, gite {heel,5:F1} deg, toile {load,6:F1} N/m2, poussee {p2.SailDrive / 1000,6:F0} kN");
+        }
+        Console.WriteLine();
+    }
+    Config.WindGain = 1.0; Config.WindHeel = 1.0;
 }

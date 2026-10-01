@@ -48,6 +48,35 @@ public static class Config
     public const double CanvasStrength = 220.0;
 
     /// <summary>
+    /// LE DEGRÉ DE RÉALISME DU VENT : le facteur dont on multiplie ce que le vent
+    /// pousse dans les voiles. 1 est la physique ; 2 double la force qui s'exerce
+    /// sur la toile, carré comme latine.
+    ///
+    /// UNE FORCE, PAS UNE VITESSE : la traînée de coque croît comme le carré de
+    /// la vitesse, donc doubler la poussée ne double PAS l'erre — elle monte d'un
+    /// facteur √2 environ. Pour doubler la vitesse il faudrait le quadruple ; on
+    /// laisse le joueur choisir, et le banc (« vent ») mesure ce que chaque
+    /// facteur rend réellement.
+    ///
+    /// Un réglage de JEU et non une constante du monde : il se lit dans
+    /// settings.json (« wind.gain ») et reste à 1 partout ailleurs — le banc de
+    /// parité compare donc toujours la même physique que la page.
+    /// </summary>
+    public static double WindGain = 1.0;
+
+    /// <summary>
+    /// CE QUE LE VENT FAIT GÎTER, à part de ce qu'il POUSSE. Le facteur par lequel
+    /// on multiplie le COUPLE des voiles — gîte et moment d'embardée — et non leur
+    /// force : 1 laisse la coque gîter comme sous le vent réel quel que soit
+    /// <see cref="WindGain"/>, qui n'agit alors que sur la marche. Mettre ici la
+    /// même valeur que WindGain rend la voilure « plus grande » en tout point.
+    ///
+    /// Un écart assumé avec la physique : une vraie voile ne pousse pas plus sans
+    /// coucher davantage. C'est le prix d'un réglage de confort, et il se règle.
+    /// </summary>
+    public static double WindHeel = 1.0;
+
+    /// <summary>
     /// Jusqu'où elle s'éloigne du zéro local avant qu'on ne fasse glisser le monde
     /// sous elle. Assez petit pour que la phase de Gerstner garde sa précision,
     /// assez grand pour que le recentrage soit rare — 1500 m, cinq minutes environ
