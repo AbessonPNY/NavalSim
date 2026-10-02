@@ -41,6 +41,8 @@ public partial class AnchorNode : Node3D
         public St State = St.Stowed;
         public Vec3d P, V;
         public double Mass, Size, CableMax, Tick;
+        /// <summary>Le câble qui reste dehors une fois l'ancre dérapée : elle pend au bout, sous l'écubier.</summary>
+        public double UpLen;
         public Mooring? Moor;
         public Node3D Mesh = null!;
         public MultiMesh Cable = null!;
@@ -291,6 +293,12 @@ public partial class AnchorNode : Node3D
         if (it.Moor != null) { it.Ph.Moorings.Remove(it.Moor); it.Moor = null; }
     }
 
+    /// <summary>Pour les essais : l'état de l'ancre et sa distance à l'écubier.</summary>
+    public string Probe(ShipNode ship) =>
+        _items.TryGetValue(ship.Physics, out var it)
+            ? FormattableString.Invariant($"{it.State} à {(HawseWorld(it) - it.P).Length:F1} m{(it.Moor is { } m ? $", câble {m.Len:F1} m{(m.Dragging ? ", chasse" : "")}" : "")}")
+            : "rangée";
+
     /// <summary>Est-elle au mouillage ? Pour le tableau de bord.</summary>
     public bool IsDown(ShipNode ship) =>
         _items.TryGetValue(ship.Physics, out var it) && (it.State == St.Down || it.State == St.Weigh);
@@ -396,11 +404,19 @@ public partial class AnchorNode : Node3D
                 if (apic && !it.Taut) { it.Taut = true; OnSay?.Invoke("Le câble est à pic"); }
                 m.Len = Math.Max(0, m.Len - (apic ? 1.2 : 4.5) * dt);
                 double upDown = hawse.Y - m.Wy;
-                if (m.Len <= upDown + 1.5)
+                /* ELLE NE DÉRAPE QUE LE CÂBLE À PIC — le navire AU-DESSUS d'elle, pas
+                   seulement le câble rentré. Compter sur la longueur seule la faisait
+                   déraper à des dizaines de mètres derrière un navire qui faisait route
+                   (signalé : l'ancre restait en l'air, la chaîne étirée jusqu'à lui).
+                   Tant qu'elle est loin, le câble court la hale vers lui en la faisant
+                   chasser sur le fond : c'est le même ressort, elle finit sous l'étrave. */
+                double reachNow = (hawse - it.P).Length;
+                if (m.Len <= upDown + 1.5 && reachNow <= upDown + 4)
                 {
                     it.Ph.Moorings.Remove(m);
                     it.Moor = null;
                     it.State = St.Up;
+                    it.UpLen = reachNow;
                     OnSay?.Invoke("L'ancre dérape");
                 }
             }
@@ -409,10 +425,18 @@ public partial class AnchorNode : Node3D
 
         if (it.State == St.Up)
         {
-            var v = hawse - it.P;
-            double d = v.Length;
-            if (d < 0.6) { Stow(it); OnSay?.Invoke("Ancre haute et bossée"); return; }
-            it.P += v * Math.Min(1, 1.2 * dt / d);
+            /* DÉRAPÉE, ELLE PEND AU CÂBLE qui reste, sous l'écubier — et le suit. Elle
+               était hissée VERS lui à 1,2 m/s en mètres du monde : un navire qui fait
+               route la laissait derrière, en l'air, la chaîne étirée sans fin. Ici le
+               cabestan raccourcit ce qui pend, et c'est la longueur qui la tient près
+               de lui ; elle tombe sous l'écubier par son poids, et traîne en arrière
+               quand il avance. */
+            it.UpLen = Math.Max(0, it.UpLen - 1.2 * dt);
+            if (it.UpLen < 0.6) { Stow(it); OnSay?.Invoke("Ancre haute et bossée"); return; }
+            var hang = it.P + new Vec3d(0, -3.0 * dt, 0) - hawse;
+            double d = hang.Length;
+            if (d > it.UpLen) hang = hang * (it.UpLen / d);
+            it.P = hawse + hang;
         }
     }
 

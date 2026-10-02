@@ -14166,6 +14166,21 @@ premier assemblage d'un quai à portée — un coût de chargement, la boucle de
 **La carte graphique, en A/B** : sans les fumées 7,34 ms au lieu de 7,36 (rien) ; sans le sol peint 7,22 (0,14 ms).
 Le gros de ses 7,3 ms n'est pas dans les ajouts de Port-Royal : la vue de départ, en mer, en prend déjà 6,8.
 
+## L'ancre qui restait en l'air (Godot)
+
+Signalé, capture à l'appui : « le navire part quand je l'oublie, elle s'étire énormément et reste coincée
+visuellement dans l'air une fois remontée ». **Deux défauts, l'un nourrissant l'autre.** Dérapée, l'ancre
+était hissée VERS l'écubier à 1,2 m/s en mètres du monde : un navire qui fait route à plus que cela la
+laissait derrière, en l'air, la chaîne s'étirant jusqu'à lui sans fin. Et le cabestan la déclarait dérapée
+dès que le câble RENTRÉ était court, sans regarder où elle était — navire en route, elle « dérapait » à des
+dizaines de mètres derrière.
+
+Corrigé (`AnchorNode`) : elle ne dérape que le câble à pic, le navire au-dessus d'elle (à quatre mètres près
+de la hauteur d'écubier) ; tant qu'elle est loin, le câble court la hale en la faisant chasser sur le fond.
+Dérapée, elle PEND au câble qui reste (`UpLen`, raccourci au rythme du cabestan), sous l'écubier — elle le
+suit, et traîne en arrière quand il avance. Relevé (`-- --ancre-oubliee 3,25,0` : machine avant toute à 3 s,
+on vire à 25 s) : à pic à 30 s, dérapée à 20 m sous l'étrave, remontée en 16 s à 1,2–1,5 m/s d'erre, bossée.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

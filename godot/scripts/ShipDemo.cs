@@ -1188,6 +1188,16 @@ public partial class ShipDemo : Node3D
         if (_largeIn > 0 && (_largeIn -= delta) <= 0) GoOffshore();
         if (_souteIn > 0 && (_souteIn -= delta) <= 0) BlowUp(_ship);
         if (_diveTestIn > 0 && (_diveTestIn -= delta) <= 0) DiveTest();
+        if (_anchorTest is Vector3 at && _anchor2 != null && !_inTitle)
+        {
+            if (_t >= at.X && _t - delta < at.X) { _ship.Ctrl.Throttle = 1; GD.Print("[ancre] en route, machine avant toute"); }
+            if (_t >= at.Y && _t - delta < at.Y) { _anchor2.Toggle(_ship, _t); GD.Print("[ancre] on vire"); }
+            if (Math.Floor(_t) != Math.Floor(_t - delta))
+            {
+                var bv = _ship.Physics.Body.Vel;
+                GD.Print(FormattableString.Invariant($"[ancre] t {_t:F0}  {Math.Sqrt(bv.X * bv.X + bv.Z * bv.Z):F2} m/s  {_anchor2.Probe(_ship)}"));
+            }
+        }
         // le départ écrit dans la fiche se fait à l'ancre : on la mouille dès que la coque est posée
         if (_anchorAtStart && !_inTitle && _anchor2 != null)
         {
@@ -3927,6 +3937,7 @@ public partial class ShipDemo : Node3D
     FolkNode? _folk;
     /// <summary>Le départ de la fiche est au mouillage : l'ancre tombe à la première image de jeu.</summary>
     bool _anchorAtStart;
+    Vector3? _anchorTest;
     JettyNode? _jetty;
 
     /// <summary>Les filins d'abordage : la règle est dans le noyau, le dessin dans GrappleNode.</summary>
@@ -4679,6 +4690,8 @@ public partial class ShipDemo : Node3D
                 case "--sifflet": _whistleTest = args[i + 1].ToInt(); _diveTestIn = 1.0; break;
                 // poser des modèles bruts (séparés par des virgules) près de l'œil, SANS les enregistrer : pour les regarder
                 case "--voir": _seeModels = args[i + 1]; _diveTestIn = 1.0; break;
+                // l'ancre oubliée : en route machine avant toute à N s, on vire à M s ; relevé chaque seconde
+                case "--ancre-oubliee": _anchorTest = ParseVec(args[i + 1]); break;
                 case "--coller": _edPasteTest = args[i + 1].ToInt(); _edTest = 1; _diveTestIn = 1.0; break;
                 // le pinceau, sans rien enregistrer : trois disques et une rue autour de (x, z) vrais
                 case "--peindre": _paintTest = ParseVec(args[i + 1]); _diveTestIn = 1.0; break;
