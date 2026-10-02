@@ -392,6 +392,7 @@ public partial class ShipDemo
             _debrisTest = 0;
         }
         if (_beachTest > 0) BeachTest();
+        if (_edTest != 0) EditTest();
         if (_diveTest.Wreck is double d) TestWreck(d);
         if (_diveTest.Bell && !_bellOut) ToggleBell();
         if (_diveTest.Rope > 0) _bellRope = _diveTest.Rope;

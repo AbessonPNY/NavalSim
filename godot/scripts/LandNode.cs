@@ -233,10 +233,58 @@ public partial class LandNode : Node3D
     /// </summary>
     readonly List<Node3D> _assets = new();
 
+    /// <summary>Le registre de l'éditeur : chaque modèle posé et chaque copie d'un semis s'y inscrit.</summary>
+    public EditRegistry? Editor;
+
+    /// <summary>
+    /// INSCRIRE UN OBJET DE LA TERRE à l'éditeur. Il vit sur son nœud <c>hold</c>,
+    /// placé à chaque image d'après ses métas : on change les métas, le cap (par
+    /// rapport à celui de sa pose) et l'échelle. Sa hauteur suit le sol à sa
+    /// nouvelle place, à ce qu'il était levé ou enfoncé près.
+    /// </summary>
+    void Register(Node3D hold, string id, string label, double x, double z, double yaw, double wy, double radius, double height)
+    {
+        double lift = wy - World.HeightAt(x, z);
+        var e = new Editable
+        {
+            Id = id, Label = label, BaseX = x, BaseZ = z, BaseYaw = yaw, X = x, Z = z, Yaw = yaw,
+            Radius = radius, Height = height
+        };
+        e.Push = ed =>
+        {
+            double ground = World.HeightAt(ed.X, ed.Z);
+            hold.SetMeta("wx", ed.X);
+            hold.SetMeta("wz", ed.Z);
+            hold.SetMeta("wy", (ed.Moved ? ground + lift : wy) + ed.Dy);
+            hold.Rotation = new Vector3(0, (float)(ed.Yaw - ed.BaseYaw), 0);
+            hold.Scale = Vector3.One * (float)ed.Scale;
+            hold.Visible = !ed.Removed;
+            ed.GroundY = (ed.Moved ? ground : wy - lift) + ed.Dy;
+        };
+        if (Editor != null) Editor.Add(e); else e.Push(e);
+    }
+
+    /// <summary>La boîte d'un modèle, dans son propre repère.</summary>
+    static Aabb? BoxOf(Node3D root)
+    {
+        Aabb? box = null;
+        var stack = new Stack<(Node, Transform3D)>();
+        stack.Push((root, Transform3D.Identity));
+        while (stack.Count > 0)
+        {
+            var (n, t) = stack.Pop();
+            foreach (var c in n.GetChildren()) stack.Push((c, c is Node3D c3 ? t * c3.Transform : t));
+            if (n is MeshInstance3D m && m.Mesh != null) { var b = t * m.Mesh.GetAabb(); box = box is Aabb a0 ? a0.Merge(b) : b; }
+        }
+        return box;
+    }
+
     void BuildAssets()
     {
+        int ai = 0;
         foreach (var a in World.Region.Assets)
         {
+            int index = ai++;
             string path = Assets.Path(a.Glb);
             if (!System.IO.File.Exists(path)) { GD.PushWarning($"[monde] modèle introuvable : {a.Glb}"); continue; }
             var doc = new GltfDocument();
@@ -268,6 +316,11 @@ public partial class LandNode : Node3D
                         mi.SetSurfaceOverrideMaterial(i, own);
                     }
             _assets.Add(hold);
+            var ab = BoxOf(root) ?? new Aabb();
+            double sc = a.Scale;
+            Register(hold, $"modele:{index}:{a.Name}", a.Name.Length > 0 ? a.Name : "un modèle posé",
+                g.X, g.Z, -a.Yaw * Math.PI / 180, (double)hold.GetMeta("wy"),
+                0.5 * Math.Max(ab.Size.X, ab.Size.Z) * sc, ab.End.Y * sc);
         }
         if (_assets.Count > 0) GD.Print($"monde : {_assets.Count} modèle(s) posé(s)");
     }
@@ -322,8 +375,10 @@ public partial class LandNode : Node3D
                         mi.SetSurfaceOverrideMaterial(i, own);
                     }
 
+            int pi = 0;
             foreach (var p in Scatter.Place(World, sp))
             {
+                int index = pi++;
                 float k = (float)(p.Size / ext);
                 var hold = new Node3D { Name = sp.Name };
                 var copy = (Node3D)root.Duplicate();
@@ -342,6 +397,9 @@ public partial class LandNode : Node3D
                 // enfoncé d'une part de sa demi-hauteur (« enfonce » : 0,4 pour un rocher)
                 hold.SetMeta("wy", World.HeightAt(p.X, p.Z) + bb.Size.Y * k * 0.5 * (1 - sp.Sink));
                 _assets.Add(hold);
+                // le centre de la copie est à wy : son pied, une demi-hauteur plus bas
+                Register(hold, $"semis:{sp.Name}:{index}", sp.Name, p.X, p.Z, p.Yaw, (double)hold.GetMeta("wy"),
+                    p.Size * 0.5, bb.Size.Y * k);
                 total++;
             }
         }

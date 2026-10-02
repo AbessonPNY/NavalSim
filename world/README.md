@@ -281,6 +281,36 @@ tout entier sur l'herbe, sur le plat, loin du ponton, n'est pas bâti. La terre 
 (`StreetGrid`), et le semis des maisons ordinaires laisse le centre libre. Banc :
 `dotnet run --project core/NavalSim.Lab -c Release -- centre port-royal` (la carte des rues).
 
+## Les retouches : le mode création (Godot)
+
+**²** (la touche sous Échap) bascule le mode création : une caméra libre, et tout ce que le monde pose de
+lui-même se prend à la souris — maisons et église des villes, pâtés des centres, modèles posés, rochers et
+arbres des semis. On le déplace (glisser), le tourne (molette, ⇧ par 45°), le grandit (PgUp PgDn), le lève
+(↑ ↓), le retire (Suppr) ou le rend à l'automatique (⌫) ; Ctrl+Z annule, Ctrl+S enregistre, ² ressort et
+enregistre.
+
+Rien n'est écrit dans la fiche : les retouches vont dans `world/retouches/<région>.json` et s'appliquent
+par-dessus le placement automatique, au moment où chaque objet se pose.
+
+```json
+{ "region": "caraibes", "retouches": [
+    { "id": "maison:Port-Royal:37", "x": -347.21, "z": -92.09, "cap": 39.6, "echelle": 1.2, "dy": 0.3 },
+    { "id": "semis:Rochers des plages de Port-Royal:0", "retire": true }
+] }
+```
+
+| champ | rôle |
+|---|---|
+| `id` | l'objet : `maison:<ville>:<rang>`, `pate:<port>:<rang>`, `modele:<rang>:<nom>`, `semis:<nom du semis>:<rang>` |
+| `x` · `z` | sa place, en mètres vrais du monde |
+| `cap` | sa rotation autour de la verticale, en degrés |
+| `echelle` · `dy` | sa taille (1) et ce qu'on l'a levé au-dessus du sol (m) |
+| `retire` | il n'est plus là |
+
+**Le nom est un rang dans un tirage** : changer la graine, le nombre de maisons, un semis ou le relief d'un port
+renumérote ses objets, et une retouche s'appliquerait à un autre. Les retouches sont faites pour un monde dont
+les règles sont arrêtées. Ce qu'on n'a pas touché suit toujours les règles.
+
 ## Les autres régions, et les traversées (Godot)
 
 Chaque fichier `world/*.json` est une **région** : sa carte, son relief, ses

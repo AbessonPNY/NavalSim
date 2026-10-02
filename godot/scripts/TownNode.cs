@@ -41,6 +41,9 @@ public partial class TownNode : Node3D
 
     public TownNode(World world) { _world = world; }
 
+    /// <summary>Le registre de l'éditeur : chaque maison s'y inscrit en se posant.</summary>
+    public EditRegistry? Editor;
+
     public override void _Ready()
     {
         _mat = new StandardMaterial3D
@@ -124,7 +127,7 @@ public partial class TownNode : Node3D
         AddChild(holder);
         if (_modelled)
         {
-            BuildFromModels(holder, houses, cx, cz);
+            BuildFromModels(holder, houses, cx, cz, name);
             _towns.Add((new Vec3d(cx, 0, cz), holder));
             GD.Print($"{name} : {houses.Count} bâtiment(s), une église");
             return;

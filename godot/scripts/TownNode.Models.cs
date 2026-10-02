@@ -28,6 +28,7 @@ public partial class TownNode
     {
         public readonly List<Face> Faces = new();
         public double W, D;                       // emprise, sans les débords de toit
+        public double H;                          // hauteur, cheminées comprises
     }
 
     Model? _church, _houseA, _houseB;
@@ -93,6 +94,7 @@ public partial class TownNode
            d'un bon mètre dans leur parcelle. Neuf dixièmes, mesuré sur les trois. */
         m.W = Math.Max(1, box.Size.X * 0.9);
         m.D = Math.Max(1, box.Size.Z * 0.9);
+        m.H = Math.Max(1, box.End.Y);
         return m;
     }
 
@@ -131,7 +133,7 @@ public partial class TownNode
     /// parcelle près du centre, et des maisons tirées au sort par leur position —
     /// la même ville d'une partie à l'autre.
     /// </summary>
-    void BuildFromModels(Node3D holder, List<House> houses, double cx, double cz)
+    void BuildFromModels(Node3D holder, List<House> houses, double cx, double cz, string name)
     {
         int church = 0;
         double best = -1;
@@ -159,13 +161,16 @@ public partial class TownNode
             groups[r < 0.62 ? 1 : 2].Who.Add(i);
         }
 
-        foreach (var (model, who) in groups) AddGroup(holder, model, houses, who, cx, cz);
+        foreach (var (model, who) in groups)
+            AddGroup(holder, model, houses, who, cx, cz, $"maison:{name}:", ReferenceEquals(model, _church) ? $"l'église de {name}" : $"une maison de {name}");
     }
 
     /// <summary>Les maisons d'un même modèle : un MultiMesh par surface.</summary>
-    void AddGroup(Node3D holder, Model model, List<House> houses, List<int> who, double cx, double cz)
+    void AddGroup(Node3D holder, Model model, List<House> houses, List<int> who, double cx, double cz,
+                  string idPrefix, string label)
     {
             if (who.Count == 0) return;
+            var mms = new List<MultiMesh>(model.Faces.Count);
             foreach (var face in model.Faces)
             {
                 var mm = new MultiMesh
@@ -173,17 +178,11 @@ public partial class TownNode
                     TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
                     UseColors = true, Mesh = face.Mesh, InstanceCount = who.Count
                 };
+                mms.Add(mm);
                 for (int k = 0; k < who.Count; k++)
                 {
                     var h = houses[who[k]];
-                    /* À L'ÉCHELLE DE SA PARCELLE, sans la déformer : un bâtiment
-                       étiré en largeur seulement se lit tout de suite comme un
-                       décor. On prend donc le plus petit des deux rapports. */
-                    double k2 = Math.Min(h.W / model.W, h.D / model.D);
-                    var basis = new Basis(Vector3.Up, (float)h.Yaw).Scaled(Vector3.One * (float)k2);
-                    // dix centimètres dans le sol : le relief bouge un peu sous l'emprise
-                    var at = new Vector3((float)(h.X - cx), (float)(h.Y - 0.1), (float)(h.Z - cz));
-                    mm.SetInstanceTransform(k, new Transform3D(basis, at));
+                    // le crépi suit la place AUTOMATIQUE : une maison déplacée garde sa couleur
                     mm.SetInstanceColor(k, Walls[(int)(Frac(Math.Sin(h.X * 3.17 + h.Z * 7.31) * 9187.71) * Walls.Length) % Walls.Length]);
                 }
                 /* LE VERRE NE JETTE PAS D'OMBRE. Il est transparent le jour et ne
@@ -198,6 +197,48 @@ public partial class TownNode
                     ExtraCullMargin = 400
                 });
             }
+
+            /* CHAQUE MAISON EST UN OBJET RETOUCHABLE, posé par la même fonction qu'il
+               ait bougé ou non : l'éditeur ne connaît que son état voulu, et c'est
+               ici qu'on en tire les transformées de toutes ses surfaces. */
+            for (int k = 0; k < who.Count; k++)
+            {
+                var h = houses[who[k]];
+                /* À L'ÉCHELLE DE SA PARCELLE, sans la déformer : un bâtiment
+                   étiré en largeur seulement se lit tout de suite comme un
+                   décor. On prend donc le plus petit des deux rapports. */
+                double k2 = Math.Min(h.W / model.W, h.D / model.D);
+                int idx = k;
+                var e = new Editable
+                {
+                    Id = idPrefix + who[k], Label = label,
+                    BaseX = h.X, BaseZ = h.Z, BaseYaw = h.Yaw, X = h.X, Z = h.Z, Yaw = h.Yaw,
+                    Radius = 0.5 * Math.Sqrt(h.W * h.W + h.D * h.D), Height = model.H * k2
+                };
+                e.Push = ed =>
+                {
+                    // à sa place, le pied que le semis a trouvé ; ailleurs, le point le plus bas sous l'emprise
+                    double y = ed.Moved || Math.Abs(ed.Yaw - ed.BaseYaw) > 1e-4 ? Footing(ed.X, ed.Z, h.W * ed.Scale, h.D * ed.Scale, ed.Yaw) : h.Y;
+                    ed.GroundY = y + ed.Dy;
+                    var basis = new Basis(Vector3.Up, (float)ed.Yaw).Scaled(Vector3.One * (float)(ed.Removed ? 0 : k2 * ed.Scale));
+                    // dix centimètres dans le sol : le relief bouge un peu sous l'emprise
+                    var at = new Vector3((float)(ed.X - cx), (float)(ed.GroundY - 0.1), (float)(ed.Z - cz));
+                    foreach (var mm in mms) mm.SetInstanceTransform(idx, new Transform3D(basis, at));
+                };
+                if (Editor != null) Editor.Add(e); else e.Push(e);
+            }
+    }
+
+    /// <summary>Le point le plus bas sous une emprise : une maison se pose sur lui, jamais en porte-à-faux.</summary>
+    double Footing(double x, double z, double w, double d, double yaw)
+    {
+        double ca = Math.Cos(yaw), sa = Math.Sin(yaw), y = _world.HeightAt(x, z);
+        for (int c = 0; c < 4; c++)
+        {
+            double ox = (c < 2 ? -w : w) * 0.5, oz = (c % 2 == 0 ? -d : d) * 0.5;
+            y = Math.Min(y, _world.HeightAt(x + ox * ca + oz * sa, z - ox * sa + oz * ca));
+        }
+        return y;
     }
 
     /// <summary>
@@ -216,7 +257,7 @@ public partial class TownNode
         AddChild(holder);
         var who = new List<int>(g.Blocks.Count);
         for (int i = 0; i < g.Blocks.Count; i++) who.Add(i);
-        AddGroup(holder, model, g.Blocks, who, g.Cx, g.Cz);
+        AddGroup(holder, model, g.Blocks, who, g.Cx, g.Cz, $"pate:{isl.Key}:", $"un pâté du centre de {isl.Name}");
         _towns.Add((new Vec3d(g.Cx, 0, g.Cz), holder));
         GD.Print($"{isl.Name} : centre-ville, {g.Blocks.Count} pâté(s) en rangées");
     }

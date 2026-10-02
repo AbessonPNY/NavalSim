@@ -217,6 +217,8 @@ public partial class ShipDemo : Node3D
            pixels et le champ de distance qui en sort — et rien après ne change :
            c'est une fonction pure de la position, en mètres VRAIS. */
         _world = WorldLoad.Load(_regionSheet = PickRegion());
+        // les retouches de l'éditeur AVANT que la ville et la terre se bâtissent : elles s'y appliquent en se posant
+        EditSetup();
         /* LE CIMETIÈRE DES GALIONS est un lieu de la Jamaïque, donné en mètres de
            SA carte : ailleurs les mêmes chiffres tomberaient n'importe où. */
         if (_world != null && _world.Region.Key != "caraibes") _ghosts.Rules.Enabled = false;
@@ -226,7 +228,7 @@ public partial class ShipDemo : Node3D
                dessine, abri compris : sans cette ligne, elle roulerait dans un
                bassin que l'œil voit calme. */
             _sea.Core.Shelter = (x, z) => _world.Shelter(x, z);
-            _land = new LandNode(_world) { CausticRules = _causticRules };
+            _land = new LandNode(_world) { CausticRules = _causticRules, Editor = _editReg };
             AddChild(_land);
             CausticDials();
             /* LES MOUETTES, qui disent la terre de plus loin que la terre : leur
@@ -250,7 +252,7 @@ public partial class ShipDemo : Node3D
             AddChild(_fishNode);
             if (!_fishNode.Build(Assets.Path("creatures/fish.glb")))
             { _fishNode.QueueFree(); _fishNode = null; }
-            _town = new TownNode(_world);
+            _town = new TownNode(_world) { Editor = _editReg };
             AddChild(_town);
             _folk = new FolkNode(_world);
             AddChild(_folk);
@@ -1204,7 +1206,8 @@ public partial class ShipDemo : Node3D
         _t += frame;
 
         // au titre, la barre et les voiles ne répondent pas : l'œil fait sa ronde
-        if (_inTitle) TitleTick(frame); else ReadKeys(frame);
+        // en mode création la barre ne répond plus : les touches sont à l'éditeur
+        if (_inTitle) TitleTick(frame); else if (_editing) EditTick(frame); else ReadKeys(frame);
         // le temps AVANT le solveur : la coque et le shader liront la même mer
         WeatherTick(frame, _t - frame);
 
@@ -1318,7 +1321,7 @@ public partial class ShipDemo : Node3D
         {
             var wo = _sea.Core.Origin;
             var here = new Vec3d(wo.X + b.Pos.X, 0, wo.Z + b.Pos.Z);
-            _land.Update(here, new Vec3d(wo.X, 0, wo.Z), _landEager);
+            _land.Update(ViewCentre(here), new Vec3d(wo.X, 0, wo.Z), _landEager);
             _landEager = false;
             // le niveau de la mer sous le navire décide de la hauteur d'eau
             _fishNode?.Update(_world, here, new Vec3d(wo.X, 0, wo.Z), frame,
@@ -1337,7 +1340,7 @@ public partial class ShipDemo : Node3D
             foreach (var m in _land.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
             if (_town != null)
             {
-                _town.Update(here, new Vec3d(wo.X, 0, wo.Z));
+                _town.Update(ViewCentre(here), new Vec3d(wo.X, 0, wo.Z));
                 foreach (var m in _town.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
             }
             if (_folk != null)
@@ -4579,6 +4582,8 @@ public partial class ShipDemo : Node3D
                 case "--ou": _whereTest = args[i + 1] != "0"; _diveTestIn = 1.0; break;
                 // la chaloupe échouée sur la grève la plus proche, nageant ; poussée à l'eau tant de secondes après
                 case "--echouer": _beachTest = args[i + 1].ToFloat(); _diveTestIn = 1.0; break;
+                // le mode création : prendre ce qui est au milieu de l'écran, le pousser de tant de mètres, le tourner, enregistrer
+                case "--creation": _edTest = args[i + 1].ToFloat(); _diveTestIn = 1.0; break;
                 // une épave d'essai, à tant de mètres par le travers : son coffre avec
                 case "--epave": _diveTest.Wreck = args[i + 1].ToFloat(); _diveTestIn = 1.0; break;
                 case "--mi-eau-haut": _splitLift = args[i + 1].ToFloat(); break;

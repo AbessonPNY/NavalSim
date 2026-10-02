@@ -13886,6 +13886,40 @@ maisons ordinaires s'en écarte. Vu : quatre rangées, façades à arcades sur l
 ocre sous le soleil de dix heures — à juger à l'œil (`Cobble`). Le maillage de la terre a 5 m de pas : le
 bord des rues fait des marches.
 
+## Le mode création, étape une : retoucher ce que le monde pose (Godot)
+
+Demandé : « un éditeur de niveau — le placement des maisons, tu le sauvegardes ? Rends-les éditables en mode
+création. » Rien n'était sauvegardé : maisons, pâtés, rochers et cocotiers sont TIRÉS à chaque lancement, sur
+une graine et le relief, ce qui les remet aux mêmes places sans qu'aucune place ne soit écrite.
+
+**Le monde reste procédural, la main passe par-dessus.** Une retouche (`Edits.cs`, noyau) nomme un objet par un
+nom stable — `maison:Port-Royal:37`, `pate:port-royal:13`, `semis:<nom>:<rang>`, `modele:<rang>:<nom>` — et
+dit son état VOULU : place en mètres vrais, cap, échelle, levée, retiré. Elles vont dans
+`world/retouches/<région>.json` (un sous-dossier : `WorldLoad.Regions` lit tous les `*.json` de `world/` comme
+des régions). Ce qu'on n'a pas touché suit toujours les règles ; ⌫ rend un objet à l'automatique et efface sa
+retouche (`Editable.Pristine`).
+
+**Ceux qui bâtissent inscrivent** (`EditRegistry`) : la ville pour chaque maison et chaque pâté
+(`TownNode.AddGroup` — une maison est une instance dans UN MultiMesh PAR SURFACE de son modèle, l'éditable garde
+les siens et pose l'instance dans tous), la terre pour chaque modèle posé et chaque copie d'un semis (`hold`,
+placé d'après ses métas). La retouche enregistrée s'applique à l'inscription : un objet retouché naît à sa place
+voulue. Une seule fonction pose un objet, retouché ou non — à sa place, le pied que le semis lui a trouvé ;
+déplacé, le point le plus bas sous son emprise (`Footing`).
+
+**Le mode** (`ShipDemo.Editor.cs`, touche ² — la touche sous Échap, libre) : caméra libre (ZQSD, A E, clic
+droit), prise à la souris par une sphère par objet coupée par le rayon (le plus proche gagne), glisser sur le sol
+sous la souris (le rayon avancé jusqu'à la terre ou la mer, puis resserré), molette pour tourner, PgUp PgDn,
+↑ ↓, Suppr, ⌫, Ctrl+Z, Ctrl+S ; un anneau orange au sol marque la prise. La mer et le bord continuent ; la terre
+et les villes se chargent autour de l'œil (`ViewCentre`), le reste (carte, quêtes, rencontres) reste au navire —
+sans quoi survoler une île en mode création l'aurait portée sur la carte.
+
+Vérifié (`-- --creation 15` : prendre ce qui est au milieu de l'écran, le pousser de 15 m, le tourner de 30°,
+enregistrer ; `--creation -1` le retire) : un pâté pris, poussé, relu au lancement suivant à sa nouvelle place ;
+un rocher de la grève retiré. Les fichiers d'essai ont été effacés.
+
+Le revers : le nom est un RANG dans un tirage. Changer la graine, le nombre de maisons ou le relief d'un port
+renumérote ses objets. Étape deux : la palette (ajouter un modèle), et l'annulation au-delà de la session.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code
