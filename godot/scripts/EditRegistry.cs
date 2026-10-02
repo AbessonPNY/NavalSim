@@ -42,6 +42,8 @@ public sealed class Editable
     /// échelle est sa FORCE — PgUp la fait fumer davantage.
     /// </summary>
     public bool Smoke;
+    /// <summary>Le tirage de la densité (0..1), fait une fois sur le nom ; négatif tant qu'il n'est pas fait.</summary>
+    public double Roll = -1;
 
     /* UNE CHEMINÉE APPARTIENT À SA MAISON. Tant qu'on ne l'a pas déplacée
        elle-même, elle la SUIT — sa place le long du faîte (HostOx, dans l'axe de

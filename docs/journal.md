@@ -14138,6 +14138,34 @@ des bouffées plus larges (7 à 12 m) ; noir (0,06 à la sortie, 0,16 au bout) ;
 qu'au dernier tiers de la vie, au lieu de décroître dès la naissance. Le bassin passe à 3 072 bouffées : chacune
 vit trois fois plus. Vu après une minute : deux ou trois panaches noirs couchés par le vent au-dessus de la ville.
 
+## Les pontons du joueur, et ce que coûte Port-Royal (Godot)
+
+**Deux tronçons d'une pièce** (`props/ponton.glb`, `props/ponton_large.glb`, générés) : un tablier à planches,
+des poteaux, un garde-corps, des échelles, de courts pieds — sans pièces nommées. `WholeModule` les lit : le
+sens (la plus grande longueur en plan vers le large), le TABLIER (histogramme des faces tournées vers le haut
+pondéré par leur surface : le pic, à 64 % de la hauteur), l'échelle. **Premier essai faux** : calé par le
+haut, c'était le garde-corps qui venait à hauteur de bordage — le tablier au ras de l'eau, enterré côté plage.
+**Second piège** : mis à quatorze mètres de large sans être déformé, le garde-corps faisait près de trois
+mètres. D'où deux échelles : en travers la largeur du ponton, en long et en hauteur celle d'un garde-corps de
+1,10 m (des tronçons de 11,5 m). **Les pieds** (« j'ai oublié d'allonger les pieds ») : sous le tablier, passé
+trente pour cent de leur hauteur (la charpente), tout est étiré jusqu'à −9 m ; le maillage est RECUIT une fois
+— positions, normales, tangentes (la carte de relief du modèle en a besoin).
+
+**Ce que coûte Port-Royal** (demandé). Mesuré sans synchro (`--vsync 0 --frametimes 900`), vue plongeante sur la
+ville : 8,6 ms par image, la carte graphique 7,5 — mais surtout **612 Ko alloués par image**, 34 collectes gen0
+et une gen2, des à-coups à 15 ms au 99e centile et 34 ms au pire. Des sondes provisoires (temps et octets par
+bloc de la boucle, retirées depuis) ont désigné la TERRE : ses 330 rochers, cocotiers et modèles posés
+relisaient leur place dans des métadonnées Godot (`GetMeta`, trois par objet, chacune un nom fabriqué) ET
+étaient replacés à chaque image — alors qu'ils ne bougent que quand l'origine glisse ou que l'éditeur les
+déplace. Même défaut pour les ajouts de l'éditeur, et le tirage de densité des fumées refait à chaque image
+(un énumérateur par nom). Corrigé (`Placed`, `PlacedSet` : la place en C#, replacée seulement quand l'origine
+change ; `Editable.Roll` gardé) : p99 8,3 ms et max 8,3 (plus d'à-coup), pauses du ramasse-miettes 39 ms au
+lieu de 285, plus de gen2, notre _Process de 6,0 à 4,3 ms. Les « pontons » des sondes (282 Ko) sont le
+premier assemblage d'un quai à portée — un coût de chargement, la boucle des pontons elle-même n'alloue rien.
+
+**La carte graphique, en A/B** : sans les fumées 7,34 ms au lieu de 7,36 (rien) ; sans le sol peint 7,22 (0,14 ms).
+Le gros de ses 7,3 ms n'est pas dans les ajouts de Port-Royal : la vue de départ, en mer, en prend déjà 6,8.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

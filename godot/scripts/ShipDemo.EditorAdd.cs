@@ -25,7 +25,7 @@ namespace NavalSim;
 public partial class ShipDemo
 {
     Node3D? _addedRoot;
-    readonly List<Node3D> _addedHolds = new();
+    readonly PlacedSet _addedHolds = new();
     readonly List<ShaderMaterial> _editHazed = new();
     List<Edit>? _pendingAdds;
     (Editable? Src, string Glb, string Label, double Yaw, double Scale, double Dy)? _clip;
@@ -39,9 +39,7 @@ public partial class ShipDemo
         if (_editReg == null) return;
         SpawnPending();
         Chimneys(origin, dt);
-        foreach (var h in _addedHolds)
-            h.Position = new Vector3((float)((double)h.GetMeta("wx") - origin.X), (float)(double)h.GetMeta("wy"),
-                                     (float)((double)h.GetMeta("wz") - origin.Z));
+        _addedHolds.Update(origin);
         foreach (var m in _editHazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
     }
 
@@ -87,7 +85,7 @@ public partial class ShipDemo
         var hold = new Node3D { Name = id };
         hold.AddChild(make());
         _addedRoot.AddChild(hold);
-        _addedHolds.Add(hold);
+        var pl = _addedHolds.Add(hold, x, 0, z);
         var e = new Editable
         {
             Id = id, From = from, Glb = glb, Label = "ajout : " + flabel,
@@ -103,10 +101,10 @@ public partial class ShipDemo
             if (r > 3)
                 for (int c = 0; c < 4; c++)
                     g = Math.Min(g, _world.HeightAt(ed.X + (c < 2 ? -r : r), ed.Z + (c % 2 == 0 ? -r : r)));
-            hold.SetMeta("wx", ed.X);
-            hold.SetMeta("wz", ed.Z);
+            pl.X = ed.X; pl.Z = ed.Z;
             // un émetteur n'a pas de corps : son échelle est sa force, pas sa taille
-            hold.SetMeta("wy", g + ed.Lift * (ed.Smoke ? 1 : ed.Scale) + ed.Dy);
+            pl.Y = g + ed.Lift * (ed.Smoke ? 1 : ed.Scale) + ed.Dy;
+            _addedHolds.Moved(pl);
             hold.Rotation = new Vector3(0, (float)(ed.Yaw - ed.VisualYaw), 0);
             hold.Scale = Vector3.One * (float)ed.Scale;
             hold.Visible = !ed.Removed;
@@ -141,9 +139,14 @@ public partial class ShipDemo
     bool Smokes(Editable e)
     {
         if (!e.Pristine || _chimneyDensity >= 1) return true;
-        uint h = 2166136261;
-        foreach (char c in e.Id) h = (h ^ c) * 16777619;
-        return (h % 10000) / 10000.0 < _chimneyDensity;
+        // le tirage, une fois par cheminée : refait à chaque image, il allouait un énumérateur par nom
+        if (e.Roll < 0)
+        {
+            uint h = 2166136261;
+            for (int i = 0; i < e.Id.Length; i++) h = (h ^ e.Id[i]) * 16777619;
+            e.Roll = (h % 10000) / 10000.0;
+        }
+        return e.Roll < _chimneyDensity;
     }
 
     /// <summary>Les distances : on ne fait fumer que ce qu'on peut voir fumer, et la ville au loin se tait.</summary>
@@ -203,6 +206,20 @@ public partial class ShipDemo
         };
         AddChild(n);
         return n;
+    }
+
+    // --- l'essai : --voir a.glb,b.glb — posés en ligne sous le milieu de l'écran, rien d'enregistré ---
+    string _seeModels = "";
+
+    void SeeModels()
+    {
+        var list = _seeModels.Split(','); _seeModels = "";
+        if (GroundUnder(GetViewport().GetVisibleRect().Size * 0.5f) is not { } g) { GD.Print("[voir] pas de sol au milieu de l'écran"); return; }
+        for (int i = 0; i < list.Length; i++)
+        {
+            var e = SpawnAdded("essai:" + i, "", list[i], g.X + i * 12, g.Z, 0, 1, 0);
+            GD.Print(FormattableString.Invariant($"[voir] {list[i]} : {(e == null ? "illisible" : $"{e.Radius * 2:F2} m de large, {e.Height:F2} m de haut")}"));
+        }
     }
 
     Node3D AddRoot()

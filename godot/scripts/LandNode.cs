@@ -244,7 +244,8 @@ public partial class LandNode : Node3D
     /// de Rebase. Leur hauteur est celle du relief sous eux, sauf si la fiche la
     /// donne — un fort se pose sur sa colline, un feu sur son rocher.
     /// </summary>
-    readonly List<Node3D> _assets = new();
+    readonly PlacedSet _assets = new();
+    static readonly StringName PaintRect = "u_paint_rect";
 
     /// <summary>Le registre de l'éditeur : chaque modèle posé et chaque copie d'un semis s'y inscrit.</summary>
     public EditRegistry? Editor;
@@ -268,12 +269,13 @@ public partial class LandNode : Node3D
 
     /// <summary>
     /// INSCRIRE UN OBJET DE LA TERRE à l'éditeur. Il vit sur son nœud <c>hold</c>,
-    /// placé à chaque image d'après ses métas : on change les métas, le cap (par
-    /// rapport à celui de sa pose) et l'échelle. Sa hauteur suit le sol à sa
-    /// nouvelle place, à ce qu'il était levé ou enfoncé près.
+    /// posé d'après sa place vraie (<see cref="Placed"/>) : on change la place, le
+    /// cap (par rapport à celui de sa pose) et l'échelle. Sa hauteur suit le sol à
+    /// sa nouvelle place, à ce qu'il était levé ou enfoncé près.
     /// </summary>
-    void Register(Node3D hold, string id, string label, string family, double x, double z, double yaw, double wy, double radius, double height)
+    void Register(Placed pl, string id, string label, string family, double x, double z, double yaw, double wy, double radius, double height)
     {
+        var hold = pl.Node;
         double lift = wy - World.HeightAt(x, z);
         var e = new Editable
         {
@@ -286,9 +288,9 @@ public partial class LandNode : Node3D
         e.Push = ed =>
         {
             double ground = World.HeightAt(ed.X, ed.Z);
-            hold.SetMeta("wx", ed.X);
-            hold.SetMeta("wz", ed.Z);
-            hold.SetMeta("wy", (ed.Moved ? ground + lift : wy) + ed.Dy);
+            pl.X = ed.X; pl.Z = ed.Z;
+            pl.Y = (ed.Moved ? ground + lift : wy) + ed.Dy;
+            _assets.Moved(pl);
             hold.Rotation = new Vector3(0, (float)(ed.Yaw - ed.BaseYaw), 0);
             hold.Scale = Vector3.One * (float)ed.Scale;
             hold.Visible = !ed.Removed;
@@ -331,11 +333,9 @@ public partial class LandNode : Node3D
             root.Scale = Vector3.One * (float)a.Scale;
             root.Rotation = new Vector3(0, (float)(-a.Yaw * Math.PI / 180), 0);
             AddChild(hold);
-            /* SA PLACE VRAIE est gardée sur le nœud lui-même : on ne peut pas la
-               relire du monde à chaque image sans repayer la lecture du relief. */
-            hold.SetMeta("wx", g.X);
-            hold.SetMeta("wz", g.Z);
-            hold.SetMeta("wy", a.Y ?? World.HeightAt(g.X, g.Z));
+            /* SA PLACE VRAIE est gardée à côté du nœud : on ne peut pas la relire du
+               monde à chaque image sans repayer la lecture du relief. */
+            var pl = _assets.Add(hold, g.X, a.Y ?? World.HeightAt(g.X, g.Z), g.Z);
             // l'air devant tout le reste, la MÊME passe que la coque porte
             var haze = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
             Hazed.Add(haze);
@@ -348,11 +348,10 @@ public partial class LandNode : Node3D
                         own.VertexColorUseAsAlbedo = true;
                         mi.SetSurfaceOverrideMaterial(i, own);
                     }
-            _assets.Add(hold);
             var ab = BoxOf(root) ?? new Aabb();
             double sc = a.Scale;
-            Register(hold, $"modele:{index}:{a.Name}", a.Name.Length > 0 ? a.Name : "un modèle posé", "modele:" + a.Glb,
-                g.X, g.Z, -a.Yaw * Math.PI / 180, (double)hold.GetMeta("wy"),
+            Register(pl, $"modele:{index}:{a.Name}", a.Name.Length > 0 ? a.Name : "un modèle posé", "modele:" + a.Glb,
+                g.X, g.Z, -a.Yaw * Math.PI / 180, pl.Y,
                 0.5 * Math.Max(ab.Size.X, ab.Size.Z) * sc, ab.End.Y * sc);
         }
         if (_assets.Count > 0) GD.Print($"monde : {_assets.Count} modèle(s) posé(s)");
@@ -425,13 +424,10 @@ public partial class LandNode : Node3D
                 hold.AddChild(tilt);
                 foreach (var mi in AllMeshes(copy)) { mi.VisibilityRangeEnd = (float)sp.Visible; mi.VisibilityRangeEndMargin = (float)(sp.Visible * 0.07); }
                 AddChild(hold);
-                hold.SetMeta("wx", p.X);
-                hold.SetMeta("wz", p.Z);
                 // enfoncé d'une part de sa demi-hauteur (« enfonce » : 0,4 pour un rocher)
-                hold.SetMeta("wy", World.HeightAt(p.X, p.Z) + bb.Size.Y * k * 0.5 * (1 - sp.Sink));
-                _assets.Add(hold);
-                // le centre de la copie est à wy : son pied, une demi-hauteur plus bas
-                Register(hold, $"semis:{sp.Name}:{index}", sp.Name, "semis:" + sp.Name, p.X, p.Z, p.Yaw, (double)hold.GetMeta("wy"),
+                var pl = _assets.Add(hold, p.X, World.HeightAt(p.X, p.Z) + bb.Size.Y * k * 0.5 * (1 - sp.Sink), p.Z);
+                // le centre de la copie est à pl.Y : son pied, une demi-hauteur plus bas
+                Register(pl, $"semis:{sp.Name}:{index}", sp.Name, "semis:" + sp.Name, p.X, p.Z, p.Yaw, pl.Y,
                     p.Size * 0.5, bb.Size.Y * k);
                 total++;
             }
@@ -451,13 +447,10 @@ public partial class LandNode : Node3D
         if (!_assetsBuilt) { _assetsBuilt = true; BuildAssets(); BuildScatter(); }
         // le carré peint, contre l'origine du moment : son coin est en mètres vrais
         if (_paint != null)
-            _mat.SetShaderParameter("u_paint_rect", new Vector4((float)(_paint.X0 - origin.X), (float)(_paint.Z0 - origin.Z),
+            _mat.SetShaderParameter(PaintRect, new Vector4((float)(_paint.X0 - origin.X), (float)(_paint.Z0 - origin.Z),
                                                                 (float)(1 / _paint.Side), (float)(1 / _paint.Side)));
-        foreach (var a in _assets)
-            a.Position = new Vector3(
-                (float)((double)a.GetMeta("wx") - origin.X),
-                (float)(double)a.GetMeta("wy"),
-                (float)((double)a.GetMeta("wz") - origin.Z));
+        // replacés seulement quand l'origine a glissé : ils ne bougent pas d'eux-mêmes
+        _assets.Update(origin);
 
         int i0 = (int)Math.Floor((centre.X - Range) / Tile), i1 = (int)Math.Floor((centre.X + Range) / Tile);
         int j0 = (int)Math.Floor((centre.Z - Range) / Tile), j1 = (int)Math.Floor((centre.Z + Range) / Tile);

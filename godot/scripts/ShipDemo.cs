@@ -4677,6 +4677,8 @@ public partial class ShipDemo : Node3D
                 // le mode création : prendre ce qui est au milieu de l'écran, le pousser de tant de mètres, le tourner, enregistrer
                 case "--creation": _edTest = args[i + 1].ToFloat(); _diveTestIn = 1.0; break;
                 case "--sifflet": _whistleTest = args[i + 1].ToInt(); _diveTestIn = 1.0; break;
+                // poser des modèles bruts (séparés par des virgules) près de l'œil, SANS les enregistrer : pour les regarder
+                case "--voir": _seeModels = args[i + 1]; _diveTestIn = 1.0; break;
                 case "--coller": _edPasteTest = args[i + 1].ToInt(); _edTest = 1; _diveTestIn = 1.0; break;
                 // le pinceau, sans rien enregistrer : trois disques et une rue autour de (x, z) vrais
                 case "--peindre": _paintTest = ParseVec(args[i + 1]); _diveTestIn = 1.0; break;

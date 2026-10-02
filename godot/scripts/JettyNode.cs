@@ -379,7 +379,12 @@ public partial class JettyNode : Node3D
     Parts? PartsFor(double W)
     {
         bool small = W <= 10;
-        string rel = small ? "world/models/ponton-petit.glb" : "world/models/ponton-grand.glb";
+        /* LE MODÈLE DU JOUEUR D'ABORD (props/ponton.glb, props/ponton_large.glb), puis
+           les pièces écrites par tools/jetty-glb.js. Le premier qui existe l'emporte. */
+        string[] tries = small ? new[] { "props/ponton.glb", "world/models/ponton-petit.glb" }
+                               : new[] { "props/ponton_large.glb", "world/models/ponton-grand.glb" };
+        string rel = tries[^1];
+        foreach (var t in tries) if (System.IO.File.Exists(Assets.Path(t))) { rel = t; break; }
         if (_parts.TryGetValue(rel, out var have)) return have;
         Parts? outp = null;
         string path = Assets.Path(rel);
@@ -421,12 +426,152 @@ public partial class JettyNode : Node3D
                 }
                 // la longueur d'une travée se lit sur elle, le chapeau qui déborde à l'origine compris
                 if (bay is Aabb ba) p.BayL = Math.Max(0.5, ba.End.X);
+                /* UN TRONÇON D'UNE PIÈCE, sans noms : tout le modèle est la travée, jambes
+                   comprises. On ne sait ni son échelle ni son sens : il est couché dans
+                   l'axe du ponton (sa plus grande longueur en plan va vers le large), mis
+                   à la largeur nominale sans être déformé, posé le dessus du tablier à
+                   hauteur de bordage. Ses jambes sont les siennes : elles ne se
+                   recoupent pas au fond — elles s'y enfoncent ou s'arrêtent dans l'eau. */
+                if (p.Bay.Count == 0) WholeModule(root, p, rel);
                 if (p.Bay.Count > 0) outp = p;
-                else GD.PushWarning($"[ponton] {rel} : pas de pièce « travee » — dessiné par le code.");
+                else GD.PushWarning($"[ponton] {rel} : ni pièce « travee », ni maillage — dessiné par le code.");
             }
             else GD.PushWarning($"[ponton] {rel} illisible — dessiné par le code.");
         }
         return _parts[rel] = outp;
+    }
+
+    /// <summary>
+    /// TOUT LE MODÈLE COMME UNE TRAVÉE — un tronçon d'une pièce (props/ponton.glb).
+    /// On ne sait ni son échelle ni son sens, alors on les LIT sur lui :
+    ///
+    ///   · le sens : sa plus grande longueur en plan va vers le large ;
+    ///   · le TABLIER : la surface tournée vers le haut la plus étendue (les
+    ///     planches), à la hauteur du bordage du code ;
+    ///   · l'échelle : en TRAVERS, la largeur du ponton ; en long et en hauteur,
+    ///     celle où ce qui dépasse du tablier (le garde-corps) fait 1,10 m — mis à
+    ///     quatorze mètres de large sans être déformé, il faisait des garde-corps de
+    ///     près de trois mètres ;
+    ///   · les PIEDS (demandé : « j'ai oublié d'allonger les pieds ») : tout ce qui
+    ///     est sous le tablier, passé une épaisseur de charpente, est étiré vers le
+    ///     bas jusqu'à neuf mètres sous l'eau. Le fond les cache là où il est plus
+    ///     haut ; un ponton de la fiche s'arrête par quatre mètres d'eau.
+    ///
+    /// Le maillage est RECUIT une fois, dans le repère du ponton : positions,
+    /// normales et tangentes (sa carte de relief en a besoin) — la travée se pose
+    /// ensuite comme une pièce nommée.
+    /// </summary>
+    void WholeModule(Node3D root, Parts p, string rel)
+    {
+        var meshes = new List<(Mesh Mesh, Transform3D Xf)>();
+        Aabb? box = null;
+        var stack = new Stack<(Node N, Transform3D Xf)>();
+        stack.Push((root, Transform3D.Identity));
+        while (stack.Count > 0)
+        {
+            var (n, xf) = stack.Pop();
+            if (n is MeshInstance3D mi && mi.Mesh != null)
+            {
+                meshes.Add((mi.Mesh, xf));
+                var bx = xf * mi.Mesh.GetAabb();
+                box = box is Aabb a0 ? a0.Merge(bx) : bx;
+            }
+            foreach (var c in n.GetChildren()) stack.Push((c, c is Node3D c3 ? xf * c3.Transform : xf));
+        }
+        if (box is not Aabb bb || meshes.Count == 0) return;
+
+        // le tablier : la cote où les faces tournées vers le haut ont le plus de surface
+        const int Bins = 40;
+        var hist = new double[Bins];
+        foreach (var (mesh, xf) in meshes)
+            for (int s = 0; s < mesh.GetSurfaceCount(); s++)
+            {
+                var arr = mesh.SurfaceGetArrays(s);
+                var v = arr[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                var idx = arr[(int)Mesh.ArrayType.Index].VariantType == Variant.Type.Nil ? null : arr[(int)Mesh.ArrayType.Index].AsInt32Array();
+                int nt = idx != null ? idx.Length / 3 : v.Length / 3;
+                for (int t = 0; t < nt; t++)
+                {
+                    Vector3 A = xf * v[idx != null ? idx[t * 3] : t * 3], B = xf * v[idx != null ? idx[t * 3 + 1] : t * 3 + 1],
+                            C = xf * v[idx != null ? idx[t * 3 + 2] : t * 3 + 2];
+                    var nrm = (B - A).Cross(C - A);
+                    float area = nrm.Length() * 0.5f;
+                    if (area <= 0 || Math.Abs(nrm.Y) / (2 * area) < 0.9f) continue;
+                    int k = Math.Clamp((int)(((A.Y + B.Y + C.Y) / 3 - bb.Position.Y) / bb.Size.Y * Bins), 0, Bins - 1);
+                    hist[k] += area;
+                }
+            }
+        int best = 0;
+        for (int k = 1; k < Bins; k++) if (hist[k] > hist[best]) best = k;
+        double deckU = bb.Position.Y + (best + 0.5) / Bins * bb.Size.Y;      // dans les unités du fichier
+        double railU = bb.End.Y - deckU, legU = deckU - bb.Position.Y;
+
+        bool turn = bb.Size.Z > bb.Size.X;
+        double acrossU = turn ? bb.Size.X : bb.Size.Z;
+        double sAcross = p.NominalW / Math.Max(1e-4, acrossU);
+        double sReal = railU > 0.02 * bb.Size.Y ? 1.10 / railU : sAcross;
+        sReal = Math.Clamp(sReal, 0.25 * sAcross, sAcross);
+
+        // le repère : couché (z du fichier vers +x), mis à l'échelle, le tablier à hauteur de bordage
+        var rot = turn ? new Basis(Vector3.Up, Mathf.Pi / 2) : Basis.Identity;
+        var scale = Basis.FromScale(new Vector3((float)sReal, (float)sReal, (float)sAcross));
+        var m = new Transform3D(scale * rot, Vector3.Zero);
+        var tb = m * bb;
+        double deckTop = Berth.DeckY + 0.20;
+        var shift = new Vector3(-tb.Position.X, (float)(deckTop - deckU * sReal), -(tb.Position.Z + tb.Size.Z * 0.5f));
+        var place = new Transform3D(Basis.Identity, shift) * m;
+
+        // les pieds : sous le tablier, passé trente pour cent de leur hauteur (la charpente), étirés jusqu'à −9 m
+        double bottom = deckTop - legU * sReal, cut = deckTop - 0.3 * (deckTop - bottom);
+        const double Floor = -9.0;
+        double f = bottom < cut ? (cut - Floor) / (cut - bottom) : 1;
+        Vector3 Warp(Vector3 q) => q.Y < cut ? new Vector3(q.X, (float)(cut - (cut - q.Y) * f), q.Z) : q;
+
+        var haze = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+        Hazed.Add(haze);
+        foreach (var (mesh, xf) in meshes) p.Bay.Add((Bake(mesh, place * xf, Warp, haze), Transform3D.Identity));
+        p.BayL = tb.Size.X;
+        GD.Print(FormattableString.Invariant(
+            $"[ponton] {rel} : un tronçon d'une pièce, {tb.Size.X:F1} m de long sur {p.NominalW:F0} m, garde-corps {railU * sReal:F2} m, pieds jusqu'à {Floor:F0} m"));
+    }
+
+    /// <summary>Recuire un maillage dans un autre repère, déformé : positions, normales, tangentes ; ses matières, la brume par-dessus.</summary>
+    static ArrayMesh Bake(Mesh src, Transform3D t, Func<Vector3, Vector3> warp, ShaderMaterial haze)
+    {
+        var outMesh = new ArrayMesh();
+        var nb = t.Basis.Inverse().Transposed();
+        for (int s = 0; s < src.GetSurfaceCount(); s++)
+        {
+            var a = src.SurfaceGetArrays(s);
+            var v = a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            for (int i = 0; i < v.Length; i++) v[i] = warp(t * v[i]);
+            a[(int)Mesh.ArrayType.Vertex] = v;
+            if (a[(int)Mesh.ArrayType.Normal].VariantType != Variant.Type.Nil)
+            {
+                var n = a[(int)Mesh.ArrayType.Normal].AsVector3Array();
+                for (int i = 0; i < n.Length; i++) n[i] = (nb * n[i]).Normalized();
+                a[(int)Mesh.ArrayType.Normal] = n;
+            }
+            if (a[(int)Mesh.ArrayType.Tangent].VariantType != Variant.Type.Nil)
+            {
+                var tg = a[(int)Mesh.ArrayType.Tangent].AsFloat32Array();
+                for (int i = 0; i + 3 < tg.Length; i += 4)
+                {
+                    var d = (t.Basis * new Vector3(tg[i], tg[i + 1], tg[i + 2])).Normalized();
+                    tg[i] = d.X; tg[i + 1] = d.Y; tg[i + 2] = d.Z;
+                }
+                a[(int)Mesh.ArrayType.Tangent] = tg;
+            }
+            outMesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, a);
+            if (src.SurfaceGetMaterial(s) is BaseMaterial3D bm)
+            {
+                var own = (BaseMaterial3D)bm.Duplicate();
+                own.NextPass = haze;               // l'air devant, comme tout ce qui est à terre
+                outMesh.SurfaceSetMaterial(s, own);
+            }
+            else if (src.SurfaceGetMaterial(s) is Material other) outMesh.SurfaceSetMaterial(s, other);
+        }
+        return outMesh;
     }
 
     /// <summary>

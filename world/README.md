@@ -361,6 +361,13 @@ de +x, de x = 0 à 4, centrée en travers, l'origine au niveau de la mer), `pieu
 à la largeur de chaque ponton ; les matières sont libres. Écrits par `node tools/jetty-glb.js` (ne le relancez
 pas sur des fichiers retouchés : il les écrase). Absent : le ponton est dessiné par le code.
 
+**Un tronçon d'une pièce** (`props/ponton.glb`, `props/ponton_large.glb`, prioritaires sur les précédents) : sans
+pièces nommées, tout le modèle est la travée. Le jeu lit sur lui son sens (sa plus grande longueur en plan va
+vers le large), son TABLIER (la surface tournée vers le haut la plus étendue, posée à hauteur de bordage) et
+son échelle — en travers la largeur du ponton, en long et en hauteur celle où le garde-corps fait 1,10 m. Ses
+PIEDS sont allongés par le code : tout ce qui est sous le tablier, passé la charpente, est étiré jusqu'à neuf
+mètres sous l'eau (le fond les cache là où il est plus haut).
+
 **L'abri du rivage** — dans l'entrée d'un port : `"abri": { "rayon": 1100 }`. Autour du port, sur ce rayon, la
 houle est retenue par la FORME de la côte, comme derrière un môle : pour chaque point d'eau, la part des
 directions qui atteignent le large (800 m sans terre) ; une rive droite reste battue, le fond d'un bassin ne

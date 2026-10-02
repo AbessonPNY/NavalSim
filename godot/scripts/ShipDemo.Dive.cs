@@ -394,6 +394,7 @@ public partial class ShipDemo
         if (_beachTest > 0) BeachTest();
         if (_edTest != 0) EditTest();
         if (_whistleTest > 0) WhistleTest();
+        if (_seeModels.Length > 0) SeeModels();
         if (_paintTest is Vector3 pt) { _paintTest = null; PaintTest(pt.X, pt.Z, pt.Y > 0.5); }
         if (_diveTest.Wreck is double d) TestWreck(d);
         if (_diveTest.Bell && !_bellOut) ToggleBell();
