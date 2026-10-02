@@ -410,6 +410,14 @@ public partial class SoundNode : Node3D
     /// synthèse ne ressemble pas à une explosion — mieux vaut le manque que le
     /// faux.
     /// </summary>
+    /// <summary>
+    /// UN BOULET QUI PASSE EN SIFFLANT, tout près : rien à parcourir — il est là —,
+    /// d'où le retard de bord. Chaque sifflement un peu plus haut ou plus bas :
+    /// deux boulets ne tournent jamais pareil.
+    /// </summary>
+    public void Whistle(Vec3d at) =>
+        Play("siffle", at, 1 + (_rng.Randf() - 0.5) * 0.18, 1, aboard: true);
+
     public void Blast(Vec3d at, double k = 1, double after = 0)
     {
         Play("explosion", at, (1.10 - 0.28 * Math.Clamp(k, 0, 1.6)) * (1 + (_rng.Randf() - 0.5) * 0.08), 1,

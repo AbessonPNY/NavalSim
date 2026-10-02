@@ -1408,6 +1408,7 @@ public partial class ShipDemo : Node3D
         UpdateCamera(frame);
         AimSpyglass(frame);                     // après la vue : sa position, la visée de la lunette
         ShakeCamera(frame);                     // et la secousse par-dessus, une fois l'œil posé
+        WhistleTick();                          // l'oreille est posée : les boulets qui passent près d'elle
         CineFocus();                            // la mise au point du cinéma, sur l'œil posé
         // les navires et la caméra de la MÊME image : le flou compare les deux
         _motionBlur.BeginShips();
@@ -2657,6 +2658,14 @@ public partial class ShipDemo : Node3D
                 _chimneyRules = che.ValueKind != System.Text.Json.JsonValueKind.False;
             if (root.TryGetProperty("chimneys", out var chd) && chd.TryGetProperty("density", out var cdn) && cdn.ValueKind == System.Text.Json.JsonValueKind.Number)
                 _chimneyDensity = Math.Clamp(cdn.GetDouble(), 0, 1);
+            if (root.TryGetProperty("whistle", out var whs))
+            {
+                if (whs.TryGetProperty("oneIn", out var w1) && w1.ValueKind == System.Text.Json.JsonValueKind.Number) _whistleOneIn = Math.Max(1, w1.GetInt32());
+                if (whs.TryGetProperty("range", out var w2) && w2.ValueKind == System.Text.Json.JsonValueKind.Number) _whistleRange = Math.Max(1, w2.GetDouble());
+                if (whs.TryGetProperty("minFlight", out var w3) && w3.ValueKind == System.Text.Json.JsonValueKind.Number) _whistleMinFlight = Math.Max(0, w3.GetDouble());
+            }
+            if (root.TryGetProperty("camera", out var cmr) && cmr.TryGetProperty("handheld", out var hhd) && hhd.ValueKind == System.Text.Json.JsonValueKind.Number)
+                _handheld = Math.Clamp(hhd.GetDouble(), 0, 4);
             if (root.TryGetProperty("dolphins", out var da)) _dolphinRules = DolphinRules.FromJson(da);
             if (root.TryGetProperty("storm", out var st))
             {
@@ -4591,6 +4600,7 @@ public partial class ShipDemo : Node3D
                 case "--echouer": _beachTest = args[i + 1].ToFloat(); _diveTestIn = 1.0; break;
                 // le mode création : prendre ce qui est au milieu de l'écran, le pousser de tant de mètres, le tourner, enregistrer
                 case "--creation": _edTest = args[i + 1].ToFloat(); _diveTestIn = 1.0; break;
+                case "--sifflet": _whistleTest = args[i + 1].ToInt(); _diveTestIn = 1.0; break;
                 case "--coller": _edPasteTest = args[i + 1].ToInt(); _edTest = 1; _diveTestIn = 1.0; break;
                 // le pinceau, sans rien enregistrer : trois disques et une rue autour de (x, z) vrais
                 case "--peindre": _paintTest = ParseVec(args[i + 1]); _diveTestIn = 1.0; break;

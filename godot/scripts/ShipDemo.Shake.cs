@@ -36,6 +36,21 @@ public partial class ShipDemo
     const double ShockNear = 80;
 
     double _trauma;
+    /// <summary>settings.json → camera.handheld, et ce qu'il en passe à cet instant (le fondu).</summary>
+    double _handheld = 1, _handNow;
+
+    /// <summary>
+    /// QUELLES VUES SONT TENUES À LA MAIN : celles où quelqu'un se tient — sur le
+    /// pont, au ponton, à une pièce, dans la cloche, à la vue fixe ou mi-eau qu'on
+    /// a plantée. Pas l'orbite (elle n'est l'œil de personne), pas le drone (il est
+    /// stabilisé), pas le mode création (on y pose des choses au centimètre).
+    /// </summary>
+    double HandheldTarget()
+    {
+        if (_editing || _inTitle) return 0;
+        bool held = _gunPost != null || _camMode is 1 or 2 or 3 or 4 || _camMode == CamBell;
+        return held ? _handheld : 0;
+    }
     readonly List<(double At, double Amp)> _shocks = new();
     Transform3D _shakeBase, _shakeLeft;
     bool _shaken;
@@ -70,13 +85,28 @@ public partial class ShipDemo
            dérive au premier écran qui ne le ferait pas. */
         if (_shaken && _cam.Transform.IsEqualApprox(_shakeLeft)) _cam.Transform = _shakeBase;
         _shaken = false;
-        if (_trauma <= 0) return;
+        // la main, qui va et vient en fondu quand on change de vue
+        double hand = HandheldTarget();
+        _handNow += (hand - _handNow) * Math.Min(1, dt * 1.5);
+        if (_trauma <= 0 && _handNow < 1e-3) return;
 
         _trauma = Math.Max(0, _trauma - ShakeDecay * dt);
         double s = _trauma * _trauma;
         double t = _t;
         static double N(double t, double a, double b, double c) =>
             (Math.Sin(t * a) + 0.6 * Math.Sin(t * b + 1.3) + 0.35 * Math.Sin(t * c + 2.1)) / 1.95;
+
+        /* LA CAMÉRA TENUE À LA MAIN : ce qu'aucun trépied ne fait. La respiration
+           d'abord — un quart de hertz, qui lève et baisse le regard —, puis des
+           dérives lentes et inégales du poignet (des sinus de fréquences sans
+           commune mesure : rien ne se répète), et un tremblé fin par-dessus. Des
+           fractions de degré : on doit le sentir sans le voir. À la lunette,
+           divisé par le grossissement comme la secousse. */
+        double hk = _handNow * (_glassUp ? 3.0 / _glassPower : 1.0);
+        var handRot = new Basis(Vector3.Up, (float)(hk * (0.0042 * N(t, 0.53, 0.91, 1.37) + 0.0007 * N(t, 7.1, 9.3, 11.7))))
+                    * new Basis(Vector3.Right, (float)(hk * (0.0030 * Math.Sin(t * 1.55) + 0.0028 * N(t, 0.67, 1.13, 1.71) + 0.0006 * N(t, 8.3, 10.1, 13.9))))
+                    * new Basis(Vector3.Back, (float)(hk * 0.0030 * N(t, 0.41, 0.77, 1.29)));
+        var handShift = new Vector3((float)N(t, 0.37, 0.83, 1.19), (float)(0.6 * Math.Sin(t * 1.55 + 0.4)), 0) * (float)(0.012 * _handNow);
 
         /* À LA LUNETTE, l'angle se divise par le grossissement : trois degrés à
            cent fois, c'est cinq champs entiers, et l'on ne verrait plus rien que
@@ -88,7 +118,7 @@ public partial class ShipDemo
         var shift = new Vector3((float)N(t, 29, 47, 61), (float)N(t, 41, 63, 89), 0) * (float)(ShakeShift * s);
 
         _shakeBase = _cam.Transform;
-        _cam.Transform = _shakeBase * new Transform3D(rot, shift);
+        _cam.Transform = _shakeBase * new Transform3D(rot * handRot, shift + handShift);
         _shakeLeft = _cam.Transform;
         _shaken = true;
     }

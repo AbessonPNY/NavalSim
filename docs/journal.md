@@ -14049,6 +14049,27 @@ cheminées AUTOMATIQUES qui fument, tirée sur leur nom (FNV) — stable d'une p
 la caméra. Une cheminée que la main a posée ou retouchée (`!Pristine`) fume toujours : on l'a mise là pour
 la voir. Les muettes restent montrées en mode création, pour qu'on puisse les prendre.
 
+## Le boulet qui siffle, et la caméra tenue à la main (Godot)
+
+**Le sifflement** (demandé : « un tir sur vingt, quand un boulet arrive de plus de cinq mètres tiré d'un autre
+bateau, comme les balles qui sifflent »). Lu ainsi : un boulet tiré par un AUTRE navire, qui a déjà volé cinq
+mètres (sinon c'est le départ du coup qu'on entend), et qui passe à portée d'oreille de la caméra — l'oreille
+de tous les sons du jeu. Chaque boulet est jugé UNE FOIS, à son entrée dans la portée : un sur vingt siffle, et
+l'on n'y revient pas (`ShipDemo.Whistle.cs`). Joué à la place du boulet avec le retard de bord (il est là, rien
+à parcourir), un peu plus haut ou plus bas à chaque fois. `settings.json` → `whistle` (`oneIn` 20, `range`
+40 m, `minFlight` 5 m) ; le son : `sons.json` → `boulet.siffle`, vide en attendant l'ogg — le boulet se tait.
+Vérifié (`-- --sifflet 60` : soixante boulets d'un autre navire lancés vers l'œil) : soixante jugés, chacun
+une fois, à quarante mètres ; cinq sifflent (trois attendus, l'écart est dans le hasard).
+
+**La caméra tenue à la main** : les vues où quelqu'un se tient — le pont, la vue Fixe, mi-eau, le ponton, une
+pièce, la cloche — bougent comme une caméra à l'épaule : la respiration (un quart de hertz, le regard qui
+monte et descend), des dérives lentes du poignet en sinus de fréquences sans commune mesure (rien ne se
+répète), un tremblé fin. Des fractions de degré et un centimètre : on doit le sentir sans le voir. Ni
+l'orbite (l'œil de personne), ni le drone (stabilisé), ni le mode création (on y pose au centimètre). Elle
+s'installe et s'en va en fondu quand on change de vue, et se divise par le grossissement à la lunette, comme la
+secousse d'explosion, dont elle partage la transformée posée par-dessus la vue (`ShakeCamera`).
+`settings.json` → `camera.handheld` (1 ; 0 : trépied).
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

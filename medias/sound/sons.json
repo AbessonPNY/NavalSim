@@ -20,6 +20,11 @@
   },
   
 
+  "boulet": {
+    "_aide": "siffle : le boulet qui passe tout près en sifflant, comme une balle — un tir d'un AUTRE navire sur vingt, qui a déjà volé cinq mètres et passe à portée d'oreille de la caméra (settings.json → whistle : oneIn, range, minFlight). Plusieurs par clé : il en tire un au hasard. Vide, le boulet se tait.",
+    "siffle": []
+  },
+
   "bois": {
     "_aide": "Le bordé qui éclate sous un boulet. Plusieurs valent mieux qu'un : on reconnaît vite un échantillon unique.",
     "choc": ["wood_crash_001.ogg", "wood_crash_002.ogg"]

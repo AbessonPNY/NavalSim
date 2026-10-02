@@ -85,6 +85,7 @@ public partial class ShipDemo
                même nom se remplaceraient l'un l'autre, et le dernier lu gagnerait
                en silence. */
             Bag("feu", "explosion", "explosion");
+            Bag("boulet", "siffle", "siffle");
             Bag("foudre", "pres", "tonnerre-pres");
             Bag("foudre", "loin", "tonnerre-loin");
             /* LA TOILE VA DANS LA RÉSERVE DU BORD, pas dans celle des coups : elle
