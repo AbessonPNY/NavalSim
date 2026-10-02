@@ -74,6 +74,11 @@ public partial class ShipDemo
         // la pêche, au-dessus de la bourse : les lignes à l'eau et ce qu'on porte
         _fishLine = Plate(16, HudInk, HorizontalAlignment.Left);
         _fishLine.Visible = false;
+        /* LA TOUCHE, au milieu de l'écran et en grand : une ligne de texte en bas
+           passait inaperçue, et toutes les touches finissaient en « trop tard »
+           (relevé dans le journal du jeu, six sur six). */
+        _biteLine = Plate(44, HudGold, HorizontalAlignment.Center);
+        _biteLine.Visible = false;
 
         // le tableau des deux camps, sous le temps qu'il fait : seule l'escarmouche le montre
         _meleeLine = Plate(18, HudGold, HorizontalAlignment.Right);
@@ -91,7 +96,7 @@ public partial class ShipDemo
         _navLine.Visible = on && _compass != null && _compass.Visible;
         _skyLine.Visible = on;
         _purseBox.Visible = on && !_chartOpen;
-        if (!on) { if (_fishLine != null) _fishLine.Visible = false; return; }
+        if (!on) { if (_fishLine != null) _fishLine.Visible = false; if (_biteLine != null) _biteLine.Visible = false; return; }
 
         var s = GetViewport().GetVisibleRect().Size;
         float bottom = 0, right = 0, left = 0, top = 0;
@@ -157,6 +162,11 @@ public partial class ShipDemo
         {
             _fishLine.Size = new Vector2(520, 0);
             _fishLine.Position = new Vector2(left + 18, _purseBox.Position.Y - _fishLine.Size.Y - 6);
+        }
+        if (_biteLine != null && _biteLine.Visible)
+        {
+            _biteLine.Size = new Vector2(s.X, 0);
+            _biteLine.Position = new Vector2(0, s.Y * 0.62f);
         }
     }
 

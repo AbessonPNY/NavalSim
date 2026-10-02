@@ -14138,6 +14138,23 @@ des bouffées plus larges (7 à 12 m) ; noir (0,06 à la sortie, 0,16 au bout) ;
 qu'au dernier tiers de la vie, au lieu de décroître dès la naissance. Le bassin passe à 3 072 bouffées : chacune
 vit trois fois plus. Vu après une minute : deux ou trois panaches noirs couchés par le vent au-dessus de la ville.
 
+## Les fumées en traînée (Godot)
+
+Signalé, capture à l'appui : au-dessus de la ville, une file de petits nuages
+plutôt qu'une fumée. Deux bouffées par seconde, TIRÉES AU SORT, que le vent
+écartait de trois mètres quand elles n'en faisaient qu'un : chacune se lisait
+seule. Désormais six par seconde à intervalles RÉGULIERS (un compte par cheminée,
+`Editable.SmokeDue`), plus larges que leur écart dès la première seconde, chacune
+moitié moins opaque (0,17) puisque trois ou quatre se recouvrent, et une vie
+d'une demi-minute au lieu d'une : un ruban couché par le vent. Coût mesuré au
+même point de vue : notre _Process 3,53 → 3,81 ms, la carte 11,65 → 11,70 ms.
+Plafond des bouffées de cheminée porté à 6144.
+
+Puis (demandé, référence à l'appui : « plus belle quand il n'y a pas de vent ») :
+la fumée d'âtre ne prend que le quart du vent (`HearthWind`, GunFxNode) — elle
+monte en colonne et s'incline, au lieu de se coucher sur les toits. Un écart
+assumé avec la physique : on garde le sens du vent, pas sa force.
+
 ## Les pontons du joueur, et ce que coûte Port-Royal (Godot)
 
 **Deux tronçons d'une pièce** (`props/ponton.glb`, `props/ponton_large.glb`, générés) : un tablier à planches,
@@ -14256,6 +14273,32 @@ fallait onze.
 **Le chantier rend la différence** quand on descend vers plus petit : la
 première version bornait le net à zéro, et racheter le sloop avec le cotre
 coûtait « 0 écu » (vu sur la capture).
+
+**« Il ne se passait rien » avec le cotre.** Le journal du jeu disait le
+contraire : six touches sur cent mètres de sable, six « trop tard ». Le signal
+était un bandeau en bas de l'écran, et la fenêtre d'une seconde et demie — on ne
+voyait pas la touche, et on ne l'aurait pas prise. Désormais « ÇA MORD ! » en grand
+au milieu avec le temps qui reste, trois secondes pour ferrer, et le mauvais fond
+au tiers du bon (il était au douzième) : on pêche partout, à toute heure, mieux là
+où l'on a appris. L'essai `--peche x,z,-k` (accélération négative) passe par de
+VRAIS appuis d'Espace injectés dans la file d'entrée — l'appel direct ne prouvait
+pas le chemin du clavier. Il marche : les « trop tard » qui restent sont ceux d'un
+temps des lignes vingt fois plus vif que le ferrage simulé.
+
+**Les prises sur le pont** (demandé : « remplir le bateau de poisson à chaque
+prise, le poids doit s'en faire ressentir, la physique activée »). Une physique à
+nous dans le repère du bord, et non celle de Godot : le navire n'est pas un corps
+de Godot, et un pont traîné derrière notre solveur ferait sauter ce qui est posé
+dessus. Le dessus du pont est relevé sur le modèle (`ShipNode.DeckTop`, grille de
+15 cm, la plus haute surface horizontale sous un plafond d'un mètre au-dessus de
+`DeckNear` — ni bôme ni vergue), le bordé les retient (`HullHalfWidth`), ils
+s'empilent comme des boules aplaties. Deux erreurs vues à la capture : le modèle
+a le dos vers +z (couchés « sur le flanc », ils étaient à plat ventre — redressé
+au chargement, normales et tangentes comprises) ; et la première prise pesait
+double (le pont se remplissait avec une liste qui la contenait déjà, puis on la
+lâchait). Le poids est un colis par poisson au niveau du pont, là où il gît :
+juste, donc presque imperceptible sur vingt-deux tonnes, ce qu'il faut dire
+plutôt que de l'exagérer.
 
 Essai de bout en bout : `-- --quete le-pecheur --peche 257,2238,20` (la coque
 posée sur le meilleur fond du mérou, les lignes à vingt fois le temps, un

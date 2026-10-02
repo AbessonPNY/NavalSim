@@ -14,8 +14,8 @@ ce qu'elles valent ; et les règles de la ligne. Lu par
   (fond plat), *le suif remonte propre et marqué : de la roche*, *le plomb a
   glissé : ça tombe à pic* (tombant). Plus profond que `longueur` : pas de fond,
   on ne pêche pas.
-- **« Ça mord ! »** : Espace dans les `ferrer` secondes, sinon le poisson mange
-  l'appât. Ferré, on le hale à `remontee` m/s depuis le fond, plus un peu pour
+- **« ÇA MORD ! »**, en grand au milieu de l'écran avec le temps qui reste :
+  Espace dans les `ferrer` secondes (3), sinon le poisson mange l'appât. Ferré, on le hale à `remontee` m/s depuis le fond, plus un peu pour
   un gros poisson ; il peut encore casser la ligne (`casse` × son poids sur le
   poids maximal de l'espèce). Puis `appat` secondes pour réappâter.
 - **Espace sans touche** : on relève les lignes. Elles se relèvent seules si le
@@ -23,7 +23,8 @@ ce qu'elles valent ; et les règles de la ligne. Lu par
 
 ## Où et quand
 
-Rien n'est marqué sur la carte. Le relief ne dit pas la nature du fond, mais
+On pêche **partout et à toute heure** : un mauvais fond donne encore le tiers
+des touches d'un bon, la nuit la moitié de l'appétit du jour. Rien n'est marqué sur la carte. Le relief ne dit pas la nature du fond, mais
 sa **pente** la trahit : la roche est un fond qui monte et descend sur quelques
 mètres, un tombant une pente forte, le sable un fond plat. Chaque espèce a une
 fenêtre de profondeur (adoucie aux bords) et un fond préféré ; les touches par
@@ -51,6 +52,22 @@ plaque au-dessus de la bourse dit ce qui reste.
 Le poisson pèse dans la cale (nature `poisson`) ; c'est la liste des prises
 qui dit l'espèce et l'heure de chacune. Elle se sauvegarde, passe les
 traversées, et suit la cale quand on change de bord au chantier.
+
+## Sur le pont
+
+Chaque prise tombe à bord (`props/merou.glb` ; le vivaneau n'a pas encore son
+modèle, c'est le même teinté de rouge) : hissée par-dessus le pavois du bord où
+pendait la ligne, elle rebondit, se débat dix à trente secondes, puis reste
+couchée sur le flanc. Elle glisse quand le navire gîte ou tangue — la pesanteur
+est tournée dans le repère du bord, son accélération retranchée — et les
+poissons s'empilent. Sa taille suit son poids (un mérou de dix kilos fait
+quatre-vingts centimètres).
+
+Son **poids est là où elle gît** : un colis au niveau du pont, dans le
+compartiment et du bord où elle est. C'est juste, donc c'est peu : cent
+cinquante kilos sur les vingt-deux tonnes du sloop l'enfoncent de quelques
+millimètres. Au-delà de quatre-vingts poissons, les suivants pèsent au fond
+de la cale sans être dessinés.
 
 ## La vente
 

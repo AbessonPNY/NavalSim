@@ -24,7 +24,7 @@ public sealed class FishSpecies
 /// <summary>Les règles de la ligne à main, et les espèces.</summary>
 public sealed class FishingRules
 {
-    public double LinesPerMan = 0.5, MaxSpeed = 0.7, StrikeWindow = 1.6, HaulSpeed = 0.8;
+    public double LinesPerMan = 0.5, MaxSpeed = 0.7, StrikeWindow = 3.0, HaulSpeed = 0.8;
     /// <summary>La longueur d'une ligne, en mètres : plus profond, elle ne touche pas le fond.</summary>
     public double LineLength = 120;
     /// <summary>Les secondes pour réappâter une ligne et la refiler au fond.</summary>
@@ -117,7 +117,9 @@ public static class Fishing
     /// CE QUE CE FOND VAUT POUR CETTE ESPÈCE, de 0 à 1 : sa fenêtre de profondeur,
     /// adoucie aux bords (un mérou ne s'arrête pas net à quarante-cinq mètres), et
     /// la nature du fond lue sur sa pente. Jamais tout à fait nul dans la fenêtre :
-    /// un poisson de passage mord parfois sur le sable.
+    /// un poisson de passage mord AUSSI sur le mauvais fond — moins, mais assez pour
+    /// qu'on pêche partout et à toute heure (demandé). Le bon fond vaut trois fois le
+    /// mauvais : c'est ce qui reste à apprendre.
     /// </summary>
     public static double Habitat(FishSpecies s, double depth, double slope)
     {
@@ -127,8 +129,8 @@ public static class Fishing
         if (d <= 0) return 0;
         double b = s.Bottom switch
         {
-            "roche" => 0.12 + 0.88 * Smooth(0.03, 0.12, slope),
-            "tombant" => 0.08 + 0.92 * Smooth(0.08, 0.25, slope),
+            "roche" => 0.3 + 0.7 * Smooth(0.03, 0.12, slope),
+            "tombant" => 0.3 + 0.7 * Smooth(0.08, 0.25, slope),
             _ => 1 - 0.7 * Smooth(0.05, 0.15, slope)
         };
         return d * b;

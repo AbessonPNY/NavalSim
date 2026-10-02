@@ -44,6 +44,8 @@ public sealed class Editable
     public bool Smoke;
     /// <summary>Le tirage de la densité (0..1), fait une fois sur le nom ; négatif tant qu'il n'est pas fait.</summary>
     public double Roll = -1;
+    /// <summary>La part de bouffée que la cheminée doit encore au ciel (GunFxNode.Hearth) : l'émission est régulière, pas tirée au sort.</summary>
+    public double SmokeDue;
 
     /* UNE CHEMINÉE APPARTIENT À SA MAISON. Tant qu'on ne l'a pas déplacée
        elle-même, elle la SUIT — sa place le long du faîte (HostOx, dans l'axe de

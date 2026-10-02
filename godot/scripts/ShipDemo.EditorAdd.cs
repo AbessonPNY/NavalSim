@@ -176,7 +176,7 @@ public partial class ShipDemo
             double dx = e.X - ex, dz = e.Z - ez;
             if (dx * dx + dz * dz > ChimneyRange * ChimneyRange) continue;
             var at = new Vector3((float)(e.X - origin.X), (float)e.AimY, (float)(e.Z - origin.Z));
-            if (smokes) _gunFx.Hearth(at, e.Scale, dt);
+            if (smokes) _gunFx.Hearth(at, e.Scale, dt, ref e.SmokeDue);
             if (_editing && marks < mm.InstanceCount)
                 mm.SetInstanceTransform(marks++, new Transform3D(Basis.Identity.Scaled(Vector3.One * 0.9f), at));
         }

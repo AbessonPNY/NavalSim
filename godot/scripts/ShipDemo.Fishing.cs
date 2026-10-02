@@ -34,7 +34,7 @@ public partial class ShipDemo
     /// <summary>Les prises à bord, chacune avec l'heure (temps de jeu) où elle est sortie de l'eau.</summary>
     readonly List<FishLot> _catch = new();
     readonly Random _fishRng = new();
-    Label? _fishLine;
+    Label? _fishLine, _biteLine;
     /// <summary>Jusqu'à quand un Espace tardif est pris pour un ferrage manqué, et non pour « relever ».</summary>
     double _fishLate = -1;
     double _fishAcc;
@@ -53,7 +53,8 @@ public partial class ShipDemo
         catch (System.Text.Json.JsonException e) { GD.PushWarning($"[pêche] poissons.json illisible : {e.Message}"); return; }
         _lines = new HandLines(_angling)
         {
-            OnBite = l => { Say("Ça mord ! — Espace pour ferrer"); Shout("ca-mord", 0.3, 2); },
+            // le grand « ÇA MORD ! » du milieu de l écran le dit (FishLineText) : pas de bandeau en plus
+            OnBite = l => Shout("ca-mord", 0.3, 2),
             OnMissed = l =>
             {
                 Say("Trop tard — il a mangé l'appât");
@@ -63,7 +64,12 @@ public partial class ShipDemo
             OnHooked = l => { Say("Ferré ! On hale à la main…"); Shout("ferre", 0.3, 2); },
             OnCatch = (f, kg) =>
             {
-                _catch.Add(new FishLot(f.Key, kg, _t));
+                var lot = new FishLot(f.Key, kg, _t);
+                // le pont d'abord, avec les prises d'avant : sinon celle-ci y serait couchée ET lâchée
+                if (_mother == null) EnsureDeckShip();
+                _catch.Add(lot);
+                // il tombe sur le pont, et c'est là qu'il pèse (ShipDemo.DeckFish.cs)
+                DropFish(lot);
                 FishHold();
                 _quests?.Credit(Goal.Fish, kg);
                 Say($"Un {f.Name.ToLowerInvariant()} de {Kg(kg)} kg à bord");
@@ -77,18 +83,6 @@ public partial class ShipDemo
 
     /// <summary>Les kilos à la française : « 12,4 ».</summary>
     static string Kg(double kg) => kg.ToString("0.#", System.Globalization.CultureInfo.GetCultureInfo("fr-FR"));
-
-    /// <summary>
-    /// LE POIDS DES PRISES DANS LA CALE, recalé sur la liste : la cale efface un
-    /// colis de moins d'un kilo, et un vivaneau de huit cents grammes y
-    /// disparaîtrait. On la remet donc d'accord avec la liste à chaque changement.
-    /// </summary>
-    void FishHold()
-    {
-        var ph = _ship.Physics;
-        double want = _catch.Sum(l => l.Kg) / 1000, have = ph.CargoOf(FishKind);
-        if (Math.Abs(want - have) > 1e-4) ph.LoadCargo(Config.NComp / 2, HoldFloor, 0, want - have, FishKind);
-    }
 
     /// <summary>Le fond sous le navire, en mètres vrais.</summary>
     (double Depth, double Slope) FishBottom()
@@ -155,7 +149,7 @@ public partial class ShipDemo
             else
             {
                 var (depth, slope) = FishBottom();
-                _lines.Step(dt * (_fishTest is Vector3 fz ? fz.Z : 1), depth, slope, _sky.Core.DayTime, _fishRng.NextDouble);
+                _lines.Step(dt * (_fishTest is Vector3 fz ? Math.Abs(fz.Z) : 1), depth, slope, _sky.Core.DayTime, _fishRng.NextDouble);
             }
         }
 
@@ -180,6 +174,8 @@ public partial class ShipDemo
                 Say("Le poisson perd sa fraîcheur — il faut le vendre");
             }
         }
+        // en chaloupe, le pont et ses poissons restent au navire
+        if (_mother == null) DeckFishTick(dt);
         FishLineText();
     }
 
@@ -207,6 +203,14 @@ public partial class ShipDemo
             parts.Add($"{Kg(_catch.Sum(l => l.Kg))} kg de poisson à bord, {fresh}");
         }
         _fishLine.Text = string.Join("\n", parts);
+        if (_biteLine != null)
+        {
+            // la fenêtre qui reste, celle de la touche la plus ancienne : c'est elle qu'Espace ferre
+            double left = _lines.Lines.Where(l => l.State == HandLines.LineState.Bite).Select(l => l.T).DefaultIfEmpty(-1).Min();
+            _biteLine.Visible = left > 0 && _hudOn && !_inTitle;
+            if (_biteLine.Visible)
+                _biteLine.Text = $"ÇA MORD !\nEspace pour ferrer — {left.ToString("0.0", System.Globalization.CultureInfo.GetCultureInfo("fr-FR"))} s";
+        }
         _fishLine.Visible = parts.Count > 0 && _hudOn && !_inTitle && !_chartOpen;
     }
 
@@ -247,9 +251,23 @@ public partial class ShipDemo
     int _fishTestState;
     double _fishTestT, _fishBiteAt = -1;
 
+    /* UNE ACCÉLÉRATION NÉGATIVE passe par le VRAI clavier : un appui d'Espace
+       injecté dans la file d'entrée, qui suit le chemin d'une touche (l'interface
+       d'abord, puis _UnhandledInput) — c'est ce chemin que l'appel direct ne
+       prouvait pas. */
+    void SpaceOrCall()
+    {
+        if (_fishTest is Vector3 ft && ft.Z < 0)
+        {
+            Input.ParseInputEvent(new InputEventKey { Keycode = Key.Space, PhysicalKeycode = Key.Space, Pressed = true });
+            Input.ParseInputEvent(new InputEventKey { Keycode = Key.Space, PhysicalKeycode = Key.Space, Pressed = false });
+        }
+        else FishKey();
+    }
+
     void FishTestTick(double dt)
     {
-        if (_fishTest is not Vector3 ft || _inTitle || _quests == null || (_quests.Active == null && _fishTestState < 5) || _lines == null) return;
+        if (_fishTest is not Vector3 ft || _inTitle || _quests == null || _lines == null) return;
         switch (_fishTestState)
         {
             case 0:
@@ -268,15 +286,24 @@ public partial class ShipDemo
             }
             case 1:
                 if (_t - _fishTestT < 3) break;
-                FishKey();
+                // les messages d'abord : tant qu'il y en a un, Espace le ferme et ne pêche pas
+                if (_msgBox != null && _msgBox.Visible) { NextMessage(); break; }
+                SpaceOrCall();
+                _fishTestT = _t; _fishTestState = 6;
+                break;
+            case 6:
+                // l'appui injecté est traité à l'image suivante
+                if (_t - _fishTestT < 0.5) break;
                 GD.Print($"[pêche] {_lines.Lines.Count} lignes ; fond {FishBottom().Depth:F0} m, pente {FishBottom().Slope:F2}");
                 _fishTestState = 2;
                 break;
             case 2:
-                if (_lines.Biting) { if (_fishBiteAt < 0) _fishBiteAt = _t; else if (_t - _fishBiteAt > 0.5) { FishKey(); _fishBiteAt = -1; } }
+                if (_msgBox != null && _msgBox.Visible) NextMessage();
+                if (_lines.Biting) { if (_fishBiteAt < 0) _fishBiteAt = _t; else if (_t - _fishBiteAt > 0.5) { SpaceOrCall(); _fishBiteAt = -1; } }
                 if (Math.Floor(_t / 5) != Math.Floor((_t - dt) / 5))
-                    GD.Print(FormattableString.Invariant($"[pêche] t {_t:F0}  {string.Join(" ", _lines.Lines.Select(l => l.State.ToString()[0]))}  à bord {_catch.Sum(l => l.Kg):F1} kg (cale {_ship.Physics.CargoOf(FishKind) * 1000:F1})  étape {_quests.Step + 1} compte {_quests.Counted:F1}  {_sky.Core.DayTime:F1} h"));
-                if (_quests.Step >= 1) { _lines.Raise(); BackToBerth(); _fishTestT = _t; _fishTestState = 3; GD.Print("[pêche] étape remplie, retour au ponton"); }
+                    GD.Print(FormattableString.Invariant($"[pêche] t {_t:F0}  {string.Join(" ", _lines.Lines.Select(l => l.State.ToString()[0]))}  à bord {_catch.Sum(l => l.Kg):F1} kg (cale {_ship.Physics.CargoOf(FishKind) * 1000:F1}, {_deckFish.Count} sur le pont dont {_deckFish.Count(d => d.Resting)} au repos{(_deckFish.Count > 0 ? FormattableString.Invariant($", le premier en ({_deckFish[0].P.X:F2}, {_deckFish[0].P.Y:F2}, {_deckFish[0].P.Z:F2}) pont {_ship.DeckTop(_deckFish[0].P.X, _deckFish[0].P.Z):F2}") : "")})  étape {_quests.Step + 1} compte {_quests.Counted:F1}  {_sky.Core.DayTime:F1} h"));
+                // en jeu libre, on pêche jusqu'au bout de l'essai : pour regarder le pont se remplir
+                if (_quests.Active != null && _quests.Step >= 1) { _lines.Raise(); BackToBerth(); _fishTestT = _t; _fishTestState = 3; GD.Print("[pêche] étape remplie, retour au ponton"); }
                 break;
             case 3:
                 if (!_alongside) { if (_t - _fishTestT > 120) { GD.Print("[pêche] jamais à quai"); _fishTestState = 9; } break; }

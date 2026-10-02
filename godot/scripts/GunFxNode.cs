@@ -26,7 +26,9 @@ namespace NavalSim;
 /// </summary>
 public partial class GunFxNode : Node3D
 {
-    const int MaxAdd = 512, MaxPowder = 1536, MaxSoot = 256, MaxBalls = 96, MaxHearth = 3072;
+    /// <summary>La part du vent que prend la fumée des cheminées (1 = tout le vent).</summary>
+    const float HearthWind = 0.25f;
+    const int MaxAdd = 512, MaxPowder = 1536, MaxSoot = 256, MaxBalls = 96, MaxHearth = 6144;
     /// <summary>Les LANGUES de feu, qui ont leur propre forme et leur propre réserve.</summary>
     const int MaxFlame = 384;
     const double Lag = 0.30;          // la part du vent qu'un nuage de poudre prend
@@ -348,26 +350,40 @@ public partial class GunFxNode : Node3D
     /// en multiplie le nombre et la taille), semée au hasard plutôt qu'en cadence —
     /// vingt cheminées réglées sur la même horloge fumeraient en chœur.
     /// </summary>
-    public void Hearth(Vector3 at, double strength, double dt)
+    public void Hearth(Vector3 at, double strength, double dt, ref double due)
     {
         double k = Math.Clamp(strength, 0.2, 4);
         /* PEU DE FOYERS, MAIS QUI FUMENT GRAS (demandé : « moins de spots, plus
-           denses, noir charbon, qui restent longtemps dans le ciel ») : deux
-           bouffées par seconde, et chacune vit une minute. Elle monte encore,
-           lentement, puis traîne en panache dans le vent : c'est ce panache qui se
-           lit de loin, au-dessus d'un port. */
-        if (R() > 1.9 * k * dt) return;
+           denses, noir charbon, qui restent longtemps dans le ciel »).
+
+           UNE TRAÎNÉE, PAS UN CHAPELET (demandé, capture à l'appui). Deux bouffées
+           par seconde TIRÉES AU SORT, que le vent écarte de trois mètres l'une de
+           l'autre quand elles n'en font qu'un : chacune se lisait seule, une file de
+           petits nuages au-dessus de la ville. Six par seconde, à intervalles
+           RÉGULIERS (le compte de la cheminée, et non un tirage qui laisse des
+           trous), et dès la première seconde plus larges que leur écart : elles se
+           recouvrent et font un ruban. Chacune plus légère, puisqu'on en voit trois
+           ou quatre l'une derrière l'autre — la densité est celle de la somme. Et
+           une vie plus courte, pour tenir le compte : la traînée s'étire sur ce que
+           le vent fait en une demi-minute. */
+        due += 6.0 * k * dt;
         float fk = (float)Math.Sqrt(k);
-        Add(_hearth, new Puff
+        for (int n = 0; due >= 1 && n < 4; n++)
         {
-            K = Kind.Hearth, T = 0, Life = 40 + R() * 30,
-            P = at + new Vector3((R() - 0.5f) * 0.3f, 0, (R() - 0.5f) * 0.3f),
-            V = new Vector3((R() - 0.5f) * 0.2f, 1.4f + R() * 0.6f, (R() - 0.5f) * 0.2f),
-            // la chaleur la porte d'abord, puis elle n'a plus que le vent
-            Lift = 0.35 + R() * 0.25, Drag = 0.30,
-            S0 = 0.7 * fk, S1 = (7 + R() * 5) * fk,
-            Rot = R() * 6.2832, Spin = (R() - 0.5) * 0.12
-        }, MaxHearth);
+            due -= 1;
+            Add(_hearth, new Puff
+            {
+                K = Kind.Hearth, T = 0, Life = 28 + R() * 14,
+                P = at + new Vector3((R() - 0.5f) * 0.2f, 0, (R() - 0.5f) * 0.2f),
+                V = new Vector3((R() - 0.5f) * 0.1f, 1.4f + R() * 0.3f, (R() - 0.5f) * 0.1f),
+                // la chaleur la porte d'abord, puis elle n'a plus que le vent
+                Lift = 0.35 + R() * 0.1, Drag = 0.30,
+                S0 = 0.9 * fk, S1 = (6 + R() * 2.5) * fk,
+                Rot = R() * 6.2832, Spin = (R() - 0.5) * 0.12
+            }, MaxHearth);
+        }
+        // un retard trop long (une image lente) ne se rattrape pas d'un coup
+        if (due > 1) due = 1;
     }
 
     /// <summary>
@@ -615,8 +631,14 @@ public partial class GunFxNode : Node3D
                 else if (p.K == Kind.Mist || p.K == Kind.Hearth)
                 {
                     float kd = (float)Math.Min(1, p.Drag * dt);
-                    p.V.X += ((float)wind.X - p.V.X) * kd;
-                    p.V.Z += ((float)wind.Z - p.V.Z) * kd;
+                    /* LA FUMÉE D'UN ÂTRE NE PREND QU'UNE PART DU VENT (demandé : « plus
+                       belle quand il n'y a pas de vent ») : elle monte en colonne et
+                       s'incline à peine, au lieu de se coucher sur les toits. Un écart
+                       assumé — une vraie fumée va à la vitesse de l'air qui la porte ;
+                       on garde le sens du vent, pas toute sa force. */
+                    float wk = p.K == Kind.Hearth ? HearthWind : 1f;
+                    p.V.X += ((float)wind.X * wk - p.V.X) * kd;
+                    p.V.Z += ((float)wind.Z * wk - p.V.Z) * kd;
                     p.V.Y += ((float)p.Lift - p.V.Y) * kd;
                 }
                 else if (p.K == Kind.Smoke || p.K == Kind.Flash)
@@ -682,7 +704,8 @@ public partial class GunFxNode : Node3D
                    tiers de sa vie. Elle RENVOIE la lumière, mais peu : le ciel la teinte
                    sans l'éclairer. */
                 double fade = u < 0.65 ? 1 : Math.Pow(1 - (u - 0.65) / 0.35, 1.5);
-                double a = Math.Min(1, p.T / 1.0) * (1 - 0.45 * u) * fade * 0.36;
+                // légère une à une : c'est leur recouvrement qui fait la traînée (Hearth)
+                double a = Math.Min(1, p.T / 1.0) * (1 - 0.45 * u) * fade * 0.17;
                 var L = _lit;
                 float g = (float)(0.06 + 0.10 * u);
                 return (new Vector3(g * L.X, g * 0.98f * L.Y, g * 0.95f * L.Z), a);

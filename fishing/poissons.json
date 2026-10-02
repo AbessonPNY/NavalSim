@@ -5,7 +5,7 @@
     "_aide": "lignesParHomme : une ligne pour deux hommes d'équipage (l'un pêche, l'autre manœuvre), au moins une. vitesseMax : au-dessus (m/s), les lignes traînent et l'on ne pêche pas — en panne ou au mouillage seulement. ferrer : la fenêtre pour ferrer après la touche (s). remontee : la vitesse à laquelle on hale une ligne à la main (m/s). frais : le poisson garde son plein prix tant de minutes ; gate : il est perdu au bout de tant (minutes de jeu). longueur : la ligne, en mètres — plus profond, elle ne touche pas le fond. appat : secondes pour réappâter et refiler. lignesMax : le plus de lignes à l'eau, quel que soit l'équipage.",
     "lignesParHomme": 0.5,
     "vitesseMax": 0.7,
-    "ferrer": 1.6,
+    "ferrer": 3.0,
     "remontee": 1.0,
     "frais": 20,
     "gate": 60,
