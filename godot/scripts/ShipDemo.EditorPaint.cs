@@ -20,10 +20,11 @@ public partial class ShipDemo
     GroundPaint.Brush _brush = GroundPaint.Brush.Cobble;
     double _brushR = 3, _brushFlow = 0.6;
 
-    static readonly string[] BrushNames = { "herbe", "pavés", "sable", "gomme" };
+    static readonly string[] BrushNames = { "herbe", "pavés", "sable", "gomme", "sable blanc (fonds)", "vase (fonds)", "herbier (fonds)" };
     static readonly Color[] BrushColors =
     {
-        new(0.45f, 0.85f, 0.3f), new(0.75f, 0.75f, 0.8f), new(1f, 0.85f, 0.45f), new(1f, 0.35f, 0.35f)
+        new(0.45f, 0.85f, 0.3f), new(0.75f, 0.75f, 0.8f), new(1f, 0.85f, 0.45f), new(1f, 0.35f, 0.35f),
+        new(0.55f, 1f, 0.95f), new(0.55f, 0.5f, 0.35f), new(0.2f, 0.6f, 0.35f)
     };
 
     /// <summary>Le sol peint de la région, s'il y en a un : le premier de la fiche dont le port existe.</summary>
@@ -46,7 +47,7 @@ public partial class ShipDemo
         _painting = !_painting;
         _paintDown = false;
         _sel = null;
-        Say(_painting ? $"Pinceau : {BrushNames[(int)_brush]} · 1 herbe, 2 pavés, 3 sable, 4 gomme" : "Pinceau rangé");
+        Say(_painting ? $"Pinceau : {BrushNames[(int)_brush]} · 1 herbe, 2 pavés, 3 sable, 4 gomme · fonds : 5 6 7" : "Pinceau rangé");
     }
 
     /// <summary>Les touches et la souris du pinceau. Vrai s'il a pris l'événement.</summary>
@@ -56,7 +57,11 @@ public partial class ShipDemo
         if (e is InputEventKey k && k.Pressed && !k.Echo)
         {
             Key key = k.PhysicalKeycode != Key.None ? k.PhysicalKeycode : k.Keycode;
-            int pick = key switch { Key.Key1 => 0, Key.Key2 => 1, Key.Key3 => 2, Key.Key4 => 3, _ => -1 };
+            int pick = key switch
+            {
+                Key.Key1 => 0, Key.Key2 => 1, Key.Key3 => 2, Key.Key4 => 3,
+                Key.Key5 => 4, Key.Key6 => 5, Key.Key7 => 6, _ => -1
+            };
             if (pick >= 0) { _brush = (GroundPaint.Brush)pick; Say($"Pinceau : {BrushNames[pick]}"); return true; }
             if (k.CtrlPressed && key == Key.Z)
             {
@@ -89,7 +94,8 @@ public partial class ShipDemo
     void PaintTick(double dt)
     {
         if (_paint == null) return;
-        var under = GroundUnder(GetViewport().GetMousePosition());
+        // le pinceau des fonds VOIT À TRAVERS L'EAU : il vise le sable du fond, non la surface
+        var under = GroundUnder(GetViewport().GetMousePosition(), _painting && GroundPaint.Seabed(_brush));
         if (_painting && _paintDown && under is { } g && _paint.Covers(g.X, g.Z))
             // la force est PAR SECONDE : une touche tenue couvre, un passage rapide effleure
             _paint.Dab(g.X, g.Z, _brushR, _brush, Math.Min(1, _brushFlow * dt * 8));
@@ -101,7 +107,8 @@ public partial class ShipDemo
             var o = _sea.Core.Origin;
             _edRing.Visible = true;
             float r = (float)_brushR;
-            _edRing.Position = new Vector3((float)(u.X - o.X), (float)Math.Max(0, _world!.HeightAt(u.X, u.Z)) + 0.1f, (float)(u.Z - o.Z));
+            double gy = _world!.HeightAt(u.X, u.Z);
+            _edRing.Position = new Vector3((float)(u.X - o.X), (float)(GroundPaint.Seabed(_brush) ? gy : Math.Max(0, gy)) + 0.1f, (float)(u.Z - o.Z));
             _edRing.Scale = new Vector3(r, 1, r);
             ((StandardMaterial3D)_edRing.MaterialOverride).AlbedoColor =
                 _paint.Covers(u.X, u.Z) ? BrushColors[(int)_brush] : new Color(0.5f, 0.5f, 0.5f);
@@ -111,17 +118,20 @@ public partial class ShipDemo
     // --- l'essai : --peindre x,0,z (mètres vrais) — n'enregistre RIEN ---
     Vector3? _paintTest;
 
-    void PaintTest(double x, double z)
+    void PaintTest(double x, double z, bool seabed = false)
     {
         if (_paint == null) { GD.Print("[peinture] pas de sol peint"); return; }
         if (!_editing) ToggleEdit();
         _painting = true;
         _paint.BeginStroke();
-        _paint.Dab(x - 14, z, 6, GroundPaint.Brush.Cobble, 1);
-        _paint.Dab(x, z, 6, GroundPaint.Brush.Grass, 1);
-        _paint.Dab(x + 14, z, 6, GroundPaint.Brush.Sand, 1);
+        // y = 1 : les fonds — sable blanc, vase, herbier ; sinon la terre
+        var (b1, b2, b3) = seabed ? (GroundPaint.Brush.WhiteSand, GroundPaint.Brush.Mud, GroundPaint.Brush.Seagrass)
+                                  : (GroundPaint.Brush.Cobble, GroundPaint.Brush.Grass, GroundPaint.Brush.Sand);
+        _paint.Dab(x - 14, z, 6, b1, 1);
+        _paint.Dab(x, z, 6, b2, 1);
+        _paint.Dab(x + 14, z, 6, b3, 1);
         // une rue : des touches serrées le long d'une ligne, comme un glisser
-        for (double t = -30; t <= 30; t += 0.5) _paint.Dab(x + t, z + 14, 3, GroundPaint.Brush.Cobble, 0.5);
+        for (double t = -30; t <= 30; t += 0.5) _paint.Dab(x + t, z + 14, 3, b1, 0.5);
         _paint.Flush(0, true);
         GD.Print(FormattableString.Invariant($"[peinture] essai autour de ({x:F0}, {z:F0}) ; dans le carré : {_paint.Covers(x, z)}"));
     }
@@ -130,5 +140,5 @@ public partial class ShipDemo
     string PaintStatus() => _paint == null ? "" :
         FormattableString.Invariant(
             $"PINCEAU — {BrushNames[(int)_brush]} · rayon {_brushR:F1} m · force {_brushFlow:F2}{(_paint.Dirty ? " · non enregistré" : "")}\n") +
-        "1 herbe · 2 pavés · 3 sable · 4 gomme · clic gauche peindre · molette rayon (⇧ force) · Ctrl+Z annuler le coup · P ranger le pinceau";
+        "1 herbe · 2 pavés · 3 sable · 4 gomme · fonds : 5 sable blanc, 6 vase, 7 herbier · clic gauche peindre · molette rayon (⇧ force) · Ctrl+Z annuler le coup · P ranger le pinceau";
 }

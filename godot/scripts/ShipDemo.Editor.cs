@@ -376,10 +376,15 @@ public partial class ShipDemo
     }
 
     /// <summary>Le sol (ou la mer) sous la souris, en mètres vrais : on avance le long du rayon, puis on resserre.</summary>
-    Vec3d? GroundUnder(Vector2 at)
+    Vec3d? GroundUnder(Vector2 at, bool throughWater = false)
     {
         var (f, d) = MouseRay(at);
-        double Surf(double t) => f.Y + d.Y * t - Math.Max(0, _world!.HeightAt(f.X + d.X * t, f.Z + d.Z * t));
+        // à travers l'eau : le fond ; sinon la mer arrête le rayon comme la terre
+        double Surf(double t)
+        {
+            double h = _world!.HeightAt(f.X + d.X * t, f.Z + d.Z * t);
+            return f.Y + d.Y * t - (throughWater ? h : Math.Max(0, h));
+        }
         double t0 = 0;
         for (double t = 0.5; t < 6000; t += Math.Max(0.5, t * 0.01))
         {

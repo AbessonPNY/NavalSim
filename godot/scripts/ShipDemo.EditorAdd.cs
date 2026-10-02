@@ -129,6 +129,22 @@ public partial class ShipDemo
     MultiMeshInstance3D? _smokeMarks;
     /// <summary>settings.json → chimneys.enabled</summary>
     bool _chimneyRules = true;
+    /// <summary>settings.json → chimneys.density : la part des cheminées AUTOMATIQUES qui fument.</summary>
+    double _chimneyDensity = 0.35;
+
+    /// <summary>
+    /// CELLE-CI FUME-T-ELLE ? Une cheminée que la main a posée ou retouchée, toujours :
+    /// on l'a mise là pour la voir. Les autres, selon la densité, par un tirage
+    /// sur leur NOM — le même d'une partie à l'autre, et qui ne change pas quand on
+    /// bouge la caméra.
+    /// </summary>
+    bool Smokes(Editable e)
+    {
+        if (!e.Pristine || _chimneyDensity >= 1) return true;
+        uint h = 2166136261;
+        foreach (char c in e.Id) h = (h ^ c) * 16777619;
+        return (h % 10000) / 10000.0 < _chimneyDensity;
+    }
 
     /// <summary>Les distances : on ne fait fumer que ce qu'on peut voir fumer, et la ville au loin se tait.</summary>
     const double ChimneyRange = 900;
@@ -151,10 +167,13 @@ public partial class ShipDemo
             // sur sa maison, à chaque image : elle a pu bouger, tourner, grandir
             if (e.Host != null) e.PlaceEmitter(_world!.HeightAt);
             if (!e.Live) continue;
+            // en mode création, on montre aussi celles que la densité fait taire : on doit pouvoir les prendre
+            bool smokes = Smokes(e);
+            if (!smokes && !_editing) continue;
             double dx = e.X - ex, dz = e.Z - ez;
             if (dx * dx + dz * dz > ChimneyRange * ChimneyRange) continue;
             var at = new Vector3((float)(e.X - origin.X), (float)e.AimY, (float)(e.Z - origin.Z));
-            _gunFx.Hearth(at, e.Scale, dt);
+            if (smokes) _gunFx.Hearth(at, e.Scale, dt);
             if (_editing && marks < mm.InstanceCount)
                 mm.SetInstanceTransform(marks++, new Transform3D(Basis.Identity.Scaled(Vector3.One * 0.9f), at));
         }

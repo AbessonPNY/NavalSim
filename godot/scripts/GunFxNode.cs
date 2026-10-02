@@ -670,13 +670,15 @@ public partial class GunFxNode : Node3D
             case Kind.Spark: return (p.Col, Math.Pow(1 - u, 0.8) * 0.9);
             case Kind.Hearth:
             {
-                /* GRIS-BLEU, ET ELLE RENVOIE LA LUMIÈRE : la fumée de bois est claire,
-                   bleutée à la sortie, et ne brille jamais plus que le ciel. Mince :
-                   c'est l'accumulation qui la dessine, une bouffée seule est un voile. */
-                double a = Math.Min(1, p.T / 1.5) * Math.Pow(1 - u, 1.4) * 0.16;
+                /* NOIRE À LA SORTIE, et elle s'éclaircit en s'étalant : un âtre du
+                   XVIIe brûle du bois humide et du charbon de terre, pas des bûches
+                   sèches — la fumée d'une ville se lisait sombre sur le ciel (demandé :
+                   « bien plus noires »). Elle RENVOIE la lumière, mais peu : le ciel la
+                   teinte sans l'éclairer. */
+                double a = Math.Min(1, p.T / 1.2) * Math.Pow(1 - u, 1.3) * 0.30;
                 var L = _lit;
-                float g = (float)(0.80 - 0.12 * u);
-                return (new Vector3(g * 0.95f * L.X, g * L.Y, g * 1.05f * L.Z), a);
+                float g = (float)(0.13 + 0.22 * u);
+                return (new Vector3(g * L.X, g * 0.98f * L.Y, g * 0.95f * L.Z), a);
             }
             case Kind.Mist:
             {

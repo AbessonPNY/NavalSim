@@ -14019,6 +14019,36 @@ nœuds libérés. Ils sont désormais rebâtis par-dessus le modèle (`LoadModel
 les cotes de la fiche donnent. Vu : sur la grève, avirons au repos ; à flot, la chaloupe nage (l'œil de
 `--echouer` la suit désormais).
 
+## Les fonds peints (Godot)
+
+Demandé : peindre les fonds marins, pour des nuances de couleur dans le port. Le shader de la terre dessine
+aussi le FOND (c'est le même relief, sous l'eau) : la peinture s'y appliquait déjà, mais n'avait que des
+matières de terre, et le pinceau visait la SURFACE de la mer (le rayon s'arrêtait à zéro).
+
+**Une seconde couche** (`<image>-fonds.png`) : un pixel RGBA porte trois matières et ce qu'il recouvre, la
+terre les avait prises. Sable blanc (l'eau turquoise des hauts-fonds coralliens), vase (les nappes sombres
+d'un bassin où l'eau ne bouge pas), herbier (des touffes de posidonies par plaques, le sable entre elles,
+les feuilles couchées dans un sens). Teintes dans `LandNode` (`WhiteSand`, `Mud`, `Seagrass`), une seule
+définition. Peindre une couche EFFACE l'autre d'autant au même endroit : la dernière matière posée est
+celle qu'on voit, comme sur une toile ; la gomme rend les deux. La seconde image n'est écrite que si elle
+porte quelque chose.
+
+**Le pinceau des fonds voit à travers l'eau** (`GroundUnder(…, throughWater)`) : le rayon descend jusqu'au
+sable, et l'anneau s'y pose (il se voit à travers la surface, sans test de profondeur).
+
+Vérifié (`-- --peindre x,1,z` : les trois matières des fonds, rien d'enregistré) par quatre mètres d'eau au
+sud de Port-Royal : la vase et l'herbier se lisent nettement à travers la surface ; le sable blanc moins, le
+fond étant déjà de sable — il éclaircit le turquoise sans trancher.
+
+## Les fumées noircies, et leur densité (Godot)
+
+Demandé : « bien plus noires, et moins nombreuses ». La fumée de foyer passe du gris-bleu pâle (0,80) au
+presque noir à la sortie (0,13), qui s'éclaircit en s'étalant (0,35), plus dense (alpha 0,30 au lieu de 0,16) :
+un âtre du XVIIe brûle du bois humide et du charbon de terre. **`chimneys.density`** (0,35) : la part des
+cheminées AUTOMATIQUES qui fument, tirée sur leur nom (FNV) — stable d'une partie à l'autre, indifférente à
+la caméra. Une cheminée que la main a posée ou retouchée (`!Pristine`) fume toujours : on l'a mise là pour
+la voir. Les muettes restent montrées en mode création, pour qu'on puisse les prendre.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

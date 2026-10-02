@@ -327,7 +327,9 @@ leur `echelle` est relative à elle.
 deux par pâté en ont, au faîte. Tant qu'on ne la déplace pas, une fumée SUIT sa maison — place, cap, échelle
 — et s'éteint si la maison est retirée ; une copie de maison emporte les siennes ; déplacée à la main, elle
 devient indépendante. Son échelle est sa FORCE (PgUp, PgDn). Une boule bleue les montre en mode création.
-`settings.json` → `chimneys.enabled`.
+`settings.json` → `chimneys.enabled`, et `chimneys.density` : la part des cheminées automatiques qui fument (0,35 ;
+tirée sur leur nom, la même d'une partie à l'autre). Celles qu'on a posées ou retouchées fument toujours ; les
+muettes restent visibles en mode création, pour qu'on puisse les prendre.
 
 **Le nom est un rang dans un tirage** : changer la graine, le nombre de maisons, un semis ou le relief d'un port
 renumérote ses objets, et une retouche s'appliquerait à un autre. Les retouches sont faites pour un monde dont
@@ -342,10 +344,11 @@ port, on peut PEINDRE par-dessus, au demi-mètre : de l'herbe, des pavés, du sa
 "peinture": [ { "port": "port-royal", "image": "world/peinture/port-royal.png", "cote": 1024, "pas": 0.5 } ]
 ```
 
-Un carré de `cote` mètres centré sur le port, un pixel par `pas`. L'image est un PNG RGBA : r = herbe,
-g = pavés, b = sable (leurs parts), a = combien la peinture recouvre la teinte du relief (0 : on n'y a pas
-touché). Elle s'écrit au pinceau du mode création (², puis P) : 1 herbe, 2 pavés, 3 sable, 4 la gomme qui rend
-le relief ; molette pour le rayon, ⇧ molette pour la force ; Ctrl+Z annule le dernier coup ; Ctrl+S (ou ² en
+Un carré de `cote` mètres centré sur le port, un pixel par `pas`. Deux images PNG RGBA : la TERRE (le fichier
+nommé) r = herbe, g = pavés, b = sable ; les FONDS (le même nom suffixé `-fonds`) r = sable blanc, g = vase,
+b = herbier. a = combien chacune recouvre la teinte du relief (0 : on n'y a pas touché) ; peindre l'une efface
+l'autre au même endroit. Elles s'écrivent au pinceau du mode création (², puis P) : 1 herbe, 2 pavés, 3 sable,
+4 la gomme qui rend le relief, 5 6 7 sable blanc, vase, herbier — le pinceau des fonds vise à travers l'eau ; molette pour le rayon, ⇧ molette pour la force ; Ctrl+Z annule le dernier coup ; Ctrl+S (ou ² en
 sortant) enregistre. Les matières sont dessinées par le shader (`ground_paint.gdshaderinc`) dans les teintes
 de la terre (`LandNode`) : touffes d'herbe, pavés jointoyés, grain de sable, qui s'effacent vers leur couleur
 moyenne au loin. Une seule peinture active par région pour l'instant.

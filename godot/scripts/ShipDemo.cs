@@ -2655,6 +2655,8 @@ public partial class ShipDemo : Node3D
             if (root.TryGetProperty("gulls", out var mo)) _gullRules = GullsJson(mo);
             if (root.TryGetProperty("chimneys", out var chm) && chm.TryGetProperty("enabled", out var che))
                 _chimneyRules = che.ValueKind != System.Text.Json.JsonValueKind.False;
+            if (root.TryGetProperty("chimneys", out var chd) && chd.TryGetProperty("density", out var cdn) && cdn.ValueKind == System.Text.Json.JsonValueKind.Number)
+                _chimneyDensity = Math.Clamp(cdn.GetDouble(), 0, 1);
             if (root.TryGetProperty("dolphins", out var da)) _dolphinRules = DolphinRules.FromJson(da);
             if (root.TryGetProperty("storm", out var st))
             {

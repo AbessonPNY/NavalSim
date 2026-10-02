@@ -18,11 +18,16 @@
  */
 
 uniform sampler2D u_paint : filter_linear, repeat_disable;
+// la seconde couche, celle des FONDS : r sable blanc, g vase, b herbier
+uniform sampler2D u_paint2 : filter_linear, repeat_disable;
 uniform vec4 u_paint_rect = vec4(0.0, 0.0, 0.0, 0.0);  // coin (scène), 1 / côté
 uniform float u_paint_on = 0.0;
 uniform vec3 u_grass = vec3(0.078, 0.141, 0.042);
 uniform vec3 u_cobble = vec3(0.111, 0.105, 0.097);
 uniform vec3 u_sand = vec3(0.584, 0.439, 0.223);
+uniform vec3 u_whitesand = vec3(0.79, 0.73, 0.57);
+uniform vec3 u_mud = vec3(0.07, 0.065, 0.04);
+uniform vec3 u_seagrass = vec3(0.03, 0.06, 0.02);
 
 vec2 paint_hash22(vec2 p) {
 	vec3 a = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
@@ -78,6 +83,30 @@ vec3 paint_sand(vec2 q, float detail) {
 	return u_sand * mix(1.0, 0.86 + 0.18 * grain + 0.06 * ripple, detail);
 }
 
+/* LE SABLE BLANC des hauts-fonds coralliens : celui qui fait l'eau turquoise.
+   Le même grain que le sable de la grève, plus fin et plus clair. */
+vec3 paint_whitesand(vec2 q, float detail) {
+	float grain = paint_noise(q * 31.0) * 0.5 + paint_noise(q * 7.0) * 0.5;
+	float ripple = sin(q.y * 1.7 + paint_noise(q * 0.5) * 7.0) * 0.5 + 0.5;
+	return u_whitesand * mix(1.0, 0.9 + 0.12 * grain + 0.06 * ripple, detail);
+}
+
+/* LA VASE d'un bassin : lisse, sombre, en nappes plus ou moins chargées — ce que
+   dépose une rade où l'eau ne bouge pas. */
+vec3 paint_mud(vec2 q, float detail) {
+	float blot = paint_noise(q * 0.35) * 0.6 + paint_noise(q * 1.6) * 0.4;
+	return u_mud * mix(1.0, 0.75 + 0.55 * blot, max(detail, 0.6));
+}
+
+/* L'HERBIER : des touffes de posidonies, denses par plaques, et le sable entre
+   elles. Les feuilles couchées par le courant font des traits dans un sens. */
+vec3 paint_seagrass(vec2 q, float detail) {
+	float clump = smoothstep(0.35, 0.65, paint_noise(q * 0.45) * 0.7 + paint_noise(q * 2.2) * 0.3);
+	float blade = paint_noise(vec2(q.x * 9.0, q.y * 1.5));
+	vec3 grass = u_seagrass * mix(1.0, 0.7 + 0.6 * blade, detail);
+	return mix(u_whitesand * 0.55, grass, clump);
+}
+
 /* La couleur du sol en ce point : celle des sommets, recouverte de ce qu'on a
    peint. `pix` est la largeur d'un pixel au sol, en mètres. */
 vec3 ground_paint(vec3 base, vec3 world, float pix) {
@@ -86,12 +115,26 @@ vec3 ground_paint(vec3 base, vec3 world, float pix) {
 	vec2 uv = q * u_paint_rect.zw;
 	if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return base;
 	vec4 p = texture(u_paint, uv);
-	if (p.a < 0.004) return base;
+	vec4 s = texture(u_paint2, uv);
+	if (p.a < 0.004 && s.a < 0.004) return base;
 	float detail = 1.0 - smoothstep(0.06, 0.35, pix);
-	vec3 w = p.rgb / max(1e-3, p.r + p.g + p.b);
-	vec3 painted = vec3(0.0);
-	if (w.r > 0.003) painted += w.r * paint_grass(q, detail);
-	if (w.g > 0.003) painted += w.g * paint_cobble(q, detail);
-	if (w.b > 0.003) painted += w.b * paint_sand(q, detail);
-	return mix(base, painted, p.a);
+	vec3 col = base;
+	if (p.a >= 0.004) {
+		vec3 w = p.rgb / max(1e-3, p.r + p.g + p.b);
+		vec3 painted = vec3(0.0);
+		if (w.r > 0.003) painted += w.r * paint_grass(q, detail);
+		if (w.g > 0.003) painted += w.g * paint_cobble(q, detail);
+		if (w.b > 0.003) painted += w.b * paint_sand(q, detail);
+		col = mix(col, painted, p.a);
+	}
+	// les fonds par-dessus : le pinceau de l'une efface l'autre, l'ordre ne compte guère
+	if (s.a >= 0.004) {
+		vec3 w = s.rgb / max(1e-3, s.r + s.g + s.b);
+		vec3 painted = vec3(0.0);
+		if (w.r > 0.003) painted += w.r * paint_whitesand(q, detail);
+		if (w.g > 0.003) painted += w.g * paint_mud(q, detail);
+		if (w.b > 0.003) painted += w.b * paint_seagrass(q, detail);
+		col = mix(col, painted, s.a);
+	}
+	return col;
 }

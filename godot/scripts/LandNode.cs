@@ -96,6 +96,9 @@ public partial class LandNode : Node3D
         _mat.SetShaderParameter("u_grass", new Vector3(Grass.R, Grass.G, Grass.B));
         _mat.SetShaderParameter("u_cobble", new Vector3(Cobble.R, Cobble.G, Cobble.B));
         _mat.SetShaderParameter("u_sand", new Vector3(Sand.R, Sand.G, Sand.B));
+        _mat.SetShaderParameter("u_whitesand", new Vector3(WhiteSand.R, WhiteSand.G, WhiteSand.B));
+        _mat.SetShaderParameter("u_mud", new Vector3(Mud.R, Mud.G, Mud.B));
+        _mat.SetShaderParameter("u_seagrass", new Vector3(Seagrass.R, Seagrass.G, Seagrass.B));
 
     }
 
@@ -107,6 +110,12 @@ public partial class LandNode : Node3D
     static readonly Color Rock = Color.Color8(0x6c, 0x66, 0x5c).SrgbToLinear();
     // le pavé des rues d'un centre-ville : galets et brique usée, plus gris que la grève
     static readonly Color Cobble = Color.Color8(0x5e, 0x5c, 0x58).SrgbToLinear();
+    /* LES FONDS PEINTS : le sable blanc des hauts-fonds (l'eau turquoise), la
+       vase d'un bassin, l'herbier de posidonies. Vus à travers l'eau : la mer en
+       mange le rouge, et c'est ce qui les teinte de vert et de bleu. */
+    static readonly Color WhiteSand = Color.Color8(0xe6, 0xdd, 0xc4).SrgbToLinear();
+    static readonly Color Mud = Color.Color8(0x4a, 0x47, 0x38).SrgbToLinear();
+    static readonly Color Seagrass = Color.Color8(0x30, 0x46, 0x26).SrgbToLinear();
 
     const double SandTop = 0.6, GrassFrom = 2.0;
 
@@ -248,7 +257,11 @@ public partial class LandNode : Node3D
         {
             _paint = value;
             _mat.SetShaderParameter("u_paint_on", value != null ? 1f : 0f);
-            if (value != null) _mat.SetShaderParameter("u_paint", value.Texture);
+            if (value != null)
+            {
+                _mat.SetShaderParameter("u_paint", value.Textures[0]);
+                _mat.SetShaderParameter("u_paint2", value.Textures[1]);
+            }
         }
     }
     GroundPaint? _paint;
