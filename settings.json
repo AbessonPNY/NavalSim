@@ -145,7 +145,7 @@
   },
   "chimneys": {
     "enabled": true,
-    "density": 0.35,
+    "density": 0.15,
     "note": "Les fumées de cheminée des villes : une maison sur trois, deux par pâté du centre, au faîte. density : la part de ces cheminées qui fument (0 aucune, 1 toutes), tirée une fois pour toutes ; celles qu'on a posées ou déplacées en mode création (²) fument toujours. PgUp PgDn leur force."
   },
   "fish": {

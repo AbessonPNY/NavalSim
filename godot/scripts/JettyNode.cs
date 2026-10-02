@@ -185,59 +185,8 @@ public partial class JettyNode : Node3D
             return mi;
         }
 
-        // ---- le tablier, une longue caisse de niveau d'un bout à l'autre
-        Put(new BoxMesh { Size = new Vector3((float)len, 0.28f, (float)W) }, _deckMat,
-            new Vector3((float)(len * 0.5), (float)deckY, 0));
-
-        /* LE BORDAGE COURT EN TRAVERS. Un ponton est ponté d'un bau à l'autre,
-           si bien que les planches sont courtes et qu'on remplace celle qui
-           pourrit ; posées en long, il en faudrait d'aussi longues que le quai.
-           C'est aussi la direction qui le fait lire d'un coup d'œil, les lignes
-           d'équerre avec le chemin qu'on suit. */
-        int planks = (int)(len / 0.42);
-        if (planks > 0)
-        {
-            var mm = new MultiMesh
-            {
-                TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
-                Mesh = new BoxMesh { Size = new Vector3(0.30f, 0.06f, (float)(W * 0.98)) },
-                InstanceCount = planks
-            };
-            for (int i = 0; i < planks; i++)
-                mm.SetInstanceTransform(i, new Transform3D(Basis.Identity,
-                    new Vector3((float)(0.30 + i * 0.42), (float)(deckY + 0.17), 0)));
-            frame.AddChild(new MultiMeshInstance3D { Multimesh = mm, MaterialOverride = _deckMat });
-        }
-
-        // ---- les jambes, chacune coupée au fond qu'elle touche
-        // une paire tous les quatre mètres : la travée qu'un bau franchit en bois
-        int bays = Math.Max(3, (int)Math.Round(len / 4.0));
-        var pileMesh = new CylinderMesh { TopRadius = 0.19f, BottomRadius = 0.22f, Height = 1, RadialSegments = 7 };
-        for (int i = 0; i <= bays; i++)
-        {
-            double along = (double)i / bays * len;
-            foreach (int side in new[] { -1, 1 })
-            {
-                double wx = isl.X + ca * (r0 + along) - sa * side * hw;
-                double wz = isl.Z + sa * (r0 + along) + ca * side * hw;
-                /* Le vrai fond sous cette jambe, par la même HeightAt que la
-                   coque talonne. Rien n'est posé à l'œil : marchez vers le
-                   large et l'eau se creuse sous le quai parce que le fond le
-                   dit. */
-                double bed = Math.Min(-0.4, _world.HeightAt(wx, wz));
-                double h = deckY - bed + 0.2;
-                Put(pileMesh, _pileMat,
-                    new Vector3((float)along, (float)(bed + h * 0.5 - 0.1), (float)(side * hw)),
-                    null, new Vector3(1, (float)h, 1));
-
-                // une contrefiche de la tête vers l'extérieur : c'est elle qui raidit
-                if (i > 0 && h > 2.2)
-                    Put(pileMesh, _pileMat,
-                        new Vector3((float)(along - 2.0), (float)(deckY - 0.9), (float)(side * (hw + 0.42))),
-                        new Vector3(0, (float)(side * 0.16), (float)Math.Atan2(4.0, 1.6)),
-                        new Vector3(0.55f, (float)Math.Sqrt(4.0 * 4.0 + 1.6 * 1.6), 0.55f));
-            }
-        }
+        // ---- la charpente : tablier, bordage, jambes et bittes, la même que celle des pontons de la fiche
+        Timber(frame, len, W, isl.X + ca * r0, isl.Z + sa * r0, p.Ang);
 
         /* LA PASSERELLE D'EMBARQUEMENT, et c'est ce qui fait d'un appontement un
            quai de commerce : sans elle on voit bien un navire à côté d'un
@@ -316,6 +265,87 @@ public partial class JettyNode : Node3D
            la même raison qui lui refuse son fret. */
         if (!isl.Wild) Figurant(frame, len, deckY, hw, isl.Key);
 
+    }
+
+    /// <summary>
+    /// LA CHARPENTE D'UN PONTON — tablier, bordage, jambes et bittes —, la même pour le
+    /// quai d'un port et pour un ponton que la fiche pose. <paramref name="x0"/>,
+    /// <paramref name="z0"/> : sa racine en mètres VRAIS (les jambes y lisent le fond) ;
+    /// <paramref name="ang"/> : la direction du large. Une rangée de jambes tous les
+    /// cinq mètres en travers : un tablier de quatorze mètres sur deux rangées
+    /// seulement aurait des baux qu'aucun bois ne franchit.
+    /// </summary>
+    void Timber(Node3D frame, double len, double W, double x0, double z0, double ang)
+    {
+        double ca = Math.Cos(ang), sa = Math.Sin(ang), hw = W * 0.5, deckY = Berth.DeckY;
+        int nRows = W <= 8 ? 2 : (int)Math.Ceiling(W / 5.0) + 1;
+        var rows = new double[nRows];
+        for (int r = 0; r < nRows; r++) rows[r] = -hw + W * r / (nRows - 1);
+        // LE MODÈLE, s'il est là : ses pièces assemblées ; sinon le dessin du code, ci-dessous
+        if (PartsFor(W) is { } parts) { TimberFromParts(frame, len, W, x0, z0, ang, rows, parts); return; }
+        void Put(Mesh m, Material mat, Vector3 at, Vector3? rot = null, Vector3? scale = null)
+        {
+            var mi = new MeshInstance3D { Mesh = m, MaterialOverride = mat, Position = at };
+            if (rot is Vector3 rr) mi.Rotation = rr;
+            if (scale is Vector3 s) mi.Scale = s;
+            frame.AddChild(mi);
+        }
+
+        // ---- le tablier, une longue caisse de niveau d'un bout à l'autre
+        Put(new BoxMesh { Size = new Vector3((float)len, 0.28f, (float)W) }, _deckMat,
+            new Vector3((float)(len * 0.5), (float)deckY, 0));
+
+        /* LE BORDAGE COURT EN TRAVERS. Un ponton est ponté d'un bau à l'autre,
+           si bien que les planches sont courtes et qu'on remplace celle qui
+           pourrit ; posées en long, il en faudrait d'aussi longues que le quai.
+           C'est aussi la direction qui le fait lire d'un coup d'œil, les lignes
+           d'équerre avec le chemin qu'on suit. */
+        int planks = (int)(len / 0.42);
+        if (planks > 0)
+        {
+            var mm = new MultiMesh
+            {
+                TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
+                Mesh = new BoxMesh { Size = new Vector3(0.30f, 0.06f, (float)(W * 0.98)) },
+                InstanceCount = planks
+            };
+            for (int i = 0; i < planks; i++)
+                mm.SetInstanceTransform(i, new Transform3D(Basis.Identity,
+                    new Vector3((float)(0.30 + i * 0.42), (float)(deckY + 0.17), 0)));
+            frame.AddChild(new MultiMeshInstance3D { Multimesh = mm, MaterialOverride = _deckMat });
+        }
+
+        // ---- les jambes, chacune coupée au fond qu'elle touche
+        // une paire tous les quatre mètres : la travée qu'un bau franchit en bois
+        int bays = Math.Max(3, (int)Math.Round(len / 4.0));
+        var pileMesh = new CylinderMesh { TopRadius = 0.19f, BottomRadius = 0.22f, Height = 1, RadialSegments = 7 };
+        for (int i = 0; i <= bays; i++)
+        {
+            double along = (double)i / bays * len;
+            foreach (double side in rows)
+            {
+                bool outer = Math.Abs(Math.Abs(side) - hw) < 1e-6;
+                double wx = x0 + ca * along - sa * side;
+                double wz = z0 + sa * along + ca * side;
+                /* Le vrai fond sous cette jambe, par la même HeightAt que la
+                   coque talonne. Rien n'est posé à l'œil : marchez vers le
+                   large et l'eau se creuse sous le quai parce que le fond le
+                   dit. */
+                double bed = Math.Min(-0.4, _world.HeightAt(wx, wz));
+                double h = deckY - bed + 0.2;
+                Put(pileMesh, _pileMat,
+                    new Vector3((float)along, (float)(bed + h * 0.5 - 0.1), (float)side),
+                    null, new Vector3(1, (float)h, 1));
+
+                // une contrefiche de la tête vers l'extérieur : c'est elle qui raidit
+                if (outer && i > 0 && h > 2.2)
+                    Put(pileMesh, _pileMat,
+                        new Vector3((float)(along - 2.0), (float)(deckY - 0.9), (float)(side + Math.Sign(side) * 0.42)),
+                        new Vector3(0, (float)(Math.Sign(side) * 0.16), (float)Math.Atan2(4.0, 1.6)),
+                        new Vector3(0.55f, (float)Math.Sqrt(4.0 * 4.0 + 1.6 * 1.6), 0.55f));
+            }
+        }
+
         /* LES BITTES au musoir, et elles sont la raison d'être de tout
            l'ouvrage : un ponton existe pour qu'on puisse s'y amarrer. Deux au
            bout, là où une coque à couple prend ses bouts — et une à la racine,
@@ -325,6 +355,209 @@ public partial class JettyNode : Node3D
         foreach (int side in new[] { -1, 1 })
             Put(bitt, _bittMat, new Vector3((float)(len - 1.6), (float)(deckY + 0.65), (float)(side * (hw - 0.45))));
         Put(bitt, _bittMat, new Vector3(2.2f, (float)(deckY + 0.65), (float)(hw - 0.45)));
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  LE PONTON EN .glb : ses pièces                                     */
+    /* ------------------------------------------------------------------ */
+
+    /// <summary>Les pièces d'un ponton modelé (tools/jetty-glb.js) : chacune ses maillages, dans le repère du fichier.</summary>
+    sealed class Parts
+    {
+        public readonly List<(Mesh Mesh, Transform3D Xf)> Bay = new(), Pile = new(), Bitt = new();
+        public double BayL = 4, NominalW;
+    }
+    readonly Dictionary<string, Parts?> _parts = new();
+
+    /// <summary>
+    /// LES PIÈCES DU PONTON DE CETTE LARGEUR — world/models/ponton-petit.glb (7 m) ou
+    /// ponton-grand.glb (14 m), lues une fois. On les retrouve par le NOM du nœud
+    /// (travee, pieu, bitte, ou un parent qui le porte), pas par les matières, qui
+    /// restent libres dans Blender. Absent, illisible, ou sans travée : rien, et le
+    /// ponton garde le dessin du code.
+    /// </summary>
+    Parts? PartsFor(double W)
+    {
+        bool small = W <= 10;
+        string rel = small ? "world/models/ponton-petit.glb" : "world/models/ponton-grand.glb";
+        if (_parts.TryGetValue(rel, out var have)) return have;
+        Parts? outp = null;
+        string path = Assets.Path(rel);
+        if (System.IO.File.Exists(path))
+        {
+            var doc = new GltfDocument();
+            var state = new GltfState();
+            if (doc.AppendFromFile(path, state) == Error.Ok && doc.GenerateScene(state) is Node3D root)
+            {
+                var p = new Parts { NominalW = small ? Berth.Width : 2 * Berth.Width };
+                var haze = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+                Hazed.Add(haze);
+                var done = new HashSet<Material>();
+                Aabb? bay = null;
+                var stack = new Stack<(Node N, Transform3D Xf, string Role)>();
+                stack.Push((root, Transform3D.Identity, ""));
+                while (stack.Count > 0)
+                {
+                    var (n, xf, role) = stack.Pop();
+                    string nm = n.Name.ToString().ToLowerInvariant();
+                    if (nm.Contains("travee") || nm.Contains("travée")) role = "travee";
+                    else if (nm.Contains("pieu")) role = "pieu";
+                    else if (nm.Contains("bitte")) role = "bitte";
+                    if (n is MeshInstance3D mi && mi.Mesh != null && role.Length > 0)
+                    {
+                        // la brume par-dessus, comme tout ce qui est à terre
+                        for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
+                            if (mi.GetActiveMaterial(i) is BaseMaterial3D bm && done.Add(bm))
+                            {
+                                var last = (Material)bm;
+                                while (last.NextPass != null) last = last.NextPass;
+                                last.NextPass = haze;
+                            }
+                        (role == "travee" ? p.Bay : role == "pieu" ? p.Pile : p.Bitt).Add((mi.Mesh, xf));
+                        if (role == "travee") { var b = xf * mi.Mesh.GetAabb(); bay = bay is Aabb a0 ? a0.Merge(b) : b; }
+                    }
+                    foreach (var c in n.GetChildren())
+                        stack.Push((c, c is Node3D c3 ? xf * c3.Transform : xf, role));
+                }
+                // la longueur d'une travée se lit sur elle, le chapeau qui déborde à l'origine compris
+                if (bay is Aabb ba) p.BayL = Math.Max(0.5, ba.End.X);
+                if (p.Bay.Count > 0) outp = p;
+                else GD.PushWarning($"[ponton] {rel} : pas de pièce « travee » — dessiné par le code.");
+            }
+            else GD.PushWarning($"[ponton] {rel} illisible — dessiné par le code.");
+        }
+        return _parts[rel] = outp;
+    }
+
+    /// <summary>
+    /// LE PONTON ASSEMBLÉ DE SES PIÈCES : des travées étirées pour tomber juste sur
+    /// la longueur, mises à la largeur voulue ; une jambe à chaque nœud, du fond
+    /// jusque sous les longerons ; les bittes sur le bordage. Les jambes lisent le
+    /// fond comme celles du code, par la même HeightAt que la coque talonne.
+    /// </summary>
+    void TimberFromParts(Node3D frame, double len, double W, double x0, double z0, double ang, double[] rows, Parts p)
+    {
+        double ca = Math.Cos(ang), sa = Math.Sin(ang), deckY = Berth.DeckY, hw = W * 0.5;
+        double sz = W / p.NominalW;
+        int bays = Math.Max(1, (int)Math.Round(len / p.BayL));
+        double stretch = len / (bays * p.BayL);
+        void Put(List<(Mesh Mesh, Transform3D Xf)> part, Transform3D at)
+        {
+            foreach (var (mesh, xf) in part)
+                frame.AddChild(new MeshInstance3D { Mesh = mesh, Transform = at * xf });
+        }
+        for (int k = 0; k < bays; k++)
+            Put(p.Bay, new Transform3D(Basis.FromScale(new Vector3((float)stretch, 1, (float)sz)),
+                                       new Vector3((float)(k * p.BayL * stretch), 0, 0)));
+        // les jambes : du fond (dix centimètres dedans) jusque sous les longerons
+        double under = deckY - 0.36;
+        for (int i = 0; i <= bays; i++)
+        {
+            double along = (double)i / bays * len;
+            foreach (double side in rows)
+            {
+                double wx = x0 + ca * along - sa * side, wz = z0 + sa * along + ca * side;
+                double bed = Math.Min(-0.4, _world.HeightAt(wx, wz)) - 0.1;
+                Put(p.Pile, new Transform3D(Basis.FromScale(new Vector3(1, (float)(under - bed), 1)),
+                                            new Vector3((float)along, (float)bed, (float)side)));
+            }
+        }
+        // les bittes : deux au musoir, une à la racine — sur le bordage
+        double top = deckY + 0.20;
+        foreach (int s in new[] { -1, 1 })
+            Put(p.Bitt, new Transform3D(Basis.Identity, new Vector3((float)(len - 1.6), (float)top, (float)(s * (hw - 0.45)))));
+        Put(p.Bitt, new Transform3D(Basis.Identity, new Vector3(2.2f, (float)top, (float)(hw - 0.45))));
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  LES PONTONS DE LA FICHE                                            */
+    /* ------------------------------------------------------------------ */
+
+    /// <summary>Le registre de l'éditeur : chaque ponton de la fiche s'y inscrit.</summary>
+    public EditRegistry? Editor;
+    /// <summary>Un ponton a bougé (l'éditeur) : le solveur doit relire ses segments.</summary>
+    public event Action? PiersChanged;
+
+    sealed class Pier
+    {
+        public Node3D G = null!;
+        public double X, Z, Yaw, Len, W;            // le MILIEU, en mètres vrais ; le cap vers le musoir
+        public bool Gone;
+        public double RootX => X - Math.Sin(Yaw) * Len * 0.5;
+        public double RootZ => Z - Math.Cos(Yaw) * Len * 0.5;
+    }
+    readonly List<Pier> _piers = new();
+
+    /// <summary>
+    /// BÂTIR LES PONTONS DE LA FICHE (world/*.json → pontons), une fois, avant que le
+    /// solveur n'apprenne où sont les quais. Chacun est un objet du mode création :
+    /// le déplacer le REBÂTIT — ses jambes doivent retrouver le fond là où il va.
+    /// </summary>
+    public void BuildPiers()
+    {
+        int i = 0;
+        foreach (var spec in _world.Region.Piers)
+        {
+            var p = new Pier
+            {
+                G = new Node3D(), X = spec.X, Z = spec.Z, Yaw = -spec.Cap * Math.PI / 180,
+                Len = spec.Length, W = spec.Width
+            };
+            AddChild(p.G);
+            _piers.Add(p);
+            double baseLen = spec.Length;
+            var e = new Editable
+            {
+                Id = $"ponton:{i++}", Label = spec.Name.Length > 0 ? spec.Name : "un ponton",
+                BaseX = p.X, BaseZ = p.Z, BaseYaw = p.Yaw, X = p.X, Z = p.Z, Yaw = p.Yaw,
+                Radius = Math.Max(spec.Width, spec.Length * 0.5), Height = 3,
+                Family = "ponton", FamilyLabel = "Ponton"
+            };
+            // l'échelle est sa LONGUEUR : PgUp l'allonge vers le large
+            e.Push = ed =>
+            {
+                p.X = ed.X; p.Z = ed.Z; p.Yaw = ed.Yaw; p.Len = baseLen * ed.Scale; p.Gone = ed.Removed;
+                ed.GroundY = 0;
+                RebuildPier(p);
+                PiersChanged?.Invoke();
+            };
+            if (Editor != null) Editor.Add(e); else e.Push(e);
+        }
+        if (_piers.Count > 0) GD.Print($"{_piers.Count} ponton(s) de la fiche");
+    }
+
+    void RebuildPier(Pier p)
+    {
+        foreach (var c in p.G.GetChildren()) { p.G.RemoveChild(c); c.QueueFree(); }
+        p.G.Visible = !p.Gone;
+        if (p.Gone) return;
+        double ang = Math.Atan2(Math.Cos(p.Yaw), Math.Sin(p.Yaw));
+        // le repère : la racine à l'origine du groupe, +x vers le large
+        var frame = new Node3D { Rotation = new Vector3(0, (float)-ang, 0) };
+        p.G.AddChild(frame);
+        Timber(frame, p.Len, p.W, p.RootX, p.RootZ, ang);
+    }
+
+    /// <summary>
+    /// CE QUE LE SOLVEUR EN SAIT : des segments de la largeur d'un quai (Berth.Width),
+    /// côte à côte jusqu'à couvrir le tablier — deux pour un ponton de quatorze
+    /// mètres. Le solveur n'a ainsi qu'une sorte de ponton à heurter.
+    /// </summary>
+    public IEnumerable<(double Sx, double Sz, double Hx, double Hz)> PierSegments()
+    {
+        foreach (var p in _piers)
+        {
+            if (p.Gone) continue;
+            double dx = Math.Sin(p.Yaw), dz = Math.Cos(p.Yaw), px = -dz, pz = dx;
+            int k = Math.Max(1, (int)Math.Ceiling(p.W / Berth.Width));
+            double spread = p.W - Berth.Width;
+            for (int s = 0; s < k; s++)
+            {
+                double off = k == 1 ? 0 : -spread * 0.5 + spread * s / (k - 1);
+                yield return (p.RootX + px * off, p.RootZ + pz * off,
+                              p.RootX + dx * p.Len + px * off, p.RootZ + dz * p.Len + pz * off);
+            }
+        }
     }
 
     /// <summary>
@@ -386,6 +619,13 @@ public partial class JettyNode : Node3D
             if (!_built.TryGetValue(isl.Key, out var g)) continue;
             g.Visible = near;
             if (near) g.Position = new Vector3((float)(isl.X - origin.X), 0, (float)(isl.Z - origin.Z));
+        }
+        foreach (var p in _piers)
+        {
+            double dx = p.X - centre.X, dz = p.Z - centre.Z;
+            bool near = !p.Gone && dx * dx + dz * dz < Range * Range;
+            p.G.Visible = near;
+            if (near) p.G.Position = new Vector3((float)(p.RootX - origin.X), 0, (float)(p.RootZ - origin.Z));
         }
     }
 }

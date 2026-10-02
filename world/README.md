@@ -335,6 +335,38 @@ muettes restent visibles en mode création, pour qu'on puisse les prendre.
 renumérote ses objets, et une retouche s'appliquerait à un autre. Les retouches sont faites pour un monde dont
 les règles sont arrêtées. Ce qu'on n'a pas touché suit toujours les règles.
 
+## Pontons, navires au mouillage et départ écrits dans la fiche (Godot)
+
+```json
+"pontons": [ { "nom": "Ponton du chenal", "x": -367.8, "z": 406.4, "cap": 284, "longueur": 32, "largeur": 14 } ],
+"mouilles": [ { "fiche": "frigate.json", "x": -330.5, "z": 432.6, "cap": 13 } ],
+… dans l'entrée du port : "depart": { "x": -829.1, "z": 507.8, "cap": 102 }
+```
+
+En mètres vrais du monde ; les caps sont à la BOUSSOLE (0 nord, 90 est). Un ponton est donné par son MILIEU et
+le cap de la racine vers le musoir ; il est bâti de la même charpente que le quai d'un port (une rangée de
+jambes tous les cinq mètres en travers, chacune coupée au fond) et la coque le heurte : le solveur le voit
+comme des segments de la largeur d'un quai, côte à côte. Un navire de `mouilles` est dessiné comme ceux des
+rades et suit la houle. `depart` : le navire du joueur commence là, l'ancre au fond, au lieu du ponton du port.
+Pontons et navires sont des objets du mode création (`ponton:N`, `mouille:N`) : on les déplace, les tourne,
+les retire ; PgUp PgDn allongent un ponton. Le banc calcule des places depuis des marques :
+`dotnet run --project core/NavalSim.Lab -c Release -- pontons p:x,z sloop.json:x,z …` — la rive la plus proche par
+le relief, le ponton perpendiculaire jusqu'à quatre mètres d'eau, le navire écarté jusqu'à ce que tout son
+plan d'eau porte.
+
+**Le ponton en .glb** — `world/models/ponton-petit.glb` (7 m, le quai d'un port) et `ponton-grand.glb` (14 m) :
+non pas un ponton, mais ses PIÈCES, retrouvées par le NOM du nœud — `travee` (quatre mètres de tablier le long
+de +x, de x = 0 à 4, centrée en travers, l'origine au niveau de la mer), `pieu` (une jambe d'UN mètre, de y = 0
+à 1, étirée du fond jusque sous les longerons à chaque nœud) et `bitte`. Le jeu les assemble à la longueur et
+à la largeur de chaque ponton ; les matières sont libres. Écrits par `node tools/jetty-glb.js` (ne le relancez
+pas sur des fichiers retouchés : il les écrase). Absent : le ponton est dessiné par le code.
+
+**L'abri du rivage** — dans l'entrée d'un port : `"abri": { "rayon": 1100 }`. Autour du port, sur ce rayon, la
+houle est retenue par la FORME de la côte, comme derrière un môle : pour chaque point d'eau, la part des
+directions qui atteignent le large (800 m sans terre) ; une rive droite reste battue, le fond d'un bassin ne
+garde que 12 % de la houle. Calculé au chargement (une grille de 8 m), lu par la mer, l'écume et la coque.
+Banc : `dotnet run --project core/NavalSim.Lab -c Release -- abri` (la carte).
+
 ## Le sol peint (Godot)
 
 Le relief se teinte de lui-même par l'altitude, aux sommets de son maillage (cinq mètres de pas). Autour d'un

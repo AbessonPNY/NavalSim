@@ -15,6 +15,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { writeGlb } = require('./glb-write');
 
 // ---------------------------------------------------------------- la boîte à outils
 
@@ -188,75 +189,12 @@ const COLOURS = {
   fenetre: { c: [0.07, 0.08, 0.10, 1], r: 0.20 }
 };
 
-const pad4 = n => (n + 3) & ~3;
-
+/* UN NŒUD PAR MATIÈRE, nommé comme elle : Godot en fait un MultiMesh par matière (TownNode.Models). La mise
+   en paquet est celle de tous les outils (glb-write.js). */
 function write(out, name, by) {
-  const chunks = [], bufferViews = [], accessors = [];
-  let offset = 0;
-  function accessor(typed, type, target, minmax) {
-    const raw = Buffer.from(typed.buffer, typed.byteOffset, typed.byteLength);
-    const padded = Buffer.alloc(pad4(raw.length)); raw.copy(padded);
-    chunks.push(padded);
-    bufferViews.push({ buffer: 0, byteOffset: offset, byteLength: raw.length, target });
-    offset += padded.length;
-    const n = { VEC3: 3, VEC2: 2, SCALAR: 1 }[type];
-    const a = { bufferView: bufferViews.length - 1, componentType: typed instanceof Float32Array ? 5126 : 5125,
-                count: typed.length / n, type };
-    if (minmax) {
-      const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
-      for (let i = 0; i < typed.length; i += 3) for (let k = 0; k < 3; k++) {
-        mn[k] = Math.min(mn[k], typed[i + k]); mx[k] = Math.max(mx[k], typed[i + k]);
-      }
-      a.min = mn; a.max = mx;
-    }
-    accessors.push(a);
-    return accessors.length - 1;
-  }
-
-  const materials = [], meshes = [], nodes = [];
-  for (const [mat, g] of by) {
-    if (g.pos.length === 0) continue;
-    const col = COLOURS[mat];
-    materials.push({
-      name: mat,
-      doubleSided: false,
-      pbrMetallicRoughness: { baseColorFactor: col.c, metallicFactor: 0, roughnessFactor: col.r }
-    });
-    meshes.push({
-      name: mat,
-      primitives: [{
-        attributes: {
-          POSITION: accessor(new Float32Array(g.pos), 'VEC3', 34962, true),
-          NORMAL: accessor(new Float32Array(g.nrm), 'VEC3', 34962),
-          TEXCOORD_0: accessor(new Float32Array(g.uv), 'VEC2', 34962)
-        },
-        indices: accessor(new Uint32Array(g.idx), 'SCALAR', 34963),
-        material: materials.length - 1
-      }]
-    });
-    nodes.push({ name: mat, mesh: meshes.length - 1 });
-  }
-
-  const bin = Buffer.concat(chunks);
-  const gltf = {
-    asset: { version: '2.0', generator: 'naval-sim town-glb' },
-    scene: 0, scenes: [{ name, nodes: nodes.map((_, i) => i) }],
-    nodes, meshes, materials,
-    buffers: [{ byteLength: bin.length }], bufferViews, accessors
-  };
-  const jsonBuf = Buffer.from(JSON.stringify(gltf), 'utf8');
-  const jsonChunk = Buffer.concat([jsonBuf, Buffer.alloc(pad4(jsonBuf.length) - jsonBuf.length, 0x20)]);
-  const binChunk = Buffer.concat([bin, Buffer.alloc(pad4(bin.length) - bin.length, 0)]);
-  const header = Buffer.alloc(12);
-  header.write('glTF', 0, 'ascii'); header.writeUInt32LE(2, 4);
-  header.writeUInt32LE(12 + 8 + jsonChunk.length + 8 + binChunk.length, 8);
-  const jh = Buffer.alloc(8); jh.writeUInt32LE(jsonChunk.length, 0); jh.writeUInt32LE(0x4E4F534A, 4);
-  const bh = Buffer.alloc(8); bh.writeUInt32LE(binChunk.length, 0); bh.writeUInt32LE(0x004E4942, 4);
-  fs.mkdirSync(path.dirname(out), { recursive: true });
-  fs.writeFileSync(out, Buffer.concat([header, jh, jsonChunk, bh, binChunk]));
-  let n = 0;
-  for (const [, g] of by) n += g.pos.length / 3;
-  return n;
+  const parts = [];
+  for (const [mat, g] of by) parts.push({ name: mat, prims: [{ material: { name: mat, ...COLOURS[mat] }, ...g }] });
+  return writeGlb(out, name, parts, 'naval-sim town-glb');
 }
 
 const dir = process.argv[2] || 'world/models';

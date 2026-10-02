@@ -28,9 +28,21 @@ uniform vec4 u_harbour = vec4(0.0);
 // le point ABRITÉ, au fond du bassin : l'abri se mesure à sa distance
 uniform vec2 u_harbour_pass = vec2(0.0);
 
+/* L'ABRI QUE DONNE LA FORME DU RIVAGE (ShelterMap, World.ShelterMaps) : une grille
+   de huit mètres, poussée comme une texture par la démo. xy : le coin, dans le
+   repère des shaders (l'origine déduite) ; z : 1 / côté ; w : 1 s'il y en a une. */
+uniform sampler2D u_shelter_map : filter_linear, repeat_disable;
+uniform vec4 u_shelter_rect = vec4(0.0);
+
 float shelter_at(vec2 p) {
-	if (u_harbour.w < 0.5) return 1.0;
-	if (distance(p, u_harbour.xy) > u_harbour.z) return 1.0;
+	float f = 1.0;
+	if (u_shelter_rect.w > 0.5) {
+		vec2 uv = (p - u_shelter_rect.xy) * u_shelter_rect.z;
+		if (uv.x >= 0.0 && uv.y >= 0.0 && uv.x <= 1.0 && uv.y <= 1.0)
+			f = textureLod(u_shelter_map, uv, 0.0).r;
+	}
+	if (u_harbour.w < 0.5) return f;
+	if (distance(p, u_harbour.xy) > u_harbour.z) return f;
 	float u = clamp(distance(p, u_harbour_pass) / (1.6 * (u_harbour.z - 18.0)), 0.0, 1.0);
-	return 1.0 - u * u * (3.0 - 2.0 * u) * 0.88;
+	return min(f, 1.0 - u * u * (3.0 - 2.0 * u) * 0.88);
 }

@@ -55,6 +55,8 @@ switch (mode)
     case "semis": Semis(); break;
     case "profil": Profil(); break;
     case "centre": Centre(); break;
+    case "pontons": Pontons(); break;
+    case "abri": Abri(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -1371,5 +1373,138 @@ void Centre()
         var line = new System.Text.StringBuilder();
         for (int i = 2 * half - 1; i >= 0; i--) line.Append(map[j, i]);
         Console.WriteLine("  " + line);
+    }
+}
+
+/* DES MARQUES AUX PLACES : pour chaque marque (x,z vrais), le ponton qui part de la
+   rive la plus proche, perpendiculaire, jusqu a quatre metres d eau ; ou le navire
+   (fiche:x,z) ecarte vers le large jusqu a trouver son fond, le cap le long de la
+   rive. Rend les entrees JSON a coller dans la fiche du monde.
+     dotnet run --project core/NavalSim.Lab -c Release -- pontons p:x,z ... sloop.json:x,z ... */
+void Pontons()
+{
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    var region = RegionSpec.FromJson(File.ReadAllText(Path.Combine(root, "world", "caraibes.json")));
+    var (iw, ih, grey) = GreyPng.Decode(File.ReadAllBytes(Path.Combine(root, region.Relief.Image)));
+    var imgs = new List<World.PatchImage>();
+    foreach (var pz in region.Patches)
+    {
+        string pi = Path.Combine(root, pz.Image);
+        if (!File.Exists(pi)) continue;
+        var (pw, ph, pg) = GreyPng.Decode(File.ReadAllBytes(pi));
+        imgs.Add(new World.PatchImage(pz, pw, ph, pg));
+    }
+    var world = new World(region, iw, ih, grey, m => { }, imgs);
+    var inv = CultureInfo.InvariantCulture;
+    /* LE SENS DU LARGE : la pente du RELIEF, et non le champ de distance au
+       rivage — celui-ci est tire de la grande carte et ignore les reliefs locaux
+       (Port-Royal est retravaille a la main) : il envoyait les pontons a deux
+       cents metres de la rive. Le terrain descend vers la mer. */
+    (double X, double Z) Sea(double x, double z)
+    {
+        double gx = world.HeightAt(x + 8, z) - world.HeightAt(x - 8, z);
+        double gz = world.HeightAt(x, z + 8) - world.HeightAt(x, z - 8);
+        double n = Math.Max(1e-9, Math.Sqrt(gx * gx + gz * gz));
+        return (-gx / n, -gz / n);
+    }
+    // la rive la plus proche : un point de terre dont un voisin est dans l eau
+    (double X, double Z) Shore(double x, double z)
+    {
+        double best = double.MaxValue, bx = x, bz = z;
+        for (double u = -150; u <= 150; u += 1.5)
+            for (double v = -150; v <= 150; v += 1.5)
+            {
+                double d2 = u * u + v * v;
+                if (d2 >= best) continue;
+                double px = x + u, pz = z + v;
+                if (world.HeightAt(px, pz) <= 0) continue;
+                if (world.HeightAt(px + 1.5, pz) > 0 && world.HeightAt(px - 1.5, pz) > 0
+                    && world.HeightAt(px, pz + 1.5) > 0 && world.HeightAt(px, pz - 1.5) > 0) continue;
+                best = d2; bx = px; bz = pz;
+            }
+        return (bx, bz);
+    }
+    // cap boussole d une direction (x, z) : nord +z, est -x
+    double Compass(double dx, double dz) => ((Math.Atan2(-dx, dz) * 180 / Math.PI) % 360 + 360) % 360;
+    foreach (var a in args.Skip(1))
+    {
+        var parts = a.Split(':');
+        var xz = parts[1].Split(',');
+        double x = double.Parse(xz[0], inv), z = double.Parse(xz[1], inv);
+        double mx = x, mz = z;           // la marque : un navire part d elle, un ponton de la rive
+        (x, z) = Shore(x, z);
+        var (dx, dz) = Sea(x, z);
+        if (parts[0] == "p")
+        {
+            double rx = x - dx * 6, rz = z - dz * 6;         // la racine, six metres a terre
+            double len = 20;
+            for (; len < 90; len += 1)
+                if (world.HeightAt(rx + dx * len, rz + dz * len) <= -4) break;
+            len = Math.Clamp(len + 2, 20, 90);
+            Console.WriteLine(string.Format(inv, "    {{ \"x\": {0:F1}, \"z\": {1:F1}, \"cap\": {2:F0}, \"longueur\": {3:F0}, \"largeur\": 14 }},",
+                rx + dx * len * 0.5, rz + dz * len * 0.5, Compass(dx, dz), len));
+        }
+        else
+        {
+            var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(root, "ships", parts[0])));
+            double draft = spec.Hull.KeelDepth + spec.Hull.KeelExtra;
+            double bx = mx, bz = mz; int n = 0;
+            // le navire tient par le travers de sa demi-largeur : on l eloigne jusqu a ce que tout le fond porte
+            // tout son plan d eau doit porter : l etrave, la poupe et les deux bords, avec du pied
+            bool Holds(double px, double pz)
+            {
+                double L = spec.Hull.Length * 0.5 + 4, B = spec.Hull.Beam * 0.5 + 3;
+                for (int q = -2; q <= 2; q++)
+                    for (int r = -1; r <= 1; r++)
+                    {
+                        double ax = -dz * L * q / 2 + dx * B * r, az = dx * L * q / 2 + dz * B * r;
+                        if (world.HeightAt(px + ax, pz + az) > -(draft + 2.5)) return false;
+                    }
+                return true;
+            }
+            while (n++ < 60 && !Holds(bx, bz)) { bx += dx * 5; bz += dz * 5; }
+            Console.WriteLine(string.Format(inv, "    {{ \"fiche\": \"{0}\", \"x\": {1:F1}, \"z\": {2:F1}, \"cap\": {3:F0} }},  // fond {4:F1} m, {5} pas",
+                parts[0], bx, bz, Compass(-dz, dx), -world.HeightAt(bx, bz), n - 1));
+        }
+    }
+}
+
+/* L ABRI DU RIVAGE autour d un port : le temps de le batir, et sa carte
+   (# terre, puis de la houle pleine a la plus calme : . : - = + *), 24 m la case.
+     dotnet run --project core/NavalSim.Lab -c Release -- abri */
+void Abri()
+{
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    var region = RegionSpec.FromJson(File.ReadAllText(Path.Combine(root, "world", "caraibes.json")));
+    var (iw, ih, grey) = GreyPng.Decode(File.ReadAllBytes(Path.Combine(root, region.Relief.Image)));
+    var imgs = new List<World.PatchImage>();
+    foreach (var pz in region.Patches)
+    {
+        string pi = Path.Combine(root, pz.Image);
+        if (!File.Exists(pi)) continue;
+        var (pw, ph, pg) = GreyPng.Decode(File.ReadAllBytes(pi));
+        imgs.Add(new World.PatchImage(pz, pw, ph, pg));
+    }
+    var world = new World(region, iw, ih, grey, m => { }, imgs);
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    var maps = world.ShelterMaps;
+    Console.WriteLine($"{maps.Count} abri(s) batis en {sw.ElapsedMilliseconds} ms");
+    foreach (var m in maps)
+    {
+        Console.WriteLine($"  {m.N} x {m.N} mailles, coin ({m.X0:F0}, {m.Z0:F0})");
+        const double cell = 24;
+        int n = (int)(m.Size / cell);
+        for (int j = n - 1; j >= 0; j--)
+        {
+            var line = new System.Text.StringBuilder("  ");
+            for (int i = n - 1; i >= 0; i--)
+            {
+                double x = m.X0 + (i + 0.5) * cell, z = m.Z0 + (j + 0.5) * cell;
+                if (world.HeightAt(x, z) > 0) { line.Append('#'); continue; }
+                double v = world.Shelter(x, z);
+                line.Append(v > 0.95 ? '.' : v > 0.8 ? ':' : v > 0.6 ? '-' : v > 0.4 ? '=' : v > 0.25 ? '+' : '*');
+            }
+            Console.WriteLine(line);
+        }
     }
 }

@@ -91,6 +91,9 @@ public static class WorldParity
             var (pw, ph, pg) = GreyPng.Decode(File.ReadAllBytes(pi));
             patches.Add(new World.PatchImage(p, pw, ph, pg));
         }
+        /* L'ABRI DU RIVAGE est à Godot seul (ShelterMap, « abri » dans la fiche) : la page n'a que celui du
+           môle. On le retire ici, comme les autres nouveautés propres à Godot dans les autres bancs. */
+        foreach (var port in region.Ports) port.ShelterR = 0;
         var world = new World(region, w, h, grey, null, patches);
 
         // --- la geographie ---

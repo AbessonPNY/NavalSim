@@ -40,6 +40,32 @@ public sealed class PortSpec
     public bool Wild;
     /// <summary>Son centre-ville en rues, s'il en a un (world/README.md → « centre »).</summary>
     public CentreSpec? Centre;
+    /// <summary>
+    /// OÙ L'ON COMMENCE, s'il est écrit : une place et un cap (boussole, en degrés),
+    /// à l'ancre. Absent, le navire part amarré au ponton du port.
+    /// </summary>
+    public (double X, double Z, double Cap)? StartAt;
+    /// <summary>L'abri que donne la forme du rivage autour de ce port, sur ce rayon (m) ; 0 : aucun (ShelterMap).</summary>
+    public double ShelterR;
+}
+
+/// <summary>
+/// UN PONTON POSÉ PAR LA FICHE — world/*.json → pontons : son milieu en mètres
+/// vrais, le cap de la racine vers le musoir (boussole : 0 nord, 90 est), sa
+/// longueur et sa largeur. Il porte comme le quai d'un port, et la coque le
+/// heurte de même.
+/// </summary>
+public sealed class PierSpec
+{
+    public string Name = "";
+    public double X, Z, Cap, Length = 40, Width = 14;
+}
+
+/// <summary>UN NAVIRE AU MOUILLAGE POSÉ PAR LA FICHE — world/*.json → mouilles : sa fiche, sa place, son cap.</summary>
+public sealed class AnchoredSpec
+{
+    public string Sheet = "";
+    public double X, Z, Cap;
 }
 
 /// <summary>
@@ -132,6 +158,9 @@ public sealed class RegionSpec
     public readonly List<ScatterSpec> Scatters = new();
     /// <summary>Les sols peints à la main (Godot) : herbe, pavés, sable, par-dessus la teinte du relief.</summary>
     public readonly List<PaintSpec> Paints = new();
+    /// <summary>Les pontons et les navires au mouillage que la fiche pose elle-même (Godot).</summary>
+    public readonly List<PierSpec> Piers = new();
+    public readonly List<AnchoredSpec> Anchored = new();
 
     public static RegionSpec FromJson(string json)
     {
@@ -176,7 +205,10 @@ public sealed class RegionSpec
                     Key = Str(p, "key"), Name = Str(p, "name"),
                     Lat = Num(p, "lat"), Lon = Num(p, "lon"), Quay = Num(p, "quay"),
                     Start = Bool(p, "start"), Mole = Bool(p, "mole"), Wild = Bool(p, "wild"),
-                    Centre = p.TryGetProperty("centre", out var ce) && ce.ValueKind == JsonValueKind.Object ? ReadCentre(ce) : null
+                    Centre = p.TryGetProperty("centre", out var ce) && ce.ValueKind == JsonValueKind.Object ? ReadCentre(ce) : null,
+                    StartAt = p.TryGetProperty("depart", out var dp) && dp.ValueKind == JsonValueKind.Object
+                        ? (Num(dp, "x"), Num(dp, "z"), Num(dp, "cap")) : null,
+                    ShelterR = p.TryGetProperty("abri", out var ab) && ab.ValueKind == JsonValueKind.Object ? Num(ab, "rayon") : 0
                 });
         if (r.TryGetProperty("towns", out var tw) && tw.ValueKind == JsonValueKind.Array)
             foreach (var t in tw.EnumerateArray())
@@ -202,6 +234,17 @@ public sealed class RegionSpec
                     Scale = a.TryGetProperty("scale", out var k) ? k.GetDouble() : 1,
                     Y = a.TryGetProperty("y", out var y) ? y.GetDouble() : null
                 });
+        if (r.TryGetProperty("pontons", out var pn) && pn.ValueKind == JsonValueKind.Array)
+            foreach (var p in pn.EnumerateArray())
+                s.Piers.Add(new PierSpec
+                {
+                    Name = Str(p, "nom"), X = Num(p, "x"), Z = Num(p, "z"), Cap = Num(p, "cap"),
+                    Length = p.TryGetProperty("longueur", out var pl) ? pl.GetDouble() : 40,
+                    Width = p.TryGetProperty("largeur", out var pw) ? pw.GetDouble() : 14
+                });
+        if (r.TryGetProperty("mouilles", out var mo) && mo.ValueKind == JsonValueKind.Array)
+            foreach (var p in mo.EnumerateArray())
+                s.Anchored.Add(new AnchoredSpec { Sheet = Str(p, "fiche"), X = Num(p, "x"), Z = Num(p, "z"), Cap = Num(p, "cap") });
         if (r.TryGetProperty("peinture", out var pt) && pt.ValueKind == JsonValueKind.Array)
             foreach (var p in pt.EnumerateArray())
                 s.Paints.Add(new PaintSpec
@@ -288,6 +331,10 @@ public sealed class Isle
     public PortWorks Port = new();
     /// <summary>Son centre-ville en rues, s'il en a un.</summary>
     public CentreSpec? Centre;
+    /// <summary>La place de départ écrite dans la fiche, s'il y en a une (PortSpec.StartAt).</summary>
+    public (double X, double Z, double Cap)? StartAt;
+    /// <summary>Le rayon de l'abri que donne le rivage (PortSpec.ShelterR), 0 sinon.</summary>
+    public double ShelterR;
 }
 
 /// <summary>
@@ -364,6 +411,7 @@ public sealed class World : IGround
             if (isle != null) Isles.Add(isle);
         }
         Measure();
+        InitShelterMaps();
     }
 
     /// <summary>
@@ -535,6 +583,9 @@ public sealed class World : IGround
     public double Shelter(double x, double z)
     {
         double f = 1;
+        // la forme du rivage, là où une fiche l'a demandée
+        foreach (var map in ShelterMaps)
+            if (map.Covers(x, z)) f = Math.Min(f, map.Sample(x, z));
         foreach (var isl in Isles)
         {
             if (isl.Port.Harbour is not Harbour H) continue;
@@ -675,7 +726,8 @@ public sealed class World : IGround
         return new Isle
         {
             Key = P.Key, Name = P.Name, X = x, Z = z, R = 600, RShore = 0,
-            Start = P.Start, Wild = P.Wild, Lat = P.Lat, Lon = P.Lon, Port = port, Centre = P.Centre
+            Start = P.Start, Wild = P.Wild, Lat = P.Lat, Lon = P.Lon, Port = port, Centre = P.Centre, StartAt = P.StartAt,
+            ShelterR = P.ShelterR
         };
     }
 
@@ -701,6 +753,21 @@ public sealed class World : IGround
     /// la ville les bâtit, et le semis des maisons les laisse libres. Une fonction
     /// pure du relief, donc la même grille pour les trois.
     /// </summary>
+    /// <summary>
+    /// LES ABRIS DES RIVAGES (ShelterMap), bâtis une fois à la première lecture. Le
+    /// solveur lit l'abri depuis plusieurs fils à la fois : Lazy le bâtit une seule
+    /// fois, les autres attendent.
+    /// </summary>
+    public IReadOnlyList<ShelterMap> ShelterMaps => _shelterMaps.Value;
+    Lazy<List<ShelterMap>> _shelterMaps = null!;
+
+    void InitShelterMaps() => _shelterMaps = new Lazy<List<ShelterMap>>(() =>
+    {
+        var l = new List<ShelterMap>();
+        foreach (var isl in Isles) if (isl.ShelterR > 0) l.Add(ShelterMap.Build(this, isl.X, isl.Z, isl.ShelterR));
+        return l;
+    }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication);
+
     public IReadOnlyList<StreetGrid> Grids
     {
         get

@@ -119,7 +119,7 @@ uniform float u_refract = 1.0;
    se lisait comme au travers d'une vitre (signalé). Une vraie surface diffuse
    dès le premier centimètre : les rides brisent l'image, et une eau de rade
    porte toujours sa part de particules. 1 : une vitre ; 0 : de l'encre. */
-uniform float u_veil = 0.55;
+uniform float u_veil = 0.70;
 /* LE COLLIER D'ÉCUME AU BORDÉ, un facteur : 1 est le réglage, 0 l'efface, 2 le
    double. Il naît du MOUVEMENT de l'eau le long d'elle — son erre, ou la mer
    quand elle est stoppée. Par calme plat et machine arrêtée, il n'y en a pas, et
@@ -1017,11 +1017,14 @@ void fragment() {
 		/* LE TROUBLE DE LA RADE, sur les deux termes qui font voir au travers :
 		   ce que la surface laisse passer à épaisseur nulle, et ce que l'eau
 		   éteint par mètre. Au mouillage de Port-Royal (abri 0,12) le voile tombe
-		   d'un tiers et l'extinction plus que double : le fond se lit encore à
-		   deux ou trois mètres, et plus du tout à onze. */
+		   d'un sixième et l'extinction plus que double : le fond se lit à deux ou
+		   trois mètres, et plus du tout à onze. */
 		float trouble = (1.0 - v_shelter) * u_silt;
 		vec3 T = clamp(exp(-u_absorb * (1.0 + 2.5 * trouble) * thick), 0.0, 1.0);
-		float veil = u_veil * (1.0 - 0.75 * trouble);
+		/* La vase ôte moins au voile qu'à l'extinction : par deux ou trois mètres, on veut LIRE LA COULEUR
+		   du fond — le sable blanc, la vase, l'herbier peints (demandé) — et c'est par mètre que la rade
+		   reste trouble, si bien que l'eau profonde du port garde son ombre. */
+		float veil = u_veil * (1.0 - 0.45 * trouble);
 		vec3 behind = naval_encode(textureLod(u_screen, suv, 0.0).rgb);
 		if (u_submerged > 0.5 && !FRONT_FACING) {
 			// par en dessous, ce qu'on voit à travers la fenêtre est EN L'AIR : rien à partager

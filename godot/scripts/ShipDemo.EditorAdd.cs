@@ -130,7 +130,7 @@ public partial class ShipDemo
     /// <summary>settings.json → chimneys.enabled</summary>
     bool _chimneyRules = true;
     /// <summary>settings.json → chimneys.density : la part des cheminées AUTOMATIQUES qui fument.</summary>
-    double _chimneyDensity = 0.35;
+    double _chimneyDensity = 0.15;
 
     /// <summary>
     /// CELLE-CI FUME-T-ELLE ? Une cheminée que la main a posée ou retouchée, toujours :

@@ -14070,6 +14070,74 @@ s'installe et s'en va en fondu quand on change de vue, et se divise par le gross
 secousse d'explosion, dont elle partage la transformée posée par-dessus la vue (`ShakeCamera`).
 `settings.json` → `camera.handheld` (1 ; 0 : trépied).
 
+## Des pontons sur les rives de Port-Royal, des navires au mouillage, un autre départ (Godot)
+
+Demandé sur une capture annotée : des pontons deux fois plus larges que le quai, perpendiculaires à la rive,
+sur sept zones rouges ; des navires sur cinq zones bleues ; le navire du joueur au point bleu le plus haut.
+
+**Lire un dessin en perspective.** Une vue du ciel (caméra à 1 400 m, 55° de champ : 1,35 m par pixel, le
+nord en haut, l'est à droite), puis une HOMOGRAPHIE de la capture annotée vers elle, tirée de cinq repères
+communs (le fort, les deux bouts de la grande rangée, la rangée en « = », celle en T, la pointe du bassin) :
+recalés à 2–5 px près. Les marques tombent sur la rive nord à l'est du fort et sur la rive du chenal à l'ouest
+de la rangée — la capture regardait vers l'est-nord-est, et le chenal y passait pour la mer.
+
+**Le piège** : le champ de distance au rivage (`ShoreDistance`) est tiré de la GRANDE carte, et ignore les
+reliefs locaux — Port-Royal est retravaillé à la main. La première passe envoyait les trois pontons du nord à
+deux cents mètres au sud, tous au cap 0 et à la longueur maximale. La rive se cherche donc dans le relief
+lui-même (un point de terre dont un voisin est dans l'eau) et le large dans sa pente (`Lab -- pontons`).
+
+**Les pontons** (`pontons`, `JettyNode.BuildPiers`) : la charpente du quai d'un port en devient une fonction
+(`Timber` : tablier, bordage, jambes, bittes), qui sait la largeur — une rangée de jambes tous les cinq mètres
+en travers, un tablier de quatorze mètres sur deux rangées aurait des baux qu'aucun bois ne franchit. Le solveur
+les voit comme des segments de la largeur d'un quai, côte à côte (deux pour quatorze mètres) : il n'a qu'une
+sorte de ponton à heurter. Objets du mode création : les déplacer les REBÂTIT (les jambes retrouvent le fond)
+et refait la liste du solveur (`RefreshJetties`) — qui n'était faite qu'une fois, et donnée au seul navire du
+joueur.
+
+**Les navires** (`mouilles`, `MooredNode.BuildAnchored`) : le chargement d'un modèle de rade devient une
+fonction partagée, la même échelle et la même assise (`Settle`) que les rades ; écartés vers le large jusqu'à
+ce que tout leur plan d'eau porte (12 à 16 m de fond), le cap le long de la rive. Ils ne se copient pas : une
+copie posée par l'éditeur sur le sol n'aurait pas d'eau pour la porter.
+
+**Le départ** (`depart` dans l'entrée du port) : le navire y commence, l'ancre au fond dès la première image
+de jeu (« Ancre au fond par 13 m · 44 m de câble »), au lieu du ponton du port.
+
+**L'eau des hauts-fonds** (demandé en passant : « voir les couleurs du fond en eaux peu profondes ») : le voile
+de surface passe de 0,55 à 0,70, et la vase d'un bassin ne lui ôte plus qu'un sixième (au lieu d'un tiers à
+Port-Royal) ; l'extinction par mètre est inchangée, si bien que l'eau profonde du port garde son ombre.
+
+Vu, à revoir : le bas des jambes sous l'eau blanchit — le même blanc que sous les tonneaux à flot.
+
+## L'abri du rivage, et le ponton en pièces .glb (Godot)
+
+**« La forme de mon rivage ne peut-elle pas un peu stopper la houle, comme le faisait le môle ? »** Elle ne le
+pouvait pas : le SEUL abri du jeu était celui d'un môle (`Harbour`), et depuis qu'on a retiré celui de
+Port-Royal la houle du large entrait partout — bassin compris. **`ShelterMap`** (noyau) : autour d'un port
+qui le demande (`"abri": { "rayon": 1100 }`), pour chaque point d'une grille de huit mètres, quarante rayons ;
+la part qui atteint le LARGE (huit cents mètres d'eau sans terre) dit ce qu'il voit de mer ouverte. Une rive
+droite en voit la moitié et reste battue ; c'est sous un tiers qu'on entre dans une baie, sous un huitième qu'on
+est au fond d'un bassin (abri 0,12, celui du môle). Adoucie (deux passes sur quarante mètres) et fondue au bord
+du carré. 174 ms au chargement, construite paresseusement par `Lazy` — le solveur lit l'abri depuis plusieurs
+fils. **Une GRILLE et non un calcul à la demande**, à cause des trois calculateurs : la mer et l'écume la
+reçoivent en texture (`u_shelter_map`, `shelter.gdshaderinc`, poussée avec le havre par `PushHarbour`, son
+coin décalé de l'origine), la coque la lit par `World.Shelter`. Vu par force 7 : le bassin reste lisse.
+
+**Le ponton en .glb** (demandé : « mets-moi le ponton dans les GLB à remplacer, un grand et un petit »). Un
+ponton n'a pas de forme fixe — sa longueur change, et chaque jambe a la hauteur du fond sous elle —, si bien
+que le .glb porte ses PIÈCES, nommées : `travee` (quatre mètres de tablier), `pieu` (une jambe d'un mètre,
+étirée) et `bitte`. `JettyNode.TimberFromParts` les assemble : travées étirées pour tomber juste, mises à la
+largeur, une jambe à chaque nœud lisant le fond. Fichier absent : le dessin du code, inchangé.
+`tools/jetty-glb.js` écrit les deux fichiers, et la mise en paquet .glb est sortie dans `tools/glb-write.js`,
+partagée avec `town-glb.js` — vérifié : les trois bâtiments ressortent identiques à l'octet.
+
+## Les fumées : peu de foyers, noir charbon, longues (Godot)
+
+Demandé : « encore moins de spots, mais plus denses et noir charbon, qui restent longtemps dans le ciel ».
+`chimneys.density` 0,35 → 0,15 ; deux bouffées par seconde au lieu d'une ; une vie de 40 à 70 s au lieu de 14 à 24 ;
+des bouffées plus larges (7 à 12 m) ; noir (0,06 à la sortie, 0,16 au bout) ; une opacité de 0,36 qui ne tombe
+qu'au dernier tiers de la vie, au lieu de décroître dès la naissance. Le bassin passe à 3 072 bouffées : chacune
+vit trois fois plus. Vu après une minute : deux ou trois panaches noirs couchés par le vent au-dessus de la ville.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

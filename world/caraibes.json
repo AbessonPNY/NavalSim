@@ -39,6 +39,8 @@
   "ports": [
     { "key": "port-royal", "name": "Port-Royal", "lat": 17.9425, "lon": -76.8330, "quay": 0,
       "start": true, "note": "au bout des Palisadoes, quais côté port ; port NATUREL — le môle a été retiré, l'ouvrage du bassin est modelé à la main",
+      "depart": { "x": -829.1, "z": 507.8, "cap": 102 },
+      "abri": { "rayon": 1100 },
       "centre": { "glb": "world/models/cottage-ville.glb", "bloc": [31, 12.7], "longueur": 320, "rue": 8, "cour": 4, "ruelle": 2.5, "traverse": 3, "paires": 2, "altitude": 2 } },
 
     { "key": "passage-fort", "name": "Passage Fort", "lat": 17.9550, "lon": -76.8950, "quay": 120,
@@ -60,6 +62,23 @@
     { "key": "yallahs", "name": "Yallahs", "lat": 17.8680, "lon": -76.5700, "quay": 180 },
     { "key": "hog-crawle", "name": "Hog Crawle de Samuel Barry", "lat": 17.9600, "lon": -76.7600, "quay": 180, "wild": true,
       "note": "l'enclos à cochons du colonel Barry, sur la rive nord de la rade ; un débarcadère et rien d'autre : ni ville, ni marché" }
+  ],
+
+  "pontons": [
+    { "nom": "Ponton de la rive nord, à l'est", "x": -930.9, "z": 446.4, "cap": 8, "longueur": 32, "largeur": 14 },
+    { "nom": "Ponton de la rive nord", "x": -739.3, "z": 501.4, "cap": 7, "longueur": 35, "largeur": 14 },
+    { "nom": "Ponton de la rive nord, sous le fort", "x": -559.0, "z": 529.0, "cap": 0, "longueur": 28, "largeur": 14 },
+    { "nom": "Ponton du chenal", "x": -367.8, "z": 406.4, "cap": 284, "longueur": 32, "largeur": 14 },
+    { "nom": "Ponton du chenal", "x": -368.2, "z": 364.4, "cap": 258, "longueur": 32, "largeur": 14 },
+    { "nom": "Ponton du chenal", "x": -376.7, "z": 307.5, "cap": 259, "longueur": 37, "largeur": 14 },
+    { "nom": "Ponton du chenal, au bassin", "x": -416.5, "z": 168.9, "cap": 269, "longueur": 24, "largeur": 14 }
+  ],
+
+  "mouilles": [
+    { "fiche": "sloop.json", "x": -652.0, "z": 547.0, "cap": 97 },
+    { "fiche": "frigate.json", "x": -330.5, "z": 432.6, "cap": 13 },
+    { "fiche": "sloop.json", "x": -343.0, "z": 330.0, "cap": 349 },
+    { "fiche": "frigate17e.json", "x": -400.0, "z": 120.9, "cap": 359 }
   ],
 
   "peinture": [

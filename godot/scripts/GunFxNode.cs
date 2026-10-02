@@ -26,7 +26,7 @@ namespace NavalSim;
 /// </summary>
 public partial class GunFxNode : Node3D
 {
-    const int MaxAdd = 512, MaxPowder = 1536, MaxSoot = 256, MaxBalls = 96, MaxHearth = 1536;
+    const int MaxAdd = 512, MaxPowder = 1536, MaxSoot = 256, MaxBalls = 96, MaxHearth = 3072;
     /// <summary>Les LANGUES de feu, qui ont leur propre forme et leur propre réserve.</summary>
     const int MaxFlame = 384;
     const double Lag = 0.30;          // la part du vent qu'un nuage de poudre prend
@@ -351,17 +351,22 @@ public partial class GunFxNode : Node3D
     public void Hearth(Vector3 at, double strength, double dt)
     {
         double k = Math.Clamp(strength, 0.2, 4);
-        if (R() > 0.9 * k * dt) return;
+        /* PEU DE FOYERS, MAIS QUI FUMENT GRAS (demandé : « moins de spots, plus
+           denses, noir charbon, qui restent longtemps dans le ciel ») : deux
+           bouffées par seconde, et chacune vit une minute. Elle monte encore,
+           lentement, puis traîne en panache dans le vent : c'est ce panache qui se
+           lit de loin, au-dessus d'un port. */
+        if (R() > 1.9 * k * dt) return;
         float fk = (float)Math.Sqrt(k);
         Add(_hearth, new Puff
         {
-            K = Kind.Hearth, T = 0, Life = 14 + R() * 10,
+            K = Kind.Hearth, T = 0, Life = 40 + R() * 30,
             P = at + new Vector3((R() - 0.5f) * 0.3f, 0, (R() - 0.5f) * 0.3f),
-            V = new Vector3((R() - 0.5f) * 0.2f, 1.2f + R() * 0.6f, (R() - 0.5f) * 0.2f),
+            V = new Vector3((R() - 0.5f) * 0.2f, 1.4f + R() * 0.6f, (R() - 0.5f) * 0.2f),
             // la chaleur la porte d'abord, puis elle n'a plus que le vent
-            Lift = 0.45 + R() * 0.3, Drag = 0.35,
-            S0 = 0.5 * fk, S1 = (4.5 + R() * 3) * fk,
-            Rot = R() * 6.2832, Spin = (R() - 0.5) * 0.15
+            Lift = 0.35 + R() * 0.25, Drag = 0.30,
+            S0 = 0.7 * fk, S1 = (7 + R() * 5) * fk,
+            Rot = R() * 6.2832, Spin = (R() - 0.5) * 0.12
         }, MaxHearth);
     }
 
@@ -670,14 +675,16 @@ public partial class GunFxNode : Node3D
             case Kind.Spark: return (p.Col, Math.Pow(1 - u, 0.8) * 0.9);
             case Kind.Hearth:
             {
-                /* NOIRE À LA SORTIE, et elle s'éclaircit en s'étalant : un âtre du
-                   XVIIe brûle du bois humide et du charbon de terre, pas des bûches
-                   sèches — la fumée d'une ville se lisait sombre sur le ciel (demandé :
-                   « bien plus noires »). Elle RENVOIE la lumière, mais peu : le ciel la
-                   teinte sans l'éclairer. */
-                double a = Math.Min(1, p.T / 1.2) * Math.Pow(1 - u, 1.3) * 0.30;
+                /* NOIR CHARBON, et à peine éclaircie en s'étalant : un âtre du XVIIe
+                   brûle du bois humide et du charbon de terre, pas des bûches sèches —
+                   la fumée d'une ville se lisait sombre sur le ciel (demandé : « noir
+                   charbon »). Dense, et longtemps : l'opacité ne tombe qu'au dernier
+                   tiers de sa vie. Elle RENVOIE la lumière, mais peu : le ciel la teinte
+                   sans l'éclairer. */
+                double fade = u < 0.65 ? 1 : Math.Pow(1 - (u - 0.65) / 0.35, 1.5);
+                double a = Math.Min(1, p.T / 1.0) * (1 - 0.45 * u) * fade * 0.36;
                 var L = _lit;
-                float g = (float)(0.13 + 0.22 * u);
+                float g = (float)(0.06 + 0.10 * u);
                 return (new Vector3(g * L.X, g * 0.98f * L.Y, g * 0.95f * L.Z), a);
             }
             case Kind.Mist:

@@ -257,7 +257,7 @@ public partial class ShipDemo : Node3D
             AddChild(_town);
             _folk = new FolkNode(_world) { Editor = _editReg };
             AddChild(_folk);
-            _jetty = new JettyNode(_world);
+            _jetty = new JettyNode(_world) { Editor = _editReg };
             AddChild(_jetty);
             _grappleNode = new GrappleNode();
             AddChild(_grappleNode);
@@ -270,14 +270,15 @@ public partial class ShipDemo : Node3D
                joueur, qui n a pas encore de navire. */
             if (_mooredOn)
             {
-                _moored = new MooredNode(_world) { Range = _mooredRange, Flotte = _mooredShips };
+                _moored = new MooredNode(_world) { Range = _mooredRange, Flotte = _mooredShips, Editor = _editReg };
                 AddChild(_moored);
             }
             /* ET LE SOLVEUR APPREND OÙ ILS SONT. Une fois : un ponton ne bouge pas.
                En mètres MONDE VRAIS, comme tout ce qui est « du monde » — le solveur
                retranche l'origine lui-même, à chaque sous-pas. */
-            _jetties = _world.Isles.Where(i => i.Port.Hx != 0 || i.Port.Hz != 0)
-                                   .Select(i => (i.Port.Sx, i.Port.Sz, i.Port.Hx, i.Port.Hz)).ToArray();
+            _jetty?.BuildPiers();
+            if (_jetty != null) _jetty.PiersChanged += RefreshJetties;
+            RefreshJetties();
             _book = LoadBook();
             _chart = new ChartNode(_world, _book)
             {
@@ -321,6 +322,7 @@ public partial class ShipDemo : Node3D
         Launch(first);
         // et les rades, maintenant qu on connaît le navire dont il faut laisser le poste
         _moored?.Build(System.IO.Path.Combine(Assets.Root, "ships"), _sea.Core, _ship.Spec.L, _ship.Spec.B);
+        _moored?.BuildAnchored(System.IO.Path.Combine(Assets.Root, "ships"), _sea.Core);
         // les réglages du fichier d'abord ; la ligne de commande, lue ensuite, a le dernier mot
         ApplySettings();
         SetupCapture();
@@ -1186,6 +1188,12 @@ public partial class ShipDemo : Node3D
         if (_largeIn > 0 && (_largeIn -= delta) <= 0) GoOffshore();
         if (_souteIn > 0 && (_souteIn -= delta) <= 0) BlowUp(_ship);
         if (_diveTestIn > 0 && (_diveTestIn -= delta) <= 0) DiveTest();
+        // le départ écrit dans la fiche se fait à l'ancre : on la mouille dès que la coque est posée
+        if (_anchorAtStart && !_inTitle && _anchor2 != null)
+        {
+            _anchorAtStart = false;
+            if (!_anchor2.IsDown(_ship)) _anchor2.Toggle(_ship, _t);
+        }
         if (_pontonIn > 0 && (_pontonIn -= delta) <= 0) BackToBerth();
         if (_metIn > 0 && (_metIn -= delta) <= 0) ForceEncounter(_metPair);
         if (_shotIn > 0 && (_shotIn -= delta) <= 0) TestShot(_shotY);
@@ -3917,6 +3925,8 @@ public partial class ShipDemo : Node3D
     LandNode? _land;
     TownNode? _town;
     FolkNode? _folk;
+    /// <summary>Le départ de la fiche est au mouillage : l'ancre tombe à la première image de jeu.</summary>
+    bool _anchorAtStart;
     JettyNode? _jetty;
 
     /// <summary>Les filins d'abordage : la règle est dans le noyau, le dessin dans GrappleNode.</summary>
@@ -3929,6 +3939,22 @@ public partial class ShipDemo : Node3D
     readonly Random _grappleRng = new(20261001);
     /// <summary>Les pontons, pour le solveur : il s'y cogne. Voir ShipPhysics.Jetties.</summary>
     (double Sx, double Sz, double Hx, double Hz)[] _jetties = System.Array.Empty<(double, double, double, double)>();
+
+    /// <summary>
+    /// CE QUE LE SOLVEUR SAIT DES QUAIS : ceux des ports, et les pontons de la fiche.
+    /// Refait quand l'éditeur en déplace un, et redonné à toutes les coques qui
+    /// l'avaient — en mètres MONDE VRAIS, le solveur retranche l'origine lui-même.
+    /// </summary>
+    void RefreshJetties()
+    {
+        if (_world == null) return;
+        var list = _world.Isles.Where(i => i.Port.Hx != 0 || i.Port.Hz != 0)
+                               .Select(i => (i.Port.Sx, i.Port.Sz, i.Port.Hx, i.Port.Hz)).ToList();
+        if (_jetty != null) list.AddRange(_jetty.PierSegments());
+        _jetties = list.ToArray();
+        if (_ship?.Physics != null) _ship.Physics.Jetties = _jetties;
+        foreach (var s in _others) s.Physics.Jetties = _jetties;
+    }
     ChartNode? _chart;
     bool _dressed;
     /// <summary>--carte : la vue se penche sur la feuille dès qu'elle est trouvée.</summary>
@@ -4135,6 +4161,48 @@ public partial class ShipDemo : Node3D
         ShipNode.Caustic?.SetShaderParameter("u_harbour_pass", pass);
         _mist?.Material.SetShaderParameter("u_harbour", v);
         _mist?.Material.SetShaderParameter("u_harbour_pass", pass);
+
+        /* L'ABRI DU RIVAGE, aux MÊMES matières que le havre — et c'est la règle des
+           trois calculateurs : le noyau le lit déjà par World.Shelter. La grille la
+           plus proche, son coin décalé de l'origine comme le havre. */
+        ShelterMap? near = null;
+        double nd = double.MaxValue;
+        foreach (var map in _world.ShelterMaps)
+        {
+            double mx = map.X0 + map.Size * 0.5 - here.X, mz = map.Z0 + map.Size * 0.5 - here.Z;
+            double d2 = mx * mx + mz * mz;
+            if (d2 < nd) { nd = d2; near = map; }
+        }
+        Texture2D? tex = near != null ? ShelterTexture(near) : null;
+        // le coin de la texture : la demi-maille avant le premier nœud, le texel étant centré sur lui
+        var rect = near != null
+            ? new Vector4((float)(near.X0 - 0.5 * ShelterMap.Cell - o.X), (float)(near.Z0 - 0.5 * ShelterMap.Cell - o.Z),
+                          (float)(1 / near.Size), 1)
+            : Vector4.Zero;
+        void Shel(Action<string, Variant> set)
+        {
+            set("u_shelter_rect", rect);
+            if (tex != null) set("u_shelter_map", tex);
+        }
+        Shel((n, x) => _sea.Material?.SetShaderParameter(n, x));
+        Shel((n, x) => _foam.Set(n, x));
+        if (_ship != null) foreach (var m in _ship.MirrorMaterials) Shel((n, x) => m.SetShaderParameter(n, x));
+        Shel((n, x) => _land?.Ground.SetShaderParameter(n, x));
+        Shel((n, x) => _fishNode?.Material?.SetShaderParameter(n, x));
+        Shel((n, x) => ShipNode.Caustic?.SetShaderParameter(n, x));
+        Shel((n, x) => _mist?.Material.SetShaderParameter(n, x));
+    }
+
+    readonly Dictionary<ShelterMap, ImageTexture> _shelterTex = new();
+
+    /// <summary>La grille d'abri en texture, une fois : un flottant par maille.</summary>
+    ImageTexture ShelterTexture(ShelterMap map)
+    {
+        if (_shelterTex.TryGetValue(map, out var t)) return t;
+        var bytes = new byte[map.V.Length * 4];
+        Buffer.BlockCopy(map.V, 0, bytes, 0, bytes.Length);
+        var img = Image.CreateFromData(map.N, map.N, false, Image.Format.Rf, bytes);
+        return _shelterTex[map] = ImageTexture.CreateFromImage(img);
     }
 
     /// <summary>
@@ -4201,6 +4269,14 @@ public partial class ShipDemo : Node3D
     {
         if (_world?.StartPort is not NavalSim.Core.Isle home) return;
         var (x, z, heading) = NavalSim.Core.Berth.At(home, _ship.Spec.L, _ship.Spec.B);
+        /* UN DÉPART ÉCRIT DANS LA FICHE l'emporte sur le ponton : une place, un cap
+           (boussole : 0 nord, 90 est — d'où le signe), et l'ancre au fond dès la
+           première image. */
+        if (home.StartAt is { } st)
+        {
+            (x, z, heading) = (st.X, st.Z, -st.Cap * Math.PI / 180);
+            _anchorAtStart = true;
+        }
         if (_askHeading is double ask) heading = ask;
         var o = _sea.Core.Origin;
         _sea.Core.Rebase(x - o.X, z - o.Z);
