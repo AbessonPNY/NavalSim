@@ -7,7 +7,7 @@
   "plank": {
     "name": "Planche",
     "scale": 1.0,
-    "glb": null,
+    "glb": "props/planche.glb",
     "rotation": [0, 0, 0],
     "draft": 0.02,
     "life": 900

@@ -375,9 +375,15 @@ public partial class ShipDemo
     (double? Wreck, bool Bell, double Rope, bool Take) _diveTest;
 
     int _debrisTest;
+    bool _whereTest;
 
     void DiveTest()
     {
+        if (_whereTest)
+        {
+            var o = _sea.Core.Origin; var p = _ship.Physics.Body.Pos;
+            GD.Print(FormattableString.Invariant($"[ou] origine ({o.X:F0}, {o.Z:F0}), navire ({p.X:F0}, {p.Z:F0}) local, ({o.X + p.X:F0}, {o.Z + p.Z:F0}) vrai"));
+        }
         if (_debrisTest > 0)
         {
             var db = _ship.Physics.Body; var fw = db.Quat.Rotate(new Vec3d(0, 0, 1)); var o = _sea.Core.Origin;

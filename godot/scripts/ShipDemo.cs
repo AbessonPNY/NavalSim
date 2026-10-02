@@ -4520,7 +4520,7 @@ public partial class ShipDemo : Node3D
                 // la charge forcee, pour un banc : la rampe met vingt secondes
                 case "--anneaux": _forceRings = args[i + 1].ToFloat(); break;
                 case "--rade": MooredNode.Debug = args[i + 1] != "0";
-                    GD.Print($"[rade] joueur a ({_ship.Physics.Body.Pos.X:F0}, {_ship.Physics.Body.Pos.Z:F0}) local"); break;
+                    GD.Print($"[rade] joueur a ({_ship.Physics.Body.Pos.X:F0}, {_ship.Physics.Body.Pos.Z:F0}) local, origine ({_sea.Core.Origin.X:F0}, {_sea.Core.Origin.Z:F0})"); break;
                 // les ombres des fanaux : une omni qui porte ombre rend un CUBE par image
                 case "--ombres":
                     _settings.LanternShadows = args[i + 1] == "1";
@@ -4573,6 +4573,8 @@ public partial class ShipDemo : Node3D
                 case "--cloche": if (args[i + 1] != "0") _diveTest.Bell = true; _diveTestIn = 1.0; break;
                 case "--descendre": _diveTest.Rope = args[i + 1].ToFloat(); _diveTestIn = 1.0; break;
                 case "--saisir": _diveTest.Take = args[i + 1] != "0"; break;
+                // où l'on est, une seconde après le départ (l'origine bouge à la mise à quai)
+                case "--ou": _whereTest = args[i + 1] != "0"; _diveTestIn = 1.0; break;
                 // une épave d'essai, à tant de mètres par le travers : son coffre avec
                 case "--epave": _diveTest.Wreck = args[i + 1].ToFloat(); _diveTestIn = 1.0; break;
                 case "--mi-eau-haut": _splitLift = args[i + 1].ToFloat(); break;

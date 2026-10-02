@@ -30,6 +30,10 @@ public partial class WreckSiteNode : Node3D
     /// <summary>Le manifeste des trésors : ce qu'on pose dans le coffre, et ses modèles.</summary>
     public TreasureBook? Book;
     readonly Dictionary<string, Node3D?> _glbs = new();
+    /// <summary>Les coffres d'une seule pièce : sans couvercle, le contenu paraît DEVANT eux quand la cloche arrive.</summary>
+    readonly HashSet<string> _noLid = new();
+    /// <summary>La longueur d'un coffre, en mètres : un modèle y est ramené quelle que soit son échelle.</summary>
+    const float ChestLength = 1.1f;
     readonly Dictionary<string, (Node3D? Root, ShipSpec? Spec)> _models = new();
     public readonly List<ShaderMaterial> Hazed = new();
     ShaderMaterial? _haze;
@@ -69,6 +73,8 @@ public partial class WreckSiteNode : Node3D
                dessus — on voit ce qu'il renferme avant de le saisir —, et rabattu en
                grand, vide, une fois pillé. Il pivote en une seconde environ. */
             if (b.W.Looted && b.Gold.Visible) b.Gold.Visible = false;
+            // sans couvercle à lever, ce qu'il renferme paraît quand la cloche arrive
+            else if (!b.W.Looted && _noLid.Contains(b.W.Id)) b.Gold.Visible = b.W.Id == openId;
             float want = b.W.Looted ? -110 : b.W.Id == openId ? -105 : 0;
             var r = b.Lid.RotationDegrees;
             b.Lid.RotationDegrees = new Vector3(r.X + (want - r.X) * (float)Math.Min(1, dt * 3.0), r.Y, r.Z);
@@ -237,6 +243,21 @@ public partial class WreckSiteNode : Node3D
         return _glbs[rel] = root;
     }
 
+    /// <summary>La boîte d'un modèle dans son propre repère.</summary>
+    static Aabb Box(Node3D root)
+    {
+        Aabb? box = null;
+        var stack = new Stack<(Node, Transform3D)>();
+        stack.Push((root, Transform3D.Identity));
+        while (stack.Count > 0)
+        {
+            var (n, t) = stack.Pop();
+            foreach (var c in n.GetChildren()) stack.Push((c, c is Node3D c3 ? t * c3.Transform : t));
+            if (n is MeshInstance3D mi && mi.Mesh != null) { var b = t * mi.Mesh.GetAabb(); box = box is Aabb a0 ? a0.Merge(b) : b; }
+        }
+        return box ?? new Aabb(Vector3.Zero, Vector3.One);
+    }
+
     static Node? FindNamed(Node n, string name)
     {
         if (n.Name.ToString().Contains(name, StringComparison.OrdinalIgnoreCase)) return n;
@@ -258,12 +279,32 @@ public partial class WreckSiteNode : Node3D
         var iron = new StandardMaterial3D { AlbedoColor = new Color(0.12f, 0.12f, 0.13f), Metallic = 0.7f, Roughness = 0.6f };
         Node3D lid;
         float top = 0.55f;
+        Vector3 heapAt = new(0, top, 0);
         if (Book != null && Glb(Book.ChestGlb) is { } model)
         {
+            /* RAMENÉ À LA LONGUEUR D'UN COFFRE et posé sur le sable : un modèle arrive
+               à l'échelle où il a été fait (celui-ci, près de cent unités de long), et
+               son origine n'est pas forcément sous lui. */
             var c = (Node3D)model.Duplicate();
+            var box = Box(c);
+            float ext = Math.Max(box.Size.X, Math.Max(box.Size.Y, box.Size.Z));
+            float k = ext > 1e-4f ? ChestLength / ext : 1;
+            var mid = box.GetCenter();
+            c.Scale = Vector3.One * k;
+            c.Position = new Vector3(-mid.X * k, -box.Position.Y * k, -mid.Z * k);
             at.AddChild(c);
-            lid = FindNamed(c, "couvercle") as Node3D ?? new Node3D();
-            if (lid.GetParent() == null) at.AddChild(lid);
+            top = box.Size.Y * k * 0.85f;
+            heapAt = new Vector3(0, top, 0);
+            if (FindNamed(c, "couvercle") is Node3D named) lid = named;
+            else
+            {
+                /* D'UNE SEULE PIÈCE, rien ne s'ouvre : le contenu est posé devant lui,
+                   sur le sable, et ne paraît qu'à l'arrivée de la cloche. */
+                lid = new Node3D();
+                at.AddChild(lid);
+                _noLid.Add(w.Id);
+                heapAt = new Vector3(0, 0.05f, box.Size.Z * k * 0.5f + 0.45f);
+            }
         }
         else
         {
@@ -275,7 +316,7 @@ public partial class WreckSiteNode : Node3D
             lid.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(1.12f, 0.12f, 0.72f) }, MaterialOverride = wood, Position = new Vector3(0, 0.06f, 0.36f) });
         }
 
-        var heap = new Node3D { Position = new Vector3(0, top, 0) };
+        var heap = new Node3D { Position = heapAt, Visible = !_noLid.Contains(w.Id) };
         at.AddChild(heap);
         var rng = new RandomNumberGenerator { Seed = (ulong)(w.Id.GetHashCode() & 0x7fffffff) };
         Vector3 Spot(float lift) => new(rng.RandfRange(-0.42f, 0.42f), rng.RandfRange(-0.03f, 0.03f) + lift, rng.RandfRange(-0.24f, 0.24f));

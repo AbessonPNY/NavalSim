@@ -87,6 +87,8 @@ public sealed class RegionSpec
     public readonly List<AssetSpec> Assets = new();
     public readonly List<TownSpec> Towns = new();
     public readonly List<PatchSpec> Patches = new();
+    /// <summary>Les semis : un modèle répandu au hasard sur une zone (Scatter.cs).</summary>
+    public readonly List<ScatterSpec> Scatters = new();
 
     public static RegionSpec FromJson(string json)
     {
@@ -156,6 +158,24 @@ public sealed class RegionSpec
                     Scale = a.TryGetProperty("scale", out var k) ? k.GetDouble() : 1,
                     Y = a.TryGetProperty("y", out var y) ? y.GetDouble() : null
                 });
+        if (r.TryGetProperty("semis", out var sz) && sz.ValueKind == JsonValueKind.Array)
+            foreach (var a in sz.EnumerateArray())
+            {
+                var sp = new ScatterSpec
+                {
+                    Name = Str(a, "name"), Glb = Str(a, "glb"), Patch = Str(a, "patch"),
+                    Lat = Num(a, "lat"), Lon = Num(a, "lon"),
+                    Radius = a.TryGetProperty("rayon", out var ra) ? ra.GetDouble() : 300,
+                    Count = a.TryGetProperty("nombre", out var nb) ? nb.GetInt32() : 30,
+                    Tilt = a.TryGetProperty("penche", out var pe) ? pe.GetDouble() : 18,
+                    Seed = a.TryGetProperty("graine", out var gr) ? gr.GetInt32() : 1
+                };
+                if (a.TryGetProperty("taille", out var ta) && ta.ValueKind == JsonValueKind.Array && ta.GetArrayLength() == 2)
+                { sp.SizeMin = ta[0].GetDouble(); sp.SizeMax = ta[1].GetDouble(); }
+                if (a.TryGetProperty("frange", out var fr) && fr.ValueKind == JsonValueKind.Array && fr.GetArrayLength() == 2)
+                { sp.HMin = fr[0].GetDouble(); sp.HMax = fr[1].GetDouble(); }
+                if (sp.Glb.Length > 0) s.Scatters.Add(sp);
+            }
         return s;
 
         static string Str(JsonElement e, string k) => e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString()! : "";

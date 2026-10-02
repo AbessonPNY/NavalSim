@@ -1,7 +1,7 @@
 {
   "_aide": "LES TRÉSORS DES ÉPAVES (Godot). Ce qu'un coffre renferme, tiré une fois pour toutes à l'inscription de l'épave. bourse : true, la sorte va droit à la bourse (les écus) ; sinon elle reste à bord et se vend au comptoir, à la pièce, à un cours qui varie d'un port à l'autre (de 0,55 à 1,45 fois sa valeur, la courbe des denrées). valeur : le cours moyen d'une pièce, en écus. min / max : combien un coffre en renferme ; pirate : ce que porte en plus un pirate (multiplie max). Les écus d'un coffre, eux, sont ce que vaut l'épave (sa taille, sa cargaison, et ce qu'un pirate a pris). glb : le modèle à poser dans le coffre ouvert (vide : une forme simple, dessinée). coffre.glb : le modèle du coffre ; son couvercle doit être un nœud nommé « couvercle », qui pivote sur sa charnière. marge : ce que garde le joaillier quand il rachète.",
   "coffre": {
-    "glb": ""
+    "glb": "props/coffre_2k.glb"
   },
   "marge": 0.15,
   "contenus": [

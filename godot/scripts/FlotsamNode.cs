@@ -380,7 +380,7 @@ public partial class FlotsamNode : Node3D
        l'écran —, et « scale : 1 = taille dessinée » doit garder son sens. */
     static readonly Dictionary<string, float> Sizes = new()
     {
-        ["plank"] = 2.2f, ["barrel"] = 0.9f, ["bottle"] = 0.31f, ["cargo"] = 1.8f
+        ["plank"] = 1.8f, ["barrel"] = 0.9f, ["bottle"] = 0.31f, ["cargo"] = 1.8f
     };
 
     static float Extent(Node3D root)

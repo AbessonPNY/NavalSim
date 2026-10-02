@@ -3,5 +3,7 @@
   "ships/models/roter_lowe_1597.glb": { "max": { "fabrics": 512 } },
   "ships/models/hero_ship.glb": { "page": false },
   "ships/models/sloop_1700s.glb": { "page": false },
-  "props/tonneau.glb": { "page": false }
+  "props/tonneau.glb": { "page": false },
+  "props/coffre_2k.glb": { "page": false },
+  "props/planche.glb": { "page": false }
 }

@@ -13784,6 +13784,28 @@ plongée — vu avec le rocher en guise de tonneau).
 vit dans `godot-models/props/`, marqué `"page": false` : la page est un prototype, rien des nouveautés
 n'y entre.
 
+## Les rochers des plages (Godot)
+
+Demandé : les rochers (`props/rocher.glb`) répandus au hasard, taille et rotation variées, sur l'île perdue —
+pris pour l'îlot aux cocotiers, faute d'une île de ce nom dans les données — et sur les plages de Port-Royal.
+
+**Un semis** dans la fiche du monde (`semis`, `core/Scatter.cs`, posé par `LandNode` comme les modèles posés) :
+tiré sur une graine dans la zone d'un carreau de relief, gardé dans la FRANGE d'altitude d'une plage (−0,4 à
++1,8 m), à 35 m au moins d'un ponton, sans chevauchement. Tailles entre deux bornes (les petits plus nombreux :
+le tirage est au carré), rotation libre, inclinaison jusqu'à 18–20°. Le .glb est RAMENÉ à sa taille en mètres et
+recentré sur sa boîte — on ne sait ni son échelle ni où Blender a laissé son origine —, enfoncé de 40 % de sa
+demi-hauteur. 82 posés (34 sur l'îlot, 48 à Port-Royal). Vu : un rocher au bord de l'eau, l'écume autour.
+
+**Un piège d'essai** : l'origine bouge À LA MISE À QUAI, après la ligne de commande — une position lue au
+démarrage ne vaut plus. `-- --ou 1` écrit l'origine et la place du navire une seconde après le départ.
+
+**Le coffre et la planche modélisés** (`godot-models/props/coffre_2k.glb`, `planche.glb`, hors page). Le coffre
+arrive à près de cent unités de long : il est ramené à 1,10 m et posé sur le sable par sa boîte. Il est D'UNE
+SEULE PIÈCE — pas de nœud « couvercle » —, donc rien ne s'ouvre : son contenu paraît DEVANT lui, sur le sable,
+à l'arrivée de la cloche. Le couvercle séparé et nommé « couvercle » dans Blender, il s'ouvrira (le code y est).
+La planche (1 m, déjà en mètres) est ramenée à 1,8 m au lieu de 2,2 : à son épaisseur, 2,2 en faisait une poutre.
+`tonneau_low` attend.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

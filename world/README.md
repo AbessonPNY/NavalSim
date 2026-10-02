@@ -231,6 +231,27 @@ Modélisez **à l'échelle du jeu** : les bâtiments et les navires sont à tail
 réelle, seules les distances entre les lieux sont réduites. Un fort de 60 m
 fait 60 m. `node build.js` embarque les modèles.
 
+## Les semis (Godot)
+
+Un modèle répandu au hasard sur une zone — les rochers d'une plage. Dans `world/caraibes.json` → `semis` :
+
+```json
+{ "name": "Rochers des plages de Port-Royal", "glb": "props/rocher.glb", "patch": "port-royal",
+  "nombre": 48, "taille": [0.4, 2.2], "frange": [-0.4, 1.6], "penche": 18, "graine": 23 }
+```
+
+| champ | rôle |
+|---|---|
+| `patch` | la zone : la clé d'un carreau de relief (`patches`) ; ou bien `lat`, `lon`, `rayon` (m) |
+| `nombre` | combien en poser (moins s'il n'y a pas la place) |
+| `taille` | sa plus grande dimension en mètres, tirée entre les deux — le .glb y est ramené quelle que soit son échelle ; les petits sont les plus nombreux |
+| `frange` | l'altitude où il se pose (m) : une plage, de l'eau à la laisse de haute mer |
+| `penche` | son inclinaison au plus, en degrés ; la rotation autour de la verticale est libre |
+| `graine` | le hasard est tenu : les mêmes rochers aux mêmes places d'une partie à l'autre |
+
+Jamais à moins de 35 m d'un ponton, jamais l'un dans l'autre. Chacun est recentré sur sa boîte, enfoncé de
+40 % de sa demi-hauteur, et n'est plus dessiné au-delà de 900 m. Godot seulement.
+
 ## Les autres régions, et les traversées (Godot)
 
 Chaque fichier `world/*.json` est une **région** : sa carte, son relief, ses

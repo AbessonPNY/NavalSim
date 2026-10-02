@@ -260,6 +260,82 @@ public partial class LandNode : Node3D
         if (_assets.Count > 0) GD.Print($"monde : {_assets.Count} modèle(s) posé(s)");
     }
 
+    /// <summary>
+    /// LES SEMIS — world/*.json → semis : un modèle répandu sur une zone (les
+    /// rochers d'une plage). Les places viennent du noyau (Scatter.Place), tirées
+    /// sur une graine ; chaque copie est RAMENÉE à sa taille en mètres quelle que
+    /// soit l'échelle du .glb, recentrée sur sa boîte (on ne sait pas où Blender a
+    /// laissé l'origine), tournée, penchée, et enfoncée d'une part de sa
+    /// demi-hauteur : un rocher sort du sable, il n'y est pas posé.
+    ///
+    /// Placées comme les modèles posés — en mètres vrais, posées à lieu − origine
+    /// à chaque image —, et plus dessinées au-delà de neuf cents mètres : un rocher
+    /// de deux mètres y tient en trois pixels.
+    /// </summary>
+    void BuildScatter()
+    {
+        int total = 0;
+        foreach (var sp in World.Region.Scatters)
+        {
+            string path = Assets.Path(sp.Glb);
+            if (!System.IO.File.Exists(path)) { GD.PushWarning($"[monde] semis « {sp.Name} » : {sp.Glb} introuvable"); continue; }
+            var doc = new GltfDocument();
+            var state = new GltfState();
+            if (doc.AppendFromFile(path, state) != Error.Ok || doc.GenerateScene(state) is not Node3D root)
+            { GD.PushWarning($"[monde] semis « {sp.Name} » : {sp.Glb} illisible"); continue; }
+
+            // sa boîte, dans son propre repère
+            Aabb? box = null;
+            var stack = new Stack<(Node, Transform3D)>();
+            stack.Push((root, Transform3D.Identity));
+            while (stack.Count > 0)
+            {
+                var (n, t) = stack.Pop();
+                foreach (var c in n.GetChildren()) stack.Push((c, c is Node3D c3 ? t * c3.Transform : t));
+                if (n is MeshInstance3D m && m.Mesh != null) { var b = t * m.Mesh.GetAabb(); box = box is Aabb a0 ? a0.Merge(b) : b; }
+            }
+            if (box is not Aabb bb || bb.Size.Length() < 1e-5f) continue;
+            float ext = Math.Max(bb.Size.X, Math.Max(bb.Size.Y, bb.Size.Z));
+            var centre = bb.GetCenter();
+
+            // la brume, une passe pour toutes les copies (elles partagent leurs matières)
+            var haze = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+            Hazed.Add(haze);
+            foreach (var mi in AllMeshes(root))
+                for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
+                    if (mi.GetActiveMaterial(i) is BaseMaterial3D bm)
+                    {
+                        var own = (BaseMaterial3D)bm.Duplicate();
+                        own.NextPass = haze;
+                        mi.SetSurfaceOverrideMaterial(i, own);
+                    }
+
+            foreach (var p in Scatter.Place(World, sp))
+            {
+                float k = (float)(p.Size / ext);
+                var hold = new Node3D { Name = sp.Name };
+                var copy = (Node3D)root.Duplicate();
+                copy.Scale = Vector3.One * k;
+                copy.Position = -centre * k;
+                var tilt = new Node3D
+                {
+                    Basis = new Basis(Vector3.Up, (float)p.Yaw) * new Basis(Vector3.Right, (float)p.TiltX) * new Basis(Vector3.Back, (float)p.TiltZ)
+                };
+                tilt.AddChild(copy);
+                hold.AddChild(tilt);
+                foreach (var mi in AllMeshes(copy)) { mi.VisibilityRangeEnd = 900; mi.VisibilityRangeEndMargin = 60; }
+                AddChild(hold);
+                hold.SetMeta("wx", p.X);
+                hold.SetMeta("wz", p.Z);
+                // enfoncé de quarante pour cent de sa demi-hauteur
+                hold.SetMeta("wy", World.HeightAt(p.X, p.Z) + bb.Size.Y * k * 0.5 * 0.6);
+                _assets.Add(hold);
+                total++;
+            }
+        }
+        if (total > 0) GD.Print($"monde : {total} élément(s) semé(s)");
+    }
+
     static IEnumerable<MeshInstance3D> AllMeshes(Node n)
     {
         if (n is MeshInstance3D mi && mi.Mesh != null) yield return mi;
@@ -269,7 +345,7 @@ public partial class LandNode : Node3D
 
     public void Update(Vec3d centre, Vec3d origin, bool eager = false)
     {
-        if (!_assetsBuilt) { _assetsBuilt = true; BuildAssets(); }
+        if (!_assetsBuilt) { _assetsBuilt = true; BuildAssets(); BuildScatter(); }
         foreach (var a in _assets)
             a.Position = new Vector3(
                 (float)((double)a.GetMeta("wx") - origin.X),
