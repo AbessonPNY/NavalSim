@@ -63,7 +63,8 @@ public partial class ShipDemo : Node3D
         var b = _ship.Physics.Body;
         double d = Math.Sqrt((b.Pos.X - m.Physics.Body.Pos.X) * (b.Pos.X - m.Physics.Body.Pos.X)
                            + (b.Pos.Z - m.Physics.Body.Pos.Z) * (b.Pos.Z - m.Physics.Body.Pos.Z));
-        if (d > m.Spec.L * 0.55 + m.Spec.B + 6) return "Trop loin du navire pour crocher les palans";
+        if (d > m.Spec.L * 0.55 + m.Spec.B + 6)
+            return _ship.Physics.Aground > 0.02 || _shove != null ? Shove() : "Trop loin du navire pour crocher les palans";
         if (Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z) > 1.2) return "Trop d'erre pour crocher les palans";
 
         var boat = _ship;
@@ -76,6 +77,110 @@ public partial class ShipDemo : Node3D
         JournalLog("Chaloupe hissée à bord.");
         return "Chaloupe hissée à bord"
              + (_anchor2 != null && _anchor2.IsDown(m) ? " · M pour lever l'ancre" : "");
+    }
+
+    /* LA POUSSER À L'EAU. Échouée sur une grève, une chaloupe ne repart pas à
+       l'aviron — la pelle ne trouve que le sable. Les nageurs sautent dedans
+       l'eau aux genoux, la pivotent l'étrave au large et la poussent jusqu'à ce
+       qu'elle flotte, puis embarquent par l'arrière. C'est ce que fait N quand
+       on est loin du navire et qu'elle touche : on cherche l'eau qui la porte au
+       plus près, et on l'y mène au pas d'un homme qui pousse. */
+    (double Dx, double Dz, double Left)? _shove;
+
+    const double ShoveSpeed = 0.9;       // m/s : des hommes dans l'eau jusqu'aux cuisses
+    const double ShoveTurn = 0.45;       // rad/s : le temps de la faire pivoter à bras
+
+    string Shove()
+    {
+        if (_shove != null) { _shove = null; return "On cesse de pousser"; }
+        var b = _ship.Physics.Body; var o = _sea.Core.Origin;
+        // assez d'eau pour sa quille et une main en dessous
+        double need = -(_ship.Spec.Hull.KeelDepth + _ship.Spec.Hull.KeelExtra) - 0.4;
+        double best = double.MaxValue, bx = 0, bz = 0;
+        for (int k = 0; k < 32; k++)
+        {
+            double a = k * Math.PI * 2 / 32, cx = Math.Sin(a), cz = Math.Cos(a);
+            for (double r = 1; r <= 80 && r < best; r += 1)
+                if (_world!.HeightAt(o.X + b.Pos.X + cx * r, o.Z + b.Pos.Z + cz * r) < need)
+                { best = r; bx = cx; bz = cz; break; }
+        }
+        if (best == double.MaxValue) return "Pas d'eau qui la porte à portée de bras";
+        // jusqu'à ce que sa coque entière y soit : sa demi-longueur en plus
+        _shove = (bx, bz, best + _ship.Spec.L * 0.5 + 1);
+        var c = _ship.Ctrl;
+        c.Throttle = 0; c.Rudder = 0; c.OarL = 0; c.OarR = 0;
+        return "Les nageurs la poussent à l'eau · N pour cesser";
+    }
+
+    /// <summary>Après les solveurs : la pousser d'un pas, l'étrave tournée au large.</summary>
+    void ShoveTick(double dt)
+    {
+        BeachTestTick();
+        if (_shove is not { } sh) return;
+        var (dx, dz, left) = sh;
+        var b = _ship.Physics.Body; var o = _sea.Core.Origin;
+        // elle flotte quand plus rien d'elle ne touche et que l'eau sous elle porte sa quille
+        bool afloat = _ship.Physics.Aground <= 0
+            && _world!.HeightAt(o.X + b.Pos.X, o.Z + b.Pos.Z) < -(_ship.Spec.Hull.KeelDepth + _ship.Spec.Hull.KeelExtra) - 0.4;
+        if (_mother == null || left <= 0 || afloat)
+        {
+            // la dernière poussée, qu'elle garde en erre
+            if (_mother != null) b.Vel = new Vec3d(dx * ShoveSpeed * 0.6, b.Vel.Y, dz * ShoveSpeed * 0.6);
+            if (_mother != null) { Say("Chaloupe à flot · Q E nager"); JournalLog("Chaloupe remise à l'eau."); }
+            if (_beachLog >= 0) { _ship.Ctrl.Throttle = 1; GD.Print("[grève] à flot, on nage"); }
+            _shove = null;
+            return;
+        }
+        double step = Math.Min(left, ShoveSpeed * dt);
+        /* MENÉE À LA MAIN, SANS ERRE PROPRE : lui donner aussi la vitesse la ferait
+           avancer deux fois, une par les bras et une par le solveur. */
+        b.Pos = new Vec3d(b.Pos.X + dx * step, b.Pos.Y, b.Pos.Z + dz * step);
+        b.Vel = new Vec3d(0, b.Vel.Y, 0);
+        // le cap se lit sur le vecteur d'étrave ; on le tourne autour de la verticale
+        var fw = b.Quat.Rotate(new Vec3d(0, 0, 1));
+        double err = Math.Atan2(fw.X * dz - fw.Z * dx, fw.X * dx + fw.Z * dz);
+        double turn = Math.Clamp(-err, -ShoveTurn * dt, ShoveTurn * dt);
+        if (Math.Abs(turn) > 1e-6) b.Quat = (Quatd.FromAxisAngle(new Vec3d(0, 1, 0), turn) * b.Quat).Normalized();
+        b.AngVel = new Vec3d(b.AngVel.X, 0, b.AngVel.Z);
+        _shove = (dx, dz, left - step);
+    }
+
+    // --- l'essai : --echouer <secondes avant de pousser> ---
+    double _beachTest, _beachLog = -1, _beachShoveAt;
+
+    void BeachTest()
+    {
+        if (_mother == null) GD.Print("[grève] " + Lower());
+        var b = _ship.Physics.Body; var o = _sea.Core.Origin;
+        // la grève la plus proche, un mètre au-dessus de l'eau
+        for (double r = 10; r < 1500; r += 5)
+            for (int k = 0; k < 48; k++)
+            {
+                double a = k * Math.PI * 2 / 48, x = b.Pos.X + Math.Sin(a) * r, z = b.Pos.Z + Math.Cos(a) * r;
+                double h = _world!.HeightAt(o.X + x, o.Z + z);
+                if (h < 0.8 || h > 1.3) continue;
+                b.Pos = new Vec3d(x, h + 0.6, z); b.Vel = new Vec3d(0, 0, 0); b.AngVel = new Vec3d(0, 0, 0);
+                b.Quat = (Quatd.FromAxisAngle(new Vec3d(0, 1, 0), 1.9) * b.Quat).Normalized();   // de travers à la grève
+                _ship.SyncTransform();
+                _fixEye = new Vector3((float)(x + 9), (float)(h + 5), (float)(z + 9));
+                _fixLook = new Vector3((float)x, (float)h, (float)z);
+                _ship.Ctrl.Throttle = 1;
+                _beachLog = 0; _beachShoveAt = _t + _beachTest;
+                GD.Print(FormattableString.Invariant($"[grève] posée en ({x:F0}, {z:F0}), sol {h:F2} m"));
+                return;
+            }
+        GD.Print("[grève] pas de grève à portée");
+    }
+
+    void BeachTestTick()
+    {
+        if (_beachLog < 0) return;
+        if (_beachShoveAt > 0 && _t >= _beachShoveAt) { _beachShoveAt = 0; GD.Print("[grève] N : " + BoatSwing()); }
+        if (_t < _beachLog) return;
+        _beachLog = _t + 2;
+        var p = _ship.Physics; var b = p.Body; var o = _sea.Core.Origin;
+        GD.Print(FormattableString.Invariant(
+            $"[grève] t {_t:F0}  cap {Math.Atan2(b.Quat.Rotate(new Vec3d(0, 0, 1)).X, b.Quat.Rotate(new Vec3d(0, 0, 1)).Z) * 180 / Math.PI:F0}°  ({b.Pos.X:F1}, {b.Pos.Z:F1})  sol {_world!.HeightAt(o.X + b.Pos.X, o.Z + b.Pos.Z):F2}  touche {p.Aground:F2}  pelles {p.OarInput[0]:F1}/{p.OarInput[1]:F1}  vitesse {Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z):F2}"));
     }
 
     string Lower()

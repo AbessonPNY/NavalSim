@@ -1219,6 +1219,7 @@ public partial class ShipDemo : Node3D
         Rigging(_ship, frame);
         foreach (var s in _others) { Rigging(s, frame); Steer(s, frame); }
         StepSolvers(sub, dt, t);
+        ShoveTick(frame);
         StepHalves(sub, dt, t);
         // porter de la toile coûte de la toile, et au-delà, l'espar
         TearCanvas(_ship, frame, true); StrainMast(_ship, frame, true);
@@ -4575,6 +4576,8 @@ public partial class ShipDemo : Node3D
                 case "--saisir": _diveTest.Take = args[i + 1] != "0"; break;
                 // où l'on est, une seconde après le départ (l'origine bouge à la mise à quai)
                 case "--ou": _whereTest = args[i + 1] != "0"; _diveTestIn = 1.0; break;
+                // la chaloupe échouée sur la grève la plus proche, nageant ; poussée à l'eau tant de secondes après
+                case "--echouer": _beachTest = args[i + 1].ToFloat(); _diveTestIn = 1.0; break;
                 // une épave d'essai, à tant de mètres par le travers : son coffre avec
                 case "--epave": _diveTest.Wreck = args[i + 1].ToFloat(); _diveTestIn = 1.0; break;
                 case "--mi-eau-haut": _splitLift = args[i + 1].ToFloat(); break;

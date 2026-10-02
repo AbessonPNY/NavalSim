@@ -390,6 +390,7 @@ public partial class ShipDemo
             _flotsam.Scatter(o.X + db.Pos.X + fw.X * 40, o.Z + db.Pos.Z + fw.Z * 40, _debrisTest);
             _debrisTest = 0;
         }
+        if (_beachTest > 0) BeachTest();
         if (_diveTest.Wreck is double d) TestWreck(d);
         if (_diveTest.Bell && !_bellOut) ToggleBell();
         if (_diveTest.Rope > 0) _bellRope = _diveTest.Rope;

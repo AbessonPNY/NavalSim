@@ -285,9 +285,24 @@ public sealed partial class ShipPhysics
         if (S.Oars is OarsSpec oars)
         {
             double amp = S.MaxThrust * Math.PI / (4 * 0.45);
+            // bâbord est +x dans son repère, tribord −x (l'invariant de main)
+            double outb = S.B * 0.5 + 0.6 * oars.Length;
             for (int side = 0; side < 2; side++)
             {
                 double inp = side == 0 ? ctrl.OarL : ctrl.OarR;
+                /* LA PELLE DOIT TROUVER L'EAU. Échouée, la chaloupe nageait encore
+                   dans le sable, en mesure et sans avancer (signalé) : la force
+                   tombait avec la carène, pas le geste. Une pelle qui touche le
+                   fond — la grève sous elle plus haute que la mer à vingt
+                   centimètres près — ne nage pas, et l'aviron reste au repos. Sans
+                   monde (le banc de parité), la mer est partout. */
+                Vec3d oArm = b.Quat.Rotate(new Vec3d(side == 0 ? outb : -outb, 0, 0)) + b.Pos - cog;
+                if (inp != 0 && World != null)
+                {
+                    Vec3d blade = oArm + cog;
+                    if (World.HeightAt(ocean.Origin.X + blade.X, ocean.Origin.Z + blade.Z)
+                        > ocean.Sample(blade.X, blade.Z, t) - 0.2) inp = 0;
+                }
                 OarInput[side] = inp;
                 if (inp == 0) continue;
                 OarPhase[side] = (OarPhase[side] + dt / oars.Period) % 1;
@@ -297,9 +312,6 @@ public sealed partial class ShipPhysics
                          * (inp > 0 ? 1 : S.SternPower) * Math.Abs(inp) * inWater;
                 Vec3d oVec = fwd * f;
                 force += oVec;
-                // bâbord est +x dans son repère, tribord −x (l'invariant de main)
-                double outb = S.B * 0.5 + 0.6 * oars.Length;
-                Vec3d oArm = b.Quat.Rotate(new Vec3d(side == 0 ? outb : -outb, 0, 0)) + b.Pos - cog;
                 torque += oArm.Cross(oVec);
             }
         }

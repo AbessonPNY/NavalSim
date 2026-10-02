@@ -13826,6 +13826,27 @@ du large ; 3 km pour le premier rang, 4,5 km pour la masse, au-delà la brume le
 Vu : la palmeraie posée sur l'épaule est de l'îlot, la seule partie basse — le relief retravaillé monte à
 893 m en quelques centaines de mètres, et l'ouest tombe droit dans l'eau.
 
+## La chaloupe échouée : la pelle qui touche, et la pousser à l'eau (Godot)
+
+Signalé : sur la grève, la chaloupe nageait encore — avirons en mesure, coque immobile. La FORCE tombait
+avec la carène (`inWater`), pas le GESTE : la phase avançait tant qu'on tenait W. Désormais la pelle doit
+trouver l'eau : le fond sous elle plus haut que la mer, à vingt centimètres près, et ce bord ne nage pas
+(`ShipPhysics.Step`, les avirons). C'est par bord : la chaloupe couchée le long de la laisse nage d'un seul
+côté, celui qui pend au-dessus de l'eau. Sans monde (le banc de parité), la mer est partout — parité tenue.
+
+Demandé ensuite : la remettre à l'eau pour rentrer au navire. **N**, loin du navire et échouée, la fait
+POUSSER (`ShipDemo.Boat.cs`, `Shove`) : on cherche sur trente-deux caps l'eau la plus proche qui porte sa quille
+et une main en dessous, les nageurs la pivotent l'étrave au large (0,45 rad/s) et la mènent au pas d'hommes
+dans l'eau aux cuisses, 0,9 m/s, jusqu'à ce que rien d'elle ne touche ; elle garde 0,55 m/s d'erre. N de
+nouveau cesse de pousser.
+
+Un piège, vu au premier essai : la menée à la main ET la vitesse posée sur le corps la faisaient avancer
+deux fois — 36 m au lieu de 18. Menée à la main, elle n'a pas d'erre propre ; on la lui rend en finissant.
+
+Relevé (`-- --echouer 6` : la chaloupe posée de travers sur la grève la plus proche, W tenu, N six secondes
+après) : pelles à 0 sur le sable, cap 110° → 0° en six secondes, 16 m poussés en 18 s, puis les pelles
+reprennent à 1,0 dès qu'elle flotte.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code
