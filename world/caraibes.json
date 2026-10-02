@@ -65,16 +65,20 @@
 
     { "name": "Rochers de l'îlot aux cocotiers", "glb": "props/rocher.glb", "patch": "ilot-cocotiers", "nombre": 34, "taille": [0.5, 2.8], "frange": [-0.4, 1.8], "penche": 20, "graine": 11 },
 
-    { "name": "Rochers des plages de Port-Royal", "glb": "props/rocher.glb", "patch": "port-royal", "nombre": 48, "taille": [0.4, 2.2], "frange": [-0.4, 1.6], "penche": 18, "graine": 23 }
+    { "name": "Rochers des plages de Port-Royal", "glb": "props/rocher.glb", "patch": "port-royal", "nombre": 48, "taille": [0.4, 2.2], "frange": [-0.4, 1.6], "penche": 18, "graine": 23 },
+
+    { "name": "Cocotiers de l'îlot, en rangée", "glb": "props/cocotier.glb", "patch": "ilot-cocotiers", "nombre": 30, "taille": [11, 17], "frange": [1.2, 3.2], "penche": 14, "ecart": 8, "enfonce": 0.02, "visible": 3000, "graine": 5 },
+
+    { "name": "Cocotiers de l'îlot, en masse", "glb": "props/cocotier_low.glb", "patch": "ilot-cocotiers", "nombre": 220, "taille": [9, 18], "frange": [2.8, 12], "penche": 10, "ecart": 5, "enfonce": 0.02, "visible": 4500, "graine": 6 }
 
   ],
 
   "assets": [
     { "name": "Cocotier", "glb": "props/cocotier.glb",
-      "lat": 17.840114, "lon": -76.900176, "yaw": 40, "scale": 1 },
+      "lat": 17.840114, "lon": -76.900176, "yaw": 40, "scale": 14 },
     { "name": "Cocotier", "glb": "props/cocotier.glb",
-      "lat": 17.840228, "lon": -76.899739, "yaw": 200, "scale": 0.86 },
+      "lat": 17.840228, "lon": -76.899739, "yaw": 200, "scale": 12 },
     { "name": "Cocotier", "glb": "props/cocotier.glb",
-      "lat": 17.839753, "lon": -76.899886, "yaw": 310, "scale": 1.1 }
+      "lat": 17.839753, "lon": -76.899886, "yaw": 310, "scale": 15.4 }
   ]
 }

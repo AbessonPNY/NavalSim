@@ -13806,6 +13806,26 @@ SEULE PIÈCE — pas de nœud « couvercle » —, donc rien ne s'ouvre : son co
 La planche (1 m, déjà en mètres) est ramenée à 1,8 m au lieu de 2,2 : à son épaisseur, 2,2 en faisait une poutre.
 `tonneau_low` attend.
 
+## Les cocotiers de l'îlot (Godot)
+
+Signalé : les cocotiers n'étaient pas sur l'îlot. Ils y étaient, à un mètre de haut : les trois modèles posés
+(`assets`) prenaient leur `scale` à 1, et `cocotier.glb` mesure 0,98 unité. Ils passent à 12–15 m.
+
+Demandé ensuite : une rangée de modèles détaillés devant, des `cocotier_low` en masse derrière. **Deux semis**
+sur des franges qui se chevauchent à peine : 30 `cocotier.glb` (24 909 triangles) sur la grève, 1,2 à 3,2 m
+d'altitude ; 220 `cocotier_low.glb` (447 triangles) derrière, de 2,8 à 12 m. La frange FAIT le rang : un
+premier rang est ce qui pousse au bord de la plage, et l'arrière, ce qui pousse plus haut. Le banc
+(`NavalSim.Lab -- semis ilot-cocotiers`) dessine la carte de la zone et l'initiale de chaque semis à sa place.
+
+Trois réglages que les rochers n'avaient pas besoin d'avoir : **`ecart`** — l'écart entre voisins allait comme
+la taille, ce qui écartait deux palmiers de 15 m de près de 18 m, une palmeraie de pionniers ; un arbre loge
+sa couronne (5 à 8 m), pas sa hauteur. **`enfonce`** — un rocher s'enfonce de 40 % de sa demi-hauteur ; un
+palmier enfoncé ainsi perdait six mètres de stipe. **`visible`** — 900 m perdait une palmeraie qu'on voit
+du large ; 3 km pour le premier rang, 4,5 km pour la masse, au-delà la brume les tient.
+
+Vu : la palmeraie posée sur l'épaule est de l'îlot, la seule partie basse — le relief retravaillé monte à
+893 m en quelques centaines de mètres, et l'ouest tombe droit dans l'eau.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

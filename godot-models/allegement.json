@@ -5,5 +5,6 @@
   "ships/models/sloop_1700s.glb": { "page": false },
   "props/tonneau.glb": { "page": false },
   "props/coffre_2k.glb": { "page": false },
-  "props/planche.glb": { "page": false }
+  "props/planche.glb": { "page": false },
+  "props/cocotier_low.glb": { "page": false }
 }

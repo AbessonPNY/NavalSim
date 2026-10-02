@@ -323,12 +323,12 @@ public partial class LandNode : Node3D
                 };
                 tilt.AddChild(copy);
                 hold.AddChild(tilt);
-                foreach (var mi in AllMeshes(copy)) { mi.VisibilityRangeEnd = 900; mi.VisibilityRangeEndMargin = 60; }
+                foreach (var mi in AllMeshes(copy)) { mi.VisibilityRangeEnd = (float)sp.Visible; mi.VisibilityRangeEndMargin = (float)(sp.Visible * 0.07); }
                 AddChild(hold);
                 hold.SetMeta("wx", p.X);
                 hold.SetMeta("wz", p.Z);
-                // enfoncé de quarante pour cent de sa demi-hauteur
-                hold.SetMeta("wy", World.HeightAt(p.X, p.Z) + bb.Size.Y * k * 0.5 * 0.6);
+                // enfoncé d'une part de sa demi-hauteur (« enfonce » : 0,4 pour un rocher)
+                hold.SetMeta("wy", World.HeightAt(p.X, p.Z) + bb.Size.Y * k * 0.5 * (1 - sp.Sink));
                 _assets.Add(hold);
                 total++;
             }

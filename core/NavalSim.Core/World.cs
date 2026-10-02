@@ -168,7 +168,10 @@ public sealed class RegionSpec
                     Radius = a.TryGetProperty("rayon", out var ra) ? ra.GetDouble() : 300,
                     Count = a.TryGetProperty("nombre", out var nb) ? nb.GetInt32() : 30,
                     Tilt = a.TryGetProperty("penche", out var pe) ? pe.GetDouble() : 18,
-                    Seed = a.TryGetProperty("graine", out var gr) ? gr.GetInt32() : 1
+                    Seed = a.TryGetProperty("graine", out var gr) ? gr.GetInt32() : 1,
+                    Gap = a.TryGetProperty("ecart", out var ec) ? ec.GetDouble() : 0,
+                    Visible = a.TryGetProperty("visible", out var vi) ? vi.GetDouble() : 900,
+                    Sink = a.TryGetProperty("enfonce", out var en) ? en.GetDouble() : 0.4
                 };
                 if (a.TryGetProperty("taille", out var ta) && ta.ValueKind == JsonValueKind.Array && ta.GetArrayLength() == 2)
                 { sp.SizeMin = ta[0].GetDouble(); sp.SizeMax = ta[1].GetDouble(); }

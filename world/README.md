@@ -248,9 +248,13 @@ Un modèle répandu au hasard sur une zone — les rochers d'une plage. Dans `wo
 | `frange` | l'altitude où il se pose (m) : une plage, de l'eau à la laisse de haute mer |
 | `penche` | son inclinaison au plus, en degrés ; la rotation autour de la verticale est libre |
 | `graine` | le hasard est tenu : les mêmes rochers aux mêmes places d'une partie à l'autre |
+| `ecart` | l'écart minimal entre deux, en mètres ; absent, il va comme leur taille (un rocher). Un arbre loge sa couronne, pas sa hauteur |
+| `enfonce` | de combien il s'enfonce, en part de sa demi-hauteur (0,4 ; un arbre : presque rien) |
+| `visible` | jusqu'où on le dessine, en mètres (900 ; un cocotier se voit du large) |
 
-Jamais à moins de 35 m d'un ponton, jamais l'un dans l'autre. Chacun est recentré sur sa boîte, enfoncé de
-40 % de sa demi-hauteur, et n'est plus dessiné au-delà de 900 m. Godot seulement.
+Jamais à moins de 35 m d'un ponton, jamais l'un dans l'autre. Chacun est recentré sur sa boîte. Deux semis sur
+deux franges qui se touchent font un premier rang et un fond : les cocotiers de l'îlot, détaillés sur la grève
+(1,2 à 3,2 m), allégés derrière (2,8 à 12 m). Godot seulement.
 
 ## Les autres régions, et les traversées (Godot)
 

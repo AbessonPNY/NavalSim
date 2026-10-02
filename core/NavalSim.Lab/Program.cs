@@ -52,6 +52,7 @@ switch (mode)
     case "envol": Envol(); break;
     case "derive": Derive(); break;
     case "soute": Soute(); break;
+    case "semis": Semis(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -1222,4 +1223,72 @@ void Soute()
         if (sinkB < 0 && bow.Foundered) sinkB = t;
     }
     Console.WriteLine($"  sombree : arriere a {(sinkA < 0 ? "jamais" : sinkA.ToString("F0") + " s")}, avant a {(sinkB < 0 ? "jamais" : sinkB.ToString("F0") + " s")}");
+}
+
+/* LE RELIEF D'UNE ZONE ET CE QUE SES SEMIS Y POSENT : la répartition des
+   altitudes (pour choisir les franges), et le nombre posé par semis.
+     dotnet run --project core/NavalSim.Lab -c Release -- semis ilot-cocotiers */
+void Semis()
+{
+    string key = args.Length > 1 ? args[1] : "ilot-cocotiers";
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    var region = RegionSpec.FromJson(File.ReadAllText(Path.Combine(root, "world", "caraibes.json")));
+    var (iw, ih, grey) = GreyPng.Decode(File.ReadAllBytes(Path.Combine(root, region.Relief.Image)));
+    // les reliefs locaux, comme Godot les charge (WorldLoad) : sans eux, pas d'îlot
+    var imgs = new List<World.PatchImage>();
+    foreach (var pz in region.Patches)
+    {
+        string pi = Path.Combine(root, pz.Image);
+        if (!File.Exists(pi)) continue;
+        var (pw, ph, pg) = GreyPng.Decode(File.ReadAllBytes(pi));
+        imgs.Add(new World.PatchImage(pz, pw, ph, pg));
+    }
+    var world = new World(region, iw, ih, grey, m => Console.WriteLine("  ! " + m), imgs);
+    var patch = region.Patches.Find(q => q.Key == key);
+    if (patch == null) { Console.WriteLine("zone inconnue"); return; }
+    var (ax, az) = world.Geo.ToXZ(patch.South, patch.West);
+    var (bx, bz) = world.Geo.ToXZ(patch.North, patch.East);
+    double x0 = Math.Min(ax, bx), x1 = Math.Max(ax, bx), z0 = Math.Min(az, bz), z1 = Math.Max(az, bz);
+    Console.WriteLine($"{key} : {x1 - x0:F0} x {z1 - z0:F0} m, de ({x0:F0}, {z0:F0}) a ({x1:F0}, {z1:F0}) vrais");
+    int[] bins = new int[12]; double[] edges = { -999, -1, 0, 1, 2, 3, 4, 6, 8, 12, 20, 40, 999 };
+    double hmax = -999; int land = 0;
+    for (double x = x0; x < x1; x += 4) for (double z = z0; z < z1; z += 4)
+    {
+        double h = world.HeightAt(x, z); hmax = Math.Max(hmax, h); if (h > 0) land++;
+        for (int i = 0; i < 12; i++) if (h >= edges[i] && h < edges[i + 1]) { bins[i]++; break; }
+    }
+    for (int i = 0; i < 12; i++) if (bins[i] > 0) Console.WriteLine($"  {edges[i],5:F0} a {edges[i + 1],5:F0} m : {bins[i] * 16,8} m2");
+    Console.WriteLine($"  terre {land * 16} m2, sommet {hmax:F1} m");
+    foreach (var s in region.Scatters)
+        if (s.Patch == key || s.Patch.Length == 0) Console.WriteLine($"  semis « {s.Name} » : {Scatter.Place(world, s).Count} / {s.Count}");
+
+    // la carte de la zone, une case pour 28 m : ~ eau, . grève (0-2 m), : 2-6, + 6-20, # au-dessus ;
+    // chaque semis y marque ses places de l'initiale de son rang (a, b, c...)
+    const double cell = 28;
+    int nx = (int)((x1 - x0) / cell), nz = (int)((z1 - z0) / cell);
+    var map = new char[nz, nx];
+    for (int j = 0; j < nz; j++) for (int i = 0; i < nx; i++)
+    {
+        double h = world.HeightAt(x0 + (i + 0.5) * cell, z0 + (j + 0.5) * cell);
+        map[j, i] = h <= 0 ? '~' : h < 2 ? '.' : h < 6 ? ':' : h < 20 ? '+' : '#';
+    }
+    int rank = 0;
+    foreach (var s in region.Scatters)
+    {
+        char mark = (char)('a' + rank++);
+        if (s.Patch != key && s.Patch.Length != 0) continue;
+        foreach (var p in Scatter.Place(world, s))
+        {
+            int i = (int)((p.X - x0) / cell), j = (int)((p.Z - z0) / cell);
+            if (i >= 0 && i < nx && j >= 0 && j < nz) map[j, i] = mark;
+        }
+        Console.WriteLine($"  {mark} = {s.Name}");
+    }
+    // nord en haut ; est = -x monde, donc on retourne x pour avoir l est a droite
+    for (int j = nz - 1; j >= 0; j--)
+    {
+        var line = new System.Text.StringBuilder();
+        for (int i = nx - 1; i >= 0; i--) line.Append(map[j, i]);
+        Console.WriteLine("  " + line);
+    }
 }

@@ -23,6 +23,12 @@ public sealed class ScatterSpec
     /// <summary>De combien il penche au plus, en degrés : un rocher ne repose jamais d'aplomb.</summary>
     public double Tilt = 18;
     public int Seed = 1;
+    /// <summary>L'écart minimal entre deux, en mètres ; nul, il va comme leur taille (des rochers). Un arbre a sa couronne, pas sa hauteur, à loger.</summary>
+    public double Gap;
+    /// <summary>Jusqu'où on le dessine, en mètres : un rocher se perd à neuf cents, un cocotier se voit du large.</summary>
+    public double Visible = 900;
+    /// <summary>De combien il s'enfonce, en part de sa demi-hauteur : 0,4 pour un rocher qui sort du sable, presque rien pour un arbre.</summary>
+    public double Sink = 0.4;
 }
 
 /// <summary>Une place tirée : où, comment tourné, comment penché, de quelle taille.</summary>
@@ -73,7 +79,7 @@ public static class Scatter
             bool free = true;
             foreach (var p in outp)
             {
-                double need = (p.Size + size) * 0.6;
+                double need = s.Gap > 0 ? s.Gap : (p.Size + size) * 0.6;
                 if ((p.X - x) * (p.X - x) + (p.Z - z) * (p.Z - z) < need * need) { free = false; break; }
             }
             if (!free) continue;
