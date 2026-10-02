@@ -13742,6 +13742,30 @@ voit ce qu'il renferme avant de le saisir ; vide et rabattu une fois pillé.
 le cours de l'unité, Vendre 1 et Tout, à quai seulement. Essai : `--epave 4.8 --cloche 1 --descendre 30
 --saisir 1` — vu : 240 écus d'or, 5 bijoux et 2 pièces d'orfèvrerie ; la bourse de 400 à 640 écus.
 
+## Déplacement, tonneaux, et la cale de la Roter Löwe (Godot)
+
+Question : nos tonnages sont-ils des déplacements ou des tonneaux ? Des DÉPLACEMENTS, à vide (armé, sans
+cargaison) : `displacementTonnes` est la masse que le solveur fait flotter. Le tonneau de 1690 est une JAUGE —
+un volume (Colbert, 1681 : 42 pieds cubes, 1,44 m³) ou, en Angleterre, des *tons burthen* calculés sur les
+cotes (L − 3/5 B) × B × B/2 / 94 en pieds. La Roter Löwe en ferait environ 250 (un peu fort : la formule
+veut la longueur de quille, nos fiches donnent la hors-tout).
+
+**La part de cargaison d'un navire chargé** : la moitié pour une flûte marchande, un tiers pour un marchand
+armé, un quart pour un navire de guerre — les pièces, la poudre, l'équipage et les vivres prennent la place.
+Un navire de 1 200 t de déplacement pour 300 tonneaux de capacité (lu ailleurs) est donc un navire armé.
+
+**La Roter Löwe portait 326 t** (la règle des 85 % : ce que la coque porte) sur 626 chargée — le profil d'un
+marchand pur. Et le comptoir ne vérifiait RIEN : chargée sans regarder, elle passait la tête sous l'eau
+(signalé). Désormais `cargoTonnes` dans la fiche (Godot) borne la cale, jamais au-delà de ce que porte la
+coque ; la Roter Löwe en a 150 (un tiers de 450, à 61 % d'immersion). Le comptoir ne charge que la place qui
+reste et dit « La cale est pleine » ; il affiche « cale : x / capacité t ». Les fiches sans le champ gardent la
+règle des 85 %, et c'est seulement pour elles que le banc de parité compare encore la capacité.
+
+Puis : le pirate et la Boussole (même coque) à 150 t comme elle ; les vaisseaux armés au QUART du navire chargé
+— le vaisseau de ligne 667 t (il en portait 3 673), le Speedwell 105 t (28 pièces). Les pièces de chaque fiche
+ne sont écrites nulle part : `-- --batteries 1` les compte sur les modèles. Il a montré que le vaisseau de
+ligne n'en a AUCUNE de reconnue sur son modèle — à regarder : il ne peut donc pas tirer.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

@@ -75,7 +75,10 @@ public static class PhysicsParity
             }
 
             B("hullVolume", sc.GetProperty("hullVolume").GetDouble(), phys.HullVolume);
-            B("cargoCapacity", sc.GetProperty("cargoCapacity").GetDouble(), phys.CargoCapacity);
+            /* LA CALE BORNÉE PAR LA FICHE (cargoTonnes) est un ajout de Godot : la page
+               garde la règle des 85 %. On ne compare donc que là où la fiche se tait. */
+            if (spec.CargoTonnes == null)
+                B("cargoCapacity", sc.GetProperty("cargoCapacity").GetDouble(), phys.CargoCapacity);
             B("pumpRate", sc.GetProperty("pumpRate").GetDouble(), phys.PumpRate);
             if (sc.GetProperty("probes").GetInt32() != phys.Probes.Length)
             {

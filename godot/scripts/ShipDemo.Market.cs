@@ -383,7 +383,7 @@ public partial class ShipDemo : Node3D
         // un bord sans pièces n'a pas de soute à remplir
         _mkPowder.Visible = _mkPowderRow!.Visible = p.PowderMax > 0;
         _mkHold!.Text = FormattableString.Invariant(
-            $"cale : {p.CargoTonnes:F1} t    soute : {p.Powder} / {p.PowderMax} charges");
+            $"cale : {p.CargoTonnes:F1} / {p.CargoCapacity:F0} t    soute : {p.Powder} / {p.PowderMax} charges");
 
         /* CE QU'ON SAIT D'AILLEURS : le prix ferme, et son âge à côté. Les plus
            fraîches d'abord — c'est l'ordre dans lequel on leur fait confiance. */
@@ -453,6 +453,13 @@ public partial class ShipDemo : Node3D
         if (_portHere == null) return;
         var w = _market.Wares.ByKey(good);
         if (w == null) return;
+        /* PAS PLUS QUE LA CALE : le comptoir chargeait tout ce qu'on payait, et un
+           navire chargé sans regarder s'enfonçait jusqu'au pont. On charge ce qui
+           reste de place, et l'on dit quand il n'y en a plus. */
+        var ph = _ship.Physics;
+        double room = Math.Max(0, ph.CargoCapacity - ph.CargoTonnes);
+        if (room < 0.5) { Say(FormattableString.Invariant($"La cale est pleine — {ph.CargoCapacity:F0} t")); return; }
+        tonnes = Math.Min(tonnes, Math.Floor(room));
         double prix = _market.BuyPrice(good, _portHere.Key, MarketTime) * tonnes;
         if (!_purse.Take(prix)) { Say("Bourse trop courte"); return; }
         _ship.Physics.LoadCargo(Config.NComp / 2, HoldFloor, 0, tonnes, good);

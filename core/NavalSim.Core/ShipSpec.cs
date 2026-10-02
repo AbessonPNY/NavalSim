@@ -331,6 +331,8 @@ public sealed class ShipJson
     [JsonPropertyName("boat")] public string? Boat { get; set; }
     [JsonPropertyName("hull")] public HullShape Hull { get; set; } = new();
     [JsonPropertyName("displacementTonnes")] public double DisplacementTonnes { get; set; }
+    /// <summary>La capacité de sa cale, en tonnes ; absente, elle se calcule (voir ShipPhysics).</summary>
+    [JsonPropertyName("cargoTonnes")] public double? CargoTonnes { get; set; }
     [JsonPropertyName("cog")]    public CogSpec Cog { get; set; } = new();
     [JsonPropertyName("hydro")]  public HydroSpec Hydro { get; set; } = new();
     [JsonPropertyName("engine")] public EngineSpec Engine { get; set; } = new();
@@ -382,6 +384,8 @@ public sealed class ShipSpec
     public double DeckMid { get; }
 
     public double MassKg { get; }
+    /// <summary>La capacité de sa cale écrite dans la fiche, en tonnes, ou null.</summary>
+    public double? CargoTonnes { get; }
     public double Tonnes { get; }
     public Vec3d Cog { get; }
 
@@ -474,6 +478,7 @@ public sealed class ShipSpec
 
         // le deplacement est l'ENTREE ; la fraction immergee en decoule
         MassKg = json.DisplacementTonnes * 1000.0;
+        CargoTonnes = json.CargoTonnes;
         Tonnes = json.DisplacementTonnes;
 
         // centre de gravite, en fractions pour qu'il suive l'echelle du navire

@@ -20,6 +20,7 @@
     "sectionPower": 0.62
   },
   "displacementTonnes": 315,
+  "cargoTonnes": 105,
   "cog": {
     "yFracKeel": -0.43,
     "zFracLength": -0.05

@@ -4552,6 +4552,19 @@ public partial class ShipDemo : Node3D
                 case "--mi-eau": _camMode = 3; SetLens(OutsideFov, OutsideNear); break;
                 case "--flyby": if (args[i + 1] != "0") EnterFlyBy(); break;
                 case "--cinema": if (args[i + 1] != "0") ToggleCinema(); break;
+                // DIAGNOSTIC : les pièces que chaque fiche porte, lues sur son modèle — elles ne sont écrites nulle part ailleurs
+                case "--batteries":
+                    if (args[i + 1] != "0")
+                        foreach (var path in _paths)
+                        {
+                            if (ShipLibrary.Load(path) is not { } sp) continue;
+                            var probe = new ShipNode();
+                            AddChild(probe);
+                            probe.Build(sp);
+                            GD.Print(FormattableString.Invariant($"batterie {sp.Id} : {probe.Battery.Guns.Count} pièce(s), {sp.Tonnes:F0} t, cale {probe.Physics.CargoCapacity:F0} t"));
+                            RemoveChild(probe); probe.QueueFree();
+                        }
+                    break;
                 /* L'ESSAI DE PLONGÉE, une seconde APRÈS le départ : le navire n'est mis à
                    son poste qu'après la ligne de commande, et une épave posée avant
                    l'aurait été là où il n'est plus. */

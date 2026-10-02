@@ -364,6 +364,14 @@ public sealed partial class ShipPhysics
            inoffensive écrivait par-dessus la vraie valeur, et la console
            annonçait une capacité de zéro. */
         CargoCapacity = Math.Max(0, (0.85 * HullVolume * Config.Rho - spec.MassKg) / 1000);
+        /* LA FICHE PEUT DIRE MOINS — et pour un navire armé, elle le doit. La règle
+           des 85 % mesure ce que la COQUE porte, pas ce que la CALE contient : un
+           galion loge ses pièces, sa poudre, ses hommes et six mois de vivres là où
+           une flûte loge du sucre. La Roter Löwe portait ainsi 326 t, la moitié de
+           son déplacement chargé — le profil d'un marchand pur —, et chargée sans
+           regarder elle passait la tête sous l'eau (signalé). Jamais plus que ce que
+           la coque porte, en revanche. */
+        if (spec.CargoTonnes is double cap) CargoCapacity = Math.Min(CargoCapacity, Math.Max(0, cap));
 
         /* Les pompes sont dosées pour qu'UNE voie d'eau modeste soit tout juste
            rattrapable et deux non — c'est toute la tension, et cela se mesure

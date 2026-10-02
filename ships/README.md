@@ -291,9 +291,17 @@ console le signale : le safran dessiné reste alors en place.
 
 ## Le tonnage est l'entrée
 
-`displacementTonnes` fixe la masse. La fraction de volume immergé en découle.
+`displacementTonnes` fixe la masse **à vide** — armé, sans cargaison : c'est un
+DÉPLACEMENT, pas une jauge en tonneaux. La fraction de volume immergé en découle.
 Si elle dépasse 1, le navire coule et la console vous le dit explicitement au
 chargement — c'est une erreur de fiche, pas de physique.
+
+`cargoTonnes` (facultatif, Godot) : la capacité de la cale, en tonnes. Absente,
+elle vaut ce qui enfonce la coque à 85 % — la règle d'un marchand pur, la moitié
+du déplacement chargé. Un navire armé loge ses pièces, sa poudre, ses hommes et
+ses vivres là où une flûte loge sa cargaison : la sienne tourne autour d'un
+TIERS du déplacement chargé (un quart pour un navire de guerre). Le comptoir ne
+charge jamais au-delà. La Roter Löwe : 300 t à vide, 150 t de cale.
 
 ## Champs de formes
 
