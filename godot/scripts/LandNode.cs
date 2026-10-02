@@ -102,10 +102,19 @@ public partial class LandNode : Node3D
     static readonly Color Wood = Color.Color8(0x34, 0x50, 0x2c).SrgbToLinear();
     static readonly Color Rock = Color.Color8(0x6c, 0x66, 0x5c).SrgbToLinear();
 
+    const double SandTop = 0.6, GrassFrom = 2.0;
+
     static Color Tint(double h)
     {
-        if (h < 3) return Sand;
-        if (h < 18) return Sand.Lerp(Grass, (float)((h - 3) / 15));
+        /* LA GRÈVE S'ARRÊTE À LA LAISSE : du sable jusqu'à 0,6 m, l'herbe franche
+           à 2. Le fondu montait jusqu'à 18 m, et Port-Royal restait une ville posée
+           sur une plage (signalé). Le sable d'une côte caraïbe tient la bande que la
+           mer remue ; au-dessus, la végétation prend. La grève de Port-Royal monte
+           de 0 à 4,5 m en soixante mètres : 3,5 laissait encore son premier rang de
+           maisons dans le jaune, 2 lui donne vingt-cinq mètres de sable. */
+        if (h < SandTop) return Sand;
+        if (h < GrassFrom) return Sand.Lerp(Grass, (float)((h - SandTop) / (GrassFrom - SandTop)));
+        if (h < 18) return Grass;
         if (h < 120) return Grass.Lerp(Wood, (float)((h - 18) / 102));
         if (h < 700) return Wood.Lerp(Rock, (float)(Math.Min(1, (h - 120) / 580) * 0.7));
         return Wood.Lerp(Rock, (float)(0.7 + 0.3 * Math.Min(1, (h - 700) / 600)));

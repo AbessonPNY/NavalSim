@@ -13847,6 +13847,19 @@ Relevé (`-- --echouer 6` : la chaloupe posée de travers sur la grève la plus 
 après) : pelles à 0 sur le sable, cap 110° → 0° en six secondes, 16 m poussés en 18 s, puis les pelles
 reprennent à 1,0 dès qu'elle flotte.
 
+## La grève s'arrête à la laisse (Godot)
+
+Signalé : Port-Royal était bâti sur le sable. La teinte des sommets (`LandNode.Tint`, sa seule définition)
+gardait le sable pur jusqu'à 3 m et ne finissait de virer à l'herbe qu'à 18 m ; la ville, sur un plateau de
+4,5 m, restait aux quatre cinquièmes jaune. Désormais : sable pur jusqu'à **0,6 m**, herbe franche à **2 m**
+(`SandTop`, `GrassFrom`), la forêt toujours de 18 à 120 m.
+
+Pourquoi 2 et pas 3,5, essayé d'abord : la grève de Port-Royal monte de 0 à 4,5 m en soixante mètres
+(`NavalSim.Lab -- profil x z cap longueur`, nouveau), et à 3,5 le premier rang de maisons restait dans le
+fondu. À 2, il lui reste vingt-cinq mètres de sable — la bande que la mer remue, ce qu'une côte caraïbe
+garde nu. Le premier rang de cocotiers de l'îlot (1,2 à 3,2 m) se trouve ainsi à la lisière, là où ils
+poussent.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

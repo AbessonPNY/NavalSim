@@ -53,6 +53,7 @@ switch (mode)
     case "derive": Derive(); break;
     case "soute": Soute(); break;
     case "semis": Semis(); break;
+    case "profil": Profil(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -1291,4 +1292,26 @@ void Semis()
         for (int i = nx - 1; i >= 0; i--) line.Append(map[j, i]);
         Console.WriteLine("  " + line);
     }
+}
+
+/* LE RELIEF LE LONG D'UNE LIGNE, en metres vrais : d'ou part l'herbe, ou s'arrete la greve.
+     dotnet run --project core/NavalSim.Lab -c Release -- profil x z cap longueur */
+void Profil()
+{
+    double px = double.Parse(args[1], CultureInfo.InvariantCulture), pz = double.Parse(args[2], CultureInfo.InvariantCulture);
+    double cap = double.Parse(args[3], CultureInfo.InvariantCulture) * Math.PI / 180, len = double.Parse(args[4], CultureInfo.InvariantCulture);
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    var region = RegionSpec.FromJson(File.ReadAllText(Path.Combine(root, "world", "caraibes.json")));
+    var (iw, ih, grey) = GreyPng.Decode(File.ReadAllBytes(Path.Combine(root, region.Relief.Image)));
+    var imgs = new List<World.PatchImage>();
+    foreach (var pz2 in region.Patches)
+    {
+        string pi = Path.Combine(root, pz2.Image);
+        if (!File.Exists(pi)) continue;
+        var (pw, ph, pg) = GreyPng.Decode(File.ReadAllBytes(pi));
+        imgs.Add(new World.PatchImage(pz2, pw, ph, pg));
+    }
+    var world = new World(region, iw, ih, grey, m => { }, imgs);
+    for (double r = 0; r <= len; r += 5)
+        Console.WriteLine($"  {r,5:F0} m : {world.HeightAt(px + Math.Sin(cap) * r, pz + Math.Cos(cap) * r),7:F2}");
 }
