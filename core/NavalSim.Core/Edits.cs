@@ -17,6 +17,14 @@ public sealed class Edit
     public string Id = "";
     public double X, Z, Yaw, Scale = 1, Dy;
     public bool Removed;
+    /// <summary>
+    /// UN AJOUT, et non une retouche : ce que la main a posé de plus. Il dit d'où il
+    /// vient — la COPIE d'un objet du monde (<see cref="From"/>, son nom), qui en
+    /// reprend le modèle, la taille et la pose, ou un modèle BRUT de la palette
+    /// (<see cref="Glb"/>). Un ajout qu'on retire disparaît du fichier.
+    /// </summary>
+    public string From = "", Glb = "";
+    public bool Added => From.Length > 0 || Glb.Length > 0;
 }
 
 /// <summary>
@@ -46,6 +54,19 @@ public sealed class Edits
     public void Set(Edit e) => _byId[e.Id] = e;
     public bool Forget(string id) => _byId.Remove(id);
 
+    /// <summary>Le prochain nom d'ajout libre : « ajout:N », N au-delà de tous ceux qu'on a vus.</summary>
+    public string NextAddId(IEnumerable<string> alsoTaken)
+    {
+        int n = 0;
+        void See(string id)
+        {
+            if (id.StartsWith("ajout:", StringComparison.Ordinal) && int.TryParse(id.AsSpan(6), out int k)) n = Math.Max(n, k);
+        }
+        foreach (var id in _byId.Keys) See(id);
+        foreach (var id in alsoTaken) See(id);
+        return "ajout:" + (n + 1);
+    }
+
     public static Edits Parse(string json)
     {
         var outp = new Edits();
@@ -63,7 +84,9 @@ public sealed class Edits
                 Yaw = r.TryGetProperty("cap", out var y) ? y.GetDouble() : 0,
                 Scale = r.TryGetProperty("echelle", out var s) ? s.GetDouble() : 1,
                 Dy = r.TryGetProperty("dy", out var d) ? d.GetDouble() : 0,
-                Removed = r.TryGetProperty("retire", out var rm) && rm.ValueKind == JsonValueKind.True
+                Removed = r.TryGetProperty("retire", out var rm) && rm.ValueKind == JsonValueKind.True,
+                From = r.TryGetProperty("de", out var de) ? de.GetString() ?? "" : "",
+                Glb = r.TryGetProperty("glb", out var gl) ? gl.GetString() ?? "" : ""
             });
         }
         return outp;
@@ -88,6 +111,8 @@ public sealed class Edits
         {
             var e = _byId[ids[k]];
             sb.Append(k == 0 ? "\n" : ",\n").Append("    { \"id\": ").Append(JsonSerializer.Serialize(e.Id));
+            if (e.From.Length > 0) sb.Append(", \"de\": ").Append(JsonSerializer.Serialize(e.From));
+            if (e.Glb.Length > 0) sb.Append(", \"glb\": ").Append(JsonSerializer.Serialize(e.Glb));
             if (e.Removed) sb.Append(", \"retire\": true");
             else
             {

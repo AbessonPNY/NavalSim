@@ -35,6 +35,9 @@ public partial class FolkNode : Node3D
 
     public FolkNode(World world) { _world = world; }
 
+    /// <summary>Le registre de l'éditeur : chaque figurant s'y inscrit en se posant.</summary>
+    public EditRegistry? Editor;
+
     /* CE QUI FAIT UNE PLAGE, et non un pré ni un rocher. Trois bornes, toutes
        mesurées sur le relief plutôt que dessinées à la main :
 
@@ -90,17 +93,44 @@ public partial class FolkNode : Node3D
             mat.NextPass = haze;
             Hazed.Add(haze);
 
+            double yaw = Rnd() * Math.PI * 2;
             var mi = new MeshInstance3D
             {
                 Mesh = f.Mesh,
                 MaterialOverride = mat,
-                Position = new Vector3((float)(x - cx), (float)(sol - pieds), (float)(z - cz)),
-                Rotation = new Vector3(0, (float)(Rnd() * Math.PI * 2), 0),
-                Scale = new Vector3((float)k, (float)k, (float)k),
                 CastShadow = GeometryInstance3D.ShadowCastingSetting.On
             };
             mi.SetInstanceShaderParameter("u_phase", (float)Rnd());
             g.AddChild(mi);
+            /* RETOUCHABLE COMME UNE MAISON : posé par la même fonction, qu'il ait
+               bougé ou non. Ses pieds sont SOUS son origine (le point le plus bas
+               de son animation), d'où le relèvement. */
+            var e = new Editable
+            {
+                Id = $"figurant:{nom}:{pose}", Label = "un figurant", BaseX = x, BaseZ = z, BaseYaw = yaw,
+                X = x, Z = z, Yaw = yaw, Radius = 0.6, Height = Taille,
+                Family = "figurant", FamilyLabel = "un figurant", Lift = -pieds,
+                MakeVisual = () =>
+                {
+                    var c = new MeshInstance3D
+                    {
+                        Mesh = f.Mesh, MaterialOverride = mat, Scale = Vector3.One * (float)k,
+                        CastShadow = GeometryInstance3D.ShadowCastingSetting.On
+                    };
+                    c.SetInstanceShaderParameter("u_phase", (float)GD.Randf());
+                    return c;
+                }
+            };
+            e.Push = ed =>
+            {
+                double y = _world.HeightAt(ed.X, ed.Z);
+                ed.GroundY = y + ed.Dy;
+                mi.Position = new Vector3((float)(ed.X - cx), (float)(y - pieds + ed.Dy), (float)(ed.Z - cz));
+                mi.Rotation = new Vector3(0, (float)ed.Yaw, 0);
+                mi.Scale = Vector3.One * (float)(k * ed.Scale);
+                mi.Visible = !ed.Removed;
+            };
+            if (Editor != null) Editor.Add(e); else e.Push(e);
             pose++;
         }
         if (pose < combien)

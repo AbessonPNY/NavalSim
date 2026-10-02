@@ -152,7 +152,7 @@ public partial class ShipDemo : Node3D
         Key(c2, "O", "occlusion ambiante");
         Key(c2, "I", "la carte du capitaine");
         Key(c2, StowKeyName, "le plan d'arrimage");
-        Key(c2, "²", "le mode création : retoucher maisons, rochers et arbres, à la souris");
+        Key(c2, "²", "le mode création : retoucher, copier, coller, poser depuis la palette");
         Key(c2, "F1", "ce mémento");
         Key(c2, "Échap", "les options");
     }

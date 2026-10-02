@@ -285,9 +285,11 @@ tout entier sur l'herbe, sur le plat, loin du ponton, n'est pas bâti. La terre 
 
 **²** (la touche sous Échap) bascule le mode création : une caméra libre, et tout ce que le monde pose de
 lui-même se prend à la souris — maisons et église des villes, pâtés des centres, modèles posés, rochers et
-arbres des semis. On le déplace (glisser), le tourne (molette, ⇧ par 45°), le grandit (PgUp PgDn), le lève
+arbres des semis, figurants de la plage. On le déplace (glisser), le tourne (molette, ⇧ par 45°), le grandit (PgUp PgDn), le lève
 (↑ ↓), le retire (Suppr) ou le rend à l'automatique (⌫) ; Ctrl+Z annule, Ctrl+S enregistre, ² ressort et
-enregistre.
+enregistre. **Ctrl+C** copie l'objet pris, **Ctrl+V** le colle sous la souris (même modèle, même taille, même
+cap) ; **Tab** ouvre la palette — un objet de chaque sorte que le monde contient, et les modèles bruts de
+`world/models` et `props` — dont le choix se colle de même.
 
 Rien n'est écrit dans la fiche : les retouches vont dans `world/retouches/<région>.json` et s'appliquent
 par-dessus le placement automatique, au moment où chaque objet se pose.
@@ -295,7 +297,9 @@ par-dessus le placement automatique, au moment où chaque objet se pose.
 ```json
 { "region": "caraibes", "retouches": [
     { "id": "maison:Port-Royal:37", "x": -347.21, "z": -92.09, "cap": 39.6, "echelle": 1.2, "dy": 0.3 },
-    { "id": "semis:Rochers des plages de Port-Royal:0", "retire": true }
+    { "id": "semis:Rochers des plages de Port-Royal:0", "retire": true },
+    { "id": "ajout:1", "de": "pate:port-royal:13", "x": -326.21, "z": -86.09, "cap": 9.6 },
+    { "id": "ajout:2", "glb": "props/coffre_2k.glb", "x": -374.21, "z": -84.09, "cap": 0.0 }
 ] }
 ```
 
@@ -306,10 +310,29 @@ par-dessus le placement automatique, au moment où chaque objet se pose.
 | `cap` | sa rotation autour de la verticale, en degrés |
 | `echelle` · `dy` | sa taille (1) et ce qu'on l'a levé au-dessus du sol (m) |
 | `retire` | il n'est plus là |
+| `de` | un AJOUT, copie de cet objet : son modèle, sa taille, sa couleur suivent la source |
+| `glb` | un AJOUT, modèle brut : recentré, posé sur son point le plus bas ; son unité est le mètre, sauf au-delà de 40 unités (ramené à 4 m) |
 
 **Le nom est un rang dans un tirage** : changer la graine, le nombre de maisons, un semis ou le relief d'un port
 renumérote ses objets, et une retouche s'appliquerait à un autre. Les retouches sont faites pour un monde dont
 les règles sont arrêtées. Ce qu'on n'a pas touché suit toujours les règles.
+
+## Le sol peint (Godot)
+
+Le relief se teinte de lui-même par l'altitude, aux sommets de son maillage (cinq mètres de pas). Autour d'un
+port, on peut PEINDRE par-dessus, au demi-mètre : de l'herbe, des pavés, du sable. Dans la fiche :
+
+```json
+"peinture": [ { "port": "port-royal", "image": "world/peinture/port-royal.png", "cote": 1024, "pas": 0.5 } ]
+```
+
+Un carré de `cote` mètres centré sur le port, un pixel par `pas`. L'image est un PNG RGBA : r = herbe,
+g = pavés, b = sable (leurs parts), a = combien la peinture recouvre la teinte du relief (0 : on n'y a pas
+touché). Elle s'écrit au pinceau du mode création (², puis P) : 1 herbe, 2 pavés, 3 sable, 4 la gomme qui rend
+le relief ; molette pour le rayon, ⇧ molette pour la force ; Ctrl+Z annule le dernier coup ; Ctrl+S (ou ² en
+sortant) enregistre. Les matières sont dessinées par le shader (`ground_paint.gdshaderinc`) dans les teintes
+de la terre (`LandNode`) : touffes d'herbe, pavés jointoyés, grain de sable, qui s'effacent vers leur couleur
+moyenne au loin. Une seule peinture active par région pour l'instant.
 
 ## Les autres régions, et les traversées (Godot)
 

@@ -67,6 +67,20 @@ public sealed class CentreSpec
     public double Face;
 }
 
+/// <summary>
+/// UN SOL PEINT À LA MAIN — world/*.json → peinture : un carré centré sur un
+/// port, une image où chaque pixel dit combien d'herbe, de pavés et de sable il
+/// porte, et combien il recouvre la teinte que le relief donne de lui-même. Le
+/// relief a cinq mètres de pas ; la peinture, un demi-mètre : c'est ce qui
+/// dessine une rue, un bord de place, un chemin dans l'herbe.
+/// </summary>
+public sealed class PaintSpec
+{
+    public string Port = "", Image = "";
+    /// <summary>Le côté du carré, en mètres, et le pas d'un pixel.</summary>
+    public double Side = 1024, Step = 0.5;
+}
+
 /// <summary>Un modèle posé sur la terre : world/assets.</summary>
 public sealed class AssetSpec
 {
@@ -116,6 +130,8 @@ public sealed class RegionSpec
     public readonly List<PatchSpec> Patches = new();
     /// <summary>Les semis : un modèle répandu au hasard sur une zone (Scatter.cs).</summary>
     public readonly List<ScatterSpec> Scatters = new();
+    /// <summary>Les sols peints à la main (Godot) : herbe, pavés, sable, par-dessus la teinte du relief.</summary>
+    public readonly List<PaintSpec> Paints = new();
 
     public static RegionSpec FromJson(string json)
     {
@@ -185,6 +201,14 @@ public sealed class RegionSpec
                     Lat = Num(a, "lat"), Lon = Num(a, "lon"), Yaw = Num(a, "yaw"),
                     Scale = a.TryGetProperty("scale", out var k) ? k.GetDouble() : 1,
                     Y = a.TryGetProperty("y", out var y) ? y.GetDouble() : null
+                });
+        if (r.TryGetProperty("peinture", out var pt) && pt.ValueKind == JsonValueKind.Array)
+            foreach (var p in pt.EnumerateArray())
+                s.Paints.Add(new PaintSpec
+                {
+                    Port = Str(p, "port"), Image = Str(p, "image"),
+                    Side = p.TryGetProperty("cote", out var cs) ? cs.GetDouble() : 1024,
+                    Step = p.TryGetProperty("pas", out var st) ? st.GetDouble() : 0.5
                 });
         if (r.TryGetProperty("semis", out var sz) && sz.ValueKind == JsonValueKind.Array)
             foreach (var a in sz.EnumerateArray())

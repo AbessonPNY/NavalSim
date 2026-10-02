@@ -53,7 +53,8 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `world.js` · `land.js` | la Jamaïque (×0,4) lue dans `world/` (relief, ports, modèles posés, `Naval.Geo`) · le relief en carreaux |
 | `jetty.js` | le ponton d'un port |
 | `Moored.cs` (Godot) | où mouiller les navires d'un port : à quai les petits, en rade les gros |
-| `Edits.cs` · `EditRegistry.cs` · `ShipDemo.Editor.cs` (Godot) | le mode création (²) : retoucher à la souris ce que le monde pose ; `world/retouches/<région>.json` |
+| `Edits.cs` · `EditRegistry.cs` · `ShipDemo.Editor.cs` (Godot) | le mode création (²) : retoucher, copier, coller ce que le monde pose ; `world/retouches/<région>.json` |
+| `GroundPaint.cs` · `ground_paint.gdshaderinc` (Godot) | le sol peint au pinceau (², P) : herbe, pavés, sable au demi-mètre ; `world/peinture/*.png` |
 | `Grapple.cs` (Godot) | les filins à crochet de l'abordage — ils HALENT, on les tranche (⇧D) |
 | `chart.js` | la carte marine |
 | `quests.js` | les quêtes : étapes, lieux, objectifs (`quests/*.json`) |

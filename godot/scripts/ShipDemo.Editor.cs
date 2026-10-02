@@ -38,6 +38,7 @@ public partial class ShipDemo
 
     // --- l'essai : --creation <mètres> ---
     double _edTest;
+    int _edPasteTest;
 
     void EditTest()
     {
@@ -47,6 +48,17 @@ public partial class ShipDemo
         _sel = Pick(mid);
         if (_sel == null) { GD.Print("[éditeur] rien au milieu de l'écran"); return; }
         GD.Print(FormattableString.Invariant($"[éditeur] pris {_sel.Id} ({_sel.Label}) en ({_sel.X:F1}, {_sel.Z:F1}), pied {_sel.GroundY:F2}"));
+        if (_edPasteTest > 0)
+        {
+            // copier ce qui est pris, le coller N fois en ligne ; puis un modèle brut de la palette
+            EditCopy();
+            var src = _sel;
+            for (int i = 1; i <= _edPasteTest; i++) EditPaste(new Vec3d(src.X + 18 * i, 0, src.Z + 6));
+            _clip = (null, "props/coffre_2k.glb", "coffre", 0.0, 1.0, 0.0);
+            var raw = EditPaste(new Vec3d(src.X - 12, 0, src.Z + 8));
+            GD.Print(FormattableString.Invariant($"[éditeur] {_edPasteTest} copie(s) de {src.Id}, et un coffre brut ({raw?.Radius:F2} m) ; enregistré : {_editReg!.Save()}"));
+            return;
+        }
         if (push > 0)
         {
             Change(_sel, s => { s.X += push; s.Yaw += Math.PI / 6; });
@@ -87,6 +99,10 @@ public partial class ShipDemo
             _edYaw = Math.Atan2(f.X, f.Z);
             _edPitch = Math.Clamp(Math.Asin(Math.Clamp(f.Y, -1, 1)), -1.45, 1.2);
             _edPrevEye = _fixEye; _edPrevLook = _fixLook;
+            /* LE MONDE, PAS LE BORD : instruments, panneaux et comptoir s'effacent
+               comme au cinéma, et reviennent tels qu'ils étaient. Si le cinéma les
+               tient déjà, c'est lui qui les rendra. */
+            if (!_cine) CineHide();
             EditHud(true);
             Say("Mode création · F1 pour les touches");
         }
@@ -95,10 +111,13 @@ public partial class ShipDemo
             _editing = false;
             _sel = null; _edDragging = false; _edLooking = false;
             _fixEye = _edPrevEye; _fixLook = _edPrevLook;
+            _painting = false; _paintDown = false;
+            if (!_cine) CineShow();
             EditHud(false);
+            string painted = _paint is { Dirty: true } ? (_paint.Save() ? " · sol peint enregistré" : " · sol peint NON enregistré") : "";
             if (_editReg.Dirty)
-                Say(_editReg.Save() ? $"Retouches enregistrées ({_editReg.Edits.Count})" : "Retouches NON enregistrées : le fichier d'origine était illisible");
-            else Say("Fin du mode création");
+                Say((_editReg.Save() ? $"Retouches enregistrées ({_editReg.Edits.Count})" : "Retouches NON enregistrées : le fichier d'origine était illisible") + painted);
+            else Say("Fin du mode création" + painted);
         }
     }
 
@@ -106,7 +125,7 @@ public partial class ShipDemo
     {
         if (!on)
         {
-            _edLayer?.QueueFree(); _edLayer = null; _edLabel = null;
+            _edLayer?.QueueFree(); _edLayer = null; _edLabel = null; _edPalette = null; _edList = null;
             _edRing?.QueueFree(); _edRing = null;
             return;
         }
@@ -166,6 +185,7 @@ public partial class ShipDemo
 
         if (_edRing != null)
         {
+            ((StandardMaterial3D)_edRing.MaterialOverride).AlbedoColor = new Color(1f, 0.55f, 0.1f);
             _edRing.Visible = _sel is { Removed: false };
             if (_sel != null)
             {
@@ -181,11 +201,14 @@ public partial class ShipDemo
                 ? "Cliquer un bâtiment, un rocher, un arbre."
                 : FormattableString.Invariant(
                     $"{_sel.Label} · {_sel.Id}\ncap {((_sel.Yaw * 180 / Math.PI) % 360 + 360) % 360:F0}° · échelle {_sel.Scale:F2} · levé {_sel.Dy:+0.0;-0.0;0} m{(_sel.Pristine ? " · à sa place" : " · retouché")}");
-            _edLabel.Text = head + "\n" + what +
+            if (_painting) { _edLabel.Text = head + "\n" + PaintStatus() + "\nZQSD se déplacer · A E descendre, monter · clic droit regarder · Ctrl+S enregistrer · ² quitter"; }
+            else _edLabel.Text = head + "\n" + what +
                 "\nZQSD se déplacer · A E descendre, monter · ⇧ plus vite · clic droit regarder" +
                 "\nglisser déplacer · molette tourner (⇧ 45°) · PgUp PgDn échelle · ↑ ↓ lever · Suppr retirer · ⌫ rendre à l'automatique" +
+                "\nCtrl+C copier · Ctrl+V coller sous la souris · Tab la palette · P le pinceau (herbe, pavés, sable)" +
                 "\nCtrl+Z annuler · Ctrl+S enregistrer · ² quitter (et enregistrer)";
         }
+        PaintTick(dt);
     }
 
     /// <summary>Le mode création prend TOUT ce qui arrive ; ² le bascule de partout.</summary>
@@ -198,8 +221,10 @@ public partial class ShipDemo
             if (key == Key.Quoteleft && !_inTitle && !_chartOpen && !_journalOpen) { ToggleEdit(); return true; }
         }
         if (!_editing) return false;
-        // Alt+Entrée reste au plein écran, F1 au mémento
+        // Alt+Entrée reste au plein écran, F1 au mémento ; la palette a sa souris
         if (e is InputEventKey ak && (ak.AltPressed || ak.PhysicalKeycode == Key.F1)) return false;
+        if (OverPalette(e)) return false;
+        if (PaintInput(e)) return true;
 
         if (e is InputEventKey kk && kk.Pressed)
         {
@@ -207,13 +232,20 @@ public partial class ShipDemo
             bool shift = kk.ShiftPressed, ctrl = kk.CtrlPressed;
             if (ctrl && key == Key.S && !kk.Echo)
             {
-                Say(_editReg!.Save() ? $"Retouches enregistrées ({_editReg.Edits.Count})" : "Le fichier d'origine était illisible : rien d'écrit");
+                string painted = _paint is { Dirty: true } ? (_paint.Save() ? " · sol peint enregistré" : " · sol peint NON enregistré") : "";
+                Say((_editReg!.Save() ? $"Retouches enregistrées ({_editReg.Edits.Count})" : "Le fichier d'origine était illisible : rien d'écrit") + painted);
                 return true;
             }
+            if (key == Key.P && !ctrl && !kk.Echo) { TogglePaintMode(); return true; }
             if (ctrl && key == Key.Z) { EditUndo(); return true; }
+            if (ctrl && key == Key.C && !kk.Echo) { EditCopy(); return true; }
+            if (ctrl && key == Key.V && !kk.Echo) { EditPaste(); return true; }
+            if (key == Key.Tab && !kk.Echo) { TogglePalette(); return true; }
             if (key == Key.Escape && !kk.Echo)
             {
-                if (_sel != null) _sel = null; else ToggleEdit();
+                if (_edPalette is { Visible: true }) _edPalette.Visible = false;
+                else if (_sel != null) _sel = null;
+                else ToggleEdit();
                 return true;
             }
             if (_sel == null) return true;
@@ -227,11 +259,13 @@ public partial class ShipDemo
                     break;
                 case Key.Backspace:
                     if (kk.Echo) break;
+                    if (_sel.Added) { Say("Un ajout n'a pas de place automatique · Suppr pour le retirer"); break; }
                     Change(_sel, s => s.State = (s.BaseX, s.BaseZ, s.BaseYaw, 1, 0, false));
                     Say("Rendu à sa place automatique");
                     break;
-                case Key.Pageup: Change(_sel, s => s.Scale = Math.Min(8, s.Scale * 1.05)); break;
-                case Key.Pagedown: Change(_sel, s => s.Scale = Math.Max(0.1, s.Scale / 1.05)); break;
+                // ⇧ par moitié : un modèle brut arrive souvent à une taille qui n'a rien à voir
+                case Key.Pageup: Change(_sel, s => s.Scale = Math.Min(40, s.Scale * (shift ? 1.5 : 1.05))); break;
+                case Key.Pagedown: Change(_sel, s => s.Scale = Math.Max(0.02, s.Scale / (shift ? 1.5 : 1.05))); break;
                 case Key.Up: Change(_sel, s => s.Dy += shift ? 1 : 0.1); break;
                 case Key.Down: Change(_sel, s => s.Dy -= shift ? 1 : 0.1); break;
             }

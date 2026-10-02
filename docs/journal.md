@@ -13920,6 +13920,69 @@ un rocher de la grève retiré. Les fichiers d'essai ont été effacés.
 Le revers : le nom est un RANG dans un tirage. Changer la graine, le nombre de maisons ou le relief d'un port
 renumérote ses objets. Étape deux : la palette (ajouter un modèle), et l'annulation au-delà de la session.
 
+## Le mode création, étape deux : copier, coller, la palette, les figurants (Godot)
+
+Demandé : la palette pour ajouter des modèles, et « déplacer les figurants et copier-coller un modèle ».
+
+**Les figurants** s'inscrivent comme les maisons (`FolkNode.Plant`, `figurant:<plage>:<rang>`) : leurs pieds
+sont SOUS leur origine (le point le plus bas de leur animation), d'où un relèvement.
+
+**Une copie est un RENVOI, pas un double.** Le fichier dit « ajout:7, copie de maison:Port-Royal:37, ici,
+tourné ainsi » (`"de"`) ; c'est l'objet source qui sait se refaire. Chaque bâtisseur fournit donc, avec
+l'objet, de quoi le refaire À PART (`Editable.MakeVisual`), son cap déjà cuit dans ce visuel (`VisualYaw` : un
+semis tourne sa copie dans son nœud penché) et sa levée (`Lift` : un rocher s'enfonce, un homme a ses pieds
+sous l'origine, une maison rentre de dix centimètres). Une maison copiée sort de son MultiMesh : un nœud par
+surface, et son crépi — couleur d'INSTANCE dans le MultiMesh — devient la couleur de sa matière. La copie
+d'une copie renvoie à la source : le fichier ne fait jamais de chaîne.
+
+**Un ajout relu attend sa source** : la terre se bâtit à la première image, les figurants plus tard ; chaque
+image, ceux dont la source est née naissent (`SpawnPending`). Une source renumérotée (graine, relief) laisse son
+ajout en attente — rien ne se pose à la place d'un autre.
+
+**La palette** (Tab) : un objet par FAMILLE que le monde contient (le modèle d'une maison, un semis, un modèle
+posé, le figurant), puis les modèles bruts de `world/models` et `props` (`"glb"`), moins ce qui passe 25 Mo.
+Un modèle brut est recentré sur sa boîte et posé sur son point le plus bas ; son unité est le mètre, sauf
+au-delà de quarante unités (exports en centimètres, comme le tonneau et le coffre), ramené à quatre mètres ;
+⇧PgUp ⇧PgDn changent l'échelle par moitié.
+
+Vérifié (`-- --coller N` : copier ce qui est au milieu de l'écran, le coller N fois, puis un coffre brut) : deux
+pâtés copiés et le coffre posés, relus au lancement suivant (`[éditeur] ajout:1 posé (copie de pate:…)`).
+
+**Un incident d'essai, à retenir** : `world/retouches/caraibes.json` contenait déjà les quatorze retouches du
+joueur, et l'essai y a ÉCRIT ses ajouts — l'essai enregistre, comme le joueur. Retirés à la main, le fichier
+est revenu octet pour octet à l'état commité. Un essai de l'éditeur se fait désormais sur un fichier commité,
+qu'on rend ensuite par `git checkout`.
+
+## Le pinceau : herbe, pavés, sable au demi-mètre (Godot)
+
+Demandé : « un outil de peinture pour faire texture herbe, texture pavés, texture sable plus finement sur
+Port-Royal », et le HUD masqué en mode création.
+
+**Le HUD** : le mode création cache ce que cache le cinéma (`CineHide` : instruments, soleil, comptoir, barre
+des pièces) et le rend tel qu'il était ; si le cinéma le tient déjà, c'est lui qui le rendra.
+
+**Pourquoi une image et pas les sommets** : la teinte du relief vit aux sommets, cinq mètres de pas ; une rue
+de huit mètres y fait des marches. La peinture est une image à part (`GroundPaint`, `world/peinture/*.png`) :
+un carré de 1 024 m centré sur le port, un pixel par demi-mètre, 2 048² en RGBA — r g b les parts d'herbe, de
+pavés, de sable, a ce qu'elle recouvre de la teinte du relief. Une seule par région pour l'instant (le shader a
+un échantillonneur).
+
+**Les matières sont dessinées, pas lues** (`ground_paint.gdshaderinc`) : l'herbe en touffes à deux échelles avec
+des plaques sèches, les pavés en cellules de Voronoï d'un peu plus d'un quart de mètre, chacun sa pierre, joint
+sombre où F2 − F1 est petit ; le sable à grain fin et rides lâches. Rien à charger, et la finesse va jusqu'au
+pixel. Ancrées au coin du carré (en mètres vrais, l'origine peut glisser) ; elles s'effacent vers leur couleur
+moyenne quand un pixel couvre plus qu'un pavé (`fwidth`), sans quoi un pavage scintille au loin. Leurs teintes
+viennent de `LandNode` (`u_grass`, `u_cobble`, `u_sand`) : une seule définition avec les sommets.
+
+**L'image vit en octets côté C#** : un coup de pinceau touche des milliers de pixels, et l'interface du moteur
+pixel par pixel coûterait plus que le calcul. Elle n'est recopiée dans la texture (16 Mo) qu'un huitième de
+seconde sur deux au plus pendant qu'on peint, et au lever. Annulation : l'image d'avant chaque coup, huit
+coups en arrière.
+
+Vérifié (`-- --peindre x,0,z` — n'enregistre RIEN) : trois disques et une rue au sud de la ville ; pavés
+jointoyés, herbe en touffes, sable, bords fondus ; HUD masqué. Le pavé se lit ocre sous ce soleil, comme celui
+des sommets : `Cobble` dans `LandNode`, à juger à l'œil.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

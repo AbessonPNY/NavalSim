@@ -40,6 +40,8 @@ render_mode world_vertex_coords;
 #include "res://shaders/ride.gdshaderinc"
 // la lumière du fond, partagée avec les poissons qui nagent dedans
 #include "res://shaders/caustics.gdshaderinc"
+// le sol peint à la main : herbe, pavés, sable, par-dessus la teinte des sommets
+#include "res://shaders/ground_paint.gdshaderinc"
 
 varying vec3 v_world;
 
@@ -56,8 +58,9 @@ void fragment() {
 	   direct. L'écart ne se voit que dans l'ombre d'une coque, où il n'y a de
 	   toute façon plus de caustique à voir. */
 	// la finesse vient des dérivées d'écran : la largeur d'un pixel sur le sable
-	ALBEDO = COLOR.rgb * caustiques(v_world, length(v_world - CAMERA_POSITION_WORLD),
-	                                length(fwidth(v_world.xz)));
+	float pix = length(fwidth(v_world.xz));
+	vec3 ground = ground_paint(COLOR.rgb, v_world, pix);
+	ALBEDO = ground * caustiques(v_world, length(v_world - CAMERA_POSITION_WORLD), pix);
 	ROUGHNESS = 0.94;
 	METALLIC = 0.0;
 }

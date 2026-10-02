@@ -92,6 +92,10 @@ public partial class LandNode : Node3D
         _mat.SetShaderParameter("u_caustic_far", (float)CausticRules.Far);
         _mat.SetShaderParameter("u_caustic_floor", (float)CausticRules.Floor);
         _mat.SetShaderParameter("u_caustic_spread", (float)CausticRules.Spread);
+        // le sol peint reprend les teintes des sommets : une seule définition, ici
+        _mat.SetShaderParameter("u_grass", new Vector3(Grass.R, Grass.G, Grass.B));
+        _mat.SetShaderParameter("u_cobble", new Vector3(Cobble.R, Cobble.G, Cobble.B));
+        _mat.SetShaderParameter("u_sand", new Vector3(Sand.R, Sand.G, Sand.B));
 
     }
 
@@ -236,19 +240,35 @@ public partial class LandNode : Node3D
     /// <summary>Le registre de l'éditeur : chaque modèle posé et chaque copie d'un semis s'y inscrit.</summary>
     public EditRegistry? Editor;
 
+    /// <summary>Le sol peint à la main, s'il y en a un (GroundPaint, ground_paint.gdshaderinc).</summary>
+    public GroundPaint? Paint
+    {
+        get => _paint;
+        set
+        {
+            _paint = value;
+            _mat.SetShaderParameter("u_paint_on", value != null ? 1f : 0f);
+            if (value != null) _mat.SetShaderParameter("u_paint", value.Texture);
+        }
+    }
+    GroundPaint? _paint;
+
     /// <summary>
     /// INSCRIRE UN OBJET DE LA TERRE à l'éditeur. Il vit sur son nœud <c>hold</c>,
     /// placé à chaque image d'après ses métas : on change les métas, le cap (par
     /// rapport à celui de sa pose) et l'échelle. Sa hauteur suit le sol à sa
     /// nouvelle place, à ce qu'il était levé ou enfoncé près.
     /// </summary>
-    void Register(Node3D hold, string id, string label, double x, double z, double yaw, double wy, double radius, double height)
+    void Register(Node3D hold, string id, string label, string family, double x, double z, double yaw, double wy, double radius, double height)
     {
         double lift = wy - World.HeightAt(x, z);
         var e = new Editable
         {
             Id = id, Label = label, BaseX = x, BaseZ = z, BaseYaw = yaw, X = x, Z = z, Yaw = yaw,
-            Radius = radius, Height = height
+            Radius = radius, Height = height,
+            Family = family, FamilyLabel = label,
+            // la copie : ce que porte le nœud, déjà tourné de son cap et mis à sa taille
+            MakeVisual = () => (Node3D)hold.GetChild(0).Duplicate(), VisualYaw = yaw, Lift = lift
         };
         e.Push = ed =>
         {
@@ -318,7 +338,7 @@ public partial class LandNode : Node3D
             _assets.Add(hold);
             var ab = BoxOf(root) ?? new Aabb();
             double sc = a.Scale;
-            Register(hold, $"modele:{index}:{a.Name}", a.Name.Length > 0 ? a.Name : "un modèle posé",
+            Register(hold, $"modele:{index}:{a.Name}", a.Name.Length > 0 ? a.Name : "un modèle posé", "modele:" + a.Glb,
                 g.X, g.Z, -a.Yaw * Math.PI / 180, (double)hold.GetMeta("wy"),
                 0.5 * Math.Max(ab.Size.X, ab.Size.Z) * sc, ab.End.Y * sc);
         }
@@ -398,7 +418,7 @@ public partial class LandNode : Node3D
                 hold.SetMeta("wy", World.HeightAt(p.X, p.Z) + bb.Size.Y * k * 0.5 * (1 - sp.Sink));
                 _assets.Add(hold);
                 // le centre de la copie est à wy : son pied, une demi-hauteur plus bas
-                Register(hold, $"semis:{sp.Name}:{index}", sp.Name, p.X, p.Z, p.Yaw, (double)hold.GetMeta("wy"),
+                Register(hold, $"semis:{sp.Name}:{index}", sp.Name, "semis:" + sp.Name, p.X, p.Z, p.Yaw, (double)hold.GetMeta("wy"),
                     p.Size * 0.5, bb.Size.Y * k);
                 total++;
             }
@@ -416,6 +436,10 @@ public partial class LandNode : Node3D
     public void Update(Vec3d centre, Vec3d origin, bool eager = false)
     {
         if (!_assetsBuilt) { _assetsBuilt = true; BuildAssets(); BuildScatter(); }
+        // le carré peint, contre l'origine du moment : son coin est en mètres vrais
+        if (_paint != null)
+            _mat.SetShaderParameter("u_paint_rect", new Vector4((float)(_paint.X0 - origin.X), (float)(_paint.Z0 - origin.Z),
+                                                                (float)(1 / _paint.Side), (float)(1 / _paint.Side)));
         foreach (var a in _assets)
             a.Position = new Vector3(
                 (float)((double)a.GetMeta("wx") - origin.X),

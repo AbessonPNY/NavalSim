@@ -230,6 +230,7 @@ public partial class ShipDemo : Node3D
             _sea.Core.Shelter = (x, z) => _world.Shelter(x, z);
             _land = new LandNode(_world) { CausticRules = _causticRules, Editor = _editReg };
             AddChild(_land);
+            PaintSetup();
             CausticDials();
             /* LES MOUETTES, qui disent la terre de plus loin que la terre : leur
                perchoir est le rivage le plus proche, que le monde sait rendre. */
@@ -254,7 +255,7 @@ public partial class ShipDemo : Node3D
             { _fishNode.QueueFree(); _fishNode = null; }
             _town = new TownNode(_world) { Editor = _editReg };
             AddChild(_town);
-            _folk = new FolkNode(_world);
+            _folk = new FolkNode(_world) { Editor = _editReg };
             AddChild(_folk);
             _jetty = new JettyNode(_world);
             AddChild(_jetty);
@@ -1322,6 +1323,8 @@ public partial class ShipDemo : Node3D
             var wo = _sea.Core.Origin;
             var here = new Vec3d(wo.X + b.Pos.X, 0, wo.Z + b.Pos.Z);
             _land.Update(ViewCentre(here), new Vec3d(wo.X, 0, wo.Z), _landEager);
+            // les ajouts de l'éditeur, contre la même origine
+            EditFrame(new Vec3d(wo.X, 0, wo.Z));
             _landEager = false;
             // le niveau de la mer sous le navire décide de la hauteur d'eau
             _fishNode?.Update(_world, here, new Vec3d(wo.X, 0, wo.Z), frame,
@@ -1345,7 +1348,7 @@ public partial class ShipDemo : Node3D
             }
             if (_folk != null)
             {
-                _folk.Update(here, new Vec3d(wo.X, 0, wo.Z));
+                _folk.Update(ViewCentre(here), new Vec3d(wo.X, 0, wo.Z));
                 foreach (var m in _folk.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
             }
             if (_anchor2 != null)
@@ -4584,6 +4587,9 @@ public partial class ShipDemo : Node3D
                 case "--echouer": _beachTest = args[i + 1].ToFloat(); _diveTestIn = 1.0; break;
                 // le mode création : prendre ce qui est au milieu de l'écran, le pousser de tant de mètres, le tourner, enregistrer
                 case "--creation": _edTest = args[i + 1].ToFloat(); _diveTestIn = 1.0; break;
+                case "--coller": _edPasteTest = args[i + 1].ToInt(); _edTest = 1; _diveTestIn = 1.0; break;
+                // le pinceau, sans rien enregistrer : trois disques et une rue autour de (x, z) vrais
+                case "--peindre": _paintTest = ParseVec(args[i + 1]); _diveTestIn = 1.0; break;
                 // une épave d'essai, à tant de mètres par le travers : son coffre avec
                 case "--epave": _diveTest.Wreck = args[i + 1].ToFloat(); _diveTestIn = 1.0; break;
                 case "--mi-eau-haut": _splitLift = args[i + 1].ToFloat(); break;

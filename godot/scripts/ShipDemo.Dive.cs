@@ -393,6 +393,7 @@ public partial class ShipDemo
         }
         if (_beachTest > 0) BeachTest();
         if (_edTest != 0) EditTest();
+        if (_paintTest is Vector3 pt) { _paintTest = null; PaintTest(pt.X, pt.Z); }
         if (_diveTest.Wreck is double d) TestWreck(d);
         if (_diveTest.Bell && !_bellOut) ToggleBell();
         if (_diveTest.Rope > 0) _bellRope = _diveTest.Rope;

@@ -62,6 +62,10 @@
       "note": "l'enclos à cochons du colonel Barry, sur la rive nord de la rade ; un débarcadère et rien d'autre : ni ville, ni marché" }
   ],
 
+  "peinture": [
+    { "port": "port-royal", "image": "world/peinture/port-royal.png", "cote": 1024, "pas": 0.5 }
+  ],
+
   "semis": [
 
     { "name": "Rochers de l'îlot aux cocotiers", "glb": "props/rocher.glb", "patch": "ilot-cocotiers", "nombre": 34, "taille": [0.5, 2.8], "frange": [-0.4, 1.8], "penche": 20, "graine": 11 },

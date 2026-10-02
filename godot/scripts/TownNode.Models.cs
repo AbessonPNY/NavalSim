@@ -29,6 +29,7 @@ public partial class TownNode
         public readonly List<Face> Faces = new();
         public double W, D;                       // emprise, sans les débords de toit
         public double H;                          // hauteur, cheminées comprises
+        public string Name = "";                  // son fichier, qui fait sa famille dans la palette
     }
 
     Model? _church, _houseA, _houseB;
@@ -61,7 +62,7 @@ public partial class TownNode
             GD.PushWarning($"[ville] {rel} illisible — maisons en boîtes.");
             return null;
         }
-        var m = new Model();
+        var m = new Model { Name = rel };
         var box = new Aabb();
         bool first = true;
         var stack = new Stack<(Node N, Transform3D Xf)>();
@@ -209,11 +210,39 @@ public partial class TownNode
                    décor. On prend donc le plus petit des deux rapports. */
                 double k2 = Math.Min(h.W / model.W, h.D / model.D);
                 int idx = k;
+                var wall = Walls[(int)(Frac(Math.Sin(h.X * 3.17 + h.Z * 7.31) * 9187.71) * Walls.Length) % Walls.Length];
                 var e = new Editable
                 {
                     Id = idPrefix + who[k], Label = label,
                     BaseX = h.X, BaseZ = h.Z, BaseYaw = h.Yaw, X = h.X, Z = h.Z, Yaw = h.Yaw,
-                    Radius = 0.5 * Math.Sqrt(h.W * h.W + h.D * h.D), Height = model.H * k2
+                    Radius = 0.5 * Math.Sqrt(h.W * h.W + h.D * h.D), Height = model.H * k2,
+                    Family = "bati:" + model.Name, FamilyLabel = System.IO.Path.GetFileNameWithoutExtension(model.Name),
+                    Lift = -0.1,
+                    /* LA COPIE, HORS DU MULTIMESH : un nœud par surface, à l'échelle de
+                       la maison. Le crépi y devient la couleur de la matière, la copie
+                       n'ayant pas de couleur d'instance pour le porter. */
+                    MakeVisual = () =>
+                    {
+                        var n = new Node3D();
+                        foreach (var face in model.Faces)
+                        {
+                            Material m = face.Mat;
+                            if (m is BaseMaterial3D bm && bm.VertexColorUseAsAlbedo)
+                            {
+                                var dup = (BaseMaterial3D)bm.Duplicate();
+                                dup.VertexColorUseAsAlbedo = false;
+                                dup.AlbedoColor = wall;
+                                m = dup;
+                            }
+                            n.AddChild(new MeshInstance3D
+                            {
+                                Mesh = face.Mesh, MaterialOverride = m, Scale = Vector3.One * (float)k2,
+                                CastShadow = ReferenceEquals(face.Mat, _glass) ? GeometryInstance3D.ShadowCastingSetting.Off
+                                                                               : GeometryInstance3D.ShadowCastingSetting.On
+                            });
+                        }
+                        return n;
+                    }
                 };
                 e.Push = ed =>
                 {
