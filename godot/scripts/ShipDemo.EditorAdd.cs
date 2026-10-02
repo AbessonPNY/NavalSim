@@ -34,10 +34,11 @@ public partial class ShipDemo
     readonly List<(string Label, Editable? Src, string Glb)> _paletteItems = new();
 
     /// <summary>Chaque image, dans les deux modes : faire naître les ajouts relus, et les poser contre l'origine.</summary>
-    void EditFrame(Vec3d origin)
+    void EditFrame(Vec3d origin, double dt)
     {
         if (_editReg == null) return;
         SpawnPending();
+        Chimneys(origin, dt);
         foreach (var h in _addedHolds)
             h.Position = new Vector3((float)((double)h.GetMeta("wx") - origin.X), (float)(double)h.GetMeta("wy"),
                                      (float)((double)h.GetMeta("wz") - origin.Z));
@@ -68,11 +69,12 @@ public partial class ShipDemo
     {
         Func<Node3D>? make;
         double vyaw = 0, lift = 0, radius = 1, height = 1;
+        bool smoke = false;
         string family, flabel;
         if (from.Length > 0)
         {
             if (!_editReg!.ById.TryGetValue(from, out var src) || src.MakeVisual == null) return null;
-            make = src.MakeVisual; vyaw = src.VisualYaw; lift = src.Lift;
+            make = src.MakeVisual; vyaw = src.VisualYaw; lift = src.Lift; smoke = src.Smoke;
             radius = src.Radius; height = src.Height; family = src.Family; flabel = src.FamilyLabel;
         }
         else
@@ -91,7 +93,7 @@ public partial class ShipDemo
             Id = id, From = from, Glb = glb, Label = "ajout : " + flabel,
             BaseX = x, BaseZ = z, BaseYaw = yaw, X = x, Z = z, Yaw = yaw, Scale = scale, Dy = dy,
             Radius = radius, Height = height, MakeVisual = make, VisualYaw = vyaw, Lift = lift,
-            Family = family, FamilyLabel = flabel
+            Family = family, FamilyLabel = flabel, Smoke = smoke
         };
         e.Push = ed =>
         {
@@ -103,14 +105,85 @@ public partial class ShipDemo
                     g = Math.Min(g, _world.HeightAt(ed.X + (c < 2 ? -r : r), ed.Z + (c % 2 == 0 ? -r : r)));
             hold.SetMeta("wx", ed.X);
             hold.SetMeta("wz", ed.Z);
-            hold.SetMeta("wy", g + ed.Lift * ed.Scale + ed.Dy);
+            // un émetteur n'a pas de corps : son échelle est sa force, pas sa taille
+            hold.SetMeta("wy", g + ed.Lift * (ed.Smoke ? 1 : ed.Scale) + ed.Dy);
             hold.Rotation = new Vector3(0, (float)(ed.Yaw - ed.VisualYaw), 0);
             hold.Scale = Vector3.One * (float)ed.Scale;
             hold.Visible = !ed.Removed;
             ed.GroundY = g + ed.Dy;
         };
         _editReg!.AddNew(e);
+        // la copie d'une maison emporte ses cheminées, qui la suivent comme les siennes
+        if (from.Length > 0 && _editReg.ById.TryGetValue(from, out var host0) && host0.Chimneys != null && _town != null)
+        {
+            e.Chimneys = host0.Chimneys;
+            _town.AddChimneys(_editReg, e, id);
+        }
         return e;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  LES CHEMINÉES                                                      */
+    /* ------------------------------------------------------------------ */
+
+    MultiMeshInstance3D? _smokeMarks;
+    /// <summary>settings.json → chimneys.enabled</summary>
+    bool _chimneyRules = true;
+
+    /// <summary>Les distances : on ne fait fumer que ce qu'on peut voir fumer, et la ville au loin se tait.</summary>
+    const double ChimneyRange = 900;
+
+    /// <summary>
+    /// FAIRE FUMER LES CHEMINÉES PROCHES de l'œil, et en mode création, MONTRER
+    /// les émetteurs — une petite boule à leur bouche, qu'on vise et qu'on déplace.
+    /// </summary>
+    void Chimneys(Vec3d origin, double dt)
+    {
+        if (!_chimneyRules) { if (_smokeMarks != null) _smokeMarks.Visible = false; return; }
+        var cp = _cam.GlobalPosition;
+        double ex = cp.X + origin.X, ez = cp.Z + origin.Z;
+        int marks = 0;
+        _smokeMarks ??= SmokeMarks();
+        var mm = _smokeMarks.Multimesh;
+        foreach (var e in _editReg!.Items)
+        {
+            if (!e.Smoke) continue;
+            // sur sa maison, à chaque image : elle a pu bouger, tourner, grandir
+            if (e.Host != null) e.PlaceEmitter(_world!.HeightAt);
+            if (!e.Live) continue;
+            double dx = e.X - ex, dz = e.Z - ez;
+            if (dx * dx + dz * dz > ChimneyRange * ChimneyRange) continue;
+            var at = new Vector3((float)(e.X - origin.X), (float)e.AimY, (float)(e.Z - origin.Z));
+            _gunFx.Hearth(at, e.Scale, dt);
+            if (_editing && marks < mm.InstanceCount)
+                mm.SetInstanceTransform(marks++, new Transform3D(Basis.Identity.Scaled(Vector3.One * 0.9f), at));
+        }
+        mm.VisibleInstanceCount = marks;
+        _smokeMarks.Visible = _editing;
+    }
+
+    MultiMeshInstance3D SmokeMarks()
+    {
+        var mm = new MultiMesh
+        {
+            TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, InstanceCount = 512, VisibleInstanceCount = 0,
+            Mesh = new SphereMesh
+            {
+                Radius = 0.5f, Height = 1f, RadialSegments = 8, Rings = 4,
+                Material = new StandardMaterial3D
+                {
+                    ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                    AlbedoColor = new Color(0.55f, 0.75f, 1f), NoDepthTest = true
+                }
+            }
+        };
+        var n = new MultiMeshInstance3D
+        {
+            Multimesh = mm, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+            CustomAabb = new Aabb(new Vector3(-1e5f, -1e3f, -1e5f), new Vector3(2e5f, 2e3f, 2e5f))
+        };
+        AddChild(n);
+        return n;
     }
 
     Node3D AddRoot()
@@ -132,11 +205,41 @@ public partial class ShipDemo
     readonly Dictionary<string, Raw?> _raws = new();
 
     /// <summary>
+    /// CE QUE LA PALETTE SAIT D'UN MODÈLE BRUT — &lt;dossier&gt;/palette.json : le nom
+    /// qu'on y lit et sa taille en mètres (sa plus grande dimension). Lu une fois
+    /// par dossier ; un modèle absent n'a ni l'un ni l'autre.
+    /// </summary>
+    (string? Name, double Size) PaletteInfo(string rel)
+    {
+        string dir = System.IO.Path.GetDirectoryName(rel)?.Replace('\\', '/') ?? "";
+        if (!_paletteDirs.TryGetValue(dir, out var map))
+        {
+            map = new Dictionary<string, (string?, double)>();
+            string file = System.IO.Path.Combine(Assets.Root, dir, "palette.json");
+            if (System.IO.File.Exists(file))
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(file));
+                    if (doc.RootElement.TryGetProperty("modeles", out var ms))
+                        foreach (var m in ms.EnumerateObject())
+                            map[m.Name] = (m.Value.TryGetProperty("nom", out var n) ? n.GetString() : null,
+                                           m.Value.TryGetProperty("taille", out var t) ? t.GetDouble() : 0);
+                }
+                catch (Exception ex) { GD.PushWarning($"[éditeur] {file} illisible : {ex.Message}"); }
+            _paletteDirs[dir] = map;
+        }
+        return map.TryGetValue(System.IO.Path.GetFileName(rel), out var info) ? info : (null, 0);
+    }
+    readonly Dictionary<string, Dictionary<string, (string?, double)>> _paletteDirs = new();
+
+    /// <summary>
     /// UN MODÈLE BRUT, lu une fois. On ne sait ni son échelle ni où Blender a
     /// laissé son origine : il est recentré sur sa boîte et posé sur son point le
-    /// plus bas. Son unité est prise pour le MÈTRE, sauf s'il passe quarante
-    /// unités — un modèle exporté en centimètres, comme le tonneau et le coffre —,
-    /// qu'on ramène alors à quatre mètres ; PgUp PgDn font le reste.
+    /// plus bas. Sa TAILLE vient de palette.json quand elle y est écrite ; sinon son
+    /// unité est prise pour le mètre, sauf s'il passe quarante unités — un export
+    /// en centimètres, comme le tonneau et le coffre —, ramené alors à quatre
+    /// mètres. L'unité ne se devine pas : un fort de cent unités et un tonneau de
+    /// quatre-vingt-dix-huit se ressemblent dans leur fichier.
     /// </summary>
     Raw? RawModel(string rel)
     {
@@ -172,7 +275,8 @@ public partial class ShipDemo
                 if (box is Aabb bb && bb.Size.Length() > 1e-5f)
                 {
                     float ext = Math.Max(bb.Size.X, Math.Max(bb.Size.Y, bb.Size.Z));
-                    float k = ext > 40 ? 4f / ext : 1f;
+                    double declared = PaletteInfo(rel).Size;
+                    float k = declared > 0 ? (float)(declared / ext) : ext > 40 ? 4f / ext : 1f;
                     var ctr = bb.GetCenter();
                     var tmpl = root;
                     outp = new Raw
@@ -253,7 +357,12 @@ public partial class ShipDemo
                     // un relief entier ou une scène de trente mégaoctets n'est pas un objet à poser
                     if (new System.IO.FileInfo(f).Length < 25_000_000) names.Add(System.IO.Path.GetFileName(f));
             }
-            foreach (var n in names) _paletteItems.Add(($"modèle brut · {dir}/{n}", null, $"{dir}/{n}"));
+            foreach (var n in names)
+            {
+                var (nom, size) = PaletteInfo($"{dir}/{n}");
+                string label = nom != null ? FormattableString.Invariant($"{nom} · {dir}/{n}{(size > 0 ? $" · {size:0.#} m" : "")}") : $"modèle brut · {dir}/{n}";
+                _paletteItems.Add((label, null, $"{dir}/{n}"));
+            }
         }
         _edList!.Clear();
         foreach (var it in _paletteItems) _edList.AddItem(it.Label);

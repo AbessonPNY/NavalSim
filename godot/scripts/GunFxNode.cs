@@ -26,12 +26,12 @@ namespace NavalSim;
 /// </summary>
 public partial class GunFxNode : Node3D
 {
-    const int MaxAdd = 512, MaxPowder = 1536, MaxSoot = 256, MaxBalls = 96;
+    const int MaxAdd = 512, MaxPowder = 1536, MaxSoot = 256, MaxBalls = 96, MaxHearth = 1536;
     /// <summary>Les LANGUES de feu, qui ont leur propre forme et leur propre réserve.</summary>
     const int MaxFlame = 384;
     const double Lag = 0.30;          // la part du vent qu'un nuage de poudre prend
 
-    enum Kind { Flash, Smoke, Fire, Soot, Spark, Mist }
+    enum Kind { Flash, Smoke, Fire, Soot, Spark, Mist, Hearth }
 
     struct Puff
     {
@@ -42,8 +42,8 @@ public partial class GunFxNode : Node3D
         public Vector3 Col;               // la couleur de base, linéaire
     }
 
-    readonly List<Puff> _add = new(), _powder = new(), _soot = new(), _flame = new();
-    MultiMesh _mmAdd = null!, _mmPowder = null!, _mmSoot = null!, _mmBall = null!, _mmFlame = null!;
+    readonly List<Puff> _add = new(), _powder = new(), _soot = new(), _flame = new(), _hearth = new();
+    MultiMesh _mmAdd = null!, _mmPowder = null!, _mmSoot = null!, _mmBall = null!, _mmFlame = null!, _mmHearth = null!;
     readonly OmniLight3D[] _gunLamps = new OmniLight3D[4], _blastLamps = new OmniLight3D[3];
     /// <summary>Une par coque qui peut brûler — autant que la flotte en porte.</summary>
     readonly OmniLight3D[] _fireLamps = new OmniLight3D[NavalSim.Core.Config.MaxShips];
@@ -67,6 +67,8 @@ public partial class GunFxNode : Node3D
         _mmAdd = Pool(quad, "res://shaders/puff_add.gdshader", GlowTexture(), MaxAdd);
         _mmPowder = Pool(quad, "res://shaders/puff_mix.gdshader", PowderTexture(), MaxPowder);
         _mmSoot = Pool(quad, "res://shaders/puff_mix.gdshader", Smoke = SmokeTexture(), MaxSoot);
+        // les cheminées ont leur bassin : une ville qui fume ne doit pas manger la fumée d'un incendie
+        _mmHearth = Pool(quad, "res://shaders/puff_mix.gdshader", Smoke, MaxHearth);
         /* LE FEU A SA PROPRE FORME. Les bouffées additives partageaient une seule
            texture — un disque —, ce qui va pour une boule de feu et pour une
            étincelle, et pas du tout pour ce qui BRÛLE : une flamme est une langue,
@@ -340,6 +342,30 @@ public partial class GunFxNode : Node3D
     double _burnDue;
 
     /// <summary>
+    /// LA FUMÉE D'UNE CHEMINÉE — du bois qui brûle dans un âtre, pas un incendie :
+    /// pâle, mince, qui sort chaude, monte un peu, puis se couche dans le vent et
+    /// s'y défait. Une bouffée toutes les secondes environ (<paramref name="strength"/>
+    /// en multiplie le nombre et la taille), semée au hasard plutôt qu'en cadence —
+    /// vingt cheminées réglées sur la même horloge fumeraient en chœur.
+    /// </summary>
+    public void Hearth(Vector3 at, double strength, double dt)
+    {
+        double k = Math.Clamp(strength, 0.2, 4);
+        if (R() > 0.9 * k * dt) return;
+        float fk = (float)Math.Sqrt(k);
+        Add(_hearth, new Puff
+        {
+            K = Kind.Hearth, T = 0, Life = 14 + R() * 10,
+            P = at + new Vector3((R() - 0.5f) * 0.3f, 0, (R() - 0.5f) * 0.3f),
+            V = new Vector3((R() - 0.5f) * 0.2f, 1.2f + R() * 0.6f, (R() - 0.5f) * 0.2f),
+            // la chaleur la porte d'abord, puis elle n'a plus que le vent
+            Lift = 0.45 + R() * 0.3, Drag = 0.35,
+            S0 = 0.5 * fk, S1 = (4.5 + R() * 3) * fk,
+            Rot = R() * 6.2832, Spin = (R() - 0.5) * 0.15
+        }, MaxHearth);
+    }
+
+    /// <summary>
     /// LA BRAISE QUI MONTE D'UNE VOILE QUI SE MANGE — des flammèches, et non un
     /// foyer.
     ///
@@ -547,6 +573,7 @@ public partial class GunFxNode : Node3D
         StepPuffs(_flame, _mmFlame, dt, wind);
         StepPuffs(_powder, _mmPowder, dt, wind);
         StepPuffs(_soot, _mmSoot, dt, wind);
+        StepPuffs(_hearth, _mmHearth, dt, wind);
 
         int n = Math.Min(shots.Count, MaxBalls);
         for (int i = 0; i < n; i++)
@@ -580,7 +607,7 @@ public partial class GunFxNode : Node3D
             if (p.T >= 0)
             {
                 if (p.Gravity) p.V.Y -= 9.81f * fdt;
-                else if (p.K == Kind.Mist)
+                else if (p.K == Kind.Mist || p.K == Kind.Hearth)
                 {
                     float kd = (float)Math.Min(1, p.Drag * dt);
                     p.V.X += ((float)wind.X - p.V.X) * kd;
@@ -641,6 +668,16 @@ public partial class GunFxNode : Node3D
                 return (new Vector3(g, g * 0.97f, g * 0.92f), Math.Min(1, u * 4) * (1 - u) * 0.42);
             }
             case Kind.Spark: return (p.Col, Math.Pow(1 - u, 0.8) * 0.9);
+            case Kind.Hearth:
+            {
+                /* GRIS-BLEU, ET ELLE RENVOIE LA LUMIÈRE : la fumée de bois est claire,
+                   bleutée à la sortie, et ne brille jamais plus que le ciel. Mince :
+                   c'est l'accumulation qui la dessine, une bouffée seule est un voile. */
+                double a = Math.Min(1, p.T / 1.5) * Math.Pow(1 - u, 1.4) * 0.16;
+                var L = _lit;
+                float g = (float)(0.80 - 0.12 * u);
+                return (new Vector3(g * 0.95f * L.X, g * L.Y, g * 1.05f * L.Z), a);
+            }
             case Kind.Mist:
             {
                 // blanche, qui réfléchit le ciel ; dense à la sortie, puis elle se défait
@@ -679,6 +716,7 @@ public partial class GunFxNode : Node3D
         for (int i = 0; i < _powder.Count; i++) { var p = _powder[i]; p.P -= d; _powder[i] = p; }
         for (int i = 0; i < _soot.Count; i++) { var p = _soot[i]; p.P -= d; _soot[i] = p; }
         for (int i = 0; i < _flame.Count; i++) { var p = _flame[i]; p.P -= d; _flame[i] = p; }
+        for (int i = 0; i < _hearth.Count; i++) { var p = _hearth[i]; p.P -= d; _hearth[i] = p; }
         for (int i = 0; i < _queue.Count; i++) { var q = _queue[i]; q.At -= d; _queue[i] = q; }
         foreach (var L in _gunLamps) L.Position -= d;
         foreach (var L in _blastLamps) L.Position -= d;

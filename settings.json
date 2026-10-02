@@ -133,6 +133,10 @@
     "cooldown": 480,
     "glb": "creatures/whale.glb"
   },
+  "chimneys": {
+    "enabled": true,
+    "note": "Les fumées de cheminée des villes : une maison sur trois, deux par pâté du centre, au faîte. Elles se déplacent, se copient et se retirent en mode création (²) ; PgUp PgDn leur force."
+  },
   "fish": {
     "_aide": "LES BANCS DE POISSONS DES HAUTS-FONDS. Ils ne coûtent aucun calcul par image : chaque poisson porte quatre nombres et le shader en tire sa ronde, son cap et la flexion de son corps. bancs : combien à la fois autour du navire. poissons : combien dans chacun. fond_min / fond_max : l'eau où ils tiennent, en mètres — au-delà on ne les verrait plus. portee : jusqu'où on en pose. taille : la longueur d'un poisson en mètres, le modèle y est ramené quelle que soit son échelle. rayon : la largeur du banc. vitesse : en LONGUEURS DE CORPS par seconde, donc un gros va plus vite qu'un petit. battement : coups de queue par seconde. balancement : le balayage de la queue, en part de la longueur. sens : mettez -1 si le banc nage à reculons, c est que le modèle regarde vers -Z. teinte et variete : leur livrée, et de combien elle change d'un poisson à l'autre.",
     "enabled": true,

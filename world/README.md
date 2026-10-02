@@ -311,7 +311,23 @@ par-dessus le placement automatique, au moment où chaque objet se pose.
 | `echelle` · `dy` | sa taille (1) et ce qu'on l'a levé au-dessus du sol (m) |
 | `retire` | il n'est plus là |
 | `de` | un AJOUT, copie de cet objet : son modèle, sa taille, sa couleur suivent la source |
-| `glb` | un AJOUT, modèle brut : recentré, posé sur son point le plus bas ; son unité est le mètre, sauf au-delà de 40 unités (ramené à 4 m) |
+| `glb` | un AJOUT, modèle brut : recentré, posé sur son point le plus bas, à la taille que donne `palette.json` (sinon son unité est le mètre, sauf au-delà de 40 unités : ramené à 4 m) |
+
+**La palette d'un dossier** — `world/models/palette.json`, `props/palette.json` : le nom qu'on lit dans la
+palette et la TAILLE d'un modèle brut en mètres (sa plus grande dimension). L'unité d'un fichier ne se devine
+pas : un fort de cent unités et un tonneau de quatre-vingt-dix-huit se ressemblent. Un modèle absent paraît
+quand même, à l'échelle de son fichier. Changer une taille ici change la taille de base des ajouts déjà posés :
+leur `echelle` est relative à elle.
+
+```json
+{ "modeles": { "fort_001.glb": { "nom": "Fort", "taille": 100 } } }
+```
+
+**Les fumées de cheminée** sont des objets comme les autres (`fumee:<maison>:<n>`) : une maison sur trois et
+deux par pâté en ont, au faîte. Tant qu'on ne la déplace pas, une fumée SUIT sa maison — place, cap, échelle
+— et s'éteint si la maison est retirée ; une copie de maison emporte les siennes ; déplacée à la main, elle
+devient indépendante. Son échelle est sa FORCE (PgUp, PgDn). Une boule bleue les montre en mode création.
+`settings.json` → `chimneys.enabled`.
 
 **Le nom est un rang dans un tirage** : changer la graine, le nombre de maisons, un semis ou le relief d'un port
 renumérote ses objets, et une retouche s'appliquerait à un autre. Les retouches sont faites pour un monde dont

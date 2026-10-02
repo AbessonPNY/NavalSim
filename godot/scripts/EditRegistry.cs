@@ -36,6 +36,47 @@ public sealed class Editable
     public double VisualYaw, Lift;
     public string Family = "", FamilyLabel = "";
 
+    /// <summary>
+    /// UN ÉMETTEUR, et non un objet : une fumée de cheminée n'a pas de corps. Elle
+    /// sort à <see cref="Lift"/> au-dessus de son pied (le faîte d'un toit), et son
+    /// échelle est sa FORCE — PgUp la fait fumer davantage.
+    /// </summary>
+    public bool Smoke;
+
+    /* UNE CHEMINÉE APPARTIENT À SA MAISON. Tant qu'on ne l'a pas déplacée
+       elle-même, elle la SUIT — sa place le long du faîte (HostOx, dans l'axe de
+       la maison), sa hauteur au-dessus du pied (HostTop), le cap et l'échelle de
+       la maison — et s'éteint quand la maison est retirée. Déplacée à la main,
+       elle devient indépendante : on l'a mise ailleurs exprès. */
+    public Editable? Host;
+    public double HostOx, HostTop;
+    /// <summary>Les cheminées d'une maison, dans son repère : une copie les emporte.</summary>
+    public List<(double Ox, double Top)>? Chimneys;
+
+    /// <summary>Elle fume : ni retirée, ni sur une maison retirée.</summary>
+    public bool Live => !Removed && (Host == null || Moved || !Host.Removed);
+
+    /// <summary>Poser un émetteur : sur sa maison s'il la suit, sinon sur le sol où on l'a mis.</summary>
+    public void PlaceEmitter(Func<double, double, double> heightAt)
+    {
+        if (Host != null && !Moved)
+        {
+            double s = Host.Scale, ca = Math.Cos(Host.Yaw), sa = Math.Sin(Host.Yaw);
+            X = BaseX = Host.X + HostOx * ca * s;
+            Z = BaseZ = Host.Z - HostOx * sa * s;
+            GroundY = Host.GroundY + Dy;
+            Lift = HostTop * s;
+        }
+        else
+        {
+            GroundY = heightAt(X, Z) + Dy;
+            if (Host != null) Lift = HostTop;
+        }
+    }
+
+    /// <summary>Le point qu'on vise et qu'on montre, en mètres vrais : la bouche d'un émetteur, le milieu d'un objet.</summary>
+    public double AimY => Smoke ? GroundY + Lift : GroundY + Height * Scale * 0.5;
+
     /// <summary>Un ajout : la copie de <see cref="From"/>, ou le modèle brut <see cref="Glb"/>.</summary>
     public string From = "", Glb = "";
     public bool Added => From.Length > 0 || Glb.Length > 0;

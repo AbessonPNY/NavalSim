@@ -1324,7 +1324,7 @@ public partial class ShipDemo : Node3D
             var here = new Vec3d(wo.X + b.Pos.X, 0, wo.Z + b.Pos.Z);
             _land.Update(ViewCentre(here), new Vec3d(wo.X, 0, wo.Z), _landEager);
             // les ajouts de l'éditeur, contre la même origine
-            EditFrame(new Vec3d(wo.X, 0, wo.Z));
+            EditFrame(new Vec3d(wo.X, 0, wo.Z), frame);
             _landEager = false;
             // le niveau de la mer sous le navire décide de la hauteur d'eau
             _fishNode?.Update(_world, here, new Vec3d(wo.X, 0, wo.Z), frame,
@@ -2653,6 +2653,8 @@ public partial class ShipDemo : Node3D
             if (root.TryGetProperty("caustics", out var ca)) _causticRules = CausticSettings.FromJson(ca);
             if (root.TryGetProperty("fish", out var fi)) _fishRules = FishSettings.FromJson(fi);
             if (root.TryGetProperty("gulls", out var mo)) _gullRules = GullsJson(mo);
+            if (root.TryGetProperty("chimneys", out var chm) && chm.TryGetProperty("enabled", out var che))
+                _chimneyRules = che.ValueKind != System.Text.Json.JsonValueKind.False;
             if (root.TryGetProperty("dolphins", out var da)) _dolphinRules = DolphinRules.FromJson(da);
             if (root.TryGetProperty("storm", out var st))
             {

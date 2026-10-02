@@ -254,8 +254,47 @@ public partial class TownNode
                     var at = new Vector3((float)(ed.X - cx), (float)(ed.GroundY - 0.1), (float)(ed.Z - cz));
                     foreach (var mm in mms) mm.SetInstanceTransform(idx, new Transform3D(basis, at));
                 };
+                /* LES CHEMINÉES QUI FUMENT : une maison sur trois — on ne fait pas du
+                   feu partout à toute heure —, deux par pâté, aucune à l'église. Au
+                   faîte, à peu près où le modèle a ses souches : on ne les connaît pas,
+                   et l'éditeur est là pour les y mettre. Posées AVANT la maison dans le
+                   registre, pour qu'elle les connaisse quand une copie les emporte. */
+                if (!ReferenceEquals(model, _church))
+                {
+                    bool block = idPrefix.StartsWith("pate:", StringComparison.Ordinal);
+                    int count = block ? 2 : Frac(Math.Sin(h.X * 7.71 + h.Z * 3.13) * 43758.5453) < 0.33 ? 1 : 0;
+                    if (count > 0)
+                    {
+                        e.Chimneys = new List<(double, double)>();
+                        for (int c = 0; c < count; c++)
+                            e.Chimneys.Add((count == 2 ? (c == 0 ? -0.3 : 0.3) * h.W : 0, model.H * k2 * (block ? 0.97 : 0.9)));
+                    }
+                }
                 if (Editor != null) Editor.Add(e); else e.Push(e);
+                if (Editor != null) AddChimneys(Editor, e, e.Id);
             }
+    }
+
+    /// <summary>Les cheminées d'une maison, inscrites comme des objets : elles la suivent tant qu'on ne les déplace pas.</summary>
+    public void AddChimneys(EditRegistry reg, Editable host, string hostId)
+    {
+        if (host.Chimneys == null) return;
+        for (int c = 0; c < host.Chimneys.Count; c++)
+        {
+            var (ox, top) = host.Chimneys[c];
+            var sm = new Editable
+            {
+                Id = $"fumee:{hostId}:{c}", Label = "une fumée de cheminée", Smoke = true,
+                Host = host, HostOx = ox, HostTop = top, Radius = 1.2, Height = 2,
+                Family = "fumee", FamilyLabel = "Fumée de cheminée",
+                MakeVisual = () => new Node3D()
+            };
+            // sa place de départ : là où sa maison la met
+            sm.PlaceEmitter(_world.HeightAt);
+            sm.BaseYaw = sm.Yaw = 0;
+            sm.Push = ed => ed.PlaceEmitter(_world.HeightAt);
+            reg.Add(sm);
+        }
     }
 
     /// <summary>Le point le plus bas sous une emprise : une maison se pose sur lui, jamais en porte-à-faux.</summary>

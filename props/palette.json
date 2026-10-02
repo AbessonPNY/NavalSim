@@ -1,0 +1,14 @@
+{
+  "note": "La palette du mode création (², Tab) : le nom qu'on y lit et la taille d'un modèle brut, en mètres (sa plus grande dimension). Format : world/README.md.",
+  "modeles": {
+    "cocotier.glb": { "nom": "Cocotier", "taille": 15 },
+    "cocotier_low.glb": { "nom": "Cocotier (allégé)", "taille": 13 },
+    "coffre_1k.glb": { "nom": "Coffre", "taille": 1.1 },
+    "coffre_2k.glb": { "nom": "Coffre (détaillé)", "taille": 1.1 },
+    "lanterne.glb": { "nom": "Lanterne", "taille": 0.5 },
+    "planche.glb": { "nom": "Planche", "taille": 1.8 },
+    "rocher.glb": { "nom": "Rocher", "taille": 1.5 },
+    "tonneau.glb": { "nom": "Tonneau", "taille": 0.9 },
+    "tonneau_low.glb": { "nom": "Tonneau (allégé)", "taille": 0.9 }
+  }
+}

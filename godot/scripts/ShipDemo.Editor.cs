@@ -189,8 +189,9 @@ public partial class ShipDemo
             _edRing.Visible = _sel is { Removed: false };
             if (_sel != null)
             {
-                float r = (float)(_sel.Radius * _sel.Scale * 1.1 + 0.5);
-                _edRing.Position = new Vector3((float)(_sel.X - o.X), (float)_sel.GroundY + 0.15f, (float)(_sel.Z - o.Z));
+                float r = (float)(_sel.Smoke ? 1.6 : _sel.Radius * _sel.Scale * 1.1 + 0.5);
+                // un émetteur se montre à sa bouche, sur le toit ; un objet à son pied
+                _edRing.Position = new Vector3((float)(_sel.X - o.X), (float)(_sel.Smoke ? _sel.AimY : _sel.GroundY + 0.15), (float)(_sel.Z - o.Z));
                 _edRing.Scale = new Vector3(r, 1, r);
             }
         }
@@ -200,7 +201,7 @@ public partial class ShipDemo
             string what = _sel == null
                 ? "Cliquer un bâtiment, un rocher, un arbre."
                 : FormattableString.Invariant(
-                    $"{_sel.Label} · {_sel.Id}\ncap {((_sel.Yaw * 180 / Math.PI) % 360 + 360) % 360:F0}° · échelle {_sel.Scale:F2} · levé {_sel.Dy:+0.0;-0.0;0} m{(_sel.Pristine ? " · à sa place" : " · retouché")}");
+                    $"{_sel.Label} · {_sel.Id}\ncap {((_sel.Yaw * 180 / Math.PI) % 360 + 360) % 360:F0}° · {(_sel.Smoke ? "force" : "échelle")} {_sel.Scale:F2} · levé {_sel.Dy:+0.0;-0.0;0} m{(_sel.Pristine ? " · à sa place" : " · retouché")}");
             if (_painting) { _edLabel.Text = head + "\n" + PaintStatus() + "\nZQSD se déplacer · A E descendre, monter · clic droit regarder · Ctrl+S enregistrer · ² quitter"; }
             else _edLabel.Text = head + "\n" + what +
                 "\nZQSD se déplacer · A E descendre, monter · ⇧ plus vite · clic droit regarder" +
@@ -360,9 +361,10 @@ public partial class ShipDemo
         double bestT = 4000;
         foreach (var e in _editReg!.Items)
         {
-            if (e.Removed) continue;
-            double r = Math.Max(e.Radius, e.Height * 0.5) * e.Scale;
-            double cx = e.X - f.X, cy = e.GroundY + e.Height * e.Scale * 0.5 - f.Y, cz = e.Z - f.Z;
+            // une cheminée sur une maison retirée n'est plus là non plus
+            if (e.Removed || (e.Smoke && !e.Live)) continue;
+            double r = e.Smoke ? 1.5 : Math.Max(e.Radius, e.Height * 0.5) * e.Scale;
+            double cx = e.X - f.X, cy = e.AimY - f.Y, cz = e.Z - f.Z;
             double t = cx * d.X + cy * d.Y + cz * d.Z;
             if (t < 0 || t - r > bestT) continue;
             double px = cx - d.X * t, py = cy - d.Y * t, pz = cz - d.Z * t;

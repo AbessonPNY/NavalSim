@@ -13983,6 +13983,30 @@ Vérifié (`-- --peindre x,0,z` — n'enregistre RIEN) : trois disques et une ru
 jointoyés, herbe en touffes, sable, bords fondus ; HUD masqué. Le pavé se lit ocre sous ce soleil, comme celui
 des sommets : `Cobble` dans `LandNode`, à juger à l'œil.
 
+## La palette d'un dossier, et les fumées de cheminée (Godot)
+
+**palette.json** (`world/models`, `props`) : le nom et la TAILLE en mètres d'un modèle brut. La règle d'avant
+devinait l'unité — le mètre, sauf au-delà de quarante unités, pris pour des centimètres et ramené à 4 m —, et
+le fort du joueur (99,8 unités, des mètres) arrivait en maquette de 4 m. **Le piège, vécu aussitôt** : la
+taille de base d'un ajout brut change avec palette.json, et son `echelle` est RELATIVE à elle — le fort, posé à
+×9,9 sur 4 m (39,6 m), passait à 990 m. Son échelle a été convertie (0,396 sur 100 m). Toute taille changée
+après coup dans palette.json demande la même conversion.
+
+**Les fumées** : une bouffée « foyer » dans `GunFxNode` (son bassin à elle, 1 536 : une ville qui fume ne
+mange pas la fumée d'un incendie) — fumée de bois pâle, gris-bleu, qui RENVOIE la lumière du ciel ; chaude à
+la sortie, elle monte d'un mètre et demi par seconde, puis se relâche vers le vent entier (la même loi que
+l'embrun, `Mist`) et s'y défait en quatorze à vingt-quatre secondes. Semée AU HASARD, environ une par seconde
+et par cheminée : vingt cheminées sur une même horloge fumeraient en chœur. Seules celles à moins de 900 m de
+l'œil fument.
+
+Les émetteurs sont des objets du registre (`Editable.Smoke`) : une maison sur trois, deux par pâté (au faîte,
+à ±0,3 de sa longueur), aucune à l'église. **Elles appartiennent à leur maison** — vu à la première capture :
+le joueur avait retiré soixante-huit maisons et vingt-deux pâtés, et leurs fumées montaient de l'herbe nue.
+Désormais une fumée SUIT sa maison (`Host`, `HostOx` le long du faîte, `HostTop`), tant qu'on ne l'a pas
+déplacée elle-même : elle bouge, tourne, grandit avec elle et s'éteint quand on la retire. Une copie de maison
+emporte ses cheminées (`AddChimneys`). Déplacée à la main, une fumée devient indépendante — on l'a mise
+ailleurs exprès. Son échelle est sa force. `settings.json` → `chimneys.enabled`.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code
