@@ -13766,6 +13766,24 @@ Puis : le pirate et la Boussole (même coque) à 150 t comme elle ; les vaisseau
 ne sont écrites nulle part : `-- --batteries 1` les compte sur les modèles. Il a montré que le vaisseau de
 ligne n'en a AUCUNE de reconnue sur son modèle — à regarder : il ne peut donc pas tirer.
 
+## Les débris prennent leur modèle (Godot)
+
+Le champ `glb` de `props/Props.json` n'était lu que par la page : Godot dessinait planches, tonneaux,
+bouteilles et cargaisons dans le code. `FlotsamNode` lit désormais le modèle une fois (`Assets.Path` :
+la pleine définition de `godot-models/` d'abord), en pose une copie par débris, tournée de `rotation`,
+ses matières sous la brume ; sans modèle, ou illisible, le dessin reste. La bouteille garde sa bulle.
+
+**Pas de LOD, une portée** : un naufrage lâche de un à six débris pour un quart d'heure — quelques dizaines
+au plus. Le gain vient de ne pas les dessiner de loin : `visible` (600 m) dans Props.json, et le repère
+lointain de la bouteille garde la sienne. Essai : `-- --debris 8` (devant l'étrave, différé comme la
+plongée — vu avec le rocher en guise de tonneau).
+
+**Le premier tonneau emplissait l'écran** : un .glb arrive à l'échelle où Blender l'a laissé (celui-ci,
+98 unités : des centimètres). Il est RAMENÉ à la taille du dessin d'origine sur sa plus grande dimension
+(planche 2,2 m, tonneau 0,9, bouteille 0,31, cargaison 1,8), et `scale` garde son sens. Le tonneau (6,9 Mo)
+vit dans `godot-models/props/`, marqué `"page": false` : la page est un prototype, rien des nouveautés
+n'y entre.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

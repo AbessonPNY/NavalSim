@@ -374,8 +374,16 @@ public partial class ShipDemo
     double _diveTestIn = -1;
     (double? Wreck, bool Bell, double Rope, bool Take) _diveTest;
 
+    int _debrisTest;
+
     void DiveTest()
     {
+        if (_debrisTest > 0)
+        {
+            var db = _ship.Physics.Body; var fw = db.Quat.Rotate(new Vec3d(0, 0, 1)); var o = _sea.Core.Origin;
+            _flotsam.Scatter(o.X + db.Pos.X + fw.X * 40, o.Z + db.Pos.Z + fw.Z * 40, _debrisTest);
+            _debrisTest = 0;
+        }
         if (_diveTest.Wreck is double d) TestWreck(d);
         if (_diveTest.Bell && !_bellOut) ToggleBell();
         if (_diveTest.Rope > 0) _bellRope = _diveTest.Rope;

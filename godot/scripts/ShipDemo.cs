@@ -4552,6 +4552,8 @@ public partial class ShipDemo : Node3D
                 case "--mi-eau": _camMode = 3; SetLens(OutsideFov, OutsideNear); break;
                 case "--flyby": if (args[i + 1] != "0") EnterFlyBy(); break;
                 case "--cinema": if (args[i + 1] != "0") ToggleCinema(); break;
+                // des débris à flot devant l'étrave, pour voir leurs modèles — différé comme la plongée
+                case "--debris": _debrisTest = args[i + 1].ToInt(); _diveTestIn = 1.0; break;
                 // DIAGNOSTIC : les pièces que chaque fiche porte, lues sur son modèle — elles ne sont écrites nulle part ailleurs
                 case "--batteries":
                     if (args[i + 1] != "0")

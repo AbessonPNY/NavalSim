@@ -1,5 +1,5 @@
 {
-  "note": "Objets du monde qui ne sont pas des navires. scale : taille (1 = taille dessinee). glb : chemin d'un modele (null = dessine par le code), oriente par rotation en degres [x, y, z]. draft : enfoncement en metres. life : duree a flot en secondes.",
+  "note": "Objets du monde qui ne sont pas des navires. scale : taille (1 = taille dessinee). glb : chemin d'un modele (null = dessine par le code), oriente par rotation en degres [x, y, z]. draft : enfoncement en metres. life : duree a flot en secondes. visible (Godot) : au-delà de tant de mètres il n'est plus dessiné (600 par défaut). Un glb plus détaillé pour Godot seul va dans godot-models/props/ (node tools/page-models.js en tire la copie allégée de la page).",
   "wreck": {
     "debrisMin": 1,
     "debrisMax": 6
@@ -15,7 +15,7 @@
   "barrel": {
     "name": "Tonneau",
     "scale": 1.0,
-    "glb": null,
+    "glb": "props/tonneau.glb",
     "rotation": [0, 0, 0],
     "draft": 0.12,
     "life": 900

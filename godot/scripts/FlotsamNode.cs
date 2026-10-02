@@ -49,6 +49,11 @@ public partial class FlotsamNode : Node3D
         public bool Halo = true;
         public double HaloRadius = 1.1, HaloIntensity = 1, Mark = 0.032, MarkFrom = 60;
         public Color HaloColor = new(0xa8 / 255f, 0xec / 255f, 1f);
+        /// <summary>Son modèle (Props.json → glb), et comment le tourner (rotation, en degrés) ; vide : il est dessiné.</summary>
+        public string Glb = "";
+        public Vector3 Rot;
+        /// <summary>Au-delà, il n'est plus dessiné, en mètres : un tonneau d'un mètre y fait moins de deux pixels.</summary>
+        public double Visible = 600;
     }
 
     readonly Dictionary<string, Kind> _def = new()
@@ -117,6 +122,10 @@ public partial class FlotsamNode : Node3D
                 double D(string f, double v) => j.TryGetProperty(f, out var e) && e.ValueKind == System.Text.Json.JsonValueKind.Number ? e.GetDouble() : v;
                 k.Scale = D("scale", k.Scale); k.Draft = D("draft", k.Draft); k.Life = D("life", k.Life);
                 k.PickupRadius = D("pickupRadius", k.PickupRadius); k.PickupSpeed = D("pickupSpeed", k.PickupSpeed);
+                k.Visible = D("visible", k.Visible);
+                if (j.TryGetProperty("glb", out var gl) && gl.ValueKind == System.Text.Json.JsonValueKind.String) k.Glb = gl.GetString() ?? "";
+                if (j.TryGetProperty("rotation", out var ro) && ro.ValueKind == System.Text.Json.JsonValueKind.Array && ro.GetArrayLength() == 3)
+                    k.Rot = new Vector3((float)ro[0].GetDouble(), (float)ro[1].GetDouble(), (float)ro[2].GetDouble());
                 if (j.TryGetProperty("halo", out var h))
                 {
                     if (h.TryGetProperty("enabled", out var he)) k.Halo = he.ValueKind == System.Text.Json.JsonValueKind.True;
@@ -239,6 +248,13 @@ public partial class FlotsamNode : Node3D
         }
     }
 
+    /// <summary>ESSAI (--debris N) : des tonneaux et des planches autour d'un point vrai, sans naufrage.</summary>
+    public void Scatter(double x, double z, int n)
+    {
+        for (int i = 0; i < n; i++)
+            Float(i % 2 == 0 ? "barrel" : "plank", x + (_rng.Randf() - 0.5) * 16, z + (_rng.Randf() - 0.5) * 16, null);
+    }
+
     /* Une coque est descendue : ce qui remonte. */
     void Wreck(ShipNode s, Ocean sea, bool player)
     {
@@ -352,9 +368,118 @@ public partial class FlotsamNode : Node3D
         };
     }
 
+    /* LES MODÈLES, lus une fois chacun : chaque débris en reçoit une copie, et ses
+       matières (partagées entre les copies) la brume du ciel en passe suivante. */
+    readonly Dictionary<string, Node3D?> _models = new();
+    /// <summary>La plus grande dimension de chaque modèle, mesurée une fois dans son propre repère.</summary>
+    readonly Dictionary<string, float> _sizes = new();
+
+    /* LA TAILLE DU DESSIN D'ORIGINE, sur sa plus grande dimension : un modèle est
+       RAMENÉ à elle, comme une coque l'est à la longueur de sa fiche. Un .glb
+       arrive à l'échelle où Blender l'a laissé — le premier tonneau emplissait
+       l'écran —, et « scale : 1 = taille dessinée » doit garder son sens. */
+    static readonly Dictionary<string, float> Sizes = new()
+    {
+        ["plank"] = 2.2f, ["barrel"] = 0.9f, ["bottle"] = 0.31f, ["cargo"] = 1.8f
+    };
+
+    static float Extent(Node3D root)
+    {
+        Aabb? box = null;
+        var stack = new Stack<(Node, Transform3D)>();
+        stack.Push((root, Transform3D.Identity));
+        while (stack.Count > 0)
+        {
+            var (n, t) = stack.Pop();
+            foreach (var c in n.GetChildren()) stack.Push((c, c is Node3D c3 ? t * c3.Transform : t));
+            if (n is MeshInstance3D mi && mi.Mesh != null)
+            {
+                var b = t * mi.Mesh.GetAabb();
+                box = box is Aabb a ? a.Merge(b) : b;
+            }
+        }
+        if (box is not Aabb bb) return 0;
+        return Math.Max(bb.Size.X, Math.Max(bb.Size.Y, bb.Size.Z));
+    }
+
+    Node3D? Model(string rel)
+    {
+        if (string.IsNullOrEmpty(rel)) return null;
+        if (_models.TryGetValue(rel, out var m)) return m;
+        Node3D? root = null;
+        // Assets.Path : la version pleine de godot-models/ passe avant la copie allégée de la page
+        string path = Assets.Path(rel);
+        if (System.IO.File.Exists(path))
+        {
+            var doc = new GltfDocument();
+            var state = new GltfState();
+            if (doc.AppendFromFile(path, state) == Error.Ok && doc.GenerateScene(state) is Node3D r)
+            {
+                Mat("#000000", 1);      // la passe de brume existe
+                var done = new HashSet<Material>();
+                var stack = new Stack<Node>();
+                stack.Push(r);
+                while (stack.Count > 0)
+                {
+                    var n = stack.Pop();
+                    foreach (var c in n.GetChildren()) stack.Push(c);
+                    if (n is not MeshInstance3D mi || mi.Mesh == null) continue;
+                    for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
+                    {
+                        var mat = mi.GetSurfaceOverrideMaterial(i) ?? mi.Mesh.SurfaceGetMaterial(i);
+                        if (mat == null || mat is ShaderMaterial || !done.Add(mat)) continue;
+                        var last = mat;
+                        while (last.NextPass != null && last.NextPass != _hazePass) last = last.NextPass;
+                        last.NextPass = _hazePass;
+                    }
+                }
+                root = r;
+                _sizes[rel] = Extent(r);
+                GD.Print(FormattableString.Invariant($"débris : {rel} chargé, {_sizes[rel]:F2} dans son repère"));
+            }
+            else GD.PushWarning($"débris : {rel} illisible — il reste dessiné");
+        }
+        else GD.PushWarning($"débris : {rel} introuvable — il reste dessiné");
+        return _models[rel] = root;
+    }
+
+    /// <summary>
+    /// LA PORTÉE : au-delà, la carte graphique n'a plus rien à dessiner. Le repère
+    /// lointain de la bouteille est fait pour le lointain — il garde la sienne.
+    /// </summary>
+    static void Range(Node n, Kind K, Item it)
+    {
+        if (n is GeometryInstance3D gi && gi != it.Mark)
+        {
+            gi.VisibilityRangeEnd = (float)K.Visible;
+            gi.VisibilityRangeEndMargin = 40;
+        }
+        foreach (var c in n.GetChildren()) Range(c, K, it);
+    }
+
     Node3D Draw(string kind, Kind K, Item it)
     {
+        var g = DrawShape(kind, K, it);
+        Range(g, K, it);
+        return g;
+    }
+
+    Node3D DrawShape(string kind, Kind K, Item it)
+    {
         var g = new Node3D { Scale = Vector3.One * (float)K.Scale };
+        /* SON MODÈLE, S'IL EN A UN : posé tel quel, à l'échelle de la fiche, tourné
+           comme elle le dit. La bouteille garde sa bulle et son repère. */
+        if (Model(K.Glb) is { } model)
+        {
+            var copy = (Node3D)model.Duplicate();
+            // ramené à la taille du dessin ; Props.json → scale (sur g) fait le reste
+            float ext = _sizes.GetValueOrDefault(K.Glb);
+            if (ext > 1e-4f && Sizes.TryGetValue(kind, out var want)) copy.Scale = Vector3.One * (want / ext);
+            copy.RotationDegrees = K.Rot;
+            g.AddChild(copy);
+            if (kind == "bottle" && K.Halo) Halo(g, K, it);
+            return g;
+        }
         void Add(Mesh mesh, Material mat, Vector3 at, Vector3 rot)
         {
             g.AddChild(new MeshInstance3D { Mesh = mesh, MaterialOverride = mat, Position = at, Rotation = rot });
