@@ -289,6 +289,13 @@ l'envers, donnez un `wheelTurns` négatif.
 Un objet de ce nom **sans maillage** (un nœud vide à l'export) est ignoré, et la
 console le signale : le safran dessiné reste alors en place.
 
+## L'équipage
+
+`"equipage": 10` (facultatif, Godot) : les hommes du bord. La pêche en tire ses
+lignes, une pour deux hommes (fishing/README.md). Absent, il s'estime sur le
+tonnage — dix hommes pour vingt-deux tonnes, en puissance 0,6. C'est un
+nombre, à ne pas confondre avec `crew`, qui place les figurants sur le pont.
+
 ## Le tonnage est l'entrée
 
 `displacementTonnes` fixe la masse **à vide** — armé, sans cargaison : c'est un

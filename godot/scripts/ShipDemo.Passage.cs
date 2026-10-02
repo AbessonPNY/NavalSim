@@ -30,6 +30,8 @@ public partial class ShipDemo : Node3D
         public long Sous;
         public int Powder;
         public readonly List<(int Hold, double Level, double Side, double Kg, string Kind)> Cargo = new();
+        public string Rank = "";
+        public readonly List<FishLot> Catch = new();
         public double T, Hour;
         public DateTime CalStart;
         public int CalDay;
@@ -211,6 +213,8 @@ public partial class ShipDemo : Node3D
             SailsSet = _ship.Ctrl.SailsSet, SheetTrim = _ship.Ctrl.Sheet
         };
         foreach (var c in p.Cargo) v.Cargo.Add((c.Hold, c.Level, c.Side, c.Kg, c.Kind));
+        v.Rank = _rank;
+        v.Catch.AddRange(_catch);
         _voyage = v;
         SaveBook();
         SaveQuests();
@@ -248,6 +252,10 @@ public partial class ShipDemo : Node3D
         p.Powder = Math.Min(v.Powder, p.PowderMax);
         p.ClearCargo();
         foreach (var c in v.Cargo) p.LoadCargo(c.Hold, c.Level, c.Side, c.Kg / 1000, c.Kind);
+        // le poisson a passé la traversée avec elle : il a vieilli d'autant (l'horloge avance plus bas)
+        _rank = v.Rank;
+        _catch.Clear();
+        _catch.AddRange(v.Catch);
 
         /* L'HORLOGE AVANCE DE LA TRAVERSÉE, au pas du ciel : DayRate heures de
            ciel par minute de jeu. Le cours des épices suit l'horloge de jeu, et

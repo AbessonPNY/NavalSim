@@ -28,6 +28,8 @@
     "pavillon-bas": [],
     "pavillon-haut": [],
     "port": [],
+    "ca-mord": [],
+    "ferre": [],
     "vie": [],
     "cloche": ["Ship Bell.ogg"]
   },
@@ -46,6 +48,8 @@
     "pavillon-bas": "on amène les couleurs",
     "pavillon-haut": "on les hisse",
     "port": "on entre dans un port",
+    "ca-mord": "une ligne mord (pêche) — le cri du matelot qui la tient",
+    "ferre": "on ferre, et l'on hale",
     "vie": "la vie du bord, au hasard : un rire, une toux, un seau, un bout qu'on love",
     "cloche": "UN coup de cloche. Le jeu la frappe lui-même autant de fois qu'il faut, par paires, à chaque demi-heure du quart — un seul échantillon suffit."
   }

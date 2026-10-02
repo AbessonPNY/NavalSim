@@ -43,6 +43,8 @@ public partial class AnchorNode : Node3D
         public double Mass, Size, CableMax, Tick;
         /// <summary>Le câble qui reste dehors une fois l'ancre dérapée : elle pend au bout, sous l'écubier.</summary>
         public double UpLen;
+        /// <summary>Dérapée, la verge suit la chaîne : la direction de l'organeau, vue du diamant.</summary>
+        public Vec3d UpShank = new(0, 1, 0);
         public Mooring? Moor;
         public Node3D Mesh = null!;
         public MultiMesh Cable = null!;
@@ -236,6 +238,7 @@ public partial class AnchorNode : Node3D
             double l = flat.Length;
             if (l > 1e-3) return flat * (1 / l);
         }
+        if (it.State == St.Up) return it.UpShank;
         return new Vec3d(0, 1, 0);
     }
 
@@ -294,10 +297,13 @@ public partial class AnchorNode : Node3D
     }
 
     /// <summary>Pour les essais : l'état de l'ancre et sa distance à l'écubier.</summary>
-    public string Probe(ShipNode ship) =>
-        _items.TryGetValue(ship.Physics, out var it)
-            ? FormattableString.Invariant($"{it.State} à {(HawseWorld(it) - it.P).Length:F1} m{(it.Moor is { } m ? $", câble {m.Len:F1} m{(m.Dragging ? ", chasse" : "")}" : "")}")
-            : "rangée";
+    public string Probe(ShipNode ship)
+    {
+        var sb = new System.Text.StringBuilder();
+        foreach (var (ph, it) in _items)
+            sb.Append(FormattableString.Invariant($"[{(ph == ship.Physics ? "le nôtre" : it.Ship.Spec.Name)} : {it.State} à {(HawseWorld(it) - it.P).Length:F1} m, {it.Cable.VisibleInstanceCount} maillons{(it.Moor is { } m ? $", câble {m.Len:F1} m" : "")}] "));
+        return sb.Length > 0 ? sb.ToString() : "aucune ancre";
+    }
 
     /// <summary>Est-elle au mouillage ? Pour le tableau de bord.</summary>
     public bool IsDown(ShipNode ship) =>
@@ -309,6 +315,11 @@ public partial class AnchorNode : Node3D
         {
             if (it.State == St.Stowed) continue;
             Fall(it, Math.Min(dt, 0.25), t);
+            /* RANGÉE DANS CETTE IMAGE MÊME, elle n'est plus redessinée : Stow cachait la
+               chaîne, et Cable la réaffichait juste après, figée à sa dernière place —
+               les images suivantes sautant une ancre rangée, ces maillons restaient
+               dans l'air derrière le navire (signalé deux fois, treize maillons relevés). */
+            if (it.State == St.Stowed) continue;
             Cable(it, dt, t);
             Pose(it);
         }
@@ -413,10 +424,13 @@ public partial class AnchorNode : Node3D
                 double reachNow = (hawse - it.P).Length;
                 if (m.Len <= upDown + 1.5 && reachNow <= upDown + 4)
                 {
+                    // ce qui reste dehors : de l'écubier à l'organeau, où la chaîne la tient
+                    double toRing = (HoleWorld(it) - Ring(it)).Length;
                     it.Ph.Moorings.Remove(m);
                     it.Moor = null;
                     it.State = St.Up;
-                    it.UpLen = reachNow;
+                    it.UpLen = toRing;
+                    it.UpShank = new Vec3d(0, 1, 0);
                     OnSay?.Invoke("L'ancre dérape");
                 }
             }
@@ -431,12 +445,12 @@ public partial class AnchorNode : Node3D
                cabestan raccourcit ce qui pend, et c'est la longueur qui la tient près
                de lui ; elle tombe sous l'écubier par son poids, et traîne en arrière
                quand il avance. */
+            /* LA CHAÎNE LA PORTE (Cable) : elle est le dernier point de la ligne, lourde
+               et libre, et c'est le câble qui raccourcit — elle monte parce qu'il la
+               hale, se balance quand le navire avance, et ne glisse plus le long de
+               lui (signalé : « elle remonte en parallèle de la chaîne »). */
             it.UpLen = Math.Max(0, it.UpLen - 1.2 * dt);
             if (it.UpLen < 0.6) { Stow(it); OnSay?.Invoke("Ancre haute et bossée"); return; }
-            var hang = it.P + new Vec3d(0, -3.0 * dt, 0) - hawse;
-            double d = hang.Length;
-            if (d > it.UpLen) hang = hang * (it.UpLen / d);
-            it.P = hawse + hang;
         }
     }
 
@@ -482,8 +496,10 @@ public partial class AnchorNode : Node3D
         var hawse = HoleWorld(it);
         var ring = Ring(it);
         double reach = (hawse - ring).Length;
-        double len = it.Moor != null ? Math.Max(it.Moor.Len, reach) : reach + 0.5;
-        double seg = Math.Max(len, reach) / (N - 1);
+        bool hung = it.State == St.Up;
+        // dérapée, la ligne est ce qui reste dehors, et ce n'est plus l'ancre qui fixe sa longueur
+        double len = it.Moor != null ? Math.Max(it.Moor.Len, reach) : hung ? Math.Max(0.2, it.UpLen) : reach + 0.5;
+        double seg = (hung ? len : Math.Max(len, reach)) / (N - 1);
         double sea = _sea.Core.Sample(hawse.X, hawse.Z, t);
         var o = _sea.Core.Origin;
 
@@ -547,16 +563,22 @@ public partial class AnchorNode : Node3D
         it.Tick2 -= dt;
 
         int L = N - 1;
+        // le repère du navire, pour écarter la chaîne de son bordé (HullClear)
+        var inv = it.Ship.GlobalTransform.AffineInverse();
+        double side = Hawse(it).X < 0 ? -1 : 1;
         while (it.Acc >= H)
         {
             it.Acc -= H;
-            for (int j = 1; j < L; j++)
+            for (int j = 1; j <= (hung ? L : L - 1); j++)
             {
                 /* Dans l'eau, presque sans poids et fortement traînée ; dans
                    l'air, lourde et libre. C'est cette différence qui fait qu'un
-                   câble mouillé tombe droit et qu'un câble en l'air fouette. */
-                bool wet = it.Py[j] < sea;
-                double g = wet ? 1.8 : 9.81, c = wet ? 4.0 : 0.3;
+                   câble mouillé tombe droit et qu'un câble en l'air fouette.
+                   L'ANCRE, au bout quand elle pend, est du fer : lourde même
+                   dans l'eau, et peu freinée. */
+                bool wet = it.Py[j] < sea, anchor = hung && j == L;
+                double g = anchor ? (wet ? 8.5 : 9.81) : wet ? 1.8 : 9.81;
+                double c = anchor ? (wet ? 1.2 : 0.1) : wet ? 4.0 : 0.3;
                 double vx = (it.Px[j] - it.Ox[j]) / H, vy = (it.Py[j] - it.Oy[j]) / H, vz = (it.Pz[j] - it.Oz[j]) / H;
                 double nx = it.Px[j] + (it.Px[j] - it.Ox[j]) - c * vx * H * H;
                 double ny = it.Py[j] + (it.Py[j] - it.Oy[j]) + (-g - c * vy) * H * H;
@@ -565,7 +587,7 @@ public partial class AnchorNode : Node3D
                 it.Px[j] = nx; it.Py[j] = ny; it.Pz[j] = nz;
             }
             it.Px[0] = it.Ox[0] = hawse.X; it.Py[0] = it.Oy[0] = hawse.Y; it.Pz[0] = it.Oz[0] = hawse.Z;
-            it.Px[L] = it.Ox[L] = ring.X; it.Py[L] = it.Oy[L] = ring.Y; it.Pz[L] = it.Oz[L] = ring.Z;
+            if (!hung) { it.Px[L] = it.Ox[L] = ring.X; it.Py[L] = it.Oy[L] = ring.Y; it.Pz[L] = it.Oz[L] = ring.Z; }
 
             for (int k = 0; k < 14; k++)
             {
@@ -575,27 +597,73 @@ public partial class AnchorNode : Node3D
                     double dx = it.Px[c2] - it.Px[a], dy = it.Py[c2] - it.Py[a], dz = it.Pz[c2] - it.Pz[a];
                     double d = Math.Sqrt(dx * dx + dy * dy + dz * dz);
                     if (d < 1e-6) d = 1e-6;
-                    double f = (d - seg) / d * 0.5;
+                    /* Chaque bout cède à proportion de sa légèreté : l'écubier ne cède
+                       pas, l'organeau non plus tant que l'ancre est au fond ; dérapée,
+                       elle cède un peu — une tonne de fer au bout d'une chaîne. */
+                    double wa = a == 0 ? 0 : 1, wc = c2 == L ? (hung ? 0.08 : 0) : 1;
+                    if (wa + wc <= 0) continue;
+                    double f = (d - seg) / d / (wa + wc);
                     dx *= f; dy *= f; dz *= f;
-                    bool pinA = a == 0, pinC = c2 == L;
-                    if (!pinA && !pinC)
-                    {
-                        it.Px[a] += dx; it.Py[a] += dy; it.Pz[a] += dz;
-                        it.Px[c2] -= dx; it.Py[c2] -= dy; it.Pz[c2] -= dz;
-                    }
-                    else if (pinA && !pinC) { it.Px[c2] -= 2 * dx; it.Py[c2] -= 2 * dy; it.Pz[c2] -= 2 * dz; }
-                    else if (pinC && !pinA) { it.Px[a] += 2 * dx; it.Py[a] += 2 * dy; it.Pz[a] += 2 * dz; }
+                    it.Px[a] += dx * wa; it.Py[a] += dy * wa; it.Pz[a] += dz * wa;
+                    it.Px[c2] -= dx * wc; it.Py[c2] -= dy * wc; it.Pz[c2] -= dz * wc;
                 }
                 // le fond, en droite de sous elle à sous l'ancre : le mou s'y COUCHE
-                for (int j = 1; j < L; j++)
+                for (int j = 1; j <= (hung ? L : L - 1); j++)
                 {
                     double floor = it.FloorShip + (it.FloorAt - it.FloorShip) * j / L + 0.15;
                     if (it.Py[j] < floor) { it.Py[j] = floor; it.Oy[j] = floor; }
                 }
+                // et le bordé : la chaîne passe le long de la coque, jamais au travers
+                HullClear(it, inv, side, hung ? L : L - 1);
             }
         }
 
+        /* DÉRAPÉE, L'ANCRE EST LÀ OÙ LA CHAÎNE L'A MENÉE : son organeau au bout de la
+           ligne, sa verge dans l'axe du dernier maillon. */
+        if (hung)
+        {
+            var ringNow = new Vec3d(it.Px[L], it.Py[L], it.Pz[L]);
+            var up = new Vec3d(it.Px[L - 1] - it.Px[L], it.Py[L - 1] - it.Py[L], it.Pz[L - 1] - it.Pz[L]);
+            double ul = up.Length;
+            it.UpShank = ul > 1e-4 ? up * (1 / ul) : new Vec3d(0, 1, 0);
+            it.P = ringNow - it.UpShank * (it.Size * 1.05);
+            // le fer aussi : ses pattes s'ouvrent d'une demi-taille de chaque côté de la verge
+            it.P = Clear(it, inv, side, it.P, 0.45 * it.Size);
+        }
         Links(it);
+    }
+
+    /// <summary>
+    /// ÉCARTER LA CHAÎNE DU BORDÉ : chaque point qui est entré dans la coque est
+    /// ramené à sa surface, du côté où il est — ou du côté du bossoir s'il est près
+    /// de l'axe. Le point et sa position d'avant bougent ensemble : il garde sa
+    /// vitesse, au lieu d'en recevoir une qui le ferait rebondir.
+    /// </summary>
+    void HullClear(Item it, Transform3D inv, double side, int last)
+    {
+        var xf = it.Ship.GlobalTransform;
+        for (int j = 1; j <= last; j++)
+        {
+            var q = Clear(it, inv, side, new Vec3d(it.Px[j], it.Py[j], it.Pz[j]), j == N - 1 ? 0.4 * it.Size : 0.12, xf);
+            double dx = q.X - it.Px[j], dy = q.Y - it.Py[j], dz = q.Z - it.Pz[j];
+            if (dx == 0 && dy == 0 && dz == 0) continue;
+            it.Px[j] += dx; it.Py[j] += dy; it.Pz[j] += dz;
+            it.Ox[j] += dx; it.Oy[j] += dy; it.Oz[j] += dz;
+        }
+    }
+
+    /// <summary>Un point (scène) ramené hors du bordé, à <paramref name="margin"/> mètres de lui.</summary>
+    Vec3d Clear(Item it, Transform3D inv, double side, Vec3d p, double margin, Transform3D? xf = null)
+    {
+        var lp = inv * new Vector3((float)p.X, (float)p.Y, (float)p.Z);
+        double w = it.Ship.HullHalfWidth(lp.Z, lp.Y);
+        if (w <= 0) return p;
+        w += margin;
+        if (Math.Abs(lp.X) >= w) return p;
+        double sg = Math.Abs(lp.X) < 0.2 * w ? side : Math.Sign(lp.X);
+        lp.X = (float)(sg * w);
+        var back = (xf ?? it.Ship.GlobalTransform) * lp;
+        return new Vec3d(back.X, back.Y, back.Z);
     }
 
     /* LES MAILLONS, égrenés le long de la ligne au pas d'un maillon : chacun
@@ -607,14 +675,33 @@ public partial class AnchorNode : Node3D
     void Links(Item it)
     {
         float wide = (float)(1.8 * it.Bar), longHalf = (float)(3 * it.Bar);
-        double pitch = it.Pitch, along = pitch * 0.5, start = 0;
+        int L = N - 1;
+        /* ÉGRENÉS DEPUIS L'ORGANEAU, et non depuis l'écubier. Comptés depuis le
+           navire, les maillons restaient où ils étaient quand le câble
+           raccourcissait : le bout côté ancre s'effaçait, et l'on voyait une chaîne
+           immobile et une ancre qui montait seule (signalé). Comptés depuis
+           l'ancre, ils glissent vers l'écubier à mesure qu'on vire et y RENTRENT ;
+           ils en sortent quand on mouille.
+
+           ET LA LIGNE ENTIÈRE, toujours : une ancre traînée par un navire lancé
+           tend le câble au-delà de sa touée (son ressort), et la réserve de
+           maillons ne couvrait plus que la moitié de la ligne — un bout de chaîne
+           restait seul dans l'eau, l'autre bout nu (signalé, capture à l'appui).
+           Si la ligne passe la réserve, les maillons s'espacent. */
+        double total = 0;
+        for (int j = L; j > 0; j--)
+        {
+            double dx = it.Px[j - 1] - it.Px[j], dy = it.Py[j - 1] - it.Py[j], dz = it.Pz[j - 1] - it.Pz[j];
+            total += Math.Sqrt(dx * dx + dy * dy + dz * dz);
+        }
+        double pitch = Math.Max(it.Pitch, total / Math.Max(1, it.Links)), along = pitch * 0.5, start = 0;
         int k = 0;
         Vector3 norm = Vector3.Up;
         bool first = true;
-        for (int j = 0; j < N - 1 && k < it.Links; j++)
+        for (int j = L; j > 0 && k < it.Links; j--)
         {
             var a = new Vector3((float)it.Px[j], (float)it.Py[j], (float)it.Pz[j]);
-            var b = new Vector3((float)it.Px[j + 1], (float)it.Py[j + 1], (float)it.Pz[j + 1]);
+            var b = new Vector3((float)it.Px[j - 1], (float)it.Py[j - 1], (float)it.Pz[j - 1]);
             var dir = b - a;
             float l = dir.Length();
             if (l < 1e-5f) continue;

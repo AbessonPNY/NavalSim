@@ -318,6 +318,83 @@ public partial class ShipNode
         return _shell = box;
     }
 
+    /* LA DEMI-LARGEUR DU BORDÉ, à une station et une hauteur : une grille d'un mètre
+       en long sur cinquante centimètres en hauteur, prise sur les sommets mêmes de la
+       coque modelée. HullShell ne dit que le plus large d'un compartiment ; une
+       chaîne qui pend du bossoir le long d'une étrave à forte rentrée doit savoir où
+       est le bordé À SA HAUTEUR (signalé : l'ancre et sa chaîne passaient au travers
+       de la coque). */
+    float[]? _hw;
+    int _hwNz, _hwNy;
+    double _hwZ0, _hwY0;
+    bool _hwTried;
+    const double HwDz = 1.0, HwDy = 0.5;
+
+    /// <summary>La demi-largeur de la coque en (z, y) du repère du navire ; 0 hors d'elle (au-dessus du pont, sous la quille, au-delà des bouts).</summary>
+    public double HullHalfWidth(double z, double y)
+    {
+        if (!_hwTried) BuildHalfWidths();
+        if (_hw == null)
+        {
+            // sans modèle : le plan de formes, plus large d'une demi-maille par prudence
+            double t = z / Spec.L + 0.5;
+            if (t < 0 || t > 1 || y < Lines.KeelY(t) || y > Lines.DeckY(t)) return 0;
+            return Lines.HalfB(t);
+        }
+        double fz = (z - _hwZ0) / HwDz, fy = (y - _hwY0) / HwDy;
+        if (fz < 0 || fy < 0 || fz > _hwNz - 1 || fy > _hwNy - 1) return 0;
+        int iz = Math.Min(_hwNz - 2, (int)fz), iy = Math.Min(_hwNy - 2, (int)fy);
+        // le plus large des quatre mailles qui l'entourent : on écarte un peu trop plutôt que pas assez
+        return Math.Max(Math.Max(_hw[iy * _hwNz + iz], _hw[iy * _hwNz + iz + 1]),
+                        Math.Max(_hw[(iy + 1) * _hwNz + iz], _hw[(iy + 1) * _hwNz + iz + 1]));
+    }
+
+    void BuildHalfWidths()
+    {
+        _hwTried = true;
+        if (ModelRoot == null || HullPart() is not { } hull) return;
+        double z0 = hull.Min.Z, z1 = hull.Max.Z, y0 = hull.Min.Y, y1 = hull.Max.Y;
+        int nz = (int)Math.Ceiling((z1 - z0) / HwDz) + 1, ny = (int)Math.Ceiling((y1 - y0) / HwDy) + 1;
+        var g = new float[nz * ny];
+        foreach (var v in hull.Verts)
+        {
+            int iz = Math.Clamp((int)Math.Round((v.Z - z0) / HwDz), 0, nz - 1);
+            int iy = Math.Clamp((int)Math.Round((v.Y - y0) / HwDy), 0, ny - 1);
+            int k = iy * nz + iz;
+            g[k] = Math.Max(g[k], Math.Abs(v.X));
+        }
+        /* LES MAILLES SANS SOMMET (un grand triangle de bordé les enjambe) prennent le
+           plus large de leurs voisines de colonne : une coque est pleine entre ses
+           lignes d'eau. Puis les colonnes vides, de leurs voisines en long. */
+        for (int iz = 0; iz < nz; iz++)
+        {
+            int lo = -1, hi = -1;
+            for (int iy = 0; iy < ny; iy++) if (g[iy * nz + iz] > 0) { if (lo < 0) lo = iy; hi = iy; }
+            if (lo < 0) continue;
+            float last = g[lo * nz + iz];
+            for (int iy = lo; iy <= hi; iy++)
+            {
+                int k = iy * nz + iz;
+                if (g[k] > 0) { last = g[k]; continue; }
+                float next = 0;
+                for (int jy = iy + 1; jy <= hi; jy++) if (g[jy * nz + iz] > 0) { next = g[jy * nz + iz]; break; }
+                g[k] = Math.Max(last, next);
+            }
+        }
+        for (int iz = 0; iz < nz; iz++)
+        {
+            bool empty = true;
+            for (int iy = 0; iy < ny; iy++) if (g[iy * nz + iz] > 0) { empty = false; break; }
+            if (!empty) continue;
+            for (int iy = 0; iy < ny; iy++)
+            {
+                float a = iz > 0 ? g[iy * nz + iz - 1] : 0, b = iz < nz - 1 ? g[iy * nz + iz + 1] : 0;
+                g[iy * nz + iz] = Math.Max(a, b);
+            }
+        }
+        _hw = g; _hwNz = nz; _hwNy = ny; _hwZ0 = z0; _hwY0 = y0;
+    }
+
     /// <summary>La coque du modèle : sa plus grosse pièce.</summary>
     Part? HullPart()
     {

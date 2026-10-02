@@ -292,6 +292,7 @@ public partial class ShipDemo : Node3D
             _compass = new CompassNode();
             _hud.AddChild(_compass);
             LoadQuests();
+            LoadFishing();
             PlantCrosses();
             _anchor2 = new AnchorNode(_world, _sea)
             {
@@ -1188,10 +1189,27 @@ public partial class ShipDemo : Node3D
         if (_largeIn > 0 && (_largeIn -= delta) <= 0) GoOffshore();
         if (_souteIn > 0 && (_souteIn -= delta) <= 0) BlowUp(_ship);
         if (_diveTestIn > 0 && (_diveTestIn -= delta) <= 0) DiveTest();
+        FishTestTick(delta);
         if (_anchorTest is Vector3 at && _anchor2 != null && !_inTitle)
         {
-            if (_t >= at.X && _t - delta < at.X) { _ship.Ctrl.Throttle = 1; GD.Print("[ancre] en route, machine avant toute"); }
+            if (_t >= at.X && _t - delta < at.X)
+            {
+                _ship.Ctrl.Throttle = 1;
+                // lancé d'un coup, comme la touche B : c'est le cas où on l'oublie
+                var qb = _ship.Physics.Body; var f0 = qb.Quat.Rotate(new Vec3d(0, 0, 1));
+                qb.Vel = new Vec3d(f0.X * 4, qb.Vel.Y, f0.Z * 4);
+                GD.Print("[ancre] en route, lancé à 4 m/s");
+            }
             if (_t >= at.Y && _t - delta < at.Y) { _anchor2.Toggle(_ship, _t); GD.Print("[ancre] on vire"); }
+            // la photo à l'heure dite (la troisième valeur), l'œil par le travers arrière, vers l'ancre
+            if (at.Z > 0)
+            {
+                var bp = _ship.Physics.Body.Pos; var fw = _ship.Physics.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+                // l'œil par le travers, à hauteur d'homme, sur l'avant : là où l'ancre sort de l'eau et monte au bossoir
+                _fixEye = new Vector3((float)(bp.X + fw.X * 16 - fw.Z * 16), 4f, (float)(bp.Z + fw.Z * 16 + fw.X * 16));
+                _fixLook = new Vector3((float)(bp.X + fw.X * 12), 0f, (float)(bp.Z + fw.Z * 12));
+                if (_t >= at.Z && _t - delta < at.Z) { _captureIn = 1; GD.Print($"[ancre] photo à t {_t:F0}"); }
+            }
             if (Math.Floor(_t) != Math.Floor(_t - delta))
             {
                 var bv = _ship.Physics.Body.Vel;
@@ -1406,6 +1424,7 @@ public partial class ShipDemo : Node3D
                     }
             }
             QuestTick(frame);
+            FishTick(frame);
             PassageTick();
             CompassTick();
             ReckonTick(frame);
@@ -2311,6 +2330,8 @@ public partial class ShipDemo : Node3D
                 // ⇧T : la brume de surface, tout de suite, pour trois heures de jeu
                 case Key.T when k.ShiftPressed: (_seaFog ??= new SeaFog(_fogRules)).Force(3); Say("La brume monte sur l'eau"); break;
                 case Key.T: SetAutoWeather(!_weather.On); break;
+                // Espace : lancer les lignes, ferrer, relever (ShipDemo.Fishing.cs)
+                case Key.Space: FishKey(); break;
                 // ⇧J : une averse et le serpent de mer, qui ne vit que dans la pluie
                 case Key.J when k.ShiftPressed: if (!BestiaireMuet()) SummonSerpent(); break;
                 case Key.J: GoToStorm(0); break;
@@ -4519,7 +4540,8 @@ public partial class ShipDemo : Node3D
                 // une quete lancee d emblee, par son id : --quete apprendre-la-mer
                 // PAR LA MEME PORTE QUE LE MENU, sinon le levier n eprouve pas ce que le joueur fait :
                 // StartQuest arme le navire que la fiche impose, Start ne le fait pas.
-                case "--quete": StartQuest(args[i + 1]); break;
+                // une quête demandée se joue tout de suite : pas d affiche par-dessus
+                case "--quete": _askTitle ??= false; StartQuest(args[i + 1]); break;
                 /* un navire parlé tout de suite : une chose qu on ne peut éprouver
                    qu en attendant huit minutes est une chose qu on n éprouve pas */
                 case "--parler": if (args[i + 1] != "0") Speak(); break;
@@ -4692,6 +4714,8 @@ public partial class ShipDemo : Node3D
                 case "--voir": _seeModels = args[i + 1]; _diveTestIn = 1.0; break;
                 // l'ancre oubliée : en route machine avant toute à N s, on vire à M s ; relevé chaque seconde
                 case "--ancre-oubliee": _anchorTest = ParseVec(args[i + 1]); break;
+                // la pêche de bout en bout, au point vrai (x, z), les lignes accélérées : ShipDemo.Fishing.cs
+                case "--peche": _fishTest = ParseVec(args[i + 1]); _askTitle ??= false; break;
                 case "--coller": _edPasteTest = args[i + 1].ToInt(); _edTest = 1; _diveTestIn = 1.0; break;
                 // le pinceau, sans rien enregistrer : trois disques et une rue autour de (x, z) vrais
                 case "--peindre": _paintTest = ParseVec(args[i + 1]); _diveTestIn = 1.0; break;

@@ -75,7 +75,8 @@ public partial class ShipDemo : Node3D
             OnShow = ShowNotice,
             OnChange = () => { AimLine(); SaveQuests(); },
             Aboard = k => _ship.Physics.CargoOf(k),
-            OnFreight = Freight
+            OnFreight = Freight,
+            OnRank = r => _rank = r
         };
         string dir = System.IO.Path.Combine(WorldLoad.Folder, "quests");
         if (!System.IO.Directory.Exists(dir)) return;
@@ -236,6 +237,16 @@ public partial class ShipDemo : Node3D
             _aimLine.Position = new Vector2(18, HudTop + TrimHeight + GunBarHeight);
             return;
         }
+        /* UNE ÉTAPE SANS LIEU (la pêche) : rien à viser — le poisson est à trouver —,
+           seulement le compte. */
+        if (aim == null && _quests.HereNow && _quests.Current is QuestStep cs && cs.At.None
+            && (_msgBox == null || !_msgBox.Visible))
+        {
+            _aimLine.Text = $"{(cs.Title.Length > 0 ? cs.Title : $"Étape {_quests.Step + 1}")} — {Counted(cs)}   ({_quests.Step + 1}/{_quests.Active!.Steps.Count})";
+            _aimLine.Visible = _hudOn && !_inTitle;
+            _aimLine.Position = new Vector2(18, HudTop + TrimHeight + GunBarHeight);
+            return;
+        }
         if (aim == null || (_msgBox != null && _msgBox.Visible))
         {
             _aimLine.Visible = false;
@@ -251,7 +262,8 @@ public partial class ShipDemo : Node3D
             : a.Dist <= a.R ? "vous y êtes" + tenir
             : FormattableString.Invariant($"{Mille(a.Dist)} au {(int)Math.Round(a.Bearing) % 360:D3}°");
         string title = a.Step.Title.Length > 0 ? a.Step.Title : $"Étape {a.Index + 1}";
-        _aimLine.Text = $"{title} — {where}   ({a.Index + 1}/{a.Count})";
+        string count = Counted(a.Step);
+        _aimLine.Text = $"{title} — {(count.Length > 0 ? count + " · " : "")}{where}   ({a.Index + 1}/{a.Count})";
         _aimLine.Visible = _hudOn && !_inTitle;
         // sous le bandeau ET sous le curseur d écoute, quelles que soient leurs hauteurs
         _aimLine.Position = new Vector2(18, HudTop + TrimHeight + GunBarHeight);
@@ -263,6 +275,14 @@ public partial class ShipDemo : Node3D
     static string Mille(double d) => d < 926
         ? FormattableString.Invariant($"{Math.Round(d / 10) * 10:F0} m")
         : (d / 1852).ToString("F1", System.Globalization.CultureInfo.InvariantCulture).Replace('.', ',') + " M";
+
+    /// <summary>Où en est un objectif qui se compte : « 12,4 kg sur 40 ».</summary>
+    string Counted(QuestStep s) => s.Goal switch
+    {
+        Goal.Fish => $"{Kg(_quests!.Counted)} kg pêchés sur {Kg(s.Kg ?? 1)}",
+        Goal.Sell => $"{Kg(_quests!.Counted)} kg vendus sur {Kg(s.Kg ?? 1)}",
+        _ => ""
+    };
 
     /// <summary>À chaque image : ce que les quêtes regardent du navire, et rien de plus.</summary>
     void QuestTick(double dt)
@@ -298,6 +318,7 @@ public partial class ShipDemo : Node3D
     void GoToStep()
     {
         if (_quests?.Current is not QuestStep step || _world == null) return;
+        if (step.At.None) { Say("Cette étape n'a pas de lieu : le poisson est à trouver"); return; }
         var p = _quests.Place(step);
         double x = p.X, z = p.Z;
         if (_world.ByKey(step.At.Port) is Isle isl && !step.At.Offset)

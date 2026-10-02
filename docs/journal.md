@@ -14181,6 +14181,87 @@ Dérapée, elle PEND au câble qui reste (`UpLen`, raccourci au rythme du cabest
 suit, et traîne en arrière quand il avance. Relevé (`-- --ancre-oubliee 3,25,0` : machine avant toute à 3 s,
 on vire à 25 s) : à pic à 30 s, dérapée à 20 m sous l'étrave, remontée en 16 s à 1,2–1,5 m/s d'erre, bossée.
 
+**Suite — la chaîne** (deux signalements : « l'ancre laisse la chaîne derrière elle », capture d'un bout de chaîne
+seul dans l'eau, et « en virant, la chaîne reste fixe et seule l'ancre remonte »). Une seule fonction, `Links`,
+qui égrène les maillons le long de la ligne simulée. Elle les comptait depuis l'ÉCUBIER : quand le câble
+raccourcissait, les maillons côté navire ne bougeaient pas et c'est le bout côté ancre qui s'effaçait — d'où
+l'ancre qui montait seule. Et sa réserve (une fois et quart la touée) ne couvrait plus la ligne quand une ancre
+traînée par un navire lancé la tendait au-delà : relevé à 4 m/s, 39 m de ligne. Les maillons sont désormais
+comptés depuis l'ORGANEAU — ils glissent vers l'écubier et y rentrent quand on vire, en sortent quand on
+mouille — et s'espacent si la ligne passe la réserve : jamais de trou. Essai : `-- --ancre-oubliee 3,14,19` (le
+navire lancé à 4 m/s à 3 s, on vire à 14 s, la photo à 19 s, l'œil le suit) : la chaîne court sans coupure de
+la coque à l'ancre traînée.
+
+**Suite — le vrai coupable** (« le problème est toujours là » : quelques maillons seuls au-dessus de l'eau).
+Une sonde qui liste TOUTES les ancres et leurs maillons visibles l'a montré tout de suite : rangée,
+l'ancre gardait treize maillons affichés. Dans `Step`, `Fall` la rangeait (`Stow` : la chaîne cachée), puis
+`Cable` passait dans la MÊME image et la réaffichait, figée à sa dernière place ; les images suivantes sautant
+une ancre rangée, ces maillons ne bougeaient plus — et le navire partait sans eux. Une ancre rangée dans
+l'image n'est plus redessinée. Relevé : 0 maillon dès « Ancre haute et bossée ». La leçon : le cas cherché
+(une chaîne qui reste) avait d'abord été attribué à la géométrie de la ligne ; c'était l'ORDRE de deux appels.
+
+**Suite — pendue à sa chaîne** (« elle remonte en parallèle de la chaîne, on la voit glisser ; possible de la
+rendre vraiment sous la contrainte de la chaîne ? »). Dérapée, l'ancre était POSÉE par le code — rapprochée
+de l'écubier à 1,2 m/s — et la chaîne tendue entre les deux : deux mouvements indépendants, d'où le
+glissement. Elle est maintenant le DERNIER POINT DE LA LIGNE DE VERLET : libre, lourde même dans l'eau (8,5 m/s²,
+peu freinée), et c'est la longueur de la ligne — ce qui reste dehors, `UpLen` — que le cabestan raccourcit.
+Dans les contraintes, chaque bout cède à proportion de sa légèreté (l'écubier 0, l'ancre 0,08, un maillon 1) :
+une tonne de fer au bout d'une chaîne. L'ancre est posée à l'organeau, la verge dans l'axe du dernier maillon
+(`UpShank`). Vu : la chaîne pend droit le long de l'étrave, l'ancre au bout, et elle se balance quand le navire
+avance.
+
+**Suite — hors du bordé** (« elle passe un peu au travers de la coque, la chaîne aussi »). Un galion a une
+forte rentrée : plus large à la flottaison qu'au pont, si bien qu'une chaîne qui pend droit du bossoir — posé à
+la plus grande demi-largeur du COMPARTIMENT, `HullShell` — rentre dans le bordé plus bas, et l'ancre avec.
+`ShipNode.HullHalfWidth(z, y)` : la demi-largeur de la coque à une station ET une hauteur, une grille d'un mètre
+sur cinquante centimètres prise sur les sommets du modèle (les mailles enjambées par un grand triangle prennent
+leurs voisines ; le plan de formes à défaut de modèle). `AnchorNode.HullClear` ramène chaque point de la
+chaîne entré dans la coque à sa surface, du côté où il est — ou du bossoir s'il est près de l'axe —, le point
+et sa position d'avant ensemble (il garde sa vitesse, sans rebond) ; l'ancre est écartée d'une demi-taille,
+ses pattes s'ouvrant de part et d'autre de la verge. Vu : l'ancre pend devant le bordé, entière.
+
+## La carrière commence à la pêche (Godot)
+
+Demandé : les premières missions sont des missions de pêche. Le joueur part
+avec le rang « Pêcheur » et un sloop, pêche au large à la ligne à main des
+mérous et des vivaneaux, rentre vendre, et gagne de quoi acheter un autre
+bateau. Choix faits avec lui : lancer-attendre-ferrer, des fonds à apprendre,
+un poisson qui se gâte, un chantier au port.
+
+**Le fond se lit sur sa pente.** Le relief ne dit pas la nature du fond ; sa
+pente sur douze mètres la trahit (roche, tombant, sable), et c'est elle que la
+sonde rapporte en mots — le suif du plomb, comme le faisaient les pilotes. Rien
+n'est marqué : c'est au joueur d'apprendre où. Le banc (`Lab peche`) dessine
+les bons fonds et joue une sortie.
+
+**Le compte des objectifs vit dans la quête, pas chez l'hôte.** Première
+version : un `Tally` que l'hôte fournissait. Mais il ne se sauvegardait pas, et
+quitter à mi-pêche faisait recommencer. Désormais `Quests.Credit(goal, n)`
+n'ajoute que si l'étape en cours le demande, et `Counted` s'écrit dans
+`quetes.json`. Une étape `peche` n'a pas de lieu (`PlaceSpec.None`) : pas de
+cercle sur la carte, la ligne dorée ne dit que le compte.
+
+**La cale ne garde pas un colis de moins d'un kilo** (`LoadCargo` l'efface) :
+un vivaneau seul y disparaissait. Le poids du poisson est donc RECALÉ sur la
+liste des prises à chaque changement (`FishHold`), au lieu d'être ajouté prise
+par prise.
+
+**Équilibre, relevé au banc** (5 lignes, ferrage toujours à temps, 30 min) :
+mérou 150 kg, 25 écus ; vivaneau 46 kg et 11 écus au premier réglage — trop
+maigre pour un poisson plus prisé. Poids porté à 1–10 kg (le vivaneau rouge
+réel) et halage à 1 m/s : 70 kg, 16 écus. Le chantier à 1,5 écu la tonne met
+le cotre à 134 écus net, cinq à six bonnes sorties. À 3 écus la tonne il en
+fallait onze.
+
+**Le chantier rend la différence** quand on descend vers plus petit : la
+première version bornait le net à zéro, et racheter le sloop avec le cotre
+coûtait « 0 écu » (vu sur la capture).
+
+Essai de bout en bout : `-- --quete le-pecheur --peche 257,2238,20` (la coque
+posée sur le meilleur fond du mérou, les lignes à vingt fois le temps, un
+pêcheur qui ferre à une demi-seconde) — 40 kg, retour au ponton, vente,
+achat du cotre, rang « Patron », quête achevée.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

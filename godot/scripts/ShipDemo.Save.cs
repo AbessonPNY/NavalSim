@@ -71,6 +71,10 @@ public partial class ShipDemo
         [JsonPropertyName("epaves")] public List<NavalSim.Core.Wreck> Epaves { get; set; } = new();
         /// <summary>Les trésors à bord, à la pièce, par sorte.</summary>
         [JsonPropertyName("tresors")] public Dictionary<string, int> Tresors { get; set; } = new();
+        /// <summary>Le rang du capitaine, vide en jeu libre.</summary>
+        [JsonPropertyName("rang")] public string Rang { get; set; } = "";
+        /// <summary>Les prises à bord, avec l'heure de jeu où elles sont sorties de l'eau : leur fraîcheur en dépend.</summary>
+        [JsonPropertyName("peche")] public List<Prise> Peche { get; set; } = new();
         [JsonPropertyName("flotte")] public List<Coque> Flotte { get; set; } = new();
         /// <summary>Les quêtes et le carnet, tels qu'ils s'écrivent déjà dans user:// — recopiés ici.</summary>
         [JsonPropertyName("quetes")] public string Quetes { get; set; } = "";
@@ -85,6 +89,13 @@ public partial class ShipDemo
         [JsonPropertyName("carnet")] public string Carnet { get; set; } = "";
         /// <summary>Un carnet par région visitée, la clé de la région pour clé.</summary>
         [JsonPropertyName("carnets")] public Dictionary<string, string> Carnets { get; set; } = new();
+    }
+
+    public sealed class Prise
+    {
+        [JsonPropertyName("espece")] public string Espece { get; set; } = "";
+        [JsonPropertyName("kg")] public double Kg { get; set; }
+        [JsonPropertyName("pris")] public double Pris { get; set; }
     }
 
     public sealed class Colis
@@ -149,6 +160,8 @@ public partial class ShipDemo
             s.Cargo.Add(new Colis { Cale = c.Hold, Niveau = c.Level, Bord = c.Side, Kg = c.Kg, Nature = c.Kind });
         s.Epaves.AddRange(Wrecks.All);
         foreach (var (k, n) in _treasureHold) if (n > 0) s.Tresors[k] = n;
+        s.Rang = _rank;
+        foreach (var l in _catch) s.Peche.Add(new Prise { Espece = l.Key, Kg = l.Kg, Pris = l.CaughtAt });
         // les coques à flot autour de vous ; les spectres ne se sauvent pas
         var o = _sea.Core.Origin;
         foreach (var other in _others)
@@ -339,6 +352,11 @@ public partial class ShipDemo
         p.Powder = Math.Min(s.Poudre, p.PowderMax);
         p.ClearCargo();
         foreach (var c in s.Cargo) p.LoadCargo(c.Cale, c.Niveau, c.Bord, c.Kg / 1000, c.Nature);
+        _rank = s.Rang;
+        _lines?.Raise();
+        _catch.Clear();
+        foreach (var l in s.Peche) _catch.Add(new FishLot(l.Espece, l.Kg, l.Pris));
+        FishHold();
 
         if (s.Journal.Length > 0) _journal.FromJson(s.Journal);
         _t = s.T;

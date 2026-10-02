@@ -1,0 +1,15 @@
+{
+  "note": "LE CHANTIER — où l'on achète un autre bord. Un navire se paie à la tonne de déplacement, et le chantier reprend celui qu'on lui laisse, à une part de ce prix : on n'a pas deux coques à la fois, on échange. Format : market/README.md.",
+
+  "_aide": "ecusParTonne : le prix d'une tonne de déplacement, en écus. reprise : la part de ce prix que le chantier rend pour le navire qu'on lui laisse (0,5 = la moitié). chantiers : les ports qui en ont un, et les fiches de ships/ qu'on y trouve (sans .json).",
+  "ecusParTonne": 1.5,
+  "reprise": 0.5,
+
+  "chantiers": [
+    {
+      "port": "port-royal",
+      "nom": "Chantier de Chocolata Hole",
+      "navires": ["sloop", "cotre", "schooner", "speedwell", "frigate17e"]
+    }
+  ]
+}

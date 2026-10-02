@@ -57,6 +57,7 @@ switch (mode)
     case "centre": Centre(); break;
     case "pontons": Pontons(); break;
     case "abri": Abri(); break;
+    case "peche": Peche(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -1506,5 +1507,82 @@ void Abri()
             }
             Console.WriteLine(line);
         }
+    }
+}
+
+/* OU MORD-IL ? Autour de Port-Royal, a l aube : # terre, . rien, puis la force du coin
+   pour le merou (m faible, M bon) et le vivaneau (v, V) ; X : bon pour les deux. 120 m la case.
+     dotnet run --project core/NavalSim.Lab -c Release -- peche [rayon_km] [heure] */
+void Peche()
+{
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    var region = RegionSpec.FromJson(File.ReadAllText(Path.Combine(root, "world", "caraibes.json")));
+    var (iw, ih, grey) = GreyPng.Decode(File.ReadAllBytes(Path.Combine(root, region.Relief.Image)));
+    var imgs = new List<World.PatchImage>();
+    foreach (var pz in region.Patches)
+    {
+        string pi = Path.Combine(root, pz.Image);
+        if (!File.Exists(pi)) continue;
+        var (pw, ph, pg) = GreyPng.Decode(File.ReadAllBytes(pi));
+        imgs.Add(new World.PatchImage(pz, pw, ph, pg));
+    }
+    var world = new World(region, iw, ih, grey, m => { }, imgs);
+    var rules = FishingRules.FromJson(File.ReadAllText(Path.Combine(root, "fishing", "poissons.json")));
+    double km = args.Length > 1 ? double.Parse(args[1], CultureInfo.InvariantCulture) : 5;
+    double hour = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 6.5;
+    var home = world.StartPort!;
+    var mer = rules.Of("merou")!; var viv = rules.Of("vivaneau")!;
+    const double cell = 120;
+    int n = (int)(km * 1000 / cell);
+    double bestM = 0, bestV = 0; (double, double) atM = default, atV = default;
+    int goodM = 0, goodV = 0;
+    for (int j = n; j >= -n; j--)
+    {
+        var line = new System.Text.StringBuilder("  ");
+        for (int i = n; i >= -n; i--)
+        {
+            double x = home.X + i * cell, z = home.Z + j * cell;
+            if (i == 0 && j == 0) { line.Append('@'); continue; }
+            if (world.HeightAt(x, z) > 0) { line.Append('#'); continue; }
+            var (d, sl) = Fishing.BottomAt(world, x, z);
+            double rm = Fishing.Rate(mer, d, sl, hour), rv = Fishing.Rate(viv, d, sl, hour);
+            if (rm > bestM) { bestM = rm; atM = (x, z); }
+            if (rv > bestV) { bestV = rv; atV = (x, z); }
+            bool gm = rm > 0.5 * mer.BitesPerHour, gv = rv > 0.5 * viv.BitesPerHour;
+            if (gm) goodM++; if (gv) goodV++;
+            line.Append(gm && gv ? 'X' : gm ? 'M' : gv ? 'V' : rm > 0.15 * mer.BitesPerHour ? 'm' : rv > 0.15 * viv.BitesPerHour ? 'v' : '.');
+        }
+        Console.WriteLine(line);
+    }
+    Console.WriteLine(FormattableString.Invariant($"heure {hour:F1} : activite merou {Fishing.Activity(mer, hour):F2}, vivaneau {Fishing.Activity(viv, hour):F2}"));
+    Console.WriteLine(FormattableString.Invariant($"merou : {goodM} bonnes cases, au mieux {bestM:F1} touches/h/ligne a ({atM.Item1:F0}, {atM.Item2:F0}), {Math.Sqrt((atM.Item1 - home.X) * (atM.Item1 - home.X) + (atM.Item2 - home.Z) * (atM.Item2 - home.Z)):F0} m du port"));
+    Console.WriteLine(FormattableString.Invariant($"vivaneau : {goodV} bonnes cases, au mieux {bestV:F1} touches/h/ligne a ({atV.Item1:F0}, {atV.Item2:F0}), {Math.Sqrt((atV.Item1 - home.X) * (atV.Item1 - home.X) + (atV.Item2 - home.Z) * (atV.Item2 - home.Z)):F0} m du port"));
+
+    /* UNE SORTIE DE PÊCHE, JOUÉE : trente minutes de jeu avec les cinq lignes du
+       sloop sur le meilleur fond de chaque espèce, un pêcheur qui ferre toujours à
+       temps, et l'heure du ciel qui tourne au pas du jeu (2 h par minute). Ce que
+       la sortie rapporte, en kilos et en pièces — c'est ce qui règle les prix. */
+    foreach (var (nom, at) in new[] { ("merou", atM), ("vivaneau", atV) })
+    {
+        var (d, sl) = Fishing.BottomAt(world, at.Item1, at.Item2);
+        double kgSum = 0, pieces = 0; int fish = 0, lost = 0, missed = 0;
+        for (int run = 0; run < 20; run++)
+        {
+            var rng = new Random(run);
+            var hl = new HandLines(rules);
+            hl.OnCatch = (sp, kg) => { kgSum += kg; pieces += kg * sp.PricePerKg; fish++; };
+            hl.OnLost = (sp, kg) => lost++;
+            hl.OnMissed = l => missed++;
+            hl.Cast(Fishing.Lines(rules, 10, 22));
+            double t = 0, h = hour, dt = 0.1;
+            while (t < 1800)
+            {
+                hl.Step(dt, d, sl, h, rng.NextDouble);
+                // le pêcheur ferre dans la seconde
+                foreach (var l in hl.Lines) if (l.State == HandLines.LineState.Bite && l.T < rules.StrikeWindow - 0.8) { hl.Strike(d); break; }
+                t += dt; h = (h + dt / 30) % 24;
+            }
+        }
+        Console.WriteLine(FormattableString.Invariant($"sortie de 30 min sur le fond du {nom} ({d:F0} m) : {kgSum / 20:F0} kg, {fish / 20.0:F1} poissons, {lost / 20.0:F1} lignes cassees, {pieces / 20:F0} pieces ({pieces / 20 / 60:F1} ecus)"));
     }
 }

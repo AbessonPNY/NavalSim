@@ -71,6 +71,9 @@ public partial class ShipDemo
         _purseLine.AddThemeColorOverride("font_outline_color", new Color(0, 0, 0, 0.85f));
         _purseLine.AddThemeConstantOverride("outline_size", 5);
         _purseBox.AddChild(_purseLine);
+        // la pêche, au-dessus de la bourse : les lignes à l'eau et ce qu'on porte
+        _fishLine = Plate(16, HudInk, HorizontalAlignment.Left);
+        _fishLine.Visible = false;
 
         // le tableau des deux camps, sous le temps qu'il fait : seule l'escarmouche le montre
         _meleeLine = Plate(18, HudGold, HorizontalAlignment.Right);
@@ -88,7 +91,7 @@ public partial class ShipDemo
         _navLine.Visible = on && _compass != null && _compass.Visible;
         _skyLine.Visible = on;
         _purseBox.Visible = on && !_chartOpen;
-        if (!on) return;
+        if (!on) { if (_fishLine != null) _fishLine.Visible = false; return; }
 
         var s = GetViewport().GetVisibleRect().Size;
         float bottom = 0, right = 0, left = 0, top = 0;
@@ -147,8 +150,14 @@ public partial class ShipDemo
         }
 
         // la bourse, en bas à gauche — la cale se lit ailleurs (Z)
-        _purseLine.Text = $"{_purse.Ecus} écus   {_purse.Pieces} pièces";
+        // le rang devant la bourse : c'est ce qu'on est, à côté de ce qu'on a
+        _purseLine.Text = (_rank.Length > 0 ? _rank + "   " : "") + $"{_purse.Ecus} écus   {_purse.Pieces} pièces";
         _purseBox.Position = new Vector2(left + 18, s.Y - bottom - _purseBox.Size.Y - 18);
+        if (_fishLine != null && _fishLine.Visible)
+        {
+            _fishLine.Size = new Vector2(520, 0);
+            _fishLine.Position = new Vector2(left + 18, _purseBox.Position.Y - _fishLine.Size.Y - 6);
+        }
     }
 
     /// <summary>

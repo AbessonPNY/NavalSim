@@ -16,7 +16,16 @@ public enum Goal
     /// <summary>Y rester sous <see cref="QuestStep.MaxSpeed"/> nœuds pendant <see cref="QuestStep.Hold"/> secondes.</summary>
     Stop,
     /// <summary>Y être amarré ou mouillé.</summary>
-    Dock
+    Dock,
+    /* CE QUE FAIT LE NAVIRE ET NON OÙ IL EST (Godot) : le lieu de l'étape n'y
+       compte pas : l'hôte crédite ce qui se fait (Quests.Credit), depuis le
+       début de l'étape. */
+    /// <summary>Pêcher <see cref="QuestStep.Kg"/> kilos.</summary>
+    Fish,
+    /// <summary>En vendre <see cref="QuestStep.Kg"/> kilos au comptoir.</summary>
+    Sell,
+    /// <summary>Acheter un navire au chantier.</summary>
+    Buy
 }
 
 /// <summary>
@@ -31,6 +40,8 @@ public sealed class PlaceSpec
 
     /// <summary>Vrai si la fiche demande un écart depuis le port plutôt que son ponton.</summary>
     public bool Offset => Bearing != null || Miles != null || Distance != null;
+    /// <summary>Aucun lieu : une étape de pêche n'en a pas, le poisson est à trouver.</summary>
+    public bool None => Port.Length == 0 && Lat == null && X == null && Z == null;
 }
 
 /// <summary>
@@ -92,6 +103,10 @@ public sealed class QuestStep
     public double? Radius, MaxSpeed, Hold;
     /// <summary>Le fret de l'étape, ou nul : voir <see cref="Freight"/>.</summary>
     public Freight? Cargo;
+    /// <summary>Les kilos d'un objectif de pêche ou de vente.</summary>
+    public double? Kg;
+    /// <summary>Le rang que l'étape donne quand elle est remplie, ou vide.</summary>
+    public string Rank = "";
 
     /// <summary>Le rayon du lieu : celui de la fiche, sinon celui de l'objectif.</summary>
     public double R => Radius ?? Quests.Radius(Goal);
@@ -103,7 +118,8 @@ public sealed class QuestStep
         {
             Title = Str(s, "title"), Brief = Str(s, "brief"), Message = Str(s, "message"),
             Goal = Quests.GoalOf(Str(s, "goal")),
-            Radius = Opt(s, "radius"), MaxSpeed = Opt(s, "maxSpeed"), Hold = Opt(s, "hold")
+            Radius = Opt(s, "radius"), MaxSpeed = Opt(s, "maxSpeed"), Hold = Opt(s, "hold"),
+            Kg = Opt(s, "kg"), Rank = Str(s, "rang")
         };
         if (s.TryGetProperty("cargo", out var cg)) step.Cargo = Freight.FromJson(cg);
         if (s.TryGetProperty("at", out var at) && at.ValueKind == JsonValueKind.Object)
@@ -151,6 +167,10 @@ public sealed class QuestSpec
     /// et l'imposer à nouveau effacerait un navire que le joueur a gagné.
     /// </summary>
     public string Ship = "";
+    /// <summary>Le rang qu'elle donne en commençant (« Pêcheur »), ou vide : celui qu'on a.</summary>
+    public string Rank = "";
+    /// <summary>La bourse de départ, en écus, ou nul : celle que la partie donne.</summary>
+    public double? Purse;
     public readonly List<QuestStep> Steps = new();
 
     /// <summary>
@@ -163,7 +183,7 @@ public sealed class QuestSpec
         if (string.IsNullOrEmpty(Id)) return "pas d'id";
         if (Steps.Count == 0) return "aucune étape";
         for (int i = 0; i < Steps.Count; i++)
-            if (Steps[i].At == null) return $"étape {i + 1} sans lieu (at)";
+            if (Steps[i].At.None && Steps[i].Goal != Goal.Fish) return $"étape {i + 1} sans lieu (at)";
         return null;
     }
 
@@ -179,6 +199,8 @@ public sealed class QuestSpec
         if (Str(r, "kind") is { Length: > 0 } kind) q.Kind = kind;
         if (r.TryGetProperty("chapter", out var ch) && ch.ValueKind == JsonValueKind.Number) q.Chapter = ch.GetInt32();
         q.Ship = Str(r, "ship");
+        q.Rank = Str(r, "rang");
+        if (r.TryGetProperty("bourse", out var bo) && bo.ValueKind == JsonValueKind.Number) q.Purse = bo.GetDouble();
         if (r.TryGetProperty("steps", out var steps) && steps.ValueKind == JsonValueKind.Array)
             foreach (var st in steps.EnumerateArray())
                 q.Steps.Add(QuestStep.FromJson(st));
@@ -241,6 +263,15 @@ public sealed class Quests
     public Action<Freight>? OnFreight;
     /// <summary>L'objectif a changé.</summary>
     public Action? OnChange;
+    /// <summary>
+    /// LE COMPTE DES OBJECTIFS QUI NE SONT PAS DES LIEUX : les kilos pêchés, les
+    /// kilos vendus, les navires achetés DEPUIS LE DÉBUT DE L'ÉTAPE. Il vit ici et
+    /// non chez l'hôte parce qu'il se sauvegarde avec l'étape : quitter à mi-pêche
+    /// ne doit pas faire recommencer la pêche.
+    /// </summary>
+    public double Counted;
+    /// <summary>Un rang vient d'être donné, par une étape remplie.</summary>
+    public Action<string>? OnRank;
 
     public Quests(World world) { _world = world; }
 
@@ -258,6 +289,9 @@ public sealed class Quests
         "leave" => Goal.Leave,
         "stop" => Goal.Stop,
         "dock" => Goal.Dock,
+        "peche" => Goal.Fish,
+        "vente" => Goal.Sell,
+        "achat" => Goal.Buy,
         _ => Goal.Reach
     };
 
@@ -271,6 +305,18 @@ public sealed class Quests
     }
 
     public QuestSpec? ById(string id) => List.Find(q => q.Id == id);
+
+    /// <summary>
+    /// L'HÔTE DIT CE QUI VIENT DE SE FAIRE (des kilos pêchés, vendus, un navire
+    /// acheté) ; cela ne compte que si c'est ce que l'étape en cours demande — le
+    /// poisson pris avant qu'on vous le demande ne se vend pas deux fois.
+    /// </summary>
+    public void Credit(Goal g, double amount)
+    {
+        if (Current is not QuestStep s || s.Goal != g || !HereNow) return;
+        Counted += amount;
+        OnChange?.Invoke();
+    }
 
     /// <summary>
     /// LE LIEU D'UNE ÉTAPE, en mètres VRAIS du monde.
@@ -314,7 +360,7 @@ public sealed class Quests
     public void Start(string id)
     {
         Active = ById(id);
-        Step = 0; Hold = 0;
+        Step = 0; Hold = 0; Counted = 0;
         if (Active != null)
         {
             OnShow?.Invoke(Active.Title.Length > 0 ? Active.Title : Active.Id,
@@ -326,7 +372,7 @@ public sealed class Quests
 
     public void Stop()
     {
-        Active = null; Step = 0; Hold = 0;
+        Active = null; Step = 0; Hold = 0; Counted = 0;
         OnChange?.Invoke();
     }
 
@@ -339,7 +385,7 @@ public sealed class Quests
     public Objective? Aim(double fromX, double fromZ)
     {
         var s = Current;
-        if (s == null || Active == null || !HereNow) return null;
+        if (s == null || Active == null || !HereNow || s.At.None) return null;
         var p = Place(s);
         double dx = p.X - fromX, dz = p.Z - fromZ;
         double brg = Math.Atan2(-dx, dz) * 180 / Math.PI;          // l'est est −x
@@ -366,6 +412,9 @@ public sealed class Quests
                 Hold = still ? Hold + dt : 0;
                 met = Hold >= (step.Hold ?? 8);
                 break;
+            case Goal.Fish:
+            case Goal.Sell: met = Counted + 1e-6 >= (step.Kg ?? 1); break;
+            case Goal.Buy: met = Counted >= 1; break;
             default: met = inside; break;
         }
         /* LA GARDE DU FRET, APRÈS l'objectif et jamais avant : arriver sans la
@@ -385,9 +434,10 @@ public sealed class Quests
            (« on roule les barriques à bord »), et il mentirait d'une image s'il
            paraissait avant que ce soit fait. */
         if (s.Cargo is { } c) OnFreight?.Invoke(c);
+        if (s.Rank.Length > 0) OnRank?.Invoke(s.Rank);
         if (s.Message.Length > 0) OnShow?.Invoke(s.Title, s.Message);
         Step++;
-        Hold = 0;
+        Hold = 0; Counted = 0;
         if (Step >= q.Steps.Count)
         {
             Done.Add(q.Id);
@@ -414,6 +464,7 @@ public sealed class Quests
         var sb = new StringBuilder();
         sb.Append("{\n  \"active\": ").Append(Active == null ? "null" : JsonSerializer.Serialize(Active.Id))
           .Append(",\n  \"step\": ").Append(Step.ToString(CultureInfo.InvariantCulture))
+          .Append(",\n  \"compte\": ").Append(Counted.ToString("R", CultureInfo.InvariantCulture))
           .Append(",\n  \"done\": [");
         bool first = true;
         foreach (string id in Done) { sb.Append(first ? "" : ", ").Append(JsonSerializer.Serialize(id)); first = false; }
@@ -436,6 +487,7 @@ public sealed class Quests
             var q = a != null ? ById(a) : null;
             if (q == null || step >= q.Steps.Count) return false;
             Active = q; Step = Math.Max(0, step); Hold = 0;
+            Counted = r.TryGetProperty("compte", out var cv) && cv.ValueKind == JsonValueKind.Number ? cv.GetDouble() : 0;
             OnChange?.Invoke();
             return true;
         }

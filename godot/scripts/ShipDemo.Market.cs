@@ -159,6 +159,8 @@ public partial class ShipDemo : Node3D
         _mkTreasure.AddThemeConstantOverride("separation", 2);
         box.AddChild(_mkTreasure);
         _mkTreasureInk = (ink, dim, gold);
+        // le poisson frais et le chantier (ShipDemo.Yard.cs)
+        BuildFishAndYard(box);
 
         _mkPowder = L("", 15, ink);
         _mkPowderRow = Buttons(box, ("Embarquer 25 coups", () => BuyPowder(25)), ("Faire le plein", () => BuyPowder(int.MaxValue)));
@@ -379,6 +381,8 @@ public partial class ShipDemo : Node3D
             aboard.Text = n < 0.05 ? "" : FormattableString.Invariant($"{n:F1} t");
         }
         TreasureRows(t);
+        FishRows();
+        YardRows();
         _mkPowder!.Text = FormattableString.Invariant($"Poudre, la charge    {Market.Poudre:F0}");
         // un bord sans pièces n'a pas de soute à remplir
         _mkPowder.Visible = _mkPowderRow!.Visible = p.PowderMax > 0;

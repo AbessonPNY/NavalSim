@@ -25,6 +25,7 @@
   },
 
   "displacementTonnes": 22,
+  "equipage": 10,
 
   "cog": { "yFracKeel": -0.45, "zFracLength": -0.06 },
 

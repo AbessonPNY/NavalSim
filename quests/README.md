@@ -46,6 +46,11 @@ de la quête ; reprendre une partie enregistrée garde le bord que la sauvegarde
 connaît, sans quoi l'on effacerait un navire que le joueur a gagné. Fiche
 introuvable : on garde le navire courant, avec un avertissement.
 
+`rang` et `bourse` (Godot) : le rang que la quête donne en commençant
+(`"rang": "Pêcheur"`, affiché devant la bourse) et la bourse de départ en
+écus (`"bourse": 2`), à la place des quatre cents écus d'une partie neuve. Comme
+`ship`, au **début** de la quête seulement.
+
 `kind` et `chapter` (Godot) : `"kind": "story"` fait de la quête un chapitre de l'**Histoire** (écran de titre → Histoire lance le premier chapitre pas encore fini, dans l'ordre de `chapter`) ; sinon c'est une **mission**, qu'on choisit dans la liste (Missions). Absent : mission.
 
 `region` (Godot) : la carte où la quête se joue — le nom de la fiche de
@@ -64,6 +69,8 @@ dit « dans les eaux de la Jamaïque ». Absent : partout. La page l'ignore.
 | `maxSpeed` | pour `stop` : vitesse maximale en nœuds (1 par défaut) |
 | `hold` | pour `stop` : secondes à tenir (8 par défaut) |
 | `cargo` | le fret de l'étape (voir plus bas) |
+| `kg` | pour `peche` et `vente` : les kilos à atteindre |
+| `rang` | (Godot) le rang que l'étape donne quand elle est remplie (« Patron ») |
 
 ### Le fret (`cargo`)
 
@@ -108,6 +115,15 @@ est exactement ce qu'il faut pour un fret payé au voyage.
   secondes (en panne, voiles ferlées ou au mouillage). La ligne d'objectif
   décompte les secondes.
 - **`dock`** : être amarré ou mouillé dans le cercle (touche `M` au ponton).
+- **`peche`** (Godot) : pêcher `kg` kilos depuis le début de l'étape
+  (fishing/README.md). Le lieu (`at`) est **facultatif** : le poisson est à
+  trouver, la ligne d'objectif ne dit que le compte, « 12,4 kg pêchés sur 40 ».
+- **`vente`** (Godot) : vendre `kg` kilos de poisson au comptoir depuis le
+  début de l'étape.
+- **`achat`** (Godot) : acheter un navire au chantier (market/chantier.json).
+
+Le compte de ces trois-là se sauvegarde avec l'étape (`compte` dans
+`quetes.json`) : quitter à mi-pêche ne fait pas recommencer.
 
 ### Lieux (`at`)
 

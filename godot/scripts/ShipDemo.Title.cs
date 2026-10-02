@@ -264,6 +264,10 @@ public partial class ShipDemo : Node3D
             else if (idx != _index) Launch(idx);
         }
         Home();
+        /* LE RANG ET LA BOURSE DU CHAPITRE, après Home() qui remet ceux d'une partie
+           neuve : un pêcheur ne part pas avec les quatre cents écus d'un armateur. */
+        if (q is { Rank.Length: > 0 }) _rank = q.Rank;
+        if (q?.Purse is double ecus) _purse = new Purse((long)Math.Round(ecus * Market.SousParEcu));
         _quests.Start(id);
         SaveQuests();
         Play();
@@ -287,6 +291,7 @@ public partial class ShipDemo : Node3D
         // les voiles croisées s'en vont aussi, et la pendule repart de zéro
         _met.Clear(); _noticed.Clear(); _bound.Clear(); _nextSail = -1;
         _purse = new Purse(Market.Depart);
+        FishReset();
         _gameId = "";
         /* ET LA CARTE AVEC : ce que le bord a vu appartient à SA partie. Ici plutôt
            que dans FreePlay et StartQuest, parce que Home() est le seul endroit par

@@ -70,3 +70,16 @@ pirates.
 **Le café n'y est pas** : il n'arrive à la Jamaïque qu'en **1728**, trente-huit
 ans après le début de la partie. Il se négociait bien en 1690 — le moka par le
 Levant et les Hollandais — mais pas depuis Port-Royal.
+
+## Le chantier (Godot)
+
+`market/chantier.json` : les ports qui ont un chantier, et les fiches de
+`ships/` qu'on y vend. Un navire se paie à la tonne de **déplacement**
+(`ecusParTonne`), et le chantier reprend le vôtre à `reprise` de son prix :
+on échange, on n'a jamais deux coques. Descendre vers plus petit rapporte la
+différence. La section paraît au comptoir, à quai, dans un port qui a un
+chantier ; la cale et les prises passent dans la nouvelle coque (ce qui n'y
+tient pas reste au quai), la bourse et le rang restent au capitaine.
+
+À 1,5 écu la tonne, le cotre Vigie (100 t) coûte 150 écus, moins 16,5 pour le
+sloop : cinq à six bonnes sorties de pêche.
