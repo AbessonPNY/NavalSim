@@ -159,9 +159,13 @@ public partial class TownNode
             groups[r < 0.62 ? 1 : 2].Who.Add(i);
         }
 
-        foreach (var (model, who) in groups)
-        {
-            if (who.Count == 0) continue;
+        foreach (var (model, who) in groups) AddGroup(holder, model, houses, who, cx, cz);
+    }
+
+    /// <summary>Les maisons d'un même modèle : un MultiMesh par surface.</summary>
+    void AddGroup(Node3D holder, Model model, List<House> houses, List<int> who, double cx, double cz)
+    {
+            if (who.Count == 0) return;
             foreach (var face in model.Faces)
             {
                 var mm = new MultiMesh
@@ -194,7 +198,27 @@ public partial class TownNode
                     ExtraCullMargin = 400
                 });
             }
-        }
+    }
+
+    /// <summary>
+    /// LE CENTRE-VILLE D'UN PORT : ses pâtés, là où la grille du noyau les a posés
+    /// (<see cref="Town.Streets"/>). Le pavé des rues, lui, est dans la terre
+    /// (<see cref="LandNode"/>) : la même grille, lue des deux côtés.
+    /// </summary>
+    public void BuildCentre(Isle isl)
+    {
+        StreetGrid? g = null;
+        foreach (var q in _world.Grids) if (q.Key == isl.Key) g = q;
+        if (g == null) return;
+        var model = LoadBuilding(g.Glb);
+        if (model == null) return;
+        var holder = new Node3D();
+        AddChild(holder);
+        var who = new List<int>(g.Blocks.Count);
+        for (int i = 0; i < g.Blocks.Count; i++) who.Add(i);
+        AddGroup(holder, model, g.Blocks, who, g.Cx, g.Cz);
+        _towns.Add((new Vec3d(g.Cx, 0, g.Cz), holder));
+        GD.Print($"{isl.Name} : centre-ville, {g.Blocks.Count} pâté(s) en rangées");
     }
 
     static double Frac(double x) => x - Math.Floor(x);

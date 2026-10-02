@@ -256,6 +256,31 @@ Jamais à moins de 35 m d'un ponton, jamais l'un dans l'autre. Chacun est recent
 deux franges qui se touchent font un premier rang et un fond : les cocotiers de l'îlot, détaillés sur la grève
 (1,2 à 3,2 m), allégés derrière (2,8 à 12 m). Godot seulement.
 
+## Le centre-ville d'un port (Godot)
+
+Un port peut avoir des rues : des pâtés d'un même modèle alignés en rangées dans le sens de la longueur de la
+terre, des rues pavées entre. Dans l'entrée du port → `centre` :
+
+```json
+"centre": { "glb": "world/models/cottage-ville.glb", "bloc": [31, 12.7], "longueur": 320, "rue": 8, "cour": 4,
+            "ruelle": 2.5, "traverse": 3, "paires": 2, "altitude": 2 }
+```
+
+| champ | rôle |
+|---|---|
+| `bloc` | un pâté en mètres : longueur sur la rue, profondeur — le .glb y est ramené sans être déformé |
+| `longueur` | jusqu'où les rangées s'étendent le long de l'axe (m) |
+| `paires` | combien de paires de rangées DOS À DOS ; deux paires font trois rues en long |
+| `rue` · `cour` · `ruelle` | la rue entre deux paires, la cour entre deux rangées dos à dos, le passage entre deux pâtés (m) |
+| `traverse` | une rue de traverse tous les tant de pâtés |
+| `altitude` | on ne bâtit qu'au-dessus : l'herbe, pas la grève (m) |
+| `facade` | de combien tourner le modèle (degrés) si sa façade ne regarde pas la rue |
+
+L'axe n'est pas écrit : c'est la direction où la terre autour du port s'étale le plus. Un pâté qui ne tient pas
+tout entier sur l'herbe, sur le plat, loin du ponton, n'est pas bâti. La terre se pave à une rue de chaque pâté
+(`StreetGrid`), et le semis des maisons ordinaires laisse le centre libre. Banc :
+`dotnet run --project core/NavalSim.Lab -c Release -- centre port-royal` (la carte des rues).
+
 ## Les autres régions, et les traversées (Godot)
 
 Chaque fichier `world/*.json` est une **région** : sa carte, son relief, ses

@@ -388,6 +388,7 @@ public partial class ShipDemo
         {
             var db = _ship.Physics.Body; var fw = db.Quat.Rotate(new Vec3d(0, 0, 1)); var o = _sea.Core.Origin;
             _flotsam.Scatter(o.X + db.Pos.X + fw.X * 40, o.Z + db.Pos.Z + fw.Z * 40, _debrisTest);
+            GD.Print(FormattableString.Invariant($"[débris] {_debrisTest} jetés autour de ({db.Pos.X + fw.X * 40:F0}, {db.Pos.Z + fw.Z * 40:F0}) local, navire ({db.Pos.X:F0}, {db.Pos.Z:F0})"));
             _debrisTest = 0;
         }
         if (_beachTest > 0) BeachTest();

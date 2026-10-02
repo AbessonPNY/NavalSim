@@ -13860,6 +13860,32 @@ fondu. À 2, il lui reste vingt-cinq mètres de sable — la bande que la mer re
 garde nu. Le premier rang de cocotiers de l'îlot (1,2 à 3,2 m) se trouve ainsi à la lisière, là où ils
 poussent.
 
+## Le tonneau couché, et le centre-ville de Port-Royal (Godot)
+
+**Le tonneau flottait debout** (signalé) : le modèle est debout dans son repère (75 × 98 × 76 unités) et la
+fiche ne le tournait pas. `props/Props.json` → `rotation: [0, 0, 90]`. Couché autour de son ORIGINE — sous
+son fond —, il aurait flotté à côté de sa place, à moitié en l'air : les débris modelés sont désormais
+recentrés sur leur boîte avant d'être tournés (`FlotsamNode.DrawShape`), leur milieu est ce que la mer porte.
+
+**Un centre-ville en rues** (demandé : « Port-Royal possédait un vrai centre-ville et des rues pavées »). Le
+modèle `world/models/cottage-ville.glb` est un PÂTÉ — une rangée de cottages de pierre à arcades, 98 × 32 × 40
+unités —, ramené à 31 × 12,7 m (10 m au faîte des cheminées). `Town.Streets` trace la grille : l'axe est la
+direction principale des points d'herbe autour du port (une analyse en composantes principales, 6 m de pas)
+— à Port-Royal, 10° de l'est-ouest, la direction des Palisadoes —, puis deux rangées dos à dos autour d'une
+cour de 4 m, une rue de 8 m, la paire suivante ; une traverse tous les trois pâtés. Un pâté se bâtit si ses
+neuf points d'emprise sont sur l'herbe (2 m), à 1,5 m près de plat, et loin du ponton.
+
+Premier essai sans borne en travers : 87 pâtés, toute la pointe couverte, 4,3 millions de triangles
+(49 330 par pâté). Borné à deux paires : 27 pâtés, 1,3 million — trois rues en long. Et le pavé suivait la
+BOÎTE des pâtés, ce qui pavait des bandes vides là où la terre avait refusé un pâté : il suit désormais leur
+union, élargie d'une rue.
+
+La grille est UNE définition à trois usagers (`World.Grids`, calculée une fois, 4 ms) : la ville y bâtit
+les pâtés (`TownNode.BuildCentre`), la terre y pave ses sommets (`LandNode`, `Cobble`), et le semis des
+maisons ordinaires s'en écarte. Vu : quatre rangées, façades à arcades sur les rues. Le pavé, gris, se lit
+ocre sous le soleil de dix heures — à juger à l'œil (`Cobble`). Le maillage de la terre a 5 m de pas : le
+bord des rues fait des marches.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

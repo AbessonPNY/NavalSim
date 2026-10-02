@@ -38,6 +38,33 @@ public sealed class PortSpec
     /// accoste, pas un endroit où l'on commerce.
     /// </summary>
     public bool Wild;
+    /// <summary>Son centre-ville en rues, s'il en a un (world/README.md → « centre »).</summary>
+    public CentreSpec? Centre;
+}
+
+/// <summary>
+/// UN CENTRE-VILLE EN RUES : des pâtés d'un même modèle, alignés en rangées dans
+/// le sens de la longueur de la terre qui les porte, et des rues pavées entre.
+/// Port-Royal en avait un — des maisons de brique serrées sur quatre rues, le
+/// long de la langue de sable —, quand les autres ports n'étaient qu'un semis.
+/// </summary>
+public sealed class CentreSpec
+{
+    public string Glb = "";
+    /// <summary>Un pâté, en mètres : sa longueur sur la rue, sa profondeur. Le .glb y est ramené.</summary>
+    public double Long = 31, Deep = 12.7;
+    /// <summary>Jusqu'où les rangées s'étendent le long de l'axe, en mètres.</summary>
+    public double Length = 320;
+    /// <summary>La rue, la cour entre deux rangées dos à dos, la ruelle entre deux pâtés.</summary>
+    public double Street = 8, Yard = 4, Alley = 2.5;
+    /// <summary>Une rue de traverse tous les tant de pâtés.</summary>
+    public int Cross = 3;
+    /// <summary>Combien de paires de rangées dos à dos, de part et d'autre de l'axe : deux paires font trois rues.</summary>
+    public int Pairs = 2;
+    /// <summary>L'altitude au-dessous de laquelle on ne bâtit pas : l'herbe, pas la grève.</summary>
+    public double HMin = 2;
+    /// <summary>De combien tourner le modèle pour que sa façade regarde la rue, en degrés.</summary>
+    public double Face;
 }
 
 /// <summary>Un modèle posé sur la terre : world/assets.</summary>
@@ -132,7 +159,8 @@ public sealed class RegionSpec
                 {
                     Key = Str(p, "key"), Name = Str(p, "name"),
                     Lat = Num(p, "lat"), Lon = Num(p, "lon"), Quay = Num(p, "quay"),
-                    Start = Bool(p, "start"), Mole = Bool(p, "mole"), Wild = Bool(p, "wild")
+                    Start = Bool(p, "start"), Mole = Bool(p, "mole"), Wild = Bool(p, "wild"),
+                    Centre = p.TryGetProperty("centre", out var ce) && ce.ValueKind == JsonValueKind.Object ? ReadCentre(ce) : null
                 });
         if (r.TryGetProperty("towns", out var tw) && tw.ValueKind == JsonValueKind.Array)
             foreach (var t in tw.EnumerateArray())
@@ -182,8 +210,25 @@ public sealed class RegionSpec
         return s;
 
         static string Str(JsonElement e, string k) => e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString()! : "";
+
         static double Num(JsonElement e, string k) => e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0;
         static bool Bool(JsonElement e, string k) => e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.True;
+
+        static CentreSpec ReadCentre(JsonElement c)
+        {
+            var s = new CentreSpec { Glb = Str(c, "glb") };
+            if (c.TryGetProperty("bloc", out var b) && b.ValueKind == JsonValueKind.Array && b.GetArrayLength() == 2)
+            { s.Long = b[0].GetDouble(); s.Deep = b[1].GetDouble(); }
+            if (c.TryGetProperty("longueur", out var l)) s.Length = l.GetDouble();
+            if (c.TryGetProperty("rue", out var r)) s.Street = r.GetDouble();
+            if (c.TryGetProperty("cour", out var y)) s.Yard = y.GetDouble();
+            if (c.TryGetProperty("ruelle", out var a)) s.Alley = a.GetDouble();
+            if (c.TryGetProperty("traverse", out var t)) s.Cross = t.GetInt32();
+            if (c.TryGetProperty("paires", out var pp)) s.Pairs = pp.GetInt32();
+            if (c.TryGetProperty("altitude", out var h)) s.HMin = h.GetDouble();
+            if (c.TryGetProperty("facade", out var f)) s.Face = f.GetDouble();
+            return s;
+        }
     }
 }
 
@@ -217,6 +262,8 @@ public sealed class Isle
     public bool Wild;
     public double Lat, Lon;
     public PortWorks Port = new();
+    /// <summary>Son centre-ville en rues, s'il en a un.</summary>
+    public CentreSpec? Centre;
 }
 
 /// <summary>
@@ -604,7 +651,7 @@ public sealed class World : IGround
         return new Isle
         {
             Key = P.Key, Name = P.Name, X = x, Z = z, R = 600, RShore = 0,
-            Start = P.Start, Wild = P.Wild, Lat = P.Lat, Lon = P.Lon, Port = port
+            Start = P.Start, Wild = P.Wild, Lat = P.Lat, Lon = P.Lon, Port = port, Centre = P.Centre
         };
     }
 
@@ -624,6 +671,31 @@ public sealed class World : IGround
     }
 
     public Isle? ByKey(string key) => Isles.Find(i => i.Key == key);
+
+    /// <summary>
+    /// LES CENTRES-VILLES, tracés une fois : la terre les lit (le pavé des rues),
+    /// la ville les bâtit, et le semis des maisons les laisse libres. Une fonction
+    /// pure du relief, donc la même grille pour les trois.
+    /// </summary>
+    public IReadOnlyList<StreetGrid> Grids
+    {
+        get
+        {
+            if (_grids != null) return _grids;
+            var g = new List<StreetGrid>();
+            foreach (var isl in Isles)
+                if (!isl.Wild && isl.Centre != null && Town.Streets(this, isl) is { } sg) g.Add(sg);
+            return _grids = g;
+        }
+    }
+    List<StreetGrid>? _grids;
+
+    /// <summary>Ce point est-il une rue pavée ?</summary>
+    public bool PavedAt(double x, double z)
+    {
+        foreach (var g in Grids) if (g.Paved(x, z)) return true;
+        return false;
+    }
     public Isle? StartPort => Isles.Find(i => i.Start) ?? (Isles.Count > 0 ? Isles[0] : null);
 
     /// <summary>Les ports à portée d'un point du monde.</summary>

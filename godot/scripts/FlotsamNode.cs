@@ -372,7 +372,7 @@ public partial class FlotsamNode : Node3D
        matières (partagées entre les copies) la brume du ciel en passe suivante. */
     readonly Dictionary<string, Node3D?> _models = new();
     /// <summary>La plus grande dimension de chaque modèle, mesurée une fois dans son propre repère.</summary>
-    readonly Dictionary<string, float> _sizes = new();
+    readonly Dictionary<string, Aabb> _boxes = new();
 
     /* LA TAILLE DU DESSIN D'ORIGINE, sur sa plus grande dimension : un modèle est
        RAMENÉ à elle, comme une coque l'est à la longueur de sa fiche. Un .glb
@@ -383,7 +383,7 @@ public partial class FlotsamNode : Node3D
         ["plank"] = 1.8f, ["barrel"] = 0.9f, ["bottle"] = 0.31f, ["cargo"] = 1.8f
     };
 
-    static float Extent(Node3D root)
+    static Aabb Box(Node3D root)
     {
         Aabb? box = null;
         var stack = new Stack<(Node, Transform3D)>();
@@ -398,8 +398,7 @@ public partial class FlotsamNode : Node3D
                 box = box is Aabb a ? a.Merge(b) : b;
             }
         }
-        if (box is not Aabb bb) return 0;
-        return Math.Max(bb.Size.X, Math.Max(bb.Size.Y, bb.Size.Z));
+        return box ?? new Aabb();
     }
 
     Node3D? Model(string rel)
@@ -434,8 +433,8 @@ public partial class FlotsamNode : Node3D
                     }
                 }
                 root = r;
-                _sizes[rel] = Extent(r);
-                GD.Print(FormattableString.Invariant($"débris : {rel} chargé, {_sizes[rel]:F2} dans son repère"));
+                var bx = _boxes[rel] = Box(r);
+                GD.Print(FormattableString.Invariant($"débris : {rel} chargé, {bx.Size.X:F2} x {bx.Size.Y:F2} x {bx.Size.Z:F2} dans son repère"));
             }
             else GD.PushWarning($"débris : {rel} illisible — il reste dessiné");
         }
@@ -473,9 +472,16 @@ public partial class FlotsamNode : Node3D
         {
             var copy = (Node3D)model.Duplicate();
             // ramené à la taille du dessin ; Props.json → scale (sur g) fait le reste
-            float ext = _sizes.GetValueOrDefault(K.Glb);
-            if (ext > 1e-4f && Sizes.TryGetValue(kind, out var want)) copy.Scale = Vector3.One * (want / ext);
+            var bx = _boxes.GetValueOrDefault(K.Glb);
+            float ext = Math.Max(bx.Size.X, Math.Max(bx.Size.Y, bx.Size.Z)), k = 1;
+            if (ext > 1e-4f && Sizes.TryGetValue(kind, out var want)) k = want / ext;
+            copy.Scale = Vector3.One * k;
             copy.RotationDegrees = K.Rot;
+            /* RECENTRÉ SUR SA BOÎTE, PUIS TOURNÉ : on ne sait pas où Blender a laissé
+               son origine — celle du tonneau est sous son fond —, et couché autour
+               d'elle, il flottait à côté de sa place, la moitié en l'air. Son milieu
+               est le point que la mer porte. */
+            copy.Position = -(copy.Basis * bx.GetCenter());
             g.AddChild(copy);
             if (kind == "bottle" && K.Halo) Halo(g, K, it);
             return g;

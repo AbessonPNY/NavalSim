@@ -59,6 +59,10 @@ public static class Town
                 double h = world.IslandHeight(x, z);
                 // sur la terre, au-dessus de la lame, et pas à flanc de montagne
                 if (h < 1.2 || h > 45) continue;
+                // le centre-ville a ses rues : on n'y sème rien
+                bool inCentre = false;
+                foreach (var g in world.Grids) if (g.Covers(x, z, 6)) { inCentre = true; break; }
+                if (inCentre) continue;
                 double sd = world.ShoreDistance(x, z);
                 if (sd > -11 || sd < -700) continue;        // négatif à terre : du bord, sans aller au loin
 
@@ -108,4 +112,113 @@ public static class Town
         }
         return outp;
     }
+
+    /// <summary>
+    /// LES RUES D'UN CENTRE-VILLE. On cherche d'abord dans quel sens court la
+    /// terre — l'axe principal des points d'herbe autour du port, ce qui donne la
+    /// longueur d'une presqu'île sans qu'on ait à l'écrire —, puis on y aligne des
+    /// rangées de pâtés : deux rangées DOS À DOS autour d'une cour, une rue de
+    /// chaque côté, et la paire suivante de l'autre côté de la rue. Le long de
+    /// l'axe, les pâtés se suivent à une ruelle près, et une rue de traverse coupe
+    /// la rangée tous les quelques pâtés. Un pâté qui ne tient pas tout entier sur
+    /// l'herbe, sur le plat, loin du ponton, n'est pas bâti : la ville s'arrête où
+    /// la terre s'arrête, comme les vraies.
+    /// </summary>
+    public static StreetGrid? Streets(World w, Isle isl)
+    {
+        var c = isl.Centre!;
+        double reach = c.Length * 0.75;
+
+        // l'axe : la direction où les points d'herbe s'étalent le plus
+        double sx = 0, sz = 0; int n = 0;
+        var pts = new List<(double X, double Z)>();
+        for (double x = isl.X - reach; x <= isl.X + reach; x += 6)
+            for (double z = isl.Z - reach; z <= isl.Z + reach; z += 6)
+            {
+                if ((x - isl.X) * (x - isl.X) + (z - isl.Z) * (z - isl.Z) > reach * reach) continue;
+                if (w.HeightAt(x, z) < c.HMin) continue;
+                pts.Add((x, z)); sx += x; sz += z; n++;
+            }
+        if (n < 20) return null;
+        double mx = sx / n, mz = sz / n, cxx = 0, czz = 0, cxz = 0;
+        foreach (var (x, z) in pts) { cxx += (x - mx) * (x - mx); czz += (z - mz) * (z - mz); cxz += (x - mx) * (z - mz); }
+        double th = 0.5 * Math.Atan2(2 * cxz, cxx - czz);
+        double ux = Math.Cos(th), uz = Math.Sin(th);       // le long de la terre
+        double vx = -uz, vz = ux;                           // en travers
+
+        var g = new StreetGrid { Key = isl.Key, Glb = c.Glb, Cx = mx, Cz = mz, Ux = ux, Uz = uz, Street = c.Street };
+        double pairPitch = 2 * c.Deep + c.Yard + c.Street;
+        double rowOff = (c.Yard + c.Deep) * 0.5;
+        int along = (int)(c.Length / (c.Long + c.Alley)) + 2;
+        double hl = c.Long * 0.5, hd = c.Deep * 0.5;
+        for (int p = 0; p < c.Pairs; p++)
+            for (int side = -1; side <= 1; side += 2)
+            {
+                // les paires centrées sur l'axe : la rue du milieu y passe quand leur nombre est pair
+                double v = (p - (c.Pairs - 1) * 0.5) * pairPitch + side * rowOff;
+                // la façade regarde SA rue : celle qui est du côté opposé à la cour
+                double fx = vx * side, fz = vz * side;
+                double yaw = Math.Atan2(fx, fz) + c.Face * Math.PI / 180;
+                for (int k = -along / 2; k <= along / 2; k++)
+                {
+                    // une traverse tous les « Cross » pâtés : la ruelle s'y élargit en rue
+                    int blk = (int)Math.Floor((double)k / Math.Max(1, c.Cross));
+                    double u = k * (c.Long + c.Alley) + blk * (c.Street - c.Alley);
+                    if (Math.Abs(u) > c.Length * 0.5) continue;
+                    double x = mx + ux * u + vx * v, z = mz + uz * u + vz * v;
+                    double lo = double.MaxValue, hi = double.MinValue;
+                    for (int q = 0; q < 9; q++)
+                    {
+                        double a = (q % 3 - 1) * hl, b = (q / 3 - 1) * hd;
+                        double h = w.HeightAt(x + ux * a + vx * b, z + uz * a + vz * b);
+                        lo = Math.Min(lo, h); hi = Math.Max(hi, h);
+                    }
+                    if (lo < c.HMin || hi > 45 || hi - lo > 1.5) continue;
+                    if (Scatter.NearJetty(w, x, z, hl + 20)) continue;
+                    // W et D aux neuf dixièmes : la règle des modèles, qui les mesure sans leurs débords
+                    g.Blocks.Add(new House(x, lo, z, yaw, c.Long * 0.9, c.Deep * 0.9, 0, 0, 2));
+                    g.Add(u, v, hl, hd);
+                }
+            }
+        return g.Blocks.Count > 0 ? g : null;
+    }
+}
+
+/// <summary>
+/// La grille d'un centre-ville, dans son propre repère : u le long de la terre,
+/// v en travers. Ses pâtés, et l'étendue qu'ils couvrent — rues comprises.
+/// </summary>
+public sealed class StreetGrid
+{
+    public string Key = "", Glb = "";
+    public double Cx, Cz, Ux, Uz, Street;
+    public readonly List<House> Blocks = new();
+    readonly List<(double U, double V, double Hl, double Hd)> _cells = new();
+    double _u0 = double.MaxValue, _u1 = double.MinValue, _v0 = double.MaxValue, _v1 = double.MinValue;
+
+    internal void Add(double u, double v, double hl, double hd)
+    {
+        _cells.Add((u, v, hl, hd));
+        _u0 = Math.Min(_u0, u - hl); _u1 = Math.Max(_u1, u + hl);
+        _v0 = Math.Min(_v0, v - hd); _v1 = Math.Max(_v1, v + hd);
+    }
+
+    /// <summary>
+    /// À une rue près d'un de ses pâtés, à <paramref name="margin"/> près ? L'UNION
+    /// des pâtés élargis d'une rue, et non leur boîte : là où la terre a refusé un
+    /// pâté, il n'y a ni maison ni pavé — une boîte pavait des bandes vides.
+    /// </summary>
+    public bool Covers(double x, double z, double margin)
+    {
+        double dx = x - Cx, dz = z - Cz;
+        double u = dx * Ux + dz * Uz, v = -dx * Uz + dz * Ux;
+        double m = Street + margin;
+        if (u < _u0 - m || u > _u1 + m || v < _v0 - m || v > _v1 + m) return false;
+        foreach (var (cu, cv, hl, hd) in _cells)
+            if (Math.Abs(u - cu) < hl + m && Math.Abs(v - cv) < hd + m) return true;
+        return false;
+    }
+
+    /// <summary>Une rue pavée : dans l'emprise, la rue qui la borde comprise.</summary>
+    public bool Paved(double x, double z) => Covers(x, z, 0);
 }

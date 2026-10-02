@@ -101,6 +101,8 @@ public partial class LandNode : Node3D
     static readonly Color Grass = Color.Color8(0x4f, 0x6a, 0x3a).SrgbToLinear();
     static readonly Color Wood = Color.Color8(0x34, 0x50, 0x2c).SrgbToLinear();
     static readonly Color Rock = Color.Color8(0x6c, 0x66, 0x5c).SrgbToLinear();
+    // le pavé des rues d'un centre-ville : galets et brique usée, plus gris que la grève
+    static readonly Color Cobble = Color.Color8(0x5e, 0x5c, 0x58).SrgbToLinear();
 
     const double SandTop = 0.6, GrassFrom = 2.0;
 
@@ -141,7 +143,8 @@ public partial class LandNode : Node3D
                 double x = (double)a / n * Tile, z = (double)b / n * Tile;
                 double h = World.HeightAt(x0 + x, z0 + z);
                 pos.Add(new Vector3((float)x, (float)h, (float)z));
-                col.Add(Tint(h));
+                // une rue pavée, au-dessus de la laisse : la grille du centre-ville
+                col.Add(h >= SandTop && World.PavedAt(x0 + x, z0 + z) ? Cobble : Tint(h));
             }
         for (int b = 0; b < n; b++)
             for (int a = 0; a < n; a++)

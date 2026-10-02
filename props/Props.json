@@ -16,7 +16,7 @@
     "name": "Tonneau",
     "scale": 1.0,
     "glb": "props/tonneau.glb",
-    "rotation": [0, 0, 0],
+    "rotation": [0, 0, 90],
     "draft": 0.12,
     "life": 900
   },

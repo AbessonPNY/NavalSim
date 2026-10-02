@@ -88,7 +88,7 @@ public static class Scatter
         return outp;
     }
 
-    static bool NearJetty(World w, double x, double z, double d)
+    internal static bool NearJetty(World w, double x, double z, double d)
     {
         foreach (var isl in w.Isles)
         {

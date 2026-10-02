@@ -54,6 +54,7 @@ switch (mode)
     case "soute": Soute(); break;
     case "semis": Semis(); break;
     case "profil": Profil(); break;
+    case "centre": Centre(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -1314,4 +1315,61 @@ void Profil()
     var world = new World(region, iw, ih, grey, m => { }, imgs);
     for (double r = 0; r <= len; r += 5)
         Console.WriteLine($"  {r,5:F0} m : {world.HeightAt(px + Math.Sin(cap) * r, pz + Math.Cos(cap) * r),7:F2}");
+}
+
+/* LE CENTRE-VILLE D'UN PORT : l'axe trouve, les pates poses, et la carte des
+   rues (# pate, = pave, h maison semee, . herbe, : greve, ~ eau ; 6 m la case).
+     dotnet run --project core/NavalSim.Lab -c Release -- centre port-royal */
+void Centre()
+{
+    string key = args.Length > 1 ? args[1] : "port-royal";
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    var region = RegionSpec.FromJson(File.ReadAllText(Path.Combine(root, "world", "caraibes.json")));
+    var (iw, ih, grey) = GreyPng.Decode(File.ReadAllBytes(Path.Combine(root, region.Relief.Image)));
+    var imgs = new List<World.PatchImage>();
+    foreach (var pz in region.Patches)
+    {
+        string pi = Path.Combine(root, pz.Image);
+        if (!File.Exists(pi)) continue;
+        var (pw, ph, pg) = GreyPng.Decode(File.ReadAllBytes(pi));
+        imgs.Add(new World.PatchImage(pz, pw, ph, pg));
+    }
+    var world = new World(region, iw, ih, grey, m => { }, imgs);
+    var isl = world.ByKey(key);
+    if (isl == null) { Console.WriteLine("port inconnu"); return; }
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    var g = world.Grids.FirstOrDefault(q => q.Covers(isl.X, isl.Z, 600));
+    Console.WriteLine($"{isl.Name} : grilles tracees en {sw.ElapsedMilliseconds} ms");
+    if (g == null) { Console.WriteLine("  pas de centre-ville"); return; }
+    Console.WriteLine($"  axe {Math.Atan2(g.Ux, g.Uz) * 180 / Math.PI:F0} deg (cap de l axe, nord 0), centre ({g.Cx:F0}, {g.Cz:F0}), {g.Blocks.Count} pates");
+    var houses = Town.Plant(world, isl.X, isl.Z, 420, 150, 7920);
+    Console.WriteLine($"  {houses.Count} maisons semees autour");
+    const double cell = 6; int half = 50;
+    var map = new char[2 * half, 2 * half];
+    for (int j = 0; j < 2 * half; j++) for (int i = 0; i < 2 * half; i++)
+    {
+        double x = g.Cx + (i - half + 0.5) * cell, z = g.Cz + (j - half + 0.5) * cell;
+        double h = world.HeightAt(x, z);
+        map[j, i] = h <= 0 ? '~' : g.Paved(x, z) && h >= 1.2 ? '=' : h < 2 ? ':' : '.';
+    }
+    void Mark(double x, double z, char ch)
+    {
+        int i = (int)Math.Floor((x - g.Cx) / cell) + half, j = (int)Math.Floor((z - g.Cz) / cell) + half;
+        if (i >= 0 && i < 2 * half && j >= 0 && j < 2 * half) map[j, i] = ch;
+    }
+    foreach (var b in g.Blocks)
+    {
+        // l emprise du pate, echantillonnee
+        double ca = Math.Cos(b.Yaw), sa = Math.Sin(b.Yaw);
+        for (double a = -b.W / 1.8; a <= b.W / 1.8; a += 2) for (double d = -b.D / 1.8; d <= b.D / 1.8; d += 2)
+            Mark(b.X + a * ca + d * sa, b.Z - a * sa + d * ca, '#');
+    }
+    foreach (var h in houses) Mark(h.X, h.Z, 'h');
+    // nord en haut, est (-x) a droite
+    for (int j = 2 * half - 1; j >= 0; j--)
+    {
+        var line = new System.Text.StringBuilder();
+        for (int i = 2 * half - 1; i >= 0; i--) line.Append(map[j, i]);
+        Console.WriteLine("  " + line);
+    }
 }
