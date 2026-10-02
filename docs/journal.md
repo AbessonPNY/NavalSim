@@ -14007,6 +14007,18 @@ déplacée elle-même : elle bouge, tourne, grandit avec elle et s'éteint quand
 emporte ses cheminées (`AddChimneys`). Déplacée à la main, une fumée devient indépendante — on l'a mise
 ailleurs exprès. Son échelle est sa force. `settings.json` → `chimneys.enabled`.
 
+## La chaloupe prend son modèle (Godot)
+
+`godot-models/ships/models/chaloupe.glb` (hors page) : 1,9 × 0,46 × 0,68 unités, origine sous la quille, l'avant
+pointu vers +z. Ramené aux 7 m de la fiche (`model.glb`, `offset` [0, −0,44, 0] : la quille à `keelDepth +
+keelExtra` sous la flottaison).
+
+**Un piège** : une fiche qui prend un .glb voit son gréement procédural retiré (`_rig` libéré) — et avec lui
+les avirons, que la chaloupe dessine elle-même et qui balancent au rythme du solveur. Leur liste gardait des
+nœuds libérés. Ils sont désormais rebâtis par-dessus le modèle (`LoadModel`, `BuildOars`), aux tolets que
+les cotes de la fiche donnent. Vu : sur la grève, avirons au repos ; à flot, la chaloupe nage (l'œil de
+`--echouer` la suit désormais).
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

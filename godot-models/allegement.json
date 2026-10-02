@@ -6,5 +6,6 @@
   "props/tonneau.glb": { "page": false },
   "props/coffre_2k.glb": { "page": false },
   "props/planche.glb": { "page": false },
-  "props/cocotier_low.glb": { "page": false }
+  "props/cocotier_low.glb": { "page": false },
+  "ships/models/chaloupe.glb": { "page": false }
 }

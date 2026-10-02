@@ -176,6 +176,11 @@ public partial class ShipNode : Node3D
             AddChild(obj);
             ModelRoot = obj;
             RigModel();
+            /* LES AVIRONS NE SONT PAS DANS LE MODÈLE : ils balancent au rythme du
+               solveur, et le gréement procédural qui les portait vient de partir.
+               Sans les rebâtir, la chaloupe gardait une liste d'avirons libérés. */
+            _oars.Clear();
+            if (Spec.Oars != null) { _rig = new Node3D(); AddChild(_rig); BuildOars(); }
             FindGuns();
             // ce qui est dedans ne reçoit plus la lumière des fanaux du pont
             MarkInside();

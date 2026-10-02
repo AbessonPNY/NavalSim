@@ -176,6 +176,8 @@ public partial class ShipDemo : Node3D
     {
         if (_beachLog < 0) return;
         if (_beachShoveAt > 0 && _t >= _beachShoveAt) { _beachShoveAt = 0; GD.Print("[grève] N : " + BoatSwing()); }
+        // l'œil d'essai la suit, de trois quarts arrière
+        { var bp = _ship.Physics.Body.Pos; _fixEye = new Vector3((float)bp.X + 7, 3.5f, (float)bp.Z - 8); _fixLook = new Vector3((float)bp.X, 0.3f, (float)bp.Z); }
         if (_t < _beachLog) return;
         _beachLog = _t + 2;
         var p = _ship.Physics; var b = p.Body; var o = _sea.Core.Origin;
