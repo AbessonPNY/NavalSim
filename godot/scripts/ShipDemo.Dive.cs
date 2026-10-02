@@ -197,6 +197,18 @@ public partial class ShipDemo
         UpdateInfo();
     }
 
+    /// <summary>
+    /// ⇧" : RENTRÉE D'UN COUP, sans les quarante secondes du treuil — ce qu'on fait
+    /// quand on a vu ce qu'on voulait voir. Le treuil reste pour qui veut le temps
+    /// de la remontée (et l'air qui s'épuise, c'est lui qui la fait d'office).
+    /// </summary>
+    void StowBellNow()
+    {
+        if (!_bellOut || _bellForced) return;
+        _bellRope = 0;
+        StowBell();
+    }
+
     void TakeChest()
     {
         if (!_bellOut || _bellReach is not { } w || w.Looted) return;

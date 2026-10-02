@@ -2417,6 +2417,8 @@ public partial class ShipDemo : Node3D
                 // é en AZERTY (le 2 de la rangée du haut), ou le 2 du pavé : le mode cinéma, et retour
                 case Key.Key2 or Key.Kp2 when !k.ShiftPressed && !k.Echo: ToggleCinema(); break;
                 // " en AZERTY (le 3 du haut), ou le 3 du pavé : la cloche à l'eau, ou hissée
+                // ⇧" : la cloche rentrée d'un coup, sans attendre le treuil
+                case Key.Key3 or Key.Kp3 when k.ShiftPressed && !k.Echo: StowBellNow(); break;
                 case Key.Key3 or Key.Kp3 when !k.ShiftPressed && !k.Echo: ToggleBell(); break;
                 case Key.Enter or Key.KpEnter when _bellOut && !k.Echo: TakeChest(); break;
                 case Key.H: _info.Visible = !_info.Visible; break;
