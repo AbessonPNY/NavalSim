@@ -14138,6 +14138,16 @@ des bouffées plus larges (7 à 12 m) ; noir (0,06 à la sortie, 0,16 au bout) ;
 qu'au dernier tiers de la vie, au lieu de décroître dès la naissance. Le bassin passe à 3 072 bouffées : chacune
 vit trois fois plus. Vu après une minute : deux ou trois panaches noirs couchés par le vent au-dessus de la ville.
 
+## La chaloupe quitte le pont (Godot)
+
+Demandé : à la mise à l'eau, la chaloupe du modèle (posée sur ses chantiers)
+disparaît, celle qui nage prend sa place. La chaloupe à l'eau est un NAVIRE à part
+(ShipDemo.Boat.cs) ; celle du pont n'est qu'une pièce du modèle, reconnue à son nom
+(« chaloupe », « canot », « yole », « longboat » — ShipNode.DeckBoat.cs), cachée
+à la mise à l'eau et rendue au hissage. Et l'on affale désormais par le travers
+de SES CHANTIERS (4 m sur l'avant du milieu sur la Roter Löwe) au lieu d'une
+station fixe : elle descend d'où elle était.
+
 ## Les fenêtres, groupe par groupe (Godot)
 
 Le cottage du centre porte trois matières de fenêtres (`fenetre`, `fenetre_002`,

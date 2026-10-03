@@ -178,6 +178,8 @@ public partial class ShipNode : Node3D
             RigModel();
             // les cordages en rubans, une fois rangés à leurs mâts (ShipNode.Ropes.cs)
             RibbonRopes();
+            // la chaloupe posée sur le pont, qu'on cache quand elle est à l'eau (ShipNode.DeckBoat.cs)
+            FindDeckBoat();
             /* LES AVIRONS NE SONT PAS DANS LE MODÈLE : ils balancent au rythme du
                solveur, et le gréement procédural qui les portait vient de partir.
                Sans les rebâtir, la chaloupe gardait une liste d'avirons libérés. */

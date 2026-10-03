@@ -71,6 +71,8 @@ public partial class ShipDemo : Node3D
         TakeHelm(m);
         RemoveShip(boat);
         _mother = null;
+        // et la revoilà sur ses chantiers
+        m.ShowDeckBoat(true);
         /* SA BARRE LUI EST RENDUE — laissée en place pendant l'absence, elle
            chassait le navire à la barre, c'est-à-dire la chaloupe. */
         if (_motherHelm != null) { _helms[m] = _motherHelm; _motherHelm = null; }
@@ -208,9 +210,10 @@ public partial class ShipDemo : Node3D
             /* PAR LE TRAVERS BÂBORD, au pied de sa muraille : l'ancre pend au
                bossoir de tribord, et la chaloupe ne doit pas tomber dessus. À
                quai, le bord du LARGE — le plus loin de ses bittes —, sans quoi on
-               l'affalerait sur le ponton. */
+               l'affalerait sur le ponton. Et À LA HAUTEUR DE SES CHANTIERS : elle descend
+               d'où elle était posée sur le pont (ShipNode.DeckBoatZ), qu'on ne montre plus. */
             Vec3d Side(double sg) => b0.Quat.Rotate(
-                new Vec3d(sg * (mother.Spec.B * 0.5 + boat.Spec.B * 0.5 + 1.5), 0, -mother.Spec.L * 0.08));
+                new Vec3d(sg * (mother.Spec.B * 0.5 + boat.Spec.B * 0.5 + 1.5), 0, mother.DeckBoatZ ?? -mother.Spec.L * 0.08));
             var off = Side(1);
             if (mother.Physics.Moorings.Count > 0)
             {
@@ -242,6 +245,8 @@ public partial class ShipDemo : Node3D
 
             TakeHelm(boat);
             _mother = mother;
+            // elle a quitté ses chantiers : le pont n'en montre plus
+            mother.ShowDeckBoat(false);
             /* CELUI QU'ON QUITTE NE GARDE PAS SES ORDRES : il attend. Sa barre de
                réserve est mise de côté — laissée là, elle chassait le navire à la
                barre, c'est-à-dire la chaloupe, ancre ou pas. */
