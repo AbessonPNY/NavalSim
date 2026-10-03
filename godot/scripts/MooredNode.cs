@@ -133,6 +133,8 @@ public partial class MooredNode : Node3D
                de la Roter Löwe, mais ils sont à SON capitaine. Une coque au mouillage
                qui les porterait ferait croire à quinze téléporteurs en Jamaïque. */
             ShipNode.StripRings(root);
+            // ses cordages en rubans, comme sous voiles : un galion à quai ne scintille pas plus qu'en mer
+            if (spec.Model.Ribbons) ShipNode.ConvertRopes(root, spec, Hazed, $"rade {spec.Id}");
             Haze(root);
             /* SON ASSISE, DEMANDÉE AU SOLVEUR ET NON DEVINÉE. Un modèle ne porte pas
                sa flottaison : l origine d un .glb est là où Blender l a laissée. Poser

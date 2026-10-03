@@ -146,11 +146,22 @@ public partial class ShipNode
     {
         foreach (var (mi, m) in _snapped)
             if (m == mast && IsInstanceValid(mi)) mi.Visible = !gone;
+        /* ET CE QUI DÉPEND DE LUI PAR UN AUTRE BOUT (ShipNode.Ropes.cs) : une corde
+           tient tant que TOUS les mâts qui la tiennent sont debout. */
+        foreach (var (mi, masts) in _ropeDeps)
+        {
+            if (!masts.Contains(mast) || !IsInstanceValid(mi)) continue;
+            bool standing = true;
+            foreach (int k in masts) if (k >= 0 && k < _damage.Count && _damage[k].Down != null) standing = false;
+            mi.Visible = standing;
+        }
     }
 
     void ClearRig()
     {
         _snapped.Clear();
+        _ropeDeps.Clear();
+        _movers.Clear();
         _latPivot = null;
         _latYard = null;
         _latMast = -1;
@@ -552,6 +563,8 @@ public partial class ShipNode
             // son mât tombé, elle n'est plus gréée : le solveur ne la compte plus
             Physics.LateenUp = _latMast < 0 || _latMast >= _damage.Count || _damage[_latMast].Down == null;
         }
+        // les cordes accrochées aux espars qui viennent de tourner (ShipNode.Ropes.cs)
+        if (_movers.Count > 0) MoveRopes();
         /* ET LE CREUX PASSE AVEC LA BÔME.
          *
          * Le signe de l'angle des bras dit de quel bord la toile porte : l'angle

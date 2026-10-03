@@ -103,7 +103,8 @@ public partial class ShipNode
         f.W = 0.30 * f.Rate;                     // le coup ne le pousse pas
         d.Down = f;
         // passer par-dessus bord, c'est là que tout lâche à la fois
-        CutRigging(i, 4);
+        // tous ses cordages cassent, chacun une fois (CordageNode tire sans remise) — seize au plus
+        CutRigging(i, Math.Clamp(_damage[i].Cords.Count, 4, 16));
         SnapLines(i, true);          // et les cordages de ce mât s'en vont avec lui
         return true;
     }

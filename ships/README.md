@@ -314,7 +314,12 @@ Pour en modéliser d'autres dans Blender :
 - **une corde = un morceau non relié** : plusieurs splines dans un objet, oui ;
   deux cordes soudées en Y ou en filet seraient lues comme une seule ;
 - **un objet par mât** : quand un mât tombe, ses cordages cassent avec lui, et
-  chaque objet est rattaché au mât le plus proche de son milieu ;
+  chaque objet est rattaché au mât le plus proche de son milieu. Chaque corde de
+  plus de deux mètres laisse alors DEUX bouts rompus : l'un pend du mât qui s'en
+  va, l'autre de son point d'attache sur la coque, par-dessus bord (seize par
+  mât au plus) ;
+- un bout peut s'amarrer **sur une autre corde** (à moins de 30 cm d'elle) : il dépend alors des mâts de celle-ci, et casse quand l'un d'eux tombe ;
+- un bout amarré à une **vergue ou à l'antenne latine** (à moins de 50 cm de son axe) la suit quand on brasse ou qu'on change d'amure : la corde se tend entre ses deux attaches ;
 - une matière opaque et sombre : la corde prend sa couleur moyenne ; **sans matière**, elle prend `couleurCordage`.
 
 `"couleurCordage": "#4b3828"` (dans `model`) : la couleur des cordages tirés d'un plan texturé et de ceux qui n'ont pas de matière — la texture d'un plan n'est qu'un dessin de lignes, sa couleur ne dit rien. Absente : un brun de chanvre goudronné. Le gréement dormant était enduit de goudron de Norvège, brun profond, que le soleil et le sel ternissaient ; les manœuvres courantes, non goudronnées, étaient plus claires — un objet à part avec sa propre matière, si on veut les distinguer.

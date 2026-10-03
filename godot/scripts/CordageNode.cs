@@ -100,9 +100,15 @@ public partial class CordageNode : Node3D
         {
             var pool = s.CordAnchors(mast);
             if (pool.Count == 0) continue;
+            /* SANS REMISE : un mât qui tombe casse chacun de ses cordages une fois, et
+               non le même trois fois. Au-delà du nombre d'attaches, on recommence. */
+            var order = new List<int>(pool.Count);
             for (int k = 0; k < n; k++)
             {
-                var a = pool[(int)Math.Floor(_rng.NextDouble() * pool.Count)];
+                if (order.Count == 0) { for (int q = 0; q < pool.Count; q++) order.Add(q); }
+                int pick = (int)Math.Floor(_rng.NextDouble() * order.Count);
+                var a = pool[order[pick]];
+                order.RemoveAt(pick);
                 var w = a.Obj.GlobalTransform * a.At;
                 Core.Hang(new Vec3d(w.X, w.Y, w.Z), a.Len * (0.75 + _rng.NextDouble() * 0.5),
                     new Tag { Ship = s, Mast = mast, Epoch = s.RigEpoch, Obj = a.Obj, At = a.At });

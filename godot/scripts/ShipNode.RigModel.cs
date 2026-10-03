@@ -409,6 +409,11 @@ public partial class ShipNode
             {
                 // l'antenne du modèle est déjà ÉCARTÉE autour du mât (25 à 30°) : large en travers, pas mince
                 if (q == pole || q.Taken || Math.Abs(q.Mid.X) > 1.5) continue;
+                /* PAS UN CORDAGE : une corde tendue de l'artimon au grand mât est longue, mince
+                   et en biais comme une antenne — et plus grande qu'elle. Elle était prise
+                   pour l'antenne, la latine y pendait et tournait au vent (relevé :
+                   cordage_artimon.001). Les autres recherches d'espars les écartent déjà. */
+                if (Cordage.IsMatch(q.Mi.Name.ToString())) continue;
                 // au-dessus du pont, et jusqu'à mi-hauteur du mât au moins : le safran est long, mince et en biais lui aussi
                 if (q.Min.Y < deckAt(q.Mid.Z) - 0.5 || q.Max.Y < heel + 0.5 * pole.Size.Y) continue;
                 if (Math.Max(q.Size.Y, q.Size.Z) < 0.15 * Spec.L || Math.Abs(q.Mid.Z - cz) > 0.2 * Spec.L) continue;

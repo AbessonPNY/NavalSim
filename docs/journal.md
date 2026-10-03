@@ -14365,6 +14365,50 @@ partagent rope_ribbon.gdshaderinc ; ShipNode.RibbonMode bascule les navires à
 flot quand l'anticrénelage change. Pas reproduit caméra fixe : c'est le
 MOUVEMENT qui étale, et une capture fixe ne le montre pas.
 
+**Les cordages deviennent les bouts rompus.** Un mât abattu faisait disparaître
+ses cordages, et deux bouts génériques pendaient aux trois quarts de sa hauteur,
+sans rapport avec ce qu'il portait. La conversion rend maintenant chaque corde en
+ligne continue (les morceaux d'un hauban remis bout à bout au millimètre, l'axe
+d'un tube) ; chacune de plus de deux mètres donne deux attaches : son bout HAUT au
+mât qui tombe, son bout BAS à la coque — le hauban reste amarré au porte-hauban
+et pend par-dessus bord. 68 attaches sur la Roter Löwe ; à la chute, tous ses
+cordages cassent (seize au plus), TIRÉS SANS REMISE — le tirage d'avant pouvait
+prendre trois fois la même attache. Vu à la capture : le grand mât à l'eau, des
+bouts le long du bordé depuis les porte-haubans. Écart restant : les bouts rompus
+(CordageNode) gardent leur teinte fixe, claire au soleil, à côté des rubans bruns.
+
+Les navires AU MOUILLAGE passent par la même conversion (ShipNode.ConvertRopes,
+appelée par MooredNode) : ils étaient chargés à part et gardaient leurs tubes.
+
+**Les cordes accrochées à un espar qui pivote** (signalé : cordage_artimon.001,
+tendu de l'artimon au grand mât, se détachait au changement d'amure). Le mât
+d'artimon du modèle (Cylinder.014) porte DEUX primitives : le mât, et l'antenne
+latine (« marroon ») — c'est à elle que la corde est amarrée, et le jeu la fait
+tourner autour du mât avec le vent (_latPivot). Les mâts, eux, ne bougent pas :
+ce sont les espars des pivots (vergues brassées, antenne) qui tournent. Un bout de
+corde à moins d'un demi-mètre de l'axe d'un espar mobile lui est rattaché au
+chargement (point gardé dans le repère de l'espar) ; à chaque réglage de la
+toile, si un bout a bougé, la corde est redessinée tendue entre ses attaches, le
+déplacement réparti le long d'elle. Tubes seulement : un plan de haubans ne va
+pas à un espar et porte des enfléchures. 4 cordages suivent un espar sur la
+Roter Löwe.
+
+**Une corde amarrée sur une autre corde** (signalé : cordage_misaine.004, de la
+tête de misaine à l'étai du grand mât, restait en l'air quand le grand mât
+tombait). Une pièce n'était rangée qu'au mât le plus proche de son MILIEU. Chaque
+bout de corde est maintenant rapporté à ce qu'il touche : un espar d'un mât (à
+50 cm de son axe) ou, à défaut, une autre corde (à 30 cm) — dont il hérite TOUS
+les mâts, un étai tenant à ses deux mâts. Une pièce reste visible tant que tous
+les mâts qui la tiennent sont debout (SnapLines) ; et une corde d'un mât à l'autre
+laisse un bout rompu pendre du mât qui tient encore.
+
+En le vérifiant, un vrai défaut : la recherche de l'ANTENNE LATINE (longue, mince,
+en biais, près de l'artimon, la plus grande gagne) prenait cordage_artimon.001,
+plus grand que l'antenne elle-même — la latine pendait à la corde et tournait au
+vent avec elle. Les autres recherches d'espars écartaient les cordages ; celle-ci
+l'avait oublié. Écartée, la corde suit désormais la vraie antenne (5 cordages
+suivent un espar).
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code
