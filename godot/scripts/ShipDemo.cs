@@ -690,6 +690,8 @@ public partial class ShipDemo : Node3D
         vp.Msaa3D = s.Msaa switch { 0 => Viewport.Msaa.Disabled, 2 => Viewport.Msaa.Msaa2X, 8 => Viewport.Msaa.Msaa8X, _ => Viewport.Msaa.Msaa4X };
         vp.ScreenSpaceAA = s.ScreenAA switch { "fxaa" => Viewport.ScreenSpaceAAEnum.Fxaa, "smaa" => Viewport.ScreenSpaceAAEnum.Smaa, _ => Viewport.ScreenSpaceAAEnum.Disabled };
         vp.UseTaa = s.ScreenAA == "taa";
+        // les cordages en rubans changent de variante avec lui (rope_ribbon_taa.gdshader)
+        ShipNode.RibbonMode(vp.UseTaa);
 
         /* LA LUEUR de bloom.js. Son seuil et son genou sont lus sur l'image
            AFFICHÉE (0,72 ± 0,12) ; la lueur de Godot lit l'image LINÉAIRE, avant

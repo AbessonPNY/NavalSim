@@ -14320,6 +14320,51 @@ posée sur le meilleur fond du mérou, les lignes à vingt fois le temps, un
 pêcheur qui ferre à une demi-seconde) — 40 kg, retour au ponton, vente,
 achat du cotre, rang « Patron », quête achevée.
 
+## Le gréement en rubans (Godot)
+
+Demandé : un plan transparent par corde ou un maillage, pour les performances ?
+Ni l'un ni l'autre. Le plan texturé remplit des pixels transparents pour rien,
+doit être trié, fond en gris dans les mipmaps et disparaît vu par la tranche ; le
+cylindre coûte peu (quelques milliers de triangles pour un galion) mais tombe
+sous le pixel vers vingt-cinq mètres et SCINTILLE. Le masquer à distance ne
+sauvait rien : il faudrait couper dès 25 m, quand on lit encore un gréement à
+deux cents. Retenu : le ruban tourné vers l'œil, au plancher de 1,3 pixel, qui
+PÂLIT de ce qu'il s'élargit (opacité = vraie largeur / largeur dessinée) — la
+couverture à l'écran reste celle de la corde.
+
+Il ne se prépare pas dans Blender, et il n'a pas à l'être : on part du modèle.
+Sur la Roter Löwe, les haubans étaient des TRAPÈZES TEXTURÉS (matière
+« cordage », transparente : 6 haubans en colonnes et une enfléchure tous les
+quarante pixels sur une image de 250 × 1268), plus deux courbes de Bézier
+exportées en tubes. Les lignes de la texture sont lues une fois, puis suivies à
+travers les triangles du plan dans l'espace de la texture — chaque morceau est
+un tronçon 3D, d'épaisseur celle de la ligne rapportée à la dimension du plan à
+cet endroit. Les tubes sont coupés en tranches le long de leur axe principal.
+La PIÈCE GARDE SON NŒUD, seul son maillage change : elle reste pendue à son mât
+et casse avec lui. Résultat : 5 pièces, 880 tronçons, un appel de dessin par
+pièce.
+
+Vu de loin (≈ 150 m, captures agrandies côte à côte) : le plan texturé faisait un
+moiré sombre et piqueté — celui qui grouille quand le navire roule —, les rubans
+un voile égal où l'on lit encore les haubans. Coût mesuré de près : carte
+graphique 9,07 → 9,30 ms, rendu côté processeur 2,34 → 2,28 ms.
+
+**« Les haubans n'aiment pas le flou de profondeur de champ »** (capture : des
+voiles striés là où pendent les haubans). Deux causes, une par réglage. (1) La
+profondeur de champ lit le TAMPON DE PROFONDEUR, qu'un objet mélangé n'écrit pas :
+à l'endroit d'une corde, elle lisait le ciel derrière, l'infini, et la floutait
+comme l'horizon dès que le flou du loin est actif (600 m par défaut) — le ruban
+mélangé écrit désormais sa profondeur (depth_draw_always). (2) Sous TAA — le
+réglage du joueur, flou du loin coupé —, l'image est mêlée aux précédentes en
+suivant les vecteurs de mouvement, que seuls les OPAQUES écrivent : quand la
+caméra tourne ou que le navire roule, les pixels d'un ruban mélangé étaient
+déplacés comme ceux du ciel et étalés. Sous TAA le ruban passe donc OPAQUE et
+TRAMÉ (rope_ribbon_taa.gdshader, ALPHA_HASH_SCALE) : il a ses vecteurs, et sa
+pâleur au loin devient une part de pixels que le TAA moyenne. Les deux variantes
+partagent rope_ribbon.gdshaderinc ; ShipNode.RibbonMode bascule les navires à
+flot quand l'anticrénelage change. Pas reproduit caméra fixe : c'est le
+MOUVEMENT qui étale, et une capture fixe ne le montre pas.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

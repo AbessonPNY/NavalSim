@@ -134,6 +134,12 @@ public sealed class ModelSpec
     /// <summary>Le gain de pente du relief tiré de la rugosité (voir ReliefMap) ; absent, aucun.</summary>
     [JsonPropertyName("relief")]     public double? Relief { get; set; }
     /// <summary>
+    /// LES CORDAGES EN RUBANS (Godot) : les pièces de cordage du modèle — plans
+    /// texturés de haubans et d'enfléchures, tubes de cordes — redessinées en
+    /// rubans tournés vers l'œil, qui ne scintillent pas de loin. Voir ShipNode.Ropes.cs.
+    /// </summary>
+    [JsonPropertyName("rubans")]     public bool Ribbons { get; set; }
+    /// <summary>
     /// CE QUI TOURNE SUR ELLE — un anneau par ligne. La liste est FACULTATIVE :
     /// une piece du .glb dont le nom porte « anneau », « gyro » ou « ring » est
     /// reconnue et mise a tourner sans qu'on ecrive rien ici. Ces lignes ne

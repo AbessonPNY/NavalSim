@@ -71,6 +71,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `sound.js` | le bruit, et le temps qu'il met à venir |
 | `capture.js` | la capture d'écran (touche `I`), écrite par le serveur de dev |
 | `purse.js` | la bourse, le cours des épices, la poudre |
+| `ShipNode.Ropes.cs` · `rope_ribbon.gdshader` (Godot) | les cordages d'un modèle redessinés en rubans tournés vers l'œil (fiche : `model.rubans`) — lus sur ses plans texturés et ses tubes, rien à préparer |
 | `Fishing.cs` · `Shipyard.cs` (Godot) | la pêche à la ligne à main (`ShipDemo.Fishing.cs`, `fishing/` ; les prises sur le pont, avec leur physique et leur poids : `ShipDemo.DeckFish.cs`, `ShipNode.Deck.cs`) · le chantier où l'on change de bord (`ShipDemo.Yard.cs`, `market/chantier.json`) |
 
 Réglages de jeu : `settings.json` (son : musique d'ambiance, coupée par défaut ; rencontres, nuit, bloom, naufrage, tempête : foudre et kraken, baleine, serpent de mer, brume de surface et estime (Godot), fantômes, calendrier, climat, dauphins, rechargement des pièces et feu de bouche, incendie à bord, hommes sur le pont, caustiques du fond, bancs de poissons, navires au mouillage dans les ports).

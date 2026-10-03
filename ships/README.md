@@ -289,6 +289,34 @@ l'envers, donnez un `wheelTurns` négatif.
 Un objet de ce nom **sans maillage** (un nœud vide à l'export) est ignoré, et la
 console le signale : le safran dessiné reste alors en place.
 
+## Les cordages en rubans (Godot)
+
+`"model": { …, "rubans": true }` : les cordages du modèle sont redessinés en
+**rubans tournés vers l'œil**, qui gardent leur vraie épaisseur de près et ne
+descendent jamais sous ~1,3 pixel de loin — ils pâlissent au lieu de scintiller
+(`godot/scripts/ShipNode.Ropes.cs`, `godot/shaders/rope_ribbon.gdshader`). Rien à
+changer au modèle : le jeu lit ce qu'il contient.
+
+- **Un plan texturé** (haubans et enfléchures dessinés sur un trapèze, matière
+  transparente) : la texture est lue pour y trouver ses lignes — colonnes
+  opaques = haubans, rangées opaques = enfléchures —, et chaque ligne est suivie
+  à travers les triangles du plan.
+- **Un tube** (courbe de Bézier à épaisseur, ou cylindre) : chaque morceau non
+  relié est une corde, dont on retrouve l'axe et le rayon. Une corde qui pend
+  reste courbe.
+
+Pour en modéliser d'autres dans Blender :
+- une **courbe de Bézier avec une épaisseur de biseau** (Bevel Depth) égale au
+  vrai rayon — l'export glTF en fait un tube ; résolution de biseau basse
+  (0 à 2), seuls l'axe et le rayon sont lus ; deux points suffisent à une corde
+  tendue ;
+- un nom qui contient `cordage` (ou hauban, étai, rope…) : `cordage_grandmat_etai` ;
+- **une corde = un morceau non relié** : plusieurs splines dans un objet, oui ;
+  deux cordes soudées en Y ou en filet seraient lues comme une seule ;
+- **un objet par mât** : quand un mât tombe, ses cordages cassent avec lui, et
+  chaque objet est rattaché au mât le plus proche de son milieu ;
+- une matière opaque et sombre : la corde prend sa couleur moyenne.
+
 ## L'équipage
 
 `"equipage": 10` (facultatif, Godot) : les hommes du bord. La pêche en tire ses
