@@ -58,6 +58,7 @@ switch (mode)
     case "pontons": Pontons(); break;
     case "abri": Abri(); break;
     case "peche": Peche(); break;
+    case "virement": Virement(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -1069,6 +1070,50 @@ void Vent()
         Console.WriteLine();
     }
     Config.WindGain = 1.0; Config.WindHeel = 1.0;
+}
+
+/* LE VIREMENT DE BORD, ÉPROUVÉ : au près à 70° du vent, une minute et demie
+   d'erre, puis la barre pour passer le vent et prendre 70° de l'autre bord.
+   Passe-t-il le vent, en combien de temps, et jusqu'où tombe son erre — selon le
+   gain de vent (settings.json → wind.gain).
+     dotnet run --project core/NavalSim.Lab -c Release -- virement frigate17e 4 */
+void Virement()
+{
+    string name = args.Length > 1 ? args[1] : "frigate17e";
+    double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 4;
+    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    Console.WriteLine($"{spec.Name}, force {force:F0}, virement de 70° à -70° du vent");
+    foreach (double gain in new[] { 1.0, 2.0, 4.0, 8.0 })
+    {
+        Config.WindGain = gain;
+        var ocean = new Ocean { Swell = 1.0, Time = 0 };
+        ocean.SetSeaState(force, 0);
+        var p2 = new ShipPhysics(spec, new HullLines(spec));
+        var ctrl = new Controls { Throttle = 0, Rudder = 0, Sheet = 0.3, SailsSet = true };
+        p2.Settle(ocean, ctrl);
+        double y0 = 70 * Math.PI / 180;
+        p2.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), y0);
+        double dt = 1.0 / 60, t = 0, vMin = 99, vStart = 0, crossed = -1, done = -1, astern = 0, closest = 180;
+        for (int k = 0; k < 60 * 240; k++)
+        {
+            if (p2.OptSheet is double o) ctrl.Sheet = o;
+            var fw = p2.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+            double hdg = Math.Atan2(fw.X, fw.Z);
+            double target = t < 90 ? y0 : -y0;
+            ctrl.Rudder = Math.Clamp(-(Math.IEEERemainder(target - hdg, 2 * Math.PI)) * 3, -1, 1);
+            p2.Step(dt, ocean, ctrl, t); t += dt;
+            var v = p2.Body.Vel;
+            double sog = v.X * fw.X + v.Z * fw.Z;          // l'erre, signée : négative, il cule
+            if (t < 90) { vStart = sog; continue; }
+            vMin = Math.Min(vMin, sog);
+            closest = Math.Min(closest, Math.Abs(hdg) * 180 / Math.PI);
+            if (sog < 0) astern += dt;
+            if (crossed < 0 && hdg < 0) crossed = t - 90;
+            if (done < 0 && hdg < -y0 + 10 * Math.PI / 180) done = t - 90;
+        }
+        Console.WriteLine(FormattableString.Invariant($"gain {gain,3:F0} : erre {vStart / 0.5144,5:F2} nd ; passe le vent {(crossed < 0 ? "JAMAIS" : crossed.ToString("F0") + " s")}, à 60° de l'autre bord {(done < 0 ? "jamais" : done.ToString("F0") + " s")} ; erre au plus bas {vMin / 0.5144,5:F2} nd, à culer {astern:F0} s ; au plus près du vent {closest:F0}°"));
+    }
+    Config.WindGain = 1.0;
 }
 
 /* LA COQUE CATAPULTÉE PAR UNE CRÊTE : ce que fait son étrave quand elle sort de

@@ -2553,6 +2553,8 @@ public partial class ShipDemo : Node3D
     readonly Storms _storms = new();
     // la mer qui court après le vent, au plus à Weather.SeaRate
     double _lagForce = 4, _lagDir = 210, _windNowDeg = 210;
+    /// <summary>--vent-journal : le vent, toutes les deux secondes, pour l'essai.</summary>
+    int _windLog;
     bool _inSquall;
     Squall _squall;
     string? _seaMaster;
@@ -3890,6 +3892,7 @@ public partial class ShipDemo : Node3D
            mer retomberait d'un coup à ce qu'on avait réglé avant d'y entrer. */
         if (_weather.On || _inSquall) { _force = _lagForce; _windDeg = _windNowDeg; }
         _seaMaster = master;
+        if (_windLog > 0 && Math.Floor(tNow / 2) != Math.Floor((tNow - dt) / 2)) GD.Print(FormattableString.Invariant($"[vent] t {tNow:F0}  {_windNowDeg:F0}°  force {tgtF:F1}  maître {master ?? "console"}  grain {_inSquall}  centre {(_inSquall ? _squall.Dist : -1):F0} m  intensité {(_inSquall ? _squall.Inten : 0):F2}  météo {_weather.On} {_weather.Dir:F0}° {_weather.Force:F1}  cap {(Math.Atan2(-_ship.Physics.Body.Quat.Rotate(new Vec3d(0, 0, 1)).X, _ship.Physics.Body.Quat.Rotate(new Vec3d(0, 0, 1)).Z) * 180 / Math.PI + 360) % 360:F0}°  amure {_ship.Physics.Tack}  faseye {_ship.Physics.Luffing}"));
 
         // le quart de ciel noir vers le centre, et ses éclairs
         _sky.SetSquall(_inSquall ? new Vector2((float)_squall.ToX, (float)_squall.ToZ) : Vector2.Zero,
@@ -4717,6 +4720,7 @@ public partial class ShipDemo : Node3D
                 // l'ancre oubliée : en route machine avant toute à N s, on vire à M s ; relevé chaque seconde
                 case "--ancre-oubliee": _anchorTest = ParseVec(args[i + 1]); break;
                 // la pêche de bout en bout, au point vrai (x, z), les lignes accélérées : ShipDemo.Fishing.cs
+                case "--vent-journal": _windLog = 1; break;
                 case "--peche": _fishTest = ParseVec(args[i + 1]); _askTitle ??= false; break;
                 case "--coller": _edPasteTest = args[i + 1].ToInt(); _edTest = 1; _diveTestIn = 1.0; break;
                 // le pinceau, sans rien enregistrer : trois disques et une rue autour de (x, z) vrais

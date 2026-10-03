@@ -14138,6 +14138,28 @@ des bouffées plus larges (7 à 12 m) ; noir (0,06 à la sortie, 0,16 au bout) ;
 qu'au dernier tiers de la vie, au lieu de décroître dès la naissance. Le bassin passe à 3 072 bouffées : chacune
 vit trois fois plus. Vu après une minute : deux ou trois panaches noirs couchés par le vent au-dessus de la ville.
 
+## Virer de bord avec le gain de vent (Godot)
+
+Signalé : « très difficile de virer de bord avec ce vent », et le vent de Port-Royal
+« capricieux ». Le vent lui-même ne l'est pas : relevé toutes les deux secondes
+(`--vent-journal`), 105° et force 4 sans bouger météo coupée ; 102 à 110° et force
+2,9 à 6 en deux minutes et demie sous météo automatique ; la dépression voisine,
+à 4,7 km, d'intensité nulle. La physique lit un vent UNIFORME, et l'abri du rivage
+ne touche qu'à la houle.
+
+Le coupable était `wind.gain` = 8 (réglé le 1er octobre) : le gain multipliait la
+composante de la force des voiles dans l'axe DANS LES DEUX SENS, donc aussi le
+FREIN des voiles à contre quand l'étrave passe dans le lit du vent — huit fois trop.
+Banc « virement » (au près à 70°, puis la barre pour passer à −70°, force 4) :
+la Roter Löwe à gain 8 culait 103 s vent debout et ne passait jamais. Le gain ne
+multiplie plus que la poussée VERS L'AVANT (Boost) : à gain 8 elle passe le vent en
+60 s et cule encore 29 s. Le sloop vire en 3 s à gain 8, en 18 s à gain 2.
+
+Reste ce que le banc montre aussi : MÊME À GAIN 1, ni le galion (35° du vent au plus
+près) ni le sloop (18°) ne passent. Un galion virait mal — on virait souvent lof pour
+lof —, mais un sloop vire franchement ; ce que le modèle ne fait pas, c'est la
+manœuvre : les voiles d'avant mises à contre poussent l'étrave de l'autre bord.
+
 ## La chaloupe quitte le pont (Godot)
 
 Demandé : à la mise à l'eau, la chaloupe du modèle (posée sur ses chantiers)

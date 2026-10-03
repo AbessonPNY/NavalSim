@@ -433,11 +433,20 @@ public sealed partial class ShipPhysics
     /// contre 20 au naturel, et glissait en crabe (signalé). La composante en
     /// travers reste donc celle du vent réel — elle dérive comme un vrai navire,
     /// en allant plus vite. À gain 1, c'est la force elle-même, au bit près.
+    ///
+    /// ET SEULEMENT QUAND ELLE POUSSE. Le gain multipliait aussi la force vers
+    /// l'ARRIÈRE — celle des voiles qui prennent le vent à contre quand l'étrave
+    /// passe dans son lit : à gain 8, elles freinaient huit fois trop, le navire
+    /// s'arrêtait net et culait, et ne virait plus de bord (signalé ; mesuré au banc
+    /// « virement » : le galion culait cent trois secondes, vent debout). Le gain est
+    /// un réglage de MARCHE ; un frein reste un vrai frein.
     /// </summary>
     static Vec3d Boost(in Vec3d f, in Vec3d fwd)
     {
         var ax = new Vec3d(fwd.X, 0, fwd.Z).Normalized();
-        return f + ax * ((Config.WindGain - 1) * f.Dot(ax));
+        double along = f.Dot(ax);
+        if (along <= 0) return f;
+        return f + ax * ((Config.WindGain - 1) * along);
     }
 
     static double SmoothStep(double a, double b, double x)
