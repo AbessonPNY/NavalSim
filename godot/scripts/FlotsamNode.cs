@@ -119,7 +119,7 @@ public partial class FlotsamNode : Node3D
             foreach (var (name, k) in _def)
             {
                 if (!root.TryGetProperty(name, out var j)) continue;
-                double D(string f, double v) => j.TryGetProperty(f, out var e) && e.ValueKind == System.Text.Json.JsonValueKind.Number ? e.GetDouble() : v;
+                double D(string f, double v) => j.Num(f, v);
                 k.Scale = D("scale", k.Scale); k.Draft = D("draft", k.Draft); k.Life = D("life", k.Life);
                 k.PickupRadius = D("pickupRadius", k.PickupRadius); k.PickupSpeed = D("pickupSpeed", k.PickupSpeed);
                 k.Visible = D("visible", k.Visible);
@@ -159,7 +159,7 @@ public partial class FlotsamNode : Node3D
         var o = sea.Origin;
         var pb = player.Physics.Body;
         double px = pb.Pos.X + o.X, pz = pb.Pos.Z + o.Z;
-        double pv = Math.Sqrt(pb.Vel.X * pb.Vel.X + pb.Vel.Z * pb.Vel.Z);
+        double pv = pb.Vel.LengthXZ;
         var wind = sea.WindVec;
 
         for (int i = _items.Count - 1; i >= 0; i--)
@@ -358,7 +358,7 @@ public partial class FlotsamNode : Node3D
     {
         if (_hazePass == null)
         {
-            _hazePass = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+            _hazePass = HazePass.New();
             _hazed.Add(_hazePass);
         }
         return new StandardMaterial3D
@@ -383,23 +383,7 @@ public partial class FlotsamNode : Node3D
         ["plank"] = 1.8f, ["barrel"] = 0.9f, ["bottle"] = 0.31f, ["cargo"] = 1.8f
     };
 
-    static Aabb Box(Node3D root)
-    {
-        Aabb? box = null;
-        var stack = new Stack<(Node, Transform3D)>();
-        stack.Push((root, Transform3D.Identity));
-        while (stack.Count > 0)
-        {
-            var (n, t) = stack.Pop();
-            foreach (var c in n.GetChildren()) stack.Push((c, c is Node3D c3 ? t * c3.Transform : t));
-            if (n is MeshInstance3D mi && mi.Mesh != null)
-            {
-                var b = t * mi.Mesh.GetAabb();
-                box = box is Aabb a ? a.Merge(b) : b;
-            }
-        }
-        return box ?? new Aabb();
-    }
+    static Aabb Box(Node3D root) => NodeWalk.Bounds(root) ?? new Aabb();
 
     Node3D? Model(string rel)
     {
@@ -410,28 +394,10 @@ public partial class FlotsamNode : Node3D
         string path = Assets.Path(rel);
         if (System.IO.File.Exists(path))
         {
-            var doc = new GltfDocument();
-            var state = new GltfState();
-            if (doc.AppendFromFile(path, state) == Error.Ok && doc.GenerateScene(state) is Node3D r)
+            if (Assets.LoadGlb(path) is Node3D r)
             {
                 Mat("#000000", 1);      // la passe de brume existe
-                var done = new HashSet<Material>();
-                var stack = new Stack<Node>();
-                stack.Push(r);
-                while (stack.Count > 0)
-                {
-                    var n = stack.Pop();
-                    foreach (var c in n.GetChildren()) stack.Push(c);
-                    if (n is not MeshInstance3D mi || mi.Mesh == null) continue;
-                    for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
-                    {
-                        var mat = mi.GetSurfaceOverrideMaterial(i) ?? mi.Mesh.SurfaceGetMaterial(i);
-                        if (mat == null || mat is ShaderMaterial || !done.Add(mat)) continue;
-                        var last = mat;
-                        while (last.NextPass != null && last.NextPass != _hazePass) last = last.NextPass;
-                        last.NextPass = _hazePass;
-                    }
-                }
+                HazePass.Chain(r, _hazePass!);
                 root = r;
                 var bx = _boxes[rel] = Box(r);
                 GD.Print(FormattableString.Invariant($"débris : {rel} chargé, {bx.Size.X:F2} x {bx.Size.Y:F2} x {bx.Size.Z:F2} dans son repère"));

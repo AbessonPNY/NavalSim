@@ -95,7 +95,7 @@ public sealed class Pirate
                 var o = fleet[i];
                 if (o.Physics == self || o.Hostile || o.Physics.Foundered) continue;
                 if (Ignore.TryGetValue(o.Physics, out double until) && until > t) continue;
-                double d = Hyp(o.Physics.Body.Pos.X - b.Pos.X, o.Physics.Body.Pos.Z - b.Pos.Z);
+                double d = MathX.Hyp(o.Physics.Body.Pos.X - b.Pos.X, o.Physics.Body.Pos.Z - b.Pos.Z);
                 if (d < bd) { bd = d; prey = o.Physics; preyBat = o.Battery; }
             }
             Cible = prey;
@@ -111,7 +111,7 @@ public sealed class Pirate
         if (prey == null) { helm.Standoff = Garde; helm.Target = player.Body.Pos; return null; }
 
         var pb = prey.Body;
-        double dist = Hyp(pb.Pos.X - b.Pos.X, pb.Pos.Z - b.Pos.Z);
+        double dist = MathX.Hyp(pb.Pos.X - b.Pos.X, pb.Pos.Z - b.Pos.Z);
 
         if (State == Phase.Chasse)
         {
@@ -132,7 +132,7 @@ public sealed class Pirate
             ? pb.Pos - f * (Lp * 0.5 + Le * 0.5 + 12)
             : pb.Pos - f * (Lp * 0.2) + s * (side * (Bp * 0.5 + Be * 0.5 + 1.5));
 
-        double vrel = Hyp(b.Vel.X - pb.Vel.X, b.Vel.Z - pb.Vel.Z);
+        double vrel = MathX.Hyp(b.Vel.X - pb.Vel.X, b.Vel.Z - pb.Vel.Z);
         if (dist < (Lp + Le) * 0.45 && vrel < 2.5 && Grappled) Tenu += dt; else Tenu = Math.Max(0, Tenu - dt * 0.5);
         if (dist > 1500) { State = Phase.Chasse; return null; }        // elle lui a échappé
         if (Tenu < 5) return null;
@@ -141,7 +141,7 @@ public sealed class Pirate
         Ignore[prey] = t + 900;
         State = Phase.Fuite;
         FuiteJusque = t + 180;
-        double ax = b.Pos.X - pb.Pos.X, az = b.Pos.Z - pb.Pos.Z, al = Hyp(ax, az);
+        double ax = b.Pos.X - pb.Pos.X, az = b.Pos.Z - pb.Pos.Z, al = MathX.Hyp(ax, az);
         if (al == 0) al = 1;
         Fuite = new Vec3d(b.Pos.X + ax / al * 3000, 0, b.Pos.Z + az / al * 3000);
         Cible = null;
@@ -192,5 +192,4 @@ public sealed class Pirate
 
     public void Rebase(double dx, double dz) => Fuite = new Vec3d(Fuite.X - dx, Fuite.Y, Fuite.Z - dz);
 
-    static double Hyp(double a, double b) => Math.Sqrt(a * a + b * b);
 }

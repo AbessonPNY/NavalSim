@@ -85,13 +85,6 @@ public partial class ShipNode
     readonly record struct MastAt(Node3D Parent, double Z, double Foot, double Height, double Radius);
     readonly List<MastAt> _masts = new();
 
-    /// <summary>« 0xece4d2 », tel que la page le lit : une couleur sRGB.</summary>
-    static Color Hex(string s)
-    {
-        int v = Convert.ToInt32(s.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? s[2..] : s, 16);
-        return Color.Color8((byte)(v >> 16), (byte)(v >> 8), (byte)v);
-    }
-
     static string RepoRoot =>
         System.IO.Path.GetDirectoryName(ShipLibrary.Folder.TrimEnd('/', '\\')) ?? "";
 
@@ -210,7 +203,7 @@ public partial class ShipNode
         if (Spec.Oars is not NavalSim.Core.OarsSpec O) return;
         var L = Lines;
         double len = O.Length;
-        var spar = MakeHullMaterial(Hex(Spec.Appearance.Spar), 0.62f);
+        var spar = MakeHullMaterial(ColorX.Hex(Spec.Appearance.Spar), 0.62f);
         var loomMesh = Cylinder(0.03, 0.04, len, 8);
         var bladeMesh = new BoxMesh { Size = new Vector3(0.8f, 0.022f, 0.16f) };
         for (int i = 0; i < O.Pairs; i++)
@@ -290,7 +283,7 @@ public partial class ShipNode
         BuildOars();                                    // une chaloupe n'a que cela
         if (spec.Masts.Count == 0) return;              // un bâtiment à la seule machine
         double sc = spec.L / 24;                          // les espars grossissent avec elle
-        var spar = MakeHullMaterial(Hex(spec.Appearance.Spar), 0.62f);
+        var spar = MakeHullMaterial(ColorX.Hex(spec.Appearance.Spar), 0.62f);
         foreach (var m in spec.Masts)
         {
             /* CHAQUE MÂT DANS SON GROUPE, articulé à son pied — celui qui tombe.
@@ -473,8 +466,8 @@ public partial class ShipNode
     {
         var m = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/sail.gdshader") };
         m.SetShaderParameter(UCanvasFloor, (float)CanvasFloor);
-        m.SetShaderParameter(U.Canvas, Hex(Spec.Appearance.Canvas));
-        m.SetShaderParameter(U.Emissive, Hex("0x8d866f"));
+        m.SetShaderParameter(U.Canvas, ColorX.Hex(Spec.Appearance.Canvas));
+        m.SetShaderParameter(U.Emissive, ColorX.Hex("0x8d866f"));
         if (mapSrc != null)
         {
             var img = Image.LoadFromFile(System.IO.Path.Combine(RepoRoot, mapSrc));

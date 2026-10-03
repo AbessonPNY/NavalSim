@@ -146,7 +146,7 @@ public partial class ShipDemo
             if (_glassUp) { Say("Baissez d abord la lunette"); return; }
             if (_ship.Physics.Foundered) return;
             var v = _ship.Physics.Body.Vel;
-            if (Math.Sqrt(v.X * v.X + v.Z * v.Z) > 0.8)
+            if (v.LengthXZ > 0.8)
             {
                 Say("Pour mettre la cloche à l'eau, il faut être stoppé : en panne ou au mouillage");
                 return;

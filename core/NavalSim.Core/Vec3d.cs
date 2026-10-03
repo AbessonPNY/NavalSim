@@ -48,6 +48,8 @@ public struct Vec3d : IEquatable<Vec3d>
 
     public readonly double LengthSquared => X * X + Y * Y + Z * Z;
     public readonly double Length => Math.Sqrt(LengthSquared);
+    /// <summary>La longueur dans le plan horizontal : la vitesse sur l'eau, une distance sur la carte.</summary>
+    public readonly double LengthXZ => Math.Sqrt(X * X + Z * Z);
 
     public readonly double Dot(in Vec3d b) => X * b.X + Y * b.Y + Z * b.Z;
 

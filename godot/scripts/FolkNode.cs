@@ -89,7 +89,7 @@ public partial class FolkNode : Node3D
             if (pente > PenteMax) continue;
 
             var mat = (ShaderMaterial)f.Material.Duplicate();
-            var haze = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+            var haze = HazePass.New();
             mat.NextPass = haze;
             Hazed.Add(haze);
 

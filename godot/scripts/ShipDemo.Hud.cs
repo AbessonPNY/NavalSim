@@ -116,8 +116,8 @@ public partial class ShipDemo
             {
                 var b = _ship.Physics.Body;
                 var f = b.Quat.Rotate(new Vec3d(0, 0, 1));
-                double hdg = (Math.Atan2(-f.X, f.Z) * 180 / Math.PI + 360) % 360;      // l'est est −x
-                double kn = Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z) * Config.MsToKn;
+                double hdg = Compass.HeadingDeg(f);      // l'est est −x
+                double kn = b.Vel.LengthXZ * Config.MsToKn;
                 // et, s'il est amené, ce que tout le monde voit d'abord : pas de couleurs
                 _navLine.Text = $"cap {hdg:F0}°    {kn:F1} nds" + (_colours ? "" : "\nsans pavillon");
             }
@@ -136,7 +136,7 @@ public partial class ShipDemo
                 $"vent {_windNowDeg:F0}°   force {_sea.Core.SeaState:F1} · {Config.Beaufort[bf].Name}"
                 + (_seaMaster != null ? " · " + _seaMaster : "") + "\n" +
                 $"{_climate.Word()}{tombe}\n" +
-                (_inSquall ? $"dépression à {_squall.Dist / 1852:F1} mille(s) du centre\n" : "") +
+                (_inSquall ? $"dépression à {_squall.Dist / Config.Mile:F1} mille(s) du centre\n" : "") +
                 $"{_calendar.Date:dd/MM/yyyy}   {(int)h:00}:{(int)((h - Math.Floor(h)) * 60):00}\n" +
                 // la vue où l on est, sous l heure : C les fait défiler sans dire laquelle on tient
                 $"vue : {CamName()}";
@@ -201,5 +201,41 @@ public partial class ShipDemo
             DrawLine(new Vector2(0.28f * w, 0.28f * h), new Vector2(0.72f * w, 0.66f * h), gold, 1.4f, true);
             DrawLine(new Vector2(0.72f * w, 0.28f * h), new Vector2(0.28f * w, 0.66f * h), gold, 1.4f, true);
         }
+    }
+
+
+    /// <summary>L'élan de B, en fois la poussée de la machine ; et le délai d'un double appui, en ms.</summary>
+    const double BoostThrust = 45;
+    const ulong BoostTwice = 400;
+    ulong _boostTap;
+
+    CanvasLayer _hud = null!;
+    CompassNode? _compass;
+
+    /* LA BOUSSOLE, en bas à droite, DANS l'image : au-dessus de la bande du
+       masque de cinéma quand il est mis. Cachée avec les instruments, sous la
+       carte ouverte (elle la répète) et à l'écran de titre. */
+    void CompassTick()
+    {
+        if (_compass == null || _chart == null) return;
+        /* ET PAS PAR-DESSUS LE COMPTOIR. Le panneau du port occupe tout le côté
+           droit, la boussole est en bas à droite : les deux se recouvraient et
+           aucun des deux ne se lisait. Le comptoir ne s ouvre que navire STOPPÉ à
+           quai — on n y gouverne pas, donc la boussole n y sert à rien. C est la
+           même règle que sous la carte ouverte, pour la même raison. */
+        _compass.Visible = _hudOn && !_chartOpen && !_inTitle && _mkPanel?.Visible != true;
+        if (!_compass.Visible) return;
+        var s = GetViewport().GetVisibleRect().Size;
+        float bottom = 0, right = 0;
+        if (FilmMaskOn)
+        {
+            if (s.X / s.Y < FilmAspect) bottom = (s.Y - s.X / FilmAspect) * 0.5f;
+            else right = (s.X - s.Y * FilmAspect) * 0.5f;
+        }
+        _compass.Position = new Vector2(s.X - right - _compass.Size.X - 18, s.Y - bottom - _compass.Size.Y - 18);
+        var (x, z) = Believed();
+        var f = _ship.Physics.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+        double heading = Compass.HeadingDeg(f);   // l'est est −x
+        _compass.Show(_chart, x, z, heading, _windNowDeg, _compass.Radius / MetresPerMinute);   // une minute d arc est un mille
     }
 }

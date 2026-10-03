@@ -95,13 +95,12 @@ public partial class ShipDemo
     /* A COLOUR OVERRIDE IS A THEME CHANGE: redraw, minimum size, notification.
        Set every frame it was all three, for a colour that changes when a gun
        fires. Written on change only. */
-    static readonly StringName FontColorName = "font_color";
     readonly Dictionary<Control, Color> _fontCol = new();
     void FontColour(Control c, Color col)
     {
         if (_fontCol.TryGetValue(c, out var was) && was == col) return;
         _fontCol[c] = col;
-        c.AddThemeColorOverride(FontColorName, col);
+        c.AddThemeColorOverride(FontColor, col);
     }
 
     /// <summary>Sous le curseur d'écoute, et muet quand les instruments le sont ou qu'elle n'a pas de batterie.</summary>

@@ -96,7 +96,7 @@ public partial class ShipDemo
             double t = t0;
             for (int k = 0; k < sub; k++) { h.Phys.Step(dt, _sea.Core, _adrift, t); t += dt; }
             var b = h.Phys.Body;
-            h.Node.Position = new Vector3((float)b.Pos.X, (float)b.Pos.Y, (float)b.Pos.Z);
+            h.Node.Position = b.Pos.ToGodot();
             h.Node.Quaternion = new Quaternion((float)b.Quat.X, (float)b.Quat.Y, (float)b.Quat.Z, (float)b.Quat.W).Normalized();
             /* LES BRAISES S'ÉTEIGNENT, en une vingtaine de secondes, et sous l'eau
                d'un coup : la matière est aux deux tranches à la fois. */

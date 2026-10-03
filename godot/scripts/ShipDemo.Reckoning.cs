@@ -45,7 +45,7 @@ public partial class ShipDemo : Node3D
     }
 
     /// <summary>Une minute d'arc de latitude, en mètres de jeu.</summary>
-    double MetresPerMinute => 1852 * (_world?.Region.Scale ?? 1);
+    double MetresPerMinute => Config.Mile * (_world?.Region.Scale ?? 1);
 
     void ReckonTick(double dt)
     {
@@ -64,7 +64,7 @@ public partial class ShipDemo : Node3D
         {
             var b = _ship.Physics.Body;
             var f = b.Quat.Rotate(new Vec3d(0, 0, 1));
-            double bearing = (Math.Atan2(-f.X, f.Z) * 180 / Math.PI + 360) % 360;   // l'est est −x
+            double bearing = Compass.HeadingDeg(f);   // l'est est −x
             double rate = _sky.DayRate > 0 ? _sky.DayRate : 2.0;
             _reck.Step(dt, b.Vel.X, b.Vel.Z, bearing, _reckRules.GlassMinutes / rate);
         }

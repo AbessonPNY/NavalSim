@@ -77,18 +77,18 @@ public sealed class Freight
         if (e.ValueKind != JsonValueKind.Object) return null;
         var f = new Freight
         {
-            Unload = QuestStep.Str(e, "unload"),
-            Pay = QuestStep.Opt(e, "pay") ?? 0
+            Unload = Js.Str(e, "unload"),
+            Pay = Js.Opt(e, "pay") ?? 0
         };
         if (e.TryGetProperty("needs", out var n) && n.ValueKind == JsonValueKind.Object)
         {
-            f.Needs = QuestStep.Str(n, "kind");
-            f.NeedsTonnes = QuestStep.Opt(n, "tonnes") ?? 0;
+            f.Needs = Js.Str(n, "kind");
+            f.NeedsTonnes = Js.Opt(n, "tonnes") ?? 0;
         }
         if (e.TryGetProperty("load", out var l) && l.ValueKind == JsonValueKind.Object)
         {
-            f.Load = QuestStep.Str(l, "kind");
-            f.LoadTonnes = QuestStep.Opt(l, "tonnes") ?? 0;
+            f.Load = Js.Str(l, "kind");
+            f.LoadTonnes = Js.Opt(l, "tonnes") ?? 0;
         }
         return f;
     }
@@ -116,10 +116,10 @@ public sealed class QuestStep
     {
         var step = new QuestStep
         {
-            Title = Str(s, "title"), Brief = Str(s, "brief"), Message = Str(s, "message"),
-            Goal = Quests.GoalOf(Str(s, "goal")),
-            Radius = Opt(s, "radius"), MaxSpeed = Opt(s, "maxSpeed"), Hold = Opt(s, "hold"),
-            Kg = Opt(s, "kg"), Rank = Str(s, "rang")
+            Title = Js.Str(s, "title"), Brief = Js.Str(s, "brief"), Message = Js.Str(s, "message"),
+            Goal = Quests.GoalOf(Js.Str(s, "goal")),
+            Radius = Js.Opt(s, "radius"), MaxSpeed = Js.Opt(s, "maxSpeed"), Hold = Js.Opt(s, "hold"),
+            Kg = Js.Opt(s, "kg"), Rank = Js.Str(s, "rang")
         };
         if (s.TryGetProperty("cargo", out var cg)) step.Cargo = Freight.FromJson(cg);
         if (s.TryGetProperty("at", out var at) && at.ValueKind == JsonValueKind.Object)
@@ -127,17 +127,13 @@ public sealed class QuestStep
             {
                 // « island » est l'ancien nom du champ, du temps où chaque port était une île
                 Port = at.TryGetProperty("port", out var p) && p.ValueKind == JsonValueKind.String
-                     ? p.GetString()! : Str(at, "island"),
-                Bearing = Opt(at, "bearing"), Miles = Opt(at, "miles"), Distance = Opt(at, "distance"),
-                Lat = Opt(at, "lat"), Lon = Opt(at, "lon"), X = Opt(at, "x"), Z = Opt(at, "z")
+                     ? p.GetString()! : Js.Str(at, "island"),
+                Bearing = Js.Opt(at, "bearing"), Miles = Js.Opt(at, "miles"), Distance = Js.Opt(at, "distance"),
+                Lat = Js.Opt(at, "lat"), Lon = Js.Opt(at, "lon"), X = Js.Opt(at, "x"), Z = Js.Opt(at, "z")
             };
         return step;
     }
 
-    internal static string Str(JsonElement e, string k) =>
-        e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString()! : "";
-    internal static double? Opt(JsonElement e, string k) =>
-        e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : null;
 }
 
 /// <summary>Une quête lue dans <c>quests/*.json</c>. Le format est dans <c>quests/README.md</c>.</summary>
@@ -193,21 +189,19 @@ public sealed class QuestSpec
         var r = doc.RootElement;
         var q = new QuestSpec
         {
-            Id = Str(r, "id"), Title = Str(r, "title"), Summary = Str(r, "summary"),
-            Intro = Str(r, "intro"), Outro = Str(r, "outro"), Region = Str(r, "region")
+            Id = Js.Str(r, "id"), Title = Js.Str(r, "title"), Summary = Js.Str(r, "summary"),
+            Intro = Js.Str(r, "intro"), Outro = Js.Str(r, "outro"), Region = Js.Str(r, "region")
         };
-        if (Str(r, "kind") is { Length: > 0 } kind) q.Kind = kind;
+        if (Js.Str(r, "kind") is { Length: > 0 } kind) q.Kind = kind;
         if (r.TryGetProperty("chapter", out var ch) && ch.ValueKind == JsonValueKind.Number) q.Chapter = ch.GetInt32();
-        q.Ship = Str(r, "ship");
-        q.Rank = Str(r, "rang");
+        q.Ship = Js.Str(r, "ship");
+        q.Rank = Js.Str(r, "rang");
         if (r.TryGetProperty("bourse", out var bo) && bo.ValueKind == JsonValueKind.Number) q.Purse = bo.GetDouble();
         if (r.TryGetProperty("steps", out var steps) && steps.ValueKind == JsonValueKind.Array)
             foreach (var st in steps.EnumerateArray())
                 q.Steps.Add(QuestStep.FromJson(st));
         return q;
 
-        static string Str(JsonElement e, string k) =>
-            e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString()! : "";
     }
 }
 
@@ -278,7 +272,7 @@ public sealed class Quests
     /// <summary>Le rayon par défaut de chaque sorte d'objectif, en mètres.</summary>
     public static double Radius(Goal g) => g switch
     {
-        Goal.Leave => 1852,   // hors du cercle : un mille franc d'une rade
+        Goal.Leave => Config.Mile,   // hors du cercle : un mille franc d'une rade
         Goal.Stop => 250,
         Goal.Dock => 450,
         _ => 300
@@ -341,7 +335,7 @@ public sealed class Quests
         {
             // relèvement VRAI depuis le port (0 nord, 90 est — et l'est est −x ici)
             double b = (a.Bearing ?? 0) * Math.PI / 180;
-            double d = a.Miles != null ? a.Miles.Value * 1852 : (a.Distance ?? 0);
+            double d = a.Miles != null ? a.Miles.Value * Config.Mile : (a.Distance ?? 0);
             x = isl.X - Math.Sin(b) * d;
             z = isl.Z + Math.Cos(b) * d;
         }

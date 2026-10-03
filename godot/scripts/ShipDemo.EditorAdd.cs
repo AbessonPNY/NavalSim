@@ -284,30 +284,12 @@ public partial class ShipDemo
         string path = Assets.Path(rel);
         if (System.IO.File.Exists(path))
         {
-            var doc = new GltfDocument();
-            var state = new GltfState();
-            if (doc.AppendFromFile(path, state) == Error.Ok && doc.GenerateScene(state) is Node3D root)
+            if (Assets.LoadGlb(path) is Node3D root)
             {
-                Aabb? box = null;
-                var stack = new Stack<(Node, Transform3D)>();
-                stack.Push((root, Transform3D.Identity));
-                var haze = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+                Aabb? box = NodeWalk.Bounds(root);
+                var haze = HazePass.New();
                 _editHazed.Add(haze);
-                while (stack.Count > 0)
-                {
-                    var (n, t) = stack.Pop();
-                    foreach (var c in n.GetChildren()) stack.Push((c, c is Node3D c3 ? t * c3.Transform : t));
-                    if (n is not MeshInstance3D mi || mi.Mesh == null) continue;
-                    var b = t * mi.Mesh.GetAabb();
-                    box = box is Aabb a0 ? a0.Merge(b) : b;
-                    for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
-                        if (mi.GetActiveMaterial(i) is BaseMaterial3D bm)
-                        {
-                            var own = (BaseMaterial3D)bm.Duplicate();
-                            own.NextPass = haze;           // l'air devant, comme tout ce qui est à terre
-                            mi.SetSurfaceOverrideMaterial(i, own);
-                        }
-                }
+                foreach (var mi in NodeWalk.Meshes(root)) HazePass.Wear(mi, haze);   // l'air devant, comme tout ce qui est à terre
                 if (box is Aabb bb && bb.Size.Length() > 1e-5f)
                 {
                     float ext = Math.Max(bb.Size.X, Math.Max(bb.Size.Y, bb.Size.Z));

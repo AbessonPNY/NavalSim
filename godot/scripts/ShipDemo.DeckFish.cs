@@ -91,9 +91,7 @@ public partial class ShipDemo
     {
         string path = Assets.Path(rel);
         if (!System.IO.File.Exists(path)) return null;
-        var doc = new GltfDocument();
-        var state = new GltfState();
-        if (doc.AppendFromFile(path, state) != Error.Ok || doc.GenerateScene(state) is not Node3D obj)
+        if (Assets.LoadGlb(path) is not Node3D obj)
         {
             GD.PushWarning($"[pêche] {rel} illisible");
             return null;
@@ -259,13 +257,13 @@ public partial class ShipDemo
            qu'un objet posé sur le pont ressent. Le roulis et le tangage y sont,
            puisque c'est le pont qui a tourné sous la verticale. */
         var b = _ship.Physics.Body;
-        var vel = new Vector3((float)b.Vel.X, (float)b.Vel.Y, (float)b.Vel.Z);
+        var vel = b.Vel.ToGodot();
         var acc = (vel - _shipVelPrev) / (float)Math.Max(dt, 1e-3);
         _shipVelPrev = vel;
         // une image lente, une mise à l'eau, un saut : pas de coup de pied à tout ce qui est posé
         if (acc.Length() > 30) acc = Vector3.Zero;
         var inv = _ship.GlobalTransform.Basis.Inverse();
-        var gLocal = inv * (new Vector3(0, -9.81f, 0) - acc);
+        var gLocal = inv * (new Vector3(0, -(float)NavalSim.Core.Config.G, 0) - acc);
 
         bool moving = false;
         int steps = Math.Clamp((int)Math.Ceiling(dt / (1.0 / 90)), 1, 6);

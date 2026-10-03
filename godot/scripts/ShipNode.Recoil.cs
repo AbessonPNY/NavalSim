@@ -189,7 +189,7 @@ public partial class ShipNode
         var paired = new List<GunPiece>();
         foreach (var g in Battery.Guns)
         {
-            var at = new Vector3((float)g.P.X, (float)g.P.Y, (float)g.P.Z);
+            var at = g.P.ToGodot();
             GunPiece? best = null; float near = float.MaxValue;
             foreach (var p in free)
             {
@@ -244,7 +244,7 @@ public partial class ShipNode
             double back;
             if (t < 0 || t > all) { back = 0; p.Fired = -1; }
             else if (t < outIn) { double u = t / outIn; back = u * u * (3 - 2 * u); }
-            else if (t > all - runOut) { double u = Math.Clamp((all - t) / runOut, 0, 1); back = u * u * (3 - 2 * u); }
+            else if (t > all - runOut) { back = MathX.Smooth01((all - t) / runOut); }
             else back = 1;
             p.Pivot.Position = p.Home + p.Back * (float)(back * Kick);
         }

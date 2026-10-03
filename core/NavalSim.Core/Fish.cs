@@ -49,7 +49,7 @@ public sealed class FishSettings
     public static FishSettings FromJson(JsonElement k)
     {
         var f = new FishSettings();
-        double D(string n, double v) => k.TryGetProperty(n, out var e) && e.ValueKind == JsonValueKind.Number ? e.GetDouble() : v;
+        double D(string n, double v) => k.Num(n, v);
         if (k.TryGetProperty("enabled", out var on) && (on.ValueKind == JsonValueKind.False || on.ValueKind == JsonValueKind.True))
             f.Enabled = on.GetBoolean();
         f.Shoals = (int)Math.Clamp(D("bancs", f.Shoals), 0, 12);

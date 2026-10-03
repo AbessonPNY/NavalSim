@@ -81,7 +81,7 @@ public partial class LightningNode : Node3D
                couverts paraît soudain gris acier sous le coup. */
             var lamp = new OmniLight3D
             {
-                LightColor = Hex(FlashColour),
+                LightColor = ColorX.Hex(FlashColour),
                 LightEnergy = 0,
                 OmniRange = (float)FlashRange,
                 OmniAttenuation = 1.0f,
@@ -91,13 +91,6 @@ public partial class LightningNode : Node3D
             AddChild(lamp);
             _bolts[i] = new Bolt { Mesh = mi, Mat = mat, Lamp = lamp };
         }
-    }
-
-    /// <summary>« 0xccdcff », tel que la page le lit : une couleur sRGB.</summary>
-    static Color Hex(string s)
-    {
-        int v = Convert.ToInt32(s.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? s[2..] : s, 16);
-        return Color.Color8((byte)(v >> 16), (byte)(v >> 8), (byte)v);
     }
 
     double R() => _rng.NextDouble();
@@ -123,7 +116,7 @@ public partial class LightningNode : Node3D
         b.Lamp.Position = b.Bottom + (b.Top - b.Bottom).Normalized() * LampUp;
         b.Lamp.OmniRange = (float)FlashRange;
         b.Lamp.ShadowEnabled = FlashShadow;
-        b.Lamp.LightColor = Hex(FlashColour);
+        b.Lamp.LightColor = ColorX.Hex(FlashColour);
         b.Lamp.Visible = FlashEnergy > 0;
     }
 

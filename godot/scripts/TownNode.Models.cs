@@ -77,9 +77,7 @@ public partial class TownNode
     {
         string path = Assets.Path(rel);
         if (!System.IO.File.Exists(path)) { GD.PushWarning($"[ville] {rel} introuvable — maisons en boîtes."); return null; }
-        var doc = new GltfDocument();
-        var state = new GltfState();
-        if (doc.AppendFromFile(path, state) != Error.Ok || doc.GenerateScene(state) is not Node3D root)
+        if (Assets.LoadGlb(path) is not Node3D root)
         {
             GD.PushWarning($"[ville] {rel} illisible — maisons en boîtes.");
             return null;

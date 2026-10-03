@@ -291,7 +291,7 @@ public partial class ShipNode
         if (e.ValueKind == JsonValueKind.String)
         {
             string s = e.GetString() ?? "";
-            return Convert.ToInt32(s.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? s[2..] : s, 16);
+            return ColorX.ParseHex(s);
         }
         return fallback;
     }
@@ -374,7 +374,7 @@ public partial class ShipNode
             pivot.AddChild(new MeshInstance3D
             {
                 Mesh = Cylinder(0.007, 0.007, line, 5),
-                MaterialOverride = MakeHullMaterial(Hex("0x3a2e22"), 0.9f),
+                MaterialOverride = MakeHullMaterial(ColorX.Hex("0x3a2e22"), 0.9f),
                 Position = new Vector3(0, -line / 2, 0),
                 CastShadow = GeometryInstance3D.ShadowCastingSetting.Off
             });
@@ -469,12 +469,12 @@ public partial class ShipNode
             var S = L.Swing;
             if (S == null) continue;
             var pp = S.Pivot.Position;
-            Vec3d r = b.Quat.Rotate(new Vec3d(pp.X, pp.Y, pp.Z));        // le crochet, depuis son origine
+            Vec3d r = b.Quat.Rotate(pp.ToCore());        // le crochet, depuis son origine
             var w = b.AngVel;
             Vec3d hookVel = new Vec3d(w.Y * r.Z - w.Z * r.Y, w.Z * r.X - w.X * r.Z, w.X * r.Y - w.Y * r.X) + b.Vel;
             Vec3d d = S.Pend.Step(hookVel, dt);
             Vec3d dl = b.Quat.Inverted().Rotate(d);                       // dans son repère
-            var to = new Vector3((float)dl.X, (float)dl.Y, (float)dl.Z).Normalized();
+            var to = dl.ToGodot().Normalized();
             S.Pivot.Quaternion = new Quaternion(Vector3.Down, to);
         }
     }
@@ -576,7 +576,7 @@ public partial class ShipNode
             group.AddChild(new MeshInstance3D
             {
                 Mesh = Cylinder(0.022, 0.025, 0.14, 10),
-                MaterialOverride = MakeHullMaterial(Hex("0xefe6cf"), 0.7f),
+                MaterialOverride = MakeHullMaterial(ColorX.Hex("0xefe6cf"), 0.7f),
                 Position = new Vector3(0, -0.085f, 0),
                 CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
                 /* ET ELLE EST DEDANS PAR DÉFINITION. MarkInside ne parcourt que le
@@ -594,7 +594,7 @@ public partial class ShipNode
            coque), et la même convention d'énergie que le soleil. */
         L.Light = new OmniLight3D
         {
-            LightColor = Hex("0xffb765"),
+            LightColor = ColorX.Hex("0xffb765"),
             LightEnergy = 0,
             OmniRange = (float)(26 * k),
             OmniAttenuation = 1.0f,
@@ -740,7 +740,7 @@ public partial class ShipNode
                    blanc, la carte est là et ne donne rien. */
                 mat.EmissionEnabled = true;
                 if (mat.Emission.R == 0 && mat.Emission.G == 0 && mat.Emission.B == 0)
-                    mat.Emission = hasMap ? Colors.White : Hex("0xffb765");
+                    mat.Emission = hasMap ? Colors.White : ColorX.Hex("0xffb765");
                 double b = mat.EmissionEnergyMultiplier > 0 ? mat.EmissionEnergyMultiplier : 1;
                 _nightMats.Add((mat, b * gain));
                 mat.EmissionEnergyMultiplier = 0;
@@ -843,7 +843,7 @@ public partial class ShipNode
             far = Math.Pow(FarFrom / d, FarFade);
             farSize = Math.Max(FarMinSize, Math.Sqrt(far));
         }
-        far *= Math.Sqrt(sky.HazeTransmit(new Vec3d(camPos.X, camPos.Y, camPos.Z), new Vec3d(gp.X, gp.Y, gp.Z)));
+        far *= Math.Sqrt(sky.HazeTransmit(camPos.ToCore(), gp.ToCore()));
 
         foreach (var L in _lanterns)
         {

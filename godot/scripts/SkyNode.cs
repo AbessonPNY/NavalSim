@@ -105,8 +105,7 @@ public partial class SkyNode : Node3D
     {
         get
         {
-            double x = Math.Clamp((Gloom - OvercastFrom) / (OvercastFull - OvercastFrom), 0, 1);
-            return x * x * (3 - 2 * x);
+            return MathX.SmoothStep(OvercastFrom, OvercastFull, Gloom);
         }
     }
     /// <summary>La part du soleil qui passe encore, pour l'ombre des coques sur l'eau.</summary>
@@ -208,7 +207,7 @@ public partial class SkyNode : Node3D
         /* LA LUMIÈRE DIRECTE VIENT DE LA LUNE LA NUIT, quand elle est levée : c'est
            la seule lampe du ciel, et ses ombres doivent tomber de son côté. */
         var d = Core.LightDir;
-        var dir = new Vector3((float)d.X, (float)d.Y, (float)d.Z);
+        var dir = d.ToGodot();
 
         // une lumière directionnelle regarde le long de son -Z : elle est donc
         // placée du côté de l'astre et braquée sur l'origine
@@ -285,7 +284,7 @@ public partial class SkyNode : Node3D
     public void PushGlobals(double cloud, double skyTime)
     {
         var d = Core.SunDir;
-        RenderingServer.GlobalShaderParameterSet(U.Sun, new Vector3((float)d.X, (float)d.Y, (float)d.Z));
+        RenderingServer.GlobalShaderParameterSet(U.Sun, d.ToGodot());
         RenderingServer.GlobalShaderParameterSet(U.Zenith, new Vector3((float)Core.Zenith.R, (float)Core.Zenith.G, (float)Core.Zenith.B));
         RenderingServer.GlobalShaderParameterSet(U.Horizon, new Vector3((float)Core.Horizon.R, (float)Core.Horizon.G, (float)Core.Horizon.B));
         RenderingServer.GlobalShaderParameterSet(U.Storm, (float)Core.Storm);
@@ -306,7 +305,7 @@ public partial class SkyNode : Node3D
     {
         if (m == null || SkyIsGlobal(m)) return;
         var d = Core.SunDir;
-        m.SetShaderParameter(U.Sun, new Vector3((float)d.X, (float)d.Y, (float)d.Z));
+        m.SetShaderParameter(U.Sun, d.ToGodot());
         // Vector3 et non Color : ces valeurs sont deja lineaires, et passer par
         // un Color sur un uniforme `source_color` les convertirait une fois de trop.
         m.SetShaderParameter(U.Zenith, new Vector3((float)Core.Zenith.R, (float)Core.Zenith.G, (float)Core.Zenith.B));
@@ -318,7 +317,7 @@ public partial class SkyNode : Node3D
         // la nuit sur l'eau : sa lumière propre, et la lune avec sa route
         m.SetShaderParameter(U.WaterLight, (float)Core.WaterLight);
         var md = Core.MoonDir;
-        m.SetShaderParameter(U.Moon, new Vector3((float)md.X, (float)md.Y, (float)md.Z));
+        m.SetShaderParameter(U.Moon, md.ToGodot());
         m.SetShaderParameter(U.MoonLit, (float)Core.SeaMoonLit);
         // la lumière qui traverse la toile suit celle du soleil : sa couleur,
         // à la moitié de son intensité, comme uSunCol dans la page

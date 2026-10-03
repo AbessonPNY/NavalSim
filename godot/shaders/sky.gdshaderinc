@@ -189,14 +189,18 @@ float naval_stars(vec3 dir) {
 	return smoothstep(0.17, 0.02, r) * (0.28 + 0.95 * mag);
 }
 
-float naval_noise2(vec2 p) {
+/* VALUE NOISE ON A UNIT GRID, written once for every includer of the sky: the
+   clouds (seed 7), the sea's ripples and foam patches (seed 3) and the sail's
+   burn and tear edges (seed 0). The seed is the third coordinate of the hash,
+   so each user keeps the exact field it had when it carried its own copy. */
+float naval_value_noise(vec2 p, float seed) {
 	vec2 i = floor(p);
 	vec2 f = fract(p);
 	f = f * f * (3.0 - 2.0 * f);
-	float a = naval_hash13(vec3(i, 7.0));
-	float b = naval_hash13(vec3(i + vec2(1.0, 0.0), 7.0));
-	float c = naval_hash13(vec3(i + vec2(0.0, 1.0), 7.0));
-	float d = naval_hash13(vec3(i + vec2(1.0, 1.0), 7.0));
+	float a = naval_hash13(vec3(i, seed));
+	float b = naval_hash13(vec3(i + vec2(1.0, 0.0), seed));
+	float c = naval_hash13(vec3(i + vec2(0.0, 1.0), seed));
+	float d = naval_hash13(vec3(i + vec2(1.0, 1.0), seed));
 	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
@@ -225,12 +229,12 @@ float naval_noise2(vec2 p) {
  * vent cisaille. */
 float naval_fbm(vec2 p, float warp) {
 	if (warp > 0.001) {
-		vec2 w = vec2(naval_noise2(p * 0.63 + 11.3), naval_noise2(p * 0.63 + 47.1)) - 0.5;
+		vec2 w = vec2(naval_value_noise(p * 0.63 + 11.3, 7.0), naval_value_noise(p * 0.63 + 47.1, 7.0)) - 0.5;
 		p += w * warp;
 	}
-	float f  = naval_noise2(p) * 0.55;
-	f += naval_noise2(p * 2.13 + 3.7) * 0.28;
-	f += naval_noise2(p * 4.37 + 9.1) * 0.17;
+	float f  = naval_value_noise(p, 7.0) * 0.55;
+	f += naval_value_noise(p * 2.13 + 3.7, 7.0) * 0.28;
+	f += naval_value_noise(p * 4.37 + 9.1, 7.0) * 0.17;
 	return f;
 }
 

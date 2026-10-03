@@ -285,7 +285,7 @@ public partial class SoundNode : Node3D
         if (p == null) return false;
         p.Bus = inside ? "Master" : OutBus;
         p.Stream = stream;
-        p.GlobalPosition = new Vector3((float)at.X, (float)at.Y, (float)at.Z);
+        p.GlobalPosition = at.ToGodot();
         // une voix n'est pas un coup de canon : ni variation de hauteur, ni filtre de l'air
         p.PitchScale = 1;
         p.VolumeDb = Mathf.LinearToDb((float)Math.Clamp(gain, 0.001, 1));
@@ -355,7 +355,7 @@ public partial class SoundNode : Node3D
         var stream = bag[(int)(_rng.Randf() * bag.Count) % bag.Count];
         var cam = GetViewport().GetCamera3D();
         if (cam == null) return;
-        var pos = new Vector3((float)at.X, (float)at.Y, (float)at.Z);
+        var pos = at.ToGodot();
         double d = pos.DistanceTo(cam.GlobalPosition);
         if (d > Portee) return;
 
@@ -393,7 +393,7 @@ public partial class SoundNode : Node3D
     {
         var cam = GetViewport().GetCamera3D();
         if (cam == null) return;
-        double d = new Vector3((float)at.X, (float)at.Y, (float)at.Z).DistanceTo(cam.GlobalPosition);
+        double d = at.ToGodot().DistanceTo(cam.GlobalPosition);
         string key = d > Loin ? (Knows("loin") ? "loin" : "pres")
                               : (Knows("pres") ? "pres" : "loin");
         // jamais deux fois le même coup : la charge était dosée à la main
@@ -475,7 +475,7 @@ public partial class SoundNode : Node3D
         var cam0 = GetViewport().GetCamera3D();
         if (cam0 != null && (Knows("tonnerre-pres") || Knows("tonnerre-loin")))
         {
-            double dd = new Vector3((float)at.X, (float)at.Y, (float)at.Z).DistanceTo(cam0.GlobalPosition);
+            double dd = at.ToGodot().DistanceTo(cam0.GlobalPosition);
             string k = dd > TonnerreLoin ? (Knows("tonnerre-loin") ? "tonnerre-loin" : "tonnerre-pres")
                                          : (Knows("tonnerre-pres") ? "tonnerre-pres" : "tonnerre-loin");
             // jamais deux fois le même coup : un peu de hauteur en moins ou en plus

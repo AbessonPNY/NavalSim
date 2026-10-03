@@ -53,9 +53,7 @@ public partial class FishNode : Node3D
             GD.PushWarning($"poissons : modèle introuvable ({path})");
             return false;
         }
-        var doc = new GltfDocument();
-        var state = new GltfState();
-        if (doc.AppendFromFile(path, state) != Error.Ok || doc.GenerateScene(state) is not Node3D root)
+        if (Assets.LoadGlb(path) is not Node3D root)
         {
             GD.PushWarning($"poissons : {path} illisible");
             return false;

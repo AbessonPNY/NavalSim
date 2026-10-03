@@ -131,9 +131,9 @@ public static class ShipLibrary
                 using var doc = JsonDocument.Parse(System.IO.File.ReadAllText(fichier));
                 if (doc.RootElement.TryGetProperty("ships", out var arr) && arr.ValueKind == JsonValueKind.Array)
                     foreach (var e in arr.EnumerateArray())
-                        demandes.Add((Txt(e, "ship"), Txt(e, "label"),
+                        demandes.Add((Js.Str(e, "ship"), Js.Str(e, "label"),
                                       e.TryGetProperty("year", out var y) && y.TryGetInt32(out int yy) ? yy : 0,
-                                      Txt(e, "image"), Txt(e, "locked")));
+                                      Js.Str(e, "image"), Js.Str(e, "locked")));
             }
             catch (Exception ex) { GD.PushWarning($"libre.json illisible ({ex.Message}) : tout le dossier est offert"); }
         }
@@ -182,6 +182,4 @@ public static class ShipLibrary
         return listing;
     }
 
-    static string Txt(JsonElement e, string k)
-        => e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
 }

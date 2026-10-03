@@ -44,7 +44,7 @@ public partial class SplinterNode : Node3D
             // la couleur est par instance : chêne brut pour un éclat, bois patiné pour une planche
             VertexColorUseAsAlbedo = true, Roughness = 0.9f,
             // elles respirent le même air que la coque
-            NextPass = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") }
+            NextPass = HazePass.New()
         };
         Hazed.Add((ShaderMaterial)wood.NextPass);
         _mm = new MultiMesh
@@ -135,13 +135,13 @@ public partial class SplinterNode : Node3D
             var p = _live[i];
             p.T += dt;
             if (p.T >= p.Life) continue;
-            p.V.Y -= 9.81f * fdt;                // le bois seul est lourd
+            p.V.Y -= (float)NavalSim.Core.Config.G * fdt;                // le bois seul est lourd
             p.P += p.V * fdt;
             double s = sea.Sample(p.P.X, p.P.Z, t);
             if (p.P.Y < s && p.V.Y < 0)
             {
                 // un éclat fait la gerbe d'un éclat
-                spray.Burst(new Vec3d(p.P.X, p.P.Y, p.P.Z), 4.5 * p.K, -p.V.Y, 2.2);
+                spray.Burst(p.P.ToCore(), 4.5 * p.K, -p.V.Y, 2.2);
                 continue;
             }
             p.Rot += p.W * fdt;

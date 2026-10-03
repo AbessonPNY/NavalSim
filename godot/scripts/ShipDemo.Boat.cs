@@ -65,7 +65,7 @@ public partial class ShipDemo : Node3D
                            + (b.Pos.Z - m.Physics.Body.Pos.Z) * (b.Pos.Z - m.Physics.Body.Pos.Z));
         if (d > m.Spec.L * 0.55 + m.Spec.B + 6)
             return _ship.Physics.Aground > 0.02 || _shove != null ? Shove() : "Trop loin du navire pour crocher les palans";
-        if (Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z) > 1.2) return "Trop d'erre pour crocher les palans";
+        if (b.Vel.LengthXZ > 1.2) return "Trop d'erre pour crocher les palans";
 
         var boat = _ship;
         TakeHelm(m);
@@ -184,14 +184,14 @@ public partial class ShipDemo : Node3D
         _beachLog = _t + 2;
         var p = _ship.Physics; var b = p.Body; var o = _sea.Core.Origin;
         GD.Print(FormattableString.Invariant(
-            $"[grève] t {_t:F0}  cap {Math.Atan2(b.Quat.Rotate(new Vec3d(0, 0, 1)).X, b.Quat.Rotate(new Vec3d(0, 0, 1)).Z) * 180 / Math.PI:F0}°  ({b.Pos.X:F1}, {b.Pos.Z:F1})  sol {_world!.HeightAt(o.X + b.Pos.X, o.Z + b.Pos.Z):F2}  touche {p.Aground:F2}  pelles {p.OarInput[0]:F1}/{p.OarInput[1]:F1}  vitesse {Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z):F2}"));
+            $"[grève] t {_t:F0}  cap {Math.Atan2(b.Quat.Rotate(new Vec3d(0, 0, 1)).X, b.Quat.Rotate(new Vec3d(0, 0, 1)).Z) * 180 / Math.PI:F0}°  ({b.Pos.X:F1}, {b.Pos.Z:F1})  sol {_world!.HeightAt(o.X + b.Pos.X, o.Z + b.Pos.Z):F2}  touche {p.Aground:F2}  pelles {p.OarInput[0]:F1}/{p.OarInput[1]:F1}  vitesse {b.Vel.LengthXZ:F2}"));
     }
 
     string Lower()
     {
         if (_ship.Spec.Boat.Length == 0) return "Ce navire ne porte pas de chaloupe";
         var b0 = _ship.Physics.Body;
-        if (Math.Sqrt(b0.Vel.X * b0.Vel.X + b0.Vel.Z * b0.Vel.Z) > 1.5)
+        if (b0.Vel.LengthXZ > 1.5)
             return "Trop d'erre pour mettre la chaloupe à l'eau";
         if (_fleet.Count >= Config.MaxShips) return "Plus de place à flot pour la chaloupe";
         int idx = _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == _ship.Spec.Boat

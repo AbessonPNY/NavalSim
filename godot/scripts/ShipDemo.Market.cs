@@ -104,15 +104,7 @@ public partial class ShipDemo : Node3D
             AnchorLeft = 1, AnchorRight = 1, OffsetLeft = -392, OffsetRight = -14, OffsetTop = 130,
             Visible = false
         };
-        _mkPanel.AddThemeStyleboxOverride("panel", new StyleBoxFlat
-        {
-            BgColor = new Color(0.04f, 0.06f, 0.09f, 0.78f),
-            BorderColor = new Color(0.55f, 0.44f, 0.20f, 0.8f),
-            BorderWidthLeft = 1, BorderWidthRight = 1, BorderWidthTop = 1, BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6,
-            CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
-            ContentMarginLeft = 14, ContentMarginRight = 14, ContentMarginTop = 10, ContentMarginBottom = 12
-        });
+        _mkPanel.AddThemeStyleboxOverride("panel", SidePanelStyle());
         var box = new VBoxContainer();
         box.AddThemeConstantOverride("separation", 6);
         _mkPanel.AddChild(box);
@@ -120,9 +112,7 @@ public partial class ShipDemo : Node3D
 
         Label L(string text, int size, Color col)
         {
-            var l = new Label { Text = text };
-            l.AddThemeFontSizeOverride("font_size", size);
-            l.AddThemeColorOverride("font_color", col);
+            var l = MkLabel(text, size, col);
             box.AddChild(l);
             return l;
         }
@@ -199,13 +189,8 @@ public partial class ShipDemo : Node3D
         row.AddThemeConstantOverride("separation", 8);
         Label C(string text, int size, Color col, HorizontalAlignment al, int min)
         {
-            var l = new Label
-            {
-                Text = text, HorizontalAlignment = al, CustomMinimumSize = new Vector2(min, 0),
-                SizeFlagsHorizontal = min == 0 ? Control.SizeFlags.ExpandFill : Control.SizeFlags.Fill
-            };
-            l.AddThemeFontSizeOverride("font_size", size);
-            l.AddThemeColorOverride("font_color", col);
+            var l = MkLabel(text, size, col, expand: min == 0, minW: min,
+                            right: al == HorizontalAlignment.Right, centre: al == HorizontalAlignment.Center);
             l.TooltipText = w.Note;
             row.AddChild(Ellipse(l));
             return l;
@@ -334,7 +319,7 @@ public partial class ShipDemo : Node3D
            Le seuil laisse le poste d'amarrage dedans — Berth.At met le bordé à
            4,5 m du tablier — et rien au-delà d'une largeur de navire. */
         var bv = _ship.Physics.Body.Vel;
-        double erre = Math.Sqrt(bv.X * bv.X + bv.Z * bv.Z);
+        double erre = bv.LengthXZ;
         _alongside = erre <= 0.8 && MarketOpen && _portHere != null && Alongside(_portHere);
         if (_mkPanel.Visible)
         {
@@ -347,7 +332,7 @@ public partial class ShipDemo : Node3D
             if (_mkState != null)
                 _mkState.Text = !MarketOpen
                         ? FormattableString.Invariant($"comptoir fermé — il ouvre à {Ouvre:F0} h")
-                    : erre > 0.8 ? FormattableString.Invariant($"trop d'erre pour commercer — {erre * 1.94384:F1} nds")
+                    : erre > 0.8 ? FormattableString.Invariant($"trop d'erre pour commercer — {erre * Config.MsToKn:F1} nds")
                     : !_alongside ? "au large du ponton"
                     : "comptoir ouvert";
             /* LE RAYON DISPARAÎT, IL NE SE GRISE PAS. Des boutons gris qu'on ne peut

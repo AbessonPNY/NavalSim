@@ -35,6 +35,7 @@ render_mode cull_disabled;
 // la MÊME lumière que le sable au-dessous : un banc qui passe sous une nervure
 // la prend sur le dos, et c'est ce qui le pose DANS l'eau au lieu de dessus
 #include "res://shaders/caustics.gdshaderinc"
+#include "res://shaders/naval_hash.gdshaderinc"
 
 /* LE SENS DU MODÈLE : +1 si son nez est vers +Z, −1 s'il regarde l'autre bord.
    Un demi-tour, et non une convention imposée au modeleur : on ne devine pas de
@@ -60,8 +61,7 @@ varying float v_belly;    // 1 sur le dos, 0 sous le ventre
 varying float v_along;    // 0 à la queue, 1 au nez
 varying vec3 v_tint;
 
-// un nombre au hasard, stable, tiré de la phase du poisson
-float grain(float s, float k) { return fract(sin(s * 43758.5 + k * 127.1) * 12345.678); }
+// un nombre au hasard, stable, tiré de la phase du poisson : naval_rand (naval_hash.gdshaderinc)
 
 void vertex() {
 	// le demi-tour d'abord : tout ce qui suit travaille sur un poisson qui
@@ -79,8 +79,8 @@ void vertex() {
 	float s = clamp((V0.z - u_fish_tail) / max(u_fish_nose - u_fish_tail, 1e-4), 0.0, 1.0);
 	v_along = s;
 	v_belly = clamp(0.5 + V0.y / max(u_fish_half, 1e-4) * 0.5, 0.0, 1.0);
-	v_tint = u_fish_tint * (1.0 - u_fish_vary * 0.5 + u_fish_vary * grain(c.x, 3.0))
-	       + vec3(grain(c.x, 7.0) - 0.5, grain(c.x, 11.0) - 0.5, grain(c.x, 13.0) - 0.5) * u_fish_vary * 0.35;
+	v_tint = u_fish_tint * (1.0 - u_fish_vary * 0.5 + u_fish_vary * naval_rand(c.x, 3.0))
+	       + vec3(naval_rand(c.x, 7.0) - 0.5, naval_rand(c.x, 11.0) - 0.5, naval_rand(c.x, 13.0) - 0.5) * u_fish_vary * 0.35;
 
 	/* SA RONDE. La vitesse est donnée en longueurs de corps par seconde — c'est
 	   ainsi qu'on mesure un poisson, et cela fait qu'un gros va plus vite qu'un

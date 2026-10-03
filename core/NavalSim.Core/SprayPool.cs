@@ -91,7 +91,7 @@ public sealed class SprayPool
            repliée. Sauf le petit corps très rapide, qui tire un jet de Worthington
            bien plus haut que sa cavité : l'appelant relève alors le plafond. */
         double j = Math.Max(1, jet);
-        double vMax = Math.Sqrt(2 * 9.81 * 1.05 * R) * j;
+        double vMax = Math.Sqrt(2 * Config.G * 1.05 * R) * j;
         double v0 = Math.Min(vMax, (0.6 + speed * 0.85) * froude);
         // et la FORME suit le même nombre : une cavité étroite tire droit, une colonne
         double tight = Math.Min(1, Math.Max(0, (j - 1) / 2.0));
@@ -162,7 +162,7 @@ public sealed class SprayPool
             // partie quand elle est retombée d'où elle venait, ou quand son temps est fini
             if (u >= 1 || (d.V.Y < 0 && d.P.Y < d.Y0 - 0.35)) { d.On = false; continue; }
 
-            d.V = new Vec3d(d.V.X, d.V.Y - 9.81 * dt, d.V.Z) * Math.Max(0, 1 - d.K * dt);
+            d.V = new Vec3d(d.V.X, d.V.Y - Config.G * dt, d.V.Z) * Math.Max(0, 1 - d.K * dt);
             d.P = d.P + d.V * dt;
             // renvoyée par une coque, ou restée sur son pont
             bool alive = true;

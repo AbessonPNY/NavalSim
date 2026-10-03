@@ -241,8 +241,7 @@ public sealed partial class ShipPhysics
            d'étrave et le sillage appartiennent tous à une coque qui FEND l'eau ;
            une fois dessous ils doivent partir, sans quoi un anneau d'écume reste
            à chevaucher l'épave avec rien dessous. */
-        double u = Math.Min(1, Math.Max(0, (SubmergedFrac - 0.78) / (0.95 - 0.78)));
-        Afloat = 1 - u * u * (3 - 2 * u);
+        Afloat = 1 - MathX.SmoothStep(0.78, 0.95, SubmergedFrac);
 
         /* Sombrée quand elle RESTE dessous, et non à l'instant où une mer
            l'ensevelit : une lame qui monte à bord met le pont sous l'eau une
@@ -367,7 +366,7 @@ public sealed partial class ShipPhysics
            Le lacet reste libre pour que le gouvernail puisse réellement la faire
            tourner : un amortisseur isotrope étrangle l'évolution. */
         // écrit pour rendre 1 EXACTEMENT à flot : 0,05 + 0,95 n en est pas un, en virgule flottante
-        double hold = DampInAir ? 1.0 : 1.0 - 0.95 * (1.0 - SmoothStep(WetHoldLo, WetHoldHi, Wet));
+        double hold = DampInAir ? 1.0 : 1.0 - 0.95 * (1.0 - MathX.SmoothStep(WetHoldLo, WetHoldHi, Wet));
         double wy = b.AngVel.Dot(up);
         /* LA FORMULE D'ORIGINE TANT QUE L'EAU LA TIENT : à flot, rien ne change, et
            la parité avec la page reste au bit près. Décomposer en trois axes donne
@@ -462,11 +461,7 @@ public sealed partial class ShipPhysics
         return f + ax * ((Config.WindGain - 1) * along);
     }
 
-    static double SmoothStep(double a, double b, double x)
-    {
-        double u = Math.Clamp((x - a) / (b - a), 0, 1);
-        return u * u * (3 - 2 * u);
-    }
+
 
     void TrappedBreath(double dt, Ocean ocean, double t)
     {
@@ -791,7 +786,7 @@ public sealed partial class ShipPhysics
         double kSpring = b.Mass * Config.G / (0.33 * 3);
 
         _hardAgo = Math.Max(0, _hardAgo - dt);
-        double spd = Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z);
+        double spd = b.Vel.LengthXZ;
 
         ReadOnlySpan<double> stations = stackalloc double[] { 0.42, 0.0, -0.45 };
         for (int s = 0; s < stations.Length; s++)
@@ -895,7 +890,7 @@ public sealed partial class ShipPhysics
         var S = Spec; var b = Body;
         // elle porte tout son poids à un tiers de mètre de chevauchement
         double kSpring = b.Mass * Config.G / 0.33;
-        double spd = Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z);
+        double spd = b.Vel.LengthXZ;
         _hardHit = Math.Max(0, _hardHit - dt);
 
         const int NS = 9;                                   // stations le long de chaque bord
@@ -1053,7 +1048,7 @@ public sealed partial class ShipPhysics
             if (m.Hold > 0 && pull > m.Hold)
             {
                 double give = (pull - m.Hold) / k;
-                double hl = Math.Sqrt(nrm.X * nrm.X + nrm.Z * nrm.Z);
+                double hl = nrm.LengthXZ;
                 if (hl == 0) hl = 1;
                 m.Wx -= nrm.X / hl * give; m.Wz -= nrm.Z / hl * give;    // nrm va de l'écubier au bout
                 pull = m.Hold;

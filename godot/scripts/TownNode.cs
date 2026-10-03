@@ -51,7 +51,7 @@ public partial class TownNode : Node3D
             VertexColorUseAsAlbedo = true,      // la couleur d'instance du MultiMesh
             Roughness = 0.92f,
             Metallic = 0f,
-            NextPass = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") }
+            NextPass = HazePass.New()
         };
         Hazed.Add((ShaderMaterial)_mat.NextPass);
 

@@ -274,7 +274,7 @@ public partial class ShipDemo : Node3D
        page, au mètre près. */
     static string Mille(double d) => d < 926
         ? FormattableString.Invariant($"{Math.Round(d / 10) * 10:F0} m")
-        : (d / 1852).ToString("F1", System.Globalization.CultureInfo.InvariantCulture).Replace('.', ',') + " M";
+        : (d / Config.Mile).ToString("F1", System.Globalization.CultureInfo.InvariantCulture).Replace('.', ',') + " M";
 
     /// <summary>Où en est un objectif qui se compte : « 12,4 kg sur 40 ».</summary>
     string Counted(QuestStep s) => s.Goal switch
@@ -295,7 +295,7 @@ public partial class ShipDemo : Node3D
             wo.X + b.Pos.X, wo.Z + b.Pos.Z,
             // la vitesse SUR L'EAU, sans le pilonnement : une coque qui monte à
             // la lame ne s'en va nulle part, et « en panne » ne doit pas l'exclure
-            Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z),
+            b.Vel.LengthXZ,
             // amarré au ponton OU sur son ancre : les deux tiennent le navire
             p.Moorings.Count > 0,
             p.Foundered));
@@ -326,8 +326,7 @@ public partial class ShipDemo : Node3D
             x += Math.Cos(isl.Port.Ang) * 200;
             z += Math.Sin(isl.Port.Ang) * 200;
         }
-        var o = _sea.Core.Origin;
-        _sea.Core.Rebase(x - o.X, z - o.Z);
+        RecentreOn(x, z);
         var b = _ship.Physics.Body;
         b.Pos = new Vec3d(0, b.Pos.Y, 0);
         b.Vel = new Vec3d(0, 0, 0);

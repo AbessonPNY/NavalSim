@@ -24,7 +24,7 @@ public partial class ShipDemo
         _wreckAir.OnBurst = (at, water, speed, jet) => _spray.Pool.Burst(at, water, speed, jet);
         // ce qu'on voit du trajet : la poche elle-même, qui monte en chapelet
         _wreckAir.OnSlug = (at, v, rise, travel, spread) =>
-            _bubbles.Slug(new Vector3((float)at.X, (float)at.Y, (float)at.Z), v, rise, travel, spread);
+            _bubbles.Slug(at.ToGodot(), v, rise, travel, spread);
         _flotsam.BottleOneIn = _bottleOneIn;
         // ce qui crève la surface en remontant jette son peu d'eau, par la même réserve
         _flotsam.OnBreak = (at, water, speed) => _spray.Pool.Burst(at, water, speed);
@@ -34,7 +34,7 @@ public partial class ShipDemo
         _flotsam.OnWreck = s =>
         {
             var b = s.Physics.Body;
-            _coins.Spill(new Vector3((float)b.Pos.X, (float)b.Pos.Y, (float)b.Pos.Z),
+            _coins.Spill(b.Pos.ToGodot(),
                 s.Spec.L, s.Spec.B, (int)Math.Clamp(s.Spec.L * 10, 120, 500));
         };
         // ce qu'elle contient : une page de journal, ou une carte (ShipDemo.Bottle.cs)

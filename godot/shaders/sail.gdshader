@@ -78,18 +78,9 @@ instance uniform float u_burn_seed = 0.0;
    ce qui PART de là — la toile sous tension se fend dès qu'on l'a percée. */
 const float HOLE_R = 0.055;
 
-/* UN GRAIN DOUX, tiré du hachage du ciel : de la valeur interpolée sur une
-   grille, ce qui suffit à déchiqueter une lisière. Une lisière droite se lit
+/* UN GRAIN DOUX : le bruit de valeur du ciel (naval_value_noise, sky.gdshaderinc),
+   graine 0 — ce qui suffit à déchiqueter une lisière. Une lisière droite se lit
    comme un ciseau, et le feu ne coupe pas droit. */
-float naval_grain(vec2 q) {
-	vec2 i = floor(q), f = fract(q);
-	f = f * f * (3.0 - 2.0 * f);
-	float a0 = naval_hash13(vec3(i, 0.0));
-	float b0 = naval_hash13(vec3(i + vec2(1.0, 0.0), 0.0));
-	float c0 = naval_hash13(vec3(i + vec2(0.0, 1.0), 0.0));
-	float d0 = naval_hash13(vec3(i + vec2(1.0, 1.0), 0.0));
-	return mix(mix(a0, b0, f.x), mix(c0, d0, f.x), f.y);
-}
 
 /* LE GRAIN D'UNE TOILE QUI BRÛLE — à plusieurs échelles, et TORDU.
  *
@@ -113,11 +104,11 @@ float naval_grain(vec2 q) {
  * Somme des poids exactement 1 : le front reste entre zéro et un, et le seuil
  * de combustion garde le sens qu'il avait. */
 float naval_burn_grain(vec2 q) {
-	vec2 w = vec2(naval_grain(q * 0.7 + 3.1), naval_grain(q * 0.7 + 7.4)) - 0.5;
+	vec2 w = vec2(naval_value_noise(q * 0.7 + 3.1, 0.0), naval_value_noise(q * 0.7 + 7.4, 0.0)) - 0.5;
 	q += w * 1.4;
-	return naval_grain(q) * 0.52
-	     + naval_grain(q * 2.13 + 11.0) * 0.30
-	     + naval_grain(q * 4.31 + 23.0) * 0.18;
+	return naval_value_noise(q, 0.0) * 0.52
+	     + naval_value_noise(q * 2.13 + 11.0, 0.0) * 0.30
+	     + naval_value_noise(q * 4.31 + 23.0, 0.0) * 0.18;
 }
 
 /* UNE DÉCHIRURE, ET NON UN POINÇON.
@@ -145,11 +136,11 @@ float naval_tear(vec2 uv, vec2 h) {
 	// ce que le boulet a emporté : rond, et de son calibre
 	float poincon = length(q) / 0.52;
 	// et ce qui s'est ouvert ensuite, le long de la laize
-	float a = 1.5708 + (naval_grain(h * 37.0 + 5.0) - 0.5) * 1.1;
+	float a = 1.5708 + (naval_value_noise(h * 37.0 + 5.0, 0.0) - 0.5) * 1.1;
 	float cs = cos(a), sn = sin(a);
 	vec2 r = vec2((q.x * cs + q.y * sn) / 3.4, -q.x * sn + q.y * cs);
 	float ang = atan(r.y, r.x);
-	float bord = 0.30 + 0.52 * naval_grain(vec2(cos(ang), sin(ang)) * 1.7 + h * 11.0);
+	float bord = 0.30 + 0.52 * naval_value_noise(vec2(cos(ang), sin(ang)) * 1.7 + h * 11.0, 0.0);
 	return min(poincon, length(r) / max(0.12, bord));
 }
 

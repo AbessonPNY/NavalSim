@@ -23,6 +23,8 @@
  * laissaient rien (signalé, relevé).
  */
 
+#include "res://shaders/naval_hash.gdshaderinc"
+
 const int NSCAR = 24;
 uniform vec4 u_scar[24];          // xyz : le point, dans son repère ; w : le poids
 uniform int u_scar_count = 0;
@@ -31,7 +33,6 @@ uniform sampler2D u_scar_tex : source_color, filter_linear_mipmap_anisotropic, r
 uniform vec2 u_scar_grid = vec2(1.0, 1.0);   // stades en travers, variantes en hauteur
 uniform float u_scar_maps = 0.0;
 
-float scar_hash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
 
 /* Ce que les marques font à ce point de son repère : `raw` la part de bois brut,
    `lip` l'ombre de la rainure, et `paint` l'impact peint (rgb, opacité). */
@@ -48,7 +49,7 @@ void ship_scars(vec3 P, out float raw, out float lip, out vec4 paint) {
 		float sw = u_scar[i].w;
 		if (u_scar_maps > 0.5 && sw > 0.5) {
 			// PEINTE : une variante par marque, quelques degrés hors du fil, sa taille et sa main
-			float h1 = scar_hash(c * 1.7 + vec3(1.0)), h2 = scar_hash(c * 2.9 + vec3(2.0)), h3 = scar_hash(c * 3.7 + vec3(3.0));
+			float h1 = naval_hash_sin3(c * 1.7 + vec3(1.0)), h2 = naval_hash_sin3(c * 2.9 + vec3(2.0)), h3 = naval_hash_sin3(c * 3.7 + vec3(3.0));
 			float S = (1.1 + 0.5 * h1) * u_scar_k;
 			float ang = (h2 - 0.5) * 0.45;
 			vec2 dir = vec2(cos(ang), sin(ang)), nrm = vec2(-dir.y, dir.x);
@@ -73,9 +74,9 @@ void ship_scars(vec3 P, out float raw, out float lip, out vec4 paint) {
 			for (int j = 0; j < 5; j++) {
 				if (float(j) >= strokes) break;
 				float fj = float(j);
-				float h1 = scar_hash(c * 1.7 + vec3(fj * 13.1, fj * 7.3, 1.0));
-				float h2 = scar_hash(c * 2.3 + vec3(fj * 5.9, 3.0, fj * 11.7));
-				float h3 = scar_hash(c * 3.1 + vec3(2.0, fj * 17.3, fj * 3.7));
+				float h1 = naval_hash_sin3(c * 1.7 + vec3(fj * 13.1, fj * 7.3, 1.0));
+				float h2 = naval_hash_sin3(c * 2.3 + vec3(fj * 5.9, 3.0, fj * 11.7));
+				float h3 = naval_hash_sin3(c * 3.1 + vec3(2.0, fj * 17.3, fj * 3.7));
 				float ang = (h1 - 0.5) * 0.7;                  // surtout dans le fil
 				vec2 dir = vec2(cos(ang), sin(ang));
 				vec2 nrm = vec2(-dir.y, dir.x);

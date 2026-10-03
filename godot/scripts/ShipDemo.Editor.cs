@@ -346,7 +346,7 @@ public partial class ShipDemo
         var o = _sea.Core.Origin;
         var f = _cam.ProjectRayOrigin(at);
         var d = _cam.ProjectRayNormal(at);
-        return (new Vec3d(f.X + o.X, f.Y, f.Z + o.Z), new Vec3d(d.X, d.Y, d.Z));
+        return (new Vec3d(f.X + o.X, f.Y, f.Z + o.Z), d.ToCore());
     }
 
     /// <summary>

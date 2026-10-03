@@ -24,7 +24,7 @@ public sealed class GhostRules
     public static GhostRules FromJson(JsonElement j)
     {
         var r = new GhostRules();
-        double D(string k, double v) => j.TryGetProperty(k, out var e) && e.ValueKind == JsonValueKind.Number ? e.GetDouble() : v;
+        double D(string k, double v) => j.Num(k, v);
         string[] L(string k, string[] v)
         {
             if (!j.TryGetProperty(k, out var e) || e.ValueKind != JsonValueKind.Array) return v;

@@ -136,14 +136,7 @@ public partial class ShipDemo : IGhostHost
         double dx = x - G.X, dz = z - G.Z, dl = Math.Sqrt(dx * dx + dz * dz);
         if (dl == 0) { dx = 1; dl = 1; }
         double tx = G.X + dx / dl * 1200, tz = G.Z + dz / dl * 1200;
-        _sea.Core.Time = _t;
-        _sea.Core.Rebase(tx - x, tz - z);
-        _foam.Rebase((float)(tx - x), (float)(tz - z));
-        _spray.Pool.Rebase(tx - x, tz - z);
-        if (_kraken.State == KrakenState.Lurk || _kraken.State == KrakenState.Grip) _kraken.Dive("storm");
-        if (_fixed) Plant();
-        b.Vel = Vec3d.Zero;
-        b.AngVel = Vec3d.Zero;
+        JumpBy(tx - x, tz - z);
         foreach (var s in _others) { s.Physics.Body.Vel = Vec3d.Zero; s.Physics.Body.AngVel = Vec3d.Zero; }
         /* L'HEURE, pas le soleil : le cycle du jour réécrit le soleil depuis l'heure
            à chaque image, et un soleil posé à la main revenait au jour. */

@@ -139,9 +139,7 @@ public partial class KrakenNode : Node3D
        (la page distribue plusieurs bras à tour de rôle ; celui-ci n'en a qu'un). */
     bool Wear(string path)
     {
-        var doc = new GltfDocument();
-        var state = new GltfState();
-        if (doc.AppendFromFile(path, state) != Error.Ok || doc.GenerateScene(state) is not Node3D root) return false;
+        if (Assets.LoadGlb(path) is not Node3D root) return false;
 
         var body = new Node3D();
         ArrayMesh? arm = null;
@@ -192,7 +190,7 @@ public partial class KrakenNode : Node3D
                 {
                     var copy = new MeshInstance3D { Mesh = mi.Mesh, Transform = xf };
                     // la brume par-dessus ses matières, comme sur les navires
-                    haze ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+                    haze ??= HazePass.New();
                     for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
                         if (mi.GetActiveMaterial(s) is BaseMaterial3D bm && bm.NextPass == null)
                         {
@@ -258,8 +256,8 @@ public partial class KrakenNode : Node3D
     {
         Visible = k.State != KrakenState.Absent;
         if (!Visible) return;
-        _head.Position = new Vector3((float)k.Pos.X, (float)k.Pos.Y, (float)k.Pos.Z);
-        var to = new Vector3((float)k.HeadTarget.X, (float)k.HeadTarget.Y, (float)k.HeadTarget.Z) - _head.Position;
+        _head.Position = k.Pos.ToGodot();
+        var to = k.HeadTarget.ToGodot() - _head.Position;
         // le corps regarde vers +Z, comme un objet de three qu'on tourne par lookAt
         if (to.LengthSquared() > 1e-4f) _head.Basis = Basis.LookingAt(to, Vector3.Up, true);
 
@@ -271,9 +269,9 @@ public partial class KrakenNode : Node3D
             var ctn = _ctn[i];
             for (int r = 0; r < KrakenArm.Rings; r++)
             {
-                ctn[r * 3] = new Vector3((float)a.C[r].X, (float)a.C[r].Y, (float)a.C[r].Z);
-                ctn[r * 3 + 1] = new Vector3((float)a.T[r].X, (float)a.T[r].Y, (float)a.T[r].Z);
-                ctn[r * 3 + 2] = new Vector3((float)a.N[r].X, (float)a.N[r].Y, (float)a.N[r].Z);
+                ctn[r * 3] = a.C[r].ToGodot();
+                ctn[r * 3 + 1] = a.T[r].ToGodot();
+                ctn[r * 3 + 2] = a.N[r].ToGodot();
             }
             var m = _armMats[i];
             m.SetNow(UCtn, ctn);

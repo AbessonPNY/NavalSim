@@ -102,7 +102,7 @@ public sealed class Storms
                     if (ring > 0 && Math.Abs(i - i0) != ring && Math.Abs(j - j0) != ring) continue;
                     if (!CellStorm(i, j, t, out var s)) continue;
                     if (ok != null && !ok(s)) continue;
-                    double d = Hypot(s.X - x, s.Z - z);
+                    double d = MathX.Hyp(s.X - x, s.Z - z);
                     if (d < dist) { dist = d; best = s; found = true; }
                 }
             if (found) return true;
@@ -127,7 +127,7 @@ public sealed class Storms
             for (int j = j0 - 2; j <= j0 + 2; j++)
             {
                 if (!CellStorm(i, j, t, out var s)) continue;
-                double d = Hypot(s.X - x, s.Z - z);
+                double d = MathX.Hyp(s.X - x, s.Z - z);
                 if (d < bd) { bd = d; best = s; any = true; }
             }
         if (!any || bd > best.R * 3.2) return false;
@@ -135,8 +135,7 @@ public sealed class Storms
         /* Plus profond vers le milieu, et pas linéairement : une large épaule et
            un cœur dur — l'essentiel de la traversée n'est que du sale temps, et le
            dernier tiers est celui dont on se souvient. */
-        double u = Math.Max(0, 1 - bd / best.R);
-        double inten = u * u * (3 - 2 * u);
+        double inten = MathX.Smooth01(1 - bd / best.R);
 
         /* Le vent TOURNE autour du centre, surtout tangent avec un peu de rentrant,
            comme une vraie dépression : on trouve le milieu au seul toucher du vent. */
@@ -155,5 +154,4 @@ public sealed class Storms
     }
 
     // Math.hypot de JavaScript : la racine de la somme des carrés, sans débordement ici
-    static double Hypot(double a, double b) => Math.Sqrt(a * a + b * b);
 }

@@ -28,7 +28,7 @@ public partial class SerpentNode : Node3D
 
     public override void _Ready()
     {
-        var haze = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+        var haze = HazePass.New();
         Hazed.Add(haze);
         _skin = new StandardMaterial3D
         {
@@ -121,9 +121,9 @@ public partial class SerpentNode : Node3D
         int ring = Sides + 1;
         for (int i = 0; i < SeaSerpent.N; i++)
         {
-            var p = V(s.Spine[i]);
+            var p = VecX.ToGodot(s.Spine[i]);
             // la tangente, vers la tête ; le haut du corps, perpendiculaire
-            var t = V(s.Spine[Math.Max(0, i - 1)]) - V(s.Spine[Math.Min(SeaSerpent.N - 1, i + 1)]);
+            var t = VecX.ToGodot(s.Spine[Math.Max(0, i - 1)]) - VecX.ToGodot(s.Spine[Math.Min(SeaSerpent.N - 1, i + 1)]);
             if (t.LengthSquared() < 1e-6f) t = Vector3.Forward;
             t = t.Normalized();
             var side = t.Cross(Vector3.Up);
@@ -154,8 +154,8 @@ public partial class SerpentNode : Node3D
         _mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arr);
 
         // la tête, au bout du cou, dans le prolongement du corps — penchée vers le bord quand il se dresse
-        var h = V(s.Spine[0]);
-        var f = (h - V(s.Spine[2])).Normalized();
+        var h = VecX.ToGodot(s.Spine[0]);
+        var f = (h - VecX.ToGodot(s.Spine[2])).Normalized();
         if (s.State == SerpentState.Rear)
         {
             var flat = new Vector3(Mathf.Sin((float)s.Heading), 0, Mathf.Cos((float)s.Heading));
@@ -168,5 +168,4 @@ public partial class SerpentNode : Node3D
         _head.Transform = new Transform3D(new Basis(-hs, hu, f), h - f * 0.4f);
     }
 
-    static Vector3 V(Vec3d v) => new((float)v.X, (float)v.Y, (float)v.Z);
 }

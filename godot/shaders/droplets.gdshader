@@ -33,7 +33,7 @@ uniform float u_sheet = 0.0;
 float wobble(float x) {
 	float i = floor(x), f = fract(x);
 	f = f * f * (3.0 - 2.0 * f);
-	return mix(hash1(vec2(i, 0.0)), hash1(vec2(i + 1.0, 0.0)), f);
+	return mix(naval_hash_sin2(vec2(i, 0.0)), naval_hash_sin2(vec2(i + 1.0, 0.0)), f);
 }
 
 void fragment() {

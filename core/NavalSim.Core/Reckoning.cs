@@ -19,7 +19,7 @@ public sealed class ReckoningSettings
     public static ReckoningSettings FromJson(JsonElement k)
     {
         var s = new ReckoningSettings();
-        double D(string n, double v) => k.TryGetProperty(n, out var e) && e.ValueKind == JsonValueKind.Number ? e.GetDouble() : v;
+        double D(string n, double v) => k.Num(n, v);
         if (k.TryGetProperty("enabled", out var en) && (en.ValueKind == JsonValueKind.True || en.ValueKind == JsonValueKind.False))
             s.Enabled = en.GetBoolean();
         s.GlassMinutes = D("glassMinutes", s.GlassMinutes);
@@ -75,8 +75,7 @@ public sealed class Reckoning
 
     double Gauss()
     {
-        double u = 1 - _rng.NextDouble();
-        return Math.Sqrt(-2 * Math.Log(u)) * Math.Cos(2 * Math.PI * _rng.NextDouble());
+        return MathX.Gauss(_rng.NextDouble(), _rng.NextDouble());
     }
 
     /// <summary>Un autre navire, d'autres instruments : leurs erreurs propres tirées à neuf.</summary>
@@ -155,7 +154,7 @@ public sealed class Reckoning
 
     public void FromJson(JsonElement e)
     {
-        double D(string n) => e.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0;
+        double D(string n) => e.Num(n);
         Set(D("x"), D("z"), D("sn"), D("se"));
     }
 }

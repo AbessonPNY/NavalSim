@@ -81,7 +81,7 @@ public partial class GunFxNode : Node3D
         /* UN BOULET, bien plus gros que nature, et exprès : un douze livres fait onze
            centimètres, un tiers de pixel à une encablure — il n'existerait pas. Son
            VOL est exact ; seul son diamètre ment, et c'est le seul mensonge qui vaille. */
-        var haze = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+        var haze = HazePass.New();
         Hazed.Add(haze);
         var ballMat = new StandardMaterial3D
         {
@@ -183,7 +183,7 @@ public partial class GunFxNode : Node3D
     // une couleur « 0xrrggbb » de la page, décodée en linéaire comme le fait three
     static Vector3 Lin(int hex)
     {
-        var c = Color.Color8((byte)(hex >> 16), (byte)(hex >> 8), (byte)hex).SrgbToLinear();
+        var c = ColorX.Rgb(hex).SrgbToLinear();
         return new Vector3(c.R, c.G, c.B);
     }
 
@@ -599,7 +599,7 @@ public partial class GunFxNode : Node3D
         int n = Math.Min(shots.Count, MaxBalls);
         for (int i = 0; i < n; i++)
             _mmBall.SetInstanceTransform(i, new Transform3D(Basis.Identity,
-                new Vector3((float)shots[i].P.X, (float)shots[i].P.Y, (float)shots[i].P.Z)));
+                shots[i].P.ToGodot()));
         _mmBall.VisibleInstanceCount = n;
     }
 
@@ -627,7 +627,7 @@ public partial class GunFxNode : Node3D
             if (u >= 1) continue;
             if (p.T >= 0)
             {
-                if (p.Gravity) p.V.Y -= 9.81f * fdt;
+                if (p.Gravity) p.V.Y -= (float)NavalSim.Core.Config.G * fdt;
                 else if (p.K == Kind.Mist || p.K == Kind.Hearth)
                 {
                     float kd = (float)Math.Min(1, p.Drag * dt);

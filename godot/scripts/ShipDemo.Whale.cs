@@ -29,14 +29,13 @@ public partial class ShipDemo : Node3D
         _whaleNode.Build(glb);
         _whale = new Whale(_whaleRules)
         {
-            Spout = (at, dir) => _gunFx.Spout(V(at), V(dir)),
+            Spout = (at, dir) => _gunFx.Spout(VecX.ToGodot(at), VecX.ToGodot(dir)),
             Splash = (at, water, speed) => _spray.Pool.Burst(at, water, speed, 1.4),
             Event = WhaleSay,
             OnRam = Rammed
         };
     }
 
-    static Vector3 V(Vec3d v) => new((float)v.X, (float)v.Y, (float)v.Z);
 
     /// <summary>Le fond sous un point LOCAL, pour qu'elle ne vienne pas s'échouer.</summary>
     double BedLocal(double x, double z)
@@ -80,7 +79,7 @@ public partial class ShipDemo : Node3D
         double d = Math.Sqrt(Math.Pow(_whale.Pos.X - b.Pos.X, 2) + Math.Pow(_whale.Pos.Z - b.Pos.Z, 2));
         string loin = d >= 1000 ? FormattableString.Invariant($"{d / 1000:F1} km").Replace('.', ',') : $"{d:F0} m";
         string qui = _whale.White ? "La baleine blanche" : "Une baleine";
-        GD.Print(FormattableString.Invariant($"baleine : {kind}, {_whale.Mood}, à {d:F0} m, profondeur {_whale.Y:F1} m, elle {_whale.Speed:F1} m/s, navire {Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z):F1} m/s"));
+        GD.Print(FormattableString.Invariant($"baleine : {kind}, {_whale.Mood}, à {d:F0} m, profondeur {_whale.Y:F1} m, elle {_whale.Speed:F1} m/s, navire {b.Vel.LengthXZ:F1} m/s"));
         switch (kind)
         {
             case "seen": Say($"Elle souffle ! {qui} {WhaleBearing()}, à {loin}"); break;
@@ -101,7 +100,7 @@ public partial class ShipDemo : Node3D
     {
         GD.Print(FormattableString.Invariant($"baleine : COUP à {r.Speed:F1} m/s, navire +{r.DeltaV:F2} m/s, voie d'eau {r.Area:F2} m² (compartiment {r.Comp})"));
         _sound?.Crash(r.At, 2.5, r.Speed, "hull");
-        _ship.Scar(V(r.At), 2.2);
+        _ship.Scar(VecX.ToGodot(r.At), 2.2);
         _spray.Pool.Burst(r.At, 10 + 2 * r.Speed, r.Speed + 2, 1.2);
         Say(FormattableString.Invariant(
             $"{(_whale.White ? "La baleine blanche" : "La baleine")} nous frappe ! Voie d'eau de {r.Area:F1} m² — aux pompes !").Replace("0.", "0,"));

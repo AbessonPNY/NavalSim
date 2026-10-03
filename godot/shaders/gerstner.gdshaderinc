@@ -33,6 +33,14 @@ uniform float u_time;
 // exposant d'aiguisage des crêtes. 1 = sinusoïde pure
 uniform float u_sharp;
 
+/* THE PHASE OF COMPONENT i at a WORLD point: k·(d·x) − ω·t + its share of the
+   floating origin. Written once because the sea's vertices, its sea floor
+   caustics and the foam field must agree on where every crest stands — one of
+   them drifting off the others is a desync nobody would see until it showed. */
+float gerstner_phase(int i, vec2 world_xz, float t) {
+	return u_wave_a[i].w * dot(u_wave_a[i].xy, world_xz) - u_wave_b[i].x * t + u_wave_phase[i];
+}
+
 
 /* LE PROFIL AIGUISÉ, et la raison qu'il existe.
  *
@@ -106,7 +114,6 @@ void gerstner_sum(vec2 world_xz, float t, float shelter, float spacing,
 		vec2 d = u_wave_a[i].xy;
 		float amp = u_wave_a[i].z;
 		float k = u_wave_a[i].w;
-		float omega = u_wave_b[i].x;
 		float Q = u_wave_b[i].y;
 
 		/* Écarter toute vague que cette maille est trop grossière pour porter.
@@ -128,7 +135,7 @@ void gerstner_sum(vec2 world_xz, float t, float shelter, float spacing,
 		}
 		amp *= shelter;
 
-		float f = k * dot(d, world_xz) - omega * t + u_wave_phase[i];
+		float f = gerstner_phase(i, world_xz, t);
 		float c = cos(f);
 		float s = sin(f);
 
@@ -214,7 +221,7 @@ void gerstner_bottom(vec2 world_xz, float t, float shelter, float metre, float h
 		   rien ne bouillonne au fond d'une rade. */
 		band *= 1.0 - smoothstep(0.8, 2.2, hk * k * k * amp);
 
-		float f = k * dot(d, world_xz) - u_wave_b[i].x * t + u_wave_phase[i];
+		float f = gerstner_phase(i, world_xz, t);
 		float c = cos(f);
 		float s = sin(f);
 

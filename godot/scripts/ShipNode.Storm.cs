@@ -115,7 +115,7 @@ public partial class ShipNode
         fall = best.Value.Fall;
         var b = Physics.Body;
         Vec3d w = b.Quat.Rotate(new Vec3d(0, best.Value.Y, best.Value.Z)) + b.Pos;
-        world = new Vector3((float)w.X, (float)w.Y, (float)w.Z);
+        world = w.ToGodot();
         return true;
     }
 }

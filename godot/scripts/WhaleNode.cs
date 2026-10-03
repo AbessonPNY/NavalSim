@@ -34,13 +34,11 @@ public partial class WhaleNode : Node3D
             GD.PushWarning($"baleine : modèle introuvable ({path})");
             return false;
         }
-        var doc = new GltfDocument();
-        var state = new GltfState();
-        if (doc.AppendFromFile(path, state) != Error.Ok || doc.GenerateScene(state) is not Node3D root) return false;
+        if (Assets.LoadGlb(path) is not Node3D root) return false;
         _body = new Node3D();
         AddChild(_body);
         _body.AddChild(root);
-        var haze = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+        var haze = HazePass.New();
         Hazed.Add(haze);
         var stack = new Stack<Node>();
         stack.Push(root);

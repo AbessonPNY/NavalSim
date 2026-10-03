@@ -80,14 +80,12 @@ public static class Vat
         string ppng = System.IO.Path.Combine(dir, pre + "_positions.png");
         bool enPng = System.IO.File.Exists(ppng);
 
-        var doc = new GltfDocument();
-        var state = new GltfState();
-        if (doc.AppendFromFile(glb, state) != Error.Ok || doc.GenerateScene(state) is not Node3D root)
+        if (Assets.LoadGlb(glb) is not Node3D root)
         {
             GD.PushWarning($"characters/{nom} : maillage illisible.");
             return null;
         }
-        var mi = FirstMesh(root);
+        var mi = NodeWalk.FirstMesh(root);
         if (mi?.Mesh is not Mesh mesh) { root.QueueFree(); return null; }
 
         /* SANS UV2, RIEN NE MARCHE. C'est la colonne du sommet dans la texture ;
@@ -473,11 +471,4 @@ public static class Vat
         return null;
     }
 
-    static MeshInstance3D? FirstMesh(Node n)
-    {
-        if (n is MeshInstance3D m && m.Mesh != null) return m;
-        foreach (var c in n.GetChildren())
-            if (FirstMesh(c) is MeshInstance3D f) return f;
-        return null;
-    }
 }

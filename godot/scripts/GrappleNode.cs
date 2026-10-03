@@ -82,8 +82,8 @@ public partial class GrappleNode : Node3D
 
             // en vol : le bout ne va que jusqu'où le crochet en est
             double k = l.Fly > 0 ? 1.0 - l.Fly / Grapple.Vol : 1.0;
-            var pa = new Vector3((float)a.X, (float)a.Y, (float)a.Z);
-            var pb = new Vector3((float)b.X, (float)b.Y, (float)b.Z);
+            var pa = a.ToGodot();
+            var pb = b.ToGodot();
             var tip = pa.Lerp(pb, (float)k);
 
             /* LE FILIN PEND UN PEU quand il a du mou, et se tend quand il tire. Un

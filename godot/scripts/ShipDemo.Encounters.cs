@@ -148,7 +148,7 @@ public partial class ShipDemo
         _ship.SyncTransform();
         _nextSail = _t + 2;                  // et la première vient presque tout de suite
         double loin = _world.ShoreDistance(at.X, at.Z);
-        Say($"Au large — {loin / 1852:F1} mille(s) de toute terre");
+        Say($"Au large — {loin / Config.Mile:F1} mille(s) de toute terre");
     }
 
     /// <summary>
@@ -364,7 +364,7 @@ public partial class ShipDemo
         var to = s.Physics.Body.Pos - _ship.Physics.Body.Pos;
         var eye = -_cam.GlobalTransform.Basis.Z;
         var f = new Vec3d(eye.X, 0, eye.Z);
-        double fl = f.Length, tl = Math.Sqrt(to.X * to.X + to.Z * to.Z);
+        double fl = f.Length, tl = to.LengthXZ;
         if (fl < 1e-6 || tl < 1e-6) return false;
         return (to.X * f.X + to.Z * f.Z) / (fl * tl) > _metRules.SpyglassField;
     }
@@ -377,6 +377,6 @@ public partial class ShipDemo
         string quoi = _hostile.ContainsKey(s) || _pirates.ContainsKey(s)
             ? "Une voile !"
             : s.Ensign?.Nationalite is string n ? $"Une voile — un navire {n}" : "Une voile !";
-        Say($"{quoi} à {d / 1852:F1} mille{(d / 1852 >= 2 ? "s" : "")}");
+        Say($"{quoi} à {d / Config.Mile:F1} mille{(d / Config.Mile >= 2 ? "s" : "")}");
     }
 }

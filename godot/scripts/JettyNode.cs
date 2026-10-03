@@ -49,12 +49,12 @@ public partial class JettyNode : Node3D
 
     public override void _Ready()
     {
-        ShaderMaterial Haze() => new() { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+        ShaderMaterial Haze() => HazePass.New();
         StandardMaterial3D Tone(uint rgb)
         {
             var m = new StandardMaterial3D
             {
-                AlbedoColor = Color.Color8((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb),
+                AlbedoColor = ColorX.Rgb(rgb),
                 Roughness = 0.88f,
                 NextPass = Haze()
             };
@@ -390,12 +390,10 @@ public partial class JettyNode : Node3D
         string path = Assets.Path(rel);
         if (System.IO.File.Exists(path))
         {
-            var doc = new GltfDocument();
-            var state = new GltfState();
-            if (doc.AppendFromFile(path, state) == Error.Ok && doc.GenerateScene(state) is Node3D root)
+            if (Assets.LoadGlb(path) is Node3D root)
             {
                 var p = new Parts { NominalW = small ? Berth.Width : 2 * Berth.Width };
-                var haze = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+                var haze = HazePass.New();
                 Hazed.Add(haze);
                 var done = new HashSet<Material>();
                 Aabb? bay = null;
@@ -527,7 +525,7 @@ public partial class JettyNode : Node3D
         double f = bottom < cut ? (cut - Floor) / (cut - bottom) : 1;
         Vector3 Warp(Vector3 q) => q.Y < cut ? new Vector3(q.X, (float)(cut - (cut - q.Y) * f), q.Z) : q;
 
-        var haze = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+        var haze = HazePass.New();
         Hazed.Add(haze);
         foreach (var (mesh, xf) in meshes) p.Bay.Add((Bake(mesh, place * xf, Warp, haze), Transform3D.Identity));
         p.BayL = tb.Size.X;
@@ -645,7 +643,7 @@ public partial class JettyNode : Node3D
         {
             var p = new Pier
             {
-                G = new Node3D(), X = spec.X, Z = spec.Z, Yaw = -spec.Cap * Math.PI / 180,
+                G = new Node3D(), X = spec.X, Z = spec.Z, Yaw = Compass.YawOf(spec.Cap),
                 Len = spec.Length, W = spec.Width
             };
             AddChild(p.G);
@@ -746,7 +744,7 @@ public partial class JettyNode : Node3D
 
         /* LA BRUME EN DERNIER, comme tout ce que ce fichier pose : sans elle le
            figurant reste net quand son ponton s'efface, et il flotte. */
-        var haze = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+        var haze = HazePass.New();
         mat.NextPass = haze;
         Hazed.Add(haze);
 

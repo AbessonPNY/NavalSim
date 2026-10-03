@@ -82,14 +82,12 @@ public partial class CoinNode : Node3D
         string path = System.IO.Path.GetFullPath(System.IO.Path.Combine(
             Assets.Root, Glb));
         if (!System.IO.File.Exists(path)) return null;
-        var doc = new GltfDocument();
-        var state = new GltfState();
-        if (doc.AppendFromFile(path, state) != Error.Ok || doc.GenerateScene(state) is not Node3D obj)
+        if (Assets.LoadGlb(path) is not Node3D obj)
         {
             GD.PushWarning($"{Glb} illisible — les pièces gardent leur disque.");
             return null;
         }
-        var mi = FirstMesh(obj);
+        var mi = NodeWalk.FirstMesh(obj, withMesh: false);
         if (mi?.Mesh == null) { obj.QueueFree(); return null; }
 
         /* Ramené au diamètre 1 et centré, sa texture reprise s'il en a une : le
@@ -113,14 +111,6 @@ public partial class CoinNode : Node3D
         obj.QueueFree();
         GD.Print($"pièces : {Glb} chargé ({verts.Length} sommets)");
         return flat;
-    }
-
-    static MeshInstance3D? FirstMesh(Node n)
-    {
-        if (n is MeshInstance3D m) return m;
-        foreach (var c in n.GetChildren())
-            if (FirstMesh(c) is MeshInstance3D f) return f;
-        return null;
     }
 
     /// <summary>

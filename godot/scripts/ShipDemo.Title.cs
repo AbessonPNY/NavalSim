@@ -412,8 +412,7 @@ public partial class ShipDemo : Node3D
             if (best != null)
             {
                 var at = _world.Geo.ToXZ(best.Lat, best.Lon);
-                var o = _sea.Core.Origin;
-                _sea.Core.Rebase(at.X - o.X, at.Z - o.Z);
+                RecentreOn(at.X, at.Z);
                 var b = _ship.Physics.Body;
                 b.Pos = new Vec3d(0, _eqY, 0);
                 b.Vel = Vec3d.Zero;

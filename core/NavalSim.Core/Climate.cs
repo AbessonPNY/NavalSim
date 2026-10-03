@@ -24,7 +24,7 @@ public sealed class ClimateSettings
     public static ClimateSettings FromJson(JsonElement c)
     {
         var s = new ClimateSettings();
-        double D(string k, double v) => c.TryGetProperty(k, out var e) && e.ValueKind == JsonValueKind.Number ? e.GetDouble() : v;
+        double D(string k, double v) => c.Num(k, v);
         s.Mean = D("mean", s.Mean); s.Seasonal = D("seasonal", s.Seasonal); s.Daily = D("daily", s.Daily);
         s.Wander = D("wander", s.Wander); s.ColdestDay = D("coldestDay", s.ColdestDay);
         s.ShowersPerDay = D("showersPerDay", s.ShowersPerDay); s.SnowBelow = D("snowBelow", s.SnowBelow);

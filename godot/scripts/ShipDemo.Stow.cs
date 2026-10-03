@@ -78,10 +78,7 @@ public partial class ShipDemo : Node3D
         box.AddChild(grid);
         Label Hd(string t)
         {
-            var l = new Label { Text = t, HorizontalAlignment = HorizontalAlignment.Center, CustomMinimumSize = new Vector2(44, 0) };
-            l.AddThemeFontSizeOverride("font_size", 12);
-            l.AddThemeColorOverride("font_color", new Color(0.66f, 0.70f, 0.74f));
-            return l;
+            return MkLabel(t, 12, new Color(0.66f, 0.70f, 0.74f), minW: 44, centre: true);
         }
         grid.AddChild(Hd(""));
         foreach (var h in Holds) grid.AddChild(Hd(h));

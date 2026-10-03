@@ -14593,6 +14593,38 @@ course à l'autre — et ne prouve rien dans un sens ni dans l'autre.
 une fois par appel au lieu d'une fois par bout de corde. Peu de temps, 13 Ko de
 moins par image.
 
+## La passe d'optimisation, troisième tranche : la factorisation (Godot)
+
+Une vingtaine de familles de doublons ramenées à une définition — la liste
+complète, avec les lignes d'avant (commit 59decfc), est dans
+`docs/tranche3-doublons.md`. `ShipDemo.cs` passe de 4 938 à 1 145 lignes,
+découpé en onze fichiers partiels par ses propres bandeaux de section. Rien ne
+change à l'exécution : parité identique à l'octet, images au niveau du bruit,
+22,4 ms par image comme avant.
+
+**Ce qui a servi à vérifier, et qui resservira :**
+
+- Un remplacement par motif ne vaut que si le compilateur peut le contredire :
+  `ToGodot()` n'existe que sur `Vec3d`, `ToCore()` que sur `Vector3` ; une
+  expression d'un autre type aurait refusé de compiler.
+- Une rampe `u * u * (3 - 2 * u)` ne devient `Smooth01(u)` que si `u` est
+  bornée à [0, 1] SUR PLACE (un Clamp juste avant, une partie fractionnaire, une
+  distance sur un rayon) : sinon la borne changerait le résultat. Sept sont
+  restées telles quelles pour cette raison.
+- Le découpage d'une classe partielle se prouve par le multiensemble des
+  lignes non vides : mêmes lignes avant et après, plus les seuls en-têtes.
+- `9.81f` et `(float)9.81` ont les mêmes bits (C3-F5-1C-41) ; vérifié avant de
+  remplacer.
+- **Un piège qui m'a eu** : `core/NavalSim.Core/Js.cs` existait déjà (les
+  arrondis de JavaScript) et une première écriture l'a écrasé ; restauré depuis
+  le dépôt, les accesseurs JSON y ont été AJOUTÉS. Regarder avant d'écrire un
+  fichier « neuf ».
+- **Les scènes de nuit ne sont pas déterministes** : le climat et la météo
+  tirent leur hasard sans graine (`new Random()` dans Climate.cs et
+  Weather.cs). Une capture du commit s'écartait de 2 % puis de 9 % d'une autre
+  capture du MÊME code (une averse). Deux captures de chaque côté, et l'on
+  compare celles qui ont eu le même temps — elles concordaient à 0,02-0,16 %.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

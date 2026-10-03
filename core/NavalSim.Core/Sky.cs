@@ -122,7 +122,7 @@ public sealed class Sky
     static Vec3d AboveSea(Vec3d d, double toZenith)
     {
         const double MinY = 0.05;
-        double h = Math.Sqrt(d.X * d.X + d.Z * d.Z);
+        double h = d.LengthXZ;
         double k = Math.Sqrt(1 - MinY * MinY) / Math.Max(h, 1e-9);
         var v = d.Y >= MinY || h < 1e-9 ? d : new Vec3d(d.X * k, MinY, d.Z * k);
         if (toZenith <= 0) return v;

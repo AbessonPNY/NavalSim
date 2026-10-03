@@ -154,7 +154,7 @@ public sealed class Cordage
                     double cA = wet ? 7.0 : 0.28;
                     double ax = cA * ((wet ? 0 : windX) - vx);
                     double az = cA * ((wet ? 0 : windZ) - vz);
-                    double ay = cA * (-vy) + (wet ? 4.2 : 0) - 9.81;
+                    double ay = cA * (-vy) + (wet ? 4.2 : 0) - Config.G;
 
                     double nx = Px[i] + (Px[i] - _ox[i]) + ax * hh;
                     double ny = Py[i] + (Py[i] - _oy[i]) + ay * hh;

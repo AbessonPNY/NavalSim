@@ -34,7 +34,7 @@ public sealed class WraithRules
     public static WraithRules FromJson(JsonElement j)
     {
         var r = new WraithRules();
-        double D(string k, double v) => j.TryGetProperty(k, out var e) && e.ValueKind == JsonValueKind.Number ? e.GetDouble() : v;
+        double D(string k, double v) => j.Num(k, v);
         if (j.TryGetProperty("enabled", out var en) && (en.ValueKind == JsonValueKind.True || en.ValueKind == JsonValueKind.False))
             r.Enabled = en.GetBoolean();
         r.PerHour = Math.Max(0, D("perHour", r.PerHour));

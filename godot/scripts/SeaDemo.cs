@@ -197,7 +197,7 @@ public partial class SeaDemo : Node3D
                 node.Position = new Vector3(x, (float)y, z);
 
                 // incliner sur la pente réelle de l'eau
-                var up = new Vector3((float)nrm.X, (float)nrm.Y, (float)nrm.Z).Normalized();
+                var up = nrm.ToGodot().Normalized();
                 if (up.LengthSquared() > 0.5f && Mathf.Abs(up.Dot(Vector3.Up)) < 0.9999f)
                 {
                     var axis = Vector3.Up.Cross(up).Normalized();

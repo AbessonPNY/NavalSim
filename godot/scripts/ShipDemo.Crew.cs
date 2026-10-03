@@ -136,7 +136,7 @@ public partial class ShipDemo
             // ce qui étouffe, et de combien : cela s'écoute, donc cela se règle
             if (root.TryGetProperty("etouffe", out var et))
             {
-                float F(string n, float d) => et.TryGetProperty(n, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.Number ? (float)v.GetDouble() : d;
+                float F(string n, float d) => (float)et.Num(n, d);
                 _sound.HzCabine = F("cabineHz", _sound.HzCabine);
                 _sound.HzEau = F("eauHz", _sound.HzEau);
                 _sound.DbCabine = F("cabineDb", _sound.DbCabine);

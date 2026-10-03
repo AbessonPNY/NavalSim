@@ -44,7 +44,7 @@ public sealed class FishingRules
         using var doc = JsonDocument.Parse(json, new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
         var r = doc.RootElement;
         var outp = new FishingRules();
-        double N(JsonElement e, string k, double d) => e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : d;
+        double N(JsonElement e, string k, double d) => e.Num(k, d);
         if (r.TryGetProperty("ligne", out var l))
         {
             outp.LinesPerMan = N(l, "lignesParHomme", outp.LinesPerMan);
@@ -111,11 +111,7 @@ public static class Fishing
         return (-h, Math.Sqrt(gx * gx + gz * gz) / 12);
     }
 
-    static double Smooth(double a, double b, double v)
-    {
-        double u = Math.Clamp((v - a) / (b - a), 0, 1);
-        return u * u * (3 - 2 * u);
-    }
+
 
     /// <summary>
     /// CE QUE CE FOND VAUT POUR CETTE ESPÈCE, de 0 à 1 : sa fenêtre de profondeur,
@@ -129,13 +125,13 @@ public static class Fishing
     {
         if (depth <= 0.5) return 0;
         double span = s.DMax - s.DMin, edge = 0.15 * span;
-        double d = Smooth(s.DMin - edge, s.DMin + edge, depth) * (1 - Smooth(s.DMax - edge, s.DMax + edge, depth));
+        double d = MathX.SmoothStep(s.DMin - edge, s.DMin + edge, depth) * (1 - MathX.SmoothStep(s.DMax - edge, s.DMax + edge, depth));
         if (d <= 0) return 0;
         double b = s.Bottom switch
         {
-            "roche" => 0.3 + 0.7 * Smooth(0.03, 0.12, slope),
-            "tombant" => 0.3 + 0.7 * Smooth(0.08, 0.25, slope),
-            _ => 1 - 0.7 * Smooth(0.05, 0.15, slope)
+            "roche" => 0.3 + 0.7 * MathX.SmoothStep(0.03, 0.12, slope),
+            "tombant" => 0.3 + 0.7 * MathX.SmoothStep(0.08, 0.25, slope),
+            _ => 1 - 0.7 * MathX.SmoothStep(0.05, 0.15, slope)
         };
         return d * b;
     }
@@ -147,9 +143,9 @@ public static class Fishing
     public static double Activity(FishSpecies s, double hour)
     {
         hour = ((hour % 24) + 24) % 24;
-        double Bump(double from, double to) => Smooth(from - 1, from, hour) * (1 - Smooth(to, to + 1, hour));
+        double Bump(double from, double to) => MathX.SmoothStep(from - 1, from, hour) * (1 - MathX.SmoothStep(to, to + 1, hour));
         double dawn = Bump(5, 8), dusk = Bump(17, 20);
-        double day = Smooth(7, 9, hour) * (1 - Smooth(16, 18, hour));
+        double day = MathX.SmoothStep(7, 9, hour) * (1 - MathX.SmoothStep(16, 18, hour));
         double night = 1 - Math.Max(Math.Max(dawn, dusk), day);
         return Math.Max(Math.Max(dawn * s.Dawn, dusk * s.Dusk), Math.Max(day * s.Day, night * s.Night));
     }

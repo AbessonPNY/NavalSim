@@ -26,11 +26,7 @@ public sealed class HullLines
         _h = spec.Hull;
     }
 
-    public static double Smooth01(double u)
-    {
-        u = u < 0 ? 0 : (u > 1 ? 1 : u);
-        return u * u * (3 - 2 * u);
-    }
+
 
     /// <summary>La tonture. t = 0 au tableau arrière → 1 à l'étrave.</summary>
     public double DeckY(double t)
@@ -44,8 +40,8 @@ public sealed class HullLines
     public double KeelY(double t)
     {
         double d = _h.KeelDepth + _h.DragAft * (1 - t);      // elle s'assoit plus bas sur l'arrière
-        d *= 1 - _h.ForefootLift * Smooth01((t - 0.80) / 0.20);  // le brion se relève vers l'étrave
-        d *= 1 - _h.CounterLift * Smooth01((0.12 - t) / 0.12);   // la voûte se relève à l'arrière
+        d *= 1 - _h.ForefootLift * MathX.Smooth01((t - 0.80) / 0.20);  // le brion se relève vers l'étrave
+        d *= 1 - _h.CounterLift * MathX.Smooth01((0.12 - t) / 0.12);   // la voûte se relève à l'arrière
         return -d;
     }
 
@@ -68,7 +64,7 @@ public sealed class HullLines
     /// pièces haut.
     /// </summary>
     public double BeamFactor(double s)
-        => Math.Pow(1 - Smooth01((s - _h.SectionTuck) / (1 - _h.SectionTuck)), _h.SectionPower);
+        => Math.Pow(1 - MathX.Smooth01((s - _h.SectionTuck) / (1 - _h.SectionTuck)), _h.SectionPower);
 
     /// <summary>Élève les stations en une surface de coque fermée.</summary>
     public HullMesh BuildGeometry()

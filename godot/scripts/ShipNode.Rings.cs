@@ -761,11 +761,7 @@ public partial class ShipNode
     /// <summary>
     /// Une rampe adoucie aux deux bouts : 3t² − 2t³, la smoothstep.
     /// </summary>
-    static double Ease(double t)
-    {
-        t = Math.Clamp(t, 0, 1);
-        return t * t * (3 - 2 * t);
-    }
+
 
     /// <summary>
     /// La normale de son plan — la direction dans laquelle il est MINCE. On
@@ -785,7 +781,7 @@ public partial class ShipNode
         }
         double n = v.Count;
         var a = Rings.Axis(xx / n, xy / n, xz / n, yy / n, yz / n, zz / n);
-        return new Vector3((float)a.X, (float)a.Y, (float)a.Z);
+        return a.ToGodot();
     }
 
     // ------------------------------------------------------------------
@@ -835,7 +831,7 @@ public partial class ShipNode
            rapide — ce qui a été demandé, et ce qui est juste : la bulle est
            l'effet, les anneaux sont la machine, et l'effet cesse d'abord. */
         double veut = RingLevel <= SphereFrom ? 0
-                    : Ease((RingLevel - SphereFrom) / Math.Max(1e-6, 1 - SphereFrom));
+                    : MathX.Smooth01((RingLevel - SphereFrom) / Math.Max(1e-6, 1 - SphereFrom));
         SphereLevel = veut > SphereLevel
             ? veut
             : Math.Max(veut, SphereLevel - dt / Math.Max(0.01, SphereFall));

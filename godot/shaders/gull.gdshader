@@ -34,8 +34,8 @@ uniform float u_gull_gust = 0.077;
 
 varying vec3 v_col;
 
-// un nombre au hasard, stable, tiré de la phase de l'oiseau
-float grain(float s, float k) { return fract(sin(s * 43758.5 + k * 127.1) * 12345.678); }
+#include "res://shaders/naval_hash.gdshaderinc"
+// un nombre au hasard, stable, tiré de la phase de l'oiseau : naval_rand (naval_hash.gdshaderinc)
 
 void vertex() {
 	vec4 c = INSTANCE_CUSTOM;
@@ -46,7 +46,7 @@ void vertex() {
 
 	float a = phase + omega * u_time;
 	// le bercement lent, qui empêche le bandeau d'être un disque
-	float bob = 0.9 + 1.7 * grain(c.x, 3.0);
+	float bob = 0.9 + 1.7 * naval_rand(c.x, 3.0);
 	vec3 centre = vec3(cos(a) * R, alt + sin(u_time * 0.31 + phase) * bob, sin(a) * R);
 
 	/* LES AILES. La page tourne chaque aile autour de l'axe avant-arrière de
@@ -54,9 +54,9 @@ void vertex() {
 	   auquel il appartient — d'où le signe. La rampe le retire au corps et à la
 	   queue, qui ne battent pas : sans elle, le corps tremblerait au rythme des
 	   ailes. */
-	float gate = max(0.0, sin(u_time * u_gull_gust * 6.2831853 + grain(c.x, 7.0) * 6.28));
+	float gate = max(0.0, sin(u_time * u_gull_gust * 6.2831853 + naval_rand(c.x, 7.0) * 6.28));
 	float drive = pow(gate, 0.6);
-	float beat = sin(u_time * u_gull_beat * 6.2831853 + grain(c.x, 11.0) * 6.28);
+	float beat = sin(u_time * u_gull_beat * 6.2831853 + naval_rand(c.x, 11.0) * 6.28);
 	float f = (beat > 0.0 ? beat * 0.62 : beat) * drive * 0.85 + 0.06;
 	float aile = f * sign(VERTEX.x) * smoothstep(0.02, 0.06, abs(VERTEX.x));
 

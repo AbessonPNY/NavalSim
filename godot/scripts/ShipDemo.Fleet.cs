@@ -29,15 +29,7 @@ public partial class ShipDemo
             AnchorLeft = 1, AnchorRight = 1, OffsetLeft = -330, OffsetRight = -14, OffsetTop = 130,
             Visible = false
         };
-        _fleetPanel.AddThemeStyleboxOverride("panel", new StyleBoxFlat
-        {
-            BgColor = new Color(0.04f, 0.06f, 0.09f, 0.78f),
-            BorderColor = new Color(0.55f, 0.44f, 0.20f, 0.8f),
-            BorderWidthLeft = 1, BorderWidthRight = 1, BorderWidthTop = 1, BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6,
-            CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
-            ContentMarginLeft = 14, ContentMarginRight = 14, ContentMarginTop = 10, ContentMarginBottom = 12
-        });
+        _fleetPanel.AddThemeStyleboxOverride("panel", SidePanelStyle());
         var box = new VBoxContainer();
         box.AddThemeConstantOverride("separation", 6);
         _fleetPanel.AddChild(box);
@@ -184,7 +176,7 @@ public partial class ShipDemo
     static void FleetSpeed(ShipNode s, Label sp)
     {
         var v = s.Physics.Body.Vel;
-        sp.Text = s.Physics.Foundered ? "coulé" : $"{Math.Round(Math.Sqrt(v.X * v.X + v.Z * v.Z) * 1.94384)} nds";
+        sp.Text = s.Physics.Foundered ? "coulé" : $"{Math.Round(v.LengthXZ * Config.MsToKn)} nds";
     }
 
     void FleetTick()

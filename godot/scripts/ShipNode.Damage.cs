@@ -91,7 +91,7 @@ public partial class ShipNode
         double L = Math.Max(4, d.Height);
         var f = new Falling
         {
-            Rate = Math.Sqrt(3 * 9.81 / (2 * L)),
+            Rate = Math.Sqrt(3 * NavalSim.Core.Config.G / (2 * L)),
             Side = d.Pitch ? 1 : side != 0 ? side : (_dmgRng.NextDouble() < 0.5 ? -1 : 1),
             Wait = delay,
             /* UN BEAUPRÉ NE VA PAS À LA VERTICALE : ses sous-barbes le tiennent par

@@ -194,7 +194,7 @@ public partial class ShipNode
                 g.Chase = cal < 0.9;
             }
             var muzzle = at + dir * half;
-            g.P = new Vec3d(muzzle.X, muzzle.Y, muzzle.Z);
+            g.P = muzzle.ToCore();
             g.Dir = new Vec3d(dir.X, 0, dir.Z);
             Battery.Guns.Add(g);
         }

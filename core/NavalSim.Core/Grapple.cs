@@ -111,8 +111,8 @@ public sealed class Grapple
     public void Throw(ShipPhysics from, ShipPhysics to, Random rng)
     {
         var a = from.Body; var b = to.Body;
-        double gap = Hyp(b.Pos.X - a.Pos.X, b.Pos.Z - a.Pos.Z) - (from.Spec.B + to.Spec.B) * 0.5;
-        double vrel = Hyp(a.Vel.X - b.Vel.X, a.Vel.Z - b.Vel.Z);
+        double gap = MathX.Hyp(b.Pos.X - a.Pos.X, b.Pos.Z - a.Pos.Z) - (from.Spec.B + to.Spec.B) * 0.5;
+        double vrel = MathX.Hyp(a.Vel.X - b.Vel.X, a.Vel.Z - b.Vel.Z);
         /* CE QUI DÉCIDE : la distance d'abord, l'allure ensuite. Un crochet se
            lance à quinze mètres sans peine et à vingt-cinq à la limite ; et sur une
            coque qui file, il rate même à cinq. */
@@ -279,5 +279,4 @@ public sealed class Grapple
         b.AngVel += b.Quat.Rotate(tb);
     }
 
-    static double Hyp(double a, double b) => Math.Sqrt(a * a + b * b);
 }

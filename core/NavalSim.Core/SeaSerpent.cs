@@ -27,7 +27,7 @@ public sealed class SerpentSettings
     public static SerpentSettings FromJson(JsonElement k)
     {
         var s = new SerpentSettings();
-        double D(string n, double v) => k.TryGetProperty(n, out var e) && e.ValueKind == JsonValueKind.Number ? e.GetDouble() : v;
+        double D(string n, double v) => k.Num(n, v);
         if (k.TryGetProperty("enabled", out var en) && (en.ValueKind == JsonValueKind.True || en.ValueKind == JsonValueKind.False))
             s.Enabled = en.GetBoolean();
         s.PerHour = D("perHour", s.PerHour); s.MinRain = D("minRain", s.MinRain);

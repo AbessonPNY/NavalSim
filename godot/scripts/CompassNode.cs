@@ -124,7 +124,7 @@ public partial class CompassNode : Control
             DrawPolyline(outline, Ink, 1.4f, true);
 
             // l'échelle : le rayon, en milles
-            string scale = RadiusMiles >= 1 ? $"rayon {RadiusMiles:0.#} M".Replace('.', ',') : $"rayon {RadiusMiles * 1852:0} m";
+            string scale = RadiusMiles >= 1 ? $"rayon {RadiusMiles:0.#} M".Replace('.', ',') : $"rayon {RadiusMiles * NavalSim.Core.Config.Mile:0} m";
             DrawString(font, new Vector2(c.X - 34, Size.Y - 6) + new Vector2(1, 1), scale, HorizontalAlignment.Left, -1, 11, Shade);
             DrawString(font, new Vector2(c.X - 34, Size.Y - 6), scale, HorizontalAlignment.Left, -1, 11, Ink);
         }

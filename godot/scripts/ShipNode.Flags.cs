@@ -130,7 +130,7 @@ public partial class ShipNode
     void Dress(ShaderMaterial m, Texture2D? map, Color colour, bool painted)
     {
         m.SetShaderParameter(U.Canvas, colour);
-        m.SetShaderParameter(U.Emissive, Hex(painted ? "0x2a2a2e" : "0x7c7a72"));
+        m.SetShaderParameter(U.Emissive, ColorX.Hex(painted ? "0x2a2a2e" : "0x7c7a72"));
         m.SetShaderParameter(UEmissiveK, painted ? 0.10f : 0.14f);
         m.SetShaderParameter(UCanvasFloor, (float)CanvasFloor);
         m.SetShaderParameter(U.Map, map!);
@@ -160,8 +160,8 @@ public partial class ShipNode
             Dress(_flagMat, A.EnsignMap != null ? FlagImage(A.EnsignMap) : Jolly(), Colors.White, true);
         else
         {
-            Color c = Hex("0xf6f4ef");
-            if (A.Ensign != null) try { c = Hex(A.Ensign); } catch (FormatException) { }
+            Color c = ColorX.Hex("0xf6f4ef");
+            if (A.Ensign != null) try { c = ColorX.Hex(A.Ensign); } catch (FormatException) { }
             Dress(_flagMat, null, c, false);
         }
     }
@@ -349,7 +349,7 @@ public partial class ShipNode
             {
                 TopRadius = (float)(0.035 * sc), BottomRadius = (float)(0.06 * sc), Height = (float)h, RadialSegments = 6
             },
-            MaterialOverride = MakeHullMaterial(Hex(spec.Appearance.Spar), 0.62f)
+            MaterialOverride = MakeHullMaterial(ColorX.Hex(spec.Appearance.Spar), 0.62f)
         };
         // le pied à l'origine du nœud, comme la géométrie translatée de la page
         var foot = new Node3D { Position = new Vector3((float)x, (float)y, (float)z), Rotation = new Vector3((float)(lean * rake), 0, 0) };

@@ -49,7 +49,7 @@ public sealed class FireSettings
     public static FireSettings FromJson(JsonElement j)
     {
         var s = new FireSettings();
-        double D(string n, double v) => j.TryGetProperty(n, out var e) && e.ValueKind == JsonValueKind.Number ? e.GetDouble() : v;
+        double D(string n, double v) => j.Num(n, v);
         if (j.TryGetProperty("enabled", out var en) && (en.ValueKind == JsonValueKind.True || en.ValueKind == JsonValueKind.False))
             s.Enabled = en.GetBoolean();
         s.ShotChance = Math.Clamp(D("shotChance", s.ShotChance), 0, 1);

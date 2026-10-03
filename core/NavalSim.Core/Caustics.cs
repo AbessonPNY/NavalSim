@@ -35,7 +35,7 @@ public sealed class CausticSettings
     public static CausticSettings FromJson(JsonElement k)
     {
         var c = new CausticSettings();
-        double D(string n, double v) => k.TryGetProperty(n, out var e) && e.ValueKind == JsonValueKind.Number ? e.GetDouble() : v;
+        double D(string n, double v) => k.Num(n, v);
         if (k.TryGetProperty("enabled", out var on) && (on.ValueKind == JsonValueKind.False || on.ValueKind == JsonValueKind.True))
             c.Enabled = on.GetBoolean();
         c.Gain = Math.Clamp(D("force", c.Gain), 0, 4);

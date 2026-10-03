@@ -25,7 +25,7 @@ public sealed class DolphinRules
     public static DolphinRules FromJson(JsonElement k)
     {
         var d = new DolphinRules();
-        double D(string n, double v) => k.TryGetProperty(n, out var e) && e.ValueKind == JsonValueKind.Number ? e.GetDouble() : v;
+        double D(string n, double v) => k.Num(n, v);
         if (k.TryGetProperty("enabled", out var on) && (on.ValueKind == JsonValueKind.False || on.ValueKind == JsonValueKind.True))
             d.Enabled = on.GetBoolean();
         d.PerDay = Math.Max(0, D("perDay", d.PerDay));
@@ -149,10 +149,10 @@ public sealed class Dolphins
         double L = spec.L, B = spec.B;
         var fwd = b.Quat.Rotate(new Vec3d(0, 0, 1));
         fwd = new Vec3d(fwd.X, 0, fwd.Z);
-        double fl = Math.Sqrt(fwd.X * fwd.X + fwd.Z * fwd.Z);
+        double fl = fwd.LengthXZ;
         if (fl > 1e-9) fwd = new Vec3d(fwd.X / fl, 0, fwd.Z / fl);
         var right = new Vec3d(-fwd.Z, 0, fwd.X);
-        double way = Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z);
+        double way = b.Vel.LengthXZ;
         int seen = 0;
 
         foreach (var a in Pod)

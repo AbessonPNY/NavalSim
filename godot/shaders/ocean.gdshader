@@ -100,10 +100,6 @@ uniform int   u_lamp_count = 0;
 // leurs deux forces, réglables (reglages.ini, [lanternes])
 uniform float u_lamp_reflection = 2.4;
 uniform float u_lamp_water = 0.6;
-// 0xffb765, la flamme de _lanternAt, en linéaire
-/* Gardée pour mémoire : c'était la couleur de TOUS les feux, et c'est celle que
-   le C# écrit encore pour une lanterne (ShipNode.LampWarm). */
-const vec3 LAMP_COL = vec3(1.0, 0.473, 0.130);
 
 /* CE QUI EST SOUS LA SURFACE, VU À TRAVERS ELLE. L'image et la profondeur déjà
    rendues — la coque comprise, dessinée avant la mer (voir la fin du shader).
@@ -219,22 +215,33 @@ void vertex() {
 }
 
 // ---------------------------------------------------------------------------
+//  REFLECTION: the Fresnel term and the lobe, written once
+// ---------------------------------------------------------------------------
+
+/* Schlick's Fresnel for water (F0 = 0.02). One definition because the mirror
+   (on N·V) and the three highlight lobes (on V·H) must stay the same law:
+   only the cosine they are fed differs. */
+float naval_schlick(float c) {
+	return 0.02 + 0.98 * pow(1.0 - c, 5.0);
+}
+
+/* The GGX (Trowbridge-Reitz) distribution for the sun, the moon and the lamps.
+   `a` is the roughness already squared (alpha); `nh` is N·H clamped at zero.
+   Same operations, same order as the three inline copies it replaces, so a
+   lamp of zero size still gets the sun's lobe to the bit. */
+float naval_ggx(float nh, float a) {
+	float dd = nh * nh * (a * a - 1.0) + 1.0;
+	return (a * a) / (3.14159265 * dd * dd);
+}
+
+// ---------------------------------------------------------------------------
 //  LES RIDES
 // ---------------------------------------------------------------------------
 
-float onde_hash(vec2 p) { return naval_hash13(vec3(p, 3.0)); }
-
-float onde_noise(vec2 p) {
-	vec2 i = floor(p);
-	vec2 f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
-	return mix(mix(onde_hash(i), onde_hash(i + vec2(1, 0)), f.x),
-	           mix(onde_hash(i + vec2(0, 1)), onde_hash(i + vec2(1, 1)), f.x), f.y);
-}
-
+// the sky's value noise, seed 3: the sea's own field, distinct from the clouds'
 float onde_fbm(vec2 p) {
-	return onde_noise(p) * 0.55 + onde_noise(p * 2.03 + 11.0) * 0.28
-	     + onde_noise(p * 4.11 - 7.0) * 0.17;
+	return naval_value_noise(p, 3.0) * 0.55 + naval_value_noise(p * 2.03 + 11.0, 3.0) * 0.28
+	     + naval_value_noise(p * 4.11 - 7.0, 3.0) * 0.17;
 }
 
 /* L'ÉCUME EN TRAITS. Ce qu'on veut voir d'une grosse mer, dessiné comme un
@@ -270,7 +277,7 @@ float lace(vec2 p, float fill, float fine) {
 	   seuillé en douceur. Un premier pointillé en cases (floor) sortait en
 	   damier de pixels, et clignotait d'être retiré trois fois par seconde —
 	   relevé sur une capture. */
-	float g = onde_noise(p * 3.0 + u_wind * u_time * 0.15);
+	float g = naval_value_noise(p * 3.0 + u_wind * u_time * 0.15, 3.0);
 	return foam * mix(1.0, smoothstep(0.28, 0.62, g), 0.45 * fine);
 }
 
@@ -516,7 +523,7 @@ void fragment() {
 	   prend sur V·H, plus bas — ce sont deux questions différentes sur la même
 	   surface. */
 	float cnv = max(dot(N, V), 0.0);
-	float F = 0.02 + 0.98 * pow(1.0 - cnv, 5.0);
+	float F = naval_schlick(cnv);
 
 	/* --- LE CORPS DE L'EAU ---
 	   Droit dessus on voit DEDANS ; de biais on effleure le dessus. Et
@@ -616,14 +623,13 @@ void fragment() {
 	float rough = clamp(0.055 + 0.08 * wind_n + 0.30 * v_foam + 0.24 * far + 0.26 * coarse, 0.03, 0.6);
 	float a = rough * rough;
 	float nh = max(dot(N, H), 0.0);
-	float dd = nh * nh * (a * a - 1.0) + 1.0;
-	float D = (a * a) / (3.14159265 * dd * dd);
+	float D = naval_ggx(nh, a);
 	/* LE FRESNEL D'UNE MICRO-FACETTE SE PREND EN TRAVERS DU DEMI-VECTEUR, pas de
 	   la normale. Le prendre sur N·V — l'erreur d'avant — effondrait le terme à
 	   ~2 % sous tous les angles depuis lesquels on regarde réellement la mer, et
 	   tuait le scintillement entièrement. */
 	float voh = max(dot(V, H), 0.0);
-	float Fs = 0.02 + 0.98 * pow(1.0 - voh, 5.0);
+	float Fs = naval_schlick(voh);
 	/* LE SOLEIL SE REFLÈTE DÈS QU'IL SE LÈVE. Le reflet était multiplié par N·L,
 	   l'éclairement d'une face : au ras de l'horizon, N·L ne vaut presque rien
 	   sur toute la mer, et la route de soleil n'apparaissait qu'une fois l'astre
@@ -644,9 +650,8 @@ void fragment() {
 	if (u_moon_lit > 0.001) {
 		vec3 Hm = normalize(u_moon + V);
 		float nhm = max(dot(N, Hm), 0.0);
-		float ddm = nhm * nhm * (a * a - 1.0) + 1.0;
-		float Dm = (a * a) / (3.14159265 * ddm * ddm);
-		float Fm = 0.02 + 0.98 * pow(1.0 - max(dot(V, Hm), 0.0), 5.0);
+		float Dm = naval_ggx(nhm, a);
+		float Fm = naval_schlick(max(dot(V, Hm), 0.0));
 		c += vec3(0.72, 0.80, 1.0) * Dm * Fm * max(dot(N, u_moon), 0.0) * 1.1 * u_moon_lit;
 	}
 
@@ -685,9 +690,8 @@ void fragment() {
 		   au bit près. L'énergie, elle, ne change pas : D est normalisée, on
 		   ÉTALE la même lumière au lieu d'en ajouter. */
 		float al = clamp(a + u_lamp_size[i] / max(dl, 1.0), a, 1.0);
-		float ddl = nhl * nhl * (al * al - 1.0) + 1.0;
-		float Dl = (al * al) / (3.14159265 * ddl * ddl);
-		float Fl = 0.02 + 0.98 * pow(1.0 - max(dot(V, Hl), 0.0), 5.0);
+		float Dl = naval_ggx(nhl, al);
+		float Fl = naval_schlick(max(dot(V, Hl), 0.0));
 		c += lc * Dl * Fl * u_lamp_reflection;
 		c += lc * (u_shallow * u_lamp_water + vec3(0.02));
 		lamp_foam += lc;
@@ -762,7 +766,7 @@ void fragment() {
 	   plaques qui dérivent — pas partout à la fois. Fils seulement : la dentelle
 	   à son plus maigre. */
 	float breeze = smoothstep(0.9, 2.1, u_ripple);
-	float plaque = smoothstep(0.45, 0.8, onde_noise(v_world.xz * 0.012 - u_wind * u_time * 0.004 + 21.0));
+	float plaque = smoothstep(0.45, 0.8, naval_value_noise(v_world.xz * 0.012 - u_wind * u_time * 0.004 + 21.0, 3.0));
 	// et seulement sur la moitié haute : ce que les têtes blanches laissent en redescendant
 	float voile = breeze * plaque * smoothstep(0.05, 0.4, hrel) * (1.0 - clamp(lace_far, 0.0, 1.0));
 	if (voile > 0.001) crest_foam = max(crest_foam, lace(v_world.xz * 1.3 + 40.0, 0.0, fine) * voile * 0.45);

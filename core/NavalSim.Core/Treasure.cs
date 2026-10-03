@@ -60,8 +60,8 @@ public sealed class TreasureBook
         if (root.TryGetProperty("contenus", out var list) && list.ValueKind == JsonValueKind.Array)
             foreach (var e in list.EnumerateArray())
             {
-                string S(string n) => e.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
-                double D(string n, double d) => e.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : d;
+                string S(string n) => e.Str(n);
+                double D(string n, double d) => e.Num(n, d);
                 var k = new TreasureKind
                 {
                     Key = S("key"), Name = S("nom"), Unit = S("unite"), Units = S("unites"), Note = S("note"), Glb = S("glb"),
@@ -111,7 +111,7 @@ public sealed class TreasureBook
         var k = ByKey(kind);
         if (k == null) return 0;
         double T = palier, n = Math.Floor(t / T), u = t / T - n;
-        double e = u * u * (3 - 2 * u);
+        double e = MathX.Smooth01(u);
         string salt = "tresor/" + kind + "/" + port;
         double a = Market.Hash(salt, n), b = Market.Hash(salt, n + 1);
         return Math.Round(k.Value * Market.SousParEcu * (0.55 + 0.90 * (a + (b - a) * e)));

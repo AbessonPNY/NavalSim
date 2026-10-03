@@ -20,6 +20,7 @@ render_mode blend_disabled, unshaded;
 #include "res://shaders/shelter.gdshaderinc"
 // la coque : MÊME contour que celui que la mer lit pour son collier
 #include "res://shaders/hull_gap.gdshaderinc"
+#include "res://shaders/naval_hash.gdshaderinc"
 
 // le nombre de vagues que lit l'écume, Config.NWavesFoam : les plus énergiques,
 // puisque le tri du spectre les met en tête
@@ -40,12 +41,11 @@ uniform float u_jac_foam = 0.85;     // le même seuil que la mer
 uniform vec4 u_boil[NBOIL];
 uniform int u_boil_count = 0;
 
-float boil_hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float boil_noise(vec2 p) {
 	vec2 i = floor(p), f = fract(p);
 	f = f * f * (3.0 - 2.0 * f);
-	return mix(mix(boil_hash(i), boil_hash(i + vec2(1.0, 0.0)), f.x),
-	           mix(boil_hash(i + vec2(0.0, 1.0)), boil_hash(i + vec2(1.0, 1.0)), f.x), f.y);
+	return mix(mix(naval_hash_sin2(i), naval_hash_sin2(i + vec2(1.0, 0.0)), f.x),
+	           mix(naval_hash_sin2(i + vec2(0.0, 1.0)), naval_hash_sin2(i + vec2(1.0, 1.0)), f.x), f.y);
 }
 
 void fragment() {
@@ -84,9 +84,8 @@ void fragment() {
 		vec2 d = u_wave_a[i].xy;
 		float amp = u_wave_a[i].z * shelter;
 		float k = u_wave_a[i].w;
-		float omega = u_wave_b[i].x;
 		float Q = u_wave_b[i].y;
-		float f = k * dot(d, wpos) - omega * u_time + u_wave_phase[i];
+		float f = gerstner_phase(i, wpos, u_time);
 		gerstner_jacobian_term(d, amp, k, Q, sin(f), jac);
 	}
 	/* Laissée là où la crête casse — le même jacobien que la mer, un peu plus

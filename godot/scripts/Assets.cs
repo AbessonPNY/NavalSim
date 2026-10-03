@@ -52,6 +52,21 @@ public static class Assets
     }
 
     /// <summary>
+    /// Ouvrir un .glb à l'exécution (GltfDocument), rien si le fichier est
+    /// illisible : chaque appelant dit lui-même ce qu'il fait à la place. Le chemin
+    /// est COMPLET — passé par <see cref="Path"/> d'ordinaire.
+    /// </summary>
+    public static Node3D? LoadGlb(string fullPath) => LoadGlb(fullPath, out _);
+
+    public static Node3D? LoadGlb(string fullPath, out Error err)
+    {
+        var doc = new GltfDocument();
+        var state = new GltfState();
+        err = doc.AppendFromFile(fullPath, state);
+        return err == Error.Ok ? doc.GenerateScene(state) as Node3D : null;
+    }
+
+    /// <summary>
     /// Dire au démarrage ce que ce dossier contient. Un doublon oublié est une
     /// panne muette du genre le plus vicieux : on corrige un modèle, on relance,
     /// et Godot montre l'autre.

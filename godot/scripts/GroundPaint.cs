@@ -116,7 +116,7 @@ public sealed class GroundPaint
                 double d = Math.Sqrt(dx * dx + dz * dz);
                 if (d >= 1) continue;
                 double w = d < 0.5 ? 1 : 1 - (d - 0.5) / 0.5;
-                double k = Math.Clamp(w * w * (3 - 2 * w) * amount, 0, 1);
+                double k = Math.Clamp(MathX.Smooth01(w) * amount, 0, 1);
                 int o = (j * N + i) * 4;
                 // l'autre couche cède ce que celle-ci prend ; la gomme les rend toutes deux
                 other[o + 3] = (byte)Math.Round(other[o + 3] * (1 - k));

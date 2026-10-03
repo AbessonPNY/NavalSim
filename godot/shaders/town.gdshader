@@ -16,18 +16,10 @@
  */
 shader_type spatial;
 
-uniform float u_night = 0.0;          // 0 le jour, 1 la nuit — la même que les fanaux
-uniform vec3 u_warm = vec3(1.0, 0.66, 0.30);
-uniform float u_gain = 2.2;
-/// <summary>La part des maisons qui s'allument.</summary>
-uniform float u_lit_share = 0.55;
+#include "res://shaders/town_windows.gdshaderinc"
 
 varying vec3 v_local;
 varying float v_lit;
-
-float hash21(vec2 p) {
-	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
-}
 
 void vertex() {
 	v_local = VERTEX;                                  // la boîte unitaire, avant sa mise à l'échelle

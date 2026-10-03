@@ -43,12 +43,12 @@ public sealed class Pendulum
             double s = 1 - Math.Exp(-dt / 0.04);
             _ah = _ah + (a - _ah) * s;
             // une lampe au bout d'une ligne n'amortit presque rien
-            double w = Math.Sqrt(9.81 / Len), c = 2 * 0.05 * w;
+            double w = Math.Sqrt(Config.G / Len), c = 2 * 0.05 * w;
             int n = (int)Math.Ceiling(dt / 0.008);
             double h = dt / n;
             for (int i = 0; i < n; i++)
             {
-                _u = new Vec3d(_u.X - _ah.X * h, _u.Y + (-9.81 - _ah.Y) * h, _u.Z - _ah.Z * h);
+                _u = new Vec3d(_u.X - _ah.X * h, _u.Y + (-Config.G - _ah.Y) * h, _u.Z - _ah.Z * h);
                 _u = _u * Math.Exp(-c * h);
                 _o = _o + _u * h;
                 double l = _o.Length;

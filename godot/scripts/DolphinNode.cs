@@ -47,14 +47,12 @@ public partial class DolphinNode : Node3D
             GD.PushWarning($"dauphins : modèle introuvable ({path})");
             return false;
         }
-        var haze = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+        var haze = HazePass.New();
         Hazed.Add(haze);
 
         for (int i = 0; i < Dolphins.Max; i++)
         {
-            var doc = new GltfDocument();
-            var state = new GltfState();
-            if (doc.AppendFromFile(path, state) != Error.Ok || doc.GenerateScene(state) is not Node3D root)
+            if (Assets.LoadGlb(path) is not Node3D root)
             {
                 GD.PushWarning($"dauphins : {path} illisible");
                 return false;

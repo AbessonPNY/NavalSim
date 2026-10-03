@@ -82,9 +82,9 @@ public partial class AnchorNode : Node3D
         {
             var m = new StandardMaterial3D
             {
-                AlbedoColor = Color.Color8((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb),
+                AlbedoColor = ColorX.Rgb(rgb),
                 Roughness = rough, Metallic = metal,
-                NextPass = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") }
+                NextPass = HazePass.New()
             };
             Hazed.Add((ShaderMaterial)m.NextPass);
             return m;
@@ -327,7 +327,7 @@ public partial class AnchorNode : Node3D
 
     void Fall(Item it, double dt, double t)
     {
-        const double G = 9.81;
+        const double G = Config.G;
         var o = _sea.Core.Origin;
         var hawse = HawseWorld(it);
         double sea = _sea.Core.Sample(it.P.X, it.P.Z, t);
@@ -466,7 +466,7 @@ public partial class AnchorNode : Node3D
         double reach = (it.P - hawse).Length;
         double len = Math.Min(it.CableMax, Math.Max(reach * 1.02, 3.5 * depth));
         double scope = len / depth;
-        double hold = it.Mass * 9.81 * 8 * Math.Clamp((scope - 1) / 4, 0.15, 1);
+        double hold = it.Mass * Config.G * 8 * Math.Clamp((scope - 1) / 4, 0.15, 1);
         var h = HoleLocal(it);
         it.Moor = new Mooring
         {
@@ -577,7 +577,7 @@ public partial class AnchorNode : Node3D
                    L'ANCRE, au bout quand elle pend, est du fer : lourde même
                    dans l'eau, et peu freinée. */
                 bool wet = it.Py[j] < sea, anchor = hung && j == L;
-                double g = anchor ? (wet ? 8.5 : 9.81) : wet ? 1.8 : 9.81;
+                double g = anchor ? (wet ? 8.5 : Config.G) : wet ? 1.8 : Config.G;
                 double c = anchor ? (wet ? 1.2 : 0.1) : wet ? 4.0 : 0.3;
                 double vx = (it.Px[j] - it.Ox[j]) / H, vy = (it.Py[j] - it.Oy[j]) / H, vz = (it.Pz[j] - it.Oz[j]) / H;
                 double nx = it.Px[j] + (it.Px[j] - it.Ox[j]) - c * vx * H * H;
@@ -655,7 +655,7 @@ public partial class AnchorNode : Node3D
     /// <summary>Un point (scène) ramené hors du bordé, à <paramref name="margin"/> mètres de lui.</summary>
     Vec3d Clear(Item it, Transform3D inv, double side, Vec3d p, double margin, Transform3D? xf = null)
     {
-        var lp = inv * new Vector3((float)p.X, (float)p.Y, (float)p.Z);
+        var lp = inv * p.ToGodot();
         double w = it.Ship.HullHalfWidth(lp.Z, lp.Y);
         if (w <= 0) return p;
         w += margin;
@@ -663,7 +663,7 @@ public partial class AnchorNode : Node3D
         double sg = Math.Abs(lp.X) < 0.2 * w ? side : Math.Sign(lp.X);
         lp.X = (float)(sg * w);
         var back = (xf ?? it.Ship.GlobalTransform) * lp;
-        return new Vec3d(back.X, back.Y, back.Z);
+        return back.ToCore();
     }
 
     /* LES MAILLONS, égrenés le long de la ligne au pas d'un maillon : chacun
@@ -732,11 +732,11 @@ public partial class AnchorNode : Node3D
 
     void Pose(Item it)
     {
-        it.Mesh.Position = new Vector3((float)it.P.X, (float)it.P.Y, (float)it.P.Z);
+        it.Mesh.Position = it.P.ToGodot();
         // couchée sur le fond, la verge vers le navire ; debout dans l'eau
         var y = Shank(it);
         if (y.Y > 0.99) { it.Mesh.Basis = Basis.Identity; return; }
-        var up = new Vector3((float)y.X, (float)y.Y, (float)y.Z);
+        var up = y.ToGodot();
         var x = up.Cross(Vector3.Up).Normalized();
         it.Mesh.Basis = new Basis(x, up, x.Cross(up));
     }

@@ -275,10 +275,9 @@ public partial class ShipDemo : Node3D
 
         // à l'atterrage : l'origine y glisse, la coque reste près de zéro
         var at = _world.Geo.ToXZ(plan.At.Lat, plan.At.Lon);
-        var o = _sea.Core.Origin;
-        _sea.Core.Rebase(at.X - o.X, at.Z - o.Z);
+        RecentreOn(at.X, at.Z);
         var b = p.Body;
-        double yaw = -plan.At.Heading * Math.PI / 180;     // vrai → le lacet du jeu : l'est est −x
+        double yaw = Compass.YawOf(plan.At.Heading);     // vrai → le lacet du jeu : l'est est −x
         b.Pos = new Vec3d(0, _eqY, 0);
         b.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), yaw);
         b.AngVel = new Vec3d(0, 0, 0);

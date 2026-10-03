@@ -193,29 +193,29 @@ public sealed class RegionSpec
             foreach (var p in pz.EnumerateArray())
                 s.Patches.Add(new PatchSpec
                 {
-                    Key = Str(p, "key"), Image = Str(p, "image"),
-                    West = Num(p, "west"), East = Num(p, "east"),
-                    South = Num(p, "south"), North = Num(p, "north"),
+                    Key = Js.Str(p, "key"), Image = Js.Str(p, "image"),
+                    West = Js.Num(p, "west"), East = Js.Num(p, "east"),
+                    South = Js.Num(p, "south"), North = Js.Num(p, "north"),
                     Feather = p.TryGetProperty("feather", out var ff) ? ff.GetDouble() : 80
                 });
         if (r.TryGetProperty("ports", out var ps) && ps.ValueKind == JsonValueKind.Array)
             foreach (var p in ps.EnumerateArray())
                 s.Ports.Add(new PortSpec
                 {
-                    Key = Str(p, "key"), Name = Str(p, "name"),
-                    Lat = Num(p, "lat"), Lon = Num(p, "lon"), Quay = Num(p, "quay"),
-                    Start = Bool(p, "start"), Mole = Bool(p, "mole"), Wild = Bool(p, "wild"),
+                    Key = Js.Str(p, "key"), Name = Js.Str(p, "name"),
+                    Lat = Js.Num(p, "lat"), Lon = Js.Num(p, "lon"), Quay = Js.Num(p, "quay"),
+                    Start = Js.True(p, "start"), Mole = Js.True(p, "mole"), Wild = Js.True(p, "wild"),
                     Centre = p.TryGetProperty("centre", out var ce) && ce.ValueKind == JsonValueKind.Object ? ReadCentre(ce) : null,
                     StartAt = p.TryGetProperty("depart", out var dp) && dp.ValueKind == JsonValueKind.Object
-                        ? (Num(dp, "x"), Num(dp, "z"), Num(dp, "cap")) : null,
-                    ShelterR = p.TryGetProperty("abri", out var ab) && ab.ValueKind == JsonValueKind.Object ? Num(ab, "rayon") : 0
+                        ? (Js.Num(dp, "x"), Js.Num(dp, "z"), Js.Num(dp, "cap")) : null,
+                    ShelterR = p.TryGetProperty("abri", out var ab) && ab.ValueKind == JsonValueKind.Object ? Js.Num(ab, "rayon") : 0
                 });
         if (r.TryGetProperty("towns", out var tw) && tw.ValueKind == JsonValueKind.Array)
             foreach (var t in tw.EnumerateArray())
                 s.Towns.Add(new TownSpec
                 {
-                    Key = Str(t, "key"), Name = Str(t, "name"),
-                    Lat = Num(t, "lat"), Lon = Num(t, "lon"),
+                    Key = Js.Str(t, "key"), Name = Js.Str(t, "name"),
+                    Lat = Js.Num(t, "lat"), Lon = Js.Num(t, "lon"),
                     Radius = t.TryGetProperty("radius", out var rr) ? rr.GetDouble() : 600,
                     Houses = t.TryGetProperty("houses", out var hh) ? hh.GetInt32() : 240
                 });
@@ -223,14 +223,14 @@ public sealed class RegionSpec
             foreach (var a in ap.EnumerateArray())
                 s.Approaches.Add(new ApproachSpec
                 {
-                    Name = Str(a, "name"), Lat = Num(a, "lat"), Lon = Num(a, "lon"), Heading = Num(a, "heading")
+                    Name = Js.Str(a, "name"), Lat = Js.Num(a, "lat"), Lon = Js.Num(a, "lon"), Heading = Js.Num(a, "heading")
                 });
         if (r.TryGetProperty("assets", out var az) && az.ValueKind == JsonValueKind.Array)
             foreach (var a in az.EnumerateArray())
                 s.Assets.Add(new AssetSpec
                 {
-                    Name = Str(a, "name"), Glb = Str(a, "glb"),
-                    Lat = Num(a, "lat"), Lon = Num(a, "lon"), Yaw = Num(a, "yaw"),
+                    Name = Js.Str(a, "name"), Glb = Js.Str(a, "glb"),
+                    Lat = Js.Num(a, "lat"), Lon = Js.Num(a, "lon"), Yaw = Js.Num(a, "yaw"),
                     Scale = a.TryGetProperty("scale", out var k) ? k.GetDouble() : 1,
                     Y = a.TryGetProperty("y", out var y) ? y.GetDouble() : null
                 });
@@ -238,18 +238,18 @@ public sealed class RegionSpec
             foreach (var p in pn.EnumerateArray())
                 s.Piers.Add(new PierSpec
                 {
-                    Name = Str(p, "nom"), X = Num(p, "x"), Z = Num(p, "z"), Cap = Num(p, "cap"),
+                    Name = Js.Str(p, "nom"), X = Js.Num(p, "x"), Z = Js.Num(p, "z"), Cap = Js.Num(p, "cap"),
                     Length = p.TryGetProperty("longueur", out var pl) ? pl.GetDouble() : 40,
                     Width = p.TryGetProperty("largeur", out var pw) ? pw.GetDouble() : 14
                 });
         if (r.TryGetProperty("mouilles", out var mo) && mo.ValueKind == JsonValueKind.Array)
             foreach (var p in mo.EnumerateArray())
-                s.Anchored.Add(new AnchoredSpec { Sheet = Str(p, "fiche"), X = Num(p, "x"), Z = Num(p, "z"), Cap = Num(p, "cap") });
+                s.Anchored.Add(new AnchoredSpec { Sheet = Js.Str(p, "fiche"), X = Js.Num(p, "x"), Z = Js.Num(p, "z"), Cap = Js.Num(p, "cap") });
         if (r.TryGetProperty("peinture", out var pt) && pt.ValueKind == JsonValueKind.Array)
             foreach (var p in pt.EnumerateArray())
                 s.Paints.Add(new PaintSpec
                 {
-                    Port = Str(p, "port"), Image = Str(p, "image"),
+                    Port = Js.Str(p, "port"), Image = Js.Str(p, "image"),
                     Side = p.TryGetProperty("cote", out var cs) ? cs.GetDouble() : 1024,
                     Step = p.TryGetProperty("pas", out var st) ? st.GetDouble() : 0.5
                 });
@@ -258,8 +258,8 @@ public sealed class RegionSpec
             {
                 var sp = new ScatterSpec
                 {
-                    Name = Str(a, "name"), Glb = Str(a, "glb"), Patch = Str(a, "patch"),
-                    Lat = Num(a, "lat"), Lon = Num(a, "lon"),
+                    Name = Js.Str(a, "name"), Glb = Js.Str(a, "glb"), Patch = Js.Str(a, "patch"),
+                    Lat = Js.Num(a, "lat"), Lon = Js.Num(a, "lon"),
                     Radius = a.TryGetProperty("rayon", out var ra) ? ra.GetDouble() : 300,
                     Count = a.TryGetProperty("nombre", out var nb) ? nb.GetInt32() : 30,
                     Tilt = a.TryGetProperty("penche", out var pe) ? pe.GetDouble() : 18,
@@ -276,14 +276,11 @@ public sealed class RegionSpec
             }
         return s;
 
-        static string Str(JsonElement e, string k) => e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString()! : "";
 
-        static double Num(JsonElement e, string k) => e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0;
-        static bool Bool(JsonElement e, string k) => e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.True;
 
         static CentreSpec ReadCentre(JsonElement c)
         {
-            var s = new CentreSpec { Glb = Str(c, "glb") };
+            var s = new CentreSpec { Glb = Js.Str(c, "glb") };
             if (c.TryGetProperty("bloc", out var b) && b.ValueKind == JsonValueKind.Array && b.GetArrayLength() == 2)
             { s.Long = b[0].GetDouble(); s.Deep = b[1].GetDouble(); }
             if (c.TryGetProperty("longueur", out var l)) s.Length = l.GetDouble();
@@ -515,8 +512,7 @@ public sealed class World : IGround
         double dz = Math.Min(g.Lat - p.South, p.North - g.Lat) * mPerLat;
         double d = Math.Min(dx, dz);
         double f = Math.Max(1e-6, p.Feather);
-        double u = Math.Clamp(d / f, 0, 1);
-        return u * u * (3 - 2 * u);
+        return MathX.Smooth01(d / f);
     }
 
     /// <summary>
@@ -595,8 +591,7 @@ public sealed class World : IGround
             double d = Math.Sqrt((x - H.Cx) * (x - H.Cx) + (z - H.Cz) * (z - H.Cz));
             if (d > H.R + H.Wall) continue;
             double dp = Math.Sqrt((x - H.Px) * (x - H.Px) + (z - H.Pz) * (z - H.Pz));
-            double u = Math.Min(1, dp / (1.6 * H.R));
-            double s = 1 - u * u * (3 - 2 * u) * 0.88;
+            double s = 1 - MathX.Smooth01(dp / (1.6 * H.R)) * 0.88;
             if (s < f) f = s;
         }
         return f;

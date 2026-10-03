@@ -39,19 +39,6 @@ public partial class ShipDemo
         box.AddChild(_mkYard);
     }
 
-    static Label MkLabel(string text, int size, Color col, bool expand = false, float minW = 0, bool right = false)
-    {
-        var l = new Label
-        {
-            Text = text,
-            SizeFlagsHorizontal = expand ? Control.SizeFlags.ExpandFill : Control.SizeFlags.Fill,
-            HorizontalAlignment = right ? HorizontalAlignment.Right : HorizontalAlignment.Left,
-            CustomMinimumSize = new Vector2(minW, 0)
-        };
-        l.AddThemeFontSizeOverride("font_size", size);
-        l.AddThemeColorOverride("font_color", col);
-        return l;
-    }
 
     /// <summary>Le poisson frais : une ligne par espèce à bord, ses kilos, ce qu'il vaut ici à sa fraîcheur.</summary>
     void FishRows()

@@ -65,10 +65,10 @@ public partial class MooredNode : Node3D
     /// </summary>
     void Haze(Node3D obj)
     {
-        _haze ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader"), RenderPriority = -4 };
+        _haze ??= HazePass.New(-4);
         if (!Hazed.Contains(_haze)) Hazed.Add(_haze);
         var done = new HashSet<Material>();
-        foreach (var mi in Meshes(obj))
+        foreach (var mi in NodeWalk.Meshes(obj))
             for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
             {
                 var mat = mi.GetSurfaceOverrideMaterial(i) ?? mi.Mesh.SurfaceGetMaterial(i);
@@ -79,12 +79,6 @@ public partial class MooredNode : Node3D
                 while (last.NextPass != null && last.NextPass != _haze) last = last.NextPass;
                 last.NextPass = _haze;
             }
-    }
-
-    static IEnumerable<MeshInstance3D> Meshes(Node n)
-    {
-        if (n is MeshInstance3D mi && mi.Mesh != null) yield return mi;
-        foreach (var c in n.GetChildren()) foreach (var m in Meshes(c)) yield return m;
     }
 
     /// <summary>
@@ -118,9 +112,7 @@ public partial class MooredNode : Node3D
             if (spec.Model == null || spec.Model.Glb.Length == 0) return null;
             string path = Assets.Path(spec.Model.Glb);
             if (!System.IO.File.Exists(path)) { GD.PushWarning($"[rade] {spec.Model.Glb} introuvable"); return null; }
-            var doc = new GltfDocument();
-            var state = new GltfState();
-            if (doc.AppendFromFile(path, state) != Error.Ok || doc.GenerateScene(state) is not Node3D root) return null;
+            if (Assets.LoadGlb(path) is not Node3D root) return null;
             /* LA MÊME ÉCHELLE QUE LA FLOTTE, par la même fonction : un galion au
                mouillage qui ne ferait pas la taille d'un galion sous voiles se
                verrait au premier coup d'œil, et deux calculs d'échelle finiraient
@@ -223,7 +215,7 @@ public partial class MooredNode : Node3D
             var holder = new Node3D();
             holder.AddChild(copie);
             m2.Group.AddChild(holder);
-            double yaw = -a.Cap * Math.PI / 180;
+            double yaw = Compass.YawOf(a.Cap);
             int slot = m2.Ships.Count;
             m2.Ships.Add((holder, new Vec3d(a.X, mdl.Y, a.Z), yaw, true, mdl.Spec.Hull.Length));
             var e = new Editable

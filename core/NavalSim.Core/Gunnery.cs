@@ -184,7 +184,7 @@ public sealed class GunnerySettings
         { s.ReloadLo = r[0].GetDouble(); s.ReloadHi = r[1].GetDouble(); }
         if (j.TryGetProperty("recoilSpeed", out var v) && v.ValueKind == JsonValueKind.Number)
             s.RecoilSpeed = Math.Max(0.1, v.GetDouble());
-        double D(string k, double d) => j.TryGetProperty(k, out var e) && e.ValueKind == JsonValueKind.Number ? e.GetDouble() : d;
+        double D(string k, double d) => j.Num(k, d);
         s.FlashEnergy = Math.Max(0, D("flashEnergy", s.FlashEnergy));
         s.FlashRange = Math.Max(1, D("flashRange", s.FlashRange));
         s.FlashLife = Math.Max(0.01, D("flashLife", s.FlashLife));
@@ -485,7 +485,7 @@ public sealed class Gunnery
                 Vec3d a0 = b.P;
                 double sp = b.V.Length;
                 b.V = b.V + b.V * (-b.C * sp * h);         // c·v², le long de sa course
-                b.V = new Vec3d(b.V.X, b.V.Y - 9.81 * h, b.V.Z);
+                b.V = new Vec3d(b.V.X, b.V.Y - Config.G * h, b.V.Z);
                 b.P = b.P + b.V * h;
                 Vec3d a1 = b.P;
                 dead = HitShips(b, a0, a1) || (OnCreature?.Invoke(a0, a1, b) ?? false);

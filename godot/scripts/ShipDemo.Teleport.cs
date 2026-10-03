@@ -151,9 +151,9 @@ public partial class ShipDemo
         _jumpTarget = null;
         _ship.RingsOrdered = false;
 
-        double miles = Math.Sqrt((x - from.X) * (x - from.X) + (z - from.Z) * (z - from.Z)) / 1852;
+        double miles = Math.Sqrt((x - from.X) * (x - from.X) + (z - from.Z) * (z - from.Z)) / Config.Mile;
         var fix = _world!.Geo.Fix(x, z);
-        double kn = Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z) * 1.94384;
+        double kn = b.Vel.LengthXZ * Config.MsToKn;
         Say(FormattableString.Invariant(
             $"Le navire a sauté — {Geo.Format(fix.Lat, true)} {Geo.Format(fix.Lon, false)}, {kn:F1} nds"));
         JournalLog(FormattableString.Invariant(

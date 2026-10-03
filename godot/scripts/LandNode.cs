@@ -81,7 +81,7 @@ public partial class LandNode : Node3D
         {
             Shader = GD.Load<Shader>("res://shaders/land.gdshader"),
             // l'air devant tout le reste, la MÊME passe que la coque porte
-            NextPass = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") }
+            NextPass = HazePass.New()
         };
         Ground = _mat;
         Hazed.Add((ShaderMaterial)_mat.NextPass);
@@ -300,20 +300,6 @@ public partial class LandNode : Node3D
     }
 
     /// <summary>La boîte d'un modèle, dans son propre repère.</summary>
-    static Aabb? BoxOf(Node3D root)
-    {
-        Aabb? box = null;
-        var stack = new Stack<(Node, Transform3D)>();
-        stack.Push((root, Transform3D.Identity));
-        while (stack.Count > 0)
-        {
-            var (n, t) = stack.Pop();
-            foreach (var c in n.GetChildren()) stack.Push((c, c is Node3D c3 ? t * c3.Transform : t));
-            if (n is MeshInstance3D m && m.Mesh != null) { var b = t * m.Mesh.GetAabb(); box = box is Aabb a0 ? a0.Merge(b) : b; }
-        }
-        return box;
-    }
-
     void BuildAssets()
     {
         int ai = 0;
@@ -322,9 +308,7 @@ public partial class LandNode : Node3D
             int index = ai++;
             string path = Assets.Path(a.Glb);
             if (!System.IO.File.Exists(path)) { GD.PushWarning($"[monde] modèle introuvable : {a.Glb}"); continue; }
-            var doc = new GltfDocument();
-            var state = new GltfState();
-            if (doc.AppendFromFile(path, state) != Error.Ok || doc.GenerateScene(state) is not Node3D root)
+            if (Assets.LoadGlb(path) is not Node3D root)
             { GD.PushWarning($"[monde] {a.Glb} illisible"); continue; }
 
             var g = World.Geo.ToXZ(a.Lat, a.Lon);
@@ -337,18 +321,10 @@ public partial class LandNode : Node3D
                monde à chaque image sans repayer la lecture du relief. */
             var pl = _assets.Add(hold, g.X, a.Y ?? World.HeightAt(g.X, g.Z), g.Z);
             // l'air devant tout le reste, la MÊME passe que la coque porte
-            var haze = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+            var haze = HazePass.New();
             Hazed.Add(haze);
-            foreach (var mi in AllMeshes(root))
-                for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
-                    if (mi.GetActiveMaterial(i) is BaseMaterial3D bm)
-                    {
-                        var own = (BaseMaterial3D)bm.Duplicate();
-                        own.NextPass = haze;
-                        own.VertexColorUseAsAlbedo = true;
-                        mi.SetSurfaceOverrideMaterial(i, own);
-                    }
-            var ab = BoxOf(root) ?? new Aabb();
+            foreach (var mi in NodeWalk.Meshes(root)) HazePass.Wear(mi, haze, vertexColour: true);
+            var ab = NodeWalk.Bounds(root) ?? new Aabb();
             double sc = a.Scale;
             Register(pl, $"modele:{index}:{a.Name}", a.Name.Length > 0 ? a.Name : "un modèle posé", "modele:" + a.Glb,
                 g.X, g.Z, -a.Yaw * Math.PI / 180, pl.Y,
@@ -376,36 +352,19 @@ public partial class LandNode : Node3D
         {
             string path = Assets.Path(sp.Glb);
             if (!System.IO.File.Exists(path)) { GD.PushWarning($"[monde] semis « {sp.Name} » : {sp.Glb} introuvable"); continue; }
-            var doc = new GltfDocument();
-            var state = new GltfState();
-            if (doc.AppendFromFile(path, state) != Error.Ok || doc.GenerateScene(state) is not Node3D root)
+            if (Assets.LoadGlb(path) is not Node3D root)
             { GD.PushWarning($"[monde] semis « {sp.Name} » : {sp.Glb} illisible"); continue; }
 
             // sa boîte, dans son propre repère
-            Aabb? box = null;
-            var stack = new Stack<(Node, Transform3D)>();
-            stack.Push((root, Transform3D.Identity));
-            while (stack.Count > 0)
-            {
-                var (n, t) = stack.Pop();
-                foreach (var c in n.GetChildren()) stack.Push((c, c is Node3D c3 ? t * c3.Transform : t));
-                if (n is MeshInstance3D m && m.Mesh != null) { var b = t * m.Mesh.GetAabb(); box = box is Aabb a0 ? a0.Merge(b) : b; }
-            }
+            Aabb? box = NodeWalk.Bounds(root);
             if (box is not Aabb bb || bb.Size.Length() < 1e-5f) continue;
             float ext = Math.Max(bb.Size.X, Math.Max(bb.Size.Y, bb.Size.Z));
             var centre = bb.GetCenter();
 
             // la brume, une passe pour toutes les copies (elles partagent leurs matières)
-            var haze = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader") };
+            var haze = HazePass.New();
             Hazed.Add(haze);
-            foreach (var mi in AllMeshes(root))
-                for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
-                    if (mi.GetActiveMaterial(i) is BaseMaterial3D bm)
-                    {
-                        var own = (BaseMaterial3D)bm.Duplicate();
-                        own.NextPass = haze;
-                        mi.SetSurfaceOverrideMaterial(i, own);
-                    }
+            foreach (var mi in NodeWalk.Meshes(root)) HazePass.Wear(mi, haze);
 
             int pi = 0;
             foreach (var p in Scatter.Place(World, sp))
@@ -422,7 +381,7 @@ public partial class LandNode : Node3D
                 };
                 tilt.AddChild(copy);
                 hold.AddChild(tilt);
-                foreach (var mi in AllMeshes(copy)) { mi.VisibilityRangeEnd = (float)sp.Visible; mi.VisibilityRangeEndMargin = (float)(sp.Visible * 0.07); }
+                foreach (var mi in NodeWalk.Meshes(copy)) { mi.VisibilityRangeEnd = (float)sp.Visible; mi.VisibilityRangeEndMargin = (float)(sp.Visible * 0.07); }
                 AddChild(hold);
                 // enfoncé d'une part de sa demi-hauteur (« enfonce » : 0,4 pour un rocher)
                 var pl = _assets.Add(hold, p.X, World.HeightAt(p.X, p.Z) + bb.Size.Y * k * 0.5 * (1 - sp.Sink), p.Z);
@@ -433,13 +392,6 @@ public partial class LandNode : Node3D
             }
         }
         if (total > 0) GD.Print($"monde : {total} élément(s) semé(s)");
-    }
-
-    static IEnumerable<MeshInstance3D> AllMeshes(Node n)
-    {
-        if (n is MeshInstance3D mi && mi.Mesh != null) yield return mi;
-        foreach (var c in n.GetChildren())
-            foreach (var m in AllMeshes(c)) yield return m;
     }
 
     public void Update(Vec3d centre, Vec3d origin, bool eager = false)

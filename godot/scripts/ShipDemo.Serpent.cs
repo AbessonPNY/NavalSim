@@ -90,7 +90,7 @@ public partial class ShipDemo : Node3D
             return;
         }
         _sound?.Crash(k.At, 2.2, 6, "hull");
-        _ship.Scar(new Vector3((float)k.At.X, (float)k.At.Y, (float)k.At.Z), 1.8);
+        _ship.Scar(k.At.ToGodot(), 1.8);
         _spray.Pool.Burst(k.At, 12, 7, 1.3);
         Say(FormattableString.Invariant($"{(k.Kind == "tail" ? "Un coup de queue" : "Le serpent frappe de la tête")} ! Voie d'eau de {k.Area:F1} m² — aux pompes !").Replace("0.", "0,"));
     }

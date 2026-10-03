@@ -89,7 +89,7 @@ public sealed class WreckAir
     /// montent à la même allure se lit comme un décor qui défile ; celui-ci
     /// s'étire de lui-même, les grosses en tête.
     /// </summary>
-    public static double RiseSpeed(double r) => Math.Max(0.25, 0.71 * Math.Sqrt(9.81 * r));
+    public static double RiseSpeed(double r) => Math.Max(0.25, 0.71 * Math.Sqrt(Config.G * r));
 
     /* L'air ne sort pas d'une coque en filet continu mais par GORGÉES — il
        s'amasse sous un barrot jusqu'à ce que la poche déborde. La taille suit le
@@ -152,7 +152,7 @@ public sealed class WreckAir
                     {
                         var b = ph.Body;
                         Vec3d f = b.Quat.Rotate(new Vec3d(0, 0, 1));
-                        double fl = Math.Sqrt(f.X * f.X + f.Z * f.Z);
+                        double fl = f.LengthXZ;
                         double fx = fl > 1e-9 ? f.X / fl : 0, fz = fl > 1e-9 ? f.Z / fl : 1;
                         double sx = -fz, sz = fx;                       // par le travers
                         double along = (c.Vent.X - b.Pos.X) * fx + (c.Vent.Z - b.Pos.Z) * fz;
@@ -265,7 +265,7 @@ public sealed class WreckAir
            d'elle un instant après : une seule gerbe se lit comme une chose qui
            crève la surface, un décalage se lit comme un navire qui lâche tout. */
         Vec3d f = q.Rotate(new Vec3d(0, 0, 1));
-        double fl = Math.Sqrt(f.X * f.X + f.Z * f.Z);
+        double fl = f.LengthXZ;
         double fx = fl > 1e-9 ? f.X / fl : 0, fz = fl > 1e-9 ? f.Z / fl : 1;
         double L = ph.Spec.L;
         (double Off, double Share, double Delay)[] shots = { (0, 0.62, 0), (-0.25, 0.22, 0.20), (0.30, 0.16, 0.45) };

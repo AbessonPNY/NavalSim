@@ -211,14 +211,14 @@ public partial class OceanNode : Node3D
         {
             var p = fleet[i];
             var b = p.Body;
-            _shipPos[i] = new Vector3((float)b.Pos.X, (float)b.Pos.Y, (float)b.Pos.Z);
+            _shipPos[i] = b.Pos.ToGodot();
             Vec3d f = b.Quat.Rotate(new Vec3d(0, 0, 1));
             _shipFwd[i] = new Vector2((float)f.X, (float)f.Z).Normalized();
             // sa plus grande demi-largeur TELLE QUE MESURÉE, qui met son profil à
             // l'échelle : spec.B n'est que le chiffre annoncé
             _shipHalf[i] = new Vector2((float)(p.Spec.L * 0.5),
                 (float)(_profs[i]?.MaxHalfB ?? p.Spec.B * 0.5));
-            _shipSpeed[i] = (float)Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z);
+            _shipSpeed[i] = (float)b.Vel.LengthXZ;
             /* CE QU'IL RESTE D'ELLE À LA SURFACE. Le solveur l'a déjà : le collier,
                la gerbe d'étrave et le sillage appartiennent à une coque qui FEND
                l'eau, et une épave n'en fend plus. Envoyé 1 quoi qu'il arrive, le

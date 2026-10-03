@@ -29,7 +29,7 @@ public sealed class KrakenSettings
     public static KrakenSettings FromJson(JsonElement k)
     {
         var s = new KrakenSettings();
-        double D(string n, double v) => k.TryGetProperty(n, out var e) && e.ValueKind == JsonValueKind.Number ? e.GetDouble() : v;
+        double D(string n, double v) => k.Num(n, v);
         if (k.TryGetProperty("enabled", out var en) && (en.ValueKind == JsonValueKind.True || en.ValueKind == JsonValueKind.False))
             s.Enabled = en.GetBoolean();
         s.MinInten = D("minInten", s.MinInten); s.AppearAfter = D("appearAfter", s.AppearAfter);
@@ -210,7 +210,7 @@ public sealed class Kraken
         if (intenV < K.MinInten * 0.5) WeakT += dt; else WeakT = 0;
         var ph = v!.Physics;
         var b = ph.Body;
-        double kn = Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z) * 1.944;
+        double kn = b.Vel.LengthXZ * 1.944;
 
         switch (State)
         {

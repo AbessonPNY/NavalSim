@@ -13,10 +13,7 @@ shader_type spatial;
    il ne doit rien rester d'elle. Le reste suit le mur. */
 render_mode blend_mix, depth_draw_opaque;
 
-uniform float u_night = 0.0;          // 0 le jour, 1 la nuit — la même que les fanaux
-uniform vec3 u_warm = vec3(1.0, 0.66, 0.30);
-uniform float u_gain = 2.2;
-uniform float u_lit_share = 0.55;
+#include "res://shaders/town_windows.gdshaderinc"
 uniform vec3 u_glass : source_color = vec3(0.06, 0.07, 0.09);
 /* LE GROUPE DE FENÊTRES (le numéro de la matière : fenetre_002 → 2). Il entre
    dans le tirage : chaque groupe d'une même maison s'allume pour son compte. */
@@ -24,10 +21,6 @@ uniform float u_group = 0.0;
 
 varying float v_lit;
 varying float v_when;
-
-float hash21(vec2 p) {
-	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
-}
 
 void vertex() {
 	vec2 seed = floor(MODEL_MATRIX[3].xz * 7.13) + u_group * vec2(3.17, 11.3);   // où la maison se tient, et quel groupe

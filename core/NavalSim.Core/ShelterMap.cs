@@ -92,8 +92,7 @@ public sealed class ShelterMap
                    tiers qu'on entre dans une baie, et sous un huitième qu'on est au
                    fond d'un bassin. */
                 double f = (double)open / Rays;
-                double u = Math.Clamp((f - 0.12) / (0.42 - 0.12), 0, 1);
-                v[j * n + i] = (float)(Floor + (1 - Floor) * u * u * (3 - 2 * u));
+                v[j * n + i] = (float)(Floor + (1 - Floor) * MathX.SmoothStep(0.12, 0.42, f));
             }
         });
 

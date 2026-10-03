@@ -89,7 +89,7 @@ public partial class ShipNode : Node3D
             Mesh = ToArrayMesh(Lines.BuildGeometry()),
             // la coque est une nappe fermée par deux culs : on voit son intérieur
             // quand elle gîte, donc le shader dessine les deux faces
-            MaterialOverride = MakeHullMaterial(Hex(spec.Appearance.Hull), 0.72f)
+            MaterialOverride = MakeHullMaterial(ColorX.Hex(spec.Appearance.Hull), 0.72f)
         };
         AddChild(_hull);
 
@@ -132,10 +132,7 @@ public partial class ShipNode : Node3D
         string path = Assets.Path(m.Glb);
         try
         {
-            var doc = new GltfDocument();
-            var state = new GltfState();
-            Error err = doc.AppendFromFile(path, state);
-            if (err != Error.Ok || doc.GenerateScene(state) is not Node3D obj)
+            if (Assets.LoadGlb(path, out Error err) is not Node3D obj)
             {
                 GD.PushWarning($"[{Spec.Id}] impossible de charger {m.Glb} ({err}) — "
                              + "elle garde sa coque procédurale.");
@@ -378,7 +375,7 @@ public partial class ShipNode : Node3D
            la mer, PUIS la fumée. C'est l'ordre de la coque opaque qu'elles
            habillent, et c'était le seul qu'elles n'avaient pas.
            (Repères : sea_far −2, la mer −1, tout le reste 0.) */
-        _hazePass ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader"), RenderPriority = -4 };
+        _hazePass ??= HazePass.New(-4);
         Hazed.Add(_hazePass);
         // la neige passe AVANT la brume : l'air est devant elle aussi
         _snowPass ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/ship_snow.gdshader"), NextPass = _hazePass, RenderPriority = -5 };
@@ -527,6 +524,11 @@ public partial class ShipNode : Node3D
         prof.Heights = f;
     }
 
+    /// <summary>
+    /// Les données pures du noyau deviennent un maillage Godot. C'est TOUT ce que
+    /// la couche moteur a le droit de faire de HullLines — la forme est décidée
+    /// dans le noyau, ici on ne fait que la porter au GPU (HullPreview, les épaves).
+    /// </summary>
     internal static ArrayMesh ToArrayMesh(in HullMesh hm)
     {
         var verts = new Vector3[hm.Positions.Length / 3];
@@ -536,7 +538,7 @@ public partial class ShipNode : Node3D
         var st = new SurfaceTool();
         st.Begin(Mesh.PrimitiveType.Triangles);
         foreach (int idx in hm.Indices) st.AddVertex(verts[idx]);
-        st.GenerateNormals();
+        st.GenerateNormals();     // le plan de formes ne porte pas de normales
         return st.Commit();
     }
 
@@ -591,7 +593,7 @@ public partial class ShipNode : Node3D
     public void SyncTransform()
     {
         var b = Physics.Body;
-        Position = new Vector3((float)b.Pos.X, (float)b.Pos.Y, (float)b.Pos.Z);
+        Position = b.Pos.ToGodot();
         Quaternion = new Quaternion(
             (float)b.Quat.X, (float)b.Quat.Y, (float)b.Quat.Z, (float)b.Quat.W).Normalized();
         PushShipInverse();          // ses blessures la suivent

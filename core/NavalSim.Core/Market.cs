@@ -87,14 +87,12 @@ public sealed class Goods
             foreach (var e in arr.EnumerateArray())
                 g.List.Add(new Good
                 {
-                    Key = Txt(e, "key"), Name = Txt(e, "nom"), Note = Txt(e, "note"),
+                    Key = Js.Str(e, "key"), Name = Js.Str(e, "nom"), Note = Js.Str(e, "note"),
                     Price = e.TryGetProperty("prix", out var p) && p.ValueKind == JsonValueKind.Number ? p.GetDouble() : 0
                 });
         return g;
     }
 
-    static string Txt(JsonElement e, string k) =>
-        e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString()! : "";
 }
 
 /// <summary>Ce qu'un comptoir sait d'un autre port : la denrée qui s'y paie le mieux, son chiffre, et son âge.</summary>
@@ -184,7 +182,7 @@ public sealed class Market
         var w = Wares.ByKey(good);
         if (w == null) return 0;
         double T = Palier, n = Math.Floor(t / T), u = t / T - n;
-        double e = u * u * (3 - 2 * u);
+        double e = MathX.Smooth01(u);
         string k = Salt(good, port);
         double a = Hash(k, n), b = Hash(k, n + 1);
         double f = a + (b - a) * e;

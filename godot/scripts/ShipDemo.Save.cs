@@ -144,8 +144,8 @@ public partial class ShipDemo
             Region = _world?.Region.Key ?? "caraibes",
             Navire = _paths.Count > 0 ? System.IO.Path.GetFileName(_paths[_index]) : "",
             X = tx, Z = tz,
-            Cap = (Math.Atan2(-f.X, f.Z) * 180 / Math.PI + 360) % 360,       // l'est est −x
-            Erre = Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z),
+            Cap = Compass.HeadingDeg(f),       // l'est est −x
+            Erre = b.Vel.LengthXZ,
             T = _t, MarcheFerme = _mkShut, Heure = _sky.Core.DayTime,
             CalDebut = _calendar.Start.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
             CalJour = _calendar.Day,
@@ -173,8 +173,8 @@ public partial class ShipDemo
             {
                 Fiche = other.Spec.Id + ".json",
                 X = o.X + ob.Pos.X, Z = o.Z + ob.Pos.Z,
-                Cap = (Math.Atan2(-of.X, of.Z) * 180 / Math.PI + 360) % 360,
-                Erre = Math.Sqrt(ob.Vel.X * ob.Vel.X + ob.Vel.Z * ob.Vel.Z),
+                Cap = Compass.HeadingDeg(of),
+                Erre = ob.Vel.LengthXZ,
                 Hostile = _hostile.ContainsKey(other)
             });
         }
@@ -198,7 +198,7 @@ public partial class ShipDemo
             if (d < best) { best = d; near = i; }
         }
         if (near == null) return "en mer";
-        return best < 900 ? near.Name : $"{best / 1852:F0} milles de {near.Name}";
+        return best < 900 ? near.Name : $"{best / Config.Mile:F0} milles de {near.Name}";
     }
 
     /// <summary>
@@ -373,10 +373,9 @@ public partial class ShipDemo
         Restate();
 
         // l'origine glisse à la position vraie : la coque reste près de zéro
-        var o = _sea.Core.Origin;
-        _sea.Core.Rebase(s.X - o.X, s.Z - o.Z);
+        RecentreOn(s.X, s.Z);
         b.Pos = new Vec3d(0, _eqY, 0);
-        b.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), -s.Cap * Math.PI / 180);
+        b.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), Compass.YawOf(s.Cap));
         b.AngVel = Vec3d.Zero;
         b.Vel = b.Quat.Rotate(new Vec3d(0, 0, s.Erre));
         _ship.Ctrl.SailsSet = s.Voiles;
@@ -401,7 +400,7 @@ public partial class ShipDemo
             var ob = other.Physics.Body;
             var no = _sea.Core.Origin;
             ob.Pos = new Vec3d(c.X - no.X, ob.Pos.Y, c.Z - no.Z);
-            ob.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), -c.Cap * Math.PI / 180);
+            ob.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), Compass.YawOf(c.Cap));
             ob.Vel = ob.Quat.Rotate(new Vec3d(0, 0, c.Erre));
             ob.AngVel = Vec3d.Zero;
             other.SyncTransform();

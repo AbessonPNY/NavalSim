@@ -94,7 +94,7 @@ public partial class ShipDemo
     double FishSpeed()
     {
         var v = _ship.Physics.Body.Vel;
-        return Math.Sqrt(v.X * v.X + v.Z * v.Z);
+        return v.LengthXZ;
     }
 
     /// <summary>
@@ -119,7 +119,7 @@ public partial class ShipDemo
         double v = FishSpeed();
         if (v > _angling.MaxSpeed)
         {
-            Say(FormattableString.Invariant($"Trop d'erre pour pêcher — {v * 1.94384:F1} nœuds : mettez en panne ou mouillez"));
+            Say(FormattableString.Invariant($"Trop d'erre pour pêcher — {v * Config.MsToKn:F1} nœuds : mettez en panne ou mouillez"));
             return true;
         }
         if (depth < 2) { Say("Pas assez d'eau pour pêcher"); return true; }
@@ -272,8 +272,7 @@ public partial class ShipDemo
         {
             case 0:
             {
-                var o = _sea.Core.Origin;
-                _sea.Core.Rebase(ft.X - o.X, ft.Y - o.Z);
+                RecentreOn(ft.X, ft.Y);
                 var b = _ship.Physics.Body;
                 _anchor2?.Weigh(_ship);
                 b.Pos = new Vec3d(0, b.Pos.Y, 0);

@@ -110,7 +110,7 @@ public partial class CordageNode : Node3D
                 var a = pool[order[pick]];
                 order.RemoveAt(pick);
                 var w = a.Obj.GlobalTransform * a.At;
-                Core.Hang(new Vec3d(w.X, w.Y, w.Z), a.Len * (0.75 + _rng.NextDouble() * 0.5),
+                Core.Hang(w.ToCore(), a.Len * (0.75 + _rng.NextDouble() * 0.5),
                     new Tag { Ship = s, Mast = mast, Epoch = s.RigEpoch, Obj = a.Obj, At = a.At });
             }
         }

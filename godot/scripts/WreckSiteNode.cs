@@ -162,9 +162,7 @@ public partial class WreckSiteNode : Node3D
         Node3D? root = null;
         if (spec.Model is { } mm && mm.Glb.Length > 0 && System.IO.File.Exists(Assets.Path(mm.Glb)))
         {
-            var doc = new GltfDocument();
-            var state = new GltfState();
-            if (doc.AppendFromFile(Assets.Path(mm.Glb), state) == Error.Ok && doc.GenerateScene(state) is Node3D r)
+            if (Assets.LoadGlb(Assets.Path(mm.Glb)) is Node3D r)
             {
                 ShipNode.StripRings(r);
                 double k = mm.Scale ?? ShipNode.HullScale(r, mm.LengthAxis, spec.Hull.Length);
@@ -202,25 +200,9 @@ public partial class WreckSiteNode : Node3D
 
     void Haze(Node3D obj)
     {
-        _haze ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/hull_haze.gdshader"), RenderPriority = -4 };
+        _haze ??= HazePass.New(-4);
         if (!Hazed.Contains(_haze)) Hazed.Add(_haze);
-        var done = new HashSet<Material>();
-        var stack = new Stack<Node>();
-        stack.Push(obj);
-        while (stack.Count > 0)
-        {
-            var n = stack.Pop();
-            foreach (var c in n.GetChildren()) stack.Push(c);
-            if (n is not MeshInstance3D mi || mi.Mesh == null) continue;
-            for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
-            {
-                var mat = mi.GetSurfaceOverrideMaterial(i) ?? mi.Mesh.SurfaceGetMaterial(i);
-                if (mat is ShaderMaterial || mat == null || !done.Add(mat)) continue;
-                var last = mat;
-                while (last.NextPass != null && last.NextPass != _haze) last = last.NextPass;
-                last.NextPass = _haze;
-            }
-        }
+        HazePass.Chain(obj, _haze);
     }
 
     static StandardMaterial3D Plank() => new() { AlbedoColor = new Color(0.30f, 0.22f, 0.15f), Roughness = 0.95f };
@@ -234,9 +216,7 @@ public partial class WreckSiteNode : Node3D
         string path = Assets.Path(rel);
         if (System.IO.File.Exists(path))
         {
-            var doc = new GltfDocument();
-            var state = new GltfState();
-            if (doc.AppendFromFile(path, state) == Error.Ok && doc.GenerateScene(state) is Node3D r) root = r;
+            if (Assets.LoadGlb(path) is Node3D r) root = r;
             else GD.PushWarning($"[trésor] {rel} illisible : forme simple à la place");
         }
         else GD.PushWarning($"[trésor] {rel} introuvable : forme simple à la place");
@@ -244,19 +224,7 @@ public partial class WreckSiteNode : Node3D
     }
 
     /// <summary>La boîte d'un modèle dans son propre repère.</summary>
-    static Aabb Box(Node3D root)
-    {
-        Aabb? box = null;
-        var stack = new Stack<(Node, Transform3D)>();
-        stack.Push((root, Transform3D.Identity));
-        while (stack.Count > 0)
-        {
-            var (n, t) = stack.Pop();
-            foreach (var c in n.GetChildren()) stack.Push((c, c is Node3D c3 ? t * c3.Transform : t));
-            if (n is MeshInstance3D mi && mi.Mesh != null) { var b = t * mi.Mesh.GetAabb(); box = box is Aabb a0 ? a0.Merge(b) : b; }
-        }
-        return box ?? new Aabb(Vector3.Zero, Vector3.One);
-    }
+    static Aabb Box(Node3D root) => NodeWalk.Bounds(root) ?? new Aabb(Vector3.Zero, Vector3.One);
 
     static Node? FindNamed(Node n, string name)
     {

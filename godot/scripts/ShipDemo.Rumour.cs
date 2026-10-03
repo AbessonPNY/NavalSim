@@ -102,7 +102,7 @@ public partial class ShipDemo : Node3D
         /* Seulement sous voiles ou à la machine, et loin d'un port : à quai on a
            le comptoir, qui dit mieux et pour rien. */
         var b = _ship.Physics.Body;
-        if (_portHere != null || Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z) < 0.7) return;
+        if (_portHere != null || b.Vel.LengthXZ < 0.7) return;
         if ((_rumourIn -= dt) > 0) return;
         _rumourIn = 240 + _rumourRng.Randf() * 240;                           // puis quatre à huit minutes
         Speak();

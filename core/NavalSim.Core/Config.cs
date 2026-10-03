@@ -13,6 +13,8 @@ public static class Config
     public const double G = 9.81;
     public const double RhoAir = 1.225;
     public const double MsToKn = 1.94384;
+    /// <summary>Le mille marin : une minute de latitude, telle que <see cref="Geo"/> la compte.</summary>
+    public const double Mile = Geo.MPerMin;
 
     // ---- grille de sondes (cellules dans l'enveloppe de carène) ----
     public const int PnZ = 11, PnX = 7, PnY = 7;

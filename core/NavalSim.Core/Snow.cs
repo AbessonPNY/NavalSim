@@ -30,7 +30,7 @@ public sealed class SnowSettings
     public static SnowSettings FromJson(JsonElement k)
     {
         var s = new SnowSettings();
-        double D(string n, double v) => k.TryGetProperty(n, out var e) && e.ValueKind == JsonValueKind.Number ? e.GetDouble() : v;
+        double D(string n, double v) => k.Num(n, v);
         s.Coat = Math.Max(1, D("manteau", s.Coat));
         s.Max = Math.Clamp(D("max", s.Max), 0, 1);
         s.Melt = Math.Max(1, D("fonte", s.Melt));

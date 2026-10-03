@@ -86,8 +86,7 @@ public sealed class Weather
     // Box-Muller, un écart normal par appel : les mêmes tirages, dans le même ordre, que la page
     double Gauss()
     {
-        double u = 1 - _random();
-        return Math.Sqrt(-2 * Math.Log(u)) * Math.Cos(2 * Math.PI * _random());
+        return MathX.Gauss(_random(), _random());
     }
 
     // un pas EXACT d'Ornstein-Uhlenbeck : les mêmes statistiques quel que soit dt

@@ -109,7 +109,7 @@ public partial class HullPreview : Node3D
 
         var lines = new HullLines(_spec);
         HullMesh hm = lines.BuildGeometry();
-        _hull.Mesh = ToArrayMesh(hm);
+        _hull.Mesh = ShipNode.ToArrayMesh(hm);
         _hull.MaterialOverride = new StandardMaterial3D
         {
             AlbedoColor = new Color(0.30f, 0.35f, 0.42f),
@@ -123,24 +123,6 @@ public partial class HullPreview : Node3D
 
         _dist = (float)_spec.L * 1.5f;
         UpdateInfo();
-    }
-
-    /// <summary>
-    /// Les donnees pures du noyau deviennent un maillage Godot. C'est TOUT ce que
-    /// la couche moteur a le droit de faire de HullLines -- la forme est decidee
-    /// dans le noyau, ici on ne fait que la porter au GPU.
-    /// </summary>
-    static ArrayMesh ToArrayMesh(in HullMesh hm)
-    {
-        var verts = new Vector3[hm.Positions.Length / 3];
-        for (int i = 0; i < verts.Length; i++)
-            verts[i] = new Vector3(hm.Positions[i * 3], hm.Positions[i * 3 + 1], hm.Positions[i * 3 + 2]);
-
-        var st = new SurfaceTool();
-        st.Begin(Mesh.PrimitiveType.Triangles);
-        foreach (int idx in hm.Indices) st.AddVertex(verts[idx]);
-        st.GenerateNormals();     // le plan de formes ne porte pas de normales
-        return st.Commit();
     }
 
     void UpdateInfo()
