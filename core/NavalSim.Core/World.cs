@@ -584,8 +584,11 @@ public sealed class World : IGround
     {
         double f = 1;
         // la forme du rivage, là où une fiche l'a demandée
-        foreach (var map in ShelterMaps)
-            if (map.Covers(x, z)) f = Math.Min(f, map.Sample(x, z));
+        // indexed: a foreach over the IReadOnlyList boxed its enumerator once per
+        // ocean sample, that is per probe, sub-step and hull
+        var maps = _shelterMaps.Value;
+        for (int i = 0; i < maps.Count; i++)
+            if (maps[i].Covers(x, z)) f = Math.Min(f, maps[i].Sample(x, z));
         foreach (var isl in Isles)
         {
             if (isl.Port.Harbour is not Harbour H) continue;
@@ -597,6 +600,24 @@ public sealed class World : IGround
             if (s < f) f = s;
         }
         return f;
+    }
+
+    /// <summary>
+    /// Can <see cref="Shelter"/> be below one anywhere within r metres of
+    /// (x, z)? The same reach tests as Shelter, widened by r.
+    /// </summary>
+    public bool ShelterNear(double x, double z, double r)
+    {
+        var maps = _shelterMaps.Value;
+        for (int i = 0; i < maps.Count; i++)
+            if (maps[i].Covers(x, z, r)) return true;
+        foreach (var isl in Isles)
+        {
+            if (isl.Port.Harbour is not Harbour H) continue;
+            double d = Math.Sqrt((x - H.Cx) * (x - H.Cx) + (z - H.Cz) * (z - H.Cz));
+            if (d <= H.R + H.Wall + r) return true;
+        }
+        return false;
     }
 
     /// <summary>Y a-t-il assez d'eau ici pour une coque qui tire <paramref name="draft"/> mètres ?</summary>

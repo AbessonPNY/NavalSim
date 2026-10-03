@@ -14466,6 +14466,133 @@ vent avec elle. Les autres recherches d'espars écartaient les cordages ; celle-
 l'avait oublié. Écartée, la corde suit désormais la vraie antenne (5 cordages
 suivent un espar).
 
+## La passe d'optimisation, première tranche (Godot)
+
+Demandé : « factorisation et optimisation du code du jeu ». Trois audits (doublons,
+chemin chaud, shaders et noyau) ont donné un plan en trois tranches ; la première,
+celle qui ne doit RIEN changer à l'image ni à la physique, est faite. Mesuré à
+seize frégates (`--flotte 16 --vsync 0 --frametimes 1200`, deux courses de
+chaque côté, l'état d'avant remis par `git stash` pour la comparaison) :
+
+    avant   image 31,7 ms   _Process 18,8   GPU 13,3   1 120 Ko alloués/image   gen0 123
+    après   image 29,9 ms   _Process 17,3   GPU 12,9     198 Ko alloués/image   gen0 35
+
+**Le gros des octets était UN foreach.** `World.Shelter` parcourait `ShelterMaps`,
+un `IReadOnlyList` : l'énumérateur est mis en boîte à chaque appel, et l'abri est
+lu à chaque échantillon de la mer, donc par sonde, par sous-pas et par coque —
+dans TOUS les fils du solveur. La mesure du solveur n'en voyait que la part du
+fil principal (`GetAllocatedBytesForCurrentThread`) ; le compteur global, lui,
+disait 1,1 Mo par image. Boucle indexée : 198 Ko. Même défaut dans `Collide`.
+**Règle : jamais de foreach sur une interface de collection dans un chemin chaud.**
+
+**Les sondes sûres ne lisent plus la mer** (`ShipPhysics.Step`). Aucun point de
+la surface n'est plus haut ni plus bas que la somme des amplitudes
+(`Ocean.HeightBound`) : une sonde au-dessus est sèche, une sonde plus d'une
+cellule au-dessous est pleine, et rien de ce qui suit ne lit autre chose que
+cela. **L'abri se tranche par coque** : au large, aucun havre ni aucune carte
+d'abri ne passe à portée de ses sondes (`World.ShelterNear`, les mêmes tests de
+portée élargis du rayon de la coque), et l'abri vaut exactement un pour toutes.
+La hauteur seule (`Sample(x, z, t)`) ne calcule plus la normale. La parité rend
+une sortie IDENTIQUE à l'octet près, écarts compris : le solveur ne change pas.
+Le solveur passe de 3,4 à 2,4 ms.
+
+**Le mur de 18 m écrit dans le shader.** `shelter.gdshaderinc` retrouvait le
+rayon du bassin en retranchant 18 de `u_harbour.z` (rayon plus mur) : une
+seconde définition de `Harbour.Wall`, que rien n'aurait tenue d'accord.
+`u_harbour_pass` est devenu un `vec4` qui porte le rayon en `z`.
+
+**`--foamcheck` mesurait une écume que le champ ne dessine plus** : la raideur
+Q·k·A·sin contre 0,66 et 1,05, quand `foam_field.gdshader` est passé au
+jacobien. Il refait maintenant le même jacobien, abri compris, au même seuil
+(`seuil_jacobien`). Constat en passant : par force 9 et au seuil de 0,83 (celui
+du `reglages.ini`), le jacobien ne descend pas sous 0,78 sur 4 000 points, et
+l'écume ne commence qu'à 0,77 : il n'y a presque pas de moutons. Le contrôle et
+le champ sont d'accord ; c'est le réglage qui est à rejuger à l'œil.
+
+Le reste : les fanaux n'écrivent plus rien le jour une fois éteints ; les noms
+d'uniformes des fonctions par image sont dans `U` (23 de plus) ; `PushHarbour`
+sans ses sept lambdas, et TOUJOURS à chaque image (un cache aurait oublié une
+matière créée après lui — la panne des trois calculateurs) ; les textes des
+instruments au rythme de 0,15 s ; une couleur de bouton n'est reposée que si elle
+change (chaque surcharge est un changement de thème). Shaders : le collier et
+l'étrave ne bouclent plus sur une coque à plus de 250 m au-delà de sa
+demi-longueur ; la dentelle, le ciel derrière la brume et la houle du reflet
+éteint ne se calculent plus là où leur poids est nul ; l'ombre des coques lit le
+profil une fois au lieu de deux.
+
+**Où va le temps maintenant**, sondes provisoires par bloc (retirées) :
+
+    toile des 15 autres : envoi à Godot 3,3 ms, forme 1,2, cordages qui suivent 0,6
+    pavillons            : envoi 2,2 ms, calcul 1,1
+    solveurs 2,4 · brume poussée matière par matière 1,2 · tempête 0,5 · canons 0,55
+
+La moitié de `_Process` est l'ENVOI des maillages de toile : `ClearSurfaces` puis
+`AddSurfaceFromArrays` pour chaque voile et chaque pavillon, à chaque image.
+C'est la deuxième tranche (mise à jour sur place des sommets, ciel en uniformes
+globaux). Attention en mesurant : les 300 premières images comptent les
+assemblages paresseux (un ponton coûtait 424 Ko « par image » sur une course
+courte, rien en régime).
+
+## La passe d'optimisation, deuxième tranche (Godot)
+
+Même banc, seize frégates, 1 200 images :
+
+    après la tranche 1   image 29,9 ms   _Process 17,3   GPU 12,9   198 Ko alloués/image
+    après la tranche 2   image 22,4 ms   _Process 12,2   GPU  9,5   116 Ko alloués/image
+
+**La toile mise à jour sur place** (`LiveCloth.cs`, voiles et pavillons). La
+surface est bâtie une fois avec `FlagUseDynamicUpdate`, puis seuls positions et
+normales sont réécrites par `MeshSurfaceUpdateVertexRegion`. Le format du tampon
+n'est PAS supposé : les premières images, la même toile est encodée ici et
+rebâtie par Godot, et les octets sont comparés ; au moindre écart, la toile
+garde l'ancien chemin et la console le dit. Il a fallu deux essais, et c'est la
+preuve qui les a trouvés, pas l'image :
+
+- Godot 4.7 n'entrelace PAS : les positions de tous les sommets (pas de 12
+  octets), puis les normales en bloc (`MeshSurfaceGetFormatOffset` rend une
+  position au-delà de toutes les positions), en octaèdre sur deux fois seize bits.
+- Derrière chaque normale, il range une TANGENTE qu'il déduit d'elle (4 octets).
+  Elle n'est pas réécrite sur place et garde la valeur de la dernière
+  reconstruction : sans effet, aucun shader de voile ne lit `TANGENT`. Une
+  matière qui la lirait est gardée sur l'ancien chemin (`UsesTangents`).
+- La boîte englobante ne suit pas une mise à jour sur place : elle est élargie
+  (`CustomAabb`) quand la toile en sort.
+
+5,5 ms gagnées sur le fil principal : la moitié de `_Process`.
+
+**Le ciel en uniformes globaux** pour les shaders des navires : `hull`,
+`hull_haze`, `sail`, les rubans (`#define NAVAL_SKY_GLOBAL` avant l'inclusion,
+une macro `NAVAL_SKY_U` dans `sky.gdshaderinc` et `haze.gdshaderinc` garde la
+liste en un seul endroit). SkyNode les écrit une fois par image
+(`PushGlobals`) ; `PushTo` et `SetCloud` sautent leurs matières. Les autres
+shaders qui incluent le ciel gardent leurs uniformes : pluie, neige, bulles,
+lueur des fanaux, éclair ne sont JAMAIS poussés, et un global leur aurait donné
+un autre ciel. Gain inattendu : la carte graphique, de 12,9 à 9,5 ms — les
+milliers d'uniformes réécrits par matière se payaient aussi côté GPU, en
+tampons d'uniformes renvoyés.
+
+Écart assumé : les débris flottants, la fumée des canons et les éclats
+recevaient le ciel sans les nuages (`PushTo` sans `SetCloud`), donc une
+couverture par défaut de 0,12. Leur passe de brume est `hull_haze` : ils ont
+maintenant les nuages du moment, comme les navires.
+
+**Comment on l'a jugé sans regarder une image** : `--fixed-fps 60` (option du
+moteur, AVANT le `--`) rend le temps du jeu indépendant de la machine ; deux
+captures à la même image (`--after 240 --capture`) ne diffèrent alors que par
+les embruns. Comparées pixel à pixel (un petit script System.Drawing) :
+
+    après-midi, origine contre origine     0,059 % de pixels écartés de plus de 8
+    après-midi, origine contre maintenant  0,064 %
+    crépuscule, origine contre origine     0,014 %
+    crépuscule, origine contre maintenant  0,038 %
+
+Une tempête (force 7) n'est pas déterministe — 8 % de pixels changent d'une
+course à l'autre — et ne prouve rien dans un sens ni dans l'autre.
+
+**Les cordages qui suivent les vergues** : la place de chaque espar est remontée
+une fois par appel au lieu d'une fois par bout de corde. Peu de temps, 13 Ko de
+moins par image.
+
 ## Conventions
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code

@@ -138,8 +138,11 @@ void fragment() {
 
 	   La brisure par la pente reste, mais elle n'était que la moitié du sujet :
 	   elle hachait la lumière là où il fallait aussi DÉPLACER la découpe. */
-	vec3 disp; vec3 nrm; float jac; float h;
-	gerstner_sum(v_world.xz, u_time, shelter_at(v_world.xz), -1.0, disp, nrm, jac, h);
+	/* Eighteen components per pixel for a reflection that the refusal below
+	   blacks out anyway when the rings are cold: summed only when it can show. */
+	vec3 disp = vec3(0.0); vec3 nrm = vec3(0.0); float jac = 1.0; float h = 0.0;
+	if (lvl > 0.002 || u_debug > 0.5)
+		gerstner_sum(v_world.xz, u_time, shelter_at(v_world.xz), -1.0, disp, nrm, jac, h);
 	float under = v_under + h * u_swell;
 	bool sous_l_eau = under > 0.0;
 

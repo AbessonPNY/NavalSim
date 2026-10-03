@@ -81,6 +81,40 @@ public sealed class Ocean
     public Func<double, double, double>? Shelter;
 
     /// <summary>
+    /// Can any shelter reach within r metres of this WORLD point? The solver asks
+    /// once per hull and sub-step: out at sea the answer is no, and its five
+    /// hundred probes then skip the per-point shelter lookup. Never true by
+    /// mistake is not required; never FALSE by mistake is.
+    /// </summary>
+    public Func<double, double, double, bool>? ShelterNear;
+
+    /// <summary>
+    /// The shelter to hand <see cref="Sample(double, double, double, double, out Vec3d)"/>
+    /// for every point within r metres of local (x, z): exactly 1 where no
+    /// shelter reaches, NaN (= ask per point) otherwise.
+    /// </summary>
+    public double ShelterOver(double x, double z, double r)
+    {
+        if (Shelter == null) return 1.0;
+        if (ShelterNear == null) return double.NaN;
+        return ShelterNear(x + Origin.X, z + Origin.Z, r) ? double.NaN : 1.0;
+    }
+
+    /// <summary>
+    /// No surface point is higher or lower than this: each component's profile
+    /// stays within its amplitude (|sin| raised to a power, times a shelter of at
+    /// most one), so the sum stays within the sum of amplitudes. A probe beyond it
+    /// is dry, or drowned, without sampling anything.
+    /// </summary>
+    public double HeightBound()
+    {
+        int n = CpuWaveCount > 0 ? CpuWaveCount : Waves.Length;
+        double s = 0;
+        for (int i = 0; i < n; i++) s += Math.Abs(Waves[i].Amp);
+        return s * (1 + 1e-12) + 1e-9;
+    }
+
+    /// <summary>
     /// Combien de composantes le solveur integre. Pas les plus LONGUES mais les
     /// plus ENERGETIQUES : en tempete les plus longues atteignent des centaines
     /// de metres et soulevent le navire en bloc sans le travailler. C'est la
@@ -337,9 +371,17 @@ public sealed class Ocean
     /// L'abri se prend en metres MONDE, puisque c'est la que le havre est defini.
     /// </summary>
     public double Sample(double x, double z, double t, out Vec3d normal)
+        => Sample(x, z, t, double.NaN, out normal);
+
+    /// <summary>
+    /// The same, with the shelter already known (<see cref="ShelterOver"/>);
+    /// NaN asks for it at this point.
+    /// </summary>
+    public double Sample(double x, double z, double t, double shelter, out Vec3d normal)
     {
         double y = 0, nx = 0, nz = 0, ny = 0;
-        double sh = Shelter != null ? Shelter(x + Origin.X, z + Origin.Z) : 1.0;
+        double sh = !double.IsNaN(shelter) ? shelter
+                  : Shelter != null ? Shelter(x + Origin.X, z + Origin.Z) : 1.0;
 
         int n = CpuWaveCount > 0 ? CpuWaveCount : Waves.Length;
         for (int i = 0; i < n; i++)
@@ -362,6 +404,26 @@ public sealed class Ocean
         return y;
     }
 
-    /// <summary>La hauteur seule, sans construire de normale.</summary>
-    public double Sample(double x, double z, double t) => Sample(x, z, t, out _);
+    /// <summary>
+    /// La hauteur seule, sans construire de normale. The height terms are
+    /// written exactly as in the full sample, in the same order: the two must
+    /// agree to the bit.
+    /// </summary>
+    public double Sample(double x, double z, double t)
+    {
+        double y = 0;
+        double sh = Shelter != null ? Shelter(x + Origin.X, z + Origin.Z) : 1.0;
+        int n = CpuWaveCount > 0 ? CpuWaveCount : Waves.Length;
+        for (int i = 0; i < n; i++)
+        {
+            ref Wave w = ref Waves[i];
+            double f = w.K * (w.Dx * x + w.Dz * z) - w.Omega * t + w.Phase;
+            double sn = Math.Sin(f);
+            double as_ = Math.Abs(sn);
+            double sp = Math.Pow(Math.Max(as_, 1e-4), Sharp - 1);
+            double amp = w.Amp * sh;
+            y += amp * Math.Sign(sn) * as_ * sp;
+        }
+        return y;
+    }
 }

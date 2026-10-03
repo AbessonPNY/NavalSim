@@ -57,9 +57,9 @@ public partial class CompassNode : Control
         var size = tex.GetSize();
         var c = chart.ToChart(x, z);
         double px = Radius / chart.MetresPerPixel;
-        _mat.SetShaderParameter("u_chart", tex);
-        _mat.SetShaderParameter("u_center", new Vector2(c.X / size.X, c.Y / size.Y));
-        _mat.SetShaderParameter("u_span", new Vector2((float)(px / size.X), (float)(px / size.Y)));
+        _mat.SetShaderParameter(U.Chart, tex);
+        _mat.SetShaderParameter(U.Center, new Vector2(c.X / size.X, c.Y / size.Y));
+        _mat.SetShaderParameter(U.Span, new Vector2((float)(px / size.X), (float)(px / size.Y)));
         _rose.Heading = heading;
         _rose.WindFrom = windFrom;
         _rose.RadiusMiles = miles;

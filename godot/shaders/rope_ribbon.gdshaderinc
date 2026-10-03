@@ -1,5 +1,7 @@
 /* LE CORPS DU RUBAN, partagé par ses deux variantes — voir rope_ribbon.gdshader
  * (mélangé) et rope_ribbon_taa.gdshader (opaque, tramé), ShipNode.Ropes.cs. */
+// a ship's rigging, pushed with her every frame: the sky goes global (sky.gdshaderinc)
+#define NAVAL_SKY_GLOBAL
 #include "res://shaders/ship_haze.gdshaderinc"
 
 uniform vec3 u_color : source_color = vec3(0.29, 0.22, 0.16);   // chanvre goudronné, brun

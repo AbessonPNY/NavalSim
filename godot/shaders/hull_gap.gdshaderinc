@@ -34,16 +34,25 @@ uniform float u_ship_afloat[NSHIP];
    d'écume courir au-delà de l'étrave, là où le profil s'était déjà effilé à
    rien. Pris autour du milieu du corps, pour qu'une étrave fine et un arrière
    plein soient traités sans la supposer symétrique. */
-float hull_gap(vec2 rel, vec2 f2, vec2 r2, vec2 half_lb, vec2 ends, float row,
-               out float t_along) {
+// prof: the whole texel at this station — .r its half-beam fraction, .g its topsides
+// (the shadow wants both: one read instead of two at the same place)
+float hull_gap_prof(vec2 rel, vec2 f2, vec2 r2, vec2 half_lb, vec2 ends, float row,
+                    out float t_along, out vec4 prof) {
 	float along   = dot(rel, f2);
 	float athwart = dot(rel, r2);
 	float half_l  = max(half_lb.x, 0.01);
 	t_along = along / half_l;                        // -1 à l'arrière .. +1 à l'étrave
-	float half_b = texture(u_hull_prof, vec2(clamp(t_along * 0.5 + 0.5, 0.0, 1.0), row)).r
+	prof = texture(u_hull_prof, vec2(clamp(t_along * 0.5 + 0.5, 0.0, 1.0), row));
+	float half_b = prof.r
 	             * half_lb.y;
 	float mid  = (ends.x + ends.y) * 0.5;
 	float half_body = max((ends.y - ends.x) * 0.5, 0.01);
 	vec2 d = vec2(abs(athwart) - half_b, abs(along - mid) - half_body);
 	return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
+}
+
+float hull_gap(vec2 rel, vec2 f2, vec2 r2, vec2 half_lb, vec2 ends, float row,
+               out float t_along) {
+	vec4 prof;
+	return hull_gap_prof(rel, f2, r2, half_lb, ends, row, t_along, prof);
 }

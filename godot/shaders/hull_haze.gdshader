@@ -16,6 +16,8 @@
 shader_type spatial;
 render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
 
+// the sky goes global (sky.gdshaderinc): this pass is on nearly everything, pushed every frame
+#define NAVAL_SKY_GLOBAL
 #include "res://shaders/ship_haze.gdshaderinc"
 
 /* LE MÉLANGE DE LA PAGE SE FAISAIT DANS L'ESPACE DE L'ÉCRAN — three.js

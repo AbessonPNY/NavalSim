@@ -175,6 +175,16 @@ La musique n'est pas embarquée (trop lourde). `node build.js` écrit
   dans un champ ; refuser `repeat` pour les commandes à un cran.
 - **Effets de bord** : `setSun()` rallume les lumières et libère la texture
   d'environnement ; `settle()` aplatit la mer puis la rend.
+- **Ciel global (Godot)** : `hull`, `hull_haze`, `sail` et les rubans de
+  cordage lisent le ciel en `global uniform` (`#define NAVAL_SKY_GLOBAL`, liste
+  `SkyNode.GlobalSkyShaders`, valeurs par défaut dans `project.godot`). Ne
+  passer en global qu'un shader dont TOUTES les matières sont déjà poussées à
+  chaque image, sinon il change d'aspect.
+- **Toile mise à jour sur place (Godot, `LiveCloth`)** : seules positions et
+  normales sont réécrites ; une matière de voile ou de pavillon qui lirait
+  `TANGENT`, `BINORMAL` ou une carte de normales retombe sur la reconstruction.
+- **Chemin chaud C#** : jamais de `foreach` sur une interface de collection
+  (énumérateur mis en boîte), ni de nom d'uniforme en chaîne (`U`).
 
 ## Mesurer dans le navigateur
 

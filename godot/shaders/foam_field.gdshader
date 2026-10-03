@@ -55,8 +55,11 @@ void fragment() {
 	   l'étalement sur quatre voisins le laisse se disperser en vieillissant. */
 	vec2 puv = UV + u_offset_uv;
 	float prev = 0.0;
-	if (puv.x > 0.0 && puv.x < 1.0 && puv.y > 0.0 && puv.y < 1.0) {
-		prev  = texture(u_prev, puv).r * 0.60;
+	bool inside = puv.x > 0.0 && puv.x < 1.0 && puv.y > 0.0 && puv.y < 1.0;
+	// the centre texel once: its red feeds the sheet, its green the stern lines below
+	vec4 here = inside ? texture(u_prev, puv) : vec4(0.0);
+	if (inside) {
+		prev  = here.r * 0.60;
 		prev += texture(u_prev, puv + vec2(u_texel, 0.0)).r * 0.10;
 		prev += texture(u_prev, puv - vec2(u_texel, 0.0)).r * 0.10;
 		prev += texture(u_prev, puv + vec2(0.0, u_texel)).r * 0.10;
@@ -68,8 +71,8 @@ void fragment() {
 	   — sans quoi, étalées d'un texel par image, elles devenaient une bande en
 	   une seconde —, seulement effacées, et plus lentement que la nappe. */
 	float lines = 0.0;
-	if (puv.x > 0.0 && puv.x < 1.0 && puv.y > 0.0 && puv.y < 1.0)
-		lines = texture(u_prev, puv).g * pow(u_decay, 0.6);
+	if (inside)
+		lines = here.g * pow(u_decay, 0.6);
 
 	/* L'écume fraîche là où une crête déferle. Le profil NON affûté et sans
 	   borne de maille, comme l'original : c'est une question sur la mer, pas sur

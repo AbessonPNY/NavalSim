@@ -89,6 +89,30 @@ public static class U
     public static readonly StringName WavePhase = new("u_wave_phase");
     public static readonly StringName Wind = new("u_wind");
     public static readonly StringName Zenith = new("u_zenith");
+    // written every frame by the demo and its nodes (a string here would mint a StringName per call)
+    public static readonly StringName Harbour = new("u_harbour");
+    public static readonly StringName HarbourPass = new("u_harbour_pass");
+    public static readonly StringName ShelterRect = new("u_shelter_rect");
+    public static readonly StringName ShelterTex = new("u_shelter_map");
+    public static readonly StringName Submerged = new("u_submerged");
+    public static readonly StringName ShoreDist = new("u_shore_dist");
+    public static readonly StringName Sunlit = new("u_sunlit");
+    public static readonly StringName Kelvin = new("u_kelvin");
+    public static readonly StringName Night = new("u_night");
+    public static readonly StringName Wet = new("u_wet");
+    public static readonly StringName Sheet = new("u_sheet");
+    public static readonly StringName Aspect = new("u_aspect");
+    public static readonly StringName Rain = new("u_rain");
+    public static readonly StringName Mist = new("u_mist");
+    public static readonly StringName Level = new("u_level");
+    public static readonly StringName SeaY = new("u_sea_y");
+    public static readonly StringName SeaPlane = new("u_sea_plane");
+    public static readonly StringName Mask = new("u_mask");
+    public static readonly StringName FadeOn = new("u_fade_on");
+    public static readonly StringName Debug = new("u_debug");
+    public static readonly StringName Chart = new("u_chart");
+    public static readonly StringName Center = new("u_center");
+    public static readonly StringName Span = new("u_span");
 }
 
 /// <summary>

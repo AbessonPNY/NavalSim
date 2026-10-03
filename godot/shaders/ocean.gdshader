@@ -452,9 +452,10 @@ float hull_shadow(vec3 P, vec2 pix) {
 		for (int k = 0; k < 24; k++) {
 			float h = top * (float(k) + jit) / 24.0;
 			float t_along;
-			float gap = hull_gap(rel + step_h * h, f2, r2, u_ship_half[i], u_hull_ends[i], row, t_along);
+			vec4 prof;
+			float gap = hull_gap_prof(rel + step_h * h, f2, r2, u_ship_half[i], u_hull_ends[i], row, t_along, prof);
 			// la coque n'est haute là que si SES hauts, à cette station, dépassent h
-			float deck = top * texture(u_hull_prof, vec2(clamp(t_along * 0.5 + 0.5, 0.0, 1.0), row)).g;
+			float deck = top * prof.g;
 			float soft = 0.5 + 0.06 * h * sl + 1.5 * stride;
 			float inside = 1.0 - smoothstep(-0.4, soft, gap);
 			float band = max(0.25, top / 12.0);
@@ -725,8 +726,14 @@ void fragment() {
 	float battue = clamp(v_foam * 1.6 * u_cap_gain, 0.0, 1.0);
 	// la finesse que la maille et la distance permettent encore
 	float fine = (1.0 - smoothstep(0.8, 2.5, v_spacing)) * (1.0 - smoothstep(35.0, 140.0, dist));
-	float lc = mix(lace(v_world.xz, battue, fine), 0.4 * battue + 0.2, clamp(lace_far, 0.0, 1.0));
-	float crest_foam = clamp(lc * smoothstep(0.03, 0.3, battue) * (0.75 + 0.35 * fn) * u_foam_gain, 0.0, 1.0);
+	/* The lace is the costliest term here (six Perlin and a noise), and it is
+	   weighed by (1 - lace_far) and by the ramp on battue: where either is
+	   zero it changes nothing, and is not computed. */
+	float lace_mix = clamp(lace_far, 0.0, 1.0);
+	float crest_ramp = smoothstep(0.03, 0.3, battue);
+	float lc = 0.4 * battue + 0.2;
+	if (lace_mix < 1.0 && crest_ramp > 0.0) lc = mix(lace(v_world.xz, battue, fine), lc, lace_mix);
+	float crest_foam = clamp(lc * crest_ramp * (0.75 + 0.35 * fn) * u_foam_gain, 0.0, 1.0);
 	/* LES STRIES QUI SUIVENT LA PENTE. Sur la face d'une grosse vague, l'eau
 	   ruisselle et l'écume se déchire en longues traînées qui descendent, dans le
 	   sens de la plus grande pente — ce que montrent les images de tempête, et
@@ -769,6 +776,12 @@ void fragment() {
 	for (int i = 0; i < NSHIP; i++) {
 		if (i >= u_ship_count) break;
 		vec2 rel = v_world.xz - u_ship_pos[i].xz;
+		/* FAR FROM HER, NOTHING OF HERS: every pixel of sea out to the horizon ran
+		   this loop for every hull. Beyond 250 m past her half-length the bow
+		   wave has faded under a thousandth (exp(-s/35)), the collar is metres
+		   wide, and near_hull is only compared with 2.5 m. */
+		float reach = u_ship_half[i].x + 250.0;
+		if (dot(rel, rel) > reach * reach) continue;
 		vec2 f2 = normalize(u_ship_fwd[i]);
 		vec2 r2 = vec2(f2.y, -f2.x);
 		float t_along;
@@ -860,7 +873,9 @@ void fragment() {
 	   que le lacis qu'on voit d'en haut. */
 	float persist_deep = persist;
 	// la vieille écume est déchirée, en traînées de dentelle, pas un lavis uniforme
-	persist *= 0.25 + 0.95 * lace(v_world.xz, persist, fine) * (1.0 - clamp(lace_far, 0.0, 1.0)) + 0.4 * clamp(lace_far, 0.0, 1.0);
+	// (no old foam, or too far for lace: the product does not need it)
+	if (persist > 0.0)
+		persist *= 0.25 + (lace_mix < 1.0 ? 0.95 * lace(v_world.xz, persist, fine) * (1.0 - lace_mix) : 0.0) + 0.4 * lace_mix;
 
 	// les fils de poupe restent des fils : pas de dentelle, à peine rompus
 	wake_lines = smoothstep(0.15, 0.6, wake_lines) * (0.75 + 0.35 * fn);
@@ -910,7 +925,8 @@ void fragment() {
 	   l'horizon se dissout au lieu de finir sur une ligne. Le portage gardait un
 	   gris d'horizon uniforme ; c'est la loi de la page, et celle de la coque. */
 	float hz = haze_along(eye, v_world);
-	c = mix(c, naval_sky(normalize(v_world - eye), u_sun, u_zenith, u_horizon), hz);
+	// the sky behind (two warped fbm for its clouds) only where there is haze to show it
+	if (hz > 0.0) c = mix(c, naval_sky(normalize(v_world - eye), u_sun, u_zenith, u_horizon), hz);
 
 	// une décharge au-dessus éclaire l'eau aussi, et l'écume davantage
 	c += vec3(0.42, 0.50, 0.68) * u_flash * (0.55 + 0.9 * foam);

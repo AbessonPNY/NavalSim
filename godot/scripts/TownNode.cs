@@ -190,9 +190,9 @@ public partial class TownNode : Node3D
     public void SetNight(double night)
     {
         float n = (float)Math.Clamp(night, 0, 1);
-        _walls?.SetShaderParameter("u_night", n);
-        foreach (var g in _glassSet.Values) g.SetShaderParameter("u_night", n);
-        _glass?.SetShaderParameter("u_night", n);
+        _walls?.SetShaderParameter(U.Night, n);
+        foreach (var g in _glassSet.Values) g.SetShaderParameter(U.Night, n);
+        _glass?.SetShaderParameter(U.Night, n);
     }
 
     /// <summary>Poser les villes contre l'origine du moment, et cacher celles qui sont loin.</summary>

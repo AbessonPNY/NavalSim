@@ -38,6 +38,8 @@ public partial class ShipNode
         // un seul tableau de surface par voile, rempli à chaque image : en créer un
         // neuf soixante fois par seconde et par voile, c'est de la mémoire à ramasser
         public readonly Godot.Collections.Array Arrays = NewArrays();
+        LiveCloth? _live;
+        public LiveCloth Live => _live ??= new LiveCloth(Arrays);
     }
 
     static Godot.Collections.Array NewArrays()
@@ -517,29 +519,15 @@ public partial class ShipNode
            Un hachage et non le rang, sinon les voisines se ressemblent encore —
            ce qu'on veut n'est pas un décalage, c'est un autre feu. */
         c.Node.SetInstanceShaderParameter(UBurnSeed, BurnSeed(_canvases.Count));
+        // the cut never changes: UVs and indices go across once, not every frame
+        c.Arrays.SetNow((int)Mesh.ArrayType.TexUV, c.Uv);
+        c.Arrays.SetNow((int)Mesh.ArrayType.Index, c.Idx);
         Upload(c);
         _canvases.Add(c);
         return c.Node;
     }
 
-    static void Upload(Canvas c)
-    {
-        var p = c.Cloth.Positions;
-        var nr = c.Cloth.Normals;
-        for (int k = 0; k < c.V.Length; k++)
-        {
-            c.V[k] = new Vector3(p[k * 3], p[k * 3 + 1], p[k * 3 + 2]);
-            c.N[k] = new Vector3(nr[k * 3], nr[k * 3 + 1], nr[k * 3 + 2]);
-        }
-        var arrays = c.Arrays;
-        arrays.SetNow((int)Mesh.ArrayType.Vertex, c.V);
-        arrays.SetNow((int)Mesh.ArrayType.Normal, c.N);
-        arrays.SetNow((int)Mesh.ArrayType.TexUV, c.Uv);
-        arrays.SetNow((int)Mesh.ArrayType.Index, c.Idx);
-        c.Mesh.ClearSurfaces();
-        c.Mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
-        c.Mesh.SurfaceSetMaterial(0, c.Mat);
-    }
+    static void Upload(Canvas c) => c.Live.Upload(c.Mesh, c.Mat, c.Cloth.Positions, c.Cloth.Normals, c.V, c.N);
 
     /// <summary>
     /// Brasser et former — <c>setTrim</c>. L'écoute, le bord, la toile établie, le

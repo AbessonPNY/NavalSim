@@ -150,7 +150,7 @@ public partial class FlotsamNode : Node3D
     {
         if (dt <= 0) return;
         _clock += dt;
-        _halo.SetShaderParameter("u_time", (float)_clock);
+        _halo.SetShaderParameter(U.Time, (float)_clock);
 
         foreach (var s in fleet)
             if (s.Physics.Foundered && _seen.Add(s.Physics))

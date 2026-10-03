@@ -88,7 +88,7 @@ public partial class MistNode : Node3D
         if (_mesh == null) return;
         _mesh.Visible = amount > 0.004;
         if (!_mesh.Visible) return;
-        _mat.SetShaderParameter("u_eye", eye);
-        _mat.SetShaderParameter("u_mist", (float)amount);
+        _mat.SetShaderParameter(U.Eye, eye);
+        _mat.SetShaderParameter(U.Mist, (float)amount);
     }
 }

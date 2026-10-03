@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Collections.Generic;
 using NavalSim.Core;
 
 // `Sky` existe des deux cotes : celui du noyau est l arithmetique du ciel, celui
@@ -258,9 +259,52 @@ public partial class SkyNode : Node3D
     /// <summary>Le soleil à sa vraie luminance, pour l'exposition automatique (voir sky_dome).</summary>
     public void SetDazzle(bool on) => _domeMat.SetShaderParameter(U.Dazzle, on ? 1f : 0f);
 
+    /* LES SHADERS QUI PRENNENT LE CIEL EN GLOBAL (#define NAVAL_SKY_GLOBAL, voir
+       sky.gdshaderinc) : leurs matières n'ont plus ces uniformes à elles, et
+       PushTo / SetCloud les sautent — c'était tout le coût, quatre mille
+       écritures par image à seize navires. Une liste de CHEMINS, parce que le
+       #define peut vivre dans un fichier inclus (rope_ribbon.gdshaderinc) que
+       Shader.Code ne montre pas. */
+    static readonly HashSet<string> GlobalSkyShaders = new()
+    {
+        "res://shaders/hull.gdshader", "res://shaders/hull_haze.gdshader", "res://shaders/sail.gdshader",
+        "res://shaders/rope_ribbon.gdshader", "res://shaders/rope_ribbon_taa.gdshader",
+    };
+    readonly Dictionary<ShaderMaterial, bool> _globalSky = new();
+    bool SkyIsGlobal(ShaderMaterial m)
+    {
+        if (!_globalSky.TryGetValue(m, out bool g))
+            _globalSky[m] = g = m.Shader != null && GlobalSkyShaders.Contains(m.Shader.ResourcePath);
+        return g;
+    }
+
+    /// <summary>
+    /// Le ciel des shaders globaux, une fois par image — les mêmes valeurs que
+    /// <see cref="PushTo"/> et <see cref="SetCloud"/>, aux mêmes noms.
+    /// </summary>
+    public void PushGlobals(double cloud, double skyTime)
+    {
+        var d = Core.SunDir;
+        RenderingServer.GlobalShaderParameterSet(U.Sun, new Vector3((float)d.X, (float)d.Y, (float)d.Z));
+        RenderingServer.GlobalShaderParameterSet(U.Zenith, new Vector3((float)Core.Zenith.R, (float)Core.Zenith.G, (float)Core.Zenith.B));
+        RenderingServer.GlobalShaderParameterSet(U.Horizon, new Vector3((float)Core.Horizon.R, (float)Core.Horizon.G, (float)Core.Horizon.B));
+        RenderingServer.GlobalShaderParameterSet(U.Storm, (float)Core.Storm);
+        RenderingServer.GlobalShaderParameterSet(U.Haze, (float)Core.Haze);
+        RenderingServer.GlobalShaderParameterSet(U.HazeH, (float)Core.HazeHeight);
+        double k = Core.SunIntensity * 0.5;
+        RenderingServer.GlobalShaderParameterSet(U.SunCol, new Vector3(
+            (float)(Core.SunColor.R * k), (float)(Core.SunColor.G * k), (float)(Core.SunColor.B * k)));
+        RenderingServer.GlobalShaderParameterSet(U.StormDir, _loomDir);
+        RenderingServer.GlobalShaderParameterSet(U.StormLoom, (float)_loom);
+        RenderingServer.GlobalShaderParameterSet(U.StormFlashDir, _farDir);
+        RenderingServer.GlobalShaderParameterSet(U.StormFlash, (float)_farA);
+        RenderingServer.GlobalShaderParameterSet(U.Cloud, (float)cloud);
+        RenderingServer.GlobalShaderParameterSet(U.SkyTime, (float)skyTime);
+    }
+
     public void PushTo(ShaderMaterial m)
     {
-        if (m == null) return;
+        if (m == null || SkyIsGlobal(m)) return;
         var d = Core.SunDir;
         m.SetShaderParameter(U.Sun, new Vector3((float)d.X, (float)d.Y, (float)d.Z));
         // Vector3 et non Color : ces valeurs sont deja lineaires, et passer par
@@ -290,8 +334,9 @@ public partial class SkyNode : Node3D
 
     public void SetCloud(ShaderMaterial m, double amount, double skyTime)
     {
-        m?.SetShaderParameter(U.Cloud, (float)amount);
-        m?.SetShaderParameter(U.SkyTime, (float)skyTime);
+        if (m == null || SkyIsGlobal(m)) return;
+        m.SetShaderParameter(U.Cloud, (float)amount);
+        m.SetShaderParameter(U.SkyTime, (float)skyTime);
     }
 
     /// <summary>

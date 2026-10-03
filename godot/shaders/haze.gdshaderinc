@@ -11,8 +11,21 @@
  * Pendant Godot de Naval.HAZE_GLSL.
  */
 
-uniform float u_haze = 0.00085;    // extinction par mètre au niveau de la mer
-uniform float u_haze_h = 150.0;    // hauteur d'échelle de la couche (m)
+#ifndef NAVAL_SKY_U
+/* LE CIEL EN UNIFORMES GLOBAUX, pour les shaders qui le demandent (#define
+   NAVAL_SKY_GLOBAL avant l'inclusion) : le même ciel partout était poussé
+   matière par matière, dix-sept écritures par matière et par image — quelque
+   quatre mille à seize navires, 1,2 ms. En global, SkyNode l'écrit une fois.
+   Les autres shaders gardent leurs uniformes à eux, et rien ne change pour eux.
+   La valeur par défaut d'un global est dans project.godot ([shader_globals]). */
+#ifdef NAVAL_SKY_GLOBAL
+#define NAVAL_SKY_U(decl, init) global uniform decl
+#else
+#define NAVAL_SKY_U(decl, init) uniform decl = init
+#endif
+#endif
+NAVAL_SKY_U(float u_haze, 0.00085);    // extinction par mètre au niveau de la mer
+NAVAL_SKY_U(float u_haze_h, 150.0);    // hauteur d'échelle de la couche (m)
 
 float haze_along(vec3 from, vec3 to) {
 	vec3 d = to - from;

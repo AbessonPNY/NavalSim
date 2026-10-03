@@ -32,6 +32,8 @@ public partial class ShipNode
         public string? NationKey;
         public Node3D? Staff;                  // la hampe, à son pied
         public readonly Godot.Collections.Array Arrays = NewArrays();
+        LiveCloth? _live;
+        public LiveCloth Live => _live ??= new LiveCloth(Arrays);
     }
 
     readonly List<Flag> _flags = new();
@@ -425,28 +427,13 @@ public partial class ShipNode
         f.Pivot.AddChild(f.Node);
         f.Mount.AddChild(f.Pivot);
         parent.AddChild(f.Mount);
+        f.Arrays.SetNow((int)Mesh.ArrayType.TexUV, f.Uv);
+        f.Arrays.SetNow((int)Mesh.ArrayType.Index, f.Idx);
         UploadFlag(f);
         return f;
     }
 
-    static void UploadFlag(Flag f)
-    {
-        var p = f.Cloth.Positions;
-        var nr = f.Cloth.Normals;
-        for (int k = 0; k < f.V.Length; k++)
-        {
-            f.V[k] = new Vector3(p[k * 3], p[k * 3 + 1], p[k * 3 + 2]);
-            f.N[k] = new Vector3(nr[k * 3], nr[k * 3 + 1], nr[k * 3 + 2]);
-        }
-        var a = f.Arrays;
-        a.SetNow((int)Mesh.ArrayType.Vertex, f.V);
-        a.SetNow((int)Mesh.ArrayType.Normal, f.N);
-        a.SetNow((int)Mesh.ArrayType.TexUV, f.Uv);
-        a.SetNow((int)Mesh.ArrayType.Index, f.Idx);
-        f.Mesh.ClearSurfaces();
-        f.Mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, a);
-        f.Mesh.SurfaceSetMaterial(0, f.Mat);
-    }
+    static void UploadFlag(Flag f) => f.Live.Upload(f.Mesh, f.Mat, f.Cloth.Positions, f.Cloth.Normals, f.V, f.N);
 
     /// <summary>
     /// Les faire flotter, une fois par image, au vent apparent que le solveur

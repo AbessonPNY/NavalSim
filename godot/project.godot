@@ -44,3 +44,62 @@ renderer/rendering_method="forward_plus"
 anti_aliasing/quality/msaa_3d=2
 anti_aliasing/quality/screen_space_aa=1
 anti_aliasing/quality/use_taa=false
+
+[shader_globals]
+
+; LE CIEL DES SHADERS QUI LE PRENNENT EN GLOBAL (#define NAVAL_SKY_GLOBAL : la
+; coque, sa passe de brume, la toile, les cordages en rubans). SkyNode.PushGlobals
+; les écrit une fois par image ; ces valeurs ne servent qu avant la première, et
+; ce sont celles de sky.gdshaderinc et haze.gdshaderinc.
+u_sun={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+u_zenith={
+"type": "vec3",
+"value": Vector3(0.12, 0.36, 0.52)
+}
+u_horizon={
+"type": "vec3",
+"value": Vector3(0.82, 0.89, 0.93)
+}
+u_cloud={
+"type": "float",
+"value": 0.12
+}
+u_sky_time={
+"type": "float",
+"value": 0.0
+}
+u_storm={
+"type": "float",
+"value": 0.0
+}
+u_storm_dir={
+"type": "vec2",
+"value": Vector2(1, 0)
+}
+u_storm_loom={
+"type": "float",
+"value": 0.0
+}
+u_storm_flash_dir={
+"type": "vec2",
+"value": Vector2(1, 0)
+}
+u_storm_flash={
+"type": "float",
+"value": 0.0
+}
+u_haze={
+"type": "float",
+"value": 0.00085
+}
+u_haze_h={
+"type": "float",
+"value": 150.0
+}
+u_sun_col={
+"type": "vec3",
+"value": Vector3(1, 0.95, 0.86)
+}

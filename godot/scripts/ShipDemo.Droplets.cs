@@ -47,10 +47,10 @@ public partial class ShipDemo
         _dropRect.Visible = !under && (_wet > 0.001 || _sheet > 0.001);
         if (!_dropRect.Visible) return;
         var m = (ShaderMaterial)_dropRect.Material;
-        m.SetShaderParameter("u_wet", (float)_wet);
-        m.SetShaderParameter("u_sheet", (float)_sheet);
-        m.SetShaderParameter("u_time", (float)_dropClock);
+        m.SetShaderParameter(U.Wet, (float)_wet);
+        m.SetShaderParameter(U.Sheet, (float)_sheet);
+        m.SetShaderParameter(U.Time, (float)_dropClock);
         var vp = GetViewport().GetVisibleRect().Size;
-        m.SetShaderParameter("u_aspect", vp.Y > 0 ? vp.X / vp.Y : 1.777f);
+        m.SetShaderParameter(U.Aspect, vp.Y > 0 ? vp.X / vp.Y : 1.777f);
     }
 }

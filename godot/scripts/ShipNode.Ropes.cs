@@ -301,17 +301,28 @@ public partial class ShipNode
     /// </summary>
     void MoveRopes()
     {
+        /* Each spar's place is walked up its parents ONCE per call: many rope ends
+           hang from the same yard, and every step of that walk is a call into the
+           engine — run for every end of every moving rope, every frame, only to
+           find out that nothing had moved. */
+        _sparAt.Clear();
+        Transform3D SparAt(Node3D spar)
+        {
+            if (!_sparAt.TryGetValue(spar, out var xf)) _sparAt[spar] = xf = RelTo(spar, this);
+            return xf;
+        }
         foreach (var m in _movers)
         {
             if (!IsInstanceValid(m.Mi) || !m.Mi.Visible) continue;
             var toMi = RelTo(m.Mi, this).AffineInverse();
-            Vector3 Now(RopeEnd e) => toMi * (RelTo(e.Spar, this) * e.OnSpar);
+            Vector3 Now(RopeEnd e) => toMi * (SparAt(e.Spar) * e.OnSpar);
             // la signature : la somme des bouts mobiles, pour savoir s'il y a quoi refaire
             var sig = Vector3.Zero;
             foreach (var (a, b) in m.Ends) { if (a != null) sig += Now(a); if (b != null) sig += Now(b) * 1.37f; }
             if (!float.IsNaN(m.LastSig.X) && sig.DistanceSquaredTo(m.LastSig) < 1e-6f) continue;
             m.LastSig = sig;
-            var segs = new List<RopeSeg>();
+            var segs = _ropeSegs;
+            segs.Clear();
             for (int i = 0; i < m.Lines.Count; i++)
             {
                 var line = m.Lines[i];
@@ -334,6 +345,9 @@ public partial class ShipNode
             if (segs.Count > 0) m.Mi.Mesh = Ribbon(segs);
         }
     }
+
+    readonly Dictionary<Node3D, Transform3D> _sparAt = new();
+    readonly List<RopeSeg> _ropeSegs = new();
 
     /// <summary>L'axe d'un nuage de points : ses deux bouts le long de sa plus grande longueur.</summary>
     static (Vector3 A, Vector3 B) AxisOf(Vector3[] v)

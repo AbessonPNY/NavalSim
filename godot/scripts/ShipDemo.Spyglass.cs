@@ -95,8 +95,8 @@ public partial class ShipDemo
         /* LA PLUIE SUR LE VERRE : celle qui tombe dehors, et elle seule — la neige
            fond sur le cuivre sans faire de perles, et sous le pont il ne pleut pas. */
         var gm = (ShaderMaterial)_glassRect.Material;
-        gm.SetShaderParameter("u_rain", (float)((_fall.Snow ? 0 : _fall.Amount) * (1 - _indoors)));
-        gm.SetShaderParameter("u_time", (float)_glassClock);
+        gm.SetShaderParameter(U.Rain, (float)((_fall.Snow ? 0 : _fall.Amount) * (1 - _indoors)));
+        gm.SetShaderParameter(U.Time, (float)_glassClock);
     }
 
     /* Le glisser vise, cent fois plus doucement à ×100 ; la molette est le tube,

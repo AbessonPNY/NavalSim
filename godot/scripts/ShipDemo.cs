@@ -41,6 +41,8 @@ public partial class ShipDemo : Node3D
     float _orbit = 0.9f, _pitch = 0.16f, _dist = 55f;
     bool _dragging, _follow = true;
     double _hudAcc;
+    /// <summary>Set on the 0.15 s beat: the instruments rebuild their text then, not every frame.</summary>
+    bool _hudBeat = true;
     // la machine imposee en ligne de commande ne doit pas etre effacee par la
     // lecture du clavier, qui la laisse ou elle est faute de touche pressee
     bool _drive;
@@ -228,6 +230,7 @@ public partial class ShipDemo : Node3D
                dessine, abri compris : sans cette ligne, elle roulerait dans un
                bassin que l'œil voit calme. */
             _sea.Core.Shelter = (x, z) => _world.Shelter(x, z);
+            _sea.Core.ShelterNear = (x, z, r) => _world.ShelterNear(x, z, r);
             _land = new LandNode(_world) { CausticRules = _causticRules, Editor = _editReg };
             AddChild(_land);
             PaintSetup();
@@ -561,6 +564,9 @@ public partial class ShipDemo : Node3D
             _spray.Pool.Burst(e.At, e.Rate * 0.12, e.Speed);
         }
     }
+
+    // the sea under a point, now: one delegate kept, not one made per frame
+    Func<double, double, double>? _seaHere;
 
     void StepOthers(double frame)
     {
@@ -1375,7 +1381,7 @@ public partial class ShipDemo : Node3D
                    l'horloge du ciel, comme dans la page. */
                 _dolphins.Step(frame, b, _ship.Spec, _force, frame * _sky.DayRate / 60.0,
                     _world.ShoreDistance(here.X, here.Z), _t,
-                    (x, z) => _sea.Core.Sample(x, z, _t));
+                    _seaHere ??= (x, z) => _sea.Core.Sample(x, z, _t));
                 _dolphinNode?.Sync(_dolphins);
             }
             foreach (var m in _land.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
@@ -1552,14 +1558,14 @@ public partial class ShipDemo : Node3D
            du rayon. */
         float straddle = (float)Math.Max(0, 1 - Math.Abs(seaY - ce.Y) / 0.5);
         bool under = seaY > ce.Y || straddle > 0.01f;
-        _sea.Material?.SetShaderParameter("u_submerged", under ? 1f : 0f);
+        _sea.Material?.SetShaderParameter(U.Submerged, under ? 1f : 0f);
         /* LA CÔTE LA PLUS PROCHE, pour l'écume de déferlement : elle se décide en
            lisant l'image, qui ne sait pas distinguer une plage d'une carène, et
            il faut donc lui dire la seule chose qu'elle ne peut pas deviner. */
         if (_world != null)
         {
             var bp = _ship.Physics.Body.Pos;
-            _sea.Material?.SetShaderParameter("u_shore_dist",
+            _sea.Material?.SetShaderParameter(U.ShoreDist,
                 (float)_world.ShoreDistance(_sea.Core.Origin.X + bp.X, _sea.Core.Origin.Z + bp.Z));
         }
         /* ET LES BOUFFÉES AVEC : de dessous, le feu des canons ne traverse la
@@ -1645,8 +1651,9 @@ public partial class ShipDemo : Node3D
             _under.Straddle = straddle;
         }
         DropletTick(frame, under);
+        _sky.PushGlobals(_cloud, _t);
         _sky.PushTo(_sea.Material);
-        _sea.Material.SetShaderParameter("u_sunlit", (float)_sky.Sunlit);
+        _sea.Material.SetShaderParameter(U.Sunlit, (float)_sky.Sunlit);
         _sky.PushTo(_sea.FarMaterial);      // l horizon se noie dans le meme ciel
         _sky.SetCloud(_sea.Material, _cloud, _t);
         foreach (var m in _ship.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
@@ -1693,7 +1700,7 @@ public partial class ShipDemo : Node3D
         if (!MarketOpen) _mkShut += frame;
 
         _hudAcc += frame;
-        if (_hudAcc > 0.15) { _hudAcc = 0; UpdateInfo(); AmbianceTick(); MarketTick(); JournalPortTick(); StowTick(); FleetTick(); }
+        if (_hudAcc > 0.15) { _hudAcc = 0; _hudBeat = true; UpdateInfo(); AmbianceTick(); MarketTick(); JournalPortTick(); StowTick(); FleetTick(); }
         TrimTick();
         HitsTick();
         GunSideTick();
@@ -4178,29 +4185,11 @@ public partial class ShipDemo : Node3D
         var v = best is Harbour h && bestD < 4000 * 4000
             ? new Vector4((float)(h.Cx - o.X), (float)(h.Cz - o.Z), (float)(h.R + h.Wall), 1)
             : Vector4.Zero;
+        /* The inner radius travels with the pass point: the shader used to take it
+           back out of u_harbour.z with the wall's 18 m written into it, a second
+           definition that World would not have kept in step. */
         var pass = best is Harbour h2
-            ? new Vector2((float)(h2.Px - o.X), (float)(h2.Pz - o.Z)) : Vector2.Zero;
-        _sea.Material?.SetShaderParameter("u_harbour", v);
-        _sea.Material?.SetShaderParameter("u_harbour_pass", pass);
-        _foam.Set("u_harbour", v);
-        _foam.Set("u_harbour_pass", pass);
-        // le reflet du teleporteur ride sur la MEME mer, donc sur le meme abri
-        if (_ship != null)
-            foreach (var m in _ship.MirrorMaterials)
-            {
-                m.SetShaderParameter("u_harbour", v);
-                m.SetShaderParameter("u_harbour_pass", pass);
-            }
-        // la lumière du fond lit le même abri : une rade calme n'a pas les
-        // nervures d'une rade battue
-        _land?.Ground.SetShaderParameter("u_harbour", v);
-        _land?.Ground.SetShaderParameter("u_harbour_pass", pass);
-        _fishNode?.Material?.SetShaderParameter("u_harbour", v);
-        _fishNode?.Material?.SetShaderParameter("u_harbour_pass", pass);
-        ShipNode.Caustic?.SetShaderParameter("u_harbour", v);
-        ShipNode.Caustic?.SetShaderParameter("u_harbour_pass", pass);
-        _mist?.Material.SetShaderParameter("u_harbour", v);
-        _mist?.Material.SetShaderParameter("u_harbour_pass", pass);
+            ? new Vector4((float)(h2.Px - o.X), (float)(h2.Pz - o.Z), (float)h2.R, 0) : Vector4.Zero;
 
         /* L'ABRI DU RIVAGE, aux MÊMES matières que le havre — et c'est la règle des
            trois calculateurs : le noyau le lit déjà par World.Shelter. La grille la
@@ -4219,18 +4208,27 @@ public partial class ShipDemo : Node3D
             ? new Vector4((float)(near.X0 - 0.5 * ShelterMap.Cell - o.X), (float)(near.Z0 - 0.5 * ShelterMap.Cell - o.Z),
                           (float)(1 / near.Size), 1)
             : Vector4.Zero;
-        void Shel(Action<string, Variant> set)
+        /* The same four to every reader, every frame. Writing only on change would
+           save little (this is a fraction of a millisecond) and would miss a
+           material created after the last change: the silent failure of rule three. */
+        void Shel(ShaderMaterial? m)
         {
-            set("u_shelter_rect", rect);
-            if (tex != null) set("u_shelter_map", tex);
+            if (m == null) return;
+            m.SetShaderParameter(U.Harbour, v);
+            m.SetShaderParameter(U.HarbourPass, pass);
+            m.SetShaderParameter(U.ShelterRect, rect);
+            if (tex != null) m.SetShaderParameter(U.ShelterTex, tex);
         }
-        Shel((n, x) => _sea.Material?.SetShaderParameter(n, x));
-        Shel((n, x) => _foam.Set(n, x));
-        if (_ship != null) foreach (var m in _ship.MirrorMaterials) Shel((n, x) => m.SetShaderParameter(n, x));
-        Shel((n, x) => _land?.Ground.SetShaderParameter(n, x));
-        Shel((n, x) => _fishNode?.Material?.SetShaderParameter(n, x));
-        Shel((n, x) => ShipNode.Caustic?.SetShaderParameter(n, x));
-        Shel((n, x) => _mist?.Material.SetShaderParameter(n, x));
+        Shel(_sea.Material);
+        foreach (var fm in _foam.Materials) Shel(fm);
+        // le reflet du teleporteur ride sur la MEME mer, donc sur le meme abri
+        if (_ship != null) foreach (var m in _ship.MirrorMaterials) Shel(m);
+        // la lumière du fond lit le même abri : une rade calme n'a pas les
+        // nervures d'une rade battue
+        Shel(_land?.Ground);
+        Shel(_fishNode?.Material);
+        Shel(ShipNode.Caustic);
+        Shel(_mist?.Material);
     }
 
     readonly Dictionary<ShelterMap, ImageTexture> _shelterTex = new();
@@ -4301,7 +4299,7 @@ public partial class ShipDemo : Node3D
     {
         _sea.PushWaves(m);
         m.SetShaderParameter(U.Sharp, (float)_sea.Core.Sharp);
-        m.SetShaderParameter("u_sunlit", (float)_sky.Sunlit);
+        m.SetShaderParameter(U.Sunlit, (float)_sky.Sunlit);
         _sky.PushTo(m);
     }
 
@@ -4840,7 +4838,7 @@ public partial class ShipDemo : Node3D
         var img = _foam.Texture.GetImage();
         var rng = new Random(7);
         int strong = 0, bad = 0, lit = 0, n = 4000;
-        double sum = 0, maxSteep = 0;
+        double sum = 0, jacDrop = 0;
         for (int s = 0; s < n; s++)
         {
             int px = rng.Next(FoamField.Res), py = rng.Next(FoamField.Res);
@@ -4849,15 +4847,24 @@ public partial class ShipDemo : Node3D
             if (v > 0.05f) lit++;
             double x = _foamOrigin.X + (px + 0.5) / FoamField.Res * FoamField.Size;
             double z = _foamOrigin.Y + (py + 0.5) / FoamField.Res * FoamField.Size;
-            double steep = 0;
+            /* THE SAME TEST AS foam_field.gdshader: the Jacobian of the Gerstner
+               displacement under its threshold, shelter included. This used to be
+               the older steepness rule (Q·k·A·sin against 0.66 and 1.05), which the
+               shader had left behind: the check measured a breaking the field no
+               longer drew. */
+            double sh = _sea.Core.Shelter?.Invoke(x + _sea.Core.Origin.X, z + _sea.Core.Origin.Z) ?? 1.0;
+            double jx = 0, jz = 0, jxz = 0;
             for (int i = 0; i < Config.NWavesFoam; i++)
             {
                 ref Wave w = ref _sea.Core.Waves[i];
                 double f = w.K * (w.Dx * x + w.Dz * z) - w.Omega * _foamT + w.Phase;
-                steep += w.Q * w.K * w.Amp * Math.Max(Math.Sin(f), 0);
+                double wq = w.Q * w.Amp * sh * w.K * Math.Sin(f);
+                jx -= w.Dx * w.Dx * wq; jz -= w.Dz * w.Dz * wq; jxz -= w.Dx * w.Dz * wq;
             }
-            maxSteep = Math.Max(maxSteep, steep);
-            double e = Math.Clamp((steep - 0.66) / (1.05 - 0.66), 0, 1);
+            double jac = (1 + jx) * (1 + jz) - jxz * jxz;
+            jacDrop = Math.Max(jacDrop, 1 - jac);
+            double jf = _settings.SeaJacobian;
+            double e = Math.Clamp((jac - (jf - 0.06)) / ((jf - 0.3) - (jf - 0.06)), 0, 1);
             double brk = e * e * (3 - 2 * e) * 0.9;
             if (brk > 0.3) { strong++; if (v < brk - 0.05) bad++; }
         }
@@ -4907,7 +4914,7 @@ public partial class ShipDemo : Node3D
 
         GD.Print($"champ d'écume : {img.GetFormat()}, moyenne {sum / n:F3}, "
                + $"texels écumeux {100.0 * lit / n:F1} %, déferlantes fortes {strong}, "
-               + $"en défaut {bad}, raideur max {maxSteep:F3}");
+               + $"en défaut {bad}, jacobien le plus bas {1 - jacDrop:F3} (seuil {_settings.SeaJacobian:F2})");
         for (int i = 0; i < Config.NWavesFoam; i++)
         {
             ref Wave w = ref _sea.Core.Waves[i];

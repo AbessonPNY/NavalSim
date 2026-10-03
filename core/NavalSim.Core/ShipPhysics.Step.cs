@@ -60,12 +60,24 @@ public sealed partial class ShipPhysics
         double slamW = 0, slamV = 0, slamP = 0;
         Vec3d slamAt = Vec3d.Zero;
 
+        /* Two exact short cuts, the bulk of the solver's cost being these samples.
+           The sea is nowhere higher or lower than the sum of its amplitudes: a
+           probe above it is dry, one a cell's height below it is full, and either
+           way nothing below reads more than that. And out at sea the shelter is
+           one for the whole hull, decided once instead of at every probe. */
+        double hBound = ocean.HeightBound();
+        double shHull = ocean.ShelterOver(b.Pos.X, b.Pos.Z, ProbeReach());
+
         for (int i = 0; i < Probes.Length; i++)
         {
             ref Probe pr = ref Probes[i];
             Vec3d pw = b.Quat.Rotate(pr.Local) + b.Pos;
             if (pw.Y < lowestY) lowestY = pw.Y;
-            double depth = ocean.Sample(pw.X, pw.Z, t, out Vec3d nrm) - pw.Y;
+            double depth;
+            Vec3d nrm;
+            if (pw.Y > hBound) { depth = -1; nrm = default; }                         // dry: only the sign is read
+            else if (pw.Y < -hBound - ProbeH) { depth = 2 * ProbeH; nrm = default; }  // full: f = 1, no slope read
+            else depth = ocean.Sample(pw.X, pw.Z, t, shHull, out nrm) - pw.Y;
 
             /* À quel point cette cellule est pleine, et à quelle vitesse cela
                CHANGE. Le taux est tout le détecteur de gerbe, et c'est une
@@ -859,6 +871,21 @@ public sealed partial class ShipPhysics
     /// personne n'arbitre : chacune paie ses propres contacts et Newton est
     /// satisfait par symétrie plutôt que par comptabilité.
     /// </summary>
+    /// <summary>How far the farthest probe lies from the body origin (the shelter test's radius).</summary>
+    double ProbeReach()
+    {
+        if (!ReferenceEquals(_reachFor, Probes))
+        {
+            double r2 = 0;
+            foreach (var p in Probes) r2 = Math.Max(r2, p.Local.X * p.Local.X + p.Local.Y * p.Local.Y + p.Local.Z * p.Local.Z);
+            _reach = Math.Sqrt(r2) + 1;
+            _reachFor = Probes;
+        }
+        return _reach;
+    }
+    Probe[]? _reachFor;
+    double _reach;
+
     void Collide(double dt, ref Vec3d force, ref Vec3d torque, in Vec3d cog,
                  IReadOnlyList<ShipPhysics>? others)
     {
@@ -872,8 +899,10 @@ public sealed partial class ShipPhysics
         _hardHit = Math.Max(0, _hardHit - dt);
 
         const int NS = 9;                                   // stations le long de chaque bord
-        foreach (var o in others)
+        // indexed: a foreach over the IReadOnlyList boxed its enumerator every call
+        for (int oi = 0; oi < others.Count; oi++)
         {
+            var o = others[oi];
             if (o == null || ReferenceEquals(o, this) || o.Foundered) continue;
             var ob = o.Body; var oS = o.Spec;
 

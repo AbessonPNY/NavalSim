@@ -38,6 +38,8 @@ public sealed class ShelterMap
     public double Size => N * Cell;
 
     public bool Covers(double x, double z) => x >= X0 && z >= Z0 && x <= X0 + (N - 1) * Cell && z <= Z0 + (N - 1) * Cell;
+    /// <summary>Does the map's square come within r metres of (x, z)?</summary>
+    public bool Covers(double x, double z, double r) => x >= X0 - r && z >= Z0 - r && x <= X0 + (N - 1) * Cell + r && z <= Z0 + (N - 1) * Cell + r;
 
     /// <summary>L'abri en un point (mètres vrais), lu entre les nœuds de la grille ; 1 dehors.</summary>
     public double Sample(double x, double z)

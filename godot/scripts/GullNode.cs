@@ -189,16 +189,22 @@ public partial class GullNode : Node3D
     /// deux centres sont gardés en monde et simplement DÉPOSÉS à
     /// <c>centre − origine</c>, si bien que rien ici n'a de Rebase.
     /// </summary>
+    World? _askWorld;
+    double _askX, _askZ;
+    Func<(double X, double Z)>? _nearest;
+
     public void Update(World world, Vec3d here, Vec3d origin, double dt, double clock)
     {
         if (_near == null) return;
         double shore = world.ShoreDistance(here.X, here.Z);
-        _flock.Step(dt, here.X, here.Z, shore, () => world.NearestShore(here.X, here.Z));
+        // a kept delegate reading fields: a lambda over world and here was a closure per frame
+        _askWorld = world; _askX = here.X; _askZ = here.Z;
+        _flock.Step(dt, here.X, here.Z, shore, _nearest ??= () => _askWorld!.NearestShore(_askX, _askZ));
 
         _near.Visible = _far.Visible = _flock.Flying;
         if (!_flock.Flying) return;
 
-        Material?.SetShaderParameter("u_time", (float)clock);
+        Material?.SetShaderParameter(U.Time, (float)clock);
         var c = _flock.Centre;
         _near.Position = new Vector3((float)(c.X - origin.X), 0, (float)(c.Z - origin.Z));
         if (_flock.Roost is { } r)

@@ -14,6 +14,8 @@
 shader_type spatial;
 render_mode cull_disabled;
 
+// hulls and the kraken's skin, pushed every frame: the sky goes global (sky.gdshaderinc)
+#define NAVAL_SKY_GLOBAL
 #include "res://shaders/ship_haze.gdshaderinc"
 #include "res://shaders/ship_snow.gdshaderinc"
 #include "res://shaders/ship_scar.gdshaderinc"

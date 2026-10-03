@@ -92,6 +92,18 @@ public partial class ShipDemo
         GunSideTick();
     }
 
+    /* A COLOUR OVERRIDE IS A THEME CHANGE: redraw, minimum size, notification.
+       Set every frame it was all three, for a colour that changes when a gun
+       fires. Written on change only. */
+    static readonly StringName FontColorName = "font_color";
+    readonly Dictionary<Control, Color> _fontCol = new();
+    void FontColour(Control c, Color col)
+    {
+        if (_fontCol.TryGetValue(c, out var was) && was == col) return;
+        _fontCol[c] = col;
+        c.AddThemeColorOverride(FontColorName, col);
+    }
+
     /// <summary>Sous le curseur d'écoute, et muet quand les instruments le sont ou qu'elle n'a pas de batterie.</summary>
     void GunSideTick()
     {
@@ -110,7 +122,7 @@ public partial class ShipDemo
             // ce qui est prêt sur ce qui tient encore debout ; démontées, elles ne comptent plus
             b.Text = $"{GunNames[side]} {l.Ready}/{Math.Max(ok, l.All)}"
                    + (ok < all ? $" ({all - ok} démontée{(all - ok > 1 ? "s" : "")})" : "");
-            b.AddThemeColorOverride("font_color", side == _gunSide ? GunPicked : l.Ready > 0 ? GunIdle : GunSpent);
+            FontColour(b, side == _gunSide ? GunPicked : l.Ready > 0 ? GunIdle : GunSpent);
         }
         if (_gunPowder != null)
         {
@@ -118,7 +130,7 @@ public partial class ShipDemo
             int p = _ship.Physics.Powder;
             _gunPowder.Text = $"· {p} charge{(p > 1 ? "s" : "")}"
                 + (here.Ready == 0 && double.IsFinite(here.Next) ? $" · prête dans {Math.Ceiling(here.Next):F0} s" : "");
-            _gunPowder.AddThemeColorOverride("font_color", p > 0 ? GunIdle : GunSpent);
+            FontColour(_gunPowder, p > 0 ? GunIdle : GunSpent);
         }
         if (_layButton != null)
         {
@@ -129,7 +141,7 @@ public partial class ShipDemo
                 ? (paree ? "▮ paré à faire feu"
                          : $"▯ on pare… {l.Ready}/{l.All}" + (wait > 0.5 ? $" ({Math.Ceiling(wait)} s)" : ""))
                 : "feu à volonté";
-            _layButton.AddThemeColorOverride("font_color",
+            FontColour(_layButton,
                 !_layOrder ? GunIdle : paree ? GunPicked : GunSpent);
         }
     }

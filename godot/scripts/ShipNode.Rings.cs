@@ -682,12 +682,12 @@ public partial class ShipNode
         var plane = new Vector4(pv.Normal.X, pv.Normal.Y, pv.Normal.Z, pv.D);
         foreach (var (gm, isSphere) in _mirrorMats)
         {
-            gm.SetShaderParameter("u_level", (float)(isSphere ? SphereLevel : RingLevel));
-            gm.SetShaderParameter("u_sea_y", (float)seaY);
-            gm.SetShaderParameter("u_sea_plane", plane);
-            gm.SetShaderParameter("u_mask", MirrorMask ? 1f : 0f);
-            gm.SetShaderParameter("u_fade_on", MirrorFade ? 1f : 0f);
-            gm.SetShaderParameter("u_debug", MirrorDebug ? 1f : 0f);
+            gm.SetShaderParameter(U.Level, (float)(isSphere ? SphereLevel : RingLevel));
+            gm.SetShaderParameter(U.SeaY, (float)seaY);
+            gm.SetShaderParameter(U.SeaPlane, plane);
+            gm.SetShaderParameter(U.Mask, MirrorMask ? 1f : 0f);
+            gm.SetShaderParameter(U.FadeOn, MirrorFade ? 1f : 0f);
+            gm.SetShaderParameter(U.Debug, MirrorDebug ? 1f : 0f);
         }
     }
 
@@ -847,7 +847,7 @@ public partial class ShipNode
             _sphere.Visible = bulle;       // absente, elle ne coûte rien
         }
         if (bulle)
-            foreach (var g in _sphereGlow) g.SetShaderParameter("u_level", (float)SphereLevel);
+            foreach (var g in _sphereGlow) g.SetShaderParameter(U.Level, (float)SphereLevel);
 
         bool lit = RingLevel > 0.001;
         if (lit != _ringsLit)
@@ -889,8 +889,8 @@ public partial class ShipNode
         foreach (var r in _rings)
             foreach (var g in r.Glow)
             {
-                g.SetShaderParameter("u_level", (float)RingLevel);
-                g.SetShaderParameter("u_time", (float)_ringClock);
+                g.SetShaderParameter(U.Level, (float)RingLevel);
+                g.SetShaderParameter(U.Time, (float)_ringClock);
             }
 
         var q = Physics.Body.Quat;

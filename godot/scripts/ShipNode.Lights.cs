@@ -753,6 +753,11 @@ public partial class ShipNode
     /// vient du ciel, si bien que les feux, le ciel et la couleur du soleil
     /// tournent ensemble.
     /// </summary>
+    // what SetLantern last wrote, so that it writes only what changed
+    bool _glowLit;
+    double _glowVeil = double.NaN;
+    int _glowCount = -1, _darkFor = -1;
+
     public void SetLantern(double night, double t, Vector3 camPos, NavalSim.Core.Sky sky)
     {
         double on = Math.Max(0, Math.Min(1, night));
@@ -771,24 +776,13 @@ public partial class ShipNode
            l'arrière, l'homme y finit sa tournée — et c'est celui qu'un guetteur
            voit le plus longtemps. */
         double vitres = Veil(_lanterns.Count, t, true);
-        foreach (var (mat, b) in _nightMats)
-            mat.EmissionEnergyMultiplier = (float)(_lit ? b * NightGlowGain * vitres : 0);
-
-        /* AU LOIN, LE FEU S'EFFACE. Le repère est à taille d'ÉCRAN fixe — sans lui
-           un fanal disparaît à deux milles —, mais avec un éclat fixe une voile au
-           loin se lisait comme un réverbère. Passé FarFrom l'éclat tombe en
-           (FarFrom/d)^FarFade et la taille comme sa racine ; la brume l'éteint à
-           son tour, en racine de ce qu'elle laisse passer, une lumière perçant
-           mieux la brume qu'une coque. */
-        double far = 1, farSize = 1;
-        double d = GlobalPosition.DistanceTo(camPos);
-        if (d > FarFrom)
+        // written on change only: each write dirties the material (all day long, to zero)
+        if (_lit != _glowLit || vitres != _glowVeil || _nightMats.Count != _glowCount)
         {
-            far = Math.Pow(FarFrom / d, FarFade);
-            farSize = Math.Max(FarMinSize, Math.Sqrt(far));
+            _glowLit = _lit; _glowVeil = vitres; _glowCount = _nightMats.Count;
+            foreach (var (mat, b) in _nightMats)
+                mat.EmissionEnergyMultiplier = (float)(_lit ? b * NightGlowGain * vitres : 0);
         }
-        var gp = GlobalPosition;
-        far *= Math.Sqrt(sky.HazeTransmit(new Vec3d(camPos.X, camPos.Y, camPos.Z), new Vec3d(gp.X, gp.Y, gp.Z)));
 
         /* UN FANAL ÉTEINT NE PORTE PAS D'OMBRE, et il la portait.
 
@@ -819,16 +813,40 @@ public partial class ShipNode
             _lanternShadowsLive = veut;
             foreach (var L in _lanterns) L.Light.ShadowEnabled = veut;
         }
-
-        foreach (var L in _lanterns)
+        /* DARK, AND ALREADY WRITTEN DARK: nothing below would change. By day this
+           was three writes per lantern per frame, and a haze query, for zeros. */
+        if (on <= 0.01)
         {
-            if (on <= 0.01)
+            if (_darkFor == _lanterns.Count) return;
+            _darkFor = _lanterns.Count;
+            foreach (var L in _lanterns)
             {
                 L.Light.LightEnergy = 0;
                 L.Halo.SetShaderParameter(U.Opacity, 0f);
                 L.Mark.SetShaderParameter(U.Opacity, 0f);
-                continue;
             }
+            return;
+        }
+        _darkFor = -1;
+
+        /* AU LOIN, LE FEU S'EFFACE. Le repère est à taille d'ÉCRAN fixe — sans lui
+           un fanal disparaît à deux milles —, mais avec un éclat fixe une voile au
+           loin se lisait comme un réverbère. Passé FarFrom l'éclat tombe en
+           (FarFrom/d)^FarFade et la taille comme sa racine ; la brume l'éteint à
+           son tour, en racine de ce qu'elle laisse passer, une lumière perçant
+           mieux la brume qu'une coque. */
+        double far = 1, farSize = 1;
+        var gp = GlobalPosition;
+        double d = gp.DistanceTo(camPos);
+        if (d > FarFrom)
+        {
+            far = Math.Pow(FarFrom / d, FarFade);
+            farSize = Math.Max(FarMinSize, Math.Sqrt(far));
+        }
+        far *= Math.Sqrt(sky.HazeTransmit(new Vec3d(camPos.X, camPos.Y, camPos.Z), new Vec3d(gp.X, gp.Y, gp.Z)));
+
+        foreach (var L in _lanterns)
+        {
             // deux battements lents déphasés se lisent comme une flamme ; un seul, comme un pouls
             // une mèche nue dans les courants d'air d'une chambre : plus vive et moins régulière ;
             // une bougie enfermée dans une lanterne pendue brûle comme une lanterne

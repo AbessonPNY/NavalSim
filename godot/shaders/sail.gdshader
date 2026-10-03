@@ -23,6 +23,8 @@
 shader_type spatial;
 render_mode cull_disabled;
 
+// every material of this shader is a ship's, pushed every frame: the sky goes global
+#define NAVAL_SKY_GLOBAL
 #include "res://shaders/ship_haze.gdshaderinc"
 #include "res://shaders/ship_snow.gdshaderinc"
 
@@ -31,7 +33,7 @@ uniform vec3 u_emissive : source_color = vec3(0.553, 0.525, 0.435);   // 0x8d866
 uniform float u_emissive_k = 0.12;
 uniform sampler2D u_map : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform float u_has_map = 0.0;
-uniform vec3 u_sun_col = vec3(1.0, 0.95, 0.86);
+NAVAL_SKY_U(vec3 u_sun_col, vec3(1.0, 0.95, 0.86));
 uniform float u_translucency = 0.45;   // la part de la lumière reçue derrière qui ressort devant
 uniform float u_snow = 0.0;          // la couche de neige sur CE navire : pendante, la toile n'en garde presque pas
 /* CE QUI RESTE DE LA TOILE SOUS LES ÉTOILES, de 0 à 1 : la part de sa lumière de

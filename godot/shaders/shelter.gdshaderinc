@@ -25,8 +25,10 @@
 
 // xy : le centre · z : le rayon extérieur (mur compris) · w : 1 s'il y a un havre
 uniform vec4 u_harbour = vec4(0.0);
-// le point ABRITÉ, au fond du bassin : l'abri se mesure à sa distance
-uniform vec2 u_harbour_pass = vec2(0.0);
+// xy : le point ABRITÉ, au fond du bassin, d'où l'abri se mesure · z : le rayon du
+// bassin, mur NON compris — poussé tel quel, pour que l'épaisseur du mur n'ait
+// qu'une définition (World)
+uniform vec4 u_harbour_pass = vec4(0.0);
 
 /* L'ABRI QUE DONNE LA FORME DU RIVAGE (ShelterMap, World.ShelterMaps) : une grille
    de huit mètres, poussée comme une texture par la démo. xy : le coin, dans le
@@ -43,6 +45,6 @@ float shelter_at(vec2 p) {
 	}
 	if (u_harbour.w < 0.5) return f;
 	if (distance(p, u_harbour.xy) > u_harbour.z) return f;
-	float u = clamp(distance(p, u_harbour_pass) / (1.6 * (u_harbour.z - 18.0)), 0.0, 1.0);
+	float u = clamp(distance(p, u_harbour_pass.xy) / (1.6 * u_harbour_pass.z), 0.0, 1.0);
 	return min(f, 1.0 - u * u * (3.0 - 2.0 * u) * 0.88);
 }

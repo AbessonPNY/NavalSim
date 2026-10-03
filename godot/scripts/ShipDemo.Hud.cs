@@ -107,31 +107,40 @@ public partial class ShipDemo
         }
 
         // le cap et la vitesse, posés sur la boussole
+        bool beat = _hudBeat;
+        _hudBeat = false;
         if (_navLine.Visible && _compass != null)
         {
-            var b = _ship.Physics.Body;
-            var f = b.Quat.Rotate(new Vec3d(0, 0, 1));
-            double hdg = (Math.Atan2(-f.X, f.Z) * 180 / Math.PI + 360) % 360;      // l'est est −x
-            double kn = Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z) * Config.MsToKn;
-            // et, s'il est amené, ce que tout le monde voit d'abord : pas de couleurs
-            _navLine.Text = $"cap {hdg:F0}°    {kn:F1} nds" + (_colours ? "" : "\nsans pavillon");
+            // the text on the beat (a few strings a frame otherwise), the layout every frame
+            if (beat || _navLine.Text.Length == 0)
+            {
+                var b = _ship.Physics.Body;
+                var f = b.Quat.Rotate(new Vec3d(0, 0, 1));
+                double hdg = (Math.Atan2(-f.X, f.Z) * 180 / Math.PI + 360) % 360;      // l'est est −x
+                double kn = Math.Sqrt(b.Vel.X * b.Vel.X + b.Vel.Z * b.Vel.Z) * Config.MsToKn;
+                // et, s'il est amené, ce que tout le monde voit d'abord : pas de couleurs
+                _navLine.Text = $"cap {hdg:F0}°    {kn:F1} nds" + (_colours ? "" : "\nsans pavillon");
+            }
             _navLine.Size = new Vector2(_compass.Size.X, 0);
             _navLine.Position = new Vector2(_compass.Position.X, _compass.Position.Y - _navLine.Size.Y - 4);
         }
 
         // le temps qu'il fait, la date et l'heure — à gauche du panneau de défilement
-        int bf = Mathf.Clamp((int)Math.Round(_sea.Core.SeaState), 0, 9);
-        double h = _sky.Core.DayTime;
-        string tombe = _fall.Amount > 0.004 ? (_fall.Snow ? " · il neige" : " · il pleut") : "";
-        if (_seaFog != null && _seaFog.Amount > 0.3) tombe += " · brume";
-        _skyLine.Text =
-            $"vent {_windNowDeg:F0}°   force {_sea.Core.SeaState:F1} · {Config.Beaufort[bf].Name}"
-            + (_seaMaster != null ? " · " + _seaMaster : "") + "\n" +
-            $"{_climate.Word()}{tombe}\n" +
-            (_inSquall ? $"dépression à {_squall.Dist / 1852:F1} mille(s) du centre\n" : "") +
-            $"{_calendar.Date:dd/MM/yyyy}   {(int)h:00}:{(int)((h - Math.Floor(h)) * 60):00}\n" +
-            // la vue où l on est, sous l heure : C les fait défiler sans dire laquelle on tient
-            $"vue : {CamName()}";
+        if (beat || _skyLine.Text.Length == 0)
+        {
+            int bf = Mathf.Clamp((int)Math.Round(_sea.Core.SeaState), 0, 9);
+            double h = _sky.Core.DayTime;
+            string tombe = _fall.Amount > 0.004 ? (_fall.Snow ? " · il neige" : " · il pleut") : "";
+            if (_seaFog != null && _seaFog.Amount > 0.3) tombe += " · brume";
+            _skyLine.Text =
+                $"vent {_windNowDeg:F0}°   force {_sea.Core.SeaState:F1} · {Config.Beaufort[bf].Name}"
+                + (_seaMaster != null ? " · " + _seaMaster : "") + "\n" +
+                $"{_climate.Word()}{tombe}\n" +
+                (_inSquall ? $"dépression à {_squall.Dist / 1852:F1} mille(s) du centre\n" : "") +
+                $"{_calendar.Date:dd/MM/yyyy}   {(int)h:00}:{(int)((h - Math.Floor(h)) * 60):00}\n" +
+                // la vue où l on est, sous l heure : C les fait défiler sans dire laquelle on tient
+                $"vue : {CamName()}";
+        }
         _skyLine.Size = new Vector2(320, 0);
         float skyRight = s.X - right - 14 - (_sunPanel != null && _sunPanel.Visible ? _sunPanel.Size.X + 12 : 0);
         _skyLine.Position = new Vector2(skyRight - _skyLine.Size.X, top + 14);

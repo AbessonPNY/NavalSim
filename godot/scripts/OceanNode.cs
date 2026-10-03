@@ -249,7 +249,7 @@ public partial class OceanNode : Node3D
         m.SetNow(U.ShipSpeed, _shipSpeed);
         m.SetNow(U.ShipAfloat, _shipAfloat);
         m.SetNow(U.ShipTop, _shipTop);
-        if (_kelvinTex != null) m.SetShaderParameter("u_kelvin", _kelvinTex);
+        if (_kelvinTex != null) m.SetShaderParameter(U.Kelvin, _kelvinTex);
     }
 
     /// <summary>

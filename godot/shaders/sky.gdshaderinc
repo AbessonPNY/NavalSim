@@ -9,14 +9,28 @@
  * Pendant Godot de Naval.SKY_GLSL.
  */
 
+#ifndef NAVAL_SKY_U
+/* LE CIEL EN UNIFORMES GLOBAUX, pour les shaders qui le demandent (#define
+   NAVAL_SKY_GLOBAL avant l'inclusion) : le même ciel partout était poussé
+   matière par matière, dix-sept écritures par matière et par image — quelque
+   quatre mille à seize navires, 1,2 ms. En global, SkyNode l'écrit une fois.
+   Les autres shaders gardent leurs uniformes à eux, et rien ne change pour eux.
+   La valeur par défaut d'un global est dans project.godot ([shader_globals]). */
+#ifdef NAVAL_SKY_GLOBAL
+#define NAVAL_SKY_U(decl, init) global uniform decl
+#else
+#define NAVAL_SKY_U(decl, init) uniform decl = init
+#endif
+#endif
+
 // --- ce que le ciel porte aujourd'hui ---
-uniform vec3  u_sun;              // direction VERS le soleil, unitaire
+NAVAL_SKY_U(vec3 u_sun, vec3(0.0));              // direction VERS le soleil, unitaire
 // DEJA EN LINEAIRE : Sky.cs les calcule numeriquement, comme le faisait
 // `setRGB` de three.js, qui ecrit dans l espace de travail et non en sRGB.
 // Pas de `source_color`, qui les convertirait une seconde fois.
-uniform vec3  u_zenith  = vec3(0.12, 0.36, 0.52);
-uniform vec3  u_horizon = vec3(0.82, 0.89, 0.93);
-uniform float u_cloud = 0.12;     // la couverture, de 0 au couvert
+NAVAL_SKY_U(vec3 u_zenith, vec3(0.12, 0.36, 0.52));
+NAVAL_SKY_U(vec3 u_horizon, vec3(0.82, 0.89, 0.93));
+NAVAL_SKY_U(float u_cloud, 0.12);     // la couverture, de 0 au couvert
 /* CE QUI DÉCHIRE LE BRUIT. On décale le point de lecture par un autre bruit
    avant de lire : les motifs cessent d'être des taches molles et deviennent des
    formes cisaillées, étirées, repliées. C'est ce qui sépare un nuage d'une tache
@@ -28,8 +42,8 @@ uniform float u_warp = 1.15;
    ronde et plus dense — elle CACHE le bleu là où le cirrus le laissait passer, et
    c'est le glissement de l'une sur l'autre qui fait un ciel plutôt qu'un fond. */
 uniform float u_cumulus = 0.75;
-uniform float u_sky_time = 0.0;   // le pont de nuages dérive avec le jour
-uniform float u_storm = 0.0;      // le couvercle, de 0 à 1
+NAVAL_SKY_U(float u_sky_time, 0.0);   // le pont de nuages dérive avec le jour
+NAVAL_SKY_U(float u_storm, 0.0);      // le couvercle, de 0 à 1
 
 /* CE QUE LA MER RENVOIE VERS LE HAUT — et c'est le plus gros terme
  * d'éclairage indirect de cette scène.
@@ -140,10 +154,10 @@ vec3 naval_encode(vec3 c) {
 }
 
 // --- un grain qu'on n'a pas encore atteint ---
-uniform vec2  u_storm_dir = vec2(1.0, 0.0);        // relèvement du grain le plus proche
-uniform float u_storm_loom = 0.0;                  // à quel point ce quart de ciel est noir
-uniform vec2  u_storm_flash_dir = vec2(1.0, 0.0);  // où dans le banc se trouve CE coup
-uniform float u_storm_flash = 0.0;                 // et sa force, à l'instant
+NAVAL_SKY_U(vec2 u_storm_dir, vec2(1.0, 0.0));        // relèvement du grain le plus proche
+NAVAL_SKY_U(float u_storm_loom, 0.0);                  // à quel point ce quart de ciel est noir
+NAVAL_SKY_U(vec2 u_storm_flash_dir, vec2(1.0, 0.0));  // où dans le banc se trouve CE coup
+NAVAL_SKY_U(float u_storm_flash, 0.0);                 // et sa force, à l'instant
 
 
 float naval_hash13(vec3 p) {
