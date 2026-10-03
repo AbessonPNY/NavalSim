@@ -1495,6 +1495,7 @@ public partial class ShipDemo : Node3D
         CabinTick(frame);
         DiveShow(frame);
         CrewTick(frame);
+        TackCalls();
 
         WreckTick(frame);
         TickSunPanel(frame);
@@ -2722,6 +2723,8 @@ public partial class ShipDemo : Node3D
                 Config.WindGain = Math.Clamp(wg.GetDouble(), 0.1, 8);
             if (root.TryGetProperty("wind", out var wi2) && wi2.TryGetProperty("heel", out var wh2) && wh2.ValueKind == System.Text.Json.JsonValueKind.Number)
                 Config.WindHeel = Math.Clamp(wh2.GetDouble(), 0, 8);
+            // le virement de bord de l'équipage (ShipPhysics.Tack.cs) : allumé sauf si la fiche dit non
+            Config.CrewTacks = !(root.TryGetProperty("wind", out var wi3) && wi3.TryGetProperty("virement", out var wv3) && wv3.ValueKind == System.Text.Json.JsonValueKind.False);
             if (root.TryGetProperty("cloche", out var cl))
             {
                 if (cl.TryGetProperty("air", out var cla) && cla.ValueKind == System.Text.Json.JsonValueKind.Number)

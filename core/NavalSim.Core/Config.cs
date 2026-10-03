@@ -78,6 +78,13 @@ public static class Config
     public static double WindHeel = 1.0;
 
     /// <summary>
+    /// LE VIREMENT DE BORD DE L'ÉQUIPAGE (ShipPhysics.Tack.cs) : l'artimon bordé au
+    /// vent, puis la misaine à contre. Éteint dans le noyau — la page n'en sait rien,
+    /// et le banc de parité la compare —, allumé par Godot (settings.json → wind.virement).
+    /// </summary>
+    public static bool CrewTacks = false;
+
+    /// <summary>
     /// Jusqu'où elle s'éloigne du zéro local avant qu'on ne fasse glisser le monde
     /// sous elle. Assez petit pour que la phase de Gerstner garde sa précision,
     /// assez grand pour que le recentrage soit rare — 1500 m, cinq minutes environ

@@ -14160,6 +14160,31 @@ près) ni le sloop (18°) ne passent. Un galion virait mal — on virait souvent
 lof —, mais un sloop vire franchement ; ce que le modèle ne fait pas, c'est la
 manœuvre : les voiles d'avant mises à contre poussent l'étrave de l'autre bord.
 
+**La manœuvre, modélisée** (ShipPhysics.Tack.cs, Config.CrewTacks — éteinte dans le
+noyau pour la parité, allumée par Godot : settings.json → wind.virement). En deux
+temps, comme sur un trois-mâts carré : l'étrave vient au vent avec l'ARTIMON BORDÉ
+AU VENT (la grand-voile à plat sur un sloop), puis, le vent passé, la MISAINE À
+CONTRE (le foc sur un sloop) pousse l'étrave sur le nouveau bord et freine de son
+vrai poids. Forces du vent sur ces surfaces en plaque (Cd 1,1), à leur bras de
+levier. La barre lue, et non le sens où elle tourne : le navire qui cule tourne à
+rebours de sa barre, et l'équipage ne lâche pas sa misaine pour autant.
+
+Le déroulé au banc a dit le reste : à gain 1, barre toute, le galion tourne à
+0,6°/s à 3,3 nœuds — un rayon de trois à quatre longueurs, celui d'un vrai galion ;
+il est simplement trop lent au près pour avoir l'élan de virer, ce qui est juste (on
+virait lof pour lof). À gain 8 il file onze nœuds, mais la misaine à contre ne le
+tournait qu'avec le vent réel : planté vent debout, 0,1°/s. Le gain s'applique
+donc aussi à la manœuvre — c'est du vent dans la toile. Résultat, force 4 :
+
+| | gain 1 | gain 2 | gain 4 | gain 8 |
+|---|---|---|---|---|
+| Roter Löwe, avant | 35° du vent | 22° | 14° | cule 103 s |
+| Roter Löwe, après | 32° | 19° | 6° | **passe en 30 s, pleine en 113 s** |
+| sloop, après | 16° | passe, 39 s | passe, 14 s | passe, 8 s |
+
+Les ordres se disent à l'écran (et se crient si crew.json a une voix) : « Paré à
+virer ! », « Change derrière ! — la misaine à contre », « Bordez partout ! ».
+
 ## La chaloupe quitte le pont (Godot)
 
 Demandé : à la mise à l'eau, la chaloupe du modèle (posée sur ses chantiers)

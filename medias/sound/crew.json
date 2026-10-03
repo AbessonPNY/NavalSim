@@ -29,6 +29,9 @@
     "pavillon-haut": [],
     "port": [],
     "ca-mord": [],
+    "pare-a-virer": [],
+    "change-derriere": [],
+    "bordez": [],
     "ferre": [],
     "vie": [],
     "cloche": ["Ship Bell.ogg"]
@@ -49,6 +52,9 @@
     "pavillon-haut": "on les hisse",
     "port": "on entre dans un port",
     "ca-mord": "une ligne mord (pêche) — le cri du matelot qui la tient",
+    "pare-a-virer": "l'étrave vient au vent pour virer de bord",
+    "change-derriere": "le vent passé : on brasse le grand mât et l'artimon, la misaine reste à contre",
+    "bordez": "le virement fait, pleine sur le nouveau bord",
     "ferre": "on ferre, et l'on hale",
     "vie": "la vie du bord, au hasard : un rire, une toux, un seau, un bout qu'on love",
     "cloche": "UN coup de cloche. Le jeu la frappe lui-même autant de fois qu'il faut, par paires, à chaque demi-heure du quart — un seul échantillon suffit."

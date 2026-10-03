@@ -42,6 +42,7 @@ public partial class ShipDemo
        l'ancre un état —, et en ajouter partout pour un son serait payer cher un
        cri. On garde donc l'état d'avant, et on compare. */
     bool _wasSails, _wasColours = true, _wasAnchor;
+    int _wasTack;
     int _wasReef;
     double _wasBell = -1;
 
@@ -254,6 +255,24 @@ public partial class ShipDemo
     // ------------------------------------------------------------------
     //  LES MOMENTS
     // ------------------------------------------------------------------
+
+    /// <summary>
+    /// LES ORDRES DU VIREMENT, dits à l'écran et criés s'il y a une voix pour eux
+    /// (ShipPhysics.Tack.cs) : « Paré à virer ! » quand l'étrave vient au vent,
+    /// « Change derrière ! » le vent passé — le grand mât et l'artimon brassés, la
+    /// misaine laissée à contre —, « Bordez partout ! » une fois pleine sur le
+    /// nouveau bord. Le joueur sait ainsi que l'équipage a compris, et où il en est.
+    /// </summary>
+    void TackCalls()
+    {
+        if (_ship == null || _inTitle) return;
+        int ph = _ship.Physics.TackPhase;
+        if (ph == _wasTack) return;
+        if (ph == 1) { Say("Paré à virer !"); Shout("pare-a-virer", 0.2); }
+        else if (ph == 2) { Say("Change derrière ! — la misaine à contre"); Shout("change-derriere", 0.2); }
+        else if (_wasTack == 2) { Say("Bordez partout !"); Shout("bordez", 0.2); }
+        _wasTack = ph;
+    }
 
     void CrewTick(double dt)
     {

@@ -1083,9 +1083,11 @@ void Virement()
     double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 4;
     var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
     Console.WriteLine($"{spec.Name}, force {force:F0}, virement de 70° à -70° du vent");
+    foreach (bool crew in new[] { false, true })
     foreach (double gain in new[] { 1.0, 2.0, 4.0, 8.0 })
     {
         Config.WindGain = gain;
+        Config.CrewTacks = crew;
         var ocean = new Ocean { Swell = 1.0, Time = 0 };
         ocean.SetSeaState(force, 0);
         var p2 = new ShipPhysics(spec, new HullLines(spec));
@@ -1101,19 +1103,23 @@ void Virement()
             double hdg = Math.Atan2(fw.X, fw.Z);
             double target = t < 90 ? y0 : -y0;
             ctrl.Rudder = Math.Clamp(-(Math.IEEERemainder(target - hdg, 2 * Math.PI)) * 3, -1, 1);
+            /* LA BARRE TENUE DU MÊME BORD tant que le virement n'est pas fait, comme le
+               tiendrait un timonier — même si le navire cule et que l'écart change de signe. */
+            if (t >= 90 && hdg > -y0 + 10 * Math.PI / 180) ctrl.Rudder = Math.Sign(-(Math.IEEERemainder(-y0 - y0, 2 * Math.PI))) * 1.0;
             p2.Step(dt, ocean, ctrl, t); t += dt;
             var v = p2.Body.Vel;
             double sog = v.X * fw.X + v.Z * fw.Z;          // l'erre, signée : négative, il cule
             if (t < 90) { vStart = sog; continue; }
+            if (crew && args.Length > 3 && args[3] == "trace" && Math.Floor(t / 3) != Math.Floor((t - dt) / 3)) Console.WriteLine(FormattableString.Invariant($"   gain {gain:F0} t {t - 90,4:F0} cap {hdg * 180 / Math.PI,5:F0}  phase {p2.TackPhase}  erre {sog / 0.5144,5:F2} nd  barre {ctrl.Rudder,4:F1}  lacet {p2.Body.AngVel.Y * 180 / Math.PI,5:F1}°/s  amure {p2.Tack}"));
             vMin = Math.Min(vMin, sog);
             closest = Math.Min(closest, Math.Abs(hdg) * 180 / Math.PI);
             if (sog < 0) astern += dt;
             if (crossed < 0 && hdg < 0) crossed = t - 90;
             if (done < 0 && hdg < -y0 + 10 * Math.PI / 180) done = t - 90;
         }
-        Console.WriteLine(FormattableString.Invariant($"gain {gain,3:F0} : erre {vStart / 0.5144,5:F2} nd ; passe le vent {(crossed < 0 ? "JAMAIS" : crossed.ToString("F0") + " s")}, à 60° de l'autre bord {(done < 0 ? "jamais" : done.ToString("F0") + " s")} ; erre au plus bas {vMin / 0.5144,5:F2} nd, à culer {astern:F0} s ; au plus près du vent {closest:F0}°"));
+        Console.WriteLine(FormattableString.Invariant($"{(crew ? "équipage" : "seul    ")} gain {gain,3:F0} : erre {vStart / 0.5144,5:F2} nd ; passe le vent {(crossed < 0 ? "JAMAIS" : crossed.ToString("F0") + " s")}, à 60° de l'autre bord {(done < 0 ? "jamais" : done.ToString("F0") + " s")} ; erre au plus bas {vMin / 0.5144,5:F2} nd, à culer {astern:F0} s ; au plus près du vent {closest:F0}°"));
     }
-    Config.WindGain = 1.0;
+    Config.WindGain = 1.0; Config.CrewTacks = false;
 }
 
 /* LA COQUE CATAPULTÉE PAR UNE CRÊTE : ce que fait son étrave quand elle sort de
