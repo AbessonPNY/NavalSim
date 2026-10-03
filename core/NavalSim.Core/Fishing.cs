@@ -17,6 +17,8 @@ public sealed class FishSpecies
     public double PricePerKg = 6;
     /// <summary>Son appétit selon l'heure : aube, jour, crépuscule, nuit.</summary>
     public double Dawn = 1.5, Day = 0.7, Dusk = 1.5, Night = 0.5;
+    /// <summary>Son modèle (.glb), et l'axe vers lequel il a le dos : « +y » s'il est modelé debout, « +z » s'il l'est couché sur le flanc.</summary>
+    public string Model = "", Back = "+y";
     /// <summary>La chance qu'un poisson de son poids maximal casse la ligne en remontant (il s'enroche, il scie la ligne sur le corail).</summary>
     public double Break = 0.1;
 }
@@ -66,7 +68,9 @@ public sealed class FishingRules
                     Bottom = e.TryGetProperty("fond", out var f) ? f.GetString() ?? "roche" : "roche",
                     BitesPerHour = N(e, "touchesParHeure", 6),
                     PricePerKg = N(e, "prixKg", 6),
-                    Break = N(e, "casse", 0.1)
+                    Break = N(e, "casse", 0.1),
+                    Model = e.TryGetProperty("modele", out var mo) ? mo.GetString() ?? "" : "",
+                    Back = e.TryGetProperty("dos", out var dv) ? dv.GetString() ?? "+y" : "+y"
                 };
                 if (e.TryGetProperty("poids", out var w) && w.GetArrayLength() == 2) { s.WMin = w[0].GetDouble(); s.WMax = w[1].GetDouble(); }
                 if (e.TryGetProperty("profondeur", out var d) && d.GetArrayLength() == 2) { s.DMin = d[0].GetDouble(); s.DMax = d[1].GetDouble(); }

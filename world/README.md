@@ -204,7 +204,7 @@ Ce qui compte est le **nom des matières**, car chacune devient un MultiMesh :
 |---|---|
 | `mur` | le crépi ; il prend la teinte de la maison (une par instance) |
 | `toit` · `bois` · `pierre` | gardent la couleur du modèle |
-| `fenetre` | s'allume la nuit, comme les fanaux (`shaders/town_glass.gdshader`) |
+| `fenetre` | s'allume la nuit, comme les fanaux (`shaders/town_glass.gdshader`). Plusieurs groupes — `fenetre`, `fenetre_002`, `fenetre_003`… (le numéro final fait le groupe) — s'allument chacun selon son tirage, maison par maison, et chacun à son heure du crépuscule |
 
 Un modèle manquant ou illisible : la ville retombe sur ses boîtes et le dit en
 console.  Mesuré à Port-Royal : 5,13 ms par image avec les modèles contre 4,80

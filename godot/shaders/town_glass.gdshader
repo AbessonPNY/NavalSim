@@ -18,16 +18,23 @@ uniform vec3 u_warm = vec3(1.0, 0.66, 0.30);
 uniform float u_gain = 2.2;
 uniform float u_lit_share = 0.55;
 uniform vec3 u_glass : source_color = vec3(0.06, 0.07, 0.09);
+/* LE GROUPE DE FENÊTRES (le numéro de la matière : fenetre_002 → 2). Il entre
+   dans le tirage : chaque groupe d'une même maison s'allume pour son compte. */
+uniform float u_group = 0.0;
 
 varying float v_lit;
+varying float v_when;
 
 float hash21(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
 void vertex() {
-	vec2 seed = MODEL_MATRIX[3].xz;                    // où la maison se tient : son tirage
-	v_lit = step(1.0 - u_lit_share, hash21(floor(seed * 7.13)));
+	vec2 seed = floor(MODEL_MATRIX[3].xz * 7.13) + u_group * vec2(3.17, 11.3);   // où la maison se tient, et quel groupe
+	v_lit = step(1.0 - u_lit_share, hash21(seed));
+	/* ET À SON HEURE : chacune s'allume à un moment du crépuscule qui lui est
+	   propre, au lieu que toute la ville s'éclaire d'un coup. */
+	v_when = 0.15 + 0.6 * hash21(seed + vec2(5.3, 1.7));
 }
 
 void fragment() {
@@ -46,7 +53,7 @@ void fragment() {
 	 * peinte, sombre sous la lune, ce qui est exactement ce qu'on veut voir
 	 * d'une maison où l'on dort. Les 45 % de maisons non tirées n'ont donc plus
 	 * une vitre grise posée dessus, elles ont leur vraie fenêtre. */
-	float on = u_night * v_lit;
+	float on = smoothstep(v_when, v_when + 0.12, u_night) * v_lit;
 	ALBEDO = u_glass;
 	ROUGHNESS = 0.25;
 	SPECULAR = 0.6;

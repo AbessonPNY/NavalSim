@@ -55,8 +55,9 @@ traversées, et suit la cale quand on change de bord au chantier.
 
 ## Sur le pont
 
-Chaque prise tombe à bord (`props/merou.glb` ; le vivaneau n'a pas encore son
-modèle, c'est le même teinté de rouge) : hissée par-dessus le pavois du bord où
+Chaque prise tombe à bord — le modèle que nomme sa fiche (`modele`, avec `dos` :
+l'axe vers lequel il a le dos, `+y` s'il est modelé debout, `+z` couché sur le
+flanc ; une espèce sans modèle prend celui du mérou teinté de rouge) : hissée par-dessus le pavois du bord où
 pendait la ligne, elle rebondit, se débat dix à trente secondes, puis reste
 couchée sur le flanc. Elle glisse quand le navire gîte ou tangue — la pesanteur
 est tournée dans le repère du bord, son accélération retranchée — et les

@@ -14138,6 +14138,15 @@ des bouffées plus larges (7 à 12 m) ; noir (0,06 à la sortie, 0,16 au bout) ;
 qu'au dernier tiers de la vie, au lieu de décroître dès la naissance. Le bassin passe à 3 072 bouffées : chacune
 vit trois fois plus. Vu après une minute : deux ou trois panaches noirs couchés par le vent au-dessus de la ville.
 
+## Les fenêtres, groupe par groupe (Godot)
+
+Le cottage du centre porte trois matières de fenêtres (`fenetre`, `fenetre_002`,
+`fenetre_003`) : chacune a désormais son verre (`TownNode.GlassFor`, le numéro
+final fait le groupe) et entre dans le tirage de la maison — une rangée, deux,
+trois ou aucune d'allumées, et la rue cesse d'être faite de maisons toutes
+allumées ou toutes noires. Et chacune s'allume à son heure : un seuil tiré entre
+0,15 et 0,75 de la nuit (`u_night`), au lieu que la ville s'éclaire d'un coup.
+
 ## Les fumées en traînée (Godot)
 
 Signalé, capture à l'appui : au-dessus de la ville, une file de petits nuages
@@ -14299,6 +14308,12 @@ double (le pont se remplissait avec une liste qui la contenait déjà, puis on l
 lâchait). Le poids est un colis par poisson au niveau du pont, là où il gît :
 juste, donc presque imperceptible sur vingt-deux tonnes, ce qu'il faut dire
 plutôt que de l'exagérer.
+
+**Le vivaneau a son modèle.** Les deux .glb ne s'accordent pas : le mérou est
+modelé couché sur le flanc (le dos vers +z), le vivaneau debout (vers +y) — vu à
+la capture, le vivaneau se tenait sur le ventre au milieu du pont. Le sens du dos
+est donc écrit dans la fiche (`dos`), à côté du modèle (`modele`), au lieu d'être
+deviné sur la boîte, qui a les mêmes proportions pour les deux.
 
 Essai de bout en bout : `-- --quete le-pecheur --peche 257,2238,20` (la coque
 posée sur le meilleur fond du mérou, les lignes à vingt fois le temps, un

@@ -34,6 +34,28 @@ public partial class TownNode
 
     Model? _church, _houseA, _houseB;
     ShaderMaterial? _glass;
+    /// <summary>
+    /// UN VERRE PAR GROUPE DE FENÊTRES : « fenetre », « fenetre_002 », « fenetre_003 »
+    /// d'un même modèle s'allument chacun selon son propre tirage — une maison a
+    /// alors une, deux ou trois rangées éclairées, et la rue cesse d'être faite de
+    /// maisons toutes allumées ou toutes noires. La clé est le numéro du groupe.
+    /// </summary>
+    readonly Dictionary<int, ShaderMaterial> _glassSet = new();
+
+    /// <summary>Le verre du groupe que nomme la matière (le numéro qui la termine, 0 sans numéro).</summary>
+    ShaderMaterial GlassFor(string name)
+    {
+        int g = 0;
+        var m = System.Text.RegularExpressions.Regex.Match(name, @"(\d+)\s*$");
+        if (m.Success) g = int.Parse(m.Groups[1].Value);
+        if (_glassSet.TryGetValue(g, out var mat)) return mat;
+        mat = g == 0 ? _glass! : (ShaderMaterial)_glass!.Duplicate();
+        mat.SetShaderParameter("u_group", (float)g);
+        _glassSet[g] = mat;
+        return mat;
+    }
+
+    bool IsGlass(Material m) => m is ShaderMaterial sm && _glassSet.ContainsValue(sm);
 
     static string RepoRoot => Assets.Root;
 
@@ -79,7 +101,7 @@ public partial class TownNode
                     var one = OneSurface(mi.Mesh, s, xf);
                     if (one == null) continue;
                     Material use = name.Contains("fenetre") || name.Contains("vitre")
-                        ? _glass!
+                        ? GlassFor(name)
                         : Dressed(mat, name.Contains("mur"));
                     m.Faces.Add(new Face(one, use, name));
                     var bb = xf * mi.Mesh.GetAabb();
@@ -189,7 +211,7 @@ public partial class TownNode
                 /* LE VERRE NE JETTE PAS D'OMBRE. Il est transparent le jour et ne
                    doit rien laisser de lui ; une ombre portée serait la seule
                    trace d'un panneau qu'on a fait disparaître exprès. */
-                bool vitre = ReferenceEquals(face.Mat, _glass);
+                bool vitre = IsGlass(face.Mat);
                 holder.AddChild(new MultiMeshInstance3D
                 {
                     Multimesh = mm, MaterialOverride = face.Mat,
@@ -237,7 +259,7 @@ public partial class TownNode
                             n.AddChild(new MeshInstance3D
                             {
                                 Mesh = face.Mesh, MaterialOverride = m, Scale = Vector3.One * (float)k2,
-                                CastShadow = ReferenceEquals(face.Mat, _glass) ? GeometryInstance3D.ShadowCastingSetting.Off
+                                CastShadow = IsGlass(face.Mat) ? GeometryInstance3D.ShadowCastingSetting.Off
                                                                                : GeometryInstance3D.ShadowCastingSetting.On
                             });
                         }

@@ -47,10 +47,15 @@ public partial class ShipDemo
 
     readonly List<DeckFish> _deckFish = new();
     ShipNode? _deckShip;
-    Mesh? _fishMesh;
-    Material? _fishMat, _snapperMat;
-    bool _fishMeshTried;
-    float _fishTall = 0.41f, _fishWide = 0.51f;
+    /// <summary>Le modèle d'une espèce, ramené à la longueur 1, le dos vers +y.</summary>
+    sealed class FishModel
+    {
+        public Mesh Mesh = null!;
+        public Material? Override;
+        /// <summary>Sa hauteur (dos-ventre) et son épaisseur, en part de sa longueur.</summary>
+        public float Tall, Wide;
+    }
+    readonly Dictionary<string, FishModel?> _fishModels = new();
     Vector3 _shipVelPrev;
     double _fishWeighAcc;
 
@@ -58,20 +63,40 @@ public partial class ShipDemo
     const int MaxDeckFish = 80;
 
     /// <summary>
-    /// LE MODÈLE (props/merou.glb), ramené à la longueur 1 le long de x et centré.
-    /// Le vivaneau n'a pas encore le sien : le même, teinté du rouge du vivaneau.
+    /// LE MODÈLE D'UNE ESPÈCE, celui que sa fiche nomme (fishing/poissons.json :
+    /// modele, dos). Une espèce sans modèle prend celui du mérou, teinté de rouge —
+    /// mieux qu'un pont vide.
     /// </summary>
-    void LoadFishMesh()
+    FishModel? FishModelOf(string key)
     {
-        _fishMeshTried = true;
-        string path = Assets.Path("props/merou.glb");
-        if (!System.IO.File.Exists(path)) { GD.PushWarning("[pêche] props/merou.glb absent : pas de poisson sur le pont"); return; }
+        if (_fishModels.TryGetValue(key, out var m)) return m;
+        var sp = _angling?.Of(key);
+        m = sp is { Model.Length: > 0 } ? LoadFishModel(sp.Model, sp.Back) : null;
+        if (m == null && key != "merou" && FishModelOf("merou") is { } mer)
+        {
+            m = new FishModel { Mesh = mer.Mesh, Tall = mer.Tall, Wide = mer.Wide };
+            if (mer.Mesh.SurfaceGetMaterial(0) is BaseMaterial3D bm)
+            {
+                var red = (BaseMaterial3D)bm.Duplicate();
+                red.AlbedoColor = new Color(1.0f, 0.55f, 0.50f);
+                m.Override = red;
+            }
+        }
+        _fishModels[key] = m;
+        return m;
+    }
+
+    /// <summary>Un .glb de poisson, ramené à la longueur 1 le long de x et centré.</summary>
+    static FishModel? LoadFishModel(string rel, string back)
+    {
+        string path = Assets.Path(rel);
+        if (!System.IO.File.Exists(path)) return null;
         var doc = new GltfDocument();
         var state = new GltfState();
         if (doc.AppendFromFile(path, state) != Error.Ok || doc.GenerateScene(state) is not Node3D obj)
         {
-            GD.PushWarning("[pêche] merou.glb illisible");
-            return;
+            GD.PushWarning($"[pêche] {rel} illisible");
+            return null;
         }
         MeshInstance3D? mi = null;
         var stack = new Stack<Node>();
@@ -79,10 +104,10 @@ public partial class ShipDemo
         while (stack.Count > 0 && mi == null)
         {
             var n = stack.Pop();
-            if (n is MeshInstance3D m && m.Mesh != null) mi = m;
+            if (n is MeshInstance3D mm && mm.Mesh != null) mi = mm;
             foreach (var c in n.GetChildren()) stack.Push(c);
         }
-        if (mi == null) { obj.QueueFree(); return; }
+        if (mi == null) { obj.QueueFree(); return null; }
         var box = mi.Mesh.GetAabb();
         float len = Math.Max(1e-3f, box.Size.X);
         var mid = box.Position + box.Size * 0.5f;
@@ -90,11 +115,18 @@ public partial class ShipDemo
         for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
         {
             var arr = mi.Mesh.SurfaceGetArrays(s);
-            /* LE DOS VERS +Y. Le modèle a le dos vers +z (relevé à la capture : posés
-               « sur le flanc », ils étaient à plat ventre, nageoires écartées). On le
-               redresse ici, sommets, normales et tangentes ensemble : ensuite, roulis
-               nul veut dire debout, et ±90° couché sur un flanc. */
-            static Vector3 Up(Vector3 v) => new(v.X, v.Z, -v.Y);
+            /* LE DOS VERS +Y. Les modèles ne s'accordent pas : le mérou a le dos vers
+               +z, modelé couché sur le flanc, le vivaneau vers +y, debout (relevé aux
+               captures : l'un à plat ventre nageoires écartées, l'autre debout sur le
+               pont). La fiche dit lequel ; on redresse ici, sommets, normales et
+               tangentes ensemble : ensuite, roulis nul veut dire debout, et ±90°
+               couché sur un flanc. */
+            Vector3 Up(Vector3 v) => back switch
+            {
+                "+z" => new(v.X, v.Z, -v.Y),
+                "-z" => new(v.X, -v.Z, v.Y),
+                _ => v
+            };
             var verts = arr[(int)Mesh.ArrayType.Vertex].AsVector3Array();
             for (int i = 0; i < verts.Length; i++) verts[i] = Up((verts[i] - mid) / len);
             arr[(int)Mesh.ArrayType.Vertex] = verts;
@@ -107,24 +139,25 @@ public partial class ShipDemo
             if (arr[(int)Mesh.ArrayType.Tangent].VariantType != Variant.Type.Nil)
             {
                 var tg = arr[(int)Mesh.ArrayType.Tangent].AsFloat32Array();
-                for (int i = 0; i + 3 < tg.Length; i += 4) { float y = tg[i + 1]; tg[i + 1] = tg[i + 2]; tg[i + 2] = -y; }
+                for (int i = 0; i + 3 < tg.Length; i += 4)
+                {
+                    var t = Up(new Vector3(tg[i], tg[i + 1], tg[i + 2]));
+                    tg[i] = t.X; tg[i + 1] = t.Y; tg[i + 2] = t.Z;
+                }
                 arr[(int)Mesh.ArrayType.Tangent] = tg;
             }
             outMesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arr);
             outMesh.SurfaceSetMaterial(s, mi.Mesh.SurfaceGetMaterial(s));
         }
-        _fishMesh = outMesh;
-        // redressé : sa hauteur est l'ancien z, son épaisseur l'ancien y
-        _fishTall = box.Size.Z / len;
-        _fishWide = box.Size.Y / len;
-        _fishMat = mi.Mesh.SurfaceGetMaterial(0);
-        if (_fishMat is BaseMaterial3D bm)
-        {
-            var red = (BaseMaterial3D)bm.Duplicate();
-            red.AlbedoColor = new Color(1.0f, 0.55f, 0.50f);
-            _snapperMat = red;
-        }
         obj.QueueFree();
+        // redressé : sa hauteur est le long de son dos, son épaisseur en travers
+        bool lying = back is "+z" or "-z";
+        return new FishModel
+        {
+            Mesh = outMesh,
+            Tall = (lying ? box.Size.Z : box.Size.Y) / len,
+            Wide = (lying ? box.Size.Y : box.Size.Z) / len
+        };
     }
 
     /// <summary>
@@ -137,14 +170,12 @@ public partial class ShipDemo
 
     DeckFish? MakeDeckFish(FishLot lot)
     {
-        if (!_fishMeshTried) LoadFishMesh();
-        if (_fishMesh == null || _deckFish.Count >= MaxDeckFish) return null;
+        if (_deckFish.Count >= MaxDeckFish || FishModelOf(lot.Key) is not { } model) return null;
         var f = new DeckFish { Lot = lot, Len = FishLength(lot.Key, lot.Kg) };
         // couché, il repose sur son flanc, nageoires écrasées : moins que la largeur du modèle
-        f.Thick = 0.5f * f.Len * _fishWide * 0.55f;
-        f.Tall = 0.5f * f.Len * _fishTall;
-        f.Node = new MeshInstance3D { Mesh = _fishMesh, CastShadow = GeometryInstance3D.ShadowCastingSetting.On };
-        if (lot.Key == "vivaneau" && _snapperMat != null) f.Node.MaterialOverride = _snapperMat;
+        f.Thick = 0.5f * f.Len * model.Wide * 0.55f;
+        f.Tall = 0.5f * f.Len * model.Tall;
+        f.Node = new MeshInstance3D { Mesh = model.Mesh, MaterialOverride = model.Override, CastShadow = GeometryInstance3D.ShadowCastingSetting.On };
         _ship.AddChild(f.Node);
         _deckFish.Add(f);
         return f;

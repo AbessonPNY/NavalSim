@@ -2,7 +2,7 @@
   "note": "LA PÊCHE À LA LIGNE À MAIN — les espèces, où elles tiennent, ce qu'elles pèsent et ce qu'elles valent ; et les règles de la ligne. Format : fishing/README.md. Les durées sont en TEMPS DE JEU simulé (celui où le navire fait route), pas en heures du calendrier, qui défile bien plus vite que la navigation.",
 
   "ligne": {
-    "_aide": "lignesParHomme : une ligne pour deux hommes d'équipage (l'un pêche, l'autre manœuvre), au moins une. vitesseMax : au-dessus (m/s), les lignes traînent et l'on ne pêche pas — en panne ou au mouillage seulement. ferrer : la fenêtre pour ferrer après la touche (s). remontee : la vitesse à laquelle on hale une ligne à la main (m/s). frais : le poisson garde son plein prix tant de minutes ; gate : il est perdu au bout de tant (minutes de jeu). longueur : la ligne, en mètres — plus profond, elle ne touche pas le fond. appat : secondes pour réappâter et refiler. lignesMax : le plus de lignes à l'eau, quel que soit l'équipage.",
+    "_aide": "lignesParHomme : une ligne pour deux hommes d'équipage (l'un pêche, l'autre manœuvre), au moins une. vitesseMax : au-dessus (m/s), les lignes traînent et l'on ne pêche pas — en panne ou au mouillage seulement. ferrer : la fenêtre pour ferrer après la touche (s). remontee : la vitesse à laquelle on hale une ligne à la main (m/s). frais : le poisson garde son plein prix tant de minutes ; gate : il est perdu au bout de tant (minutes de jeu). longueur : la ligne, en mètres — plus profond, elle ne touche pas le fond. appat : secondes pour réappâter et refiler. lignesMax : le plus de lignes à l'eau, quel que soit l'équipage. Par espèce, modele : le .glb qui tombe sur le pont, et dos : l'axe vers lequel le modèle a le dos (+y debout, +z couché sur le flanc, -z de l'autre flanc).",
     "lignesParHomme": 0.5,
     "vitesseMax": 0.7,
     "ferrer": 3.0,
@@ -24,7 +24,9 @@
       "fond": "roche",
       "touchesParHeure": 9.0,
       "prixKg": 10,
-      "casse": 0.35
+      "casse": 0.35,
+      "modele": "props/merou.glb",
+      "dos": "+z"
     },
     {
       "key": "vivaneau",
@@ -35,7 +37,9 @@
       "fond": "tombant",
       "touchesParHeure": 12.0,
       "prixKg": 14,
-      "casse": 0.08
+      "casse": 0.08,
+      "modele": "props/vivaneau.glb",
+      "dos": "+y"
     }
   ]
 }
