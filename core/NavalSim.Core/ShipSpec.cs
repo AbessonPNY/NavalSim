@@ -140,6 +140,12 @@ public sealed class ModelSpec
     /// </summary>
     [JsonPropertyName("rubans")]     public bool Ribbons { get; set; }
     /// <summary>
+    /// La couleur des cordages en rubans tirés d'un plan texturé (« #4b3828 ») : la
+    /// texture n'en dit rien — elle n'est qu'un dessin de lignes. Absente, un brun de
+    /// chanvre goudronné. Les tubes gardent la couleur de leur matière.
+    /// </summary>
+    [JsonPropertyName("couleurCordage")] public string? RopeColour { get; set; }
+    /// <summary>
     /// CE QUI TOURNE SUR ELLE — un anneau par ligne. La liste est FACULTATIVE :
     /// une piece du .glb dont le nom porte « anneau », « gyro » ou « ring » est
     /// reconnue et mise a tourner sans qu'on ecrive rien ici. Ces lignes ne

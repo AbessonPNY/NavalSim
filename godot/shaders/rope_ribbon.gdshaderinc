@@ -2,7 +2,7 @@
  * (mélangé) et rope_ribbon_taa.gdshader (opaque, tramé), ShipNode.Ropes.cs. */
 #include "res://shaders/ship_haze.gdshaderinc"
 
-uniform vec3 u_color : source_color = vec3(0.07, 0.055, 0.04);   // chanvre goudronné
+uniform vec3 u_color : source_color = vec3(0.29, 0.22, 0.16);   // chanvre goudronné, brun
 uniform float u_min_px = 1.3;      // jamais plus mince que ceci à l'écran
 
 varying float v_fade;

@@ -140,6 +140,7 @@
   "model": {
     "glb": "ships/models/roter_lowe_1597.glb",
     "rubans": true,
+    "couleurCordage": "#4b3828",
     "lengthAxis": "z",
     "offset": [
       0,

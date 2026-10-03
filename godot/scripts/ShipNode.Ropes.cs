@@ -73,7 +73,11 @@ public partial class ShipNode
         {
             var mat = mi.GetActiveMaterial(0) as BaseMaterial3D;
             var segs = new List<RopeSeg>();
-            Color col = new(0.07f, 0.055f, 0.04f);         // chanvre goudronné
+            /* LE CHANVRE GOUDRONNÉ, BRUN ET NON NOIR : le goudron de Norvège dont on
+               enduisait le gréement dormant fonçait la corde en brun profond, que le
+               soleil et le sel ternissaient encore — le noir d'encre d'un dessin de
+               lignes n'en est pas la couleur (demandé). La fiche peut la changer. */
+            Color col = Spec.Model?.RopeColour is { Length: > 0 } hex ? new Color(hex) : new Color(0.29f, 0.22f, 0.16f);
             bool drawn = mat != null && mat.AlbedoTexture != null && mat.Transparency != BaseMaterial3D.TransparencyEnum.Disabled;
             string kind;
             if (drawn)

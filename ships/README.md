@@ -315,7 +315,9 @@ Pour en modéliser d'autres dans Blender :
   deux cordes soudées en Y ou en filet seraient lues comme une seule ;
 - **un objet par mât** : quand un mât tombe, ses cordages cassent avec lui, et
   chaque objet est rattaché au mât le plus proche de son milieu ;
-- une matière opaque et sombre : la corde prend sa couleur moyenne.
+- une matière opaque et sombre : la corde prend sa couleur moyenne ; **sans matière**, elle prend `couleurCordage`.
+
+`"couleurCordage": "#4b3828"` (dans `model`) : la couleur des cordages tirés d'un plan texturé et de ceux qui n'ont pas de matière — la texture d'un plan n'est qu'un dessin de lignes, sa couleur ne dit rien. Absente : un brun de chanvre goudronné. Le gréement dormant était enduit de goudron de Norvège, brun profond, que le soleil et le sel ternissaient ; les manœuvres courantes, non goudronnées, étaient plus claires — un objet à part avec sa propre matière, si on veut les distinguer.
 
 ## L'équipage
 
