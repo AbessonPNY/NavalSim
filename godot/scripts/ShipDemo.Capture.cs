@@ -244,6 +244,8 @@ public partial class ShipDemo
                 // un oeil FIXE dans le monde, pour comparer au pixel avec la page
                 // d'origine : une camera qui suit une coque soulevee de quarante
                 // metres se retrouve dans la vague, et la comparaison ne vaut rien
+                // la caméra suit le premier navire de la rade (ShipDemo.Traffic.cs)
+                case "--rade-vue": _tripCam = true; _askTitle ??= false; break;
                 case "--eye": _fixEye = ParseVec(args[i + 1]); _planted = true; break;
                 case "--look": _fixLook = ParseVec(args[i + 1]); break;
                 case "--foamcheck": _foamCheckIn = args[i + 1].ToInt(); break;

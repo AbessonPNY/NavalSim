@@ -71,6 +71,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `sound.js` | le bruit, et le temps qu'il met à venir |
 | `capture.js` | la capture d'écran (touche `I`), écrite par le serveur de dev |
 | `purse.js` | la bourse, le cours des épices, la poudre |
+| `HarbourRoute.cs` · `HarbourPilot.cs` (noyau) · `ShipDemo.Traffic.cs` (Godot) | la vie d'une rade : des navires qui vont du port à d'autres ports ou au large (fiche du monde : `"trafic"` d'un port ; `settings.json` → `trafic`) — une route qui contourne la terre, un pilote qui la suit |
 | `ShipNode.Ropes.cs` · `rope_ribbon.gdshader` (Godot) | les cordages d'un modèle redessinés en rubans tournés vers l'œil (fiche : `model.rubans`) — lus sur ses plans texturés et ses tubes, rien à préparer |
 | `Fishing.cs` · `Shipyard.cs` (Godot) | la pêche à la ligne à main (`ShipDemo.Fishing.cs`, `fishing/` ; les prises sur le pont, avec leur physique et leur poids : `ShipDemo.DeckFish.cs`, `ShipNode.Deck.cs`) · le chantier où l'on change de bord (`ShipDemo.Yard.cs`, `market/chantier.json`) |
 | **Outils communs** (Godot) · (noyau) | `Assets.LoadGlb`, `HazePass` (la passe de brume), `NodeWalk` (boîte, maillages), `ColorX`, `VecX` (`ToGodot`/`ToCore`), `ShipDemo.Ui.cs` (`MkLabel`), `ShipDemo.Place.cs` (`RecentreOn`, `JumpBy`) · `Compass` (cap ↔ lacet), `MathX` (rampe, `Hyp`, `Gauss`), `Js` (lecture JSON), `Vec3d.LengthXZ`, `Config.Mile`/`MsToKn`/`G` — s'en servir plutôt que réécrire (`docs/tranche3-doublons.md`) |

@@ -33,6 +33,13 @@ public sealed class AutoHelm
     public double MinLeg = 300;
 
     public int BeatSide = 1;       // le bord où elle est quand elle remonte au vent
+    /// <summary>
+    /// ELLE VIRE VENT DEVANT au lieu de lof pour lof : ce que fait un voilier aurique,
+    /// aidé par l'équipage (ShipPhysics.Tack.cs). Faux par défaut — le large a la
+    /// place d'abattre, et la page n'en sait rien ; le pilote de rade l'allume, une
+    /// rade n'ayant pas la place de faire le tour.
+    /// </summary>
+    public bool Tacks;
     double _iErr, _legT;
     int _wearDir;
     /// <summary>La marque, dans le même repère local que le corps. Nulle : barre à zéro.</summary>
@@ -128,7 +135,7 @@ public sealed class AutoHelm
         {
             if (Math.Abs(err) < 0.25) _wearDir = 0;
         }
-        else if (!UnderPower && crosses && Math.Abs(err) > 0.35) _wearDir = err > 0 ? -1 : 1;
+        else if (!UnderPower && !Tacks && crosses && Math.Abs(err) > 0.35) _wearDir = err > 0 ? -1 : 1;
         // le long du tour : même destination, l'autre main
         if (_wearDir != 0 && _wearDir * err < 0) eUse = err - Math.Sign(err) * 6.2832;
         Wearing = _wearDir != 0;

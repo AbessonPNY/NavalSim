@@ -290,6 +290,7 @@ public partial class ShipDemo : Node3D
         _skirmish = false; _melee.Clear(); _meleeDone = false;
         // les voiles croisées s'en vont aussi, et la pendule repart de zéro
         _met.Clear(); _noticed.Clear(); _bound.Clear(); _nextSail = -1;
+        TrafficReset();
         _purse = new Purse(Market.Depart);
         FishReset();
         _gameId = "";

@@ -351,6 +351,16 @@
     "heel": 1.0,
     "virement": true
   },
+  "trafic": {
+    "_aide": "LA VIE D UNE RADE : des navires qui vont et viennent entre un port et les destinations de sa fiche (world/caraibes.json, trafic d un port : une cle de port ou large). Ce sont des navires du jeu, menes par un pilote de rade qui contourne la terre (HarbourRoute, HarbourPilot ; banc : rade). navires : combien a la fois. fiches : ceux qu on y croise (des voiliers ; le cotre et la vedette sont a machine). forceMax : au-dela, plus de depart — par gros temps on reste au port. portee : a quelle distance du port la rade vit, en metres. attenteMin et attenteMax : entre deux departs, en secondes de jeu.",
+    "enabled": true,
+    "navires": 3,
+    "fiches": ["sloop", "sloop", "schooner"],
+    "forceMax": 5,
+    "portee": 5000,
+    "attenteMin": 60,
+    "attenteMax": 180
+  },
   "mouillage": {
     "_aide": "LES NAVIRES AMARRES DANS LES PORTS. Un port vide se lit comme un decor : on y met des coques qui ne naviguent pas. Ce ne sont PAS des navires du jeu — ni solveur, ni greement, ni barre : ils suivent la houle et gitent sur sa pente, et rien d autre, ce qui coute deux sondes par coque au lieu de deux cents. Le placement se decide sur la geographie du port : ce qui tient a quai s y amarre, le reste mouille en rade sur un fond qui porte, et le poste du joueur reste libre. Le semis est fixe pour un port donne : on y retrouve les memes navires a la meme place. portee : au-dela, le port n est plus dessine, en metres. navires : les fiches qu on y mouille.",
     "enabled": true,

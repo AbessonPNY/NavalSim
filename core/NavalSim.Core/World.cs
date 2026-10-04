@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -47,6 +48,8 @@ public sealed class PortSpec
     public (double X, double Z, double Cap)? StartAt;
     /// <summary>L'abri que donne la forme du rivage autour de ce port, sur ce rayon (m) ; 0 : aucun (ShelterMap).</summary>
     public double ShelterR;
+    /// <summary>LA VIE DE SA RADE (Godot) : les destinations des navires qui en partent et y viennent — une clé de port, ou « large ».</summary>
+    public List<string> Traffic = new();
 }
 
 /// <summary>
@@ -208,7 +211,9 @@ public sealed class RegionSpec
                     Centre = p.TryGetProperty("centre", out var ce) && ce.ValueKind == JsonValueKind.Object ? ReadCentre(ce) : null,
                     StartAt = p.TryGetProperty("depart", out var dp) && dp.ValueKind == JsonValueKind.Object
                         ? (Js.Num(dp, "x"), Js.Num(dp, "z"), Js.Num(dp, "cap")) : null,
-                    ShelterR = p.TryGetProperty("abri", out var ab) && ab.ValueKind == JsonValueKind.Object ? Js.Num(ab, "rayon") : 0
+                    ShelterR = p.TryGetProperty("abri", out var ab) && ab.ValueKind == JsonValueKind.Object ? Js.Num(ab, "rayon") : 0,
+                    Traffic = p.TryGetProperty("trafic", out var tf) && tf.ValueKind == JsonValueKind.Array
+                        ? tf.EnumerateArray().Select(e => e.GetString() ?? "").Where(x => x.Length > 0).ToList() : new List<string>()
                 });
         if (r.TryGetProperty("towns", out var tw) && tw.ValueKind == JsonValueKind.Array)
             foreach (var t in tw.EnumerateArray())
@@ -332,6 +337,8 @@ public sealed class Isle
     public (double X, double Z, double Cap)? StartAt;
     /// <summary>Le rayon de l'abri que donne le rivage (PortSpec.ShelterR), 0 sinon.</summary>
     public double ShelterR;
+    /// <summary>Les destinations du trafic de sa rade (PortSpec.Traffic).</summary>
+    public List<string> Traffic = new();
 }
 
 /// <summary>
@@ -742,7 +749,7 @@ public sealed class World : IGround
         return new Isle
         {
             Key = P.Key, Name = P.Name, X = x, Z = z, R = 600, RShore = 0,
-            Start = P.Start, Wild = P.Wild, Lat = P.Lat, Lon = P.Lon, Port = port, Centre = P.Centre, StartAt = P.StartAt,
+            Start = P.Start, Wild = P.Wild, Lat = P.Lat, Lon = P.Lon, Port = port, Centre = P.Centre, StartAt = P.StartAt, Traffic = P.Traffic,
             ShelterR = P.ShelterR
         };
     }

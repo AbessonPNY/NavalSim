@@ -915,6 +915,7 @@ public partial class ShipDemo : Node3D
         StormTick(frame);
         GunTick(frame);
         EncounterTick(frame);
+        TrafficTick(frame);
         CabinTick(frame);
         DiveShow(frame);
         CrewTick(frame);

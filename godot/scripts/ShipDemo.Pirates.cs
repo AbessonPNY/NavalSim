@@ -176,6 +176,8 @@ public partial class ShipDemo
             h.Update(dt, _sea.Core, s.Ctrl);
             return;
         }
+        // un navire de la rade suit sa route (ShipDemo.Traffic.cs)
+        if (SteerTrip(s, dt)) return;
         /* ET UN MARCHAND VA QUELQUE PART. Son but est en mètres VRAIS et la barre
            travaille en local : l'origine flottante glisse sous lui, donc on le
            ramène à chaque image plutôt que de retenir un point qui se périmerait

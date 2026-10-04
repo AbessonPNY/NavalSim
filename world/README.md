@@ -481,3 +481,15 @@ L'orientation autour de la verticale n'a pas à être choisie dans le modèle :
 chaque entrée `assets` porte son `yaw` et son `scale`.
 
 Pour le regarder sans ouvrir Blender : `node tools/glb-look.js props/cocotier.glb`.
+
+## La vie d'une rade (« trafic », Godot)
+
+`"trafic": ["passage-fort", "large"]` dans un port : des navires vont et viennent
+entre lui et ces destinations — une clé de port, ou `large` (la sortie de la rade,
+trouvée seule : le point d'eau profonde le plus proche par l'eau, à quelques
+kilomètres). Ce sont des navires du jeu, menés par un pilote de rade
+(`core/NavalSim.Core/HarbourRoute.cs`, `HarbourPilot.cs`, `godot/scripts/ShipDemo.Traffic.cs`) :
+la route contourne la terre sur une grille de trente mètres, avec l'eau qu'il faut
+sous la quille et une distance à la côte ; le pilote la suit, tire des bords courts,
+vire vent devant (aurique) et sonde devant l'étrave au près. Combien, lesquels, et
+jusqu'à quel temps : `settings.json` → `trafic`. Banc : `-- rade [gain] [force] [vent]`.

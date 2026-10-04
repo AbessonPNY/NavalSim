@@ -166,7 +166,8 @@ public partial class ShipDemo
         var o = _sea.Core.Origin;
         foreach (var other in _others)
         {
-            if (other.IsGhost) continue;
+            // ni les spectres, ni les navires de la rade : elle se repeuple à la reprise
+            if (other.IsGhost || _trips.ContainsKey(other)) continue;
             var ob = other.Physics.Body;
             var of = ob.Quat.Rotate(new Vec3d(0, 0, 1));
             s.Flotte.Add(new Coque

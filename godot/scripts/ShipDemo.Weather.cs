@@ -189,6 +189,7 @@ public partial class ShipDemo
                 Config.WindHeel = Math.Clamp(wh2, 0, 8);
             // le virement de bord de l'équipage (ShipPhysics.Tack.cs) : allumé sauf si la fiche dit non
             Config.CrewTacks = !(root.TryGetProperty("wind", out var wi3) && wi3.TryGetProperty("virement", out var wv3) && wv3.ValueKind == System.Text.Json.JsonValueKind.False);
+            ReadTraffic(root);
             if (root.TryGetProperty("cloche", out var cl))
             {
                 if (cl.Opt("air") is double cla)

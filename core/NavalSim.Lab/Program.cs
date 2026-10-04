@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Globalization;
 using NavalSim.Core;
 
@@ -59,6 +60,7 @@ switch (mode)
     case "abri": Abri(); break;
     case "peche": Peche(); break;
     case "virement": Virement(); break;
+    case "rade": Rade(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -1118,6 +1120,88 @@ void Virement()
             if (done < 0 && hdg < -y0 + 10 * Math.PI / 180) done = t - 90;
         }
         Console.WriteLine(FormattableString.Invariant($"{(crew ? "équipage" : "seul    ")} gain {gain,3:F0} : erre {vStart / 0.5144,5:F2} nd ; passe le vent {(crossed < 0 ? "JAMAIS" : crossed.ToString("F0") + " s")}, à 60° de l'autre bord {(done < 0 ? "jamais" : done.ToString("F0") + " s")} ; erre au plus bas {vMin / 0.5144,5:F2} nd, à culer {astern:F0} s ; au plus près du vent {closest:F0}°"));
+    }
+    Config.WindGain = 1.0; Config.CrewTacks = false;
+}
+
+/* LA RADE DE PORT-ROYAL, ÉPROUVÉE : les routes que trace HarbourRoute (vers
+   Passage Fort, vers le large, et retour), puis un sloop et un cotre qui les
+   courent sous le pilote de rade, vent du départ (105°, force 4).
+     dotnet run --project core/NavalSim.Lab -c Release -- rade [gain] [force] [vent] */
+void Rade()
+{
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    var region = RegionSpec.FromJson(File.ReadAllText(Path.Combine(root, "world", "caraibes.json")));
+    var (iw, ih, grey) = GreyPng.Decode(File.ReadAllBytes(Path.Combine(root, region.Relief.Image)));
+    var imgs = new List<World.PatchImage>();
+    foreach (var pz in region.Patches)
+    {
+        string pi = Path.Combine(root, pz.Image);
+        if (!File.Exists(pi)) continue;
+        var (pw, ph, pg) = GreyPng.Decode(File.ReadAllBytes(pi));
+        imgs.Add(new World.PatchImage(pz, pw, ph, pg));
+    }
+    var world = new World(region, iw, ih, grey, m => { }, imgs);
+    double gain = args.Length > 1 ? double.Parse(args[1], CultureInfo.InvariantCulture) : 8;
+    double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 4;
+    double windDeg = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 105;
+    Config.WindGain = gain; Config.CrewTacks = true;
+    (double, double) Quay(string key)
+    {
+        var p = world.ByKey(key)!.Port;
+        return (p.Hx + Math.Cos(p.Ang) * 200, p.Hz + Math.Sin(p.Ang) * 200);
+    }
+    var pr = Quay("port-royal"); var pf = Quay("passage-fort");
+    foreach (string name in new[] { "sloop", "schooner" })
+    {
+        var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+        double need = spec.Hull.KeelDepth + spec.Hull.KeelExtra + 1.5;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var toSea = HarbourRoute.ToSea(world, pr.Item1, pr.Item2, need);
+        var routes = new List<(string Name, List<(double X, double Z)>? R)>
+        {
+            ("Port-Royal -> Passage Fort", HarbourRoute.Plan(world, pr.Item1, pr.Item2, pf.Item1, pf.Item2, need)),
+            ("Passage Fort -> Port-Royal", HarbourRoute.Plan(world, pf.Item1, pf.Item2, pr.Item1, pr.Item2, need)),
+            ("Port-Royal -> le large", toSea),
+            ("le large -> Port-Royal", toSea == null ? null : Enumerable.Reverse(toSea).ToList()),
+        };
+        Console.WriteLine(FormattableString.Invariant($"{spec.Name} (fond voulu {need:F1} m), routes en {sw.ElapsedMilliseconds} ms ; gain {gain}, force {force}, vent {windDeg}°"));
+        foreach (var (rn, route) in routes)
+        {
+            if (route == null) { Console.WriteLine($"  {rn} : AUCUNE ROUTE"); continue; }
+            double len = 0;
+            for (int k = 0; k + 1 < route.Count; k++) len += Math.Sqrt(Math.Pow(route[k + 1].X - route[k].X, 2) + Math.Pow(route[k + 1].Z - route[k].Z, 2));
+            var ocean = new Ocean { Swell = 1.0, Time = 0 };
+            ocean.SetSeaState(force, windDeg);
+            var p2 = new ShipPhysics(spec, new HullLines(spec));
+            var ctrl = new Controls { Throttle = 0, Rudder = 0, Sheet = 0.5, SailsSet = true };
+            p2.Settle(ocean, ctrl);
+            p2.World = world;
+            double hd = Math.Atan2(route[1].X - route[0].X, route[1].Z - route[0].Z);
+            p2.Body.Pos = new Vec3d(route[0].X, p2.Body.Pos.Y, route[0].Z);
+            p2.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), hd);
+            var pilot = new HarbourPilot(p2, world, route, need);
+            double dt = 1.0 / 30, t = 0, aground = 0, minDepth = 99, sailed = 0;
+            var last = p2.Body.Pos;
+            while (t < 2400 && !pilot.Arrived)
+            {
+                pilot.Update(dt, ocean, ctrl);
+                p2.Step(dt, ocean, ctrl, t); t += dt;
+                if (args.Length > 4 && args[4] == "trace" && rn.StartsWith("Port-Royal -> Passage") && name == "sloop" && Math.Floor(t / 10) != Math.Floor((t - dt) / 10) && t < 300)
+                {
+                    var fw = p2.Body.Quat.Rotate(new Vec3d(0, 0, 1)); var bp0 = p2.Body.Pos;
+                    Console.WriteLine(FormattableString.Invariant($"     t {t,4:F0} pos ({bp0.X:F0},{bp0.Z:F0}) fond {-world.HeightAt(bp0.X, bp0.Z),5:F1} cap {(Math.Atan2(-fw.X, fw.Z) * 180 / Math.PI + 360) % 360,4:F0} erre {Math.Sqrt(p2.Body.Vel.X * p2.Body.Vel.X + p2.Body.Vel.Z * p2.Body.Vel.Z) / 0.5144,5:F1} nd barre {ctrl.Rudder,4:F1} près {pilot.Helm.Beating} lof {pilot.Helm.Wearing} vire {p2.TackPhase} échoue {p2.Aground:F2} marque {pilot.Leg}"));
+                }
+                if (p2.Aground > 0.01) aground += dt;
+                var bp = p2.Body.Pos;
+                minDepth = Math.Min(minDepth, -world.HeightAt(bp.X, bp.Z));
+                sailed += Math.Sqrt((bp.X - last.X) * (bp.X - last.X) + (bp.Z - last.Z) * (bp.Z - last.Z));
+                last = bp;
+            }
+            var e = route[^1]; var bpe = p2.Body.Pos;
+            double left = Math.Sqrt((e.X - bpe.X) * (e.X - bpe.X) + (e.Z - bpe.Z) * (e.Z - bpe.Z));
+            Console.WriteLine(FormattableString.Invariant($"  {rn} : {route.Count} marques, {len / 1852:F2} M ; {(pilot.Arrived ? "ARRIVÉ" : "pas arrivé, reste " + left.ToString("F0") + " m, marque " + pilot.Leg)} en {t / 60:F1} min, {sailed / 1852:F2} M parcourus, échoué {aground:F0} s, fond mini {minDepth:F1} m"));
+        }
     }
     Config.WindGain = 1.0; Config.CrewTacks = false;
 }

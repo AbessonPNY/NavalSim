@@ -14185,6 +14185,44 @@ donc aussi à la manœuvre — c'est du vent dans la toile. Résultat, force 4 :
 Les ordres se disent à l'écran (et se crient si crew.json a une voix) : « Paré à
 virer ! », « Change derrière ! — la misaine à contre », « Bordez partout ! ».
 
+## La vie dans la rade de Port-Royal (Godot)
+
+Demandé : des bateaux qui circulent, vers Passage Fort et vers le large. Des navires
+DU JEU — solveur, gréement, barre automatique —, pas le décor des navires au
+mouillage : ils remontent au vent, tirent des bords, et s'échouent s'ils se trompent.
+
+**Une route qui contourne la terre** (HarbourRoute, noyau). La barre automatique va
+droit à sa marque : au large c'est juste, dans une rade elle irait à la première
+pointe. Recherche de chemin sur une grille de 30 m (40 pour le large) : seulement là
+où la quille a son eau (tirant + 1,5 m), avec un surcoût près de la côte (on ne rase
+pas les hauts-fonds), puis le chemin tendu en lignes droites. Le LARGE n'est écrit
+nulle part : c'est le point d'eau profonde (30 m) le plus proche PAR L'EAU, à plus de
+3,5 km du port — la sortie naturelle, quelle que soit la côte. Cinq marques pour
+chaque route, en 15 à 55 ms.
+
+**Un pilote qui la suit** (HarbourPilot) : la marque suivante quand on arrive sur la
+précédente, des bords de soixante secondes au lieu de cinq minutes, et une sonde
+devant l'étrave au près — si le fond monte, il change de bord avant d'y être. Et il
+VIRE VENT DEVANT (AutoHelm.Tacks), ce que fait un aurique : la barre automatique,
+faite pour le large, virait lof pour lof, et sur une côte sous le vent, abattre c'est
+s'échouer. Pris vent debout plus de quarante secondes, il abat pour cette fois.
+
+**Banc « rade »**, sloop et goélette sur les quatre routes (Port-Royal ↔ Passage Fort,
+Port-Royal ↔ large) : à gain 8, force 4, vent 105° et 270°, tout arrive, sans un
+échouage (11 à 32 minutes). Par force 6 de nord-nord-est, le sloop poussé par le gain
+SOMBRE — 19 nœuds sur 22 tonnes : la règle du trafic est donc celle des marins, par
+gros temps on reste au port (pas de départ au-delà de force 5). À gain 1, au près,
+sans l'élan de virer, il n'arrive pas — il ne s'échoue pas non plus. Le cotre écarté :
+c'est une vedette à machine (rig « none »), qui allait droit quel que soit le vent.
+
+**En jeu** (ShipDemo.Traffic.cs ; settings.json → trafic) : trois navires, dont deux
+sloops et une goélette ; la rade est vivante à l'ouverture, des navires DÉJÀ EN ROUTE
+entre deux marques ; un départ se fait d'un bout de route loin de l'œil (à plus de
+700 m, sinon de l'autre bout), toutes les une à trois minutes ; ce qui est rendu,
+échoué, sombré ou trop long s'en va quand on ne le regarde plus. Ils ne sont pas
+sauvés : la rade se repeuple à la reprise. Essai : `--rade-vue 1` pose la caméra sur
+le premier navire de la rade et le suit.
+
 ## La caméra figée par l'avant d'une épave (Godot)
 
 Signalé deux fois : « la caméra gèle en appuyant sur C alors que le bateau
