@@ -58,6 +58,8 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `tools/jetty-glb.js` · `tools/glb-write.js` | les pièces d'un ponton en .glb (travee, pieu, bitte) · la mise en paquet .glb commune aux outils |
 | `GroundPaint.cs` · `ground_paint.gdshaderinc` (Godot) | le sol peint au pinceau (², P) : herbe, pavés, sable au demi-mètre ; `world/peinture/*.png` |
 | `Grapple.cs` (Godot) | les filins à crochet de l'abordage — ils HALENT, on les tranche (⇧D) |
+| `seabed.gdshaderinc` · `Seabed.cs` (noyau) · `tools/reef-glb.js` (Godot) | le fond de lui-même (sable blanc, vase, herbier, roche ; le pinceau par-dessus) · ses prés côté processeur, pour y semer l'herbier — **jumeaux, mêmes seuils** · coraux, gorgones, éponges, oursins en `props/fond/*.glb`, semés en foule (`"foule"`, `"amas"`, `"abri"`) |
+| `wreck_silt.gdshader` (Godot) | la vase sur une épave, par la loi de la neige, selon son âge (`WreckRegistry.SiltCover` : rien le premier jour) |
 | `chart.js` | la carte marine |
 | `quests.js` | les quêtes : étapes, lieux, objectifs (`quests/*.json`) |
 | `ship-model.js` | coque, gréement, voiles, pavillons, lanternes, safran, fenêtres de nuit, avirons, anneaux (ce qui tourne sans se déformer, `ShipNode.Rings.cs` côté Godot), .glb |

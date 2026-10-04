@@ -298,6 +298,8 @@ public partial class ShipDemo
                 case "--cinema": if (args[i + 1] != "0") ToggleCinema(); break;
                 // des débris à flot devant l'étrave, pour voir leurs modèles — différé comme la plongée
                 case "--debris": _debrisTest = args[i + 1].ToInt(); _diveTestIn = 1.0; break;
+                // l'œil sous l'eau sur un pâté du fond (« corail », « herbier », « rochers »)
+                case "--fond": _bedTest = args[i + 1]; _diveTestIn = 1.0; _askTitle ??= false; break;
                 // DIAGNOSTIC : les pièces que chaque fiche porte, lues sur son modèle — elles ne sont écrites nulle part ailleurs
                 case "--batteries":
                     if (args[i + 1] != "0")
@@ -336,6 +338,8 @@ public partial class ShipDemo
                 case "--peindre": _paintTest = ParseVec(args[i + 1]); _diveTestIn = 1.0; break;
                 // une épave d'essai, à tant de mètres par le travers : son coffre avec
                 case "--epave": _diveTest.Wreck = args[i + 1].ToFloat(); _diveTestIn = 1.0; break;
+                // l'âge de l'épave d'essai, en jours : sa vase
+                case "--epave-age": _wreckAge = args[i + 1].ToFloat(); break;
                 case "--mi-eau-haut": _splitLift = args[i + 1].ToFloat(); break;
                 case "--vue": _camMode = 1; _deck = Math.Clamp(args[i + 1].ToInt(), 0, _ship.Spec.Decks.Count - 1); EnterDeck(); break;
                 case "--msaa": _settings.Msaa = args[i + 1].ToInt(); ApplySettings(); break;

@@ -14223,6 +14223,49 @@ entre deux marques ; un départ se fait d'un bout de route loin de l'œil (à pl
 sauvés : la rade se repeuple à la reprise. Essai : `--rade-vue 1` pose la caméra sur
 le premier navire de la rade et le suit.
 
+## Le fond de la mer, et la vase des épaves (Godot)
+
+Demandé : tapisser le fond de coraux, de vase, d'algues et de rochers ; et qu'un navire
+coulé depuis au moins un jour se couvre d'une couche de sédiment, comme la neige.
+
+LA VASE DES ÉPAVES reprend la loi de la neige (ship_snow.gdshaderinc, une définition,
+trois usagers désormais) dans une passe à elle, wreck_silt.gdshader, avant la brume.
+L'épaisseur est propre à CHAQUE épave et non au modèle — deux galions du même .glb
+partagent leurs matières (Duplicate) — d'où un `instance uniform`, poussé sur chaque
+maillage de l'épave toutes les cinq secondes. WreckRegistry.SiltCover : rien le
+premier jour, un voile (0,25), puis 1 − e^(−(j−1)/30). L'épave retient désormais
+l'HEURE où elle a sombré (« heure ») : avec le jour seul, un navire coulé à 23 h se
+serait voilé à minuit. Écart assumé et dit dans le code : une vraie rade dépose
+quelques millimètres par an ; ce qu'on voit en jours est la pellicule de limon et
+d'algues, dont on a fait une couche. Essai : `--epave -70 --epave-age 40`.
+
+LE FOND PEINT DE LUI-MÊME (seabed.gdshaderinc), sous le pinceau : sable blanc des
+hauts-fonds, vase là où l'eau ne bouge pas (l'ABRI, le même que la mer, et le grand
+fond), herbier par plaques d'un à douze mètres sur le plat, roche sur les pentes. Les
+motifs sont ancrés en mètres vrais (`u_true`, l'origine poussée par LandNode). Coût
+mesuré : 0,1 à 0,3 ms par image.
+
+LES HABITANTS DU FOND sont dessinés en code (tools/reef-glb.js → props/fond/*.glb) et
+ne veulent que ce qui vit en Jamaïque : Diploria, Acropora palmata (la corne d'élan,
+dans les hauts-fonds battus) et cervicornis, gorgones, éponges en tubes, Thalassia,
+Diadema. Pas de laminaires, algues d'eau froide. La corne d'élan sortait d'abord en
+candélabre ; la vraie s'étale, ses lames se couchent.
+
+Le semis a appris quatre choses : l'ABRI (pas de corail dans la vase d'un port), les
+AMAS (des pâtés tirés sur la graine seule, que les espèces de même graine partagent),
+l'HERBIER (core/Seabed.cs, jumelle du shader en simple précision, pour que la touffe
+pousse sur la plaque peinte et non à côté) et la FOULE : 14 000 pièces en MultiMesh par
+cases de 48 m, un nœud par case au lieu d'un par pièce. Les voisins se cherchent par
+cases (le test deux à deux aurait pris des secondes) ; le tirage des semis existants
+est inchangé, leurs identifiants de retouche aussi. Sous l'eau, une pièce ne crève
+plus la surface (des cornes d'élan de 2,6 m dans 2,6 m d'eau). Semis au chargement :
+1,8 s en Debug.
+
+MESURÉ, ET RETIRÉ : la passe de caustiques des carènes accrochée aux foules faisait
+passer une vue de récif de 7,4 à 13,6 ms par image — elle recalcule la houle à chaque
+pixel, et un récif couvre l'écran. Sans elle, 7,5 ms ; au port, rien (9,09 dans les deux
+cas). Le corail reste donc plus sombre que le sable qui danse autour de lui.
+
 ## Les horaires de la rade (Godot)
 
 Demandé : les départs et arrivées en JSON — navires candidats, horaires, ponton

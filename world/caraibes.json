@@ -92,7 +92,23 @@
 
     { "name": "Cocotiers de l'îlot, en rangée", "glb": "props/cocotier.glb", "patch": "ilot-cocotiers", "nombre": 30, "taille": [11, 17], "frange": [1.2, 3.2], "penche": 14, "ecart": 8, "enfonce": 0.02, "visible": 3000, "graine": 5 },
 
-    { "name": "Cocotiers de l'îlot, en masse", "glb": "props/cocotier_low.glb", "patch": "ilot-cocotiers", "nombre": 220, "taille": [9, 18], "frange": [2.8, 12], "penche": 10, "ecart": 5, "enfonce": 0.02, "visible": 4500, "graine": 6 }
+    { "name": "Cocotiers de l'îlot, en masse", "glb": "props/cocotier_low.glb", "patch": "ilot-cocotiers", "nombre": 220, "taille": [9, 18], "frange": [2.8, 12], "penche": 10, "ecart": 5, "enfonce": 0.02, "visible": 4500, "graine": 6 },
+
+    { "name": "Corail cerveau des récifs", "glb": "props/fond/corail-cerveau.glb", "lat": 17.9330, "lon": -76.8330, "rayon": 4000, "nombre": 900, "taille": [0.4, 2.2], "frange": [-12, -1.2], "abri": [0.8, 1], "amas": [45, 28], "penche": 12, "enfonce": 0.15, "visible": 140, "graine": 41, "foule": true },
+
+    { "name": "Corne d'élan des récifs", "glb": "props/fond/corail-corne.glb", "lat": 17.9330, "lon": -76.8330, "rayon": 4000, "nombre": 700, "taille": [0.8, 2.6], "frange": [-5, -0.9], "abri": [0.85, 1], "amas": [45, 28], "penche": 8, "enfonce": 0.05, "visible": 140, "graine": 41, "foule": true },
+
+    { "name": "Corne de cerf des récifs", "glb": "props/fond/corail-cerf.glb", "lat": 17.9330, "lon": -76.8330, "rayon": 4000, "nombre": 800, "taille": [0.5, 1.6], "frange": [-14, -3], "abri": [0.8, 1], "amas": [45, 28], "penche": 10, "enfonce": 0.05, "visible": 120, "graine": 41, "foule": true },
+
+    { "name": "Gorgones des récifs", "glb": "props/fond/gorgone.glb", "lat": 17.9330, "lon": -76.8330, "rayon": 4000, "nombre": 600, "taille": [0.5, 1.4], "frange": [-15, -2], "abri": [0.7, 1], "amas": [45, 28], "penche": 6, "enfonce": 0.02, "visible": 120, "graine": 41, "foule": true },
+
+    { "name": "Éponges en tubes", "glb": "props/fond/eponge-tube.glb", "lat": 17.9330, "lon": -76.8330, "rayon": 4000, "nombre": 400, "taille": [0.4, 1.1], "frange": [-18, -3], "abri": [0.7, 1], "amas": [45, 28], "penche": 10, "enfonce": 0.05, "visible": 110, "graine": 41, "foule": true },
+
+    { "name": "Oursins diadèmes", "glb": "props/fond/oursin.glb", "lat": 17.9330, "lon": -76.8330, "rayon": 4000, "nombre": 1500, "taille": [0.25, 0.45], "frange": [-8, -1], "abri": [0.7, 1], "amas": [45, 28], "penche": 15, "enfonce": 0.1, "visible": 50, "graine": 41, "foule": true },
+
+    { "name": "Touffes d'herbier", "glb": "props/fond/herbier.glb", "lat": 17.9330, "lon": -76.8330, "rayon": 4000, "nombre": 9000, "taille": [0.3, 0.55], "frange": [-10, -0.9], "herbier": true, "penche": 12, "enfonce": 0.05, "ecart": 0.6, "visible": 60, "graine": 43, "foule": true },
+
+    { "name": "Rochers du fond", "glb": "props/rocher.glb", "lat": 17.9330, "lon": -76.8330, "rayon": 4000, "nombre": 500, "taille": [0.6, 3.2], "frange": [-20, -1], "penche": 25, "enfonce": 0.45, "visible": 150, "graine": 47, "foule": true }
 
   ],
 

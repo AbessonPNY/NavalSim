@@ -25,6 +25,8 @@ public sealed class Wreck
     /// <summary>Son bau, en mètres : le coffre se pose par le travers, à quelques mètres du bordé.</summary>
     [JsonPropertyName("bau")] public double Beam { get; set; }
     [JsonPropertyName("date")] public string Date { get; set; } = "";
+    /// <summary>L'heure du ciel où elle a sombré ; négative pour une épave inscrite avant qu'on la retienne (midi).</summary>
+    [JsonPropertyName("heure")] public double Hour { get; set; } = -1;
     /// <summary>Ce que son coffre renferme, en écus.</summary>
     [JsonPropertyName("ecus")] public long Ecus { get; set; }
     [JsonPropertyName("pillee")] public bool Looted { get; set; }
@@ -47,6 +49,29 @@ public sealed class Wreck
 public sealed class WreckRegistry
 {
     public readonly List<Wreck> All = new();
+
+    /// <summary>Le premier voile de vase, au bout d'un jour (part de la couche pleine).</summary>
+    public const double SiltFirst = 0.25;
+    /// <summary>Le temps propre de la vase, en jours : passé trois fois ce temps, la couche est presque pleine.</summary>
+    public const double SiltDays = 30;
+
+    /// <summary>
+    /// LA VASE SUR UNE ÉPAVE, de 0 à 1, selon le temps qu'elle a passé au fond :
+    /// rien le premier jour, un voile ensuite, qui s'épaissit vite puis de moins en
+    /// moins. UN ÉCART ASSUMÉ avec le vrai : une rade dépose quelques millimètres
+    /// par an ; ce qui se voit en quelques jours sur un bois noyé est la pellicule
+    /// de limon et d'algues que l'eau trouble y laisse — on en a fait une couche.
+    /// <paramref name="now"/> : le jour ET l'heure du ciel.
+    /// </summary>
+    public static double SiltCover(Wreck w, DateTime now)
+    {
+        if (!DateTime.TryParseExact(w.Date, "dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture,
+                                    System.Globalization.DateTimeStyles.AdjustToUniversal, out var sunk)) return 0;
+        sunk = DateTime.SpecifyKind(sunk, DateTimeKind.Utc).AddHours(w.Hour >= 0 ? w.Hour : 12);
+        double days = (now - sunk).TotalDays;
+        if (days < 1) return 0;
+        return SiltFirst + (1 - SiltFirst) * (1 - Math.Exp(-(days - 1) / SiltDays));
+    }
 
     public void Clear() => All.Clear();
 

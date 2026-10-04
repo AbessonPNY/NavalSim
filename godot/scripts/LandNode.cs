@@ -99,6 +99,8 @@ public partial class LandNode : Node3D
         _mat.SetShaderParameter("u_whitesand", new Vector3(WhiteSand.R, WhiteSand.G, WhiteSand.B));
         _mat.SetShaderParameter("u_mud", new Vector3(Mud.R, Mud.G, Mud.B));
         _mat.SetShaderParameter("u_seagrass", new Vector3(Seagrass.R, Seagrass.G, Seagrass.B));
+        // la roche des tombants, celle des sommets (seabed.gdshaderinc)
+        _mat.SetShaderParameter("u_rock", new Vector3(Rock.R, Rock.G, Rock.B));
 
     }
 
@@ -246,6 +248,7 @@ public partial class LandNode : Node3D
     /// </summary>
     readonly PlacedSet _assets = new();
     static readonly StringName PaintRect = "u_paint_rect";
+    static readonly StringName UTrue = "u_true";
 
     /// <summary>Le registre de l'éditeur : chaque modèle posé et chaque copie d'un semis s'y inscrit.</summary>
     public EditRegistry? Editor;
@@ -347,6 +350,7 @@ public partial class LandNode : Node3D
     /// </summary>
     void BuildScatter()
     {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
         int total = 0;
         foreach (var sp in World.Region.Scatters)
         {
@@ -365,6 +369,12 @@ public partial class LandNode : Node3D
             var haze = HazePass.New();
             Hazed.Add(haze);
             foreach (var mi in NodeWalk.Meshes(root)) HazePass.Wear(mi, haze);
+
+            /* PAS DE CAUSTIQUES SUR LE RÉCIF, et c'est mesuré : la passe des carènes
+               (ShipNode.CausticPass) accrochée aux foules du fond faisait passer une vue
+               de récif de 7,4 à 13,6 ms par image — elle recalcule la houle à chaque
+               pixel d'un corail, et un récif en couvre l'écran. Sans elle : 7,5 ms. */
+            if (sp.Crowd) { total += BuildCrowd(sp, root, bb, ext); continue; }
 
             int pi = 0;
             foreach (var p in Scatter.Place(World, sp))
@@ -391,12 +401,94 @@ public partial class LandNode : Node3D
                 total++;
             }
         }
-        if (total > 0) GD.Print($"monde : {total} élément(s) semé(s)");
+        if (total > 0) GD.Print($"monde : {total} élément(s) semé(s) en {clock.ElapsedMilliseconds} ms");
+    }
+
+    /// <summary>La case d'une foule, en mètres : chacune est un paquet, dessiné ou non selon sa distance.</summary>
+    const double CrowdCell = 48;
+
+    /// <summary>Pour l'essai (--fond) : la case la plus peuplée de chaque foule, en mètres vrais.</summary>
+    readonly Dictionary<string, (double X, double Z, int N)> _crowdBest = new();
+
+    /// <summary>La case la plus peuplée d'une foule dont le nom contient ce mot, en mètres vrais ; nulle sinon.</summary>
+    public (double X, double Z)? CrowdSpot(string word)
+    {
+        foreach (var (name, b) in _crowdBest)
+            if (name.Contains(word, StringComparison.OrdinalIgnoreCase)) return (b.X, b.Z);
+        return null;
+    }
+
+    /// <summary>
+    /// UNE FOULE — des milliers de petites pièces (le corail d'un récif, l'herbier) :
+    /// une pièce par nœud coûterait un nœud et un appel de dessin chacune. On les
+    /// range par cases de quarante-huit mètres, une MultiMesh par case et par
+    /// maillage du modèle, chaque case posée en mètres vrais comme un modèle et
+    /// effacée au-delà de « visible ». Mêmes tailles, mêmes penchés, même
+    /// enfoncement que le semis pièce à pièce ; mais rien à reprendre en mode
+    /// création, pièce par pièce.
+    /// </summary>
+    int BuildCrowd(ScatterSpec sp, Node3D root, Aabb bb, float ext)
+    {
+        var centre = bb.GetCenter();
+        // chaque maillage du modèle, et où il est dans le modèle
+        var parts = new List<(Mesh Mesh, Transform3D Local)>();
+        foreach (var mi in NodeWalk.Meshes(root))
+        {
+            var t = Transform3D.Identity;
+            for (Node? up = mi; up != null && up != root; up = up.GetParent()) if (up is Node3D n3) t = n3.Transform * t;
+            var mesh = (Mesh)mi.Mesh.Duplicate();
+            if (mesh is ArrayMesh am)
+                for (int s = 0; s < am.GetSurfaceCount(); s++) am.SurfaceSetMaterial(s, mi.GetActiveMaterial(s));
+            parts.Add((mesh, t));
+        }
+        if (parts.Count == 0) return 0;
+
+        var cells = new Dictionary<(int, int), List<Transform3D>>();
+        int n = 0;
+        foreach (var p in Scatter.Place(World, sp))
+        {
+            float k = (float)(p.Size / ext);
+            double y = World.HeightAt(p.X, p.Z) + bb.Size.Y * k * 0.5 * (1 - sp.Sink);
+            var key = ((int)Math.Floor(p.X / CrowdCell), (int)Math.Floor(p.Z / CrowdCell));
+            double cx = (key.Item1 + 0.5) * CrowdCell, cz = (key.Item2 + 0.5) * CrowdCell;
+            var basis = new Basis(Vector3.Up, (float)p.Yaw) * new Basis(Vector3.Right, (float)p.TiltX) * new Basis(Vector3.Back, (float)p.TiltZ);
+            // comme le semis pièce à pièce : ramené à sa taille, recentré sur sa boîte
+            var t = new Transform3D(basis, new Vector3((float)(p.X - cx), (float)y, (float)(p.Z - cz)))
+                  * new Transform3D(Basis.FromScale(Vector3.One * k), -centre * k);
+            if (!cells.TryGetValue(key, out var list)) cells[key] = list = new List<Transform3D>();
+            list.Add(t);
+            n++;
+        }
+        foreach (var (key, list) in cells)
+        {
+            if (!_crowdBest.TryGetValue(sp.Name, out var best) || list.Count > best.N)
+                _crowdBest[sp.Name] = ((key.Item1 + 0.5) * CrowdCell, (key.Item2 + 0.5) * CrowdCell, list.Count);
+            var hold = new Node3D { Name = sp.Name };
+            foreach (var (mesh, local) in parts)
+            {
+                var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = mesh, InstanceCount = list.Count };
+                for (int i = 0; i < list.Count; i++) mm.SetInstanceTransform(i, list[i] * local);
+                hold.AddChild(new MultiMeshInstance3D
+                {
+                    Multimesh = mm,
+                    // le fond n'a pas d'ombre à porter qui se verrait : la lumière y est déjà diffuse
+                    CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+                    VisibilityRangeEnd = (float)(sp.Visible + CrowdCell * 0.71),
+                    VisibilityRangeEndMargin = (float)(sp.Visible * 0.1)
+                });
+            }
+            AddChild(hold);
+            _assets.Add(hold, (key.Item1 + 0.5) * CrowdCell, 0, (key.Item2 + 0.5) * CrowdCell);
+        }
+        GD.Print($"monde : « {sp.Name} », {n} pièce(s) en {cells.Count} case(s)");
+        return n;
     }
 
     public void Update(Vec3d centre, Vec3d origin, bool eager = false)
     {
         if (!_assetsBuilt) { _assetsBuilt = true; BuildAssets(); BuildScatter(); }
+        // le fond ancré au monde : ses motifs se calculent en mètres vrais
+        _mat.SetShaderParameter(UTrue, new Vector2((float)origin.X, (float)origin.Z));
         // le carré peint, contre l'origine du moment : son coin est en mètres vrais
         if (_paint != null)
             _mat.SetShaderParameter(PaintRect, new Vector4((float)(_paint.X0 - origin.X), (float)(_paint.Z0 - origin.Z),

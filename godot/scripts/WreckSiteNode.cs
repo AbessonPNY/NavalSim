@@ -36,7 +36,12 @@ public partial class WreckSiteNode : Node3D
     const float ChestLength = 1.1f;
     readonly Dictionary<string, (Node3D? Root, ShipSpec? Spec)> _models = new();
     public readonly List<ShaderMaterial> Hazed = new();
-    ShaderMaterial? _haze;
+    ShaderMaterial? _haze, _silt;
+    static readonly StringName USilt = new("u_silt");
+
+    /// <summary>Le jour et l'heure du calendrier : l'âge d'une épave, donc sa vase (WreckRegistry.SiltCover).</summary>
+    public DateTime Today;
+    double _siltAcc;
 
     /// <summary>Jusqu'où on les bâtit, en mètres.</summary>
     public double Range = 500;
@@ -64,6 +69,11 @@ public partial class WreckSiteNode : Node3D
         foreach (var (id, b) in _built)
             if (!keep.Contains(id)) { b.Node.QueueFree(); gone.Add(id); }
         foreach (var id in gone) _built.Remove(id);
+
+        /* LA VASE suit l'âge : une fois au bâti, puis toutes les cinq secondes — un
+           jour du ciel en dure douze minutes, elle ne bouge pas d'une image à l'autre. */
+        _siltAcc += dt;
+        if (_siltAcc > 5) { _siltAcc = 0; foreach (var (_, b) in _built) SetSilt(b.Node, b.W); }
 
         foreach (var (_, b) in _built)
         {
@@ -136,7 +146,7 @@ public partial class WreckSiteNode : Node3D
             hull.AddChild(new MeshInstance3D
             {
                 Mesh = ShipNode.ToArrayMesh(lines.BuildGeometry()),
-                MaterialOverride = Plank()
+                MaterialOverride = Plank(SiltPass())
             });
         }
 
@@ -150,6 +160,14 @@ public partial class WreckSiteNode : Node3D
         var (gold, lid) = Chest(chest, w);
         if (w.Looted) { gold.Visible = false; lid.RotationDegrees = new Vector3(-110, 0, 0); }
         _built[w.Id] = (node, gold, lid, w);
+        SetSilt(node, w);
+    }
+
+    /// <summary>L'épaisseur de vase de CETTE épave, sur chacun de ses maillages (uniforme d'instance de wreck_silt).</summary>
+    void SetSilt(Node3D node, Wreck w)
+    {
+        float c = (float)WreckRegistry.SiltCover(w, Today);
+        foreach (var mi in NodeWalk.Meshes(node)) mi.SetInstanceShaderParameter(USilt, c);
     }
 
     /// <summary>Le modèle d'une fiche, lu une fois : sans téléporteur, sans mâts, sous la brume.</summary>
@@ -171,7 +189,7 @@ public partial class WreckSiteNode : Node3D
                 var off = mm.Offset;
                 r.Position = new Vector3((float)off[0], (float)off[1], (float)off[2]);
                 Unmast(r, spec);
-                Haze(r);
+                HazePass.Chain(r, SiltPass());
                 root = r;
             }
         }
@@ -198,14 +216,15 @@ public partial class WreckSiteNode : Node3D
         }
     }
 
-    void Haze(Node3D obj)
+    /// <summary>La passe de vase, suivie de la brume : l'eau trouble est devant la vase aussi.</summary>
+    ShaderMaterial SiltPass()
     {
         _haze ??= HazePass.New(-4);
         if (!Hazed.Contains(_haze)) Hazed.Add(_haze);
-        HazePass.Chain(obj, _haze);
+        return _silt ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/wreck_silt.gdshader"), NextPass = _haze, RenderPriority = -5 };
     }
 
-    static StandardMaterial3D Plank() => new() { AlbedoColor = new Color(0.30f, 0.22f, 0.15f), Roughness = 0.95f };
+    static StandardMaterial3D Plank(Material next) => new() { AlbedoColor = new Color(0.30f, 0.22f, 0.15f), Roughness = 0.95f, NextPass = next };
 
     /// <summary>Un .glb lu une fois (null s'il manque) : on en pose des copies.</summary>
     Node3D? Glb(string rel)

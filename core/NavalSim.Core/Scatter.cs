@@ -29,6 +29,26 @@ public sealed class ScatterSpec
     public double Visible = 900;
     /// <summary>De combien il s'enfonce, en part de sa demi-hauteur : 0,4 pour un rocher qui sort du sable, presque rien pour un arbre.</summary>
     public double Sink = 0.4;
+    /// <summary>
+    /// L'ABRI où il vit, de 0 (le fond d'une rade) à 1 (le large) — World.Shelter, le
+    /// même que celui de la mer. Un corail ne pousse pas dans la vase d'un port ; un
+    /// herbier n'aime pas la houle du large.
+    /// </summary>
+    public double ShelterMin = 0, ShelterMax = 1;
+    /// <summary>
+    /// EN AMAS : <see cref="Clusters"/> centres tirés dans la zone, et chaque pièce à
+    /// moins de <see cref="ClusterR"/> mètres de l'un d'eux — un récif est fait de
+    /// pâtés, pas d'un semis égal. Nul : partout.
+    /// </summary>
+    public int Clusters;
+    public double ClusterR = 25;
+    /// <summary>
+    /// UNE FOULE : des milliers de petites pièces, dessinées par paquets (MultiMesh)
+    /// et non une à une, et donc pas retouchables pièce par pièce en mode création.
+    /// </summary>
+    public bool Crowd;
+    /// <summary>SUR LES PRÉS DE L'HERBIER seulement, ceux que le fond peint (Seabed.Meadow) : la touffe pousse sur sa plaque verte.</summary>
+    public bool Meadow;
 }
 
 /// <summary>Une place tirée : où, comment tourné, comment penché, de quelle taille.</summary>
@@ -67,22 +87,72 @@ public static class Scatter
             r2 = s.Radius * s.Radius;
         }
 
+        bool Fits(double x, double z)
+        {
+            if ((x - cx) * (x - cx) + (z - cz) * (z - cz) > r2) return false;
+            double h = w.HeightAt(x, z);
+            if (h < s.HMin || h > s.HMax) return false;
+            if (s.ShelterMin > 0 || s.ShelterMax < 1)
+            {
+                double sh = w.Shelter(x, z);
+                if (sh < s.ShelterMin || sh > s.ShelterMax) return false;
+            }
+            if (s.Meadow && Seabed.Meadow(w, x, z) < 0.5) return false;
+            return !NearJetty(w, x, z, 35);
+        }
+
+        /* LES PÂTÉS d'abord, s'il en faut : des centres qui tombent eux-mêmes où il
+           faut. Tirés sur la GRAINE SEULE, pas sur le nom : deux espèces de même
+           graine dans la même zone se retrouvent sur les mêmes récifs — le corail,
+           la gorgone et l'éponge vivent ensemble. */
+        uint sc = (uint)(s.Seed * 2654435761u) | 1;
+        double RC() { sc ^= sc << 13; sc ^= sc >> 17; sc ^= sc << 5; return (sc & 0xFFFFFF) / 16777216.0; }
+        var centres = new List<(double X, double Z)>();
+        for (int tries = 0; tries < s.Clusters * 400 && centres.Count < s.Clusters; tries++)
+        {
+            double x = x0 + (x1 - x0) * RC(), z = z0 + (z1 - z0) * RC();
+            if (Fits(x, z)) centres.Add((x, z));
+        }
+        if (s.Clusters > 0 && centres.Count == 0) return outp;
+
+        /* LES VOISINS PAR CASES : une foule compte des milliers de pièces, et les
+           comparer toutes deux à deux à chaque essai prendrait des secondes. */
+        double cell = Math.Max(0.5, s.Gap > 0 ? s.Gap : s.SizeMax * 1.2);
+        var grid = new Dictionary<(int, int), List<int>>();
+        (int, int) Key(double x, double z) => ((int)Math.Floor(x / cell), (int)Math.Floor(z / cell));
+
         for (int tries = 0; tries < s.Count * 400 && outp.Count < s.Count; tries++)
         {
-            double x = x0 + (x1 - x0) * R(), z = z0 + (z1 - z0) * R();
+            double x, z;
+            if (centres.Count > 0)
+            {
+                // autour d'un pâté : serré au cœur, clairsemé au bord
+                var c = centres[(int)(R() * centres.Count) % centres.Count];
+                double a = R() * Math.PI * 2, d = s.ClusterR * Math.Sqrt(R()) * (0.4 + 0.6 * R());
+                x = c.X + Math.Cos(a) * d; z = c.Z + Math.Sin(a) * d;
+            }
+            else { x = x0 + (x1 - x0) * R(); z = z0 + (z1 - z0) * R(); }
             double size = s.SizeMin + (s.SizeMax - s.SizeMin) * R() * R();     // les petits sont les plus nombreux
             double yaw = R() * Math.PI * 2, ta = R() * Math.PI * 2, tm = R() * s.Tilt * Math.PI / 180;
-            if ((x - cx) * (x - cx) + (z - cz) * (z - cz) > r2) continue;
-            double h = w.HeightAt(x, z);
-            if (h < s.HMin || h > s.HMax) continue;
-            if (NearJetty(w, x, z, 35)) continue;
+            if (!Fits(x, z)) continue;
+            // sous l'eau, rien ne crève la surface : la pièce tient dans l'eau qui la couvre
+            if (s.HMax <= 0 && size > -w.HeightAt(x, z) * 0.85) continue;
             bool free = true;
-            foreach (var p in outp)
-            {
-                double need = s.Gap > 0 ? s.Gap : (p.Size + size) * 0.6;
-                if ((p.X - x) * (p.X - x) + (p.Z - z) * (p.Z - z) < need * need) { free = false; break; }
-            }
+            var (ki, kj) = Key(x, z);
+            for (int dj = -1; dj <= 1 && free; dj++)
+                for (int di = -1; di <= 1 && free; di++)
+                {
+                    if (!grid.TryGetValue((ki + di, kj + dj), out var near)) continue;
+                    foreach (int q in near)
+                    {
+                        var p = outp[q];
+                        double need = s.Gap > 0 ? s.Gap : (p.Size + size) * 0.6;
+                        if ((p.X - x) * (p.X - x) + (p.Z - z) * (p.Z - z) < need * need) { free = false; break; }
+                    }
+                }
             if (!free) continue;
+            if (!grid.TryGetValue((ki, kj), out var mine)) grid[(ki, kj)] = mine = new List<int>();
+            mine.Add(outp.Count);
             outp.Add(new ScatterPlace(x, z, yaw, Math.Cos(ta) * tm, Math.Sin(ta) * tm, size));
         }
         return outp;

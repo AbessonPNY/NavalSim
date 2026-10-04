@@ -84,7 +84,7 @@ public partial class ShipDemo
             Id = id, Ship = s.Spec.Id, Name = s.Spec.Name, Region = _world!.Region.Key,
             X = x, Z = z, Cap = Math.Atan2(f.X, f.Z),
             Depth = Math.Max(0, -_world.HeightAt(x, z)), Beam = s.Spec.B,
-            Date = $"{_calendar.Date:dd/MM/yyyy}",
+            Date = $"{_calendar.Date:dd/MM/yyyy}", Hour = _sky.Core.DayTime,
             Ecus = WreckRegistry.Value(s.Spec.MassKg, s.Physics.CargoTonnes, _pirates.ContainsKey(s), id),
             Broken = s.Broken, ZCut = s.BreakZ
         });
@@ -359,8 +359,11 @@ public partial class ShipDemo
         var w = new Wreck
         {
             Id = id, Ship = "frigate17e", Name = "Roter Löwe", Region = _world.Region.Key,
-            Cap = 0.7, Beam = 7.25, Date = $"{_calendar.Date:dd/MM/yyyy}", Ecus = 240
+            Cap = 0.7, Beam = 7.25, Ecus = 240
         };
+        // sombrée il y a tant de jours (--epave-age), à cette heure-ci
+        var sunk = _calendar.Date.AddHours(_sky.Core.DayTime).AddDays(-_wreckAge);
+        w.Date = $"{sunk:dd/MM/yyyy}"; w.Hour = sunk.TimeOfDay.TotalHours;
         var (cx, cz) = WreckRegistry.Chest(w, w.Beam);
         w.X = px - cx; w.Z = pz - cz;
         double x = w.X, z = w.Z;
@@ -369,9 +372,22 @@ public partial class ShipDemo
         w.Contents = _tresors.Draw(id, w.Ecus, pirate: true);
         Wrecks.Add(w);
         GD.Print(FormattableString.Invariant($"épave d'essai à {dist:F0} m, par {-_world.HeightAt(x, z):F1} m de fond"));
+        if (_wreckAge > 0)
+        {
+            // l'œil sous l'eau, de trois quarts au-dessus du pont : la vase se juge là
+            float bed = (float)_world.HeightAt(x, z);
+            _fixLook = new Vector3((float)(x - o.X), bed + 2, (float)(z - o.Z));
+            _fixEye = _fixLook + new Vector3(12, Math.Max(2f, -4.5f - bed), 14);
+            _planted = true;
+            GD.Print(FormattableString.Invariant($"[vase] épave de {_wreckAge:F0} jour(s) : couche {WreckRegistry.SiltCover(w, _calendar.Date.AddHours(_sky.Core.DayTime)):F2}"));
+        }
     }
 
     double _diveTestIn = -1;
+    /// <summary>--fond : l'œil sur le pâté le plus peuplé d'une foule du fond (« corail », « herbier »).</summary>
+    string _bedTest = "";
+    /// <summary>--epave-age : l'âge de l'épave d'essai, en jours (sa vase).</summary>
+    double _wreckAge;
     (double? Wreck, bool Bell, double Rope, bool Take) _diveTest;
 
     int _debrisTest;
@@ -383,6 +399,22 @@ public partial class ShipDemo
         {
             var o = _sea.Core.Origin; var p = _ship.Physics.Body.Pos;
             GD.Print(FormattableString.Invariant($"[ou] origine ({o.X:F0}, {o.Z:F0}), navire ({p.X:F0}, {p.Z:F0}) local, ({o.X + p.X:F0}, {o.Z + p.Z:F0}) vrai"));
+        }
+        // « x,z » en mètres vrais vise un point ; un mot, le pâté d'une foule
+        var xz = _bedTest.Split(',');
+        (double X, double Z)? at = xz.Length == 2 && double.TryParse(xz[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var bx)
+            && double.TryParse(xz[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var bz)
+            ? (bx, bz) : _bedTest.Length > 0 ? _land?.CrowdSpot(_bedTest) : null;
+        if (_bedTest.Length > 0 && at is { } spot)
+        {
+            // l'œil sous l'eau, au-dessus du pâté le plus peuplé de cette foule
+            var o = _sea.Core.Origin;
+            float bed = (float)_world!.HeightAt(spot.X, spot.Z);
+            _fixLook = new Vector3((float)(spot.X - o.X), bed + 0.5f, (float)(spot.Z - o.Z));
+            _fixEye = _fixLook + new Vector3(9, Math.Max(2.5f, Math.Min(5f, -bed - 1.5f)), 11);
+            _planted = true;
+            GD.Print(FormattableString.Invariant($"[fond] « {_bedTest} » : pâté en ({spot.X:F0}, {spot.Z:F0}), par {-bed:F1} m"));
+            _bedTest = "";
         }
         if (_debrisTest > 0)
         {
@@ -406,6 +438,7 @@ public partial class ShipDemo
         FounderTick();
         // à chaque image : l'origine glisse, et une épave doit glisser avec elle dans la même
         // le couvercle se lève sur le coffre que la cloche atteint
+        if (_sites != null) _sites.Today = _calendar.Date.AddHours(_sky.Core.DayTime);
         _sites?.Update(Wrecks, here, origin, _bellReach?.Id, dt);
         if (_sites != null) foreach (var m in _sites.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
         BellTick(dt);

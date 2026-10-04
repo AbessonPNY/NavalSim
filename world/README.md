@@ -251,10 +251,25 @@ Un modèle répandu au hasard sur une zone — les rochers d'une plage. Dans `wo
 | `ecart` | l'écart minimal entre deux, en mètres ; absent, il va comme leur taille (un rocher). Un arbre loge sa couronne, pas sa hauteur |
 | `enfonce` | de combien il s'enfonce, en part de sa demi-hauteur (0,4 ; un arbre : presque rien) |
 | `visible` | jusqu'où on le dessine, en mètres (900 ; un cocotier se voit du large) |
+| `abri` | `[min, max]` : l'abri où il vit, de 0 (le fond d'une rade) à 1 (le large) — le même que celui de la mer. Un corail ne pousse pas dans la vase d'un port |
+| `amas` | `[centres, rayon]` : en pâtés — tant de centres tirés dans la zone, chaque pièce à moins du rayon de l'un d'eux. Les centres sont tirés sur la seule `graine` : deux semis de même graine dans la même zone partagent leurs récifs |
+| `herbier` | `true` : seulement sur les prés d'herbier que le fond peint de lui-même (`core/Seabed.cs`, jumelle de `seabed.gdshaderinc`) |
+| `foule` | `true` : des milliers de petites pièces, dessinées par cases de 48 m (MultiMesh) au lieu d'un nœud chacune ; on ne les reprend pas une à une en mode création |
 
-Jamais à moins de 35 m d'un ponton, jamais l'un dans l'autre. Chacun est recentré sur sa boîte. Deux semis sur
-deux franges qui se touchent font un premier rang et un fond : les cocotiers de l'îlot, détaillés sur la grève
-(1,2 à 3,2 m), allégés derrière (2,8 à 12 m). Godot seulement.
+Jamais à moins de 35 m d'un ponton, jamais l'un dans l'autre (d'un même semis). Chacun est recentré sur sa boîte.
+Deux semis sur deux franges qui se touchent font un premier rang et un fond : les cocotiers de l'îlot, détaillés
+sur la grève (1,2 à 3,2 m), allégés derrière (2,8 à 12 m). Sous l'eau (`frange` négative), une pièce ne dépasse
+jamais l'eau qui la couvre. Godot seulement.
+
+### Le fond
+
+Le fond se peint de lui-même (`godot/shaders/seabed.gdshaderinc`) — sable blanc des hauts-fonds, vase des eaux
+calmes et du grand fond, herbier par plaques d'un à douze mètres, roche sur les tombants — et le pinceau du mode
+création passe par-dessus. Les récifs de Port-Royal sont des semis en foule : corail cerveau, corne d'élan,
+corne de cerf, gorgones, éponges, oursins, touffes d'herbier, rochers. Leurs modèles (`props/fond/`) sortent de
+`node tools/reef-glb.js` : remplacer l'un d'eux par un modèle de Blender suffit, le semis le ramène à sa taille.
+Essai : `--fond corail` (ou `herbier`, `rochers`…) pose l'œil sous l'eau sur le pâté le plus peuplé ;
+`--fond 2616,-1992` sur un point (mètres vrais).
 
 ## Le centre-ville d'un port (Godot)
 

@@ -272,6 +272,12 @@ public sealed class RegionSpec
                 { sp.SizeMin = ta[0].GetDouble(); sp.SizeMax = ta[1].GetDouble(); }
                 if (a.TryGetProperty("frange", out var fr) && fr.ValueKind == JsonValueKind.Array && fr.GetArrayLength() == 2)
                 { sp.HMin = fr[0].GetDouble(); sp.HMax = fr[1].GetDouble(); }
+                if (a.TryGetProperty("abri", out var abr) && abr.ValueKind == JsonValueKind.Array && abr.GetArrayLength() == 2)
+                { sp.ShelterMin = abr[0].GetDouble(); sp.ShelterMax = abr[1].GetDouble(); }
+                if (a.TryGetProperty("amas", out var am) && am.ValueKind == JsonValueKind.Array && am.GetArrayLength() == 2)
+                { sp.Clusters = am[0].GetInt32(); sp.ClusterR = am[1].GetDouble(); }
+                sp.Crowd = Js.True(a, "foule");
+                sp.Meadow = Js.True(a, "herbier");
                 if (sp.Glb.Length > 0) s.Scatters.Add(sp);
             }
         return s;

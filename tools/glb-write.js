@@ -47,7 +47,7 @@ function writeGlb(out, sceneName, parts, generator = 'naval-sim') {
       if (mi === undefined) {
         materials.push({
           name: p.material.name,
-          doubleSided: false,
+          doubleSided: !!p.material.ds,
           pbrMetallicRoughness: { baseColorFactor: p.material.c, metallicFactor: 0, roughnessFactor: p.material.r }
         });
         mi = materials.length - 1;
