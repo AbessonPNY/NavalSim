@@ -75,6 +75,43 @@ public partial class ShipNode
         return mat;
     }
 
+    /// <summary>
+    /// L'AVANT A SOMBRÉ, ET SON NŒUD VA ÊTRE LIBÉRÉ : oublier tout ce qu'il emporte.
+    ///
+    /// Break() y fait passer les mâts de l'avant, avec leurs vergues et leurs
+    /// voiles ; l'arrière les gardait dans ses listes. Le jour où l'épave de l'avant
+    /// était libérée (quarante mètres sous la mer, ou trop loin), SetTrim tournait à
+    /// l'image suivante un pivot de vergue libéré : une exception à chaque image, qui
+    /// coupait _Process avant la caméra — l'image figée (signalé : « la caméra gèle
+    /// en appuyant sur C alors que le bateau coulait » ; relevé dans le journal du
+    /// jeu, 6 711 fois ObjectDisposedException dans ShipNode.SetTrim).
+    ///
+    /// Les mâts partis comptent pour TOMBÉS : ni boîte pour les boulets, ni tête de
+    /// mât pour la foudre, ni latine qui porte.
+    /// </summary>
+    public void ForgetUnder(Node holder)
+    {
+        bool Gone(Node? n) => n == null || !IsInstanceValid(n) || holder.IsAncestorOf(n);
+        _rigs.RemoveAll(r => Gone(r));
+        if (_jibRig != null && Gone(_jibRig)) _jibRig = null;
+        if (_latPivot != null && Gone(_latPivot)) { _latPivot = null; _latYard = null; }
+        _canvases.RemoveAll(c => Gone(c.Node));
+        _snapped.RemoveAll(x => Gone(x.Mi));
+        _movers.RemoveAll(m => Gone(m.Mi));
+        _ropeDeps.RemoveAll(x => Gone(x.Mi));
+        _deckBoats.RemoveAll(b => Gone(b));
+        // et ce que portaient ses mâts : pavillons (StreamFlags lisait leur visibilité), fanaux, pièces
+        _flags.RemoveAll(fl => Gone(fl.Pivot) || Gone(fl.Node) || Gone(fl.Mount));
+        _lanterns.RemoveAll(l => Gone(l.Group));
+        _masts.RemoveAll(m => Gone(m.Parent));
+        _gunPieces.RemoveAll(g => Gone(g.Pivot));
+        foreach (var d in _damage)
+        {
+            d.Cords.RemoveAll(a => Gone(a.Obj));
+            if (Gone(d.Fall) && d.Down == null) d.Down = new Falling();
+        }
+    }
+
     /// <summary>La passe de brume d'une chaîne, si elle en porte une : la seule qu'une copie peut partager.</summary>
     static Material? HazeIn(Material? m)
     {

@@ -24,6 +24,8 @@ public partial class ShipDemo
     {
         public ShipPhysics Phys = null!;
         public Node3D Node = null!;
+        /// <summary>L'arrière dont elle s'est rompue : il doit oublier ce qu'elle emporte quand elle part.</summary>
+        public ShipNode? From;
         public StandardMaterial3D? Char;
         public double Born;
     }
@@ -61,7 +63,7 @@ public partial class ShipDemo
         bow.Body.Vel += f * (2.0 * ph.Body.Mass / total) + new Vec3d(0, 0.6, 0);
         ph.Body.Vel += f * (-2.0 * bow.Body.Mass / total) + new Vec3d(0, 0.6, 0);
 
-        _halves.Add(new Half { Phys = bow, Node = holder, Char = ember, Born = _t });
+        _halves.Add(new Half { Phys = bow, Node = holder, Char = ember, Born = _t, From = s });
         Reprofile(s, double.NegativeInfinity, zCut);
         Say(s == _ship ? "La soute nous coupe en deux !" : $"Le {s.Spec.Name} se rompt en deux !");
         GD.Print(FormattableString.Invariant($"rupture de {s.Spec.Id} a la cloison {k} (z {zCut:F1} m) : coupe du bois {cutMs:F1} ms, en tout {clock.Elapsed.TotalMilliseconds:F1} ms"));
@@ -107,6 +109,9 @@ public partial class ShipDemo
             double dx = b.Pos.X - _ship.Physics.Body.Pos.X, dz = b.Pos.Z - _ship.Physics.Body.Pos.Z;
             if ((h.Phys.Foundered && h.Phys.DepthBelow > 40) || dx * dx + dz * dz > 4000.0 * 4000.0)
             {
+                // l'arrière oublie d'abord ce qui part avec elle (ShipNode.ForgetUnder)
+                if (h.From != null && IsInstanceValid(h.From)) h.From.ForgetUnder(h.Node);
+                GD.Print(FormattableString.Invariant($"[épave] l'avant rompu est parti, {h.Phys.DepthBelow:F0} m sous la mer"));
                 h.Node.QueueFree();
                 _halves.RemoveAt(i);
             }

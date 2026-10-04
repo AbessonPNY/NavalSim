@@ -536,7 +536,8 @@ public partial class ShipNode
            vergues pendent dans ces pivots, cacher le groupe dépouillerait ses
            mâts. */
         foreach (var rig in _rigs)
-            rig.Rotation = new Vector3(0, (float)(rig == _jibRig ? angle * 0.75 : angle), 0);
+            // par prudence : un pivot libéré ne doit jamais couper l'image (voir ForgetUnder)
+            if (IsInstanceValid(rig)) rig.Rotation = new Vector3(0, (float)(rig == _jibRig ? angle * 0.75 : angle), 0);
         if (_latPivot != null)
         {
             // le signe des vergues (voir BraceTrim) : l'angle voulu, moins celui du modèle

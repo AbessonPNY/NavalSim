@@ -14185,6 +14185,25 @@ donc aussi à la manœuvre — c'est du vent dans la toile. Résultat, force 4 :
 Les ordres se disent à l'écran (et se crient si crew.json a une voix) : « Paré à
 virer ! », « Change derrière ! — la misaine à contre », « Bordez partout ! ».
 
+## La caméra figée par l'avant d'une épave (Godot)
+
+Signalé deux fois : « la caméra gèle en appuyant sur C alors que le bateau
+coulait ». La touche C n'y était pour rien. Le journal du jeu comptait 6 711
+ObjectDisposedException dans ShipNode.SetTrim : une exception À CHAQUE IMAGE,
+qui coupe _Process avant la mise à jour de la caméra — l'image se fige, et le
+joueur le remarque en voulant changer de vue.
+
+La rupture (ShipNode.Break) fait passer les mâts de l'avant — vergues, voiles,
+pavillons, fanaux, pièces — dans le nœud de l'épave de l'avant ; l'arrière les
+gardait dans ses listes. Quand l'avant est libéré (StepHalves : quarante mètres
+sous la mer, ou trop loin), l'arrière touchait à l'image suivante des nœuds
+libérés : SetTrim tournait un pivot de vergue, StreamFlags lisait un pavillon.
+Reproduit au large (--ship 7 --large 1 --soute 6 ; par onze mètres de fond, à
+Port-Royal, l'avant n'est jamais libéré et rien ne se voit) : 92 256 exceptions
+avant, aucune après. ShipNode.ForgetUnder fait oublier à l'arrière tout ce qui
+est dessous avant la libération — les mâts partis comptent pour tombés — et
+SetTrim saute par prudence un pivot libéré.
+
 ## La chaloupe quitte le pont (Godot)
 
 Demandé : à la mise à l'eau, la chaloupe du modèle (posée sur ses chantiers)
