@@ -16,6 +16,10 @@ config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 boot_splash/bg_color=Color(0.02, 0.03, 0.04, 1)
 boot_splash/show_image=false
 
+[debug]
+
+file_logging/max_log_files=20
+
 [dotnet]
 project/assembly_name="NavalSim"
 
