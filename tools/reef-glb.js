@@ -275,17 +275,17 @@ function eponge() {
 /** UNE TOUFFE D'HERBIER : des lames étroites qui se couchent un peu. */
 function herbier() {
   const m = model();
-  const N = 12;
+  const N = 18;
   for (let k = 0; k < N; k++) {
-    const a = R() * Math.PI * 2, d = 0.04 * R();
+    const a = R() * Math.PI * 2, d = 0.07 * R();
     const base = [Math.cos(a) * d, -0.02, Math.sin(a) * d];
-    const len = 0.22 + 0.25 * R(), bend = 0.15 + 0.35 * R(), dirA = R() * Math.PI * 2;
+    const len = 0.3 + 0.3 * R(), bend = 0.1 + 0.3 * R(), dirA = R() * Math.PI * 2;
     const pts = [];
     for (let s = 0; s <= 5; s++) {
       const u = s / 5;
       pts.push(add(base, [Math.cos(dirA) * bend * len * u * u, len * u, Math.sin(dirA) * bend * len * u * u]));
     }
-    ribbon(m, 'herbe', pts, 0.012, [Math.cos(dirA + Math.PI / 2), 0, Math.sin(dirA + Math.PI / 2)]);
+    ribbon(m, 'herbe', pts, 0.014, [Math.cos(dirA + Math.PI / 2), 0, Math.sin(dirA + Math.PI / 2)]);
   }
   return m;
 }

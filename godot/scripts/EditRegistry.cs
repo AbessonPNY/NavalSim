@@ -83,6 +83,13 @@ public sealed class Editable
 
     /// <summary>Un ajout : la copie de <see cref="From"/>, ou le modèle brut <see cref="Glb"/>.</summary>
     public string From = "", Glb = "";
+    /// <summary>
+    /// UN ÉCUEIL : son rayon au sol et sa hauteur au-dessus de son pied, à l'échelle 1
+    /// (nuls : il ne compte pas). Son rocher dans World.Rocks suit chaque geste de
+    /// l'éditeur (LandNode.PushRock) ; une copie emporte le danger avec elle.
+    /// </summary>
+    public double HazardR, HazardH;
+    public RockField.Rock? Rock;
     /// <summary>Un navire au mouillage posé à la main : sa fiche (MooredNode.AddHull).</summary>
     public string Sheet = "";
     public bool Added => From.Length > 0 || Glb.Length > 0 || Sheet.Length > 0;

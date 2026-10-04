@@ -269,6 +269,8 @@ public partial class ShipDemo
         // la lumière du fond lit le même abri : une rade calme n'a pas les
         // nervures d'une rade battue
         Shel(_land?.Ground);
+        // l'herbier d'une rade calme ondule moins que celui du large
+        if (_land != null) foreach (var m in _land.Swaying) Shel(m);
         Shel(_fishNode?.Material);
         Shel(ShipNode.Caustic);
         Shel(_mist?.Material);

@@ -49,6 +49,16 @@ public sealed class ScatterSpec
     public bool Crowd;
     /// <summary>SUR LES PRÉS DE L'HERBIER seulement, ceux que le fond peint (Seabed.Meadow) : la touffe pousse sur sa plaque verte.</summary>
     public bool Meadow;
+    /// <summary>
+    /// IL ONDULE avec le ressac de la houle (Godot : seaweed.gdshader) — sa
+    /// souplesse : 1 pour l'herbe, moins pour une gorgone cornée ; nul, il est de
+    /// pierre. Une foule seulement.
+    /// </summary>
+    public double Sway;
+    /// <summary>UN ÉCUEIL : la coque le heurte et s'y ouvre (World.Rocks) — un rocher, une tête de corail.</summary>
+    public bool Hazard;
+    /// <summary>SUR LES RÉCIFS seulement (World.ReefAt) : le corail des cayes.</summary>
+    public bool OnReef;
 }
 
 /// <summary>Une place tirée : où, comment tourné, comment penché, de quelle taille.</summary>
@@ -98,6 +108,7 @@ public static class Scatter
                 if (sh < s.ShelterMin || sh > s.ShelterMax) return false;
             }
             if (s.Meadow && Seabed.Meadow(w, x, z) < 0.5) return false;
+            if (s.OnReef && w.ReefAt(x, z) < 0.6) return false;
             return !NearJetty(w, x, z, 35);
         }
 
@@ -121,6 +132,23 @@ public static class Scatter
         var grid = new Dictionary<(int, int), List<int>>();
         (int, int) Key(double x, double z) => ((int)Math.Floor(x / cell), (int)Math.Floor(z / cell));
 
+        /* UNE FOULE SANS PÂTÉS SE TRIE D'ABORD SUR UNE GRILLE de douze mètres : seules
+           les cases dont le centre convient sont gardées, et l'on ne tire plus qu'en
+           elles. Tirer au hasard sur toute la zone demandait des millions d'essais pour
+           trouver les prés d'herbier (deux sur mille tombaient juste) — 6,8 s au
+           chargement. Le semis pièce à pièce garde son tirage : ses retouches en
+           dépendent. */
+        const double Coarse = 12;
+        List<(double X, double Z)>? kept = null;
+        if (s.Crowd && centres.Count == 0)
+        {
+            kept = new List<(double X, double Z)>();
+            for (double gz = z0; gz < z1; gz += Coarse)
+                for (double gx = x0; gx < x1; gx += Coarse)
+                    if (Fits(gx + Coarse / 2, gz + Coarse / 2)) kept.Add((gx, gz));
+            if (kept.Count == 0) return outp;
+        }
+
         for (int tries = 0; tries < s.Count * 400 && outp.Count < s.Count; tries++)
         {
             double x, z;
@@ -130,6 +158,11 @@ public static class Scatter
                 var c = centres[(int)(R() * centres.Count) % centres.Count];
                 double a = R() * Math.PI * 2, d = s.ClusterR * Math.Sqrt(R()) * (0.4 + 0.6 * R());
                 x = c.X + Math.Cos(a) * d; z = c.Z + Math.Sin(a) * d;
+            }
+            else if (kept != null)
+            {
+                var c = kept[(int)(R() * kept.Count) % kept.Count];
+                x = c.X + Coarse * R(); z = c.Z + Coarse * R();
             }
             else { x = x0 + (x1 - x0) * R(); z = z0 + (z1 - z0) * R(); }
             double size = s.SizeMin + (s.SizeMax - s.SizeMin) * R() * R();     // les petits sont les plus nombreux

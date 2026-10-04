@@ -14275,6 +14275,110 @@ passer une vue de récif de 7,4 à 13,6 ms par image — elle recalcule la houle
 pixel, et un récif couvre l'écran. Sans elle, 7,5 ms ; au port, rien (9,09 dans les deux
 cas). Le corail reste donc plus sombre que le sable qui danse autour de lui.
 
+## L'herbier et les gorgones ondulent (Godot)
+
+Demandé : les faire onduler « avec le courant ». Le courant qui les couche, dans une
+rade des Caraïbes, c'est le RESSAC de la houle : sous une vague l'eau va et vient
+jusqu'au fond, de a / sinh(kh) par fond de h mètres (théorie linéaire) — éteint par
+grand fond, PLUS grand que la vague dans les hauts-fonds, en phase avec le terme
+horizontal de la surface. Écrit une fois, dans gerstner.gdshaderinc (gerstner_surge),
+à côté de la houle qu'il suit ; lu par le GPU seul, rien de physique n'en dépend.
+
+seaweed.gdshader remplace la matière des foules « ondule » : pied fixe, flexion comme
+le carré de la hauteur, course bornée aux deux tiers de la lame, la pointe qui
+descend pour garder sa longueur, un frémissement lent par mer d'huile, et l'abri qui
+calme l'herbier d'une rade. LA BRUME Y EST DEDANS, comme dans la voile : une passe
+redessinerait la géométrie immobile par-dessus celle qui bouge. La démo lui pousse la
+houle et l'abri avec le fond (LandNode.Swaying).
+
+L'herbier, vérifié, était trop clair-semé pour se lire : neuf mille touffes sur un
+cercle de quatre kilomètres, une vingtaine par case. Touffe étoffée (dix-huit lames de
+30 à 60 cm) et quarante mille touffes. Les semer prenait 6,8 s — deux essais sur mille
+tombaient sur un pré — : une foule se trie d'abord sur une grille de 12 m et ne tire
+plus que dans les cases gardées ; tout le semis du fond tombe à 1,0 s (1,8 avant
+l'herbier dense). Coût mesuré : le pré, 8,77 ms contre 8,54 sans le fond ; le récif,
+7,57 comme avant.
+
+## Les navires du jeu sondent, et ne serpentent plus (Godot)
+
+SIGNALÉ : le sloop sorti de Port-Royal avant le joueur laissait un sillage en serpent.
+Rejoué au banc « rade » (trace sur « Port-Royal -> le large ») : ni la sonde ni les
+récifs — il est au largue, et son cap saute de 60 à 90° d'un relevé à l'autre, barre à
+fond d'un bord puis de l'autre, erre de 6 à 14 nœuds. Mesuré par le lacet moyen : 1,3 °/s
+au gain de vent 1 (la page), 11 au gain 4, 15,6 au gain 8 (le jeu). La force du safran
+croît comme le carré de l'erre ; les gains de la barre sont ceux de la page, où un sloop
+file cinq nœuds ; à quatorze, le safran a dix fois plus de main et la barre surcorrige.
+Remède : au-delà de cinq nœuds, la barre se donne comme l'inverse du carré de l'erre
+(Config.HelmBySpeed, Godot seul — le banc de parité compare les deux barres). Au gain 8,
+le lacet tombe à 2,8 °/s, la barre moyenne de 0,89 à 0,09, et le sloop sort en 11,1 min au
+lieu de 19,7 en faisant 2,01 milles au lieu de 2,59.
+
+LA SONDE. Seul le pilote de rade sondait ; les pirates, les rencontres, tout ce que mène
+AutoHelm allait droit à sa marque — et le fond dur les tue désormais. AutoHelm.Sound
+(Config.HelmSounds) : toutes les demi-secondes, six coups de sonde le long du cap voulu,
+jusqu'à quatre longueurs ou trente secondes de route, le tirant d'eau plus un mètre, un
+écueil comptant par son sommet. Au près, un danger sur son bord fait changer de bord ;
+sinon le cap libre et tenable le plus proche, du côté de la marque d'abord, tenu huit
+secondes et lâché quand la route est libre deux coups de suite ; tout barré : demi-tour.
+Le pilote de rade éteint celle de sa barre (ses routes sont tracées dans l'eau, il a la
+sienne), sauf au-delà du large, vers Carthagène.
+Banc « sondeur », un sloop dont la marque est derrière Lime Cay : sous le vent, sans sonde
+il s'y empale (8 brèches) ; avec, une dérobade, 5 m de fond au plus bas, rendu en 5,5 min.
+Au vent et au gain 1, sans sonde il sombre sur le récif ; avec, il ne touche pas. Reste
+un défaut ANCIEN : au près, la barre automatique ne rallie pas une marque à 1 200 m au vent
+en vingt-cinq minutes (bordées de 300 s, virement lof pour lof).
+
+L'inventaire de ce que savent faire les navires du jeu (docs/navires-du-jeu.md) a relevé
+une faute ancienne : les pontons n'étaient donnés au solveur qu'au chargement et quand
+l'éditeur en déplaçait un ; tout navire né ensuite — ceux de la rade, qui accostent ! — les
+traversait. SpawnFleet les lui donne désormais. Restent, relevés et non éprouvés : les
+filins de grappin jamais lâchés, le vaisseau qui rôde peut-être touchable, la méfiance
+qui pourrait faire appareiller un navire amarré.
+
+## Les écueils et les récifs (Godot)
+
+Demandé : que les rochers des côtes deviennent mortels, et des récifs par endroits.
+
+Le solveur ne connaissait que le relief : un rocher semé était un décor que la coque
+traversait, et un fond de sable ou de corail l'ouvrait de la même façon — à 2,2 m/s,
+d'un trou de quelques centièmes de mètre carré que le charpentier bouchait en quarante
+secondes. IGround gagne deux questions, avec réponse par défaut pour ne déranger
+personne : le fond est-il DUR ici (HardAt), et quels rochers comptent (Rocks).
+
+LES ÉCUEILS sont les semis marqués « ecueil » (rochers des plages et de l'îlot, rochers
+du fond, têtes de corail), inscrits par LandNode à leur place VUE dans World.Rocks — une
+demi-ellipsoïde chacun, rangés par cases de seize mètres — et tenus à jour par l'éditeur :
+déplacé, retiré, copié, le rocher emporte son danger (Editable.HazardR, LandNode.PushRock).
+Trop petits pour les trois membrures de l'échouage (un rocher de deux mètres passe entre
+deux), ils sont essayés à l'envers : de chaque rocher voisin, ramené dans le repère de la
+coque — dessous, il frappe la carène entre quille et bouchain ; à côté et plus haut que
+le bouchain, il heurte le flanc et repousse.
+
+LES RÉCIFS (Reefs.cs, « recifs » de la fiche) relèvent le fond en plateau dont la crête
+reste à quinze centimètres au moins sous l'eau, avec un tombant, une caye de sable au
+milieu, et un ourlet qui ondule (trois lobes et des festons, à la phase du nom). Les cinq
+cayes de Port-Royal sont à leurs coordonnées réelles, réduites comme le reste. Godot seul
+(Config.Reefs) : la page ne les connaît pas, et le banc de parité compare des fonds.
+
+Mesuré au banc « ecueil », un sloop tenu à son erre jusqu'au choc :
+- à six nœuds, perdu 2 min 19 s après le choc sur Lime Cay, sombré en 5 min 11 s sur une roche
+  isolée, simplement échoué sur la plage ;
+- à trois nœuds, perdu en 3 min 33 s, sombré en 3 min ;
+- à 1,2 nœud, il touche sans s'ouvrir.
+Deux pièges en route : le banc, voiles établies et barre libre, faisait tourner le sloop
+en rond et l'échouait sur n'importe quel sable (les trous vus étaient ceux du sable,
+bouchés) ; et une coque crevée sur un récif ne COULE PAS — elle s'emplit et s'assied sur
+le corail, le pont au sec, et la règle du naufrage (sous l'eau trois secondes) ne la
+déclarait jamais perdue. D'où « perdue sur l'écueil » : posée sur du dur, à moitié pleine
+pendant vingt secondes.
+
+Vu en jeu, le premier récif était un banc de sable jaune (la crête crevait la surface,
+tout ce qui sortait se peignait en grève), puis un soleil orange (des sillons rayonnant
+sur tout le plateau). Le corail se peint maintenant en têtes éparses sur un sable de
+débris, en éperons et sillons sur la seule bordure, en teintes sourdes. La carte marine
+les marque d'un pointillé et de croix, leur nom à la loupe seulement : de loin, cinq cayes
+en un pouce n'étaient qu'une tache de noms.
+
 ## Les horaires de la rade (Godot)
 
 Demandé : les départs et arrivées en JSON — navires candidats, horaires, ponton

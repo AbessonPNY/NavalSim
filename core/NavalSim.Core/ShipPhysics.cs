@@ -131,6 +131,10 @@ public interface IGround
 {
     /// <summary>La hauteur du fond en mètres MONDE VRAIS. Négative au large.</summary>
     double HeightAt(double worldX, double worldZ);
+    /// <summary>Le fond est-il DUR ici (corail), de 0 à 1 ? Le sable par défaut.</summary>
+    double HardAt(double worldX, double worldZ) => 0;
+    /// <summary>Les rochers qui comptent, s'il y en a.</summary>
+    RockField? Rocks => null;
 }
 
 /// <summary>
@@ -335,6 +339,9 @@ public sealed partial class ShipPhysics
     // --- les anti-rebonds d'avarie ---
     double _hardAgo, _hardHit;
     double _underFor;
+    /// <summary>Posée sur un fond DUR à cette sous-étape (récif, roche), et depuis combien de temps pleine d'eau.</summary>
+    bool _onHard;
+    double _wreckedFor;
 
     Vec3d _dryCom;
     /// <summary>Sa masse à sec et sa longueur : celles de la fiche, sauf pour une moitié (Split).</summary>

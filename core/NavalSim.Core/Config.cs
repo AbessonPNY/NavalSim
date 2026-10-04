@@ -87,6 +87,27 @@ public static class Config
     public static bool CrewTacks = false;
 
     /// <summary>
+    /// LES RÉCIFS DE LA FICHE dans le relief (World.HeightAt) et sous la coque. Éteints
+    /// dans le noyau — la page ne les connaît pas, et le banc de parité compare des
+    /// fonds —, allumés par Godot et par les bancs qui en parlent.
+    /// </summary>
+    public static bool Reefs = false;
+
+    /// <summary>
+    /// LA BARRE AUTOMATIQUE SELON L'ERRE (AutoHelm) : moins de barre quand le navire
+    /// court. Éteinte dans le noyau — la page n'en sait rien et le banc de parité
+    /// compare les deux barres —, allumée par Godot, où le gain de vent fait filer
+    /// un sloop à quatorze nœuds et où la barre de la page s'emballait.
+    /// </summary>
+    public static bool HelmBySpeed = false;
+
+    /// <summary>
+    /// LA BARRE AUTOMATIQUE SONDE (AutoHelm.Sound) : elle dévie devant un haut-fond, un
+    /// récif ou un écueil au lieu d'y courir. Éteinte dans le noyau, allumée par Godot.
+    /// </summary>
+    public static bool HelmSounds = false;
+
+    /// <summary>
     /// Jusqu'où elle s'éloigne du zéro local avant qu'on ne fasse glisser le monde
     /// sous elle. Assez petit pour que la phase de Gerstner garde sa précision,
     /// assez grand pour que le recentrage soit rare — 1500 m, cinq minutes environ

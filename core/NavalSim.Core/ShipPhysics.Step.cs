@@ -249,6 +249,20 @@ public sealed partial class ShipPhysics
         _underFor = SubmergedFrac > 0.95 ? _underFor + dt : 0;
         if (_underFor > 3) Foundered = true;
 
+        /* PERDUE SUR L'ÉCUEIL. Crevée sur un récif, une coque ne coule pas : elle
+           s'emplit et s'assied sur le corail, le pont hors de l'eau — et la règle
+           d'au-dessus ne la déclarerait jamais perdue. Elle l'est : la houle achève
+           ce qui est cloué là. Posée sur du dur, à moitié pleine pendant vingt
+           secondes, elle est une épave. */
+        if (_onHard)
+        {
+            double vol = 0, room = 0;
+            foreach (var c in Comps) { vol += c.Vol; room += c.Cap; }
+            _wreckedFor = room > 0 && vol / room > 0.5 ? _wreckedFor + dt : 0;
+            if (_wreckedFor > 20) Foundered = true;
+        }
+        else _wreckedFor = 0;
+
         double inWater = submergedVol > 0 ? 1 : 0;
         double vFwd = b.Vel.Dot(fwd);
         double vRight = b.Vel.Dot(right);
@@ -775,6 +789,7 @@ public sealed partial class ShipPhysics
     void Ground(double dt, ref Vec3d force, ref Vec3d torque, in Vec3d cog, Ocean ocean)
     {
         Aground = 0;
+        _onHard = false;
         if (World == null) return;
         var S = Spec; var b = Body;
         double ox = ocean.Origin.X, oz = ocean.Origin.Z;
@@ -830,15 +845,113 @@ public sealed partial class ShipPhysics
 
                 /* Talonnée en vitesse, elle S'OUVRE. Une coque ne rebondit pas sur la
                    roche, et le trou est là où elle a frappé — donc l'échouage devient
-                   enfin une vraie cause de l'envahissement déjà écrit. */
-                if (spd > 2.2 && _hardAgo <= 0)
-                {
-                    int comp = Math.Min(Comps.Length - 1, Math.Max(0,
-                        (int)Math.Floor(((zl + S.L / 2) / S.L) * Comps.Length)));
-                    MakeBreach(comp, Math.Min(0.45, 0.06 * (spd - 2.0)), 0.06);
-                    _hardAgo = 5;          // elle ne peut pas être percée deux fois dans un souffle
-                }
+                   enfin une vraie cause de l'envahissement déjà écrit. Sur le CORAIL
+                   d'un récif, bien plus tôt et bien plus grand : voir Gash. */
+                bool hard = World.HardAt(ox + pw.X, oz + pw.Z) > 0.5;
+                _onHard |= hard;
+                Gash(zl, lx, spd, hard);
             }
+        }
+        Rocks(ref force, ref torque, cog, ox, oz, keel, rail, kSpring, spd);
+    }
+
+    /// <summary>
+    /// LE TROU QUE FAIT LE FOND, là où il a frappé. Le SABLE et la vase ne percent
+    /// qu'une coque qui talonne à plus de 2,2 m/s (quatre nœuds), et d'un trou
+    /// modeste ; elle ne peut l'être deux fois en cinq secondes. La ROCHE et le
+    /// CORAIL ouvrent dès 0,8 m/s (un nœud et demi), plus grand à mesure qu'on va
+    /// vite, et ils RACLENT : tant qu'elle avance dessus, une nouvelle couture cède
+    /// toutes les secondes et demie. C'est ce qui rend une côte de rochers mortelle
+    /// et un banc de sable seulement fâcheux — l'écueil de la marine à voile.
+    /// </summary>
+    void Gash(double zl, double lx, double spd, bool hard)
+    {
+        if (_hardAgo > 0) return;
+        if (hard ? spd < 0.8 : spd < 2.2) return;
+        int comp = Math.Min(Comps.Length - 1, Math.Max(0,
+            (int)Math.Floor(((zl + Spec.L / 2) / Spec.L) * Comps.Length)));
+        if (hard)
+        {
+            MakeBreach(comp, Math.Min(1.2, 0.25 * spd), 0.06, lx);
+            _hardAgo = 1.5;
+        }
+        else
+        {
+            MakeBreach(comp, Math.Min(0.45, 0.06 * (spd - 2.0)), 0.06);
+            _hardAgo = 5;          // elle ne peut pas être percée deux fois dans un souffle
+        }
+    }
+
+    readonly List<RockField.Rock> _rockBuf = new();
+
+    /// <summary>
+    /// LES ROCHERS, qui sont trop petits pour les trois membrures du fond : un rocher
+    /// de deux mètres passe entre deux d'entre elles. On part donc de CHAQUE rocher
+    /// voisin, ramené dans le repère de la coque : sous elle, il frappe la carène là
+    /// où elle passe au-dessus de lui (la quille au milieu, le bouchain sur les
+    /// côtés) ; à côté d'elle et plus haut que le bouchain, il la heurte par le
+    /// flanc et la repousse. Même ressort, même labour, même entaille que le fond —
+    /// sur de la roche.
+    /// </summary>
+    void Rocks(ref Vec3d force, ref Vec3d torque, in Vec3d cog, double ox, double oz,
+               double keel, double rail, double kSpring, double spd)
+    {
+        if (World?.Rocks is not { Count: > 0 } field) return;
+        var b = Body; var S = Spec;
+        field.Near(ox + b.Pos.X, oz + b.Pos.Z, S.L * 0.5 + 2, _rockBuf);
+        if (_rockBuf.Count == 0) return;
+        var inv = b.Quat.Inverted();
+        for (int i = 0; i < _rockBuf.Count; i++)
+        {
+            var rk = _rockBuf[i];
+            var loc = inv.Rotate(new Vec3d(rk.X - ox - b.Pos.X, 0, rk.Z - oz - b.Pos.Z));
+            double zl = loc.Z;
+            if (zl < ZLo || zl > ZHi || Math.Abs(zl) > S.L * 0.5) continue;
+            double hw = Lines.HalfB(zl / S.L + 0.5);
+            double side = Math.Abs(loc.X);
+            Vec3d pw; bool flank = false;
+            if (side <= hw)
+            {
+                // sous la carène : de la quille au bouchain, en parabole
+                double u = hw > 0.05 ? side / hw : 0;
+                pw = b.Quat.Rotate(new Vec3d(loc.X, keel + (GroundLift - keel) * u * u, zl)) + b.Pos;
+            }
+            else
+            {
+                if (side > hw + rk.R) continue;
+                // au flanc : le bouchain de ce bord, en face du rocher
+                pw = b.Quat.Rotate(new Vec3d(Math.Sign(loc.X) * hw, GroundLift, zl)) + b.Pos;
+                flank = true;
+            }
+            double top = RockField.TopAt(rk, ox + pw.X, oz + pw.Z);
+            double pen = top - pw.Y;
+            if (pen <= 0) continue;
+            Aground = Math.Max(Aground, pen);
+            Vec3d r = pw - cog;
+            Vec3d vp = b.AngVel.Cross(r) + b.Vel;
+            Vec3d fv;
+            if (flank)
+            {
+                // il repousse de côté, du centre du rocher vers le bordé
+                double nx = ox + pw.X - rk.X, nz = oz + pw.Z - rk.Z, nl = Math.Sqrt(nx * nx + nz * nz);
+                if (nl < 1e-4) { nx = 1; nz = 0; nl = 1; }
+                nx /= nl; nz /= nl;
+                double into = Math.Max(0, rk.R - nl);
+                double vn = vp.X * nx + vp.Z * nz;
+                double push = Math.Max(0, kSpring * Math.Min(into, 2.0) - vn * b.Mass * 1.2);
+                fv = new Vec3d(nx * push, 0, nz * push);
+            }
+            else
+            {
+                double fy = Math.Max(0, kSpring * Math.Min(pen, 2.5) - vp.Y * b.Mass * 1.2);
+                fv = new Vec3d(0, fy, 0);
+            }
+            // et il laboure, comme le fond
+            fv += new Vec3d(-vp.X, 0, -vp.Z) * (b.Mass * 0.9);
+            force += fv;
+            torque += r.Cross(fv);
+            _onHard = true;
+            Gash(zl, loc.X, spd, true);
         }
     }
 

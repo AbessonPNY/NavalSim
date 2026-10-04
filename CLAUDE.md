@@ -58,14 +58,15 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `tools/jetty-glb.js` · `tools/glb-write.js` | les pièces d'un ponton en .glb (travee, pieu, bitte) · la mise en paquet .glb commune aux outils |
 | `GroundPaint.cs` · `ground_paint.gdshaderinc` (Godot) | le sol peint au pinceau (², P) : herbe, pavés, sable au demi-mètre ; `world/peinture/*.png` |
 | `Grapple.cs` (Godot) | les filins à crochet de l'abordage — ils HALENT, on les tranche (⇧D) |
-| `seabed.gdshaderinc` · `Seabed.cs` (noyau) · `tools/reef-glb.js` (Godot) | le fond de lui-même (sable blanc, vase, herbier, roche ; le pinceau par-dessus) · ses prés côté processeur, pour y semer l'herbier — **jumeaux, mêmes seuils** · coraux, gorgones, éponges, oursins en `props/fond/*.glb`, semés en foule (`"foule"`, `"amas"`, `"abri"`) |
+| `seabed.gdshaderinc` · `Seabed.cs` (noyau) · `tools/reef-glb.js` · `seaweed.gdshader` (Godot) | le fond de lui-même (sable blanc, vase, herbier, roche ; le pinceau par-dessus) · ses prés côté processeur, pour y semer l'herbier — **jumeaux, mêmes seuils** · coraux, gorgones, éponges, oursins en `props/fond/*.glb`, semés en foule (`"foule"`, `"amas"`, `"abri"`) · l'herbier et les gorgones qui ondulent au ressac (`gerstner_surge`, lu par le GPU seul ; `"ondule"`) |
+| `Reefs.cs` (noyau) | les récifs de la fiche (`"recifs"`) relevés dans `World.HeightAt` (`Config.Reefs`, Godot seul) et peints par `seabed.gdshaderinc` (**même ourlet des deux côtés**) ; les écueils (`World.Rocks`, semis `"ecueil"`) ; le fond DUR ouvre la coque dès 0,8 m/s et la perd clouée dessus (`ShipPhysics.Gash`, `Rocks`) |
 | `wreck_silt.gdshader` (Godot) | ce que la mer dépose sur une épave selon son âge (`WreckRegistry.SiltCover` : rien le premier jour, pleine en deux semaines) : la vase sur les plats, par la loi de la neige, et la croûte (concrétion, algues, rouille) partout |
 | `chart.js` | la carte marine |
 | `quests.js` | les quêtes : étapes, lieux, objectifs (`quests/*.json`) |
 | `ship-model.js` | coque, gréement, voiles, pavillons, lanternes, safran, fenêtres de nuit, avirons, anneaux (ce qui tourne sans se déformer, `ShipNode.Rings.cs` côté Godot), .glb |
 | `ship-physics.js` | sondes, corps rigide 6 ddl, gouvernail, voiles, avirons |
 | `controls.js` · `camera-rig.js` · `hud.js` | barre, caméras (vues à bord dans la fiche ; sous Godot, le drone Fly-By, `ShipDemo.FlyBy.cs`), instruments |
-| `helm.js` | la barre des navires qui ne sont pas le vôtre |
+| `helm.js` | la barre des navires qui ne sont pas le vôtre (`AutoHelm.cs` ; sous Godot elle SONDE et se règle sur l'erre : `Config.HelmSounds`, `HelmBySpeed`) — ce que les navires du jeu savent faire : `docs/navires-du-jeu.md` |
 | `guns.js` · `explosion.js` | la bordée et sa fumée · la soute qui saute — sous Godot elle **rompt le navire** (`ShipPhysics.Split.cs`, `HullCut.cs`, `ShipDemo.Breakup.cs`) |
 | `cordage.js` | les bouts rompus |
 | `crew.js` | les hommes sur le pont — **désactivés** (`crew.enabled`), gardés pour un marin qui manœuvre |

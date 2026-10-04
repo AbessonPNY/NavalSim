@@ -237,3 +237,30 @@ void gerstner_bottom(vec2 world_xz, float t, float shelter, float metre, float h
 		curv -= vec3(d.x * d.x, d.y * d.y, d.x * d.y) * (k * WA * s);
 	}
 }
+
+
+/* LE RESSAC SUR LE FOND — ce qui fait onduler l'herbier et les gorgones
+ * (seaweed.gdshader).
+ *
+ * Sous une vague, l'eau ne fait pas que monter et descendre : elle va et vient,
+ * et ce va-et-vient descend jusqu'au fond. La théorie linéaire en donne la
+ * course horizontale au fond, par fond de h mètres : a / sinh(kh). Par grand
+ * fond elle s'éteint ; dans les hauts-fonds elle DÉPASSE l'amplitude de la vague
+ * — c'est pourquoi l'herbier d'un lagon se couche d'un côté puis de l'autre au
+ * passage de chaque houle, et que celui du large ne bouge presque pas. En phase
+ * avec le terme horizontal de la surface (Q·a·d·cos f, plus haut) : l'herbe se
+ * couche sous la vague qu'on voit passer.
+ *
+ * Seul le GPU la lit : rien de physique n'en dépend, elle n'a pas de jumelle
+ * dans Ocean.cs. Rend un déplacement en mètres, dans le plan.
+ */
+vec2 gerstner_surge(vec2 world_xz, float t, float shelter, float depth) {
+	vec2 s = vec2(0.0);
+	for (int i = 0; i < NW; i++) {
+		float kh = u_wave_a[i].w * depth;
+		if (kh > 4.0) continue;               // sinh(4) ≈ 27 : plus rien n'arrive au fond
+		float course = u_wave_a[i].z * shelter / sinh(max(kh, 0.3));
+		s += u_wave_a[i].xy * course * cos(gerstner_phase(i, world_xz, t));
+	}
+	return s;
+}

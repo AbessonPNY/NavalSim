@@ -218,6 +218,11 @@ public partial class ShipDemo : Node3D
         /* LA TERRE. Le monde est lu une fois — une image de neuf millions de
            pixels et le champ de distance qui en sort — et rien après ne change :
            c'est une fonction pure de la position, en mètres VRAIS. */
+        // les récifs de la fiche, dans le relief et sous la coque : Godot seul (Config.Reefs)
+        Config.Reefs = true;
+        // la barre des navires du jeu : réglée sur leur erre (le gain de vent les fait courir), et elle sonde
+        Config.HelmBySpeed = true;
+        Config.HelmSounds = true;
         _world = WorldLoad.Load(_regionSheet = PickRegion());
         // les retouches de l'éditeur AVANT que la ville et la terre se bâtissent : elles s'y appliquent en se posant
         EditSetup();
@@ -887,7 +892,7 @@ public partial class ShipDemo : Node3D
            par ne plus l'être, et le fond scintillerait sur une houle que l'œil
            ne voit pas : c'est la panne silencieuse habituelle. */
         if (ShipNode.Caustic != null && !_causticDialed) { CausticDials(); _causticDialed = true; }
-        if (_land != null) PushSea(_land.Ground);
+        if (_land != null) { PushSea(_land.Ground); foreach (var m in _land.Swaying) PushSea(m); }
         if (_fishNode?.Material is ShaderMaterial fm) PushSea(fm);
         // la MÊME lumière sur les carènes, et une seule passe pour toute la flotte
         if (ShipNode.Caustic is ShaderMaterial hc) PushSea(hc);

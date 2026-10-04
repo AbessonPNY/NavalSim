@@ -255,6 +255,9 @@ Un modèle répandu au hasard sur une zone — les rochers d'une plage. Dans `wo
 | `amas` | `[centres, rayon]` : en pâtés — tant de centres tirés dans la zone, chaque pièce à moins du rayon de l'un d'eux. Les centres sont tirés sur la seule `graine` : deux semis de même graine dans la même zone partagent leurs récifs |
 | `herbier` | `true` : seulement sur les prés d'herbier que le fond peint de lui-même (`core/Seabed.cs`, jumelle de `seabed.gdshaderinc`) |
 | `foule` | `true` : des milliers de petites pièces, dessinées par cases de 48 m (MultiMesh) au lieu d'un nœud chacune ; on ne les reprend pas une à une en mode création |
+| `ecueil` | `true` : un ÉCUEIL — la coque le heurte et s'y ouvre (rochers, têtes de corail). Il est inscrit à sa place vue : déplacé, retiré ou copié en mode création, son danger le suit |
+| `recifs` | `true` : seulement sur les récifs de la fiche (le corail des cayes) |
+| `ondule` | une foule qui ondule avec le ressac de la houle (`seaweed.gdshader`) ; sa souplesse : 1 pour l'herbe, 0,35 pour une gorgone cornée. Fort dans les hauts-fonds, éteint par grand fond, calmé par l'abri |
 
 Jamais à moins de 35 m d'un ponton, jamais l'un dans l'autre (d'un même semis). Chacun est recentré sur sa boîte.
 Deux semis sur deux franges qui se touchent font un premier rang et un fond : les cocotiers de l'îlot, détaillés
@@ -270,6 +273,39 @@ corne de cerf, gorgones, éponges, oursins, touffes d'herbier, rochers. Leurs mo
 `node tools/reef-glb.js` : remplacer l'un d'eux par un modèle de Blender suffit, le semis le ramène à sa taille.
 Essai : `--fond corail` (ou `herbier`, `rochers`…) pose l'œil sous l'eau sur le pâté le plus peuplé ;
 `--fond 2616,-1992` sur un point (mètres vrais).
+
+## Les récifs (Godot)
+
+`world/caraibes.json` → `recifs` : des plateaux de corail qui affleurent, à leur place réelle
+(les cayes de Port-Royal : Gun Cay, Rackham's Cay, Lime Cay, Maiden Cay, Drunkenman's Cay).
+
+```json
+{ "nom": "Lime Cay", "lat": 17.9184, "lon": -76.8200, "longueur": 200, "largeur": 100,
+  "cap": 75, "sommet": 0.3, "caye": true }
+```
+
+| champ | rôle |
+|---|---|
+| `lat` · `lon` | son centre, en coordonnées réelles |
+| `longueur` · `largeur` · `cap` | son plateau, en mètres du monde réduit, le grand axe au cap boussole ; le bord ondule de lui-même (un récif n'est pas une ellipse) |
+| `sommet` | la profondeur de sa crête sous la surface (0,5) ; jamais moins de 15 cm |
+| `tombant` | la largeur de la pente qui le rejoint au fond d'alentour, en mètres (40) |
+| `caye` | une caye de sable émerge en son milieu |
+
+Le récif RELÈVE le fond (`World.HeightAt`, `core/NavalSim.Core/Reefs.cs`) : la coque s'y échoue,
+le pilote de rade le contourne, l'eau y vire au turquoise. Le fond le peint de corail
+(`seabed.gdshaderinc`, la même forme que le noyau) et la carte marine le marque d'un pointillé et
+de croix, son nom à la loupe. Seize récifs au plus sont peints par région.
+
+**Le fond dur tue.** Sur le sable et la vase, une coque ne s'ouvre qu'à plus de 2,2 m/s
+(quatre nœuds), d'un petit trou que le charpentier bouche. Sur le CORAIL d'un récif et sur un
+ÉCUEIL (`"ecueil"` d'un semis), elle s'ouvre dès 0,8 m/s (un nœud et demi), d'un trou qui grandit
+avec la vitesse et qu'on ne bouche pas, et elle RACLE : une couture de plus toutes les secondes
+et demie tant qu'elle avance dessus. Clouée sur du dur et à moitié pleine pendant vingt secondes,
+elle est perdue — une coque crevée sur un récif ne coule pas, elle s'y assied, et la houle
+l'achève. Banc : `-- ecueil [nœuds]` (un sloop sur Lime Cay, une roche, une plage) ;
+`-- sonde lat lon [demi-côté] [pas]` dessine le fond en caractères.
+Essai : `--fond x,z,hauteur` pose l'œil au-dessus d'un point.
 
 ## Le centre-ville d'un port (Godot)
 

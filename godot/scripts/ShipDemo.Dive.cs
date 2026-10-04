@@ -402,7 +402,7 @@ public partial class ShipDemo
         }
         // « x,z » en mètres vrais vise un point ; un mot, le pâté d'une foule
         var xz = _bedTest.Split(',');
-        (double X, double Z)? at = xz.Length == 2 && double.TryParse(xz[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var bx)
+        (double X, double Z)? at = xz.Length >= 2 && double.TryParse(xz[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var bx)
             && double.TryParse(xz[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var bz)
             ? (bx, bz) : _bedTest.Length > 0 ? _land?.CrowdSpot(_bedTest) : null;
         if (_bedTest.Length > 0 && at is { } spot)
@@ -412,6 +412,9 @@ public partial class ShipDemo
             float bed = (float)_world!.HeightAt(spot.X, spot.Z);
             _fixLook = new Vector3((float)(spot.X - o.X), bed + 0.5f, (float)(spot.Z - o.Z));
             _fixEye = _fixLook + new Vector3(9, Math.Max(2.5f, Math.Min(5f, -bed - 1.5f)), 11);
+            // « x,z,h » : l'œil haut de h mètres, en recul — le récif vu du ciel
+            if (xz.Length == 3 && float.TryParse(xz[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var eh))
+                _fixEye = _fixLook + new Vector3(eh * 0.6f, eh, eh * 0.8f);
             _planted = true;
             GD.Print(FormattableString.Invariant($"[fond] « {_bedTest} » : pâté en ({spot.X:F0}, {spot.Z:F0}), par {-bed:F1} m"));
             _bedTest = "";

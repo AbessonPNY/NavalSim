@@ -359,6 +359,43 @@ public partial class ChartNode : Node
                 DrawString(_c._font, p + new Vector2(7 * Q * Wk, 4 * Q * Wk), isl.Name,
                     HorizontalAlignment.Left, -1, Fs(been ? 15 : 13), ink);
             }
+            /* LES RÉCIFS, comme les marquaient les cartes du temps : un pointillé qui
+               en suit le bord, de petites croix dedans — la croix est la roche qui
+               affleure —, et le nom de la caye. Un récif se lit même quand il tient
+               en trois pixels : le signe a une taille minimale. Seulement là où le
+               voile est percé, comme les ports. */
+            foreach (var rf in _c._world.ReefList)
+            {
+                float seen = _c.Seen(rf.X, rf.Z);
+                if (seen < 0.25f) continue;
+                var ink = new Color(0.28f, 0.19f, 0.12f, 0.45f + 0.45f * seen);
+                var c = At(rf.X, rf.Z);
+                var pl = At(rf.X + rf.Ux * rf.HalfL, rf.Z + rf.Uz * rf.HalfL) - c;
+                var pw = At(rf.X - rf.Uz * rf.HalfW, rf.Z + rf.Ux * rf.HalfW) - c;
+                // au moins quatre points de plume de long, et la moitié de large
+                float minL = 4f * Q * Wk;
+                // son nom seulement quand la loupe le montre à sa taille : de loin, cinq
+                // cayes en un pouce ne sont qu'une tache de noms
+                bool named = pl.Length() >= minL;
+                if (pl.Length() < minL) pl = pl.Normalized() * minL;
+                if (pw.Length() < minL * 0.55f) pw = pw.Normalized() * minL * 0.55f;
+                const int dots = 18;
+                for (int k = 0; k < dots; k++)
+                {
+                    float a = k * Mathf.Tau / dots;
+                    DrawCircle(c + pl * Mathf.Cos(a) + pw * Mathf.Sin(a), 0.55f * Q * Wk, ink);
+                }
+                float arm = 1.1f * Q * Wk;
+                for (int k = 0; k < 4; k++)
+                {
+                    var p = c + pl * (0.45f * ((k & 1) == 0 ? -1 : 1)) + pw * (k < 2 ? -0.3f : 0.3f);
+                    DrawLine(p - new Vector2(arm, 0), p + new Vector2(arm, 0), ink, 0.6f * Q * Wk);
+                    DrawLine(p - new Vector2(0, arm), p + new Vector2(0, arm), ink, 0.6f * Q * Wk);
+                }
+                if (named)
+                    DrawString(_c._font, c + new Vector2(pl.Length() + 3 * Q * Wk, 3 * Q * Wk), rf.Spec.Name,
+                        HorizontalAlignment.Left, -1, Fs(11), ink);
+            }
             // les villes sans port — Kingston derrière les Palisadoes — de même
             foreach (var tw in _c._world.Region.Towns)
             {

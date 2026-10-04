@@ -67,6 +67,8 @@ public partial class ShipDemo
             {
             s.Build(spec);
             s.Physics.World = _world;
+            // les pontons aussi : RefreshJetties ne les donne qu'à qui est déjà à l'eau
+            s.Physics.Jetties = _jetties;
             s.Ctrl.SailsSet = true;
             s.Ctrl.Sheet = 0.6;
             double y = SettleAfloat(s, _sea.Core);

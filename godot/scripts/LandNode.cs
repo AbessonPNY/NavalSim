@@ -39,6 +39,12 @@ public partial class LandNode : Node3D
 
     /// <summary>Les matériaux que <see cref="SkyNode.PushTo"/> doit tenir à jour.</summary>
     public readonly List<ShaderMaterial> Hazed = new();
+    /// <summary>
+    /// Ce qui ondule sur le fond (seaweed.gdshader) : la démo leur pousse la houle et
+    /// l'abri à chaque image, comme au fond lui-même — le ressac doit être celui de
+    /// la mer qu'on voit.
+    /// </summary>
+    public readonly List<ShaderMaterial> Swaying = new();
 
     /// <summary>
     /// LA MATIÈRE DU RELIEF — et, avec elle, les caustiques du fond. Elle lit la
@@ -101,6 +107,23 @@ public partial class LandNode : Node3D
         _mat.SetShaderParameter("u_seagrass", new Vector3(Seagrass.R, Seagrass.G, Seagrass.B));
         // la roche des tombants, celle des sommets (seabed.gdshaderinc)
         _mat.SetShaderParameter("u_rock", new Vector3(Rock.R, Rock.G, Rock.B));
+        /* LES RÉCIFS, les mêmes ellipses que le noyau relève (Reef) : le fond les
+           peint de corail. Seize au plus, ceux de la région chargée. */
+        if (Config.Reefs && World.ReefList.Count > 0)
+        {
+            int n = Math.Min(16, World.ReefList.Count);
+            var ra = new Vector4[16]; var rb = new Vector4[16];
+            for (int i = 0; i < n; i++)
+            {
+                var r = World.ReefList[i];
+                ra[i] = new Vector4((float)r.X, (float)r.Z, (float)r.Ux, (float)r.Uz);
+                rb[i] = new Vector4((float)r.HalfL, (float)r.HalfW, (float)r.Spec.Edge, (float)r.Phase);
+            }
+            _mat.SetShaderParameter("u_reef_a", ra);
+            _mat.SetShaderParameter("u_reef_b", rb);
+            _mat.SetShaderParameter("u_reef_n", n);
+            if (World.ReefList.Count > 16) GD.PushWarning($"[monde] {World.ReefList.Count} récifs : seuls les seize premiers sont peints");
+        }
 
     }
 
@@ -276,14 +299,29 @@ public partial class LandNode : Node3D
     /// cap (par rapport à celui de sa pose) et l'échelle. Sa hauteur suit le sol à
     /// sa nouvelle place, à ce qu'il était levé ou enfoncé près.
     /// </summary>
-    void Register(Placed pl, string id, string label, string family, double x, double z, double yaw, double wy, double radius, double height)
+    /// <summary>
+    /// LE ROCHER D'UN ÉCUEIL, tenu à sa place vue : posé, déplacé, remis à l'échelle,
+    /// retiré, rendu — chaque geste de l'éditeur le dit au solveur. Son pied est
+    /// celui de l'objet (GroundY), son sommet à sa hauteur de rocher au-dessus.
+    /// </summary>
+    public static void PushRock(World w, Editable ed)
+    {
+        if (ed.HazardR <= 0) return;
+        if (ed.Removed) { if (ed.Rock != null) w.Rocks.Remove(ed.Rock); return; }
+        double r = ed.HazardR * ed.Scale, top = ed.GroundY + ed.HazardH * ed.Scale;
+        if (ed.Rock == null) ed.Rock = w.Rocks.Add(ed.X, ed.Z, r, ed.GroundY - 0.3, top);
+        else { ed.Rock.R = r; w.Rocks.Move(ed.Rock, ed.X, ed.Z, ed.GroundY - 0.3, top); }
+    }
+
+    void Register(Placed pl, string id, string label, string family, double x, double z, double yaw, double wy, double radius, double height,
+                  double hazardR = 0, double hazardH = 0)
     {
         var hold = pl.Node;
         double lift = wy - World.HeightAt(x, z);
         var e = new Editable
         {
             Id = id, Label = label, BaseX = x, BaseZ = z, BaseYaw = yaw, X = x, Z = z, Yaw = yaw,
-            Radius = radius, Height = height,
+            Radius = radius, Height = height, HazardR = hazardR, HazardH = hazardH,
             Family = family, FamilyLabel = label,
             // la copie : ce que porte le nœud, déjà tourné de son cap et mis à sa taille
             MakeVisual = () => (Node3D)hold.GetChild(0).Duplicate(), VisualYaw = yaw, Lift = lift
@@ -298,6 +336,7 @@ public partial class LandNode : Node3D
             hold.Scale = Vector3.One * (float)ed.Scale;
             hold.Visible = !ed.Removed;
             ed.GroundY = (ed.Moved ? ground : wy - lift) + ed.Dy;
+            PushRock(World, ed);
         };
         if (Editor != null) Editor.Add(e); else e.Push(e);
     }
@@ -396,12 +435,15 @@ public partial class LandNode : Node3D
                 // enfoncé d'une part de sa demi-hauteur (« enfonce » : 0,4 pour un rocher)
                 var pl = _assets.Add(hold, p.X, World.HeightAt(p.X, p.Z) + bb.Size.Y * k * 0.5 * (1 - sp.Sink), p.Z);
                 // le centre de la copie est à pl.Y : son pied, une demi-hauteur plus bas
+                // un écueil : un peu en dedans de sa boîte (un rocher n'est pas un pavé), et
+                // haut de ce qui sort du fond — sa hauteur, moins la part enfoncée
                 Register(pl, $"semis:{sp.Name}:{index}", sp.Name, "semis:" + sp.Name, p.X, p.Z, p.Yaw, pl.Y,
-                    p.Size * 0.5, bb.Size.Y * k);
+                    p.Size * 0.5, bb.Size.Y * k,
+                    sp.Hazard ? Math.Max(bb.Size.X, bb.Size.Z) * k * 0.5 * 0.85 : 0, bb.Size.Y * k * (1 - 0.5 * sp.Sink));
                 total++;
             }
         }
-        if (total > 0) GD.Print($"monde : {total} élément(s) semé(s) en {clock.ElapsedMilliseconds} ms");
+        if (total > 0) GD.Print($"monde : {total} élément(s) semé(s) en {clock.ElapsedMilliseconds} ms, dont {World.Rocks.Count} écueil(s)");
     }
 
     /// <summary>La case d'une foule, en mètres : chacune est un paquet, dessiné ou non selon sa distance.</summary>
@@ -438,7 +480,8 @@ public partial class LandNode : Node3D
             for (Node? up = mi; up != null && up != root; up = up.GetParent()) if (up is Node3D n3) t = n3.Transform * t;
             var mesh = (Mesh)mi.Mesh.Duplicate();
             if (mesh is ArrayMesh am)
-                for (int s = 0; s < am.GetSurfaceCount(); s++) am.SurfaceSetMaterial(s, mi.GetActiveMaterial(s));
+                for (int s = 0; s < am.GetSurfaceCount(); s++)
+                    am.SurfaceSetMaterial(s, sp.Sway > 0 ? Swayer(mi.GetActiveMaterial(s), mesh.GetAabb(), sp.Sway) : mi.GetActiveMaterial(s));
             parts.Add((mesh, t));
         }
         if (parts.Count == 0) return 0;
@@ -458,6 +501,12 @@ public partial class LandNode : Node3D
             if (!cells.TryGetValue(key, out var list)) cells[key] = list = new List<Transform3D>();
             list.Add(t);
             n++;
+            // un écueil de la foule : pas de retouche, donc inscrit une fois pour toutes
+            if (sp.Hazard)
+            {
+                double bed = World.HeightAt(p.X, p.Z);
+                World.Rocks.Add(p.X, p.Z, Math.Max(bb.Size.X, bb.Size.Z) * k * 0.5 * 0.85, bed - 0.3, bed + bb.Size.Y * k * (1 - 0.5 * sp.Sink));
+            }
         }
         foreach (var (key, list) in cells)
         {
@@ -482,6 +531,23 @@ public partial class LandNode : Node3D
         }
         GD.Print($"monde : « {sp.Name} », {n} pièce(s) en {cells.Count} case(s)");
         return n;
+    }
+
+    /// <summary>
+    /// La matière qui ondule, à la couleur et au grain de celle du modèle. La brume
+    /// est dedans : une passe redessinerait la géométrie immobile par-dessus.
+    /// </summary>
+    ShaderMaterial Swayer(Material? from, Aabb box, double bend)
+    {
+        var col = from is BaseMaterial3D bm ? bm.AlbedoColor : new Color(0.2f, 0.3f, 0.1f);
+        var m = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/seaweed.gdshader") };
+        m.SetShaderParameter("u_albedo", new Vector3(col.R, col.G, col.B));
+        m.SetShaderParameter("u_roughness", from is BaseMaterial3D b2 ? b2.Roughness : 0.8f);
+        m.SetShaderParameter("u_base_y", box.Position.Y);
+        m.SetShaderParameter("u_height", Math.Max(box.Size.Y, 1e-3f));
+        m.SetShaderParameter("u_bend", (float)bend);
+        Swaying.Add(m);
+        return m;
     }
 
     public void Update(Vec3d centre, Vec3d origin, bool eager = false)

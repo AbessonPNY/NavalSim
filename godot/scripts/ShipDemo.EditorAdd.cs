@@ -84,7 +84,7 @@ public partial class ShipDemo
     {
         if (sheet.Length > 0) return SpawnHull(id, sheet, x, z, yaw);
         Func<Node3D>? make;
-        double vyaw = 0, lift = 0, radius = 1, height = 1;
+        double vyaw = 0, lift = 0, radius = 1, height = 1, hazR = 0, hazH = 0;
         bool smoke = false;
         string family, flabel;
         if (from.Length > 0)
@@ -92,6 +92,7 @@ public partial class ShipDemo
             if (!_editReg!.ById.TryGetValue(from, out var src) || src.MakeVisual == null) return null;
             make = src.MakeVisual; vyaw = src.VisualYaw; lift = src.Lift; smoke = src.Smoke;
             radius = src.Radius; height = src.Height; family = src.Family; flabel = src.FamilyLabel;
+            hazR = src.HazardR; hazH = src.HazardH;          // la copie d'un écueil en est un
         }
         else
         {
@@ -109,7 +110,7 @@ public partial class ShipDemo
             Id = id, From = from, Glb = glb, Label = "ajout : " + flabel,
             BaseX = x, BaseZ = z, BaseYaw = yaw, X = x, Z = z, Yaw = yaw, Scale = scale, Dy = dy,
             Radius = radius, Height = height, MakeVisual = make, VisualYaw = vyaw, Lift = lift,
-            Family = family, FamilyLabel = flabel, Smoke = smoke
+            Family = family, FamilyLabel = flabel, Smoke = smoke, HazardR = hazR, HazardH = hazH
         };
         e.Push = ed =>
         {
@@ -127,6 +128,7 @@ public partial class ShipDemo
             hold.Scale = Vector3.One * (float)ed.Scale;
             hold.Visible = !ed.Removed;
             ed.GroundY = g + ed.Dy;
+            LandNode.PushRock(_world, ed);
         };
         _editReg!.AddNew(e);
         // la copie d'une maison emporte ses cheminées, qui la suivent comme les siennes

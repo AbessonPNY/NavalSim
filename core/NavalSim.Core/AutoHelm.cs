@@ -33,6 +33,8 @@ public sealed class AutoHelm
     public double MinLeg = 300;
 
     public int BeatSide = 1;       // le bord où elle est quand elle remonte au vent
+    /// <summary>L'erre pour laquelle les gains de barre sont faits (m/s, cinq nœuds) : Config.HelmBySpeed.</summary>
+    const double HelmRef = 2.6;
     /// <summary>
     /// ELLE VIRE VENT DEVANT au lieu de lof pour lof : ce que fait un voilier aurique,
     /// aidé par l'équipage (ShipPhysics.Tack.cs). Faux par défaut — le large a la
@@ -47,6 +49,17 @@ public sealed class AutoHelm
     public bool Beating { get; private set; }
     public bool Wearing { get; private set; }
 
+    /// <summary>
+    /// ELLE SONDE (Config.HelmSounds) : le pilote de rade a sa propre sonde et ses
+    /// routes tracées dans l'eau, il l'éteint pour lui.
+    /// </summary>
+    public bool Sounds = true;
+    /// <summary>Le cap de dérobade qu'elle tient devant un danger (radians), ou nul.</summary>
+    public double? Dodging { get; private set; }
+    double _soundT, _dodgeHold;
+    int _clearCount;
+    readonly System.Collections.Generic.List<RockField.Rock> _rocks = new();
+
     public AutoHelm(ShipPhysics physics, double? closeHauled = null, double? standoff = null)
     {
         _ph = physics;
@@ -57,6 +70,77 @@ public sealed class AutoHelm
     }
 
     static double Wrap(double a) => Math.Atan2(Math.Sin(a), Math.Cos(a));
+
+    /// <summary>
+    /// UN COUP DE SONDE, toutes les demi-secondes. La quille demande son tirant d'eau
+    /// et un mètre ; on regarde le long d'un cap jusqu'à quatre longueurs, ou trente
+    /// secondes de route si elle court, et un écueil compte par son sommet.
+    /// </summary>
+    void Sound(IGround ground, Ocean ocean, ref double want, double windFrom, double bearing)
+    {
+        var S = _ph.Spec; var b = _ph.Body;
+        double need = S.Hull.KeelDepth + S.Hull.KeelExtra + 1.0;
+        double look = Math.Max(80, Math.Max(4 * S.L, b.Vel.LengthXZ * 30));
+        double ox = ocean.Origin.X + b.Pos.X, oz = ocean.Origin.Z + b.Pos.Z;
+        var rocks = ground.Rocks;
+
+        bool Clear(double hdg)
+        {
+            double fx = -Math.Sin(hdg), fz = Math.Cos(hdg);
+            for (int k = 1; k <= 6; k++)
+            {
+                double px = ox + fx * look * k / 6, pz = oz + fz * look * k / 6;
+                double depth = -ground.HeightAt(px, pz);
+                if (rocks is { Count: > 0 })
+                {
+                    rocks.Near(px, pz, S.B * 0.6, _rocks);
+                    for (int i = 0; i < _rocks.Count; i++) depth = Math.Min(depth, -_rocks[i].Top);
+                }
+                if (depth < need) return false;
+            }
+            return true;
+        }
+        // un cap qu'une voile peut tenir : hors du lit du vent
+        bool Sailable(double hdg) => UnderPower || Math.Abs(Wrap(hdg - windFrom)) >= CloseHauled - 0.02;
+
+        bool wantClear = Clear(want);
+        if (Dodging is double dg)
+        {
+            // il revient à sa marque quand elle est libre deux coups de suite, et pas avant le temps tenu
+            _clearCount = wantClear ? _clearCount + 1 : 0;
+            if (_clearCount >= 2 && _dodgeHold <= 0) { Dodging = null; _clearCount = 0; }
+            else if (!Clear(dg)) Dodging = null;          // la dérobade elle-même est barrée : on cherche à nouveau
+            else return;
+        }
+        if (wantClear) return;
+
+        // au près, le danger est sur CE bord : l'autre bord, s'il passe
+        if (Beating)
+        {
+            double other = windFrom - BeatSide * CloseHauled;
+            if (Clear(other))
+            {
+                BeatSide = -BeatSide; _legT = 0; _iErr = 0;
+                want = other;
+                return;
+            }
+        }
+        // le cap libre le plus proche du sien, en commençant du côté de la marque
+        int first = Wrap(bearing - want) >= 0 ? 1 : -1;
+        for (int i = 1; i <= 10; i++)
+            for (int s = 0; s < 2; s++)
+            {
+                int side = s == 0 ? first : -first;
+                double h = Wrap(want + side * i * 0.26);
+                if (!Sailable(h) || !Clear(h)) continue;
+                Dodging = h; _dodgeHold = 8; _clearCount = 0;
+                return;
+            }
+        // tout est barré devant : demi-tour, par où le vent le permet
+        double back = Wrap(want + Math.PI);
+        Dodging = Sailable(back) ? back : Wrap(windFrom + Math.PI);
+        _dodgeHold = 12; _clearCount = 0;
+    }
 
     /// <summary>
     /// Une image. Les commandes sont DONNÉES à chaque appel, jamais retenues : une
@@ -118,6 +202,27 @@ public sealed class AutoHelm
             Beating = false;
         }
 
+        /* LA SONDE. Tout navire mené par le jeu sonde devant son étrave, sans quoi il
+           court droit sur le premier récif entre lui et sa marque — et le fond dur
+           le tue maintenant. Au près, un danger sur son bord le fait changer de bord ;
+           sinon il prend le cap le plus proche du sien qui passe, d'un bord ou de
+           l'autre, et le tient quelques secondes avant de revenir à sa marque. */
+        if (Config.HelmSounds && Sounds && _ph.World is { } ground)
+        {
+            _soundT -= dt;
+            _dodgeHold -= dt;
+            if (_soundT <= 0)
+            {
+                _soundT = 0.5;
+                Sound(ground, ocean, ref want, windFrom, bearing);
+            }
+            if (Dodging is double dg)
+            {
+                want = dg;
+                Beating = false;
+            }
+        }
+
         double err = Wrap(want - heading);
         double rate = b.AngVel.Y;
 
@@ -146,7 +251,19 @@ public sealed class AutoHelm
            équilibrée ; borné, et nul au près. */
         if (Beating) _iErr = 0;
         else _iErr = Math.Max(-0.55, Math.Min(0.55, _iErr + err * dt * 0.40));
-        c.Rudder = Math.Max(-1, Math.Min(1, eUse * 1.9 + _iErr - rate * 2.6));
+        /* MOINS DE BARRE QUAND ELLE COURT. La force du gouvernail croît comme le carré
+           de l'erre ; ces gains-ci sont ceux de la page, où un sloop file cinq nœuds.
+           Poussé par le gain de vent du jeu, il en file quatorze, le safran a dix fois
+           plus de main, et la barre surcorrige d'un bord à l'autre : un sillage en
+           serpent, 15 °/s de lacet moyen au portant (banc « rade », signalé). Au-delà
+           de cinq nœuds, la barre se donne donc comme l'inverse du carré de l'erre. */
+        double k = 1;
+        if (Config.HelmBySpeed)
+        {
+            double v = Math.Max(0.1, b.Vel.LengthXZ);
+            k = Math.Clamp((HelmRef / v) * (HelmRef / v), 0.12, 1);
+        }
+        c.Rudder = Math.Max(-1, Math.Min(1, k * (eUse * 1.9 + _iErr - rate * 2.6)));
 
         /* Les écoutes sur la marque que le solveur trace déjà pour la console. Rien
            ne FASEYE : ôter la poussée pour laisser le gouvernail seul est ce que

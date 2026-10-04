@@ -48,7 +48,8 @@ public sealed class HarbourPilot
     {
         _ph = ph; _w = w; _route = route; _need = need;
         // des bords courts : une rade n'a pas la place de ceux du large
-        Helm = new AutoHelm(ph, standoff: 0) { MinLeg = 60 };
+        // sa route est tracée dans l'eau et il a sa propre sonde : celle de la barre se tait
+        Helm = new AutoHelm(ph, standoff: 0) { MinLeg = 60, Sounds = false };
         // un gréement aurique vire vent devant ; un carré abat, il n'a pas le choix
         _foreAft = ph.Spec.Rig.Type is "gaff" or "lateen" or "sloop";
     }
@@ -62,8 +63,9 @@ public sealed class HarbourPilot
         double x = b.Pos.X + ocean.Origin.X, z = b.Pos.Z + ocean.Origin.Z;
         if (Beyond && Onward is { } on)
         {
-            // en route pour plus loin : la barre seule, droit sur le lieu
+            // en route pour plus loin : la barre seule, droit sur le lieu — et elle sonde, hors de la route tracée
             Helm.Tacks = false;
+            Helm.Sounds = true;
             Helm.Target = new Vec3d(on.X - ocean.Origin.X, 0, on.Z - ocean.Origin.Z);
             Helm.Update(dt, ocean, c);
             return;

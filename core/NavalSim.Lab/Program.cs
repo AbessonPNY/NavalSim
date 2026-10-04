@@ -61,6 +61,9 @@ switch (mode)
     case "peche": Peche(); break;
     case "virement": Virement(); break;
     case "rade": Rade(); break;
+    case "sonde": Sonde(); break;
+    case "ecueil": Ecueil(); break;
+    case "sondeur": Sondeur(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -1128,6 +1131,171 @@ void Virement()
    Passage Fort, vers le large, et retour), puis un sloop et un cotre qui les
    courent sous le pilote de rade, vent du départ (105°, force 4).
      dotnet run --project core/NavalSim.Lab -c Release -- rade [gain] [force] [vent] */
+/* LA SONDE : une carte en caractères du fond autour d un point (lat lon [demi-côté m] [pas m]).
+   # terre · + moins de 2 m · : 2 à 5 · . 5 à 10 · , 10 à 20 · blanc au-delà. */
+void Sonde()
+{
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    var region = RegionSpec.FromJson(File.ReadAllText(Path.Combine(root, "world", "caraibes.json")));
+    var (iw, ih, grey) = GreyPng.Decode(File.ReadAllBytes(Path.Combine(root, region.Relief.Image)));
+    var imgs = new List<World.PatchImage>();
+    foreach (var pz in region.Patches)
+    {
+        string pi = Path.Combine(root, pz.Image);
+        if (!File.Exists(pi)) continue;
+        var (pw, ph, pg) = GreyPng.Decode(File.ReadAllBytes(pi));
+        imgs.Add(new World.PatchImage(pz, pw, ph, pg));
+    }
+    Config.Reefs = true;
+    var world = new World(region, iw, ih, grey, m => { }, imgs);
+    double lat = double.Parse(args[1], CultureInfo.InvariantCulture), lon = double.Parse(args[2], CultureInfo.InvariantCulture);
+    double half = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 2000;
+    double step = args.Length > 4 ? double.Parse(args[4], CultureInfo.InvariantCulture) : 50;
+    var (cx, cz) = world.Geo.ToXZ(lat, lon);
+    Console.WriteLine(FormattableString.Invariant($"sonde autour de ({cx:F0}, {cz:F0}), nord en haut, est à droite, {step} m par caractère"));
+    for (double z = cz + half; z >= cz - half; z -= step)
+    {
+        var sb = new System.Text.StringBuilder();
+        // est = -x : on lit de l ouest (x grand) à l est (x petit)
+        for (double x = cx + half; x >= cx - half; x -= step)
+        {
+            double h = world.HeightAt(x, z);
+            sb.Append(Math.Abs(x - cx) < step / 2 && Math.Abs(z - cz) < step / 2 ? (char)0x40 : h >= 0 ? (char)0x23 : h > -2 ? (char)0x2b : h > -5 ? (char)0x3a : h > -10 ? (char)0x2e : h > -20 ? (char)0x2c : (char)0x20);
+        }
+        Console.WriteLine(sb.ToString());
+    }
+}
+
+/* L'ÉCUEIL : un sloop lancé à six nœuds sur un récif (Lime Cay), sur une roche isolée
+   qui affleure, et sur une plage de sable — le corail et la roche doivent tuer, le
+   sable seulement arrêter. [nœuds] */
+void Ecueil()
+{
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    string shipsDir = Path.Combine(root, "ships");
+    var region = RegionSpec.FromJson(File.ReadAllText(Path.Combine(root, "world", "caraibes.json")));
+    var (iw, ih, grey) = GreyPng.Decode(File.ReadAllBytes(Path.Combine(root, region.Relief.Image)));
+    var imgs = new List<World.PatchImage>();
+    foreach (var pz in region.Patches)
+    {
+        string pi = Path.Combine(root, pz.Image);
+        if (!File.Exists(pi)) continue;
+        var (pw, ph, pg) = GreyPng.Decode(File.ReadAllBytes(pi));
+        imgs.Add(new World.PatchImage(pz, pw, ph, pg));
+    }
+    Config.Reefs = true; Config.WindGain = 8; Config.CrewTacks = true;
+    var world = new World(region, iw, ih, grey, m => { }, imgs);
+    double knots = args.Length > 1 ? double.Parse(args[1], CultureInfo.InvariantCulture) : 6;
+    var lime = world.ReefList.Find(x => x.Spec.Name == "Lime Cay")!;
+    // une roche qui affleure, seule, par fond de quinze mètres et plus, au sud de Lime Cay
+    double rx = lime.X, rz = lime.Z - 700;
+    var rock = world.Rocks.Add(rx, rz, 2.5, world.HeightAt(rx, rz), -0.4);
+    // la plage : la côte sud des Palisadoes, à l'est des cayes
+    var pr = world.ByKey("port-royal")!;
+    double sx = pr.X - 1500, sz = pr.Z - 2000;
+    while (world.HeightAt(sx, sz) < 0 && sz < pr.Z + 2000) sz += 5;
+    var cases = new (string Name, double X, double Z)[] { ("récif de Lime Cay", lime.X, lime.Z), ("roche isolée", rx, rz), ("plage des Palisadoes", sx, sz) };
+    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, "sloop.json")));
+    Console.WriteLine(FormattableString.Invariant($"{spec.Name}, lancé à {knots} nœuds ; {world.Rocks.Count} roche(s)"));
+    foreach (var (name, tx, tz) in cases)
+    {
+        // de 400 m au sud-ouest, droit dessus
+        double fx = tx + 280, fz = tz - 280;
+        if (world.HeightAt(fx, fz) > -4) { fx = tx; fz = tz - 400; }
+        var ocean = new Ocean { Swell = 1.0, Time = 0 };
+        ocean.SetSeaState(3, 105);
+        var ph = new ShipPhysics(spec, new HullLines(spec));
+        var ctrl = new Controls { Throttle = 0, Rudder = 0, Sheet = 0.5, SailsSet = false };
+        ph.Settle(ocean, ctrl);
+        ph.World = world;
+        double hd = Math.Atan2(tx - fx, tz - fz);
+        ph.Body.Pos = new Vec3d(fx, ph.Body.Pos.Y, fz);
+        ph.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), hd);
+        double v0 = knots * 0.5144;
+        ph.Body.Vel = new Vec3d(Math.Sin(hd) * v0, 0, Math.Cos(hd) * v0);
+        double dt = 1.0 / 30, tt = 0, hitAt = -1, hitSpd = 0;
+        while (tt < 600 && !ph.Foundered)
+        {
+            /* LANCÉ ET TENU À SON ERRE jusqu'au choc : on mesure ce que fait l'écueil
+               à six nœuds, pas ce que le vent du jour donne au sloop */
+            if (hitAt < 0)
+            {
+                ph.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), hd);
+                ph.Body.AngVel = Vec3d.Zero;
+                ph.Body.Vel = new Vec3d(Math.Sin(hd) * v0, ph.Body.Vel.Y, Math.Cos(hd) * v0);
+            }
+            ph.Step(dt, ocean, ctrl, tt); tt += dt;
+            if (hitAt < 0 && ph.Aground > 0.01) { hitAt = tt; hitSpd = ph.Body.Vel.LengthXZ / 0.5144; }
+        }
+        double area = 0; foreach (var b in ph.Breaches) area += b.Area;
+        Console.WriteLine(FormattableString.Invariant($"  {name} : {(hitAt < 0 ? "jamais touché" : FormattableString.Invariant($"touché à {hitAt:F0} s ({hitSpd:F1} nd)"))}, {ph.Breaches.Count} brèche(s), {area:F2} m² ; ")
+            + (ph.Foundered ? FormattableString.Invariant($"SOMBRÉ à {tt:F0} s, {tt - hitAt:F0} s après le choc") : FormattableString.Invariant($"à flot au bout de {tt:F0} s, échoué {ph.Aground:F2} m")));
+    }
+}
+
+/* LE SONDEUR : un sloop mené par la barre automatique (comme un pirate ou une
+   rencontre) dont la marque est de l'autre côté de Lime Cay — au vent, puis sous le
+   vent —, sans sonde puis avec. [gain] [force] [vent] */
+void Sondeur()
+{
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    var region = RegionSpec.FromJson(File.ReadAllText(Path.Combine(root, "world", "caraibes.json")));
+    var (iw, ih, grey) = GreyPng.Decode(File.ReadAllBytes(Path.Combine(root, region.Relief.Image)));
+    var imgs = new List<World.PatchImage>();
+    foreach (var pz in region.Patches)
+    {
+        string pi = Path.Combine(root, pz.Image);
+        if (!File.Exists(pi)) continue;
+        var (pw, ph0, pg) = GreyPng.Decode(File.ReadAllBytes(pi));
+        imgs.Add(new World.PatchImage(pz, pw, ph0, pg));
+    }
+    double gain = args.Length > 1 ? double.Parse(args[1], CultureInfo.InvariantCulture) : 8;
+    double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 4;
+    double windDeg = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 105;
+    Config.Reefs = true; Config.WindGain = gain; Config.CrewTacks = true; Config.HelmBySpeed = true;
+    var world = new World(region, iw, ih, grey, m => { }, imgs);
+    var lime = world.ReefList.Find(x => x.Spec.Name == "Lime Cay")!;
+    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(root, "ships", "sloop.json")));
+    // le vent vient du 105 (est-sud-est) : est = −x. Au vent, on part de l'ouest vers l'est.
+    var legs = new (string Name, double Fx, double Fz, double Tx, double Tz)[]
+    {
+        ("au vent, de l'ouest à l'est", lime.X + 600, lime.Z + 30, lime.X - 600, lime.Z - 30),
+        ("sous le vent, de l'est à l'ouest", lime.X - 600, lime.Z - 30, lime.X + 600, lime.Z + 30),
+    };
+    Console.WriteLine(FormattableString.Invariant($"{spec.Name} contre Lime Cay ; gain {gain}, force {force}, vent {windDeg}°"));
+    foreach (bool sounds in new[] { false, true })
+        foreach (var (name, fx, fz, tx, tz) in legs)
+        {
+            Config.HelmSounds = sounds;
+            var ocean = new Ocean { Swell = 1.0, Time = 0 };
+            ocean.SetSeaState(force, windDeg);
+            var ph = new ShipPhysics(spec, new HullLines(spec));
+            var ctrl = new Controls { Throttle = 0, Rudder = 0, Sheet = 0.5, SailsSet = true };
+            ph.Settle(ocean, ctrl);
+            ph.World = world;
+            double hd = Math.Atan2(tx - fx, tz - fz);
+            ph.Body.Pos = new Vec3d(fx, ph.Body.Pos.Y, fz);
+            ph.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), hd);
+            var helm = new AutoHelm(ph) { Target = new Vec3d(tx, 0, tz) };
+            double dt = 1.0 / 30, tt = 0, aground = 0, minDepth = 99, closest = 1e9;
+            int dodges = 0; bool was = false;
+            while (tt < 1500 && !ph.Foundered)
+            {
+                helm.Update(dt, ocean, ctrl);
+                ph.Step(dt, ocean, ctrl, tt); tt += dt;
+                var bp = ph.Body.Pos;
+                if (ph.Aground > 0.01) aground += dt;
+                minDepth = Math.Min(minDepth, -world.HeightAt(bp.X, bp.Z));
+                closest = Math.Min(closest, Math.Sqrt((bp.X - tx) * (bp.X - tx) + (bp.Z - tz) * (bp.Z - tz)));
+                bool now = helm.Dodging != null; if (now && !was) dodges++; was = now;
+                if (closest < spec.L * 3) break;
+            }
+            double area = 0; foreach (var br in ph.Breaches) area += br.Area;
+            Console.WriteLine(FormattableString.Invariant(
+                $"  {(sounds ? "AVEC sonde" : "sans sonde")}, {name} : {(closest < spec.L * 3 ? "rendu" : "pas rendu")} en {tt / 60:F1} min (au plus près à {closest:F0} m), échoué {aground:F0} s, fond mini {minDepth:F1} m, {ph.Breaches.Count} brèche(s) {area:F2} m², {dodges} dérobade(s){(ph.Foundered ? ", SOMBRÉ" : "")}"));
+        }
+}
+
 void Rade()
 {
     string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
@@ -1145,7 +1313,8 @@ void Rade()
     double gain = args.Length > 1 ? double.Parse(args[1], CultureInfo.InvariantCulture) : 8;
     double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 4;
     double windDeg = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 105;
-    Config.WindGain = gain; Config.CrewTacks = true;
+    Config.WindGain = gain; Config.CrewTacks = true; Config.Reefs = true;
+    Config.HelmBySpeed = !(args.Length > 6 && args[6] == "page");
     (double, double) Quay(string key)
     {
         var p = world.ByKey(key)!.Port;
@@ -1181,18 +1350,19 @@ void Rade()
             p2.Body.Pos = new Vec3d(route[0].X, p2.Body.Pos.Y, route[0].Z);
             p2.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), hd);
             var pilot = new HarbourPilot(p2, world, route, need);
-            double dt = 1.0 / 30, t = 0, aground = 0, minDepth = 99, sailed = 0;
+            double dt = 1.0 / 30, t = 0, aground = 0, minDepth = 99, sailed = 0, yawAbs = 0, rudAbs = 0;
             var last = p2.Body.Pos;
             while (t < 2400 && !pilot.Arrived)
             {
                 pilot.Update(dt, ocean, ctrl);
                 p2.Step(dt, ocean, ctrl, t); t += dt;
-                if (args.Length > 4 && args[4] == "trace" && rn.StartsWith("Port-Royal -> Passage") && name == "sloop" && Math.Floor(t / 10) != Math.Floor((t - dt) / 10) && t < 300)
+                if (args.Length > 4 && args[4] == "trace" && rn.StartsWith(args.Length > 5 ? args[5] : "Port-Royal -> Passage") && name == "sloop" && Math.Floor(t / 10) != Math.Floor((t - dt) / 10) && t < 600)
                 {
                     var fw = p2.Body.Quat.Rotate(new Vec3d(0, 0, 1)); var bp0 = p2.Body.Pos;
                     Console.WriteLine(FormattableString.Invariant($"     t {t,4:F0} pos ({bp0.X:F0},{bp0.Z:F0}) fond {-world.HeightAt(bp0.X, bp0.Z),5:F1} cap {(Math.Atan2(-fw.X, fw.Z) * 180 / Math.PI + 360) % 360,4:F0} erre {Math.Sqrt(p2.Body.Vel.X * p2.Body.Vel.X + p2.Body.Vel.Z * p2.Body.Vel.Z) / 0.5144,5:F1} nd barre {ctrl.Rudder,4:F1} près {pilot.Helm.Beating} lof {pilot.Helm.Wearing} vire {p2.TackPhase} échoue {p2.Aground:F2} marque {pilot.Leg}"));
                 }
                 if (p2.Aground > 0.01) aground += dt;
+                yawAbs += Math.Abs(p2.Body.AngVel.Y) * dt; rudAbs += Math.Abs(ctrl.Rudder) * dt;
                 var bp = p2.Body.Pos;
                 minDepth = Math.Min(minDepth, -world.HeightAt(bp.X, bp.Z));
                 sailed += Math.Sqrt((bp.X - last.X) * (bp.X - last.X) + (bp.Z - last.Z) * (bp.Z - last.Z));
@@ -1200,7 +1370,7 @@ void Rade()
             }
             var e = route[^1]; var bpe = p2.Body.Pos;
             double left = Math.Sqrt((e.X - bpe.X) * (e.X - bpe.X) + (e.Z - bpe.Z) * (e.Z - bpe.Z));
-            Console.WriteLine(FormattableString.Invariant($"  {rn} : {route.Count} marques, {len / 1852:F2} M ; {(pilot.Arrived ? "ARRIVÉ" : "pas arrivé, reste " + left.ToString("F0") + " m, marque " + pilot.Leg)} en {t / 60:F1} min, {sailed / 1852:F2} M parcourus, échoué {aground:F0} s, fond mini {minDepth:F1} m"));
+            Console.WriteLine(FormattableString.Invariant($"  {rn} : {route.Count} marques, {len / 1852:F2} M ; {(pilot.Arrived ? "ARRIVÉ" : "pas arrivé, reste " + left.ToString("F0") + " m, marque " + pilot.Leg)} en {t / 60:F1} min, {sailed / 1852:F2} M parcourus, échoué {aground:F0} s, fond mini {minDepth:F1} m ; lacet moyen {yawAbs / t * 180 / Math.PI:F1}°/s, barre moyenne {rudAbs / t:F2}"));
         }
     }
     // LE CHALAND POUR CARTHAGÈNE : la route du large, puis le cap sur la ville

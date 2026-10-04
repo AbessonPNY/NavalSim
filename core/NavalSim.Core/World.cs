@@ -161,6 +161,8 @@ public sealed class RegionSpec
     /// <summary>Les pontons et les navires au mouillage que la fiche pose elle-même (Godot).</summary>
     public readonly List<PierSpec> Piers = new();
     public readonly List<AnchoredSpec> Anchored = new();
+    /// <summary>Les récifs de corail (« recifs ») : le fond relevé en plateau, et dur.</summary>
+    public readonly List<ReefSpec> Reefs = new();
 
     public static RegionSpec FromJson(string json)
     {
@@ -253,6 +255,14 @@ public sealed class RegionSpec
                     Side = p.TryGetProperty("cote", out var cs) ? cs.GetDouble() : 1024,
                     Step = p.TryGetProperty("pas", out var st) ? st.GetDouble() : 0.5
                 });
+        if (r.TryGetProperty("recifs", out var rf) && rf.ValueKind == JsonValueKind.Array)
+            foreach (var a in rf.EnumerateArray())
+                s.Reefs.Add(new ReefSpec
+                {
+                    Name = Js.Str(a, "nom"), Lat = Js.Num(a, "lat"), Lon = Js.Num(a, "lon"),
+                    Length = Js.Num(a, "longueur", 200), Width = Js.Num(a, "largeur", 100), Cap = Js.Num(a, "cap"),
+                    Top = Js.Num(a, "sommet", 0.5), Edge = Js.Num(a, "tombant", 40), Cay = Js.True(a, "caye")
+                });
         if (r.TryGetProperty("semis", out var sz) && sz.ValueKind == JsonValueKind.Array)
             foreach (var a in sz.EnumerateArray())
             {
@@ -278,6 +288,9 @@ public sealed class RegionSpec
                 { sp.Clusters = am[0].GetInt32(); sp.ClusterR = am[1].GetDouble(); }
                 sp.Crowd = Js.True(a, "foule");
                 sp.Meadow = Js.True(a, "herbier");
+                sp.Sway = a.Opt("ondule") ?? 0;
+                sp.Hazard = Js.True(a, "ecueil");
+                sp.OnReef = Js.True(a, "recifs");
                 if (sp.Glb.Length > 0) s.Scatters.Add(sp);
             }
         return s;
@@ -378,6 +391,10 @@ public sealed class World : IGround
 
     readonly double[] _lut = new double[256];
     public readonly List<Isle> Isles = new();
+    /// <summary>Les récifs posés (Reefs.cs) — lus par <see cref="HeightAt"/> quand <see cref="Config.Reefs"/> le permet.</summary>
+    public readonly List<Reef> ReefList = new();
+    /// <summary>Les rochers qui comptent, inscrits par le moteur qui les pose (Reefs.cs).</summary>
+    public readonly RockField Rocks = new();
     public double LongestLeg { get; private set; }
     /// <summary>Jusqu'où la carte peut s'ouvrir : toute l'image depuis son milieu.</summary>
     public double Extent { get; private set; }
@@ -403,6 +420,7 @@ public sealed class World : IGround
         if (patches != null) _patches.AddRange(patches);
         HarbourDepth = region.HarbourDepth;
         Geo = new Geo(region.OriginLat, region.OriginLon, region.Scale);
+        foreach (var rs in region.Reefs) ReefList.Add(new Reef(rs, Geo));
 
         Px = (Relief.North - Relief.South) * Core.Geo.MPerMin * 60 * region.Scale / h;
         for (int v = 0; v < 256; v++) _lut[v] = Decode(v);
@@ -528,7 +546,15 @@ public sealed class World : IGround
     /// port en font partie — LE MÔLE EST DE LA TERRE : un mur qui est de la terre
     /// est un mur que l'échouage connaît déjà.
     /// </summary>
-    public double HeightAt(double x, double z) => Mole(x, z, Dredge(x, z, IslandHeight(x, z)));
+    public double HeightAt(double x, double z) => Mole(x, z, Dredge(x, z, ReefHeight(x, z, IslandHeight(x, z))));
+
+    double ReefHeight(double x, double z, double h) => Config.Reefs && ReefList.Count > 0 ? Reefs.Apply(ReefList, x, z, h) : h;
+
+    /// <summary>Sur un récif ici, de 0 à 1 : le fond y est de corail, DUR — une coque s'y ouvre.</summary>
+    public double ReefAt(double x, double z) => Config.Reefs && ReefList.Count > 0 ? Reefs.At(ReefList, x, z) : 0;
+
+    double IGround.HardAt(double x, double z) => ReefAt(x, z);
+    RockField? IGround.Rocks => Rocks;
 
     /// <summary>Le relief seul, ouvrages exclus — ce contre quoi un môle se mesure.</summary>
     public double IslandHeight(double x, double z) => Decode(Grey(x, z));
