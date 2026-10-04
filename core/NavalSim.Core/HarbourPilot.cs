@@ -33,6 +33,11 @@ public sealed class HarbourPilot
     /// dernière marque passée — Carthagène, au-delà du large. Nul : on s'arrête.
     /// </summary>
     public (double X, double Z)? Onward;
+    /// <summary>
+    /// À QUELLE DISTANCE DE LA DERNIÈRE MARQUE on est rendu (m) ; négatif : deux fois la
+    /// portée d'une marque. Un poste au bout d'un ponton se prend de plus près que le large.
+    /// </summary>
+    public double LastReach = -1;
     /// <summary>La route est faite et l'on continue vers <see cref="Onward"/>.</summary>
     public bool Beyond { get; private set; }
     /// <summary>La marque visée (index dans la route).</summary>
@@ -77,7 +82,7 @@ public sealed class HarbourPilot
             var (mx, mz) = _route[_i];
             double d = Math.Sqrt((mx - x) * (mx - x) + (mz - z) * (mz - z));
             bool last = _i == _route.Count - 1;
-            if (d < (last ? 2 * reach : reach)) { if (last) { if (Onward != null) Beyond = true; else Arrived = true; Update(dt, ocean, c); return; } _i++; continue; }
+            if (d < (last ? (LastReach > 0 ? LastReach : 2 * reach) : reach)) { if (last) { if (Onward != null) Beyond = true; else Arrived = true; Update(dt, ocean, c); return; } _i++; continue; }
             if (!last)
             {
                 // dépassée : on est au-delà de la perpendiculaire en elle, vers la suivante

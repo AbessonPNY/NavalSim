@@ -247,8 +247,10 @@ public partial class ShipDemo
                 // la caméra suit le premier navire de la rade (ShipDemo.Traffic.cs)
                 case "--poser-navire": _hullTest = args[i + 1]; _askTitle ??= false; break;
                 case "--rade-vue": _tripCam = true; _askTitle ??= false; break;
-                // la destination du premier départ de la rade (« carthagene », « passage-fort », « large »)
-                case "--rade-trajet": _forceLeg = args[i + 1]; _askTitle ??= false; break;
+                // un mouvement des horaires échu dès l'ouverture (« depart:3 », « arrivee:1 »)
+                case "--horaire": _forceSailing = args[i + 1]; _askTitle ??= false; break;
+                // l'œil sur un poste du port (ShipDemo.Traffic.cs)
+                case "--horaire-vue": _berthView = args[i + 1].ToInt(); _askTitle ??= false; break;
                 case "--eye": _fixEye = ParseVec(args[i + 1]); _planted = true; break;
                 case "--look": _fixLook = ParseVec(args[i + 1]); break;
                 case "--foamcheck": _foamCheckIn = args[i + 1].ToInt(); break;

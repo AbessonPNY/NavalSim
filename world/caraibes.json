@@ -40,7 +40,6 @@
     { "key": "port-royal", "name": "Port-Royal", "lat": 17.9425, "lon": -76.8330, "quay": 0,
       "start": true, "note": "au bout des Palisadoes, quais côté port ; port NATUREL — le môle a été retiré, l'ouvrage du bassin est modelé à la main",
       "abri": { "rayon": 1100 },
-      "trafic": ["passage-fort", "large", { "vers": "large", "puis": "Carthagène", "lat": 10.4236, "lon": -75.5253, "fiches": ["barge"], "allerSeul": true, "poids": 1 }],
       "centre": { "glb": "world/models/cottage-ville.glb", "bloc": [31, 12.7], "longueur": 320, "rue": 8, "cour": 4, "ruelle": 2.5, "traverse": 3, "paires": 2, "altitude": 2 } },
 
     { "key": "passage-fort", "name": "Passage Fort", "lat": 17.9550, "lon": -76.8950, "quay": 120,

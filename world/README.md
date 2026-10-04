@@ -487,31 +487,66 @@ chaque entrée `assets` porte son `yaw` et son `scale`.
 
 Pour le regarder sans ouvrir Blender : `node tools/glb-look.js props/cocotier.glb`.
 
-## La vie d'une rade (« trafic », Godot)
+## Les horaires d'une rade (Godot)
 
-`"trafic": ["passage-fort", "large"]` dans un port : des navires vont et viennent
-entre lui et ces destinations — une clé de port, ou `large` (la sortie de la rade,
-trouvée seule : le point d'eau profonde le plus proche par l'eau, à quelques
-kilomètres). Ce sont des navires du jeu, menés par un pilote de rade
-(`core/NavalSim.Core/HarbourRoute.cs`, `HarbourPilot.cs`, `godot/scripts/ShipDemo.Traffic.cs`) :
-la route contourne la terre sur une grille de trente mètres, avec l'eau qu'il faut
-sous la quille et une distance à la côte ; le pilote la suit, tire des bords courts,
-vire vent devant (aurique) et sonde devant l'étrave au près. Combien, lesquels, et
-jusqu'à quel temps : `settings.json` → `trafic`. Banc : `-- rade [gain] [force] [vent]`.
-
-Une destination peut aussi s'écrire en objet, pour en dire plus :
+`world/horaires/<région>.json` (`core/NavalSim.Core/Timetable.cs`) : des navires partent
+d'un port et y arrivent À HEURE FIXE, l'heure du ciel. Ce sont des navires du jeu,
+menés par un pilote de rade (`HarbourRoute.cs`, `HarbourPilot.cs`,
+`godot/scripts/ShipDemo.Traffic.cs`) : la route contourne la terre sur une grille de
+trente mètres, avec l'eau qu'il faut sous la quille et une distance à la côte ; le
+pilote la suit, tire des bords courts, vire vent devant (aurique) et sonde devant
+l'étrave au près. Combien à la fois, les candidats par défaut, jusqu'à quel temps :
+`settings.json` → `trafic`. Banc : `-- rade [gain] [force] [vent]`.
 
 ```json
-{ "vers": "large", "puis": "Carthagène", "lat": 10.4236, "lon": -75.5253,
-  "fiches": ["barge"], "allerSeul": true, "poids": 1 }
+{
+  "port-royal": {
+    "postes": [
+      { "n": 1, "ponton": 3, "nom": "Ponton du chenal, au nord" }
+    ],
+    "departs": [
+      { "heure": "06:00", "poste": 1, "vers": "passage-fort", "fiches": ["sloop", "schooner"] },
+      { "heure": "10:00", "poste": 1, "vers": "large", "puis": "Carthagène",
+        "lat": 10.4236, "lon": -75.5253, "fiches": ["barge"] }
+    ],
+    "arrivees": [
+      { "heure": "11:00", "de": "large", "poste": 1, "fiches": ["schooner"] }
+    ]
+  }
+}
 ```
 
-- `vers` : une clé de port, ou `large` ;
-- `puis` avec `lat`/`lon` : passé la dernière marque, le navire continue de faire
-  route vers ce lieu réel, et s'en va quand il a passé l'horizon (2,5 km de l'œil) ;
-- `fiches` : les seuls navires qui courent cette route (sinon, ceux du réglage) ;
-- `allerSeul` : on part, on ne revient pas ;
-- `poids` : sa part des départs (1 par défaut, comme chaque destination écrite en mot).
+Par port (sa clé dans `ports`) :
 
-Essai : `--rade-trajet carthagene` impose le premier départ, `--rade-vue 1` suit le
-premier navire de la rade.
+- **`postes`** — les places où l'on part et où l'on arrive, numérotées par `n`.
+  `ponton` : le numéro du ponton dans la liste `pontons` de la fiche (le mode
+  création l'affiche au-dessus de chacun, « ponton 3 »). La place est à `ecart`
+  mètres (15) au-delà de son musoir, là où l'éditeur a laissé le ponton ; s'il n'y a
+  pas l'eau que la quille demande, elle recule le long du ponton jusqu'à l'eau qui la
+  porte (le journal le dit). `x`, `z` (mètres vrais) posent un poste sans ponton.
+- **`departs`** — `heure` (« 06:30 », ou 6.5), `poste`, `vers` (une clé de port, ou
+  `large` : la sortie de la rade, trouvée seule), `fiches` (les candidats ; on en
+  tire un), `avance` (les heures qu'il passe à quai avant, amarré, voiles ferlées :
+  1). `puis` avec `lat`/`lon` : passé le large, il continue de faire route vers ce
+  lieu réel et s'en va quand il a passé l'horizon (2,5 km de l'œil).
+- **`arrivees`** — `heure` (celle où il se met en route de l'autre bout), `de` (une
+  clé de port, ou `large`), `poste`, `fiches` ; `origine` : d'où il vient au-delà du
+  large, pour le journal. Rendu, il ferle, court sur son erre et s'amarre où elle
+  tombe ; il s'en va après deux heures d'escale, quand on ne le regarde plus.
+
+Un poste sans `poste` écrit : devant le ponton du port. Un mouvement ne paraît que là
+où l'œil n'est pas (loin, ou dans son dos) ; sinon il attend, et il est manqué une
+heure après. Par gros temps (`forceMax`), ni départ ni arrivée. À l'ouverture, ce qui
+est parti depuis peu est déjà en chemin, à la distance qu'il a pu faire.
+
+**Le ciel tourne vite** (deux heures par minute réelle) : une traversée de la rade
+dure plusieurs heures du ciel, et les horaires se lisent comme une ligne régulière —
+« chaque jour à six heures, un sloop part pour Passage Fort ».
+
+**Ajouter un ponton** : à la FIN de la liste `pontons` de la fiche, puis le placer en
+mode création. Insérer au milieu renumérote ceux d'après, et les postes comme les
+retouches (`ponton:N`) viseraient alors le voisin.
+
+Essais : `--horaire depart:3` (ou `arrivee:1`) rend ce mouvement échu dès
+l'ouverture ; `--horaire-vue 2` pose l'œil sur le poste 2 ; `--rade-vue 1` suit le
+premier navire en route ; `--heure 9.5` règle le ciel.

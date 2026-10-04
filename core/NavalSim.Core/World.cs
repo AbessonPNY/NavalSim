@@ -1,4 +1,3 @@
-using System.Linq;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -48,47 +47,6 @@ public sealed class PortSpec
     public (double X, double Z, double Cap)? StartAt;
     /// <summary>L'abri que donne la forme du rivage autour de ce port, sur ce rayon (m) ; 0 : aucun (ShelterMap).</summary>
     public double ShelterR;
-    /// <summary>LA VIE DE SA RADE (Godot) : les destinations des navires qui en partent et y viennent — une clé de port, ou « large ».</summary>
-    public List<TrafficLeg> Traffic = new();
-}
-
-/// <summary>
-/// UNE DESTINATION DU TRAFIC D'UNE RADE (world/README.md → « trafic »). Écrite comme
-/// un simple mot (« passage-fort », « large »), ou comme un objet qui en dit plus :
-/// au-delà du large, un lieu réel vers lequel on continue de faire route (Carthagène,
-/// par sa latitude et sa longitude) jusqu'à passer l'horizon ; les seuls navires qui
-/// la courent ; et si l'on n'y fait que l'aller.
-/// </summary>
-public sealed class TrafficLeg
-{
-    /// <summary>Une clé de port, ou « large ».</summary>
-    public string To = "";
-    /// <summary>Le lieu vers lequel on continue, passé le large ; vide sinon.</summary>
-    public string Then = "";
-    public double? Lat, Lon;
-    /// <summary>Les fiches qui la courent ; vide : celles du réglage « trafic ».</summary>
-    public List<string> Ships = new();
-    /// <summary>Le départ seulement : on ne revient pas de Carthagène dans la rade.</summary>
-    public bool OutOnly;
-    /// <summary>Le poids de ce départ parmi les autres (1 par défaut).</summary>
-    public double Weight = 1;
-
-    public static TrafficLeg FromJson(JsonElement e)
-    {
-        if (e.ValueKind == JsonValueKind.String) return new TrafficLeg { To = e.GetString() ?? "" };
-        var l = new TrafficLeg
-        {
-            To = Js.Str(e, "vers"), Then = Js.Str(e, "puis"),
-            Lat = e.TryGetProperty("lat", out var la) && la.ValueKind == JsonValueKind.Number ? la.GetDouble() : null,
-            Lon = e.TryGetProperty("lon", out var lo) && lo.ValueKind == JsonValueKind.Number ? lo.GetDouble() : null,
-            OutOnly = Js.True(e, "allerSeul"),
-            Weight = e.TryGetProperty("poids", out var w) && w.ValueKind == JsonValueKind.Number ? w.GetDouble() : 1
-        };
-        if (l.To.Length == 0) l.To = "large";
-        if (e.TryGetProperty("fiches", out var f) && f.ValueKind == JsonValueKind.Array)
-            foreach (var s in f.EnumerateArray()) if (s.GetString() is { Length: > 0 } k) l.Ships.Add(k);
-        return l;
-    }
 }
 
 /// <summary>
@@ -250,9 +208,7 @@ public sealed class RegionSpec
                     Centre = p.TryGetProperty("centre", out var ce) && ce.ValueKind == JsonValueKind.Object ? ReadCentre(ce) : null,
                     StartAt = p.TryGetProperty("depart", out var dp) && dp.ValueKind == JsonValueKind.Object
                         ? (Js.Num(dp, "x"), Js.Num(dp, "z"), Js.Num(dp, "cap")) : null,
-                    ShelterR = p.TryGetProperty("abri", out var ab) && ab.ValueKind == JsonValueKind.Object ? Js.Num(ab, "rayon") : 0,
-                    Traffic = p.TryGetProperty("trafic", out var tf) && tf.ValueKind == JsonValueKind.Array
-                        ? tf.EnumerateArray().Select(TrafficLeg.FromJson).Where(x => x.To.Length > 0).ToList() : new List<TrafficLeg>()
+                    ShelterR = p.TryGetProperty("abri", out var ab) && ab.ValueKind == JsonValueKind.Object ? Js.Num(ab, "rayon") : 0
                 });
         if (r.TryGetProperty("towns", out var tw) && tw.ValueKind == JsonValueKind.Array)
             foreach (var t in tw.EnumerateArray())
@@ -376,8 +332,6 @@ public sealed class Isle
     public (double X, double Z, double Cap)? StartAt;
     /// <summary>Le rayon de l'abri que donne le rivage (PortSpec.ShelterR), 0 sinon.</summary>
     public double ShelterR;
-    /// <summary>Les destinations du trafic de sa rade (PortSpec.Traffic).</summary>
-    public List<TrafficLeg> Traffic = new();
 }
 
 /// <summary>
@@ -788,7 +742,7 @@ public sealed class World : IGround
         return new Isle
         {
             Key = P.Key, Name = P.Name, X = x, Z = z, R = 600, RShore = 0,
-            Start = P.Start, Wild = P.Wild, Lat = P.Lat, Lon = P.Lon, Port = port, Centre = P.Centre, StartAt = P.StartAt, Traffic = P.Traffic,
+            Start = P.Start, Wild = P.Wild, Lat = P.Lat, Lon = P.Lon, Port = port, Centre = P.Centre, StartAt = P.StartAt,
             ShelterR = P.ShelterR
         };
     }

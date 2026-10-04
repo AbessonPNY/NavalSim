@@ -626,6 +626,7 @@ public partial class JettyNode : Node3D
         public Node3D G = null!;
         public double X, Z, Yaw, Len, W;            // le MILIEU, en mètres vrais ; le cap vers le musoir
         public bool Gone;
+        public Label3D Tag = null!;                 // son numéro, en mode création
         public double RootX => X - Math.Sin(Yaw) * Len * 0.5;
         public double RootZ => Z - Math.Cos(Yaw) * Len * 0.5;
     }
@@ -647,6 +648,15 @@ public partial class JettyNode : Node3D
                 Len = spec.Length, W = spec.Width
             };
             AddChild(p.G);
+            /* SON NUMÉRO, au-dessus de lui en mode création : celui que les horaires
+               de la rade nomment (world/horaires, « ponton »). */
+            p.Tag = new Label3D
+            {
+                Text = $"ponton {i}", Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+                NoDepthTest = true, FixedSize = true, PixelSize = 0.0012f, FontSize = 40, OutlineSize = 10,
+                Modulate = new Color(1f, 0.92f, 0.55f), Visible = false
+            };
+            AddChild(p.Tag);
             _piers.Add(p);
             double baseLen = spec.Length;
             var e = new Editable
@@ -680,6 +690,23 @@ public partial class JettyNode : Node3D
         p.G.AddChild(frame);
         Timber(frame, p.Len, p.W, p.RootX, p.RootZ, ang);
     }
+
+    /// <summary>Le mode création montre le numéro de chaque ponton au-dessus de lui.</summary>
+    public bool ShowNumbers;
+
+    /// <summary>
+    /// LE MUSOIR DU PONTON n (son rang dans « pontons » de la fiche), tel que l éditeur
+    /// l a laissé : le bout côté large, en mètres vrais, et le cap de la racine vers lui.
+    /// Nul s il n existe pas ou s il est retiré.
+    /// </summary>
+    public (double X, double Z, double Yaw)? PierHead(int n)
+    {
+        if (n < 0 || n >= _piers.Count || _piers[n].Gone) return null;
+        var p = _piers[n];
+        return (p.X + Math.Sin(p.Yaw) * p.Len * 0.5, p.Z + Math.Cos(p.Yaw) * p.Len * 0.5, p.Yaw);
+    }
+
+    public int PierCount => _piers.Count;
 
     /// <summary>
     /// CE QUE LE SOLVEUR EN SAIT : des segments de la largeur d'un quai (Berth.Width),
@@ -769,6 +796,8 @@ public partial class JettyNode : Node3D
             bool near = !p.Gone && dx * dx + dz * dz < Range * Range;
             p.G.Visible = near;
             if (near) p.G.Position = new Vector3((float)(p.RootX - origin.X), 0, (float)(p.RootZ - origin.Z));
+            p.Tag.Visible = near && ShowNumbers;
+            if (p.Tag.Visible) p.Tag.Position = new Vector3((float)(p.X - origin.X), 9, (float)(p.Z - origin.Z));
         }
     }
 }

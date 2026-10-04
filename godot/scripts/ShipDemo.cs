@@ -862,7 +862,8 @@ public partial class ShipDemo : Node3D
             }
             if (_jetty != null)
             {
-                _jetty.Update(here, new Vec3d(wo.X, 0, wo.Z));
+                _jetty.ShowNumbers = _editing;
+                _jetty.Update(ViewCentre(here), new Vec3d(wo.X, 0, wo.Z));
                 foreach (var m in _jetty.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
             }
         }

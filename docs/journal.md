@@ -14223,6 +14223,36 @@ entre deux marques ; un départ se fait d'un bout de route loin de l'œil (à pl
 sauvés : la rade se repeuple à la reprise. Essai : `--rade-vue 1` pose la caméra sur
 le premier navire de la rade et le suit.
 
+## Les horaires de la rade (Godot)
+
+Demandé : les départs et arrivées en JSON — navires candidats, horaires, ponton
+associé, points de départ numérotés —, que l'utilisateur complète lui-même. Le tirage
+au sort (destinations à poids, attente entre deux départs) cède la place à
+`world/horaires/<région>.json` (Timetable.cs) : des POSTES numérotés au bout des
+pontons de la fiche, des DÉPARTS et des ARRIVÉES à une heure du ciel. Le « trafic »
+de la fiche du monde et TrafficLeg disparaissent : une définition.
+
+Un départ est d'abord À QUAI (une heure avant, « avance ») : un navire du jeu tenu à
+sa place par SteerTrip (ses aussières : position et lacet rendus chaque image, la
+houle le soulève et le fait rouler), voiles ferlées ; à l'heure il largue. Une
+arrivée part de l'autre bout ; rendue (HarbourPilot.LastReach : un poste se prend de
+plus près que le large), elle ferle, court sur son erre et s'amarre où elle tombe,
+puis s'en va après deux heures d'escale, quand on ne la regarde plus. On ne voit rien
+naître : un navire paraît loin ou dans le dos de l'œil, sinon on attend, et une heure
+après le mouvement est manqué.
+
+Piège mesuré au premier essai : l'ouverture peuplait la rade avec tout ce qui était
+en chemin — avec le ciel à deux heures par minute, une traversée dure des heures du
+ciel, donc chaque ligne de la veille est encore en route —, les six places étaient
+prises et le départ à quai de dix heures était manqué. D'où : les départs à quai
+d'abord, et la moitié des places au plus pour ce qui est en chemin.
+
+Le poste est pris au musoir du ponton TEL QUE L'ÉDITEUR L'A LAISSÉ (JettyNode.PierHead),
+et recule le long de son axe jusqu'à l'eau que la quille demande. Le mode création
+montre le numéro de chaque ponton au-dessus de lui (Label3D, sans test de profondeur) :
+c'est le numéro des postes et des retouches `ponton:N`, donc un ponton neuf s'ajoute
+à la fin de la liste.
+
 ## Des navires posés à la main (Godot)
 
 Demandé : « les garer en jeu, leur position en mémoire » — précisé : des navires posés à
