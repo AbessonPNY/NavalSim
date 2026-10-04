@@ -288,8 +288,11 @@ lui-même se prend à la souris — maisons et église des villes, pâtés des c
 arbres des semis, figurants de la plage. On le déplace (glisser), le tourne (molette, ⇧ par 45°), le grandit (PgUp PgDn), le lève
 (↑ ↓), le retire (Suppr) ou le rend à l'automatique (⌫) ; Ctrl+Z annule, Ctrl+S enregistre, ² ressort et
 enregistre. **Ctrl+C** copie l'objet pris, **Ctrl+V** le colle sous la souris (même modèle, même taille, même
-cap) ; **Tab** ouvre la palette — un objet de chaque sorte que le monde contient, et les modèles bruts de
-`world/models` et `props` — dont le choix se colle de même.
+cap) ; **Tab** ouvre la palette — un objet de chaque sorte que le monde contient, les modèles bruts de
+`world/models` et `props`, et **les navires** (une entrée par fiche de `ships/` qui a un modèle) — dont le
+choix se colle de même. Un navire se pose sur l'eau, au mouillage : un décor de rade, comme les navires des
+ports, qui suit la houle et gîte sur sa pente, sans solveur ni barre ; il se déplace et se tourne, sans
+échelle ni hauteur — c'est la mer qui le porte.
 
 Rien n'est écrit dans la fiche : les retouches vont dans `world/retouches/<région>.json` et s'appliquent
 par-dessus le placement automatique, au moment où chaque objet se pose.
@@ -299,7 +302,8 @@ par-dessus le placement automatique, au moment où chaque objet se pose.
     { "id": "maison:Port-Royal:37", "x": -347.21, "z": -92.09, "cap": 39.6, "echelle": 1.2, "dy": 0.3 },
     { "id": "semis:Rochers des plages de Port-Royal:0", "retire": true },
     { "id": "ajout:1", "de": "pate:port-royal:13", "x": -326.21, "z": -86.09, "cap": 9.6 },
-    { "id": "ajout:2", "glb": "props/coffre_2k.glb", "x": -374.21, "z": -84.09, "cap": 0.0 }
+    { "id": "ajout:2", "glb": "props/coffre_2k.glb", "x": -374.21, "z": -84.09, "cap": 0.0 },
+    { "id": "ajout:3", "fiche": "frigate17e", "x": -343.10, "z": 242.40, "cap": 34.4 }
 ] }
 ```
 
@@ -311,6 +315,7 @@ par-dessus le placement automatique, au moment où chaque objet se pose.
 | `echelle` · `dy` | sa taille (1) et ce qu'on l'a levé au-dessus du sol (m) |
 | `retire` | il n'est plus là |
 | `de` | un AJOUT, copie de cet objet : son modèle, sa taille, sa couleur suivent la source |
+| `fiche` | un AJOUT, navire au mouillage de cette fiche de `ships/` (sans `.json`) : décor qui suit la houle, visible à moins de `mouillage.portee` de l'œil |
 | `glb` | un AJOUT, modèle brut : recentré, posé sur son point le plus bas, à la taille que donne `palette.json` (sinon son unité est le mètre, sauf au-delà de 40 unités : ramené à 4 m) |
 
 **La palette d'un dossier** — `world/models/palette.json`, `props/palette.json` : le nom qu'on lit dans la
@@ -493,3 +498,20 @@ la route contourne la terre sur une grille de trente mètres, avec l'eau qu'il f
 sous la quille et une distance à la côte ; le pilote la suit, tire des bords courts,
 vire vent devant (aurique) et sonde devant l'étrave au près. Combien, lesquels, et
 jusqu'à quel temps : `settings.json` → `trafic`. Banc : `-- rade [gain] [force] [vent]`.
+
+Une destination peut aussi s'écrire en objet, pour en dire plus :
+
+```json
+{ "vers": "large", "puis": "Carthagène", "lat": 10.4236, "lon": -75.5253,
+  "fiches": ["barge"], "allerSeul": true, "poids": 1 }
+```
+
+- `vers` : une clé de port, ou `large` ;
+- `puis` avec `lat`/`lon` : passé la dernière marque, le navire continue de faire
+  route vers ce lieu réel, et s'en va quand il a passé l'horizon (2,5 km de l'œil) ;
+- `fiches` : les seuls navires qui courent cette route (sinon, ceux du réglage) ;
+- `allerSeul` : on part, on ne revient pas ;
+- `poids` : sa part des départs (1 par défaut, comme chaque destination écrite en mot).
+
+Essai : `--rade-trajet carthagene` impose le premier départ, `--rade-vue 1` suit le
+premier navire de la rade.

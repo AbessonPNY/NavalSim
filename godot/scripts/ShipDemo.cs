@@ -857,7 +857,7 @@ public partial class ShipDemo : Node3D
             DiveTick(frame, here, new Vec3d(wo.X, 0, wo.Z));
             if (_moored != null)
             {
-                _moored.Update(here, new Vec3d(wo.X, 0, wo.Z), _sea.Core, _t);
+                _moored.Update(ViewCentre(here), new Vec3d(wo.X, 0, wo.Z), _sea.Core, _t);
                 foreach (var m in _moored.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
             }
             if (_jetty != null)

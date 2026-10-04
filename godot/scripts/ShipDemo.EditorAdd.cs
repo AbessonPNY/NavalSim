@@ -28,15 +28,32 @@ public partial class ShipDemo
     readonly PlacedSet _addedHolds = new();
     readonly List<ShaderMaterial> _editHazed = new();
     List<Edit>? _pendingAdds;
-    (Editable? Src, string Glb, string Label, double Yaw, double Scale, double Dy)? _clip;
+    (Editable? Src, string Glb, string Label, double Yaw, double Scale, double Dy, string Sheet)? _clip;
     PanelContainer? _edPalette;
     ItemList? _edList;
-    readonly List<(string Label, Editable? Src, string Glb)> _paletteItems = new();
+    readonly List<(string Label, Editable? Src, string Glb, string Sheet)> _paletteItems = new();
+
+    /// <summary>--poser-navire fiche : un navire posé à la main devant le port de départ, SANS enregistrer — pour l'essai.</summary>
+    string _hullTest = "";
 
     /// <summary>Chaque image, dans les deux modes : faire naître les ajouts relus, et les poser contre l'origine.</summary>
     void EditFrame(Vec3d origin, double dt)
     {
         if (_editReg == null) return;
+        if (_hullTest.Length > 0 && _world?.StartPort is { } home)
+        {
+            var (qx, qz) = (home.Port.Hx + Math.Cos(home.Port.Ang) * 260, home.Port.Hz + Math.Sin(home.Port.Ang) * 260);
+            _clip = (null, "", "essai", 0.6, 1.0, 0.0, _hullTest);
+            if (EditPaste(new Vec3d(qx, 0, qz)) is { } placed)
+            {
+                GD.Print(FormattableString.Invariant($"[éditeur] essai : {placed.Label} posé en ({qx:F0}, {qz:F0}), non enregistré"));
+                var o = _sea.Core.Origin;
+                _fixLook = new Vector3((float)(qx - o.X), 2, (float)(qz - o.Z));
+                _fixEye = _fixLook + new Vector3(35, 14, 40);
+                _planted = true;
+                _hullTest = "";
+            }
+        }
         SpawnPending();
         Chimneys(origin, dt);
         _addedHolds.Update(origin);
@@ -54,17 +71,18 @@ public partial class ShipDemo
         for (int i = _pendingAdds.Count - 1; i >= 0; i--)
         {
             var a = _pendingAdds[i];
-            if (SpawnAdded(a.Id, a.From, a.Glb, a.X, a.Z, a.Yaw * Math.PI / 180, a.Scale, a.Dy) != null)
+            if (SpawnAdded(a.Id, a.From, a.Glb, a.X, a.Z, a.Yaw * Math.PI / 180, a.Scale, a.Dy, a.Sheet) != null)
             {
                 _pendingAdds.RemoveAt(i);
-                GD.Print($"[éditeur] {a.Id} posé ({(a.From.Length > 0 ? "copie de " + a.From : a.Glb)})");
+                GD.Print($"[éditeur] {a.Id} posé ({(a.Sheet.Length > 0 ? "navire " + a.Sheet : a.From.Length > 0 ? "copie de " + a.From : a.Glb)})");
             }
         }
     }
 
     /// <summary>Faire naître un ajout. Nul si sa source n'est pas (encore) là.</summary>
-    Editable? SpawnAdded(string id, string from, string glb, double x, double z, double yaw, double scale, double dy)
+    Editable? SpawnAdded(string id, string from, string glb, double x, double z, double yaw, double scale, double dy, string sheet = "")
     {
+        if (sheet.Length > 0) return SpawnHull(id, sheet, x, z, yaw);
         Func<Node3D>? make;
         double vyaw = 0, lift = 0, radius = 1, height = 1;
         bool smoke = false;
@@ -322,10 +340,35 @@ public partial class ShipDemo
     /*  COPIER, COLLER                                                     */
     /* ------------------------------------------------------------------ */
 
+    /// <summary>
+    /// UN NAVIRE AU MOUILLAGE POSÉ À LA MAIN : un décor de rade (MooredNode.AddHull),
+    /// qui suit la houle et gîte sur sa pente, à la place et au cap qu'on lui donne.
+    /// Ni échelle ni hauteur : un navire a sa taille, et c'est la mer qui le porte.
+    /// </summary>
+    Editable? SpawnHull(string id, string sheet, double x, double z, double yaw)
+    {
+        if (_moored?.AddHull(sheet, x, z, yaw) is not { } h) return null;
+        var e = new Editable
+        {
+            Id = id, Sheet = sheet, Label = "navire : " + h.Name,
+            BaseX = x, BaseZ = z, BaseYaw = yaw, X = x, Z = z, Yaw = yaw,
+            Radius = h.L * 0.5, Height = h.L * 0.35,
+            Family = "navire:" + sheet, FamilyLabel = h.Name
+        };
+        e.Push = ed =>
+        {
+            _moored.MoveHull(h, ed.X, ed.Z, ed.Yaw, ed.Removed);
+            ed.Scale = 1; ed.Dy = 0;
+            ed.GroundY = 0;                 // il est sur l'eau, pas sur le fond
+        };
+        _editReg!.AddNew(e);
+        return e;
+    }
+
     void EditCopy()
     {
         if (_sel == null) { Say("Rien de pris à copier"); return; }
-        _clip = (_sel, "", _sel.FamilyLabel, _sel.Yaw, _sel.Scale, _sel.Dy);
+        _clip = (_sel, "", _sel.FamilyLabel, _sel.Yaw, _sel.Scale, _sel.Dy, "");
         Say($"Copié : {_sel.FamilyLabel} · Ctrl+V pour le coller sous la souris");
     }
 
@@ -339,7 +382,8 @@ public partial class ShipDemo
         // la copie d'une copie renvoie à la SOURCE : le fichier ne fait jamais de chaîne
         string from = c.Src == null ? "" : c.Src.Added ? c.Src.From : c.Src.Id;
         string glb = c.Src == null ? c.Glb : c.Src.Added ? c.Src.Glb : "";
-        var e = SpawnAdded(_editReg!.NextAddId(), from, glb, g.X, g.Z, c.Yaw, c.Scale, c.Dy);
+        string sheet = c.Src == null ? c.Sheet : c.Src.Sheet;
+        var e = SpawnAdded(_editReg!.NextAddId(), from, glb, g.X, g.Z, c.Yaw, c.Scale, c.Dy, sheet);
         if (e == null) { Say("Ce modèle ne se refait pas"); return null; }
         _editReg.Commit(e);
         // l'annuler, c'est le retirer
@@ -361,7 +405,7 @@ public partial class ShipDemo
         foreach (var e in _editReg!.Items)
         {
             if (e.MakeVisual == null || e.Family.Length == 0 || e.Family.StartsWith("brut:") || !seen.Add(e.Family)) continue;
-            _paletteItems.Add((e.FamilyLabel, e, ""));
+            _paletteItems.Add((e.FamilyLabel, e, "", ""));
         }
         _paletteItems.Sort((a, b) => string.Compare(a.Label, b.Label, StringComparison.CurrentCulture));
         foreach (var dir in new[] { "world/models", "props" })
@@ -379,8 +423,16 @@ public partial class ShipDemo
             {
                 var (nom, size) = PaletteInfo($"{dir}/{n}");
                 string label = nom != null ? FormattableString.Invariant($"{nom} · {dir}/{n}{(size > 0 ? $" · {size:0.#} m" : "")}") : $"modèle brut · {dir}/{n}";
-                _paletteItems.Add((label, null, $"{dir}/{n}"));
+                _paletteItems.Add((label, null, $"{dir}/{n}", ""));
             }
+        }
+        /* LES NAVIRES, À MOUILLER : chaque fiche qui a un modèle, posée en décor de
+           rade (MooredNode.AddHull) — un navire qu'on place n'a ni solveur ni barre. */
+        foreach (var path in _paths)
+        {
+            if (ShipLibrary.Load(path) is not { Model: { Glb.Length: > 0 } } spec) continue;
+            string sheet = System.IO.Path.GetFileNameWithoutExtension(path);
+            _paletteItems.Add((FormattableString.Invariant($"navire · {spec.Name} · {spec.Hull.Length:0} m"), null, "", sheet));
         }
         _edList!.Clear();
         foreach (var it in _paletteItems) _edList.AddItem(it.Label);
@@ -410,8 +462,8 @@ public partial class ShipDemo
     void ChoosePalette(int i)
     {
         if (i < 0 || i >= _paletteItems.Count) return;
-        var (label, src, glb) = _paletteItems[i];
-        _clip = src != null ? (src, "", src.FamilyLabel, src.Yaw, 1.0, 0.0) : (null, glb, label, 0.0, 1.0, 0.0);
+        var (label, src, glb, sheet) = _paletteItems[i];
+        _clip = src != null ? (src, "", src.FamilyLabel, src.Yaw, 1.0, 0.0, "") : (null, glb, label, 0.0, 1.0, 0.0, sheet);
         if (_edPalette != null) _edPalette.Visible = false;
         Say($"{(src != null ? src.FamilyLabel : label)} · Ctrl+V pour le poser sous la souris");
     }

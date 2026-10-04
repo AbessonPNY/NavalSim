@@ -245,7 +245,10 @@ public partial class ShipDemo
                 // d'origine : une camera qui suit une coque soulevee de quarante
                 // metres se retrouve dans la vague, et la comparaison ne vaut rien
                 // la caméra suit le premier navire de la rade (ShipDemo.Traffic.cs)
+                case "--poser-navire": _hullTest = args[i + 1]; _askTitle ??= false; break;
                 case "--rade-vue": _tripCam = true; _askTitle ??= false; break;
+                // la destination du premier départ de la rade (« carthagene », « passage-fort », « large »)
+                case "--rade-trajet": _forceLeg = args[i + 1]; _askTitle ??= false; break;
                 case "--eye": _fixEye = ParseVec(args[i + 1]); _planted = true; break;
                 case "--look": _fixLook = ParseVec(args[i + 1]); break;
                 case "--foamcheck": _foamCheckIn = args[i + 1].ToInt(); break;

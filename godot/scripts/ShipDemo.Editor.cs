@@ -54,7 +54,7 @@ public partial class ShipDemo
             EditCopy();
             var src = _sel;
             for (int i = 1; i <= _edPasteTest; i++) EditPaste(new Vec3d(src.X + 18 * i, 0, src.Z + 6));
-            _clip = (null, "props/coffre_2k.glb", "coffre", 0.0, 1.0, 0.0);
+            _clip = (null, "props/coffre_2k.glb", "coffre", 0.0, 1.0, 0.0, "");
             var raw = EditPaste(new Vec3d(src.X - 12, 0, src.Z + 8));
             GD.Print(FormattableString.Invariant($"[éditeur] {_edPasteTest} copie(s) de {src.Id}, et un coffre brut ({raw?.Radius:F2} m) ; enregistré : {_editReg!.Save()}"));
             return;

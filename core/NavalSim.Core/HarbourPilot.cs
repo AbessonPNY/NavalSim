@@ -28,6 +28,13 @@ public sealed class HarbourPilot
 
     public readonly AutoHelm Helm;
     public bool Arrived { get; private set; }
+    /// <summary>
+    /// AU-DELÀ DE LA ROUTE : un point (mètres vrais) vers lequel continuer une fois la
+    /// dernière marque passée — Carthagène, au-delà du large. Nul : on s'arrête.
+    /// </summary>
+    public (double X, double Z)? Onward;
+    /// <summary>La route est faite et l'on continue vers <see cref="Onward"/>.</summary>
+    public bool Beyond { get; private set; }
     /// <summary>La marque visée (index dans la route).</summary>
     public int Leg => _i;
     public IReadOnlyList<(double X, double Z)> Route => _route;
@@ -48,6 +55,14 @@ public sealed class HarbourPilot
     {
         var b = _ph.Body;
         double x = b.Pos.X + ocean.Origin.X, z = b.Pos.Z + ocean.Origin.Z;
+        if (Beyond && Onward is { } on)
+        {
+            // en route pour plus loin : la barre seule, droit sur le lieu
+            Helm.Tacks = false;
+            Helm.Target = new Vec3d(on.X - ocean.Origin.X, 0, on.Z - ocean.Origin.Z);
+            Helm.Update(dt, ocean, c);
+            return;
+        }
         if (Arrived || _ph.Foundered)
         {
             c.SailsSet = false; c.Rudder = 0; c.Throttle = 0;
@@ -62,7 +77,7 @@ public sealed class HarbourPilot
             var (mx, mz) = _route[_i];
             double d = Math.Sqrt((mx - x) * (mx - x) + (mz - z) * (mz - z));
             bool last = _i == _route.Count - 1;
-            if (d < (last ? 2 * reach : reach)) { if (last) { Arrived = true; Update(dt, ocean, c); return; } _i++; continue; }
+            if (d < (last ? 2 * reach : reach)) { if (last) { if (Onward != null) Beyond = true; else Arrived = true; Update(dt, ocean, c); return; } _i++; continue; }
             if (!last)
             {
                 // dépassée : on est au-delà de la perpendiculaire en elle, vers la suivante

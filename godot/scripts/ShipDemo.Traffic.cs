@@ -29,7 +29,7 @@ public partial class ShipDemo
         public HarbourPilot Pilot = null!;
         public double Born, Limit, Aground;
         public string From = "", To = "";
-        public bool Said;
+        public bool Said, SaidBeyond;
     }
 
     readonly Dictionary<ShipNode, Trip> _trips = new();
@@ -40,6 +40,8 @@ public partial class ShipDemo
     bool _tripSeeded;
     /// <summary>--rade-vue : la caméra suit le premier navire de la rade, pour l'essai.</summary>
     bool _tripCam;
+    /// <summary>--rade-trajet : la destination (« carthagene », « passage-fort »…) du prochain départ, pour l'essai.</summary>
+    string _forceLeg = "";
 
     // settings.json → trafic
     bool _trafficOn = true;
@@ -104,6 +106,16 @@ public partial class ShipDemo
 
     float CamDist(Vector3 at) => _cam.GlobalPosition.DistanceTo(at);
 
+    /// <summary>Un nom sans accents ni capitales, pour comparer « Carthagène » à « carthagene ».</summary>
+    static string Fold(string s)
+    {
+        var d = s.Normalize(System.Text.NormalizationForm.FormD);
+        var sb = new System.Text.StringBuilder();
+        foreach (char ch in d)
+            if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(ch) != System.Globalization.UnicodeCategory.NonSpacingMark) sb.Append(char.ToLowerInvariant(ch));
+        return sb.ToString();
+    }
+
     bool _tripCamKeep;
 
     void TrafficTick(double dt)
@@ -131,6 +143,23 @@ public partial class ShipDemo
         {
             if (!IsInstanceValid(s) || !_others.Contains(s)) { _trips.Remove(s); continue; }
             trip.Aground = s.Physics.Aground > 0.05 ? trip.Aground + 1 : 0;
+            /* PASSÉ L'HORIZON : celui qui continue vers Carthagène s'en va quand il est
+               loin, pas quand il est rendu — il ne le sera jamais ici. */
+            if (trip.Pilot.Beyond)
+            {
+                if (!trip.SaidBeyond && trip.Pilot.Onward is { } on)
+                {
+                    trip.SaidBeyond = true;
+                    var (sx, sz) = (s.Physics.Body.Pos.X + _sea.Core.Origin.X, s.Physics.Body.Pos.Z + _sea.Core.Origin.Z);
+                    GD.Print(FormattableString.Invariant($"[rade] {s.Spec.Name} a gagné le large, cap au {Compass.HeadingDeg(new Vec3d(on.X - sx, 0, on.Z - sz)):F0}° sur {trip.To}"));
+                }
+                if (CamDist(s.Position) > 2500)
+                {
+                    GD.Print($"[rade] {s.Spec.Name} a passé l'horizon, cap sur {trip.To}");
+                    RemoveShip(s);
+                }
+                continue;
+            }
             bool done = trip.Pilot.Arrived || s.Physics.Foundered || _t - trip.Born > trip.Limit || trip.Aground > 60 || port == null;
             if (!done) continue;
             if (!trip.Said)
@@ -167,17 +196,33 @@ public partial class ShipDemo
     {
         // de la place pour les rencontres du large et les pirates : la rade n'en prend pas trop
         if (_others.Count >= Config.MaxShips - 4) return;
-        string dest = port.Traffic[_tripRng.Next(port.Traffic.Count)];
-        string id = _trafficShips[_tripRng.Next(_trafficShips.Length)];
+        // la destination, à son poids ; ou celle que l'essai impose
+        TrafficLeg? leg = null;
+        if (_forceLeg.Length > 0)
+        {
+            leg = port.Traffic.Find(l => Fold(l.Then) == _forceLeg || l.To == _forceLeg);
+            _forceLeg = "";
+        }
+        if (leg == null)
+        {
+            double tot = 0;
+            foreach (var l in port.Traffic) tot += Math.Max(0, l.Weight);
+            double pick = _tripRng.NextDouble() * tot;
+            foreach (var l in port.Traffic) { pick -= Math.Max(0, l.Weight); if (pick <= 0) { leg = l; break; } }
+            leg ??= port.Traffic[^1];
+        }
+        string dest = leg.To;
+        var ships = leg.Ships.Count > 0 ? leg.Ships.ToArray() : _trafficShips;
+        string id = ships[_tripRng.Next(ships.Length)];
         if (TripSpec(id) is not { } spec) return;
         double need = spec.Hull.KeelDepth + spec.Hull.KeelExtra + 1.5;
-        bool outbound = _tripRng.NextDouble() < 0.5;
+        bool outbound = leg.OutOnly || _tripRng.NextDouble() < 0.5;
         var route = TripRoute(port, dest, need, outbound);
         if (route == null || route.Count < 2) return;
         var o = _sea.Core.Origin;
         Vector3 Local((double X, double Z) p) => new((float)(p.X - o.X), 0, (float)(p.Z - o.Z));
 
-        int leg = 1;
+        int legAt = 1;
         (double X, double Z) at = route[0], next = route[1];
         if (midway)
         {
@@ -185,9 +230,9 @@ public partial class ShipDemo
             double f = 0.15 + 0.7 * _tripRng.NextDouble();
             at = (route[k].X + (route[k + 1].X - route[k].X) * f, route[k].Z + (route[k + 1].Z - route[k].Z) * f);
             next = route[k + 1];
-            leg = k + 1;
+            legAt = k + 1;
         }
-        else if (CamDist(Local(at)) < 700)
+        else if (CamDist(Local(at)) < 700 && !leg.OutOnly)
         {
             // le départ est sous nos yeux : on part de l'autre bout, ou on attend
             route.Reverse();
@@ -213,11 +258,14 @@ public partial class ShipDemo
         _helms.Remove(s);
 
         var pilot = new HarbourPilot(s.Physics, _world!, route, need);
-        if (midway) pilot.SkipTo(leg);
+        if (midway) pilot.SkipTo(legAt);
+        // au-delà du large : un lieu réel, vers lequel on continue de faire route
+        if (outbound && leg.Then.Length > 0 && leg.Lat is double la && leg.Lon is double lo)
+            pilot.Onward = _world!.Geo.ToXZ(la, lo);
         double len = 0;
         for (int k = 0; k + 1 < route.Count; k++)
             len += Math.Sqrt((route[k + 1].X - route[k].X) * (route[k + 1].X - route[k].X) + (route[k + 1].Z - route[k].Z) * (route[k + 1].Z - route[k].Z));
-        string here = port.Name, there = dest == "large" ? "le large" : _world!.ByKey(dest)?.Name ?? dest;
+        string here = port.Name, there = leg.Then.Length > 0 ? leg.Then : dest == "large" ? "le large" : _world!.ByKey(dest)?.Name ?? dest;
         _trips[s] = new Trip
         {
             Pilot = pilot, Born = _t,

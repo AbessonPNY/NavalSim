@@ -24,7 +24,9 @@ public sealed class Edit
     /// (<see cref="Glb"/>). Un ajout qu'on retire disparaît du fichier.
     /// </summary>
     public string From = "", Glb = "";
-    public bool Added => From.Length > 0 || Glb.Length > 0;
+    /// <summary>UN NAVIRE AU MOUILLAGE posé à la main : la fiche de ships/ (« sloop »), décor qui suit la houle.</summary>
+    public string Sheet = "";
+    public bool Added => From.Length > 0 || Glb.Length > 0 || Sheet.Length > 0;
 }
 
 /// <summary>
@@ -86,7 +88,8 @@ public sealed class Edits
                 Dy = r.TryGetProperty("dy", out var d) ? d.GetDouble() : 0,
                 Removed = r.TryGetProperty("retire", out var rm) && rm.ValueKind == JsonValueKind.True,
                 From = r.TryGetProperty("de", out var de) ? de.GetString() ?? "" : "",
-                Glb = r.TryGetProperty("glb", out var gl) ? gl.GetString() ?? "" : ""
+                Glb = r.TryGetProperty("glb", out var gl) ? gl.GetString() ?? "" : "",
+                Sheet = r.TryGetProperty("fiche", out var fi) ? fi.GetString() ?? "" : ""
             });
         }
         return outp;
@@ -113,6 +116,7 @@ public sealed class Edits
             sb.Append(k == 0 ? "\n" : ",\n").Append("    { \"id\": ").Append(JsonSerializer.Serialize(e.Id));
             if (e.From.Length > 0) sb.Append(", \"de\": ").Append(JsonSerializer.Serialize(e.From));
             if (e.Glb.Length > 0) sb.Append(", \"glb\": ").Append(JsonSerializer.Serialize(e.Glb));
+            if (e.Sheet.Length > 0) sb.Append(", \"fiche\": ").Append(JsonSerializer.Serialize(e.Sheet));
             if (e.Removed) sb.Append(", \"retire\": true");
             else
             {

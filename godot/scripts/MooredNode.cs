@@ -41,6 +41,49 @@ public partial class MooredNode : Node3D
 
     readonly List<Mouillage> _ports = new();
 
+    /// <summary>
+    /// UN NAVIRE POSÉ À LA MAIN (mode création, ShipDemo.EditorAdd.cs) : le même décor
+    /// qu'un navire de rade — il suit la houle et gîte sur sa pente —, mais seul, à la
+    /// place et au cap que l'éditeur lui donne, et visible selon SA distance à l'œil.
+    /// </summary>
+    public sealed class HandHull
+    {
+        public Node3D Node = null!;
+        public Vec3d At;                 // mètres vrais ; Y : son assise
+        public double Cap, L;            // lacet Godot (rad), longueur
+        public bool Removed;
+        public string Name = "";
+    }
+
+    readonly List<HandHull> _hand = new();
+    string? _shipsDir;
+    Ocean? _sea;
+
+    /// <summary>Poser une coque de la fiche <paramref name="sheet"/> (sans .json) ; nulle si la fiche ou le modèle manque, ou si les rades ne sont pas encore bâties.</summary>
+    public HandHull? AddHull(string sheet, double x, double z, double yaw)
+    {
+        if (_shipsDir == null || _sea == null) return null;
+        if (Model(_shipsDir, sheet.EndsWith(".json") ? sheet : sheet + ".json", _sea) is not { } mdl) return null;
+        var copie = (Node3D)mdl.Root.Duplicate();
+        copie.Scale = Vector3.One * (float)mdl.K;
+        copie.Rotation = new Vector3(0, (float)mdl.Spec.Model!.RotationY, 0);
+        var holder = new Node3D { Name = "pose_" + sheet };
+        holder.AddChild(copie);
+        AddChild(holder);
+        var h = new HandHull { Node = holder, At = new Vec3d(x, mdl.Y, z), Cap = yaw, L = mdl.Spec.Hull.Length, Name = mdl.Spec.Name };
+        _hand.Add(h);
+        return h;
+    }
+
+    /// <summary>La déplacer, la tourner, la retirer — l'éditeur le dit à chaque geste.</summary>
+    public void MoveHull(HandHull h, double x, double z, double yaw, bool removed)
+    {
+        h.At = new Vec3d(x, h.At.Y, z);
+        h.Cap = yaw;
+        h.Removed = removed;
+        if (removed) h.Node.Visible = false;
+    }
+
     /// <summary>Debug : dire ou sont les postes, une fois par port.</summary>
     public static bool Debug;
 
@@ -141,6 +184,8 @@ public partial class MooredNode : Node3D
 
     public void Build(string shipsDir, Ocean sea, double playerL, double playerB)
     {
+        // gardés pour les coques que l'éditeur posera ensuite (AddHull)
+        _shipsDir = shipsDir; _sea = sea;
         var modeles = new List<(ShipSpec Spec, Node3D Root, double K, double Y)>();
         foreach (string rel in Flotte)
             if (Model(shipsDir, rel, sea) is { } m0) modeles.Add(m0);
@@ -198,6 +243,7 @@ public partial class MooredNode : Node3D
     /// </summary>
     public void BuildAnchored(string shipsDir, Ocean sea)
     {
+        _shipsDir = shipsDir; _sea = sea;
         var specs = _world.Region.Anchored;
         if (specs.Count == 0) return;
         double cx = 0, cz = 0;
@@ -247,6 +293,13 @@ public partial class MooredNode : Node3D
     /// </summary>
     public void Update(Vec3d centre, Vec3d origin, Ocean sea, double t)
     {
+        foreach (var h in _hand)
+        {
+            double dx = h.At.X - centre.X, dz = h.At.Z - centre.Z;
+            bool vu = !h.Removed && dx * dx + dz * dz < Range * Range;
+            if (vu != h.Node.Visible) h.Node.Visible = vu;
+            if (vu) Ride(h.Node, h.At, h.Cap, h.L, origin, sea, t);
+        }
         foreach (var p in _ports)
         {
             double dx = p.At.X - centre.X, dz = p.At.Z - centre.Z;
@@ -258,7 +311,13 @@ public partial class MooredNode : Node3D
                     GD.Print($"[rade] {LL:F0} m a ({at2.X - origin.X:F0}, {at2.Z - origin.Z:F0}) local, {(an ? "sur ancre" : "a quai")}");
             }
 
-            foreach (var (node, at, cap, ancre, L) in p.Ships)
+            foreach (var (node, at, cap, ancre, L) in p.Ships) Ride(node, at, cap, L, origin, sea, t);
+        }
+    }
+
+    /// <summary>Une coque sur la houle : à la hauteur de l'eau, gîtée et tanguée sur sa pente.</summary>
+    static void Ride(Node3D node, Vec3d at, double cap, double L, Vec3d origin, Ocean sea, double t)
+    {
             {
                 double lx = at.X - origin.X, lz = at.Z - origin.Z;
                 double h = sea.Sample(lx, lz, t);
@@ -279,6 +338,5 @@ public partial class MooredNode : Node3D
                     .Rotated(Vector3.Forward, (float)Math.Atan2(-hx, 2 * r));
                 node.Basis = b;
             }
-        }
     }
 }

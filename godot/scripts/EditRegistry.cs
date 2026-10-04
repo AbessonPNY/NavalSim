@@ -83,7 +83,9 @@ public sealed class Editable
 
     /// <summary>Un ajout : la copie de <see cref="From"/>, ou le modèle brut <see cref="Glb"/>.</summary>
     public string From = "", Glb = "";
-    public bool Added => From.Length > 0 || Glb.Length > 0;
+    /// <summary>Un navire au mouillage posé à la main : sa fiche (MooredNode.AddHull).</summary>
+    public string Sheet = "";
+    public bool Added => From.Length > 0 || Glb.Length > 0 || Sheet.Length > 0;
 
     public bool Moved => Math.Abs(X - BaseX) > 1e-3 || Math.Abs(Z - BaseZ) > 1e-3;
 
@@ -155,7 +157,7 @@ public sealed class EditRegistry
         else Edits.Set(new Edit
         {
             Id = e.Id, X = e.X, Z = e.Z, Yaw = e.Yaw * 180 / Math.PI,
-            Scale = e.Scale, Dy = e.Dy, Removed = e.Removed, From = e.From, Glb = e.Glb
+            Scale = e.Scale, Dy = e.Dy, Removed = e.Removed, From = e.From, Glb = e.Glb, Sheet = e.Sheet
         });
         Dirty = true;
     }

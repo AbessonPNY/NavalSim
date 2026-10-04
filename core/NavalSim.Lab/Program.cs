@@ -1203,6 +1203,31 @@ void Rade()
             Console.WriteLine(FormattableString.Invariant($"  {rn} : {route.Count} marques, {len / 1852:F2} M ; {(pilot.Arrived ? "ARRIVÉ" : "pas arrivé, reste " + left.ToString("F0") + " m, marque " + pilot.Leg)} en {t / 60:F1} min, {sailed / 1852:F2} M parcourus, échoué {aground:F0} s, fond mini {minDepth:F1} m"));
         }
     }
+    // LE CHALAND POUR CARTHAGÈNE : la route du large, puis le cap sur la ville
+    {
+        var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, "barge.json")));
+        double need = spec.Hull.KeelDepth + spec.Hull.KeelExtra + 1.5;
+        var route = HarbourRoute.ToSea(world, pr.Item1, pr.Item2, need)!;
+        var ocean = new Ocean { Swell = 1.0, Time = 0 };
+        ocean.SetSeaState(force, windDeg);
+        var p2 = new ShipPhysics(spec, new HullLines(spec));
+        var ctrl = new Controls();
+        p2.Settle(ocean, ctrl);
+        p2.World = world;
+        p2.Body.Pos = new Vec3d(route[0].X, p2.Body.Pos.Y, route[0].Z);
+        p2.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), Math.Atan2(route[1].X - route[0].X, route[1].Z - route[0].Z));
+        var pilot = new HarbourPilot(p2, world, route, need) { Onward = world.Geo.ToXZ(10.4236, -75.5253) };
+        double dt = 1.0 / 30, t = 0, beyondAt = -1, aground = 0;
+        while (t < 4200 && (beyondAt < 0 || t < beyondAt + 120))
+        {
+            pilot.Update(dt, ocean, ctrl);
+            p2.Step(dt, ocean, ctrl, t); t += dt;
+            if (p2.Aground > 0.01) aground += dt;
+            if (beyondAt < 0 && pilot.Beyond) beyondAt = t;
+        }
+        var on = pilot.Onward!.Value; var bp = p2.Body.Pos;
+        Console.WriteLine(FormattableString.Invariant($"{spec.Name} (fond voulu {need:F1} m) : {(beyondAt < 0 ? "n'a pas gagné le large" : "au large en " + (beyondAt / 60).ToString("F1") + " min")}, échoué {aground:F0} s ; deux minutes après, cap {Compass.HeadingDeg(p2.Body.Quat.Rotate(new Vec3d(0, 0, 1))):F0}° pour un relèvement de Carthagène au {Compass.HeadingDeg(new Vec3d(on.X - bp.X, 0, on.Z - bp.Z)):F0}°"));
+    }
     Config.WindGain = 1.0; Config.CrewTacks = false;
 }
 

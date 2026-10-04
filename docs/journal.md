@@ -14223,6 +14223,42 @@ entre deux marques ; un départ se fait d'un bout de route loin de l'œil (à pl
 sauvés : la rade se repeuple à la reprise. Essai : `--rade-vue 1` pose la caméra sur
 le premier navire de la rade et le suit.
 
+## Des navires posés à la main (Godot)
+
+Demandé : « les garer en jeu, leur position en mémoire » — précisé : des navires posés à
+la main au mouillage, en mode création, comme les maisons. La palette (Tab) a une famille
+de plus, une entrée par fiche qui a un modèle ; Ctrl+V la pose sous la souris, et l'on
+déplace, tourne, retire comme le reste. La retouche s'écrit avec un champ `fiche`
+(`Edit.Sheet`), à côté de `de` et `glb`, et la coque renaît à la lecture du fichier.
+
+Ce sont des DÉCORS DE RADE et non des navires du jeu : MooredNode sait maintenant poser
+une coque seule (AddHull, MoveHull) — même modèle, même assise demandée au solveur,
+même houle que les rades des ports (Ride, la boucle sortie de Update) —, chacune visible
+selon SA distance à l'œil. Un navire du jeu par coque posée aurait pris une place de
+flotte (seize au plus) et un solveur à chaque image pour un navire qui ne bouge pas.
+
+Deux reprises en passant : la rade se montrait autour du NAVIRE, pas de l'œil — en mode
+création, une rade loin du navire restait cachée sous la caméra (Update reçoit
+ViewCentre) ; et l'essai de collage existant construisait le presse-papiers à la main.
+Essai : `--poser-navire frigate17e` pose une Roter Löwe devant le port de départ SANS
+enregistrer — un essai avait déjà écrit dans le fichier de retouches de l'utilisateur ;
+vérifié intact après coup.
+
+## Un chaland pour Carthagène (Godot)
+
+Demandé : un grand chaland de Port-Royal à l'océan, puis cap sur Carthagène. Une
+destination du trafic s'écrit désormais aussi en objet (TrafficLeg) : `vers` le large,
+`puis` un lieu réel par sa latitude et sa longitude, les seules `fiches` qui la
+courent, `allerSeul`. Le pilote, la dernière marque passée, continue droit sur ce lieu
+(HarbourPilot.Onward, Beyond) ; le trafic le retire quand il a passé l'horizon (2,5 km
+de l'œil), pas quand il est « rendu » — il ne le sera jamais ici.
+
+Le chaland « Bourrasque » (28 m, 210 t) va à la machine : la barre automatique le
+mène droit. Il est LENT — 1,3 m/s contre la mer de force 4 —, et met cinquante minutes
+à sortir de la rade (banc « rade », dernière ligne) ; puis cap au 162° pour un
+relèvement de Carthagène au 170°, la dérive mal compensée. En jeu il paraît souvent
+déjà en chemin, ce qui raccourcit l'attente.
+
 ## La caméra figée par l'avant d'une épave (Godot)
 
 Signalé deux fois : « la caméra gèle en appuyant sur C alors que le bateau
