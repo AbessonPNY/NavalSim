@@ -14239,6 +14239,15 @@ serait voilé à minuit. Écart assumé et dit dans le code : une vraie rade dé
 quelques millimètres par an ; ce qu'on voit en jours est la pellicule de limon et
 d'algues, dont on a fait une couche. Essai : `--epave -70 --epave-age 40`.
 
+Reprise sur une photo d'épave réelle (l'utilisateur : « pas trop recouverte ») : la
+couche pleine en deux semaines (SiltDays 30 → 5 : 0,5 à trois jours, 0,95 à quinze), et
+une seconde couche dans la même passe, LA CROÛTE, qui prend PARTOUT — les algues et les
+concrétions poussent, elles ne tombent pas, donc le bordé vertical se couvre aussi. Elle
+vient après le premier voile, par plaques qui grandissent et se rejoignent. Faite
+d'abord sombre (algue brun-vert), elle se lisait comme un camouflage ; la photo montre
+un fond PÂLE de concrétion grise, marbré d'algues aux bords doux, piqué de points
+sombres et de coulures de rouille — c'est ce qui est peint. La vase se pose par-dessus.
+
 LE FOND PEINT DE LUI-MÊME (seabed.gdshaderinc), sous le pinceau : sable blanc des
 hauts-fonds, vase là où l'eau ne bouge pas (l'ABRI, le même que la mer, et le grand
 fond), herbier par plaques d'un à douze mètres sur le plat, roche sur les pentes. Les

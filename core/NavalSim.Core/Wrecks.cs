@@ -52,8 +52,8 @@ public sealed class WreckRegistry
 
     /// <summary>Le premier voile de vase, au bout d'un jour (part de la couche pleine).</summary>
     public const double SiltFirst = 0.25;
-    /// <summary>Le temps propre de la vase, en jours : passé trois fois ce temps, la couche est presque pleine.</summary>
-    public const double SiltDays = 30;
+    /// <summary>Le temps propre de la vase, en jours : passé trois fois ce temps (deux semaines), la couche est presque pleine.</summary>
+    public const double SiltDays = 5;
 
     /// <summary>
     /// LA VASE SUR UNE ÉPAVE, de 0 à 1, selon le temps qu'elle a passé au fond :
