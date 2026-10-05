@@ -1036,7 +1036,6 @@ public sealed partial class ShipPhysics
         var S = Spec; var b = Body;
         // elle porte tout son poids à un tiers de mètre de chevauchement
         double kSpring = b.Mass * Config.G / 0.33;
-        double spd = b.Vel.LengthXZ;
         _hardHit = Math.Max(0, _hardHit - dt);
 
         const int NS = 9;                                   // stations le long de chaque bord
@@ -1097,14 +1096,24 @@ public sealed partial class ShipPhysics
                     force += fVec;
                     torque += r.Cross(fVec);
 
-                    /* Et abordée en vitesse, elle S'OUVRE, exactement comme sur
-                       la roche. L'abordage devient donc une vraie cause de
-                       l'envahissement déjà écrit, sans une ligne à lui. */
-                    if (spd > 2.2 && _hardHit <= 0)
+                    /* Et heurtée en vitesse, elle S'OUVRE, exactement comme sur
+                       la roche. Mais c'est la vitesse du CHOC qui défonce un bordé :
+                       celle à laquelle les deux murailles se rentrent dedans, en
+                       travers, au point touché. Elle se lisait sur l'erre du navire,
+                       et deux coques à couple, filant ensemble à six nœuds en se
+                       frôlant à un demi-mètre par seconde, s'ouvraient toutes les
+                       cinq secondes (banc « abordage » ; signalé : des coques
+                       ouvertes en escarmouche sans un boulet reçu). Un abordage se
+                       fait en glissant le long du bord, préceintes contre préceintes :
+                       il faut un mètre et demi par seconde de travers, un éperonnage,
+                       pour enfoncer du chêne. */
+                    Vec3d vo = ob.AngVel.Cross(pw - ob.Pos) + ob.Vel;
+                    double impact = -(vp - vo).Dot(nrm);
+                    if (impact > 1.5 && _hardHit <= 0)
                     {
                         int comp = Math.Min(Comps.Length - 1, Math.Max(0,
                             (int)Math.Floor(t * Comps.Length)));
-                        MakeBreach(comp, Math.Min(0.40, 0.05 * (spd - 2.0)), 0.42);
+                        MakeBreach(comp, Math.Min(0.30, 0.04 * (impact - 1.2)), 0.42);
                         _hardHit = 5;      // pas deux fois dans le même souffle
                     }
                 }

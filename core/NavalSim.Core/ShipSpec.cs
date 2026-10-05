@@ -365,6 +365,14 @@ public sealed class ShipJson
     /// tenir, et on pouvait pourtant mouiller avec (signalé).
     /// </summary>
     [JsonPropertyName("anchor")] public bool? Anchor { get; set; }
+    /// <summary>
+    /// DES PIRATES PEUVENT-ILS L'ARMER ? Une coque n'est pas pirate, un ÉQUIPAGE l'est :
+    /// un sloop des Antilles était aussi bien caboteur que forban. Vrai : les rencontres
+    /// peuvent la sortir sous le pavillon noir, en plus de ses sorties honnêtes. Le camp,
+    /// lui, reste dit par le pavillon HISSÉ (appearance.ensign « jolly » pour une coque
+    /// qui n'est que pirate, comme le galion).
+    /// </summary>
+    [JsonPropertyName("pirate")] public bool? Pirate { get; set; }
     [JsonPropertyName("rig")]    public RigSpec Rig { get; set; } = new();
     [JsonPropertyName("model")]  public ModelSpec? Model { get; set; }
     [JsonPropertyName("appearance")] public AppearanceSpec Appearance { get; set; } = new();

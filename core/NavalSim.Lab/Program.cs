@@ -71,6 +71,7 @@ switch (mode)
     case "godille": Godille(); break;
     case "nage": Nage(); break;
     case "contre": Contre(); break;
+    case "abordage": Abordage(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -1395,6 +1396,39 @@ void Godille()
         var f1 = ph.Body.Quat.Rotate(new Vec3d(0, 0, 1));
         double turn = Math.Atan2(Math.Sin(Math.Atan2(-f1.X, f1.Z) - h0), Math.Cos(Math.Atan2(-f1.X, f1.Z) - h0)) * 180 / Math.PI;
         Console.WriteLine(FormattableString.Invariant($"  {label,-26} : tourné de {turn,6:F1}° en 30 s, erre en avant au plus {maxFwd / 0.5144:F2} nd"));
+    }
+}
+
+/* L'ABORDAGE : deux frégates bord à bord, cap au nord, la première avec de l'erre,
+   la seconde qui vient sur elle de travers à une vitesse donnée. Les brèches que
+   chacune y gagne en une minute, et leur aire. Un abordage se fait à couple, en
+   glissant le long du bord : c'est la vitesse de TRAVERS au contact qui défonce
+   un bordé, pas celle du navire sur l'eau. */
+void Abordage()
+{
+    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, "frigate17e.json")));
+    Console.WriteLine($"{spec.Name}, B {spec.B:F1} m");
+    foreach (double way in new[] { 0.0, 3.0 })
+    foreach (double cross in new[] { 0.5, 1.0, 2.0, 3.0, 4.0 })
+    {
+        var ocean = new Ocean { Swell = 1.0, Time = 0 };
+        ocean.SetSeaState(2, 0);
+        var a = new ShipPhysics(spec, new HullLines(spec));
+        var b = new ShipPhysics(spec, new HullLines(spec));
+        var ctrl = new Controls { SailsSet = false };
+        a.Settle(ocean, ctrl); b.Settle(ocean, ctrl);
+        a.PlugEvery = 0; b.PlugEvery = 0;
+        // b à tribord de a (tribord = −x), à un demi-mètre de son bordé, qui vient dessus
+        b.Body.Pos = new Vec3d(a.Body.Pos.X - spec.B - 0.5, b.Body.Pos.Y, a.Body.Pos.Z);
+        a.Body.Vel = new Vec3d(0, 0, way);
+        b.Body.Vel = new Vec3d(cross, 0, way);
+        var both = new List<ShipPhysics> { a, b };
+        double dt = 1.0 / 60, t = 0;
+        for (int k = 0; k < 60 * 60; k++) { a.Step(dt, ocean, ctrl, t, both); b.Step(dt, ocean, ctrl, t, both); t += dt; }
+        double areaA = 0, areaB = 0;
+        foreach (var br in a.Breaches) areaA += br.Area;
+        foreach (var br in b.Breaches) areaB += br.Area;
+        Console.WriteLine(FormattableString.Invariant($"  erre {way:F0} m/s, de travers {cross:F1} m/s : abordée {a.Breaches.Count} brèche(s) {areaA:F3} m², l'abordeur {b.Breaches.Count} {areaB:F3} m²"));
     }
 }
 

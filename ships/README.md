@@ -779,6 +779,12 @@ calculé par `Rings.Axis` dans le noyau, éprouvé par
 
 - `ensign` décide du **camp** : `"jolly"` rend le navire hostile (pirate) ; une
   couleur (`"0xb22222"`) donne un pavillon uni et pacifique.
+- `"pirate": true`, à la **racine** de la fiche (pas dans `appearance`), dit que des
+  forbans **peuvent armer** cette coque : les rencontres la sortent alors tantôt
+  honnête, tantôt sous la tête de mort (le pavillon pirate de `flags.json`, hissé à
+  la mise à l'eau). Une coque qui n'est que pirate garde `"ensign": "jolly"`. Le
+  sloop le porte : c'était le navire des flibustiers des Antilles autant que des
+  caboteurs.
 - `ensignMap` décide de l'**image** qui flotte (png, jpg ou webp). Absente, un
   pavillon `"jolly"` porte la tête de mort dessinée par le code. Les deux sont
   indépendants : on peut changer l'image sans changer de camp.

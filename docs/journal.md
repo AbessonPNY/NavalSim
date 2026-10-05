@@ -14729,6 +14729,29 @@ affaibli par le ciel couvert (Sunlit), la brume de surface, l'orage, le soleil s
 c'est un artefact d'OBJECTIF, l'œil n'en voit pas — au menu, Lumière : « Reflet de lentille »
 (0 l'éteint ; reglages.ini → [lumiere] reflet_de_lentille).
 
+## L'abordage qui n'ouvre plus la coque ; le sloop pirate (Godot)
+
+DEMANDÉ : « réduis aussi les voies d'eau des abordages ». Le contact de deux coques ouvrait une brèche
+selon l'ERRE du navire (b.Vel.LengthXZ > 2,2 m/s), et non selon la vitesse du choc : deux coques à
+couple filant ensemble à six nœuds en se frôlant à 0,5 m/s s'ouvraient toutes deux (banc « abordage »,
+deux frégates, erre 3 m/s : une brèche chacune dès 0,5 m/s de travers ; à l'arrêt, rien avant 3 m/s).
+C'est ce qu'on lisait en escarmouche : des coques ouvertes sans un boulet reçu. Désormais la vitesse
+RELATIVE des deux bordés au point touché, en travers (vitesses de point des deux corps, projetées sur
+la normale) : rien sous 1,5 m/s, puis 0,04 × (v − 1,2) m², 0,30 au plus, une fois par cinq secondes.
+Au banc : 0 à 1 m/s de travers, 0,025 m² à 2, 0,064 à 3, 0,10 à 4 — et pareil qu'on ait de l'erre ou
+non, ce qui est la preuve. Un abordage se fait préceintes contre préceintes, en glissant ; il faut un
+éperonnage pour enfoncer du chêne.
+
+LE SLOOP PIRATE (demandé : « un flag sur une fiche bateau pour pirate oui/non »). Un pirate était une
+FICHE (appearance.ensign « jolly ») : seul le galion pouvait l'être. Une coque n'est pas pirate, un
+équipage l'est. Champ racine « pirate » : true (ShipJson.Pirate) — des forbans PEUVENT l'armer : la
+rencontre la met dans les deux listes (MetPool), et quand elle sort sous le noir, Put hisse le pavillon
+pirate de flags.json AVANT de l'armer. IsJolly lit donc aussi le pavillon HISSÉ (Ensign.Pirate) : la
+règle « le camp, c'est le pavillon » tient, elle s'étend au pavillon qu'on hisse. Le sloop le porte.
+Vérifié (rencontre « aux prises » forcée sur le sloop) : pavillon pirate, IsJolly vrai, il canonne sa
+proie. Le tirage des rencontres suit une graine fixe en essai : quatre galions de suite n'étaient pas
+une panne.
+
 ## Ce que coûtent les pâtés de maisons de Port-Royal (Godot)
 
 Mesuré (--sans-ajout <motif>, qui cache les ajouts du mode création dont le modèle

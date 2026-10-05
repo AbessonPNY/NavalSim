@@ -259,18 +259,32 @@ public partial class ShipDemo
             var spec = ShipLibrary.Load(_paths[i]);
             if (spec == null) continue;
             if (Array.IndexOf(_metRules.Exclude, spec.Id) >= 0) continue;
-            if (spec.Appearance?.Ensign == "jolly") pirates.Add(i); else honest.Add(i);
+            /* Une coque toute pirate (le galion, sa tête de mort dans la fiche) ne sort
+               que sous le noir ; une coque que des forbans PEUVENT armer (« pirate » :
+               true) sort sous les deux. */
+            if (spec.Appearance?.Ensign == "jolly") { pirates.Add(i); continue; }
+            honest.Add(i);
+            if (spec.Raw.Pirate == true) pirates.Add(i);
         }
         return (pirates, honest);
     }
 
-    /// <summary>Poser une coque à un point local, l'étrave sur un but donné en mètres vrais.</summary>
-    ShipNode? Put(int specIndex, Vec3d at, Vec3d toWorld, bool arm)
+    /// <summary>
+    /// Poser une coque à un point local, l'étrave sur un but donné en mètres vrais.
+    /// <paramref name="black"/> : elle sort en pirate — la tête de mort hissée si sa
+    /// fiche ne la porte pas déjà, AVANT de l'armer (Arm lit le pavillon).
+    /// </summary>
+    ShipNode? Put(int specIndex, Vec3d at, Vec3d toWorld, bool arm, bool black = false)
     {
         int before = _others.Count;
         SpawnFleet(1, specIndex, arm);
         if (_others.Count == before) return null;
         var s = _others[^1];
+        if (black && !IsJolly(s) && _nations.Pirate is { } jolly)
+        {
+            s.SetEnsign(jolly.Image, jolly);
+            if (arm) Arm(s);
+        }
         var b = s.Physics.Body;
         var o = _sea.Core.Origin;
         double now = _stepT0 + _stepSub * _stepDt;
@@ -301,7 +315,7 @@ public partial class ShipDemo
         /* UN PIRATE EST ARMÉ, et c'est tout ce qu'il faut : le reste — choisir sa
            proie, la chasser, cesser le feu pour venir à couple — est son métier et
            il le sait déjà. Un marchand, lui, ne sait que sa route. */
-        var s = Put(pool[_metRng.Next(pool.Count)], spot.At, spot.To, black);
+        var s = Put(pool[_metRng.Next(pool.Count)], spot.At, spot.To, black, black);
         if (s == null) return;
         if (black) HelmOf(s).Standoff = Math.Max(HelmOf(s).Standoff, 120);
         else _bound[s] = spot.To;
@@ -339,7 +353,7 @@ public partial class ShipDemo
         var at = new Vec3d(pb.Pos.X + beam.X * _metRules.BattleGap, 0, pb.Pos.Z + beam.Z * _metRules.BattleGap);
         var o = _sea.Core.Origin;
         var raider = Put(pirates[_metRng.Next(pirates.Count)], at,
-                         new Vec3d(o.X + pb.Pos.X, 0, o.Z + pb.Pos.Z), false);
+                         new Vec3d(o.X + pb.Pos.X, 0, o.Z + pb.Pos.Z), false, black: true);
         if (raider == null) { _bound[prey] = spot.To; return; }
 
         _hostile[raider] = (prey, 0);

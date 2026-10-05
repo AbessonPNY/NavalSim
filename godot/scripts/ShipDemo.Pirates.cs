@@ -15,10 +15,13 @@ public partial class ShipDemo
     // ------------------------------------------------------------------
 
     /* LE PAVILLON NOIR EST UNE DÉCLARATION, PAS UNE DÉCORATION : un navire est
-       hostile parce qu'il arbore la tête de mort (appearance.ensign = « jolly »),
-       et non parce qu'une fiche porte un drapeau booléen quelque part. Tous les
-       autres sont pacifiques jusqu'à ce qu'on les touche. */
-    static bool IsJolly(ShipNode s) => s.Spec.Appearance.Ensign == "jolly";
+       hostile parce qu'il arbore la tête de mort — celle de sa fiche
+       (appearance.ensign = « jolly », une coque qui n'est que pirate), ou celle
+       qu'un équipage de forbans a hissée sur une coque qui peut l'être (fiche
+       « pirate » : true, voir Put). Le booléen de la fiche dit qui PEUT l'armer,
+       jamais qui elle est. Tous les autres sont pacifiques jusqu'à ce qu'on les
+       touche. */
+    static bool IsJolly(ShipNode s) => s.Spec.Appearance.Ensign == "jolly" || s.Ensign?.Pirate == true;
 
     readonly Dictionary<ShipNode, AutoHelm> _helms = new();
     readonly Dictionary<ShipNode, Pirate> _pirates = new();
