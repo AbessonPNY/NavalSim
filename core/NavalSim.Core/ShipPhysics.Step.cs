@@ -68,6 +68,7 @@ public sealed partial class ShipPhysics
         double hBound = ocean.HeightBound();
         double shHull = ocean.ShelterOver(b.Pos.X, b.Pos.Z, ProbeReach());
 
+        double wn = 0, wx = 0, wz = 0, wxx = 0, wzz = 0, wxz = 0;
         for (int i = 0; i < Probes.Length; i++)
         {
             ref Probe pr = ref Probes[i];
@@ -97,6 +98,8 @@ public sealed partial class ShipPhysics
             double f = depth > 0 ? Math.Min(1, depth / ProbeH) : 0;
             double df = f - pr.Frac;
             pr.Frac = f;
+            // la cellule qui traverse la surface : elle est sur la ligne d'eau (Waterline)
+            if (f > 0 && f < 1) { wn += pr.Vol; wx += pr.Vol * pw.X; wz += pr.Vol * pw.Z; wxx += pr.Vol * pw.X * pw.X; wzz += pr.Vol * pw.Z * pw.Z; wxz += pr.Vol * pw.X * pw.Z; }
 
             /* LE COUP DE FREIN D'UNE CRÊTE. L'étrave qui avance dans une lame
                chasse devant elle l'eau qu'elle y enfonce, et lui rend son élan :
@@ -182,6 +185,7 @@ public sealed partial class ShipPhysics
         }
 
         SubmergedFrac = submergedVol / HullVolume;
+        WaterlineFrom(wn, wx, wz, wxx, wzz, wxz);
         // la carène qui la porte au repos déplace sa masse : au-delà, elle est à flot
         Wet = Math.Clamp(submergedVol * Config.Rho / b.Mass, 0, 1);
         Draft = Math.Max(0, ocean.Sample(cog.X, cog.Z, t) - lowestY);

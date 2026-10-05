@@ -18,6 +18,12 @@ public sealed class Gun
     public double ReadyAt;               // l'heure de jeu où elle est de nouveau chargée
     public bool Out;                     // démontée
     public double Damage;
+    /// <summary>
+    /// LA HAUSSE, en radians au-dessus du tir de but en blanc : ce que le coin sous la
+    /// culasse ajoute ou retire. Nulle, la pièce met son boulet sur la mer à trois
+    /// cents mètres ; levée, elle vise plus loin — ou plus haut, la mâture.
+    /// </summary>
+    public double Hausse;
 }
 
 /// <summary>La batterie d'un navire, et le curseur qui la parcourt coup par coup.</summary>
@@ -360,7 +366,7 @@ public sealed class Gunnery
         double k = Math.Max(0.35, ship.Spec.L / 60) * g.Cal;
         Vec3d at = body.Quat.Rotate(g.P) + body.Pos;
         double overSea = Math.Max(0, g.P.Y + body.Pos.Y);
-        double elev = -Math.Max(0, overSea - 2.9) / 300;      // 2,9 m : la chute à 300 m
+        double elev = PointBlank(overSea) + g.Hausse;
         Vec3d d = body.Quat.Rotate(g.Dir);
         d = new Vec3d(d.X, 0, d.Z);                          // son relèvement, pris à plat
         if (d.X * d.X + d.Z * d.Z < 1e-6) d = g.Dir;
@@ -401,6 +407,13 @@ public sealed class Gunnery
 
         OnFire?.Invoke(at, outDir, k, sea, ship, g);
     }
+
+    /// <summary>
+    /// LE TIR DE BUT EN BLANC, en radians contre l'horizon (négatif : sous lui) : la
+    /// ligne qui met le boulet sur la mer à trois cents mètres, d'une bouche à cette
+    /// hauteur — 2,9 m, ce qu'il chute en y allant. La hausse se compte à partir d'elle.
+    /// </summary>
+    public static double PointBlank(double overSea) => -Math.Max(0, overSea - 2.9) / 300;
 
     static Vec3d RotateAbout(Vec3d v, Vec3d axis, double a)
     {

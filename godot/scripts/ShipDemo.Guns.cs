@@ -278,6 +278,8 @@ public partial class ShipDemo
         var bat = _ship.Battery;
         TargetOf(_ship);
         if (bat.Guns.Count == 0) { Say("Ce navire ne porte pas de batterie"); return; }
+        // la hausse réglée à la pièce : un navire neuf a des pièces neuves, à zéro
+        foreach (var g in bat.Guns) g.Hausse = _hausse.GetValueOrDefault(g.Side);
         if (ph.Powder <= 0) { Say("Plus une charge en soute"); return; }
         int side = other ? -_gunSide : _gunSide;
         if (!bat.Has(side)) { Say("Aucune pièce en " + GunNames[side]); return; }
@@ -320,7 +322,8 @@ public partial class ShipDemo
         if (bat.Guns.Count == 0) return "";
         var (ok, all) = bat.Count(_gunSide);
         var L = _gunnery.Loaded(bat, _gunSide);
-        return $"pièces     {GunNames[_gunSide]}" + (all > 0 && ok < all ? $" {ok}/{all}" : "")
+        string hausse = HausseTag(_gunSide);
+        return $"pièces     {GunNames[_gunSide]}{hausse}" + (all > 0 && ok < all ? $" {ok}/{all}" : "")
              + (L.All > 0 && L.Ready < L.All ? $" · {L.Ready} prête{(L.Ready > 1 ? "s" : "")} sur {L.All}" : "")
              + $" · {_ship.Physics.Powder} charges\n";
     }

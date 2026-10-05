@@ -74,6 +74,39 @@ public partial class ShipDemo
     static readonly NavalSim.Core.DeckView PostView = new()
     { Y = 0.55, Z = 2.2, Pitch = -2, Fov = 45, Near = 0.08 };
 
+    /// <summary>La hausse de chaque groupe de pièces, en radians au-dessus du but en blanc : elle reste réglée quand on quitte la pièce.</summary>
+    readonly Dictionary<int, double> _hausse = new();
+    /// <summary>Ce que le coin sous la culasse permet : de cinq degrés sous le but en blanc à douze au-dessus.</summary>
+    const double HausseMin = -5 * Math.PI / 180, HausseMax = 12 * Math.PI / 180;
+
+    /// <summary>Le site de la ligne de mire de ce groupe contre l'horizon : son but en blanc, plus sa hausse.</summary>
+    double SightOf(int side)
+    {
+        double over = 3;
+        var b = _ship.Physics.Body;
+        foreach (var g in _ship.Battery.Guns)
+            if (g.Side == side && !g.Out) { over = Math.Max(0, g.P.Y + b.Pos.Y); break; }
+        return Gunnery.PointBlank(over) + _hausse.GetValueOrDefault(side);
+    }
+
+    /// <summary>« · +4,0° » sur le bouton d'un groupe de chasse levé ou servi ; rien sinon.</summary>
+    string HausseTag(int side)
+    {
+        if (Math.Abs(side) < 2) return "";
+        double hz = _hausse.GetValueOrDefault(side) * 180 / Math.PI;
+        if (_gunPost != side && Math.Abs(hz) < 0.05) return "";
+        return FormattableString.Invariant($" · {(hz >= 0 ? "+" : "−")}{Math.Abs(hz):F1}°").Replace('.', ',');
+    }
+
+    /// <summary>Lever ou baisser la pièce servie, et la dire.</summary>
+    void NudgeHausse(int side, double d)
+    {
+        double h = Math.Clamp(_hausse.GetValueOrDefault(side) + d, HausseMin, HausseMax);
+        _hausse[side] = h;
+        foreach (var g in _ship.Battery.Guns) if (g.Side == side) g.Hausse = h;
+        UpdateInfo();
+    }
+
     void SetGunPost(int? side)
     {
         if (_gunPost == side) return;
@@ -331,7 +364,21 @@ public partial class ShipDemo
         {
             var xfp = _ship.GlobalTransform;
             _cam.Position = xfp * poste2.At;
-            _cam.LookAt(xfp * (poste2.At + poste2.Dir * 120f), Vector3.Up);
+            /* LA LIGNE DE MIRE CONTRE L'HORIZON, pas contre le pont : le boulet part
+               contre l'horizon (le chef de pièce choisit son moment dans le roulis), et
+               une mire qui tangue avec le pont visait à côté de quelques degrés — dix
+               mètres de voile à deux cents. Le cap suit la pièce ; le site est celui du
+               tir, but en blanc plus la hausse : ce qu'on vise est la ligne du départ. */
+            var aim = xfp.Basis * poste2.Dir;
+            var flat = new Vector3(aim.X, 0, aim.Z);
+            if (flat.LengthSquared() > 1e-6f)
+            {
+                flat = flat.Normalized();
+                double site = SightOf(post2);
+                var look = flat * (float)Math.Cos(site) + new Vector3(0, (float)Math.Sin(site), 0);
+                _cam.LookAt(_cam.Position + look * 120f, Vector3.Up);
+            }
+            else _cam.LookAt(xfp * (poste2.At + poste2.Dir * 120f), Vector3.Up);
             return;
         }
 

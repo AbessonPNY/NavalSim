@@ -54,6 +54,7 @@ switch (mode)
     case "derive": Derive(); break;
     case "soute": Soute(); break;
     case "rupture": Rupture(); break;
+    case "hausse": Hausse(); break;
     case "semis": Semis(); break;
     case "profil": Profil(); break;
     case "centre": Centre(); break;
@@ -1756,6 +1757,34 @@ void Rupture()
         if (goneB < 0 && bow.SubmergedFrac > 0.999 && bow.DepthBelow > 6) goneB = t;
     }
     Console.WriteLine(FormattableString.Invariant($"  disparue : avant à {goneB:F0} s, arrière à {goneA:F0} s"));
+}
+
+/* LA HAUSSE : où passe un boulet, selon le coin sous la culasse — la même balistique
+   que Gunnery (440 m/s, traînée c·v², la charge du calibre), une bouche à 4 m sur la
+   mer, tirée d'un pont immobile. Pour chaque hausse : sa hauteur à 100, 200, 300 m,
+   et où elle tombe. [k] (0,35 : une pièce de chasse ; 1 : le travers d'une frégate) */
+void Hausse()
+{
+    double k = args.Length > 1 ? double.Parse(args[1], CultureInfo.InvariantCulture) : 0.35;
+    double over = 4, c = 0.00097 / k, v0m = Ball.Muzzle * Ball.Charge(k);
+    Console.WriteLine(FormattableString.Invariant($"calibre k {k}, bouche à {over} m, {v0m:F0} m/s"));
+    foreach (double deg in new[] { -2.0, 0, 1, 2, 3, 4, 6, 8, 10, 12 })
+    {
+        double el = Gunnery.PointBlank(over) + deg * Math.PI / 180;
+        double x = 0, y = over, vx = v0m * Math.Cos(el), vy = v0m * Math.Sin(el), h = 0.002;
+        double? y100 = null, y200 = null, y300 = null;
+        while (y > 0 && x < 3000)
+        {
+            double sp = Math.Sqrt(vx * vx + vy * vy);
+            vx += -c * sp * vx * h; vy += -c * sp * vy * h - Config.G * h;
+            double x0 = x; x += vx * h; y += vy * h;
+            if (x0 < 100 && x >= 100) y100 = y;
+            if (x0 < 200 && x >= 200) y200 = y;
+            if (x0 < 300 && x >= 300) y300 = y;
+        }
+        string Y(double? v) => v is double d ? FormattableString.Invariant($"{d,6:F1} m") : "   à l'eau";
+        Console.WriteLine(FormattableString.Invariant($"  hausse {deg,5:F0}° : à 100 m {Y(y100)}, à 200 m {Y(y200)}, à 300 m {Y(y300)}, tombe à {x,5:F0} m"));
+    }
 }
 
 void Soute()

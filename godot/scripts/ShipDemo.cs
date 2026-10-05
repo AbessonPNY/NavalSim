@@ -938,6 +938,7 @@ public partial class ShipDemo : Node3D
         TrafficTick(frame);
         CabinTick(frame);
         CreakTick();
+        BowSprayTick();
         DiveShow(frame);
         CrewTick(frame);
         TackCalls();

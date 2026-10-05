@@ -120,7 +120,8 @@ public partial class ShipDemo
             var l = _gunnery.Loaded(bat, side);
             // ce qui est prêt sur ce qui tient encore debout ; démontées, elles ne comptent plus
             b.Text = $"{GunNames[side]} {l.Ready}/{Math.Max(ok, l.All)}"
-                   + (ok < all ? $" ({all - ok} démontée{(all - ok > 1 ? "s" : "")})" : "");
+                   + (ok < all ? $" ({all - ok} démontée{(all - ok > 1 ? "s" : "")})" : "")
+                   + HausseTag(side);
             FontColour(b, side == _gunSide ? GunPicked : l.Ready > 0 ? GunIdle : GunSpent);
         }
         if (_gunPowder != null)

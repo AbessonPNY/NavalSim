@@ -77,6 +77,15 @@ public partial class ShipDemo
                 // le coup à l'eau seul, pour le régler : --pres 1
                 case "--pres": if (args[i + 1] != "0") StrikeAlongside(_ship); break;
                 case "--bordee": _gunSide = args[i + 1].ToInt(); Fire(false, true); break;
+                // À LA PIÈCE, hausse réglée : « -2,4 » sert la proue tribord, levée de quatre degrés
+                case "--hausse":
+                    {
+                        var hs = args[i + 1].Split(',');
+                        int side = hs[0].ToInt();
+                        _gunSide = side; SetGunPost(side);
+                        if (hs.Length > 1) NudgeHausse(side, hs[1].ToFloat() * Math.PI / 180 - _hausse.GetValueOrDefault(side));
+                        break;
+                    }
                 // --soute 1 : tout de suite ; --soute 4 : dans quatre secondes, après un --large par exemple
                 case "--soute": if (args[i + 1].ToFloat() > 1) _souteIn = args[i + 1].ToFloat(); else BlowUp(_ship); break;
                 /* DES DÉPARTS DE FEU, tout de suite : pour le régler sans se faire

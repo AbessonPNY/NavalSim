@@ -389,7 +389,15 @@ public partial class ShipDemo
         }
         if (e is InputEventMouseMotion mm && _dragging)
         {
-            if (_camMode == 1)
+            /* À LA PIÈCE : le glisser de côté regarde le long du bord, celui de haut en
+               bas LÈVE OU BAISSE LA PIÈCE — la hausse, au coin, fine : un degré pour
+               une douzaine de pixels. La mire suit, contre l'horizon. */
+            if (_gunPost is int gp)
+            {
+                _bridgeYaw -= mm.Relative.X * 0.004;
+                NudgeHausse(gp, -mm.Relative.Y * 0.0015);
+            }
+            else if (_camMode == 1)
             {
                 // regarder autour À PARTIR du regard de la vue
                 _bridgeYaw -= mm.Relative.X * 0.004;

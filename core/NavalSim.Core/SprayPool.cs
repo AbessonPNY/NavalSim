@@ -140,6 +140,43 @@ public sealed class SprayPool
     }
 
     /// <summary>
+    /// UN ÉVENTAIL, et non une couronne : l'eau qu'une étrave FEND et rejette d'un
+    /// bord. Elle part le long de <paramref name="dir"/> (à plat, vers l'extérieur),
+    /// ouverte de trente degrés, levée de quinze à quarante-cinq, à
+    /// <paramref name="speed"/> ; et elle garde <paramref name="carry"/>, la vitesse de
+    /// la coque qui l'a jetée — elle naît à son pas puis tombe en arrière d'elle.
+    /// Des paquets petits et vite retombés : c'est une moustache, pas une gerbe.
+    /// </summary>
+    public void Fan(Vec3d at, Vec3d dir, double water, double speed, Vec3d carry)
+    {
+        if (water < 0.02 || speed < 0.4) return;
+        double dl = Math.Sqrt(dir.X * dir.X + dir.Z * dir.Z);
+        if (dl < 1e-6) return;
+        double dx = dir.X / dl, dz = dir.Z / dl;
+        int count = Math.Max(6, Math.Min(160, (int)Math.Round(water * 40)));
+        for (int i = 0; i < count; i++)
+        {
+            int s = Slot();
+            if (s < 0) break;
+            ref Drop d = ref _live[s];
+            double a = (_rng.NextDouble() - 0.5) * 0.52;                 // ±15° autour de son cap
+            double e = 0.26 + _rng.NextDouble() * 0.52;                   // 15° à 45° de levée
+            double sp = speed * (0.45 + _rng.NextDouble() * 0.7);
+            double ca = Math.Cos(a), sa = Math.Sin(a);
+            double hx = dx * ca - dz * sa, hz = dx * sa + dz * ca;
+            d.P = new Vec3d(at.X + (_rng.NextDouble() - 0.5) * 0.4, at.Y + _rng.NextDouble() * 0.2, at.Z + (_rng.NextDouble() - 0.5) * 0.4);
+            d.V = new Vec3d(hx * Math.Cos(e) * sp + carry.X, Math.Sin(e) * sp, hz * Math.Cos(e) * sp + carry.Z);
+            d.S0 = 0.12 + _rng.NextDouble() * 0.2;
+            d.S1 = d.S0 * 2.2;
+            d.Life = 0.45 + _rng.NextDouble() * 0.5;
+            d.T = 0;
+            d.Y0 = at.Y;
+            d.K = 1.1 * Math.Min(2.4, 0.35 / Math.Max(0.05, d.S0));
+            d.On = true;
+        }
+    }
+
+    /// <summary>
     /// Toute goutte vivante tient une position locale : elle glisse avec le monde.
     /// Oubliée, un recentrage laisserait l'embrun pendu un kilomètre et demi derrière.
     /// </summary>

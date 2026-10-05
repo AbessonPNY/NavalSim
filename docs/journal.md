@@ -14299,6 +14299,63 @@ plus que dans les cases gardées ; tout le semis du fond tombe à 1,0 s (1,8 ava
 l'herbier dense). Coût mesuré : le pré, 8,77 ms contre 8,54 sans le fond ; le récif,
 7,57 comme avant.
 
+## La hausse des pièces de chasse ; l'étrave qui fend ; la coque qui souffle (Godot)
+
+LA HAUSSE (demandé : « ajuster le tir en hauteur pour compenser l'angle du navire, viser les
+voiles ; commencer par les deux pièces de chasse avant »). Le tir était un seul : de but en blanc,
+contre l'horizon (la gîte compensée — le chef de pièce attend son roulis), le boulet sur la mer à
+trois cents mètres. Gun.Hausse : des radians au-dessus de ce but en blanc (Gunnery.PointBlank,
+exposé), de −5° à +12° — un coin sous la culasse. À la pièce (le panneau des bordées), le glisser
+de HAUT EN BAS la règle (un degré pour une douzaine de pixels), retenue par groupe, affichée sur
+son bouton (« proue tribord 1/1 · +4,0° »). LA MIRE CONTRE L'HORIZON : l'œil de la pièce tanguait
+avec le pont, le boulet partait contre l'horizon — quelques degrés d'écart, dix mètres de voile à
+deux cents ; le cap suit la pièce, le site est celui du tir. Banc « hausse » (pièce de chasse,
+k 0,35, bouche à 4 m) : +3° passe à 12 m de haut à 200 m, +4° à 15 m, +6° à 22 m ; elle tombe à
+236, 505, 559, 639 m. En jeu, depuis le quai : 296 m de but en blanc, 452 à +2°, 570 à +3°, 748 à
++6°. Piège d'essai : --bordee avec --large tirait AVANT le saut au large, et le monde glissait de
+dix kilomètres sous le boulet en vol — la gerbe « à 11 km » n'était que la mesure. Le pointage EN
+DIRECTION reste à faire : le glisser de côté tourne l'œil, pas la pièce.
+
+LA COQUE QUI SOUFFLE (demandé : des gerbes presque verticales près de la coque qui coule). Chaque
+mètre cube que la mer fait entrer en chasse un d'air ; à fleur d'eau il sort EN FORCE par les
+écoutilles : des geysers le long de la ligne d'eau (ShipPhysics.Water), au débit d'envahissement
+(une gerbe pour deux mètres cubes, à peu près, six par seconde au plus — à cent m³/s il en partait
+une par image, minuscules), jet relevé à 3 : une colonne, pas une couronne.
+
+L'ÉTRAVE QUI FEND (demandé, avec un croquis : une moustache de chaque bord). SprayPool.Fan : un
+éventail dirigé, qui garde 70 % de la vitesse de la coque. Il naît du nombre de Froude, v/√(gL) :
+rien sous 0,12, puis comme le carré de l'excès, et davantage quand l'étrave plonge dans la lame.
+Vu sur la Roter Löwe à 6,5 m/s : de l'embrun rejeté de chaque joue.
+
+## L'écume sans damier (Godot)
+
+SIGNALÉ (prioritaire) : l'écume des bouillons et la vieille écume sortaient en petits carrés.
+D'abord la résolution du champ : 1024 texels sur 620 m, 60 cm le texel, quand les cellules d'un
+bouillon font 70 cm. Passé à 2048 (30 cm) : temps par image indiscernable, mesuré entrelacé à
+--vsync 0 (8,3 contre 8,2 ms ; 9,1 contre 9,2) — la mesure de la carte ne voit que la vue
+principale, pas la passe du champ, d'où le temps total. MAIS LES CARRÉS RESTAIENT, de la même
+taille : ils venaient des BRUITS. Le grain des bulles (ocean.gdshader, lace) et les cellules des
+bouillons (foam_field.gdshader, boil_noise) étaient des bruits de VALEUR sur la grille du monde ;
+seuillés, leurs taches sortent carrées et alignées sur les axes. Remplacés par un bruit de
+GRADIENT (perlin) sur un repère tourné de 37° : plus de coins, plus d'alignement — un grain de
+bulles rond. Leçon : un damier dans un motif seuillé se cherche d'abord dans le bruit, pas dans la
+résolution.
+
+## Le collier d'écume d'une pièce qui coule (Godot)
+
+DEMANDÉ (avec un schéma : un trait d'écume à la ligne d'eau du château dressé). Le collier de la
+mer (u_collar) est celui d'une coque qui FEND l'eau, d'après son profil de plan — il s'efface quand
+elle est dessous (Afloat), et un tronçon dressé n'a plus rien du plan qu'il dessine. Ici, la ligne
+d'eau VRAIE de cette image : les cellules du solveur qui traversent la surface (0 < f < 1) la
+tapissent ; leurs moments, relevés dans la boucle des sondes sans rien coûter, donnent une ellipse
+(σ² = a²/4, plus une demi-cellule) — allongée à flot, ronde comme sa section debout, de plus en
+plus petite en s'enfonçant (ShipPhysics.Water). Le champ d'écume y dépose un anneau déchiré par le
+bruit des bouillons (u_ring, NRING 6), de 0,6 à 2,8 m de large ; la mer l'emporte et l'use, la
+pièce le refait à chaque image. Qui en porte un : une moitié d'un navire rompu, ou une coque qui a
+embarqué plus du tiers de son volume ; sa force de 0,55 à 1 avec sa vitesse de descente et la mer.
+Vérifié remous de la soute coupé (sinon il le noie) : un anneau autour de la proue, un plus fin au
+pied du château. Parité 8/8 (la boucle des sondes ne fait que compter).
+
 ## Le bois qui travaille (Godot)
 
 DEMANDÉ, avec deux sons (medias/sound/craking_001/002.ogg, sons.json → bois.craking) : le bois

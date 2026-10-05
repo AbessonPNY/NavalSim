@@ -277,7 +277,10 @@ float lace(vec2 p, float fill, float fine) {
 	   seuillé en douceur. Un premier pointillé en cases (floor) sortait en
 	   damier de pixels, et clignotait d'être retiré trois fois par seconde —
 	   relevé sur une capture. */
-	float g = naval_value_noise(p * 3.0 + u_wind * u_time * 0.15, 3.0);
+	/* et en GRADIENT sur un repère tourné : le bruit de valeur sur la grille du monde,
+	   seuillé, sortait encore en carrés alignés sur les axes (signalé) */
+	vec2 gp = mat2(vec2(0.7986, 0.6018), vec2(-0.6018, 0.7986)) * (p * 3.0 + u_wind * u_time * 0.15);
+	float g = clamp(0.5 + 0.5 * perlin(gp), 0.0, 1.0);
 	return foam * mix(1.0, smoothstep(0.28, 0.62, g), 0.45 * fine);
 }
 

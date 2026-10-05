@@ -233,6 +233,64 @@ public partial class ShipDemo
                  : "Redressée : l'équipage a remis la coque sur sa quille, la mâture est replantée.");
     }
 
+    readonly List<(Waterline, double)> _rings = new();
+
+    /// <summary>
+    /// LE COLLIER D'ÉCUME DES PIÈCES QUI COULENT (demandé) : une moitié d'un navire
+    /// rompu, ou une coque qui a embarqué plus du tiers de son volume, tant qu'elle
+    /// perce la surface. Plus elle s'enfonce vite et plus la mer est forte, plus il est
+    /// franc ; il ne tombe pas sous la moitié — l'eau qui se rue dans une coque bat
+    /// toujours. Celles qui avancent ont déjà le leur (u_collar, la mer).
+    /// </summary>
+    /// <summary>L'air qu'une coque qui coule doit encore chasser, en m³, avant sa prochaine gerbe.</summary>
+    readonly Dictionary<ShipPhysics, double> _blowDebt = new();
+    readonly Random _blowRng = new();
+    readonly Dictionary<ShipPhysics, double> _blowLast = new();
+
+    void SinkRings(double dt)
+    {
+        _rings.Clear();
+        void Add(ShipPhysics p)
+        {
+            if (!(p.Broken || p.FloodVol > 0.33 * p.HullVolume) || !p.Water.Pierces) { _blowDebt.Remove(p); _blowLast.Remove(p); return; }
+            double sink = Math.Max(0, -p.Body.Vel.Y);
+            _rings.Add((p.Water, Math.Clamp(0.55 + 0.6 * sink + 0.05 * _force, 0.55, 1)));
+            Blow(p, dt);
+        }
+        Add(_ship.Physics);
+        foreach (var s in _others) Add(s.Physics);
+        foreach (var h in _halves) Add(h.Phys);
+        _foam.SetRings(_rings);
+    }
+
+    /* ELLE SOUFFLE (demandé : des gerbes presque verticales près de la coque). Chaque
+       mètre cube que la mer y fait entrer en chasse un d'air, et tant que ses ouvertures
+       sont à fleur d'eau il sort EN FORCE par les écoutilles et les sabords : des
+       geysers étroits, d'eau et d'écume, qui jaillissent le long de sa ligne d'eau. Leur
+       cadence est son débit d'envahissement (FloodRate) — une gerbe pour deux mètres
+       cubes, à peu près —, leur taille aussi ; un jet relevé (3) les fait monter droit,
+       en colonne, au lieu d'une couronne. L'air qui part de DESSOUS est l'affaire de
+       WreckAir ; celui-ci part de la ligne d'eau. */
+    void Blow(ShipPhysics p, double dt)
+    {
+        double rate = Math.Max(0, p.FloodRate);
+        double debt = _blowDebt.GetValueOrDefault(p) + rate * dt;
+        double need = 1.2 + 1.6 * _blowRng.NextDouble();
+        // pas plus de six par seconde : à cent mètres cubes par seconde, chaque gerbe en porte davantage
+        double since = _t - _blowLast.GetValueOrDefault(p, -9);
+        if (debt < need || since < 0.15) { _blowDebt[p] = debt; return; }
+        _blowDebt[p] = 0;
+        _blowLast[p] = _t;
+        var w = p.Water;
+        double u = _blowRng.NextDouble() * Math.PI * 2;
+        double lx = w.A * Math.Cos(u) * 1.02, lz = w.B * Math.Sin(u) * 1.02;
+        double c = Math.Cos(w.Angle), s = Math.Sin(w.Angle);
+        double x = w.X + c * lx - s * lz, z = w.Z + s * lx + c * lz;
+        var at = new Vec3d(x, _sea.Core.Sample(x, z, _t), z);
+        double water = Math.Clamp(0.25 + 0.15 * debt, 0.3, 2.5);
+        _spray.Pool.Burst(at, water, 8 + 5 * _blowRng.NextDouble(), 3);
+    }
+
     /// <summary>Une image de naufrage : l'air de chaque coque, les bouillons dans l'écume, les débris.</summary>
     void WreckTick(double dt)
     {
@@ -243,6 +301,7 @@ public partial class ShipDemo
         foreach (var h in _halves) _wrecks.Add(new WreckHull(h.Phys, null));
         _wreckAir.Update(dt, _wrecks, _sea.Core, _t);
         _foam.SetBoils(_wreckAir.Boils);
+        SinkRings(dt);
         _flotsam.Step(dt, _sea.Core, _allShipsForFlotsam(), _ship, _cam);
         LostTick();
         _bubbles.Step(dt, _sea.Core, _t);

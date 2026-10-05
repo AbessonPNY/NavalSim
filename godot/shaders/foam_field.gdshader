@@ -40,12 +40,28 @@ uniform float u_jac_foam = 0.85;     // le même seuil que la mer
 #define NBOIL 32
 uniform vec4 u_boil[NBOIL];
 uniform int u_boil_count = 0;
+/* LES COLLIERS d'une coque qui coule : la ligne d'eau en ellipse — centre et
+   demi-axes (xy, zw), puis cos, sin de son orientation et sa force (xyz). */
+#define NRING 6
+uniform vec4 u_ring[NRING];
+uniform vec4 u_ring_b[NRING];
+uniform int u_ring_count = 0;
 
+/* UN BRUIT DE GRADIENT, sur un repère tourné de 37°, ramené à [0, 1]. C'était un
+   bruit de VALEUR sur la grille du monde : seuillé en cellules, il sortait en carrés
+   alignés sur les axes — un damier dans chaque bouillon (signalé). Le gradient n'a
+   pas de coins, et la grille tournée ne s'aligne plus sur rien. */
 float boil_noise(vec2 p) {
+	p = mat2(vec2(0.7986, 0.6018), vec2(-0.6018, 0.7986)) * p;
 	vec2 i = floor(p), f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
-	return mix(mix(naval_hash_sin2(i), naval_hash_sin2(i + vec2(1.0, 0.0)), f.x),
-	           mix(naval_hash_sin2(i + vec2(0.0, 1.0)), naval_hash_sin2(i + vec2(1.0, 1.0)), f.x), f.y);
+	vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+	float a0 = naval_hash_sin2(i) * 6.2831853;
+	float a1 = naval_hash_sin2(i + vec2(1.0, 0.0)) * 6.2831853;
+	float a2 = naval_hash_sin2(i + vec2(0.0, 1.0)) * 6.2831853;
+	float a3 = naval_hash_sin2(i + vec2(1.0, 1.0)) * 6.2831853;
+	float g = mix(mix(dot(vec2(cos(a0), sin(a0)), f), dot(vec2(cos(a1), sin(a1)), f - vec2(1.0, 0.0)), u.x),
+	              mix(dot(vec2(cos(a2), sin(a2)), f - vec2(0.0, 1.0)), dot(vec2(cos(a3), sin(a3)), f - vec2(1.0, 1.0)), u.x), u.y);
+	return clamp(0.5 + 0.7 * g, 0.0, 1.0);
 }
 
 void fragment() {
@@ -157,6 +173,28 @@ void fragment() {
 		}
 	}
 
+	/* --- LE COLLIER D'UNE PIÈCE QUI COULE (demandé) ---
+	   L'eau qui bat contre un bordé qu'elle avale : un anneau serré contre la ligne
+	   d'eau, déchiré par le même bruit que les bouillons, plus large là où le bruit
+	   le gonfle. Il se dépose dans le champ comme toute écume : la mer l'emporte et
+	   l'use, la pièce en refait un à chaque image tant qu'elle perce la surface. */
+	float ring = 0.0;
+	for (int i = 0; i < NRING; i++) {
+		if (i >= u_ring_count) break;
+		vec2 rel = wpos - u_ring[i].xy;
+		vec2 l = vec2(dot(rel, u_ring_b[i].xy), dot(rel, vec2(-u_ring_b[i].y, u_ring_b[i].x)));
+		vec2 ab = max(u_ring[i].zw, vec2(0.3));
+		float d = length(l / ab);
+		float out_m = (d - 1.0) * sqrt(ab.x * ab.y);        // les mètres hors de la ligne d'eau, à peu près
+		if (out_m > -0.6 && out_m < 3.5) {
+			float n = 0.6 * boil_noise(wpos * 0.9 + vec2(u_time * 0.5, -u_time * 0.37))
+			        + 0.4 * boil_noise(wpos * 2.3 - vec2(u_time * 0.8, u_time * 0.6));
+			float width = 0.6 + 2.2 * n;
+			float band = smoothstep(-0.6, -0.1, out_m) * (1.0 - smoothstep(0.2, width, out_m));
+			ring = max(ring, u_ring_b[i].z * band * smoothstep(0.2, 0.5, n + 0.25));
+		}
+	}
+
 	// déposer, sans jamais accumuler au-delà de la saturation
-	COLOR = vec4(clamp(max(prev, max(max(breaking, hull), boil)), 0.0, 1.0), clamp(lines, 0.0, 1.0), 0.0, 1.0);
+	COLOR = vec4(clamp(max(prev, max(max(breaking, hull), max(boil, ring))), 0.0, 1.0), clamp(lines, 0.0, 1.0), 0.0, 1.0);
 }

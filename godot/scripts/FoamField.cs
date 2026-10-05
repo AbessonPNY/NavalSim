@@ -12,8 +12,9 @@ namespace NavalSim;
 /// <see cref="SubViewport"/> porte un rectangle plein cadre dont le shader lit
 /// l'autre. On n'en rend qu'UN par image (<c>UpdateMode.Once</c>), en alternant.
 ///
-/// Ce qui a été MESURÉ dans l'original et reste tel quel : 1024 texels sur
-/// 620 m, un fondu à 1/e en 14 s, des demi-flottants — huit bits quantifiaient
+/// Ce qui a été MESURÉ dans l'original et reste tel quel : 620 m couverts
+/// (2048 texels désormais, 30 cm — 1024 en faisaient 60, trop gros pour le grain
+/// des bouillons ; mesuré sans différence de temps par image), un fondu à 1/e en 14 s, des demi-flottants — huit bits quantifiaient
 /// le lent fondu en marches visibles et laissaient une écume pâle bloquée à une
 /// valeur fixe —, et l'ancre calée sur des TEXELS ENTIERS : décalée d'une
 /// fraction, chaque image rééchantillonnerait la précédente hors grille et le
@@ -21,7 +22,7 @@ namespace NavalSim;
 /// </summary>
 public partial class FoamField : Node
 {
-    public const int Res = 1024;
+    public const int Res = 2048;
     public const float Size = 620f;          // mètres de monde couverts
     public const float Tau = 14f;            // secondes pour tomber à 1/e
     const float TexelWorld = Size / Res;
@@ -77,11 +78,6 @@ public partial class FoamField : Node
 
     bool _armed;
 
-    /// <summary>
-    /// Le monde a glissé sous la flotte. Le champ est ancré dans le monde, donc
-    /// ses DEUX ancres glissent avec lui — sans quoi l'image suivante lirait le
-    /// recentrage comme un déplacement colossal et effacerait tout le champ.
-    /// </summary>
     /// <summary>Les bouillons d'épave de cette image, le plus fort d'abord (WreckAir).</summary>
     public const int NBoil = 32;   // le même que NBOIL du shader : un remous de soute en pose une trentaine
     readonly Vector4[] _boils = new Vector4[NBoil];
@@ -96,12 +92,36 @@ public partial class FoamField : Node
         foreach (var m in _mat) { m.SetNow(UBoil, _boils); m.SetShaderParameter(UBoilCount, n); }
     }
 
+    /// <summary>Les colliers des coques qui coulent : le même nombre que NRING du shader.</summary>
+    public const int NRing = 6;
+    readonly Vector4[] _rings = new Vector4[NRing], _ringsB = new Vector4[NRing];
+    static readonly StringName URing = "u_ring", URingB = "u_ring_b", URingCount = "u_ring_count";
+
+    /// <summary>Les lignes d'eau des pièces qui coulent, et la force de chaque collier.</summary>
+    public void SetRings(IReadOnlyList<(NavalSim.Core.Waterline W, double Strength)> list)
+    {
+        int n = Math.Min(list.Count, NRing);
+        for (int i = 0; i < n; i++)
+        {
+            var (w, s) = list[i];
+            _rings[i] = new Vector4((float)w.X, (float)w.Z, (float)w.A, (float)w.B);
+            _ringsB[i] = new Vector4((float)Math.Cos(w.Angle), (float)Math.Sin(w.Angle), (float)s, 0);
+        }
+        for (int i = n; i < NRing; i++) { _rings[i] = Vector4.Zero; _ringsB[i] = Vector4.Zero; }
+        foreach (var m in _mat) { m.SetNow(URing, _rings); m.SetNow(URingB, _ringsB); m.SetShaderParameter(URingCount, n); }
+    }
+
     /// <summary>Le seuil du jacobien sous lequel une crête laisse son écume — le même que la mer.</summary>
     public void SetJacobianFoam(float j)
     {
         foreach (var m in _mat) m.SetShaderParameter("u_jac_foam", j);
     }
 
+    /// <summary>
+    /// Le monde a glissé sous la flotte. Le champ est ancré dans le monde, donc
+    /// ses DEUX ancres glissent avec lui — sans quoi l'image suivante lirait le
+    /// recentrage comme un déplacement colossal et effacerait tout le champ.
+    /// </summary>
     public void Rebase(float dx, float dz)
     {
         Origin -= new Vector2(dx, dz);
