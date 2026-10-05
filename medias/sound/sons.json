@@ -27,7 +27,8 @@
 
   "bois": {
     "_aide": "Le bordé qui éclate sous un boulet. Plusieurs valent mieux qu'un : on reconnaît vite un échantillon unique.",
-    "choc": ["wood_crash_001.ogg", "wood_crash_002.ogg"]
+    "choc": ["wood_crash_001.ogg", "wood_crash_002.ogg"],
+	"craking": ["craking_001.ogg", "craking_002.ogg"]
   },
 
   "voiles": {

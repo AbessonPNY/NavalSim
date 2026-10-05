@@ -236,6 +236,8 @@ public partial class ShipDemo
         _wrecks.Clear();
         _wrecks.Add(new WreckHull(_ship.Physics, _ship.HullShell()));
         foreach (var s in _others) _wrecks.Add(new WreckHull(s.Physics, s.HullShell()));
+        // la moitié avant d'un navire rompu : son air marque où elle sombre (sans coque visible à elle : ses compartiments)
+        foreach (var h in _halves) _wrecks.Add(new WreckHull(h.Phys, null));
         _wreckAir.Update(dt, _wrecks, _sea.Core, _t);
         _foam.SetBoils(_wreckAir.Boils);
         _flotsam.Step(dt, _sea.Core, _allShipsForFlotsam(), _ship, _cam);

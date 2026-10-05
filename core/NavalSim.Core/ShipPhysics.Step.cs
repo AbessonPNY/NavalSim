@@ -375,6 +375,7 @@ public sealed partial class ShipPhysics
         Jetty(dt, ref force, ref torque, cog, ocean);
         Collide(dt, ref force, ref torque, cog, neighbours);
         Moor(ref force, ref torque, cog, ocean);
+        if (Broken) HalfDrag(dt, ref force, fwd);
 
         // --- intégration linéaire ---
         b.Vel += force * (dt / b.Mass);

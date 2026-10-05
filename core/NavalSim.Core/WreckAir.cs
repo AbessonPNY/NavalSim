@@ -40,6 +40,8 @@ public sealed class WreckAir
     }
 
     sealed class Bubbling { public double X, Z, R, Born, Life, W; }
+    sealed class Churning { public double X, Z, R, Born, Life, Next; }
+    readonly List<Churning> _churns = new();
     sealed class CompState { public double Owed, Flux, Gulp = 0.5; }
 
     readonly List<Slug> _rising = new();
@@ -203,6 +205,25 @@ public sealed class WreckAir
             });
         }
 
+        // --- 2 bis. le remous d'une soute qui a sauté : il crève par poches, de moins en moins ---
+        for (int i = _churns.Count - 1; i >= 0; i--)
+        {
+            var ch = _churns[i];
+            double u = (Clock - ch.Born) / ch.Life;
+            if (u >= 1) { _churns.RemoveAt(i); continue; }
+            while (ch.Next <= Clock)
+            {
+                // une poche toutes les 0,15 s au début, une par seconde et demie à la fin
+                ch.Next += 0.15 + 1.35 * u * u + 0.2 * _rng();
+                double a = _rng() * Math.PI * 2, rr = ch.R * Math.Sqrt(_rng());
+                _boils.Add(new Bubbling
+                {
+                    X = ch.X + Math.Cos(a) * rr, Z = ch.Z + Math.Sin(a) * rr,
+                    R = ch.R * (0.35 + 0.35 * _rng()) * (1 - 0.5 * u), Born = Clock, Life = 2.5 + 3 * _rng()
+                });
+            }
+        }
+
         // --- 3. les bouillons à poser dans l'écume cette image, le plus fort d'abord ---
         _list.Clear();
         for (int i = _boils.Count - 1; i >= 0; i--)
@@ -285,8 +306,23 @@ public sealed class WreckAir
     }
 
     /// <summary>L'origine flottante : tout ce qui est tenu ici est en repère local.</summary>
+    /// <summary>
+    /// LE REMOUS D'UNE SOUTE QUI SAUTE (demandé) : là où elle s'est rompue, la mer
+    /// bout — l'air chassé de ses fonds par la tranche, les gaz du souffle, l'eau
+    /// qui se rue dans les deux bouts ouverts. Des poches qui crèvent une à une sur
+    /// une tache large comme le navire, serrées d'abord, rares ensuite, pendant
+    /// <paramref name="life"/> secondes ; l'écume qu'elles laissent reste, et s'use
+    /// comme la sienne. L'air des moitiés, lui, continue de monter au-dessus d'elles
+    /// tant qu'elles en rendent : c'est lui qui marque où elles sombrent.
+    /// </summary>
+    public void Churn(double x, double z, double r, double life)
+    {
+        _churns.Add(new Churning { X = x, Z = z, R = r, Born = Clock, Life = life, Next = Clock });
+    }
+
     public void Rebase(double dx, double dz)
     {
+        foreach (var c in _churns) { c.X -= dx; c.Z -= dz; }
         foreach (var b in _rising) { b.X -= dx; b.Z -= dz; }
         foreach (var b in _boils) { b.X -= dx; b.Z -= dz; }
     }

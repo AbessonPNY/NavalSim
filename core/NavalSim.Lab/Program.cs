@@ -53,6 +53,7 @@ switch (mode)
     case "envol": Envol(); break;
     case "derive": Derive(); break;
     case "soute": Soute(); break;
+    case "rupture": Rupture(); break;
     case "semis": Semis(); break;
     case "profil": Profil(); break;
     case "centre": Centre(); break;
@@ -1706,6 +1707,49 @@ void Derive()
    retrouvent-ils dans les deux moitiés, et que fait chacune dans les trois
    minutes qui suivent — l'assiette, l'enfoncement, le moment où elle sombre.
      dotnet run --project core/NavalSim.Lab -c Release -- soute frigate17e 2 3 */
+/* LA RUPTURE EN ROUTE, comme en jeu (ShipDemo.Breakup) : le navire file à tant de
+   noeuds, la soute saute, le souffle écarte les moitiés (2 m/s à elles deux, 0,6 vers le
+   haut), et l'on suit où va chaque moitié — le long du cap d'origine, en profondeur et en
+   assiette. [fiche] [noeuds] [cloison] */
+void Rupture()
+{
+    string name = args.Length > 1 ? args[1] : "frigate17e";
+    double kn = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 6;
+    int k = args.Length > 3 ? int.Parse(args[3]) : 2;
+    Config.WindGain = 8;
+    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    var ocean = new Ocean { Swell = 1.0, Time = 0 };
+    ocean.SetSeaState(3, 0);
+    var aft = new ShipPhysics(spec, new HullLines(spec));
+    var ctrl = new Controls { Throttle = 0, Rudder = 0, Sheet = 0, SailsSet = false };
+    aft.Settle(ocean, ctrl);
+    var f = aft.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+    aft.Body.Vel = f * (kn * 0.5144);
+    aft.BlowUp();
+    var bow = aft.SplitOff(k);
+    double total = aft.Body.Mass + bow.Body.Mass;
+    bow.Body.Vel += f * (2.0 * aft.Body.Mass / total) + new Vec3d(0, 0.6, 0);
+    aft.Body.Vel += f * (-2.0 * bow.Body.Mass / total) + new Vec3d(0, 0.6, 0);
+    Vec3d a0 = aft.Body.Pos, b0 = bow.Body.Pos;
+    Console.WriteLine(FormattableString.Invariant($"{spec.Name} à {kn} noeuds, rompue à la cloison {k} ; tranche {bow.CutArea:F1} m² ; avant {bow.Body.Mass / 1000:F0} t, arrière {aft.Body.Mass / 1000:F0} t"));
+    double dt = 1.0 / 60, t = 0;
+    string Row(ShipPhysics s, Vec3d p0)
+    {
+        var c = s.Body.Quat.Rotate(s.Body.Com) + s.Body.Pos;
+        var ff = s.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+        double trim = Math.Asin(Math.Clamp(ff.Y, -1, 1)) * 180 / Math.PI;
+        return FormattableString.Invariant($"avancé {(s.Body.Pos - p0).Dot(f),6:F1} m, vitesse {s.Body.Vel.Dot(f),5:F2} m/s, centre {c.Y,6:F1} m, assiette {trim,6:F1}°{(s.Foundered ? " SOMBRÉE" : "")}");
+    }
+    for (int i = 0; i <= 60 * 90; i++)
+    {
+        if (i % (60 * (t < 20 ? 2 : 10)) == 0)
+            Console.WriteLine(FormattableString.Invariant($"  t {t,3:F0} s  avant : {Row(bow, b0)}   |  arrière : {Row(aft, a0)}"));
+        aft.Step(dt, ocean, ctrl, t);
+        bow.Step(dt, ocean, ctrl, t);
+        t += dt;
+    }
+}
+
 void Soute()
 {
     string name = args.Length > 1 ? args[1] : "frigate17e";

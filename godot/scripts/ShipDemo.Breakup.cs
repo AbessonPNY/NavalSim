@@ -64,6 +64,9 @@ public partial class ShipDemo
         ph.Body.Vel += f * (-2.0 * bow.Body.Mass / total) + new Vec3d(0, 0.6, 0);
 
         _halves.Add(new Half { Phys = bow, Node = holder, Char = ember, Born = _t, From = s });
+        // la mer bout là où elle s'est rompue, sur la largeur du navire, une demi-minute
+        var cut = ph.Body.Quat.Rotate(new Vec3d(0, 0, zCut)) + ph.Body.Pos;
+        _wreckAir.Churn(cut.X, cut.Z, Math.Max(6, s.Spec.L * 0.35), 35);
         Reprofile(s, double.NegativeInfinity, zCut);
         Say(s == _ship ? "La soute nous coupe en deux !" : $"Le {s.Spec.Name} se rompt en deux !");
         GD.Print(FormattableString.Invariant($"rupture de {s.Spec.Id} a la cloison {k} (z {zCut:F1} m) : coupe du bois {cutMs:F1} ms, en tout {clock.Elapsed.TotalMilliseconds:F1} ms"));

@@ -55,6 +55,38 @@ public sealed partial class ShipPhysics
     /// </summary>
     public static double HalfFloodable = 0.75;
 
+    /// <summary>La tranche ouverte, en m² : la part de la section que la mer bat (celle de la voie d'eau qu'on y ouvre).</summary>
+    public double CutArea;
+    /// <summary>Le coefficient de traînée d'une face plate traînée dans l'eau, de face comme de dos.</summary>
+    public static double CutCd = 2.0;
+    double _halfMass = -1;
+
+    /*
+     * CE QUI ARRÊTE UNE MOITIÉ (signalé : la proue filait cent mètres en coulant).
+     * Rien ne la freinait que la carène d'un navire entier, taillée pour glisser.
+     *
+     * LA TRANCHE : une face plate de plusieurs dizaines de mètres carrés, traînée
+     * dans l'eau le long de l'axe — de dos pour la proue qui continue, de face pour
+     * l'arrière ; une plaque, ½ρ·Cd·A·v².
+     *
+     * L'EAU QUI ENTRE est immobile ; pour l'emporter, la moitié lui cède de son élan,
+     * autant que ce qu'elle embarque : dm·v. Des dizaines de tonnes en quelques
+     * secondes par une tranche grande ouverte — c'est ce qui la fige sur place.
+     * Le long de l'horizontale seulement : la descente, elle, a été réglée au banc.
+     */
+    void HalfDrag(double dt, ref Vec3d force, in Vec3d fwd)
+    {
+        var b = Body;
+        double va = b.Vel.Dot(fwd);
+        force -= fwd * (0.5 * Config.Rho * CutCd * CutArea * va * Math.Abs(va));
+        if (_halfMass >= 0 && b.Mass > _halfMass && dt > 0)
+        {
+            double dm = b.Mass - _halfMass;
+            force -= new Vec3d(b.Vel.X, 0, b.Vel.Z) * (dm / dt);
+        }
+        _halfMass = b.Mass;
+    }
+
     int CompOf(double z) => Math.Min(Comps.Length - 1, Math.Max(0,
         (int)Math.Floor(((z + Spec.L / 2) / Spec.L) * Comps.Length)));
 
@@ -123,6 +155,7 @@ public sealed partial class ShipPhysics
         double area = 2 * Lines.HalfB(tz) * (deck - keel) * 0.6;
         double y = keel + 0.25 * (deck - keel);
         Breaches.Add(new Breach { Comp = k - 1, Area = area, X = 0, Y = y, Z = zCut - 0.5 });
+        CutArea = bow.CutArea = area;
         bow.Breaches.Add(new Breach { Comp = k, Area = area, X = 0, Y = y, Z = zCut + 0.5 });
 
         /* LES BOUTS GARDENT LEUR AIR. L'explosion de la soute ouvre tout le navire

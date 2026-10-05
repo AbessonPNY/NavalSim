@@ -14299,6 +14299,30 @@ plus que dans les cases gardées ; tout le semis du fond tombe à 1,0 s (1,8 ava
 l'herbier dense). Coût mesuré : le pré, 8,77 ms contre 8,54 sans le fond ; le récif,
 7,57 comme avant.
 
+## La proue rompue coule sur place ; le remous de la soute (Godot)
+
+SIGNALÉ : après l'explosion, la proue filait nettement avant de couler. Banc « rupture »
+(nouveau : la rupture EN ROUTE, comme ShipDemo.Breakup — le navire file, le souffle écarte les
+moitiés de 2 m/s à elles deux) : la Roter Löwe à 6 noeuds, sa proue avançait de 31 m en 10 s et
+de 131 m en tout, l'arrière de 66. Rien ne freinait une moitié que la carène d'un navire entier,
+taillée pour glisser. Deux freins, aux moitiés seulement (ShipPhysics.HalfDrag) :
+— LA TRANCHE, face plate traînée le long de l'axe : ½ρ·Cd·A·v², A celle de la voie d'eau qu'on y
+  ouvre (24 m² pour la Roter Löwe). Cd 0,8 (une plaque) ne suffisait pas : 27 m en 20 s. Un bout
+  ouvert n'est pas une plaque mais une ANCRE FLOTTANTE, une poche que l'eau emplit : Cd 2, la
+  valeur de ces ancres ;
+— L'EAU QUI ENTRE est immobile : la moitié lui cède dm·v d'élan, à l'horizontale (la descente a
+  été réglée au banc « soute », on n'y touche pas).
+Résultat : 13,6 m en 10 s — moins que sa longueur —, puis elle glisse vers l'avant en
+s'enfonçant, comme demandé : 47 m en tout ; l'arrière 18. Parité 8/8 (les moitiés seules).
+
+LE REMOUS (demandé : « un bouillon d'écume là où elle sombre ») : WreckAir.Churn — à la tranche,
+sur 0,35 fois la longueur, des poches qui crèvent une toutes les 0,15 s puis une par seconde et
+demie, trente-cinq secondes ; l'écume qu'elles laissent reste et s'use comme la sienne. Et la
+MOITIÉ AVANT entre enfin dans la liste des coques dont l'air remonte (ShipDemo.WreckTick) : elle
+n'y était pas, si bien que son air ne crevait nulle part — c'est lui qui marque où elle sombre.
+Vu de haut, une large tache blanche déchirée autour des moitiés ; à fleur d'eau, l'angle rasant la
+cache presque — ce n'est pas un défaut du remous.
+
 ## À l'eau : nager, plonger, ramasser (Godot)
 
 DEMANDÉ : nager à la première personne pour explorer les hauts-fonds et nager en surface.
