@@ -1464,6 +1464,22 @@ void Nage()
         var (_, g) = Run(new SwimInput(), 10, s => { s.Under = true; s.DiveTime = 1; s.Pos = new Vec3d(0, y, 0); });
         Console.WriteLine(FormattableString.Invariant($"lâché à {-y:F0} m : {(-g.Pos.Y):F1} m après 10 s{(g.Under ? "" : " (en surface)")}"));
     }
+    // L'ALLURE PAR COUPS : moyenne, creux et sommet, l'air tenu à cette réserve
+    foreach (var (lab, under, air, hard) in new[] { ("dessous, frais", true, 1.0, false), ("dessous, frais, forcé", true, 1.0, true), ("dessous, air 50 %", true, 0.5, false), ("dessous, air 20 %", true, 0.2, false), ("dessous, air 5 %", true, 0.05, false), ("surface", false, 1.0, false), ("surface, forcé", false, 1.0, true) })
+    {
+        var s = new Swimmer { Pos = new Vec3d(0, under ? -3 : Swimmer.EyeAbove, 0), Under = under, DiveTime = 1 };
+        double tt = 0, dt = 1.0 / 60, z0 = 0, lo = 9, hi = 0;
+        var inp = new SwimInput { Fwd = 1, Hard = hard };
+        while (tt < 16)
+        {
+            s.Breath = air;
+            if (under) s.Pos = new Vec3d(s.Pos.X, -3, s.Pos.Z);
+            s.Step(dt, inp, 0, -30, fl); tt += dt;
+            if (tt >= 4 && z0 == 0) z0 = s.Pos.Z;
+            if (tt >= 4) { double v = s.Vel.LengthXZ; lo = Math.Min(lo, v); hi = Math.Max(hi, v); }
+        }
+        Console.WriteLine(FormattableString.Invariant($"allure {lab,-24} : moyenne {(s.Pos.Z - z0) / 12:F2} m/s, creux {lo:F2}, sommet {hi:F2}, vigueur {s.Vigor:F2}"));
+    }
     var (tb, h) = Run(new SwimInput(), 60, s => { s.Breath = 0; }, s => s.Breath >= 1);
     // le saut : sous l'eau à 0,4 m, lancé de côté et vers le bas ; remonte-t-il ?
     for (int k = 0; k <= 10; k += 2)

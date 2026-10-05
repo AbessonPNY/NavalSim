@@ -16,9 +16,13 @@ public struct SwimInput
 /// glisse). <see cref="Pos"/> est la place de son ŒIL : c'est ce que la caméra
 /// montre et ce qui décide s'il respire.
 ///
-/// LES CHIFFRES SONT CEUX D'UN HOMME, sans palmes ni masque (1690) :
-/// — en surface, une brasse de marin à 0,9 m/s, un crawl forcé à 1,4 m/s ;
-/// — dessous, 0,75 m/s, 1,1 en forçant : sans palmes on ne va pas plus vite ;
+/// LES CHIFFRES SONT CEUX D'UN HOMME, sans palmes ni masque (1690) — banc « nage » :
+/// — il avance PAR COUPS DE BRASSE : une traction le lance, il glisse, l'eau le
+///   freine ; dessous, la brasse coulée d'un pêcheur frais va en moyenne à un
+///   mètre par seconde et passe deux mètres au sommet du coup ; en surface un
+///   peu moins (la tête fait une vague) ;
+/// — dessous, la VIGUEUR du coup suit l'air qui reste : franche au départ, molle à
+///   bout de souffle ;
 /// — poumons pleins, il FLOTTE ; la pression écrase l'air de ses poumons, et vers
 ///   douze mètres il devient neutre, puis coule — l'apnéiste le sait, il remonte
 ///   en se battant les dix premiers mètres et redescend sans effort au-delà ;
@@ -42,8 +46,14 @@ public sealed class Swimmer
     /// <summary>Secondes passées dessous, cette plongée.</summary>
     public double DiveTime;
 
-    public const double SurfaceSpeed = 0.9, SurfaceHard = 1.4;
-    public const double UnderSpeed = 0.75, UnderHard = 1.1;
+    /// <summary>Un coup de brasse : l'élan qu'il donne (m/s, à pleine vigueur), le temps de la traction, et la cadence.</summary>
+    public const double Kick = 1.7, Pull = 0.3, StrokePeriod = 1.1, StrokeHard = 0.8, HardKick = 1.15;
+    /// <summary>La traînée : linéaire (1/s) et quadratique (1/m) ; en surface, la vague d'étrave d'une tête la multiplie.</summary>
+    public const double DragLin = 0.3, DragQuad = 0.75, SurfaceDrag = 1.4;
+    /// <summary>Le coup en cours : le temps depuis sa traction.</summary>
+    public double Stroke = 99;
+    /// <summary>Ce que vaut un coup de bras, de 1 (frais) à 0,4 (à bout d'air).</summary>
+    public double Vigor = 1;
     /// <summary>L'œil au-dessus de l'eau, la tête hors de l'eau en nageant.</summary>
     public const double EyeAbove = 0.14;
     /// <summary>L'œil ne descend pas plus près du fond : la poitrine y est déjà.</summary>
@@ -70,37 +80,59 @@ public sealed class Swimmer
         if (Blackout) { Vel = Vel * Math.Max(0, 1 - dt * 2); return; }
         double depth = surfaceY - Pos.Y;
 
-        // ce qu'il veut faire, en vitesse
-        Vec3d want;
         var flat = new Vec3d(Math.Sin(Yaw), 0, Math.Cos(Yaw));
         var right = new Vec3d(-flat.Z, 0, flat.X);     // sa droite : regardant vers +z, elle est −x
-        if (!Under)
+
+        // le CANARD : tête en bas, il passe dessous
+        if (!Under && inp.Up < 0) { Under = true; DiveTime = 0; Vel = new Vec3d(Vel.X, -0.9, Vel.Z); }
+
+        /* LA VIGUEUR d'un coup de bras. Dessous, elle suit l'air qui reste : les
+           premiers coups sont francs, puis le sang manque aux muscles et chaque
+           traction rend moins — à la fin on ne fait plus que se traîner. En surface
+           on respire : à peine moins vif quand on vient de remonter à bout. */
+        Vigor = Under ? 0.4 + 0.6 * Math.Pow(Breath, 0.7) : 0.8 + 0.2 * Breath;
+
+        Vec3d acc = new(0, 0, 0);
+        /* LA BRASSE, PAR COUPS (demandé) : une traction de bras et de jambes lance
+           l'homme, puis il glisse, et l'eau le freine jusqu'au coup suivant. Le
+           premier part à l'appui. */
+        if (inp.Fwd > 0)
         {
-            double sp = inp.Hard ? SurfaceHard : SurfaceSpeed;
-            want = flat * (inp.Fwd * sp) + right * (inp.Side * sp * 0.55);
-            // le CANARD : tête en bas, il passe dessous
-            if (inp.Up < 0) { Under = true; DiveTime = 0; Vel = new Vec3d(Vel.X, -0.9, Vel.Z); }
+            double period = inp.Hard ? StrokeHard : StrokePeriod;
+            if (Stroke >= period) Stroke = 0;
+            if (Stroke < Pull)
+                acc += (Under ? Look : flat) * (Kick * Vigor * (inp.Hard ? HardKick : 1) / Pull);
+            Stroke += dt;
+        }
+        else Stroke = 99;
+        // de côté, à reculons, et monter ou descendre : les mains godillent, sans élan
+        acc += right * ((inp.Side * 0.5 * Vigor - Vel.Dot(right)) * 2.5);
+        if (inp.Fwd < 0) acc += flat * ((-0.4 * Vigor - Vel.Dot(flat)) * 2.5);
+        if (Under && inp.Up != 0)
+        {
+            // il pousse vers le haut ou le bas, sans jamais freiner l'élan d'un coup qui va déjà par là
+            double up = inp.Up * 0.8 * Vigor - Vel.Y;
+            if (Math.Sign(up) == Math.Sign(inp.Up)) acc += new Vec3d(0, up * 2.5, 0);
+        }
+
+        /* L'EAU FREINE comme le carré de la vitesse, plus un peu : un corps qui glisse
+           à deux mètres par seconde y perd l'essentiel de son élan en une seconde. En
+           surface davantage — la tête et les épaules font une vague. */
+        if (Under)
+        {
+            double v = Vel.Length;
+            acc -= Vel * (DragLin + DragQuad * v);
+            // l'air des poumons, comprimé avec la profondeur : il porte, puis il lâche
+            // 0,4 m/s² près de la surface : deux à quatre kilos de flottaison nette sur un homme de
+            // soixante-dix, poumons pleins ; il revient au jour en deux ou trois secondes
+            acc += new Vec3d(0, 0.4 * (1 - depth / NeutralDepth), 0);
         }
         else
         {
-            double sp = inp.Hard ? UnderHard : UnderSpeed;
-            want = Look * (inp.Fwd * sp) + right * (inp.Side * sp * 0.5) + new Vec3d(0, inp.Up * sp * 0.8, 0);
+            var h = new Vec3d(Vel.X, 0, Vel.Z);
+            acc -= h * (DragLin + DragQuad * SurfaceDrag * h.Length);
         }
-
-        // l'eau freine : il atteint ce qu'il veut en une demi-seconde, et s'y tient
-        double k = Math.Min(1, dt / 0.5);
-        Vel = new Vec3d(Vel.X + (want.X - Vel.X) * k, Vel.Y, Vel.Z + (want.Z - Vel.Z) * k);
-        if (Under)
-        {
-            double vy = Vel.Y + (want.Y - Vel.Y) * (inp.Up != 0 || inp.Fwd != 0 ? k : 0);
-            // l'air des poumons, comprimé avec la profondeur : il porte, puis il lâche
-            // 0,4 m/s² près de la surface : deux à quatre kilos de flottaison nette sur un homme de
-            // soixante-dix, poumons pleins ; il remonte à 0,4 m/s, et revient au jour en deux secondes
-            double lift = 0.4 * (1 - depth / NeutralDepth);
-            vy += lift * dt;
-            vy *= Math.Max(0, 1 - dt * 1.0);           // la traînée verticale
-            Vel = new Vec3d(Vel.X, vy, Vel.Z);
-        }
+        Vel = Vel + acc * dt;
 
         // un pas qui le mettrait au sec n'est pas fait (la plage, un haut-fond découvert)
         var next = Pos + Vel * dt;

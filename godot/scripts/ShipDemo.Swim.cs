@@ -475,9 +475,9 @@ void fragment() {
         if (_swim == null) { _camMode = 0; SetLens(OutsideFov, OutsideNear); return; }
         var o = _sea.Core.Origin;
         var eye = new Vector3((float)(_swim.Pos.X - o.X), (float)_swim.Pos.Y, (float)(_swim.Pos.Z - o.Z));
-        // la nage balance la tête : un peu, au rythme des bras
-        double sway = _swim.Vel.LengthXZ * 0.025 * Math.Sin(_t * 5.2);
-        _cam.Position = eye + new Vector3(0, (float)sway, 0);
+        // la traction lance la tête en avant et un peu vers le haut, puis elle revient dans la glisse
+        double pull = _swim.Stroke < Swimmer.Pull ? Math.Sin(Math.PI * _swim.Stroke / Swimmer.Pull) * _swim.Vigor : 0;
+        _cam.Position = eye + _swim.Look.ToGodot() * (float)(0.05 * pull) + new Vector3(0, (float)(0.03 * pull), 0);
         _cam.LookAt(eye + _swim.Look.ToGodot(), Vector3.Up);
     }
 

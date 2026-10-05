@@ -14338,6 +14338,17 @@ sous ses écrans virtuels (vorpX, Virtual Desktop), une souris capturée n'envoi
 mouvement. Le regard se fait donc EN GLISSANT, bouton gauche ou droit tenu, comme toutes les
 autres vues du jeu, et aux flèches ; plus de capture.
 
+LA BRASSE PAR COUPS (demandé : « avancer par impulsion rapide, puis de moins en moins vive à
+mesure que l'air se réduit ») : plus de vitesse visée, des COUPS — une traction de 0,3 s
+(élan 1,7 m/s à pleine vigueur, ×1,15 en forçant), toutes les 1,1 s (0,8 en forçant), puis la
+glisse, freinée par une traînée 0,3·v + 0,75·v|v| (×1,4 sur le terme quadratique en surface :
+la tête fait une vague). La VIGUEUR suit l'air dessous : 0,4 + 0,6·air^0,7. Banc : dessous,
+frais, 1,20 m/s de moyenne (creux 0,72, sommet 1,87) ; forcé 1,58 (sommet 2,20 — un très bon
+nageur, sans palmes : la limite du crédible) ; à 50 % d'air 1,03 ; à 20 % 0,89 ; à 5 % 0,77.
+Surface 1,03, forcé 1,35. PIÈGE : la touche de descente régulait la vitesse verticale vers
+−0,8 m/s, et freinait le coup qui plongeait tête en bas (12,5 s pour dix mètres) ; elle ne
+fait plus que pousser : 9,2 s, 7,0 en forçant. La caméra prend l'élan de la traction.
+
 Modèles dessinés (tools/reef-glb.js, qui n'écrit plus que ceux qu'on nomme : un fichier remplacé
 par l'artiste n'est pas écrasé) : lambi à pointes et lèvre rose, 24 cm ; huître plate et brune,
 7 cm. Essai sans clavier : --nage 2 --nage-vers lambi|huitre|ecus --nage-prendre 1.
