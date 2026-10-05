@@ -55,7 +55,8 @@ public static class HazePass
             if (n is not MeshInstance3D mi || mi.Mesh == null) continue;
             for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
             {
-                var mat = mi.GetSurfaceOverrideMaterial(i) ?? mi.Mesh.SurfaceGetMaterial(i);
+                // the override is what gets drawn when there is one (ShipNode.AttachHaze, same reason)
+                var mat = mi.MaterialOverride ?? mi.GetSurfaceOverrideMaterial(i) ?? mi.Mesh.SurfaceGetMaterial(i);
                 if (mat == null || mat is ShaderMaterial || !done.Add(mat)) continue;
                 var last = mat;
                 while (last.NextPass != null && last.NextPass != haze) last = last.NextPass;

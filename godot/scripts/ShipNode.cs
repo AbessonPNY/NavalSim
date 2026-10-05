@@ -403,8 +403,12 @@ public partial class ShipNode : Node3D
         foreach (var (mi, _) in Meshes(obj))
             for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
             {
-                var mat = mi.GetSurfaceOverrideMaterial(s) ?? mi.Mesh.SurfaceGetMaterial(s);
-                if (mat is ShaderMaterial || mi.MaterialOverride is ShaderMaterial) continue;
+                /* The override wins over every surface material at draw time: the gun
+                   barrels cut out of the hull (ShipNode.Recoil) wear theirs that way, and
+                   chaining onto the surface slot hazed a material nobody draws — black
+                   barrels standing out of a fogged hull (reported). */
+                var mat = mi.MaterialOverride ?? mi.GetSurfaceOverrideMaterial(s) ?? mi.Mesh.SurfaceGetMaterial(s);
+                if (mat is ShaderMaterial) continue;
                 if (mat == null)
                 {
                     mat = new StandardMaterial3D();

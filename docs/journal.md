@@ -14414,6 +14414,13 @@ LES PIÈCES D'OR ÉPARSES RETIRÉES (demandé : « elles ne servent à rien dans
 les écus semés autour d'une épave peu profonde pour le nageur (Finds.AroundWreck) — partis, et leur
 disque d'or, leur ligne du sac, leur message.
 
+LES TUBES NOIRS DANS LA BRUME (signalé, capture d'un galion dans la brume) : les pièces découpées
+du bordé (SplitGuns) portent leur matière en MaterialOverride, et AttachHaze ne lisait que les
+matières de surface — vides sur ces maillages neufs. Il en créait donc une, la coiffait de la brume, et
+Godot dessinait l'override, qui passe avant toutes les surfaces : des tubes à l'encre sur une coque
+noyée. AttachHaze et HazePass.Chain prennent maintenant l'override d'abord. Règle : sur un
+MeshInstance3D, la matière DESSINÉE est MaterialOverride ?? surface override ?? celle du maillage.
+
 ## La rupture déchiquetée ; une partie neuve sans brume ni hausse (Godot)
 
 DEMANDÉ : une découpe moins nette des deux morceaux. HullCut coupait par le plan z = zCut. Il
