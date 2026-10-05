@@ -25,8 +25,17 @@ public partial class UnderwaterEffect : ScreenEffect
     public float Time;
     /// <summary>De 0 (tout entière dedans ou dehors) à 1 (l'œil à cheval sur la surface).</summary>
     public float Straddle;
+    /// <summary>
+    /// Le flou de l'eau et les grains en suspension (1 = réglé ; 0 les ôte), et l'eau
+    /// trouble d'une rade (0 au large, 1 au fond d'un bassin dormant), qui épaissit les deux.
+    /// </summary>
+    public float Blur = 1f, Motes = 1f, Trouble;
+    /// <summary>Le fond sous l'œil (hauteur), et le va-et-vient du ressac à cette profondeur, en mètres.</summary>
+    public float BedY = -1000f, Surge;
+    /// <summary>L'origine du monde ramenée sur la période de la grille des grains, en cases (x, z).</summary>
+    public Vector2 GridOrigin;
 
-    public UnderwaterEffect() : base("res://shaders/underwater.glsl", "naval_sous_eau", 192) { }
+    public UnderwaterEffect() : base("res://shaders/underwater.glsl", "naval_sous_eau", 208) { }
 
     protected override bool Prepare(RenderSceneData sd, Vector2I size)
     {
@@ -35,7 +44,8 @@ public partial class UnderwaterEffect : ScreenEffect
         Col(128, new Vector4(Sun.X, Sun.Y, Sun.Z, SunLight));
         Col(144, new Vector4(Water.R, Water.G, Water.B, Time));
         Col(160, new Vector4(SeaY, Shafts, Reach, Density));
-        Col(176, new Vector4(Straddle, 0, 0, 0));
+        Col(176, new Vector4(Straddle, Blur, Motes, Trouble));
+        Col(192, new Vector4(BedY, Surge, GridOrigin.X, GridOrigin.Y));
         return true;
     }
 }

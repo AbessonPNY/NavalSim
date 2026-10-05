@@ -395,6 +395,7 @@ public partial class ShipDemo
            Elle ne tournait pas. Une caméra qui bouge toute seule autour d'une
            chose capable de bouger est un instrument qui ment. */
         if (_camMode == CamSwim && _fixEye == null) { SwimCamera(); return; }
+        if (_camMode == CamSight && _fixEye == null) { SightCamera(); return; }
         if (_fixEye is Vector3 fe)
         {
             _cam.Position = fe;

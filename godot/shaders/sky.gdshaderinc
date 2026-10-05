@@ -189,6 +189,27 @@ float naval_stars(vec3 dir) {
 	return smoothstep(0.17, 0.02, r) * (0.28 + 0.95 * mag);
 }
 
+#ifdef NAVAL_STAR_MAP
+/* LE VRAI CIEL : la carte des étoiles du catalogue (StarMap.cs), en ascension droite et
+   déclinaison. Chaque direction du ciel y est tournée par la sphère céleste du lieu et de
+   l'heure : sa déclinaison est sa hauteur sur l'équateur céleste (le long du pôle), son
+   angle horaire se lit entre le méridien et l'ouest, et son ascension droite est le temps
+   sidéral moins cet angle. Tant que la carte n'est pas là, le semis d'avant. */
+uniform sampler2D u_star_map : source_color, filter_linear, repeat_enable;
+uniform float u_real_stars = 0.0;
+uniform vec3 u_cel_p = vec3(0.0, 0.31, 0.95);
+uniform vec3 u_cel_m = vec3(0.0, 0.95, -0.31);
+uniform vec3 u_cel_w = vec3(1.0, 0.0, 0.0);
+uniform float u_lst = 0.0;
+vec3 naval_real_stars(vec3 d) {
+	float dec = asin(clamp(dot(d, u_cel_p), -1.0, 1.0));
+	float ha = atan(dot(d, u_cel_w), dot(d, u_cel_m));
+	float ra = u_lst - ha;
+	vec2 uv = vec2(fract(ra / 6.2831853), 0.5 - dec / 3.1415927);
+	return texture(u_star_map, uv).rgb;
+}
+#endif
+
 /* VALUE NOISE ON A UNIT GRID, written once for every includer of the sky: the
    clouds (seed 7), the sea's ripples and foam patches (seed 3) and the sail's
    burn and tear edges (seed 0). The seed is the third coordinate of the hash,
@@ -348,6 +369,11 @@ vec3 naval_sky(vec3 dir, vec3 sun_dir, vec3 zenith, vec3 horizon, float cloud_am
 	   la crasse. */
 	float night = smoothstep(0.05, -0.12, sun_dir.y);
 	if (night > 0.001) {
+#ifdef NAVAL_STAR_MAP
+		if (u_real_stars > 0.5)
+			c += naval_real_stars(normalize(dir)) * 4.0 * (1.0 - u_storm) * night * smoothstep(-0.02, 0.16, dir.y);
+		else
+#endif
 		c += vec3(0.88, 0.92, 1.00) * 1.7 * (1.0 - u_storm) * naval_stars(normalize(dir))
 		     * night * smoothstep(-0.02, 0.16, dir.y);
 	}

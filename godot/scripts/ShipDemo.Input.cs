@@ -19,6 +19,8 @@ public partial class ShipDemo
     {
         // à l'eau : les touches mènent le nageur, la barre est lâchée (ShipDemo.Swim.cs)
         if (_swimming) { SwimKeys(dt); return; }
+        // à l'instrument, l'homme de barre tient le cap : la barre ne répond plus
+        if (_sighting) return;
         // la cloche à l'eau : le navire est stoppé, les mêmes touches mènent la cloche
         if (_bellOut) { BellKeys(dt); return; }
         var c = _ship.Ctrl;

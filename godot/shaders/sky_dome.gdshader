@@ -6,6 +6,8 @@
  */
 shader_type sky;
 
+// le VRAI ciel (StarMap.cs) : le dôme seul le lit ; les autres usagers du ciel gardent le semis
+#define NAVAL_STAR_MAP
 #include "res://shaders/sky.gdshaderinc"
 
 // l'éclair PROCHE, qui éclaire toute la voûte — à ne pas confondre avec

@@ -110,22 +110,10 @@ public partial class ShipDemo : Node3D
     {
         if (!_reckRules.Enabled) return;
         bool open = NoonOpen(out _);
-        if (open && !_saidNoon) { _saidNoon = true; Say("Midi approche — la hauteur du soleil se prend sur la carte (I)"); }
+        if (open && !_saidNoon) { _saidNoon = true; Say("Midi approche — la hauteur du soleil se prend à l'instrument (carte, I)"); }
         if (!open) _saidNoon = false;
-        if (_noonButton != null) _noonButton.Disabled = !open;
-    }
-
-    void TakeNoonSight()
-    {
-        if (_world == null || _reck == null) return;
-        if (!NoonOpen(out string why)) { Say(why); return; }
-        var (tx, tz) = TruePos();
-        _reck.NoonSight(tz, MetresPerMinute);
-        _noonDay = _calendar.Day;
-        var fix = _world.Geo.Fix(_reck.X, _reck.Z);
-        Say($"Hauteur méridienne : latitude {Geo.Format(fix.Lat, true)} — portée sur la carte");
-        GD.Print(FormattableString.Invariant($"hauteur de midi : erreur {(_reck.Z - tz):F0} m, incertitude nord-sud {_reck.SigN:F0} m"));
-        _chart?.Refresh();
+        // le bouton : le soleil autour de midi, la Polaire la nuit (ShipDemo.Sight.cs)
+        if (_noonButton != null) _noonButton.Disabled = !SightOpen(out _, out _);
     }
 
     /// <summary>Le bouton de la carte, sous la flèche retour.</summary>
@@ -133,11 +121,11 @@ public partial class ShipDemo : Node3D
     {
         _noonButton = new Button
         {
-            Text = "☼  Prendre la hauteur de midi", FocusMode = Control.FocusModeEnum.None,
+            Text = "☼ ☆  Prendre la hauteur", FocusMode = Control.FocusModeEnum.None,
             OffsetLeft = 12, OffsetRight = 230, OffsetTop = 40, OffsetBottom = 68, Disabled = true,
-            TooltipText = "De 11 h 30 à 12 h 30, par temps clair : la latitude du navire"
+            TooltipText = "Le soleil autour de midi (quartier de Davis), la Polaire la nuit (arbalestrille) : la latitude du navire, instrument en main"
         };
-        _noonButton.Pressed += TakeNoonSight;
+        _noonButton.Pressed += OpenSight;
         root.AddChild(_noonButton);
     }
 

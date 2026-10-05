@@ -55,6 +55,7 @@ switch (mode)
     case "soute": Soute(); break;
     case "rupture": Rupture(); break;
     case "hausse": Hausse(); break;
+    case "astres": Astres(); break;
     case "semis": Semis(); break;
     case "profil": Profil(); break;
     case "centre": Centre(); break;
@@ -1785,6 +1786,43 @@ void Hausse()
         string Y(double? v) => v is double d ? FormattableString.Invariant($"{d,6:F1} m") : "   à l'eau";
         Console.WriteLine(FormattableString.Invariant($"  hausse {deg,5:F0}° : à 100 m {Y(y100)}, à 200 m {Y(y200)}, à 300 m {Y(y300)}, tombe à {x,5:F0} m"));
     }
+}
+
+/* LES ASTRES DU PILOTE : la Polaire portée à 1690 par la précession, et une nuit de
+   Port-Royal — sa hauteur, sa correction des Gardes, la latitude qu'on en tire ; puis
+   la hauteur de midi du soleil et la latitude qu'elle donne. */
+void Astres()
+{
+    foreach (double y in new[] { 2000.0, 1700.0, 1690.0, 1600.0 })
+    {
+        var (ra, dec) = Sights.Polaris(y);
+        Console.WriteLine(FormattableString.Invariant($"Polaire en {y} : α {ra / 15:F2} h, δ {dec:F3}°, à {90 - dec:F2}° du pôle"));
+    }
+    double lat = 17.94, lon = -76.84;
+    var (ra90, dec90) = Sights.Polaris(1690);
+    var day = new DateTime(1690, 10, 8);
+    foreach (double h in new[] { 20.0, 22.0, 0.0, 2.0, 4.0 })
+    {
+        var d = h < 12 ? day.AddDays(1) : day;
+        double lha = Sights.HourAngle(d, h, lon, ra90);
+        double alt = Sights.Altitude(lat, dec90, lha);
+        double corr = Sights.GuardsCorrection(dec90, lha);
+        Console.WriteLine(FormattableString.Invariant($"  {h:00} h : angle horaire {lha:F0}°, hauteur {Sights.Dm(alt)}, correction {Sights.Dm(corr)}, latitude {Sights.Dm(alt + corr)} (vraie {Sights.Dm(lat)})"));
+    }
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    var cat = StarCatalog.FromJson(File.ReadAllText(Path.Combine(root, "world", "etoiles.json")), 1690.77);
+    Console.WriteLine(FormattableString.Invariant($"Catalogue : {cat.Stars.Count} étoiles en 1690"));
+    foreach (var nm in new[] { "la Polaire", "Dubhe", "Mérak", "Sirius", "Véga", "Arcturus", "Acrux" })
+        if (cat.Find(nm) is Star s)
+        {
+            double lha = Sights.HourAngle(day, 22, lon, s.Ra);
+            Console.WriteLine(FormattableString.Invariant($"  {nm,-12} α {s.Ra / 15:F2} h δ {s.Dec,7:F2}° mag {s.Mag:F2} — à 22 h à Port-Royal : hauteur {Sights.Altitude(lat, s.Dec, lha),6:F1}°"));
+        }
+    var cal = new NavalSim.Core.Calendar("1690-10-08");
+    double decl = cal.Declination();
+    double hs = Sights.SunAltitude(lat, decl, 12);
+    Console.WriteLine(FormattableString.Invariant($"Soleil le 8 octobre 1690 à midi : déclinaison {Sights.Dm(decl)}, hauteur {Sights.Dm(hs)}, latitude {Sights.Dm(Sights.LatitudeFromSun(hs, decl, Sights.SunSouth(lat, decl)))}"));
+    Console.WriteLine(FormattableString.Invariant($"  à 11 h 40 : hauteur {Sights.Dm(Sights.SunAltitude(lat, decl, 11.667))} — prise trop tôt, la latitude serait {Sights.Dm(Sights.LatitudeFromSun(Sights.SunAltitude(lat, decl, 11.667), decl, true))}"));
 }
 
 void Soute()

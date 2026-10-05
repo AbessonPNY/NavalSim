@@ -60,6 +60,8 @@ public partial class ShipDemo
         Slide("Sillage de Kelvin", 0, 4, 0.05, st.SeaKelvin, x => x.SeaKelvin, x => st.SeaKelvin = x);
         Slide("Rais sous l'eau", 0, 3, 0.05, st.SeaShafts, x => x.SeaShafts, x => st.SeaShafts = x);
         Slide("Densité de l'eau", 0.2, 3, 0.05, st.SeaDensity, x => x.SeaDensity, x => st.SeaDensity = x);
+        Slide("Flou sous l'eau", 0, 3, 0.05, st.SeaBlur, x => x.SeaBlur, x => st.SeaBlur = x);
+        Slide("Grains en suspension", 0, 3, 0.05, st.SeaMotes, x => x.SeaMotes, x => st.SeaMotes = x);
 
         var reset = new Button { Text = "Valeurs par défaut", FocusMode = Control.FocusModeEnum.None };
         reset.Pressed += () => { foreach (var (s, def) in sliders) s.Value = def(); };

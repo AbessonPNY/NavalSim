@@ -14299,6 +14299,80 @@ plus que dans les cases gardées ; tout le semis du fond tombe à 1,0 s (1,8 ava
 l'herbier dense). Coût mesuré : le pré, 8,77 ms contre 8,54 sans le fond ; le récif,
 7,57 comme avant.
 
+## Prendre la hauteur, instrument en main (Godot)
+
+DEMANDÉ (« le sextant, tu connais ? ») : d'autres méthodes de navigation. Le sextant (1757) et
+l'octant (1731) sont postérieurs au jeu (1690) : dit et retenu par le joueur, ce sont les instruments
+d'époque — le QUARTIER DE DAVIS (1594) pour le soleil à midi, l'ARBALESTRILLE pour la Polaire la nuit.
+La longitude reste à l'estime : montres marines et distances lunaires attendront 1760. Choix du joueur :
+instrument en main, Polaire la nuit, et le calcul posé par le jeu sous ses yeux.
+
+LE NOYAU (Sights.cs) : la hauteur du soleil (sin h = sin φ sin δ + cos φ cos δ cos H, H l'heure solaire),
+la latitude d'une méridienne (φ = δ ± (90° − h)) ; la POLAIRE DE 1690 portée de J2000 par la précession
+(angles de l'UAI 1976), son angle horaire par le temps sidéral, la CORRECTION DES GARDES (−p·cos H).
+Banc « astres » : en 1690 la Polaire est à 2,36° du pôle (0,74° en 2000 ; 2,31° en 1700) ; une nuit de
+Port-Royal, sa hauteur va de 18° 44′ à 20° 16′ et la correction rend 17° 56′ à chaque heure ; le soleil
+pris à 11 h 40 au lieu de midi donne 30′ de trop — il faut le prendre quand il CULMINE.
+
+L'INSTRUMENT (ShipDemo.Sight.cs, SightPlate.cs), du bouton de la carte « Prendre la hauteur » (le
+soleil de 11 h à 13 h par temps clair, une fois par jour ; la Polaire la nuit, ciel dégagé, une fois par
+nuit). L'œil au BORD de la coque, du côté visé (sur la dunette d'un galion il était derrière le
+château : la fente ne montrait que du bois) ; six dixièmes du roulis passent dans la visée ; la main
+tremble avec la mer. QUARTIER : dos au soleil, champ de 12°, l'OMBRE du soleil (floue, large d'un
+demi-degré) sur la plaque, à amener sur l'horizon dans la fente ; « le soleil monte encore / culmine /
+redescend ». ARBALESTRILLE : champ de 34°, la visée à mi-chemin (sinon l'étoile, à 20°, sortait de
+l'écran), le bout bas du marteau sur l'horizon, le haut sur l'étoile. Molette : l'arc de 10′ (⇧ : 1′),
+↑ ↓ : 1′, bouton tenu : viser, Entrée : lire. La hauteur lue est l'ARC ; le calcul s'affiche (hauteur,
+déclinaison de la table ou correction des Gardes, latitude), et la latitude est portée à l'estime
+(Reckoning.LatitudeSight) avec l'erreur de la main, plus un rien d'instrument ; le pilote se croit à
+4′ près au quartier, 12′ à l'arbalestrille. Essai : --heure 12 --hauteur auto (réglé à 1′ près) : 0,8′
+d'erreur ; --heure 22 : la Polaire, 1,5′. Simplification dite : le monde est plat, pas de dépression de
+l'horizon à corriger ; la déclinaison est celle du calendrier (une formule, ±1°) — que le soleil
+DESSINÉ ne suivait pas encore : voir la section suivante.
+
+## Le vrai ciel de 1690 (Godot)
+
+DEMANDÉ (« on peut se repérer aux étoiles pour de vrai ? », puis « télécharge le catalogue ») : le
+semis d'étoiles au hasard remplacé par les vraies. Le récit pour le joueur est dans
+docs/navigation-astronomique.md ; ici, ce qui sert à qui y retouche.
+
+LE CATALOGUE : Yale Bright Star Catalogue (BSC5, domaine public, CDS : V/50/catalog.gz), lu en
+colonnes fixes par tools/stars.js (RA 76–83, Dec 84–90, V 103–107, B−V 110–114, mouvement propre
+149–160, Bayer/Flamsteed/constellation 5–14) jusqu'à V 5,5 : 2 887 étoiles, world/etoiles.json
+(147 Ko), une cinquantaine de noms usuels en français. Le fichier brut n'est pas gardé : relancer
+`node tools/stars.js <bsc5.dat> 5.5` après l'avoir retéléchargé.
+
+À L'ANNÉE DE LA PARTIE (core/Stars.cs) : le mouvement propre d'abord (pmRA est donné × cos δ), puis
+la précession UAI 1976 (Sights.Precess). Banc « astres » : la Polaire à 0,74° du pôle en 2000, 2,36°
+en 1690 ; d'heure en heure une nuit à Port-Royal, la hauteur + la correction des Gardes rendent 17° 56′,
+la latitude vraie, à chaque fois.
+
+LA CARTE (StarMap.cs) : une équirectangulaire 4096 × 2048 en (α, δ), peinte une fois au chargement
+(185 à 490 ms selon la machine). Le flux vrai, 10^(−0,4(m−1,5)), borné à 3 (Sirius) et 0,02 ; la tache
+s'élargit un peu pour les brillantes et s'étire de 1/cos δ en largeur pour rester ronde. ENCODÉE sRGB
+(puissance 1/2,2) et relue en source_color : en linéaire sur huit bits, les étoiles de cinquième
+grandeur tombaient à zéro et le ciel paraissait uniforme. Le dôme multiplie par 4.
+
+LE DÔME (sky.gdshaderinc, NAVAL_STAR_MAP, défini par sky_dome.gdshader seul : le cubemap et les
+autres usagers gardent le semis) : pour chaque direction d, δ = asin(d·P), angle horaire = atan(d·W,
+d·M), α = TSL − angle horaire ; P le pôle céleste, M l'équateur au méridien, W l'ouest, en directions
+du monde (nord +z, est −x), et TSL le temps sidéral local (Sights.HourAngle de α = 0). Le tout poussé
+chaque image par ShipDemo.StarsTick, du lieu VRAI du navire (TrueLatLon) et de la date.
+
+LE SOLEIL N'Y ÉTAIT PAS. Sky.Declination valait 12 (une fin de printemps) et SkyNode.Latitude 13,6,
+pour toujours : le 8 octobre à Port-Royal le soleil de midi était à 88° quand le quartier en lisait 66.
+Personne ne s'en apercevait — l'instrument calculait sa propre hauteur, du calendrier. StarsTick règle
+maintenant les deux (lieu vrai, Calendar.Declination) avant le SetTimeOfDay suivant : le soleil, les
+étoiles et la table du pilote sont un seul ciel. Effet visible : à l'automne, midi est plus bas et les
+ombres plus longues ; à l'écran du titre (pas de monde) rien ne change.
+
+L'ARBALESTRILLE vise la Polaire VRAIE : le point dessiné sur la plaque (SightPlate.DrawStar) ne
+l'est plus que si le catalogue manque.
+
+LIMITES DITES : pas de planètes ; calendrier grégorien (un Anglais de 1690 datait au julien, dix jours
+de retard) ; pas d'équation du temps ; la Croix du Sud, à dix degrés au plus, se perd dans la brume
+d'horizon (smoothstep de 0,02 à 0,16 sur d.y).
+
 ## La hausse des bordées ; les pièces qui s'arrachent (Godot)
 
 LES BORDÉES À L'ŒIL (demandé : régler la hauteur des pièces latérales, la vue derrière l'un des
@@ -14565,6 +14639,49 @@ fait plus que pousser : 9,2 s, 7,0 en forçant. La caméra prend l'élan de la t
 Modèles dessinés (tools/reef-glb.js, qui n'écrit plus que ceux qu'on nomme : un fichier remplacé
 par l'artiste n'est pas écrasé) : lambi à pointes et lèvre rose, 24 cm ; huître plate et brune,
 7 cm. Essai sans clavier : --nage 2 --nage-vers lambi|huitre|ecus --nage-prendre 1.
+
+## L'eau qui adoucit, et ce qui flotte dedans (Godot)
+
+DEMANDÉ : « l'image vue sous l'eau plus réaliste, un léger flou et des sédiments qui flottent près
+du fond ». Les deux sont dans la passe sous-marine (underwater.glsl), qui avait déjà l'extinction par
+canal et les rais : rien de nouveau à armer.
+
+LE FLOU va avec la DISTANCE, pas avec l'écran : l'eau diffuse vers l'avant, chaque mètre dévie un peu
+la lumière. Rayon en pixels d'une image de 1080 lignes : 0,35 + 0,22 × distance, ×(1 + 1,5 × trouble),
+plafonné à 7. Calculé en RASSEMBLANT (16 prises en rosace à l'angle d'or, tournée par pixel) : un
+voisin n'entre que si son propre flou le porte jusqu'au pixel (poids min(r_voisin, r_pixel) − écart
++ 1) — sans quoi une chose nette bave sur le lointain ou le lointain sur elle. Écart dit : à l'œil
+nu, un nageur de 1690 verrait BIEN plus flou (l'œil perd presque toute sa puissance dans l'eau, il
+faut un masque ou des lunettes, inconnus d'un marin de 1690) ; on garde le flou de l'eau seule, celui qu'on aurait derrière
+un masque.
+
+LES GRAINS : une grille du monde de 0,40 m, un grain ou aucun par case, que le rayon parcourt case
+à case (Amanatides-Woo, 40 pas, 8 m) — ils restent à leur place quand on tourne la tête. Densité
+0,06 + 0,55 × exp(−hauteur sur le fond / 1,3 m), ×(0,6 + 1,6 × trouble) ; le fond est celui SOUS
+L'ŒIL (World.HeightAt), approximation qui tient tant que le fond n'est pas une falaise. TROUBLE :
+(1 − abri) × u_silt, LU sur la matière de la mer (ShipDemo.SeaSilt, RenderingServer.
+ShaderGetParameterDefault si la matière ne le surcharge pas) — la même vase que la rade vue de
+dessus, sans recopier 0,55. Le courant les emporte ensemble (3,5 et 2,2 cm/s), le ressac les berce
+(0,04 + 0,03 × état de mer, éteint en 6 m de profondeur et derrière un môle), chacun tremble de
+8 cm dans sa case. Origine flottante : les indices sont pris modulo 4096 (pcg3d sur des entiers) et
+l'origine est repliée sur la période (1 638 m) côté C#, en double : un glissement d'origine ne
+déplace aucun grain.
+
+CE QUI A ÉTÉ CHERCHÉ : (1) grains SOMBRES, invisibles sur le sable — éclairés d'abord par la
+couleur de l'eau profonde, cinq fois ; il faut la lumière qui DESCEND, celle qui éclaire le sable,
+et la couleur du sable (c'est du fond soulevé), avec une diffusion vers l'avant (×3 en regardant le
+soleil). (2) Un pixel isolé, à peine plus clair : flocons de 2 à 6 mm (la « neige marine »), au moins
+1,1 pixel. (3) Un grain à dix centimètres de l'œil faisait une boule de lumière de cent pixels : le
+disque flou plafonné à 5 mm, à 4 % d'opacité, rien avant 12 cm. Diagnostic utile : peindre les grains
+en rouge vif (on en comptait ~150 dans le champ avant de doubler la densité).
+
+COÛT : 0,1 à 0,6 ms de carte graphique (moyennes de 600 images, plongée comprise, --sous-eau 0,0
+contre 1,1). Réglages au panneau de la mer (⇧M) : « Flou sous l'eau », « Grains en suspension »
+(reglages.ini → [mer] flou_sous_eau, grains_sous_eau). Essai : --sous-eau flou,grains.
+
+PAS FAIT, À PROPOSER : l'EXTINCTION de la passe ne lit pas encore la vase — de dessus, la rade de
+Port-Royal ne montre plus son fond à onze mètres, de dessous on y voit aussi loin qu'au large.
+L'aligner (k × (1 + 2,5 × trouble), comme la mer) diviserait par deux la vue en nageant dans le port.
 
 ## Ce que coûtent les pâtés de maisons de Port-Royal (Godot)
 

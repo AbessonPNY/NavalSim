@@ -149,6 +149,17 @@ public sealed class Reckoning
         return err;
     }
 
+    /// <summary>
+    /// UNE LATITUDE PRISE À L'INSTRUMENT (ShipDemo.Sight) : celle de la main, à
+    /// <paramref name="errArcmin"/> minutes d'arc près de la vraie — et non plus tirée au
+    /// hasard. <paramref name="sigmaArcmin"/> est ce que le pilote croit de sa précision.
+    /// </summary>
+    public void LatitudeSight(double trueZ, double metresPerMinute, double errArcmin, double sigmaArcmin)
+    {
+        Z = trueZ + errArcmin * metresPerMinute;
+        SigN = sigmaArcmin * metresPerMinute;
+    }
+
     public string ToJson() => FormattableString.Invariant(
         $"{{ \"x\": {X:F1}, \"z\": {Z:F1}, \"sn\": {SigN:F1}, \"se\": {SigE:F1} }}");
 

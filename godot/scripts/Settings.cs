@@ -79,6 +79,8 @@ public sealed class Settings
     public float SeaKelvin = 1f;
     /// <summary>Sous l'eau : la force des rais de soleil, et combien l'eau mange la lumière.</summary>
     public float SeaShafts = 1f, SeaDensity = 1f;
+    /// <summary>Sous l'eau : le flou qui grandit avec la distance, et les grains en suspension (1 = réglé, 0 les ôte).</summary>
+    public float SeaBlur = 1f, SeaMotes = 1f;
 
     // [navire]
     /// <summary>Le pavillon hissé sur le navire à la barre : l'id d'une nation de flags.json, vide pour celui de la fiche.</summary>
@@ -164,6 +166,8 @@ public sealed class Settings
         s.SeaKelvin = (float)cf.GetValue("mer", "kelvin", s.SeaKelvin);
         s.SeaShafts = (float)cf.GetValue("mer", "rais_sous_eau", s.SeaShafts);
         s.SeaDensity = (float)cf.GetValue("mer", "densite_de_l_eau", s.SeaDensity);
+        s.SeaBlur = (float)cf.GetValue("mer", "flou_sous_eau", s.SeaBlur);
+        s.SeaMotes = (float)cf.GetValue("mer", "grains_sous_eau", s.SeaMotes);
         s.ParallelSolvers = (bool)cf.GetValue("performance", "solveurs_paralleles", s.ParallelSolvers);
         return s;
     }
@@ -216,6 +220,8 @@ public sealed class Settings
         cf.SetValue("mer", "kelvin", SeaKelvin);
         cf.SetValue("mer", "rais_sous_eau", SeaShafts);
         cf.SetValue("mer", "densite_de_l_eau", SeaDensity);
+        cf.SetValue("mer", "flou_sous_eau", SeaBlur);
+        cf.SetValue("mer", "grains_sous_eau", SeaMotes);
         cf.SetValue("performance", "solveurs_paralleles", ParallelSolvers);
         Error e = cf.Save(Path);
         if (e != Error.Ok) GD.PushWarning($"réglages non enregistrés dans {Path} : {e}");

@@ -17,6 +17,24 @@ public partial class ShipDemo
     CameraAttributesPractical _camAttr = null!;
     MotionBlurEffect _motionBlur = null!;
     UnderwaterEffect _under = null!;
+    static readonly StringName USeaSilt = "u_silt";
+    float _seaSilt = -1;
+
+    /// <summary>
+    /// La vase d'une rade, LUE SUR LA MER (u_silt, ocean.gdshader) et non recopiée : la
+    /// passe sous-marine trouble son eau de la même quantité que la mer vue de dessus.
+    /// </summary>
+    double SeaSilt()
+    {
+        if (_seaSilt < 0 && _sea.Material is ShaderMaterial m)
+        {
+            Variant v = m.GetShaderParameter(USeaSilt);
+            if (v.VariantType == Variant.Type.Nil && m.Shader != null)
+                v = RenderingServer.ShaderGetParameterDefault(m.Shader.GetRid(), USeaSilt);
+            _seaSilt = v.VariantType == Variant.Type.Nil ? 0f : (float)v;
+        }
+        return Math.Max(0, _seaSilt);
+    }
     /// <summary>L'œil était-il sous l'eau à l'image d'avant ? (avec hystérésis : voir plus bas)</summary>
     bool _wasWet;
     /// <summary>Sa hauteur à l'image d'avant, pour savoir à quelle vitesse il descend.</summary>
@@ -179,6 +197,8 @@ public partial class ShipDemo
             sm.SetShaderParameter("u_kelvin_gain", s.SeaKelvin);
             _under.Shafts = s.SeaShafts;
             _under.Density = s.SeaDensity;
+            _under.Blur = s.SeaBlur;
+            _under.Motes = s.SeaMotes;
         }
         if (_ship != null)
         {

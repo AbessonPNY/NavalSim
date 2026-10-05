@@ -162,6 +162,8 @@ public partial class ShipDemo
                 case "--quete": _askTitle ??= false; StartQuest(args[i + 1]); break;
                 // un chapitre sans sa cinématique (à placer AVANT --quete)
                 case "--sans-film": _noFilm = true; break;
+                // L'INSTRUMENT : l'ouvrir, et « auto » le règle juste (à une minute près) et le lit — pour l'essai
+                case "--hauteur": _sightTest = args[i + 1]; _askTitle ??= false; break;
                 // l'Histoire choisie AU TITRE, par son vrai chemin (le titre s'ouvre, puis on clique)
                 case "--histoire": _storyTest = args[i + 1] != "0"; break;
                 // l'essai du tutoriel : l'écoute bordée puis choquée, comme le ferait la main
@@ -213,6 +215,12 @@ public partial class ShipDemo
                 case "--masquer": _hudOn = args[i + 1] != "1"; _info.Visible = _sunPanel.Visible = _hudOn; break;
                 case "--panneau-mer": _seaPanel.Visible = args[i + 1] == "1"; break;
                 // la mer aux valeurs par défaut, sans toucher au fichier : pour comparer
+                // MESURE : le flou et les grains sous l'eau, « flou,grains » (1,1 = réglés ; 0,0 = sans)
+                case "--sous-eau":
+                    var ue = args[i + 1].Split(',');
+                    _settings.SeaBlur = ue[0].ToFloat(); _settings.SeaMotes = ue.Length > 1 ? ue[1].ToFloat() : _settings.SeaMotes;
+                    ApplySettings();
+                    break;
                 case "--mer-defaut":
                     var dm = new Settings();
                     _settings.SeaRoughBase = dm.SeaRoughBase; _settings.SeaRoughWind = dm.SeaRoughWind;
@@ -220,6 +228,7 @@ public partial class ShipDemo
                     _settings.SeaCapGain = dm.SeaCapGain; _settings.SeaFoamGain = dm.SeaFoamGain;
                     _settings.SeaJacobian = dm.SeaJacobian; _settings.SeaStreaks = dm.SeaStreaks; _settings.SeaKelvin = dm.SeaKelvin;
                     _settings.SeaShafts = dm.SeaShafts; _settings.SeaDensity = dm.SeaDensity;
+                    _settings.SeaBlur = dm.SeaBlur; _settings.SeaMotes = dm.SeaMotes;
                     ApplySettings();
                     break;
                 // une cible par le travers tribord, à cette distance : le premier navire de --flotte

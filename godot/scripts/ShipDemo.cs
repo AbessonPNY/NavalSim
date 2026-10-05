@@ -680,6 +680,8 @@ public partial class ShipDemo : Node3D
         if (_inTitle) TitleTick(frame); else if (_editing) EditTick(frame); else if (_film != null) FilmTick(frame); else ReadKeys(frame);
         ObjectivesTick(frame);
         SwimTick(frame);
+        SightTick(frame);
+        StarsTick();
         SwimAfter(frame);
         // le temps AVANT le solveur : la coque et le shader liront la même mer
         WeatherTick(frame, _t - frame);
@@ -1089,6 +1091,22 @@ public partial class ShipDemo : Node3D
             _under.Water = new Color((float)(0.0015 * wl), (float)(0.0120 * wl), (float)(0.0240 * wl));
             _under.Time = (float)_t;
             _under.Straddle = straddle;
+            /* LES GRAINS ET LE FLOU, du lieu : le fond sous l'œil (ils s'épaississent près de
+               lui), l'eau dormante d'une rade (la même vase que la mer vue de dessus : u_silt
+               sur l'abri), et le ressac qui les berce — l'orbite de la houle, éteinte avec la
+               profondeur et derrière un môle. */
+            var og = _sea.Core.Origin;
+            double tx = og.X + ce.X, tz = og.Z + ce.Z;
+            _under.BedY = _world != null ? (float)_world.HeightAt(tx, tz) : -1000f;
+            double shelter = _world != null ? _world.Shelter(tx, tz) : 1;
+            _under.Trouble = (float)Math.Clamp((1 - shelter) * SeaSilt(), 0, 1);
+            _under.Surge = (float)(Math.Clamp(0.04 + 0.03 * _sea.Core.SeaState, 0, 0.35)
+                * Math.Exp(-Math.Max(0, seaY - ce.Y) / 6.0) * shelter);
+            // the mote grid repeats every 4096 cells: the origin is folded on that period so
+            // a floating-origin shift leaves every mote where it was
+            const double cell = 0.40, period = cell * 4096;
+            _under.GridOrigin = new Vector2((float)((og.X % period + period) % period / cell),
+                                            (float)((og.Z % period + period) % period / cell));
         }
         DropletTick(frame, under);
         _sky.PushGlobals(_cloud, _t);

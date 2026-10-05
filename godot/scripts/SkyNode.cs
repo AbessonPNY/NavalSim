@@ -301,6 +301,28 @@ public partial class SkyNode : Node3D
         RenderingServer.GlobalShaderParameterSet(U.SkyTime, (float)skyTime);
     }
 
+    static readonly StringName UStarMap = "u_star_map", UCelP = "u_cel_p", UCelM = "u_cel_m", UCelW = "u_cel_w", ULst = "u_lst", UStarsOn = "u_real_stars";
+
+    /// <summary>La carte du vrai ciel (StarMap), au dôme seulement.</summary>
+    public void SetStarMap(Texture2D tex)
+    {
+        _domeMat.SetShaderParameter(UStarMap, tex);
+        _domeMat.SetShaderParameter(UStarsOn, 1f);
+    }
+
+    /// <summary>
+    /// LA SPHÈRE CÉLESTE EN CE LIEU, À CETTE HEURE : le pôle céleste, le point de l'équateur
+    /// au méridien, et l'ouest (directions du monde), et le temps sidéral local en radians.
+    /// Le dôme en tire l'ascension droite et la déclinaison de chaque direction.
+    /// </summary>
+    public void SetCelestial(Vector3 pole, Vector3 meridian, Vector3 west, float lst)
+    {
+        _domeMat.SetShaderParameter(UCelP, pole);
+        _domeMat.SetShaderParameter(UCelM, meridian);
+        _domeMat.SetShaderParameter(UCelW, west);
+        _domeMat.SetShaderParameter(ULst, lst);
+    }
+
     public void PushTo(ShaderMaterial m)
     {
         if (m == null || SkyIsGlobal(m)) return;
