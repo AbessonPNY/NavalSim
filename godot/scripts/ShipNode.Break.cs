@@ -56,8 +56,11 @@ public partial class ShipNode
             return c;
         }
 
-        var aftCut = HullCut.Cut(root, toShip, zCut, keepFront: false);
-        var bowCut = HullCut.Cut(dup, toShip, zCut, keepFront: true, Strip);
+        // la même rupture déchiquetée pour les deux moitiés : leurs bords se répondent
+        float jag = HullCut.JagFor(Spec.B);
+        uint seed = HullCut.SeedFor(Spec.Id, zCut);
+        var aftCut = HullCut.Cut(root, toShip, zCut, keepFront: false, null, jag, seed);
+        var bowCut = HullCut.Cut(dup, toShip, zCut, keepFront: true, Strip, jag, seed);
 
         /* LES MÂTS DE L'AVANT PARTENT AVEC LUI, tombés ou debout : chacun pend à
            son pied, et c'est la cote de ce pied qui dit de quel côté il est. Ils
@@ -68,8 +71,10 @@ public partial class ShipNode
                 d.Fall.Reparent(bowHolder, true);
 
         var mat = CharMaterial();
-        AddChild(Cap(aftCut, zCut, +1, mat));
-        bowHolder.AddChild(Cap(bowCut, zCut, -1, mat));
+        /* LA TRANCHE EN RETRAIT, d'une amplitude de rupture dans chaque moitié : le bois
+           brûlé est au fond de la brèche, et les bordages cassés dépassent devant lui. */
+        AddChild(Cap(aftCut, zCut - jag * 0.9f, +1, mat));
+        bowHolder.AddChild(Cap(bowCut, zCut + jag * 0.9f, -1, mat));
         Broken = true;
         BreakZ = zCut;
         return mat;

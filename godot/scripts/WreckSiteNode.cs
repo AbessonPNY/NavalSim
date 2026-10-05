@@ -124,13 +124,15 @@ public partial class WreckSiteNode : Node3D
             {
                 // deux tronçons : chacun coupé de son côté, l'avant écarté et tourné
                 var aft = (Node3D)root.Duplicate(); hull.AddChild(aft); aft.Transform = root.Transform;
-                HullCut.Cut(aft, root.Transform, (float)w.ZCut, keepFront: false);
+                float jag = HullCut.JagFor(w.Beam > 0 ? w.Beam : 8);
+                uint seed = HullCut.SeedFor(w.Ship, w.ZCut);
+                HullCut.Cut(aft, root.Transform, (float)w.ZCut, keepFront: false, null, jag, seed);
                 var bowHolder = new Node3D();
                 hull.AddChild(bowHolder);
                 bowHolder.Transform = new Transform3D(new Basis(Vector3.Up, (float)(0.35 * (R(4) - 0.5))) * new Basis(Vector3.Back, -heel * 0.6f),
                                                       new Vector3((float)(R(5) - 0.5) * 3, -0.4f, 7f));
                 var bow = (Node3D)root.Duplicate(); bowHolder.AddChild(bow); bow.Transform = root.Transform;
-                HullCut.Cut(bow, root.Transform, (float)w.ZCut, keepFront: true);
+                HullCut.Cut(bow, root.Transform, (float)w.ZCut, keepFront: true, null, jag, seed);
             }
             else
             {

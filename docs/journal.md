@@ -14299,6 +14299,28 @@ plus que dans les cases gardées ; tout le semis du fond tombe à 1,0 s (1,8 ava
 l'herbier dense). Coût mesuré : le pré, 8,77 ms contre 8,54 sans le fond ; le récif,
 7,57 comme avant.
 
+## La rupture déchiquetée ; une partie neuve sans brume ni hausse (Godot)
+
+DEMANDÉ : une découpe moins nette des deux morceaux. HullCut coupait par le plan z = zCut. Il
+coupe désormais par la surface z = zCut + Jag(x, y) : chaque VIRURE de bordé (32 cm de haut)
+cassée à sa propre longueur, pas la même à tribord qu'à bâbord ; le pont et les membrures par
+morceaux de 40 cm ; et une DENT en biais sur le fil du bois. Amplitude 0,07 × bau, de 0,4 à
+1,2 m (JagFor) ; la même graine pour les deux moitiés (SeedFor : la fiche et la cote) — leurs bords
+se répondent, et l'épave au fond (WreckSiteNode) se coupe pareil. Trois choses pour qu'elle se lise :
+— REDÉCOUPER près de la coupe : un long triangle de bordé ne voyait la dent qu'à ses trois
+  sommets ; dans la bande zCut ± (amplitude + 0,4 m), bissection de la plus longue arête jusqu'à
+  28 cm (20 cm coûtait 205 à 270 ms à la rupture, 28 en coûte 136) ;
+— L'ENVERS DU BORDÉ dans cette bande, en triangles retournés : sinon le ciel à travers ;
+— LA TRANCHE EN RETRAIT de 0,9 amplitude dans chaque moitié : le bois brûlé au fond de la
+  brèche, les bordages cassés devant.
+Vu sur la Roter Löwe à l'instant de la rupture : les virures en escalier, le pont effiloché, les deux
+bords qui se répondent. Les sommets ajoutés le long d'une arête partagée ne le sont pas toujours
+chez le voisin : de minuscules jours au bord de la brèche, que l'écharde cache.
+
+SIGNALÉ : au retour au menu principal, la brume levée restait, et la hausse des pièces aussi.
+Home() — par où passe toute partie neuve — les remet : brume à zéro (la météo la refera), pièces
+au but en blanc. Vérifié par le vrai chemin (--histoire 1) : brume 0,00, aucune hausse retenue.
+
 ## La hausse des pièces de chasse ; l'étrave qui fend ; la coque qui souffle (Godot)
 
 LA HAUSSE (demandé : « ajuster le tir en hauteur pour compenser l'angle du navire, viser les

@@ -16,6 +16,15 @@ namespace NavalSim;
 /// texture jusqu'à la tranche. Le maillage d'origine n'est pas touché : chaque
 /// côté reçoit un ArrayMesh neuf, et ses matières sont celles de l'artiste.
 ///
+/// LA COUPE EST DÉCHIQUETÉE (demandé) quand on lui donne une amplitude : non plus
+/// le plan z = zCut, mais la surface z = zCut + <see cref="Jag"/>(x, y) — chaque
+/// virure de bordé cassée à sa propre longueur, de chaque bord, avec ses éclats. Les
+/// deux moitiés la lisent avec la même graine : leurs bords se répondent. Près de la
+/// coupe, les triangles sont REDÉCOUPÉS jusqu'à vingt centimètres, sans quoi un long
+/// triangle de bordé ne verrait la dent qu'à ses trois sommets ; et ceux de cette bande
+/// sont rendus AUSSI À L'ENVERS — on voit l'intérieur du bordé par la brèche, pas le
+/// ciel à travers.
+///
 /// CE QUE LA COUPE LAISSE OUVERT, elle ne le ferme pas : un maillage de coque
 /// n'est pas un volume fermé (pas de pont sous le pont, pas de dessous aux
 /// canons), donc on ne saurait chaîner ses arêtes en un contour sûr. La tranche
@@ -35,7 +44,7 @@ public static class HullCut
     /// tranche sur le bois qu'on voit.
     /// </summary>
     public static List<Vector3> Cut(Node3D root, Transform3D rootToShip, float zCut, bool keepFront,
-                                    Func<Material?, Material?>? remap = null)
+                                    Func<Material?, Material?>? remap = null, float jag = 0, uint seed = 0)
     {
         var best = new List<Vector3>();
         float bestVol = -1;
@@ -50,13 +59,14 @@ public static class HullCut
 
             var box = t * mi.Mesh.GetAabb();
             float lo = box.Position.Z, hi = box.End.Z;
-            bool keepAll = keepFront ? lo >= zCut : hi <= zCut;
-            bool dropAll = keepFront ? hi <= zCut : lo >= zCut;
+            // la surface déchiquetée va de zCut − jag à zCut + jag : hors de cette bande, rien ne change
+            bool keepAll = keepFront ? lo >= zCut + jag : hi <= zCut - jag;
+            bool dropAll = keepFront ? hi <= zCut - jag : lo >= zCut + jag;
             if (dropAll) { mi.Visible = false; continue; }
             if (keepAll) { Remap(mi, remap); continue; }
 
             var pts = new List<Vector3>();
-            var cut = CutMesh(mi.Mesh, t, zCut, keepFront, pts);
+            var cut = CutMesh(mi.Mesh, t, zCut, keepFront, pts, jag, seed);
             if (cut == null) { mi.Visible = false; continue; }
             var overrides = new List<Material?>();
             for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++) overrides.Add(mi.GetSurfaceOverrideMaterial(i));
@@ -103,7 +113,53 @@ public static class HullCut
     /// surface rendue, l'indice de la surface d'origine — les surcharges de
     /// matière se recollent par lui.
     /// </summary>
-    static (ArrayMesh Mesh, List<int> Kept)? CutMesh(Mesh mesh, Transform3D toShip, float zCut, bool keepFront, List<Vector3> section)
+    /* ------------------------------------------------------------------ */
+    /*  LA RUPTURE DÉCHIQUETÉE                                              */
+    /* ------------------------------------------------------------------ */
+
+    static uint Mix(uint a, int b, int c)
+    {
+        uint h = a ^ (uint)b * 0x9E3779B1u ^ (uint)c * 0x85EBCA77u;
+        h ^= h >> 15; h *= 0x2C1B3C6Du; h ^= h >> 12; h *= 0x297A2D39u; h ^= h >> 15;
+        return h;
+    }
+    static float H(uint a, int b, int c) => (Mix(a, b, c) & 0xFFFFFF) / (float)0x1000000;
+
+    /// <summary>
+    /// De combien la rupture s'écarte de la tranche droite, en ce point du repère du
+    /// navire (x en travers, y en hauteur), entre −amp et +amp. Une coque se rompt par
+    /// ses BORDAGES : chaque virure — trente-deux centimètres de haut — casse à sa
+    /// propre longueur, et pas la même à tribord qu'à bâbord ; le pont et les membrures,
+    /// plus courts, par morceaux de quarante centimètres ; et le bout de chaque planche
+    /// est une ÉCHARDE, une dent qui court en biais sur le fil du bois.
+    /// </summary>
+    public static float Jag(Vector3 p, float amp, uint seed)
+    {
+        if (amp <= 0) return 0;
+        int side = p.X >= 0 ? 1 : 2;
+        float strake = H(seed, side, (int)MathF.Floor(p.Y / 0.32f)) * 2 - 1;
+        float piece = H(seed + 7, (int)MathF.Floor(p.X / 0.4f), (int)MathF.Floor(p.Y / 1.1f)) * 2 - 1;
+        float f = p.Y * 2.7f + p.X * 1.9f + H(seed + 3, side, 0);
+        float tooth = (MathF.Abs(f - MathF.Floor(f) - 0.5f) * 2 - 0.5f);
+        return Math.Clamp(amp * (0.62f * strake + 0.28f * piece + 0.22f * tooth), -amp, amp);
+    }
+
+    /// <summary>L'amplitude d'une rupture pour une coque de ce bau : 0,4 m à 1,2 m.</summary>
+    public static float JagFor(double beam) => (float)Math.Clamp(0.07 * beam, 0.4, 1.2);
+
+    /// <summary>La graine d'une rupture : la même pour les deux moitiés, et d'une partie à l'autre.</summary>
+    public static uint SeedFor(string shipId, double zCut)
+    {
+        uint h = 2166136261u;
+        foreach (char ch in shipId) h = (h ^ ch) * 16777619u;
+        return Mix(h, (int)Math.Round(zCut * 100), 1);
+    }
+
+    /// <summary>La longueur visée des triangles près de la coupe : la dent doit s'y lire.</summary>
+    const float Fine = 0.28f;
+
+    static (ArrayMesh Mesh, List<int> Kept)? CutMesh(Mesh mesh, Transform3D toShip, float zCut, bool keepFront, List<Vector3> section,
+                                                     float jag = 0, uint seed = 0)
     {
         var outMesh = new ArrayMesh();
         var kept = new List<int>();
@@ -141,28 +197,65 @@ public static class HullCut
                 Uv2 = uv2 != null ? uv2[i] : Vector2.Zero,
                 C = col != null ? col[i] : Colors.White
             };
-            // la distance signée au plan, du côté qu'on garde
-            float Side(Vector3 p) { float z = (toShip * p).Z - zCut; return keepFront ? z : -z; }
+            // la distance signée à la surface de rupture, du côté qu'on garde
+            float Side(Vector3 p)
+            {
+                var s = toShip * p;
+                float z = s.Z - zCut - Jag(s, jag, seed);
+                return keepFront ? z : -z;
+            }
+            // la bande où la rupture passe, et un peu autour : là on redécoupe, là on montre l'envers
+            float bandLo = zCut - jag - 0.4f, bandHi = zCut + jag + 0.4f;
 
             var outV = new List<V>();
             int triCount = idx != null ? idx.Length / 3 : pos.Length / 3;
             Span<V> poly = stackalloc V[4];
+            var work = new Stack<(V A, V B, V C, int Depth)>();
+            void Emit(in V a, in V b, in V c, bool inner)
+            {
+                outV.Add(a); outV.Add(b); outV.Add(c);
+                if (!inner) return;
+                // l'envers : le même triangle, tourné et retourné
+                V ra = a, rb = b, rc = c;
+                ra.N = -a.N; rb.N = -b.N; rc.N = -c.N;
+                outV.Add(ra); outV.Add(rc); outV.Add(rb);
+            }
             for (int tri = 0; tri < triCount; tri++)
             {
                 int i0 = idx != null ? idx[tri * 3] : tri * 3, i1 = idx != null ? idx[tri * 3 + 1] : tri * 3 + 1, i2 = idx != null ? idx[tri * 3 + 2] : tri * 3 + 2;
-                float d0 = Side(pos[i0]), d1 = Side(pos[i1]), d2 = Side(pos[i2]);
-                if (d0 >= 0 && d1 >= 0 && d2 >= 0) { outV.Add(Get(i0)); outV.Add(Get(i1)); outV.Add(Get(i2)); continue; }
-                if (d0 < 0 && d1 < 0 && d2 < 0) continue;
-                /* SUTHERLAND–HODGMAN sur un seul plan : on parcourt le triangle et
-                   l'on garde les sommets du bon côté, plus le point où chaque arête
-                   franchit le plan. Trois sommets en entrée, trois ou quatre en
-                   sortie, rendus en éventail dans le même sens de rotation. */
-                int m = 0;
-                V a = Get(i0), b = Get(i1), c = Get(i2);
-                Clip(a, d0, b, d1, poly, ref m, section, toShip);
-                Clip(b, d1, c, d2, poly, ref m, section, toShip);
-                Clip(c, d2, a, d0, poly, ref m, section, toShip);
-                for (int k = 1; k + 1 < m; k++) { outV.Add(poly[0]); outV.Add(poly[k]); outV.Add(poly[k + 1]); }
+                work.Push((Get(i0), Get(i1), Get(i2), 0));
+                while (work.Count > 0)
+                {
+                    var (a, b, c, depth) = work.Pop();
+                    Vector3 sa = toShip * a.P, sb = toShip * b.P, sc = toShip * c.P;
+                    float zlo = Math.Min(sa.Z, Math.Min(sb.Z, sc.Z)), zhi = Math.Max(sa.Z, Math.Max(sb.Z, sc.Z));
+                    bool inBand = jag > 0 && zhi >= bandLo && zlo <= bandHi;
+                    if (inBand && depth < 16)
+                    {
+                        // REDÉCOUPÉ par le milieu de sa plus longue arête, tant qu'il est trop grand
+                        float lab = sa.DistanceSquaredTo(sb), lbc = sb.DistanceSquaredTo(sc), lca = sc.DistanceSquaredTo(sa);
+                        float lmax = Math.Max(lab, Math.Max(lbc, lca));
+                        if (lmax > Fine * Fine)
+                        {
+                            if (lmax == lab) { var m0 = V.Lerp(a, b, 0.5f); work.Push((a, m0, c, depth + 1)); work.Push((m0, b, c, depth + 1)); }
+                            else if (lmax == lbc) { var m0 = V.Lerp(b, c, 0.5f); work.Push((a, b, m0, depth + 1)); work.Push((a, m0, c, depth + 1)); }
+                            else { var m0 = V.Lerp(c, a, 0.5f); work.Push((a, b, m0, depth + 1)); work.Push((m0, b, c, depth + 1)); }
+                            continue;
+                        }
+                    }
+                    float d0 = Side(a.P), d1 = Side(b.P), d2 = Side(c.P);
+                    if (d0 >= 0 && d1 >= 0 && d2 >= 0) { Emit(a, b, c, inBand); continue; }
+                    if (d0 < 0 && d1 < 0 && d2 < 0) continue;
+                    /* SUTHERLAND–HODGMAN sur une seule surface : on parcourt le triangle et
+                       l'on garde les sommets du bon côté, plus le point où chaque arête
+                       la franchit. Trois sommets en entrée, trois ou quatre en sortie,
+                       rendus en éventail dans le même sens de rotation. */
+                    int m = 0;
+                    Clip(a, d0, b, d1, poly, ref m, section, toShip);
+                    Clip(b, d1, c, d2, poly, ref m, section, toShip);
+                    Clip(c, d2, a, d0, poly, ref m, section, toShip);
+                    for (int k = 1; k + 1 < m; k++) Emit(poly[0], poly[k], poly[k + 1], jag > 0);
+                }
             }
             if (outV.Count == 0) continue;
 

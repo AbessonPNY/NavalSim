@@ -331,6 +331,12 @@ public partial class ShipDemo : Node3D
            ce qui donne du vent pour sortir du môle sans que ce soit une leçon de
            louvoyage à chaque partie. La météo d'elle-même reprend ensuite. */
         _force = 4; _windDeg = 105;
+        /* ET LE TEMPS CLAIR, LES PIÈCES À ZÉRO (signalé) : la brume levée dans l'autre
+           partie y restait, et la hausse réglée à la pièce aussi. La brume repart de
+           rien et la météo la refera si elle doit venir ; les pièces au but en blanc. */
+        _seaFog = null; _sky.Core.Fog = 0; _saidFog = false;
+        _hausse.Clear();
+        foreach (var g in _ship.Battery.Guns) g.Hausse = 0;
         Restate();
         Moor();
         _reck?.Fix(TruePos().X, TruePos().Z);
