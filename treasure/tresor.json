@@ -50,6 +50,30 @@
       "pirate": 1.5,
       "glb": "",
       "note": "calices, plats, idoles des Indes : rares, et payés au poids de l'or et de l'histoire"
+    },
+    {
+      "key": "lambi",
+      "nom": "Lambis",
+      "article": "un",
+      "unite": "lambi",
+      "unites": "lambis",
+      "valeur": 0.35,
+      "min": 0,
+      "max": 0,
+      "glb": "props/fond/lambi.glb",
+      "note": "ramassés en apnée sur l'herbier (ShipDemo.Swim.cs) : la chair se mange, la coquille se vend ; jamais dans un coffre (min et max nuls)"
+    },
+    {
+      "key": "perle",
+      "nom": "Perles",
+      "article": "une",
+      "unite": "perle",
+      "unites": "perles",
+      "valeur": 15,
+      "min": 0,
+      "max": 0,
+      "glb": "",
+      "note": "une huître perlière sur douze, ouverte à bord — généreux : les pêcheries de Margarita en ouvraient des centaines pour une perle marchande"
     }
   ]
 }

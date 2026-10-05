@@ -17,6 +17,8 @@ public partial class ShipDemo
     /// </summary>
     void ReadKeys(double dt)
     {
+        // à l'eau : les touches mènent le nageur, la barre est lâchée (ShipDemo.Swim.cs)
+        if (_swimming) { SwimKeys(dt); return; }
         // la cloche à l'eau : le navire est stoppé, les mêmes touches mènent la cloche
         if (_bellOut) { BellKeys(dt); return; }
         var c = _ship.Ctrl;
@@ -172,6 +174,8 @@ public partial class ShipDemo
             GetViewport().SetInputAsHandled();
             return;
         }
+        // à l'eau, le nageur prend ce qui le concerne et rien d'autre ne répond
+        if (SwimInputEvent(e)) { GetViewport().SetInputAsHandled(); return; }
         if (e is InputEventKey gk && (gk.PhysicalKeycode != Key.None ? gk.PhysicalKeycode : gk.Keycode) == Key.G)
         {
             if (!gk.Pressed) _salvo = false;
@@ -349,6 +353,8 @@ public partial class ShipDemo
                 // ⇧" : la cloche rentrée d'un coup, sans attendre le treuil
                 case Key.Key3 or Key.Kp3 when k.ShiftPressed && !k.Echo: StowBellNow(); break;
                 case Key.Key3 or Key.Kp3 when !k.ShiftPressed && !k.Echo: ToggleBell(); break;
+                // 4 : par-dessus bord, navire stoppé (ShipDemo.Swim.cs)
+                case Key.Key4 or Key.Kp4 when !k.ShiftPressed && !k.Echo: SwimJump(); break;
                 case Key.Enter or Key.KpEnter when _bellOut && !k.Echo: TakeChest(); break;
                 case Key.H: _info.Visible = !_info.Visible; break;
                 // le menu d'options ; « Quitter » y est désormais

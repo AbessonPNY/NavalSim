@@ -17,6 +17,14 @@
  *  - herbier        : une touffe de Thalassia, l'herbe à tortues ;
  *  - oursin         : Diadema, noir, aux longs piquants.
  * Pas de laminaires : ce sont des algues d'eau froide.
+ * Et ce qu'un nageur ramasse (Finds.cs), à sa taille vraie, en mètres :
+ *  - lambi          : Aliger gigas, le « queen conch » — une spire à pointes, la
+ *                     lèvre évasée rose, 24 cm ;
+ *  - huitre         : Pinctada imbricata, l'huître perlière des Caraïbes — plate,
+ *                     brune, son aile droite à la charnière, 7 cm.
+ *
+ *   node tools/reef-glb.js lambi huitre    n'écrit que ceux-là (un fichier remplacé
+ *                                          par l'artiste n'est pas écrasé)
  */
 const path = require('path');
 const { writeGlb } = require('./glb-write');
@@ -32,7 +40,11 @@ const MAT = {
   eponge:  { name: 'eponge', c: [...lin(0x8e4a9c), 1], r: 0.95 },
   epongeIn:{ name: 'eponge_dedans', c: [...lin(0x5a2a66), 1], r: 0.95 },
   herbe:   { name: 'herbier', c: [...lin(0x4f6b2a), 1], r: 0.8, ds: true },
-  oursin:  { name: 'oursin', c: [...lin(0x16141a), 1], r: 0.6 }
+  oursin:  { name: 'oursin', c: [...lin(0x16141a), 1], r: 0.6 },
+  lambi:   { name: 'lambi', c: [...lin(0xc4a47c), 1], r: 0.85 },
+  levre:   { name: 'lambi_levre', c: [...lin(0xe8a29a), 1], r: 0.35, ds: true },
+  huitre:  { name: 'huitre', c: [...lin(0x6e5a48), 1], r: 0.8 },
+  nacre:   { name: 'huitre_nacre', c: [...lin(0xb9b0a0), 1], r: 0.3 }
 };
 
 // un hasard tenu : le même récif à chaque écriture
@@ -314,11 +326,99 @@ function oursin() {
   return m;
 }
 
+/**
+ * LE LAMBI, couché sur le sable comme il vit : la spire vers l'arrière (+x), le
+ * canal vers l'avant (−x), ouverture dessous ; une couronne de pointes sur
+ * l'épaule, et la grande lèvre évasée, rose, qui le cale sur le côté.
+ */
+function lambi() {
+  const m = model();
+  // le corps : une section qui s'enfle à l'épaule, puis s'effile vers le canal
+  const prof = x => {                    // x de +0,12 (apex) à −0,12 (canal)
+    const u = (0.12 - x) / 0.24;         // 0 à l'apex, 1 au canal
+    return u < 0.3 ? 0.006 + 0.074 * Math.pow(u / 0.3, 0.8) : 0.08 * (1 - 0.72 * Math.pow((u - 0.3) / 0.7, 1.3));
+  };
+  const pts = [];
+  for (let i = 0; i <= 18; i++) { const x = 0.12 - i / 18 * 0.24; pts.push({ p: [x, prof(x) * 0.85, 0], r: prof(x) }); }
+  tube(m, 'lambi', pts, 14, 1.05);
+  smoothNormals(m.g('lambi'));
+  // les pointes de l'épaule, du dessus vers le côté de la spire
+  for (let k = 0; k < 9; k++) {
+    const x = 0.075 - k * 0.006, ang = -0.4 + k * 0.42, r0 = prof(x);
+    const d = [0, Math.cos(ang), Math.sin(ang)];
+    const from = add([x, r0 * 0.85, 0], mul(d, r0 * 0.9));
+    tube(m, 'lambi', [{ p: from, r: 0.008 }, { p: add(from, mul(add(d, [0.25, 0.35, 0]), 0.03)), r: 0.0015 }], 5);
+  }
+  // les tours de la spire : des bourrelets sur le cône de l'apex
+  for (let k = 0; k < 4; k++) {
+    const x = 0.11 - k * 0.012, r0 = prof(x) * 1.08;
+    const ring = [];
+    for (let j = 0; j <= 12; j++) { const a = j / 12 * Math.PI * 2; ring.push({ p: [x - j * 0.0008, r0 * 0.85 + Math.cos(a) * r0, Math.sin(a) * r0], r: 0.003 }); }
+    tube(m, 'lambi', ring, 4);
+  }
+  // LA LÈVRE : une aile qui part du flanc et s'ouvre vers le bas et le côté
+  const p = m.g('levre'), NU = 10, NV = 6, k0 = p.pos.length / 3;
+  for (let i = 0; i <= NU; i++) {
+    const x = 0.07 - i / NU * 0.17, r0 = prof(x), span = 0.075 * Math.sin(Math.PI * (0.15 + 0.85 * i / NU));
+    for (let j = 0; j <= NV; j++) {
+      const v = j / NV;
+      const z = -(r0 * 0.95 + v * span), y = r0 * 0.85 - r0 * 0.6 - v * (r0 * 0.25) + v * v * 0.02;
+      p.pos.push(x, Math.max(0.004, y), z);
+      p.uv.push(v, i / NU);
+    }
+  }
+  for (let i = 0; i < NU; i++)
+    for (let j = 0; j < NV; j++) { const a = k0 + i * (NV + 1) + j, b = a + NV + 1; p.idx.push(a, a + 1, b, a + 1, b + 1, b); }
+  smoothNormals(p);
+  return m;
+}
+
+/**
+ * L'HUÎTRE PERLIÈRE, fermée : deux valves plates et rondes, la charnière droite
+ * qui déborde en oreillettes, couchée à plat sur le dur. Le bord des valves,
+ * nacré, se voit à peine entre elles.
+ */
+function huitre() {
+  const m = model(), p = m.g('huitre');
+  const NT = 10, NP = 28;
+  for (const side of [1, -1]) {
+    const k0 = p.pos.length / 3;
+    for (let i = 0; i <= NT; i++) {
+      const th = i / NT;                                     // du centre au bord
+      for (let j = 0; j <= NP; j++) {
+        const ph = j / NP * Math.PI * 2;
+        // une valve ronde, coupée droit à la charnière (z > 0,028), écailleuse
+        let x = Math.cos(ph) * 0.034 * th, z = Math.sin(ph) * 0.036 * th - 0.004;
+        z = Math.min(z, 0.028);
+        const scale = 1 + 0.06 * Math.sin(9 * th * Math.PI) * th;
+        const y = 0.006 + side * (0.011 * (1 - th * th)) * scale;
+        p.pos.push(x * scale, y, z);
+        p.uv.push(j / NP, th);
+      }
+    }
+    for (let i = 0; i < NT; i++)
+      for (let j = 0; j < NP; j++) {
+        const a = k0 + i * (NP + 1) + j, b = a + NP + 1;
+        if (side > 0) p.idx.push(a, a + 1, b, a + 1, b + 1, b); else p.idx.push(a, b, a + 1, a + 1, b, b + 1);
+      }
+  }
+  smoothNormals(p);
+  // les oreillettes de la charnière, droites, de part et d'autre
+  tube(m, 'huitre', [{ p: [-0.045, 0.006, 0.028], r: 0.003 }, { p: [0.045, 0.006, 0.028], r: 0.003 }], 5, 1.6);
+  // le liseré de nacre entre les valves
+  const rim = [];
+  for (let j = 0; j <= 24; j++) { const ph = j / 24 * Math.PI * 2; rim.push({ p: [Math.cos(ph) * 0.0335, 0.006, Math.min(Math.sin(ph) * 0.0355 - 0.004, 0.0275)], r: 0.0016 }); }
+  tube(m, 'nacre', rim, 4);
+  return m;
+}
+
 const out = path.join(__dirname, '..', 'props', 'fond');
+const only = process.argv.slice(2);
 for (const [name, make] of Object.entries({
   'corail-cerveau': cerveau, 'corail-corne': corne, 'corail-cerf': cerf,
-  gorgone, 'eponge-tube': eponge, herbier, oursin
+  gorgone, 'eponge-tube': eponge, herbier, oursin, lambi, huitre
 })) {
+  if (only.length && !only.includes(name)) continue;
   const m = make();
   const n = writeGlb(path.join(out, name + '.glb'), name, [{ name, prims: m.prims() }], 'naval-sim reef-glb');
   console.log(`props/fond/${name}.glb : ${n} sommets`);

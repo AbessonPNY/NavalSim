@@ -14299,6 +14299,49 @@ plus que dans les cases gardées ; tout le semis du fond tombe à 1,0 s (1,8 ava
 l'herbier dense). Coût mesuré : le pré, 8,77 ms contre 8,54 sans le fond ; le récif,
 7,57 comme avant.
 
+## À l'eau : nager, plonger, ramasser (Godot)
+
+DEMANDÉ : nager à la première personne pour explorer les hauts-fonds et nager en surface.
+Choix du joueur (questions posées) : on SAUTE DU BORD, navire stoppé, et l'on remonte par le
+flanc ; l'apnée RÉALISTE, la syncope ramenant à bord sans le sac ; et l'on RAMASSE.
+
+LE NOYAU (Swimmer.cs), en mètres VRAIS — rien à décaler quand l'origine glisse. Chiffres d'un
+homme de 1690, sans palmes ni masque, vérifiés au banc (Lab « nage ») : surface 0,88 m/s, forcé
+1,37 ; descendre à 10 m tête en bas, 12,5 s (8,4 en forçant). APNÉE : 86 s immobile, 65 s en
+nageant près de la surface, 50 s à dix mètres, 31 s en forçant à dix mètres ; contractions du
+diaphragme au tiers restant. FLOTTAISON : 0,4 m/s² près de la surface (deux à quatre kilos nets,
+poumons pleins), qui s'annule à douze mètres (l'air comprimé) puis s'inverse : lâché à 4 m il
+remonte, à 10 m il reste, à 16 m il coule doucement. Le souffle se reprend en 20 s en surface.
+PIÈGE : 0,15 m/s² d'abord — après le saut il restait sept secondes entre deux eaux, quand un
+homme revient au jour en deux ou trois ; relevé à 0,4. ÉCARTS ASSUMÉS : l'eau à 27 °C (pas de
+froid), et la vue nette sous l'eau — un œil nu y voit flou, le jeu ne le rend pas.
+
+LE NAVIRE QU'ON QUITTE : un équipage serre la toile ; seul à bord (l'ILCA), on choque en grand et
+le bateau dérive — mouillez, ou ne le perdez pas. Les commandes : la barre lâchée revient, la
+machine stoppe (ReadKeys passe au nageur, comme à la cloche). Le bordé est un obstacle
+(HullCollider, celui de l'embrun). On se hisse à 2,5 m du flanc, en surface.
+
+CE QUI SE RAMASSE (Finds.cs), tiré par cases de 32 m sur une graine SplitMix (la même case rend
+les mêmes coquillages), seulement autour du nageur (64 m), rendu au-delà : le LAMBI (Aliger gigas)
+sur l'herbier et son sable, 1-20 m, jamais la vase ; l'HUÎTRE PERLIÈRE (Pinctada imbricata,
+Margarita) sur les récifs et les rochers du fond, 2-15 m, une sur douze rend une perle à bord —
+généreux, dit dans la note ; les PIÈCES autour d'une épave de moins de 25 m. Le sac tient dix
+choses. Ramassé = retenu avec le jour (« ramasses » dans la sauvegarde) : un coquillage repousse
+en trente jours, une pièce jamais. Lambis et perles vont aux trésors à bord (tresor.json, min et
+max nuls : jamais dans un coffre), les pièces à la bourse. PIÈGE : l'id d'une huître portait des
+décimales — écrites « -333,5 » par la culture française, dans un id sauvegardé ; Invariant.
+
+LE REGARD (signalé : « je n'arrive pas à tourner la tête ») : la souris était CAPTURÉE, comme
+dans un jeu à la première personne. Un mouvement fabriqué tournait bien la tête chez moi, au
+centre comme au coin de l'écran, avec ou sans un passage par _Input — la cause est chez lui :
+sous ses écrans virtuels (vorpX, Virtual Desktop), une souris capturée n'envoie aucun
+mouvement. Le regard se fait donc EN GLISSANT, bouton gauche ou droit tenu, comme toutes les
+autres vues du jeu, et aux flèches ; plus de capture.
+
+Modèles dessinés (tools/reef-glb.js, qui n'écrit plus que ceux qu'on nomme : un fichier remplacé
+par l'artiste n'est pas écrasé) : lambi à pointes et lèvre rose, 24 cm ; huître plate et brune,
+7 cm. Essai sans clavier : --nage 2 --nage-vers lambi|huitre|ecus --nage-prendre 1.
+
 ## Ce que coûtent les pâtés de maisons de Port-Royal (Godot)
 
 Mesuré (--sans-ajout <motif>, qui cache les ajouts du mode création dont le modèle
@@ -14321,6 +14364,25 @@ cocotier. Vue haute : 12,75 → 10,80 ms (carte 11,79 → 9,85), contre 9,02 san
 vue du ponton : inchangée (9,5). Relever le seuil de bascule (MeshLodThreshold 2, 4 px)
 ne gagne presque rien (10,65, 10,52) : laissé à 1. Les navires n'y passent pas — leurs
 maillages sont réécrits en jeu. Ce qui reste se gagnera dans Blender (Decimate).
+
+LE CACHE (demandé) : user://lod-cache/ (sous Windows, %APPDATA%/Godot/app_userdata/…),
+un .res par maillage simplifié, GÉOMÉTRIE SEULE — les matières viennent du .glb qu'on vient
+d'ouvrir (les sauver recopierait chaque texture, et la brume s'accroche à elles). Clé : nom,
+chemin, taille et date du fichier, recette (LodRecipe) ; un modèle réexporté change de clé
+et ses vieilles entrées sont effacées. Relu en CacheMode.Ignore : un cocotier posé trois
+fois l'est trois fois, et un maillage partagé prendrait les matières du dernier. Le bloc :
+600 ms → 14 ms ; le reste, 40 → 1 ms. Piège : le nettoyage coupait le nom au premier
+tiret, si bien que cottage-ville-002 et cottage-ville-bloc s'effaçaient l'un l'autre — les
+tirets se comptent depuis la fin.
+
+LA VERSION LOINTAINE DE L'ARTISTE (demandée, convention proposée puis adoptée) : un objet
+« …_LOD_low » dans le même .glb (le bloc : cottage_bloc_LOD_low, 94 000 triangles contre
+470 000), superposé. Assets.SplitLodLow : VisibilityRangeEnd sur le complet, Begin sur le
+lointain, à « loin » mètres (palette.json) ou quatre fois la taille ; fondu tramé
+(VisibilityRangeFadeMode.Self) sur 8 % de la distance. Le complet n'est plus simplifié par
+AddLods ; le lointain l'est encore. Vérifié à l'image de 300 m de haut : pas de doublon, pas
+de trou. Le temps d'image n'a pas pu être mesuré proprement ce jour-là — le jeu tournait en
+même temps sur la même carte (même sans les blocs : 14 ms, à-coups au p95, contre 9).
 
 ## La voile à contre, et l'ILCA 4 (Godot)
 

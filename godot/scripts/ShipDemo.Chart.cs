@@ -240,6 +240,8 @@ public partial class ShipDemo : Node3D
         if (EditInput(e)) { GetViewport().SetInputAsHandled(); return; }
         // une page ouverte prend TOUT : on y écrit, et rien ne doit passer derrière
         if (JournalInput(e)) { GetViewport().SetInputAsHandled(); return; }
+        // le regard du nageur, avant l'interface : un panneau sous la souris ne le prend pas
+        if (_swimming && e is InputEventMouseMotion && SwimInputEvent(e)) { GetViewport().SetInputAsHandled(); return; }
         if (ChartInput(e) || QuestInput(e)) GetViewport().SetInputAsHandled();
     }
 

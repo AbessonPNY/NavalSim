@@ -376,8 +376,16 @@ quand même, à l'échelle de son fichier. Changer une taille ici change la tail
 leur `echelle` est relative à elle.
 
 ```json
-{ "modeles": { "fort_001.glb": { "nom": "Fort", "taille": 100 } } }
+{ "modeles": { "fort_001.glb": { "nom": "Fort", "taille": 100, "loin": 300 } } }
 ```
+
+**La version lointaine (Godot)** : un objet nommé `…_LOD_low` dans le même .glb, superposé au
+modèle complet (même origine), est dessiné AU-DELÀ de `loin` mètres, et le complet en deçà — un
+court fondu tramé (8 % de la distance) entre les deux, jamais les deux ensemble hors de ce fondu.
+Sans `loin`, quatre fois la taille (256 m pour un bloc de 64). Un modèle qui en porte une n'est
+plus simplifié de lui-même ; sa version lointaine l'est encore, à son tour, si elle passe 20 000
+triangles. Les modèles lourds SANS version lointaine sont simplifiés au chargement
+(`Assets.AddLods`, mis en cache dans le dossier de l'utilisateur).
 
 **Les fumées de cheminée** sont des objets comme les autres (`fumee:<maison>:<n>`) : une maison sur trois et
 deux par pâté en ont, au faîte. Tant qu'on ne la déplace pas, une fumée SUIT sa maison — place, cap, échelle

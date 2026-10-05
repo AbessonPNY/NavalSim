@@ -353,7 +353,11 @@ public partial class LandNode : Node3D
             if (Assets.LoadGlb(path) is not Node3D root)
             { GD.PushWarning($"[monde] {a.Glb} illisible"); continue; }
 
-            ShipDemo.LodSay(a.Glb, root);
+            {
+                // sa version lointaine, s'il en a une : au-delà de quatre fois sa taille
+                var bb0 = NodeWalk.Bounds(root) ?? new Aabb();
+                ShipDemo.LodSay(a.Glb, root, 4 * Math.Max(bb0.Size.X, Math.Max(bb0.Size.Y, bb0.Size.Z)) * a.Scale);
+            }
             var g = World.Geo.ToXZ(a.Lat, a.Lon);
             var hold = new Node3D { Name = a.Name.Length > 0 ? a.Name : "asset" };
             hold.AddChild(root);

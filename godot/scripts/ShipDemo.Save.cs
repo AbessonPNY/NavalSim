@@ -71,6 +71,8 @@ public partial class ShipDemo
         [JsonPropertyName("epaves")] public List<NavalSim.Core.Wreck> Epaves { get; set; } = new();
         /// <summary>Les trésors à bord, à la pièce, par sorte.</summary>
         [JsonPropertyName("tresors")] public Dictionary<string, int> Tresors { get; set; } = new();
+        /// <summary>Ce qu'un nageur a ramassé au fond, et le jour (les coquillages repoussent, ShipDemo.Swim.cs).</summary>
+        [JsonPropertyName("ramasses")] public Dictionary<string, int> Ramasses { get; set; } = new();
         /// <summary>Le rang du capitaine, vide en jeu libre.</summary>
         [JsonPropertyName("rang")] public string Rang { get; set; } = "";
         /// <summary>Les prises à bord, avec l'heure de jeu où elles sont sorties de l'eau : leur fraîcheur en dépend.</summary>
@@ -160,6 +162,7 @@ public partial class ShipDemo
             s.Cargo.Add(new Colis { Cale = c.Hold, Niveau = c.Level, Bord = c.Side, Kg = c.Kg, Nature = c.Kind });
         s.Epaves.AddRange(Wrecks.All);
         foreach (var (k, n) in _treasureHold) if (n > 0) s.Tresors[k] = n;
+        foreach (var (k, d) in _picked) s.Ramasses[k] = d;
         s.Rang = _rank;
         foreach (var l in _catch) s.Peche.Add(new Prise { Espece = l.Key, Kg = l.Kg, Pris = l.CaughtAt });
         // les coques à flot autour de vous ; les spectres ne se sauvent pas
@@ -350,6 +353,8 @@ public partial class ShipDemo
         }
         _treasureHold.Clear();
         foreach (var (k, n) in s.Tresors) _treasureHold[k] = n;
+        _picked.Clear();
+        foreach (var (k, d) in s.Ramasses) _picked[k] = d;
         p.Powder = Math.Min(s.Poudre, p.PowderMax);
         p.ClearCargo();
         foreach (var c in s.Cargo) p.LoadCargo(c.Cale, c.Niveau, c.Bord, c.Kg / 1000, c.Nature);

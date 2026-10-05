@@ -679,6 +679,8 @@ public partial class ShipDemo : Node3D
         if (_filmLater != null) { var fl = _filmLater; _filmLater = null; BeginFilm(fl); }
         if (_inTitle) TitleTick(frame); else if (_editing) EditTick(frame); else if (_film != null) FilmTick(frame); else ReadKeys(frame);
         ObjectivesTick(frame);
+        SwimTick(frame);
+        SwimAfter(frame);
         // le temps AVANT le solveur : la coque et le shader liront la même mer
         WeatherTick(frame, _t - frame);
 

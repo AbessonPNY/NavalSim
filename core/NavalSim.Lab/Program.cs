@@ -66,6 +66,7 @@ switch (mode)
     case "sondeur": Sondeur(); break;
     case "sombrer": Sombrer(); break;
     case "godille": Godille(); break;
+    case "nage": Nage(); break;
     case "contre": Contre(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
@@ -1421,6 +1422,56 @@ void Contre()
         double turn = Math.Atan2(Math.Sin(h1 - h0), Math.Cos(h1 - h0)) * 180 / Math.PI;
         Console.WriteLine(FormattableString.Invariant($"  {label,-24} : l'étrave a tourné de {turn,6:F1}° en 20 s (vers {(turn > 0 ? "bâbord" : "tribord")}), culé jusqu'à {-back / 0.5144:F2} nd"));
     }
+}
+
+/* LE NAGEUR sur une mer plate, un fond plat à 30 m : ses allures, son apnée, sa
+   flottaison selon la profondeur. */
+void Nage()
+{
+    double floor = -30;
+    Func<double, double, double> fl = (x, z) => floor;
+    (double, Swimmer) Run(SwimInput inp, double secs, Action<Swimmer>? setup = null, Func<Swimmer, bool>? stop = null, double hold = double.NaN)
+    {
+        var s = new Swimmer { Pos = new Vec3d(0, Swimmer.EyeAbove, 0) };
+        setup?.Invoke(s);
+        double t = 0, dt = 1.0 / 60;
+        while (t < secs && !(stop?.Invoke(s) ?? false))
+        {
+            // tenu à cette profondeur : la flottaison le remonterait respirer
+            if (!double.IsNaN(hold)) s.Pos = new Vec3d(s.Pos.X, hold, s.Pos.Z);
+            s.Step(dt, inp, 0, floor, fl); t += dt;
+        }
+        return (t, s);
+    }
+    var (_, a) = Run(new SwimInput { Fwd = 1 }, 20);
+    Console.WriteLine(FormattableString.Invariant($"surface, brasse : {a.Pos.Z / 20:F2} m/s ; souffle {a.Breath:F2}"));
+    var (_, b) = Run(new SwimInput { Fwd = 1, Hard = true }, 20);
+    Console.WriteLine(FormattableString.Invariant($"surface, forcé : {b.Pos.Z / 20:F2} m/s"));
+    // le canard, puis tête en bas, droit vers le fond
+    var (t10, c) = Run(new SwimInput { Fwd = 1, Up = -1 }, 60, s => s.Pitch = -1.45, s => s.Pos.Y < -10);
+    Console.WriteLine(FormattableString.Invariant($"descendre à 10 m : {t10:F1} s, souffle {c.Breath:F2}"));
+    var (tr, d) = Run(new SwimInput { Fwd = 1, Up = -1, Hard = true }, 60, s => s.Pitch = -1.45, s => s.Pos.Y < -10);
+    Console.WriteLine(FormattableString.Invariant($"descendre à 10 m en forçant : {tr:F1} s, souffle {d.Breath:F2}"));
+    // l'apnée, immobile sous 2 m ; nageant à 2 m ; nageant à 10 m
+    foreach (var (lab, y, fwd, hard) in new[] { ("immobile à 2 m", -2.0, 0.0, false), ("nageant à 2 m", -2.0, 1.0, false), ("nageant à 10 m", -10.0, 1.0, false), ("forçant à 10 m", -10.0, 1.0, true) })
+    {
+        var (ta, e) = Run(new SwimInput { Fwd = fwd, Hard = hard }, 300, s => { s.Under = true; s.DiveTime = 1; s.Pos = new Vec3d(0, y, 0); }, s => s.Blackout, y);
+        Console.WriteLine(FormattableString.Invariant($"apnée {lab,-16} : {ta:F0} s (contractions à {ta * (1 - Swimmer.Contractions):F0} s)"));
+    }
+    // lâché sans rien faire à 4, 10, 16 m : flotte-t-il ?
+    foreach (double y in new[] { -4.0, -10.0, -16.0 })
+    {
+        var (_, g) = Run(new SwimInput(), 10, s => { s.Under = true; s.DiveTime = 1; s.Pos = new Vec3d(0, y, 0); });
+        Console.WriteLine(FormattableString.Invariant($"lâché à {-y:F0} m : {(-g.Pos.Y):F1} m après 10 s{(g.Under ? "" : " (en surface)")}"));
+    }
+    var (tb, h) = Run(new SwimInput(), 60, s => { s.Breath = 0; }, s => s.Breath >= 1);
+    // le saut : sous l'eau à 0,4 m, lancé de côté et vers le bas ; remonte-t-il ?
+    for (int k = 0; k <= 10; k += 2)
+    {
+        var (_, j) = Run(new SwimInput(), k, s => { s.Under = true; s.DiveTime = 0; s.Pos = new Vec3d(0, -0.4, 0); s.Vel = new Vec3d(0.8, -0.6, 0); });
+        Console.WriteLine(FormattableString.Invariant($"saut, après {k} s : œil à {j.Pos.Y:F2} m, vy {j.Vel.Y:F2}, {(j.Under ? "dessous" : "en surface")}"));
+    }
+    Console.WriteLine(FormattableString.Invariant($"reprendre son souffle, de vide à plein : {tb:F0} s"));
 }
 
 void Rade()

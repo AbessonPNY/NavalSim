@@ -98,6 +98,7 @@ public partial class ShipDemo : Node3D
         Key(a, "A  D", "barre à bâbord, à tribord");
         Key(a, "Q  E", "border, choquer les écoutes");
         Key(a, "⇧E", "tenue : la bôme à contre, pour sortir d'un face au vent");
+        Key(a, "4", "par-dessus bord, navire stoppé — à l'eau : ZQSD, la souris bouton tenu ou les flèches pour regarder, Espace remonte, Ctrl descend, ⇧ force, F ramasse, E se hisse à bord");
         Key(a, "Tab", "les objectifs du chapitre");
         Key(a, "V", "établir ou ferler");
         Key(a, "⇧V", "prendre un ris : huniers, bas ris, tout serré");

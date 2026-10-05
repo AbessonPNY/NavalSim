@@ -307,6 +307,10 @@ public partial class ShipDemo
                 case "--debris": _debrisTest = args[i + 1].ToInt(); _diveTestIn = 1.0; break;
                 // l'œil sous l'eau sur un pâté du fond (« corail », « herbier », « rochers »)
                 case "--fond": _bedTest = args[i + 1]; _diveTestIn = 1.0; _askTitle ??= false; break;
+                // À L'EAU au bout de tant de secondes ; près de la chose la plus proche de cette sorte ; la prendre et la rapporter
+                case "--nage": _swimTestIn = args[i + 1].ToFloat(); _askTitle ??= false; break;
+                case "--nage-vers": _swimTestKind = args[i + 1]; break;
+                case "--nage-prendre": _swimTestTake = args[i + 1] != "0"; break;
                 // MESURE : les ajouts du mode création dont le modèle contient ce motif, cachés (rien n'est écrit)
                 case "--sans-ajout": _hideAddedTest = args[i + 1]; _diveTestIn = 1.0; break;
                 // DIAGNOSTIC : les pièces que chaque fiche porte, lues sur son modèle — elles ne sont écrites nulle part ailleurs

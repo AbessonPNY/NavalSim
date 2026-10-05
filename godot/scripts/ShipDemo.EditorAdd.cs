@@ -265,12 +265,12 @@ public partial class ShipDemo
     /// qu'on y lit et sa taille en mètres (sa plus grande dimension). Lu une fois
     /// par dossier ; un modèle absent n'a ni l'un ni l'autre.
     /// </summary>
-    (string? Name, double Size) PaletteInfo(string rel)
+    (string? Name, double Size, double Far) PaletteInfo(string rel)
     {
         string dir = System.IO.Path.GetDirectoryName(rel)?.Replace('\\', '/') ?? "";
         if (!_paletteDirs.TryGetValue(dir, out var map))
         {
-            map = new Dictionary<string, (string?, double)>();
+            map = new Dictionary<string, (string?, double, double)>();
             string file = System.IO.Path.Combine(Assets.Root, dir, "palette.json");
             if (System.IO.File.Exists(file))
                 try
@@ -279,14 +279,15 @@ public partial class ShipDemo
                     if (doc.RootElement.TryGetProperty("modeles", out var ms))
                         foreach (var m in ms.EnumerateObject())
                             map[m.Name] = (m.Value.TryGetProperty("nom", out var n) ? n.GetString() : null,
-                                           m.Value.TryGetProperty("taille", out var t) ? t.GetDouble() : 0);
+                                           m.Value.TryGetProperty("taille", out var t) ? t.GetDouble() : 0,
+                                           m.Value.TryGetProperty("loin", out var lo) ? lo.GetDouble() : 0);
                 }
                 catch (Exception ex) { GD.PushWarning($"[éditeur] {file} illisible : {ex.Message}"); }
             _paletteDirs[dir] = map;
         }
-        return map.TryGetValue(System.IO.Path.GetFileName(rel), out var info) ? info : (null, 0);
+        return map.TryGetValue(System.IO.Path.GetFileName(rel), out var info) ? info : (null, 0, 0);
     }
-    readonly Dictionary<string, Dictionary<string, (string?, double)>> _paletteDirs = new();
+    readonly Dictionary<string, Dictionary<string, (string?, double, double)>> _paletteDirs = new();
 
     /// <summary>
     /// UN MODÈLE BRUT, lu une fois. On ne sait ni son échelle ni où Blender a
@@ -298,11 +299,15 @@ public partial class ShipDemo
     /// quatre-vingt-dix-huit se ressemblent dans leur fichier.
     /// </summary>
     /// <summary>Simplifier au loin un modèle lourd (Assets.AddLods), et dire ce que ça a pris.</summary>
-    public static void LodSay(string rel, Node root)
+    public static void LodSay(string rel, Node root, double far)
     {
         var clock = System.Diagnostics.Stopwatch.StartNew();
-        int tris = Assets.AddLods(root);
-        if (tris > 0) GD.Print($"[détail] {rel} : {tris} triangles simplifiés au loin en {clock.ElapsedMilliseconds} ms");
+        int lows = Assets.SplitLodLow(root, far);
+        if (lows > 0) GD.Print(FormattableString.Invariant($"[détail] {rel} : sa version lointaine (…{Assets.LodLowSuffix}) au-delà de {far:F0} m"));
+        var (tris, cached) = Assets.AddLods(root, Assets.Path(rel));
+        if (tris > 0) GD.Print(cached == tris
+            ? $"[détail] {rel} : {tris} triangles, simplifiés relus du cache en {clock.ElapsedMilliseconds} ms"
+            : $"[détail] {rel} : {tris} triangles simplifiés au loin en {clock.ElapsedMilliseconds} ms, mis en cache");
     }
 
     Raw? RawModel(string rel)
@@ -315,7 +320,12 @@ public partial class ShipDemo
             if (Assets.LoadGlb(path) is Node3D root)
             {
                 Aabb? box = NodeWalk.Bounds(root);
-                LodSay(rel, root);
+                {
+                    // « loin » dans la palette, sinon quatre fois sa taille : 256 m pour un bloc de 64
+                    var pi = PaletteInfo(rel);
+                    double size = pi.Size > 0 ? pi.Size : box is Aabb b0 ? Math.Max(b0.Size.X, Math.Max(b0.Size.Y, b0.Size.Z)) : 20;
+                    LodSay(rel, root, pi.Far > 0 ? pi.Far : 4 * size);
+                }
                 var haze = HazePass.New();
                 _editHazed.Add(haze);
                 foreach (var mi in NodeWalk.Meshes(root)) HazePass.Wear(mi, haze);   // l'air devant, comme tout ce qui est à terre
@@ -437,7 +447,7 @@ public partial class ShipDemo
             }
             foreach (var n in names)
             {
-                var (nom, size) = PaletteInfo($"{dir}/{n}");
+                var (nom, size, _) = PaletteInfo($"{dir}/{n}");
                 string label = nom != null ? FormattableString.Invariant($"{nom} · {dir}/{n}{(size > 0 ? $" · {size:0.#} m" : "")}") : $"modèle brut · {dir}/{n}";
                 _paletteItems.Add((label, null, $"{dir}/{n}", ""));
             }
