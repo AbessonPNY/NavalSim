@@ -28,6 +28,9 @@ public partial class ShipDemo
         public ShipNode? From;
         public StandardMaterial3D? Char;
         public double Born;
+        /// <summary>Les pièces qu'elle emporte, et l'heure où chacune s'en arrachera (ShipDemo.LooseGuns).</summary>
+        public List<(Node3D Pivot, Gun G, Vector3 Home)> Pieces = new();
+        public double[]? PieceAt;
     }
 
     readonly List<Half> _halves = new();
@@ -68,7 +71,7 @@ public partial class ShipDemo
         bow.Body.Vel += f * (2.0 * ph.Body.Mass / total) + new Vec3d(0, 0.6, 0);
         ph.Body.Vel += f * (-2.0 * bow.Body.Mass / total) + new Vec3d(0, 0.6, 0);
 
-        _halves.Add(new Half { Phys = bow, Node = holder, Char = ember, Born = _t, From = s });
+        _halves.Add(new Half { Phys = bow, Node = holder, Char = ember, Born = _t, From = s, Pieces = s.HandOver(zCut, holder) });
         // la mer bout là où elle s'est rompue, sur la moitié de sa longueur, trois quarts de minute
         var cut = ph.Body.Quat.Rotate(new Vec3d(0, 0, zCut)) + ph.Body.Pos;
         _wreckAir.Churn(cut.X, cut.Z, Math.Max(8, s.Spec.L * 0.5), 45, 1.5);

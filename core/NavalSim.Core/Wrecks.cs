@@ -35,6 +35,22 @@ public sealed class Wreck
     /// <summary>Rompue par sa soute, et où.</summary>
     [JsonPropertyName("rompue")] public bool Broken { get; set; }
     [JsonPropertyName("coupe")] public double ZCut { get; set; }
+    /// <summary>Les pièces arrachées qui gisent autour d'elle (ShipDemo.LooseGuns) : d'où chacune vient, où elle est.</summary>
+    [JsonPropertyName("pieces")] public List<WreckGun> Guns { get; set; } = new();
+}
+
+/// <summary>
+/// UNE PIÈCE AU FOND : d'où elle vient sur le navire (le milieu de la pièce, dans son
+/// repère — c'est par lui qu'on la retrouve dans le modèle), et où elle gît, en mètres
+/// vrais, avec sa pose (la base 3×3, par lignes).
+/// </summary>
+public sealed class WreckGun
+{
+    [JsonPropertyName("de")] public double[] Home { get; set; } = new double[3];
+    [JsonPropertyName("x")] public double X { get; set; }
+    [JsonPropertyName("y")] public double Y { get; set; }
+    [JsonPropertyName("z")] public double Z { get; set; }
+    [JsonPropertyName("pose")] public double[] Basis { get; set; } = new double[9];
 }
 
 /// <summary>

@@ -8,7 +8,7 @@ public sealed class Find
 {
     /// <summary>Stable d'une partie à l'autre : ce qui est ramassé le reste (la sauvegarde le retient).</summary>
     public string Id = "";
-    /// <summary>« lambi », « huitre », « ecus » — une sorte de treasure/tresor.json, sauf l'huître, qu'on ouvre à bord.</summary>
+    /// <summary>« lambi » ou « huitre » — le lambi est une sorte de treasure/tresor.json ; l'huître s'ouvre à bord.</summary>
     public string Kind = "";
     public double X, Y, Z, Yaw;
     /// <summary>Penché sur la pente d'un rocher : son appui, vers où il regarde.</summary>
@@ -28,9 +28,6 @@ public sealed class Find
 /// Margarita et de Cubagua) s'accroche au DUR : les récifs, les rochers du fond, de
 /// deux à quinze mètres. On l'ouvre à bord ; une sur douze rend une perle, ce qui est
 /// GÉNÉREUX — les pêcheries en ouvraient des centaines pour une perle marchande.
-///
-/// LES PIÈCES ÉPARSES d'une épave peu profonde (vingt-cinq mètres au plus) : un
-/// navire qui sombre sème sa bourse autour de lui. Elles ne repoussent pas.
 /// </summary>
 public static class Finds
 {
@@ -39,8 +36,6 @@ public static class Finds
     const int Tries = 6;
     /// <summary>Un coquillage ramassé repousse au bout de tant de jours (un autre vient brouter là).</summary>
     public const int RegrowDays = 30;
-    /// <summary>Les pièces : jusqu'à cette profondeur, un nageur peut les atteindre.</summary>
-    public const double CoinDepth = 25;
     /// <summary>Une huître sur tant rend une perle.</summary>
     public const int PearlOdds = 12;
 
@@ -102,20 +97,6 @@ public static class Finds
                 Id = FormattableString.Invariant($"huitre:{region}:r{Math.Round(rk.X, 1)}:{Math.Round(rk.Z, 1)}"), Kind = "huitre",
                 X = x, Y = top, Z = z, Yaw = a, Up = up * (1 / up.Length)
             });
-        }
-    }
-
-    /// <summary>Les pièces semées autour d'une épave assez peu profonde pour un nageur.</summary>
-    public static void AroundWreck(World w, Wreck wr, List<Find> into)
-    {
-        if (wr.Depth > CoinDepth) return;
-        int n = 8 + (int)(Seed(wr.Id, 0, 0, 0) * 10);
-        double reach = Math.Max(4, wr.Beam) * 1.5 + 6;
-        for (int k = 0; k < n; k++)
-        {
-            double a = Seed(wr.Id, 1, k, 1) * Math.PI * 2, r = Math.Sqrt(Seed(wr.Id, 1, k, 2)) * reach;
-            double x = wr.X + Math.Sin(a) * r, z = wr.Z + Math.Cos(a) * r;
-            into.Add(new Find { Id = $"ecus:{wr.Id}:{k}", Kind = "ecus", X = x, Y = w.HeightAt(x, z), Z = z, Yaw = a * 7 });
         }
     }
 }

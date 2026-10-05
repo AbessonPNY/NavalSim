@@ -14299,6 +14299,47 @@ plus que dans les cases gardées ; tout le semis du fond tombe à 1,0 s (1,8 ava
 l'herbier dense). Coût mesuré : le pré, 8,77 ms contre 8,54 sans le fond ; le récif,
 7,57 comme avant.
 
+## La hausse des bordées ; les pièces qui s'arrachent (Godot)
+
+LES BORDÉES À L'ŒIL (demandé : régler la hauteur des pièces latérales, la vue derrière l'un des
+canons ; « oublions les pièces arrière »). Choisir un bord (panneau, ⇧Tab) met l'œil derrière la
+pièce DU MILIEU de la batterie ; la hausse règle tout le bord, comme un ordre au chef de batterie ;
+la direction ±8° (une pièce de bordée se tourne peu à l'anspect ; la chasse ±15°). L'œil d'une pièce
+de batterie se tient au ras de l'âme (18 cm) et à 60 cm de la culasse : on vise PAR LE SABORD — à
+55 cm et 1,2 m on ne voyait que le bordé intérieur.
+
+LES PIÈCES S'ARRACHENT (demandé : « quand le bateau coule, que les canons se détachent et coulent
+à part »). Deux tonnes de fonte sur un affût tenu par une brague : le navire qui chavire, se rompt ou
+s'enfonce les arrache. ShipNode.DetachPiece passe le pivot de la pièce (pièce et affût, celui du
+recul) sous un nœud du monde ; ShipDemo.LooseGuns la fait tomber, en mètres vrais : la vitesse du point
+de coque, un élan vers le dehors ; dans l'air la pesanteur, dans l'eau 8,4 m/s² (fonte 7,2 dans l'eau
+de mer) et une traînée qui la tient vers 6 m/s ; une culbute lente ; posée sur le fond, couchée, elle y
+reste. QUAND : à la rupture, les pièces collées à la tranche (3 m), tout de suite ; gîte ou assiette
+au-delà de 50°, toutes, sur quelques secondes ; sombrée, sur huit. PIÈGE : les pivots des pièces
+pendent du nœud du navire, pas de son modèle — la copie qui fait l'avant rompu n'en avait aucun, et
+les pièces de l'avant restaient accrochées à l'arrière, en l'air. ShipNode.HandOver les donne au
+tronçon avant à la rupture ; elles s'en arrachent quand il sombre. Mesuré sur la Roter Löwe rompue à
+la cloison 2 : quatre pièces jetées à la rupture, deux quand l'arrière se dresse (12 et 14 s), les
+dix de l'avant quand il sombre (30 à 33 s). Elles ne sont pas inscrites au registre des épaves : une
+région rechargée ne les retrouve pas — ÇA, C'EST FAIT ENSUITE :
+
+LES PIÈCES GARDÉES AU FOND (demandé). Posée, une pièce s'inscrit au registre de son épave (Wreck.Guns,
+sauvegardé) : le milieu de ce qu'elle montre dans le repère du navire (« de » — c'est par lui qu'on la
+retrouve), et où elle gît en mètres vrais avec sa pose. Tant que le navire coulé est dans la scène, elle
+reste telle quelle ; parti, elle cède la place : WreckSiteNode rebâtit l'épave (à moins de 500 m) et ses
+pièces avec — retrouvées sur le MODÈLE INTACT (les copies de coque sont déjà coupées : une pièce près de
+la tranche y serait tronquée) par la pièce nommée la plus proche, cachées au sabord dans chaque copie
+(par leur chemin dans l'arbre), posées où elles gisent ; statiques, plus dessinées au-delà de 150 m.
+Rien quand on est loin. PIÈGE : l'ancien pivot de la pièce n'est pas son milieu dans le repère du
+navire (l'échelle du modèle, 1,09) — deux voisines s'y seraient confondues ; on relève le milieu de ce
+qu'elle montre au départ, et on la repose par lui. Mesuré au large (363 m de fond, posées en 75 s) : le
+navire remplacé, l'épave rebâtie repose 16 pièces sur 16. Une coque dont les pièces sont fondues dans
+le bordé n'en a pas à retrouver : elles restent au sabord.
+
+LES PIÈCES D'OR ÉPARSES RETIRÉES (demandé : « elles ne servent à rien dans le contexte du jeu ») :
+les écus semés autour d'une épave peu profonde pour le nageur (Finds.AroundWreck) — partis, et leur
+disque d'or, leur ligne du sac, leur message.
+
 ## La rupture déchiquetée ; une partie neuve sans brume ni hausse (Godot)
 
 DEMANDÉ : une découpe moins nette des deux morceaux. HullCut coupait par le plan z = zCut. Il

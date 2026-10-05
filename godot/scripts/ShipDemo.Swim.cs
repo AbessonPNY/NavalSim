@@ -44,11 +44,10 @@ public partial class ShipDemo
     ShaderMaterial? _swimVeilMat;
     /// <summary>Ce que porte le sac : des choses du fond, avec leur id.</summary>
     readonly List<Find> _sack = new();
-    /// <summary>Ce qui a été ramassé, et quel jour (calendrier) : les coquillages repoussent, les pièces non.</summary>
+    /// <summary>Ce qui a été ramassé, et quel jour (calendrier) : les coquillages repoussent.</summary>
     readonly Dictionary<string, int> _picked = new();
     /// <summary>Les cases tirées, et ce qui y est posé.</summary>
     readonly Dictionary<(int, int), List<(Find F, Placed P)>> _swimCells = new();
-    readonly HashSet<string> _swimWrecks = new();
     readonly PlacedSet _swimPlaced = new();
     Node3D? _swimRoot;
     readonly Dictionary<string, Node3D?> _swimModels = new();
@@ -56,9 +55,9 @@ public partial class ShipDemo
     readonly List<Find> _swimBuf = new();
     Find? _swimNear;
 
-    /// <summary>Un coquillage ramassé repousse ; une pièce, jamais.</summary>
+    /// <summary>Un coquillage ramassé repousse au bout d'un mois.</summary>
     bool StillPicked(Find f) =>
-        _picked.TryGetValue(f.Id, out int day) && (f.Kind == "ecus" || _calendar.Day - day < Finds.RegrowDays);
+        _picked.TryGetValue(f.Id, out int day) && _calendar.Day - day < Finds.RegrowDays;
 
     void SwimJump()
     {
@@ -115,13 +114,12 @@ public partial class ShipDemo
     {
         if (!SwimCanBoard(out string why)) { Say("Trop loin pour se hisser — " + why); return; }
         // ce que rapporte le sac : à bord, au comptoir ; les huîtres s'ouvrent ici
-        int lambis = 0, huitres = 0, perles = 0, ecus = 0;
+        int lambis = 0, huitres = 0, perles = 0;
         foreach (var f in _sack)
         {
             switch (f.Kind)
             {
                 case "lambi": lambis++; break;
-                case "ecus": ecus++; break;
                 case "huitre":
                     huitres++;
                     if (Finds.Seed(f.Id, 7, 7, 7) < 1.0 / Finds.PearlOdds) perles++;
@@ -130,11 +128,9 @@ public partial class ShipDemo
         }
         if (lambis > 0) _treasureHold["lambi"] = _treasureHold.GetValueOrDefault("lambi") + lambis;
         if (perles > 0) _treasureHold["perle"] = _treasureHold.GetValueOrDefault("perle") + perles;
-        if (ecus > 0) _purse.Add(ecus * (_tresors.ByKey("ecus")?.Value ?? 1) * Market.SousParEcu);
         var said = new List<string>();
         if (lambis > 0) said.Add(_tresors.Say("lambi", lambis));
         if (huitres > 0) said.Add($"{huitres} huître{(huitres > 1 ? "s" : "")} ouverte{(huitres > 1 ? "s" : "")} : " + (perles > 0 ? _tresors.Say("perle", perles) + " !" : "pas de perle"));
-        if (ecus > 0) said.Add(_tresors.Say("ecus", ecus));
         Say(said.Count > 0 ? "À bord. " + string.Join(" · ", said) : "À bord.");
         if (said.Count > 0) JournalLog("Plongé aux hauts-fonds : " + string.Join(", ", said) + ".");
         _sack.Clear();
@@ -150,7 +146,6 @@ public partial class ShipDemo
         if (_swimLabel != null) _swimLabel.Visible = false;
         foreach (var cell in _swimCells.Values) foreach (var (_, p) in cell) p.Node.QueueFree();
         _swimCells.Clear();
-        _swimWrecks.Clear();
         _swimPlaced.Items.Clear();
     }
 
@@ -251,8 +246,7 @@ public partial class ShipDemo
         string near = _swimNear == null ? "" : _swimNear.Kind switch
         {
             "lambi" => " · un lambi à portée (F)",
-            "huitre" => " · une huître à portée (F)",
-            _ => " · une pièce à portée (F)"
+            _ => " · une huître à portée (F)"
         };
         string board = !_swim.Under && SwimCanBoard(out _) ? " · E : se hisser à bord" : "";
         _swimLabel.Text = FormattableString.Invariant(
@@ -277,19 +271,10 @@ public partial class ShipDemo
                 Finds.InCell(_world, region, i, j, _swimBuf, _swimRocks);
                 _swimCells[(i, j)] = SwimPose(_swimBuf);
             }
-        // les pièces d'une épave proche, une fois
-        foreach (var wr in Wrecks.Near(region, _swim.Pos.X, _swim.Pos.Z, SwimSee + 40))
-        {
-            if (!_swimWrecks.Add(wr.Id)) continue;
-            _swimBuf.Clear();
-            Finds.AroundWreck(_world, wr, _swimBuf);
-            _swimCells[(int.MinValue + _swimWrecks.Count, 0)] = SwimPose(_swimBuf);
-        }
-        // les cases lointaines : rendues (pas celles des épaves, qu'on ne retire jamais en plongée)
+        // les cases lointaines : rendues
         var drop = new List<(int, int)>();
         foreach (var key in _swimCells.Keys)
         {
-            if (key.Item1 < int.MinValue / 2) continue;
             double cx = (key.Item1 + 0.5) * Finds.Cell - _swim.Pos.X, cz = (key.Item2 + 0.5) * Finds.Cell - _swim.Pos.Z;
             if (cx * cx + cz * cz > (SwimSee + 2.5 * Finds.Cell) * (SwimSee + 2.5 * Finds.Cell)) drop.Add(key);
         }
@@ -321,20 +306,9 @@ public partial class ShipDemo
         return list;
     }
 
-    /// <summary>Le modèle d'une sorte : le lambi et l'huître dessinés (tools/reef-glb.js), la pièce un disque d'or.</summary>
+    /// <summary>Le modèle d'une sorte : le lambi et l'huître dessinés (tools/reef-glb.js).</summary>
     Node3D? SwimModel(string kind)
     {
-        if (kind == "ecus")
-        {
-            var coin = new MeshInstance3D
-            {
-                Mesh = new CylinderMesh { TopRadius = 0.019f, BottomRadius = 0.019f, Height = 0.003f, RadialSegments = 16, Rings = 1 },
-                MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.86f, 0.68f, 0.32f), Metallic = 1, Roughness = 0.35f },
-                Position = new Vector3(0, 0.0015f, 0),
-                Rotation = new Vector3(0.2f, 0, 0.1f)
-            };
-            return coin;
-        }
         if (!_swimModels.TryGetValue(kind, out var tmpl))
         {
             string path = Assets.Path($"props/fond/{kind}.glb");
@@ -355,7 +329,7 @@ public partial class ShipDemo
             foreach (var (ff, p) in cell)
                 if (ff == f) p.Node.Visible = false;
         _swimNear = null;
-        Say(f.Kind switch { "lambi" => "Un lambi dans le sac", "huitre" => "Une huître dans le sac", _ => "Une pièce d'or !" });
+        Say(f.Kind == "lambi" ? "Un lambi dans le sac" : "Une huître dans le sac");
     }
 
     /// <summary>Repêché : à bord, sans le sac — ce qu'il portait est retombé au fond.</summary>

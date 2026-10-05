@@ -301,6 +301,7 @@ public partial class ShipDemo
         foreach (var h in _halves) _wrecks.Add(new WreckHull(h.Phys, null));
         _wreckAir.Update(dt, _wrecks, _sea.Core, _t);
         _foam.SetBoils(_wreckAir.Boils);
+        LooseGunsTick(dt);
         SinkRings(dt);
         _flotsam.Step(dt, _sea.Core, _allShipsForFlotsam(), _ship, _cam);
         LostTick();

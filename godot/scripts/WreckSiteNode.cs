@@ -91,6 +91,74 @@ public partial class WreckSiteNode : Node3D
         }
     }
 
+    /// <summary>Jusqu'où on voit une pièce au fond : sous l'eau, l'œil ne porte guère plus loin.</summary>
+    const float GunSee = 150;
+
+    /* LES PIÈCES ARRACHÉES, AU FOND AUTOUR D'ELLE (ShipDemo.LooseGuns les a inscrites) :
+       chacune est retrouvée dans la coque par la place qu'elle y avait — la pièce nommée
+       (canon, gun) la plus proche —, cachée au sabord, et posée où elle gît, dans sa pose.
+       Une coque dont les pièces sont fondues dans le bordé n'en a pas à retrouver : elles
+       restent au sabord. Statiques, et plus dessinées au-delà de cent cinquante mètres. */
+    void PlaceGuns(Wreck w, Node3D site, Node3D root, List<(Node3D Copy, Node3D Frame)> copies)
+    {
+        if (w.Guns.Count == 0 || copies.Count == 0) return;
+        /* LUES SUR LE MODÈLE INTACT, pas sur les copies : celles-ci sont déjà coupées, et
+           une pièce près de la tranche y serait tronquée ou cachée. Sa pose dans le repère
+           du navire s'accumule du modèle jusqu'à elle. */
+        var pieces = new List<(Node3D N, Transform3D Rel, Vector3 C)>();
+        void Gather(Node n, Transform3D acc)
+        {
+            foreach (var ch in n.GetChildren())
+            {
+                if (ch is not Node3D n3) continue;
+                var rel = acc * n3.Transform;
+                if (ShipNode.GunNames.IsMatch(n3.Name.ToString()))
+                {
+                    var bb = NodeWalk.Bounds(n3) ?? new Aabb();
+                    pieces.Add((n3, rel, rel * bb.GetCenter()));
+                    continue;
+                }
+                Gather(n3, rel);
+            }
+        }
+        Gather(root, root.Transform);
+        if (pieces.Count == 0) return;
+        var used = new HashSet<int>();
+        foreach (var gw in w.Guns)
+        {
+            var home = new Vector3((float)gw.Home[0], (float)gw.Home[1], (float)gw.Home[2]);
+            int best = -1; float near = 3f;
+            for (int k = 0; k < pieces.Count; k++)
+            {
+                if (used.Contains(k)) continue;
+                float d = pieces[k].C.DistanceTo(home);
+                if (d < near) { near = d; best = k; }
+            }
+            if (best < 0) continue;
+            used.Add(best);
+            var (n, rel, c) = pieces[best];
+            // plus au sabord : son homologue dans chaque copie de la coque, retrouvé par son chemin
+            var path = root.GetPathTo(n);
+            foreach (var (copy, _) in copies) if (copy.GetNodeOrNull<Node3D>(path) is { } twin) twin.Visible = false;
+            var b = gw.Basis;
+            var holder = new Node3D
+            {
+                Name = "piece",
+                Position = new Vector3((float)(gw.X - w.X), (float)gw.Y - site.Position.Y, (float)(gw.Z - w.Z)),
+                Basis = new Basis(new Vector3((float)b[0], (float)b[3], (float)b[6]),
+                                  new Vector3((float)b[1], (float)b[4], (float)b[7]),
+                                  new Vector3((float)b[2], (float)b[5], (float)b[8]))
+            };
+            site.AddChild(holder);
+            var dup = (Node3D)n.Duplicate();
+            dup.Visible = true;
+            holder.AddChild(dup);
+            // posée comme sur son pivot : autour du milieu de la pièce
+            dup.Transform = new Transform3D(Basis.Identity, -c) * rel;
+            foreach (var mi in NodeWalk.Meshes(dup)) { mi.VisibilityRangeEnd = GunSee; mi.VisibilityRangeEndMargin = 15; }
+        }
+    }
+
     /// <summary>L'Y du fond en un point vrai.</summary>
     float Bed(double x, double z) => (float)_world.HeightAt(x, z);
 
@@ -118,6 +186,7 @@ public partial class WreckSiteNode : Node3D
         node.AddChild(hull);
         hull.Basis = new Basis(Vector3.Up, (float)w.Cap) * new Basis(Vector3.Right, trim) * new Basis(Vector3.Back, heel);
 
+        var copies = new List<(Node3D Copy, Node3D Frame)>();
         if (root != null)
         {
             if (w.Broken)
@@ -133,12 +202,14 @@ public partial class WreckSiteNode : Node3D
                                                       new Vector3((float)(R(5) - 0.5) * 3, -0.4f, 7f));
                 var bow = (Node3D)root.Duplicate(); bowHolder.AddChild(bow); bow.Transform = root.Transform;
                 HullCut.Cut(bow, root.Transform, (float)w.ZCut, keepFront: true, null, jag, seed);
+                copies.Add((aft, hull)); copies.Add((bow, bowHolder));
             }
             else
             {
                 var copy = (Node3D)root.Duplicate();
                 hull.AddChild(copy);
                 copy.Transform = root.Transform;
+                copies.Add((copy, hull));
             }
         }
         else
@@ -151,6 +222,8 @@ public partial class WreckSiteNode : Node3D
                 MaterialOverride = Plank(SiltPass())
             });
         }
+
+        if (root != null) PlaceGuns(w, node, root, copies);
 
         // --- le coffre ---
         var (cx, cz) = WreckRegistry.Chest(w, spec.B);

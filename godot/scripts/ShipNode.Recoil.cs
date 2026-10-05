@@ -32,6 +32,8 @@ public partial class ShipNode
         /// <summary>Le milieu de la pièce et son bout arrière le long de sa direction, dans le repère du pivot (PieceEye).</summary>
         public Vector3? AxisMid;
         public float AxisBack;
+        /// <summary>Détachée : elle tombe à part (ShipDemo.LooseGuns), la coque ne la mène plus.</summary>
+        public bool Loose;
     }
 
     readonly List<GunPiece> _gunPieces = new();
@@ -272,6 +274,51 @@ public partial class ShipNode
         return mid + dir * (p.AxisBack - step);
     }
 
+    /// <summary>
+    /// ARRACHER UNE PIÈCE À SA COQUE : son pivot (la pièce et son affût) passe sous
+    /// <paramref name="into"/> en gardant sa place dans le monde, et la coque cesse de la
+    /// mener. Null si elle n'a pas de pièce dessinée, ou si elle est déjà partie.
+    /// </summary>
+    public (Node3D Pivot, Vector3 Home)? DetachPiece(int i, Node into)
+    {
+        if (i < 0 || i >= _gunPieces.Count) return null;
+        var p = _gunPieces[i];
+        if (p.Loose || p.Back == Vector3.Zero || p.Pivot == null || !IsInstanceValid(p.Pivot)) return null;
+        p.Loose = true;
+        var home = VisualCentre(p.Pivot);
+        p.Pivot.Reparent(into, true);
+        return (p.Pivot, home);
+    }
+
+    /// <summary>
+    /// LES PIÈCES DE L'AVANT PARTENT AVEC LUI : à la rupture, celles au-delà de la tranche
+    /// passent sous le tronçon avant (en gardant leur place) — elles étaient dans sa coque,
+    /// elles voyagent avec elle, et s'en arrachent quand il sombre. Rend ce qui est passé.
+    /// </summary>
+    public List<(Node3D Pivot, Gun G, Vector3 Home)> HandOver(float zCut, Node3D holder)
+    {
+        var moved = new List<(Node3D, Gun, Vector3)>();
+        int n = Math.Min(_gunPieces.Count, Battery.Guns.Count);
+        for (int i = 0; i < n; i++)
+        {
+            var g = Battery.Guns[i];
+            var p = _gunPieces[i];
+            if (g.P.Z <= zCut || p.Loose || p.Back == Vector3.Zero || p.Pivot == null || !IsInstanceValid(p.Pivot)) continue;
+            p.Loose = true;
+            g.Out = true;
+            var home = VisualCentre(p.Pivot);
+            p.Pivot.Reparent(holder, true);
+            moved.Add((p.Pivot, g, home));
+        }
+        return moved;
+    }
+
+    /// <summary>Le milieu de ce que la pièce montre, dans le repère du navire : c'est par lui que son épave la retrouve dans le modèle.</summary>
+    static Vector3 VisualCentre(Node3D pivot) => pivot.Transform * ((NodeWalk.Bounds(pivot) ?? new Aabb()).GetCenter());
+
+    /// <summary>Combien de pièces dessinées elle porte (le rang est celui de Battery.Guns).</summary>
+    public int PieceCount => _gunPieces.Count;
+
     /// <summary>Le pivot de la pièce dessinée de ce canon, dans le repère du navire.</summary>
     public Vector3? PiecePivot(Gun g)
     {
@@ -285,7 +332,7 @@ public partial class ShipNode
         int i = Battery.Guns.IndexOf(g);
         if (i < 0 || i >= _gunPieces.Count) return;
         var p = _gunPieces[i];
-        if (p.Pivot == null || !IsInstanceValid(p.Pivot)) return;
+        if (p.Loose || p.Pivot == null || !IsInstanceValid(p.Pivot)) return;
         var dir = new Vector3((float)g.Dir.X, 0, (float)g.Dir.Z);
         if (dir.LengthSquared() < 1e-6f) return;
         var across = Vector3.Up.Cross(dir.Normalized()).Normalized();
@@ -305,7 +352,7 @@ public partial class ShipNode
         {
             var g = Battery.Guns[i];
             var p = _gunPieces[i];
-            if (p.Pivot == null || !IsInstanceValid(p.Pivot)) continue;
+            if (p.Loose || p.Pivot == null || !IsInstanceValid(p.Pivot)) continue;
             if (p.Fired < 0) continue;
             double t = clock - p.Fired, all = Math.Max(0.5, p.Until - p.Fired);
             double back;

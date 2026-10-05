@@ -17,7 +17,7 @@ public partial class ShipNode
     (double Half, double Deck, double Keel, double Z0, double Z1)[]? _shell;
     readonly List<(double Heel, double Height, double Z, double Long, int Fall)> _mastBoxes = new();
 
-    static readonly Regex GunNames = new("canon|cannon|gun", RegexOptions.IgnoreCase);
+    internal static readonly Regex GunNames = new("canon|cannon|gun", RegexOptions.IgnoreCase);
 
     /* OÙ SONT SES BOUCHES, lues sur le modèle plutôt qu'écrites dans sa fiche —
        _findGuns de ship-model.js. Par NOM DE MATIÈRE, et c'est un écart qu'il faut

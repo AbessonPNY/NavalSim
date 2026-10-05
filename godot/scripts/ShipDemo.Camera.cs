@@ -80,12 +80,16 @@ public partial class ShipDemo
     const double HausseMin = -5 * Math.PI / 180, HausseMax = 12 * Math.PI / 180;
     /// <summary>Le pointage en direction de chaque groupe (positif : vers bâbord), et ce que l'embrasure en laisse.</summary>
     readonly Dictionary<int, double> _train = new();
-    const double TrainMax = 15 * Math.PI / 180;
+    /// <summary>Une pièce de chasse se tourne de quinze degrés dans son embrasure ; une pièce de bordée, de huit à l'anspect.</summary>
+    static double TrainMax(int side) => (Math.Abs(side) >= 2 ? 15 : 8) * Math.PI / 180;
+
+    /// <summary>Les groupes qu'on sert à l'œil : les deux bordées et la proue — pas la poupe.</summary>
+    static bool Served(int side) => side is 1 or -1 || side <= -2;
 
     /// <summary>Tourner la pièce servie sur son affût, et la dire. L'œil du servant tourne avec elle.</summary>
     void NudgeTrain(int side, double d)
     {
-        double a = Math.Clamp(_train.GetValueOrDefault(side) + d, -TrainMax, TrainMax);
+        double a = Math.Clamp(_train.GetValueOrDefault(side) + d, -TrainMax(side), TrainMax(side));
         _train[side] = a;
         if (_gunPost == side) _bridgeYaw = a;
         foreach (var g in _ship.Battery.Guns) if (g.Side == side) { g.Train = a; _ship.AimPiece(g); }
@@ -105,7 +109,7 @@ public partial class ShipDemo
     /// <summary>« · +4,0° » sur le bouton d'un groupe de chasse levé ou servi ; rien sinon.</summary>
     string HausseTag(int side)
     {
-        if (Math.Abs(side) < 2) return "";
+        if (!Served(side)) return "";
         double hz = _hausse.GetValueOrDefault(side) * 180 / Math.PI;
         double tr = _train.GetValueOrDefault(side) * 180 / Math.PI;
         if (_gunPost != side && Math.Abs(hz) < 0.05 && Math.Abs(tr) < 0.5) return "";
@@ -330,9 +334,15 @@ public partial class ShipDemo
     /// </summary>
     (Vector3 At, Vector3 Dir)? GunEye(int side, NavalSim.Core.DeckView v)
     {
+        // DERRIÈRE LA PIÈCE DU MILIEU de la batterie : une bordée se pointe depuis son centre
+        Gun? pick = null; double zMid = 0; int cnt = 0;
+        foreach (var g in _ship.Battery.Guns) if (g.Side == side && !g.Out) { zMid += g.P.Z; cnt++; }
+        if (cnt > 0) zMid /= cnt;
+        foreach (var g in _ship.Battery.Guns)
+            if (g.Side == side && !g.Out && (pick == null || Math.Abs(g.P.Z - zMid) < Math.Abs(pick.P.Z - zMid))) pick = g;
         foreach (var g in _ship.Battery.Guns)
         {
-            if (g.Side != side || g.Out) continue;
+            if (g != pick) continue;
             var dir = new Vector3((float)g.Dir.X, 0, (float)g.Dir.Z).Normalized();
             double yaw = (v.Yaw + _bridgeYaw * 180 / Math.PI) * Math.PI / 180;
             if (yaw != 0)
@@ -348,14 +358,16 @@ public partial class ShipDemo
                tourne maintenant autour du même point qu'elle, et se tient à la longueur du
                tube derrière son milieu, plus un pas : là où se tient le chef de pièce. */
             var muzzle = g.P.ToGodot();
-            if (_ship.PiecePivot(g) is Vector3 pv && _ship.PieceEye(g, 1.2f) is Vector3 local)
+            // une pièce de batterie se vise PAR SON SABORD, l'œil au ras du tube ; une pièce de chasse, sur le pont, de plus haut
+            bool port = Math.Abs(side) == 1;
+            if (_ship.PiecePivot(g) is Vector3 pv && _ship.PieceEye(g, port ? 0.6f : 1.2f) is Vector3 local)
             {
                 /* DERRIÈRE LA PIÈCE, SUR SON AXE (signalé : décalé). L'œil est lu sur la pièce
                    dessinée — un pas derrière son bout arrière, dans l'axe de ses sommets —
                    puis tourné autour de son pivot comme elle (ShipNode.AimPiece). */
                 double c = Math.Cos(yaw), s = Math.Sin(yaw);
                 var turned = new Vector3((float)(local.X * c + local.Z * s), local.Y, (float)(-local.X * s + local.Z * c));
-                return (pv + turned + new Vector3(0, (float)(v.Y ?? 0.55), 0), look.Normalized());
+                return (pv + turned + new Vector3(0, port ? 0.18f : (float)(v.Y ?? 0.55), 0), look.Normalized());
             }
             var at = muzzle - dir * (float)(v.Z ?? 2.2) + new Vector3(0, (float)(v.Y ?? 0.55), 0);
             return (at, look.Normalized());

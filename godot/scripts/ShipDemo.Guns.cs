@@ -339,7 +339,7 @@ public partial class ShipDemo
         }
         Say("En batterie : " + GunNames[_gunSide]);
         // la proue se sert à l œil ; la poupe ne déplace pas la caméra
-        SetGunPost(_gunSide <= -2 ? _gunSide : (int?)null);
+        SetGunPost(Served(_gunSide) ? _gunSide : (int?)null);
         GunSideTick();
         HudTick();
     }
