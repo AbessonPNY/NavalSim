@@ -27,6 +27,11 @@ public sealed class Controls
     /// avant.
     /// </summary>
     public double Canvas = 1;
+    /// <summary>
+    /// LA BÔME TENUE À CONTRE, à la main : +1 poussée à tribord, −1 à bâbord, 0
+    /// rien (ShipPhysics.Backed). Le geste qui sort d'un face au vent.
+    /// </summary>
+    public int Backed;
 
     /// <summary>
     /// LES DEUX BANCS D'AVIRONS, de −1 (on scie) à 1 (on nage), bâbord et

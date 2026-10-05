@@ -346,14 +346,26 @@ public partial class ShipNode
             Position = new Vector3(0, (float)tackY, (float)(-m.Boom * 0.45))
         });
         // taillée plate, dans l'axe ; le creux vient de la forme, sous le vent
-        rig.AddChild(SailSurface(new[]
-        {
-            new Vec3d(0, tackY + 0.05, -0.2 * sc),
-            new Vec3d(0, tackY, -m.Boom * 0.93),
-            new Vec3d(0, spec.DeckMid + m.Height - 1.0 * sc, -m.Boom * 0.70),
-            new Vec3d(0, spec.DeckMid + m.Height - 0.6 * sc, -0.2 * sc)
-            // lacée sur trois côtés ; le plus creux aux quatre dixièmes derrière le guindant
-        }, new Vec3d(1, 0, 0), new SailCut { Kind = "gaff", UPeak = 0.42, Crown = 0.80 }));
+        double top = spec.DeckMid + m.Height;
+        rig.AddChild(SailSurface(m.Bermuda
+            /* BERMUDIENNE : la têtière au haut du mât, et le ROND DE CHUTE — la
+               chute bombe vers l'arrière, tenue par ses lattes, aux deux tiers de
+               la hauteur. Quatre points comme l'aurique, le troisième sur la chute. */
+            ? new[]
+            {
+                new Vec3d(0, tackY + 0.03, -0.05 * sc),
+                new Vec3d(0, tackY, -m.Boom * 0.96),
+                new Vec3d(0, tackY + (top - tackY) * 0.62, -m.Boom * 0.42),
+                new Vec3d(0, top - 0.1 * sc, -0.05 * sc)
+            }
+            : new[]
+            {
+                new Vec3d(0, tackY + 0.05, -0.2 * sc),
+                new Vec3d(0, tackY, -m.Boom * 0.93),
+                new Vec3d(0, top - 1.0 * sc, -m.Boom * 0.70),
+                new Vec3d(0, top - 0.6 * sc, -0.2 * sc)
+                // lacée sur trois côtés ; le plus creux aux quatre dixièmes derrière le guindant
+            }, new Vec3d(1, 0, 0), new SailCut { Kind = "gaff", UPeak = 0.42, Crown = 0.80 }));
         _rig.AddChild(rig);
         return rig;
     }

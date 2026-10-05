@@ -1,0 +1,77 @@
+{
+  "id": "ilca4",
+  "name": "ILCA 4",
+  "note": "ANACHRONISME ASSUMÉ (demandé) : le dériveur olympique en solitaire, l'ancien Laser (Bruce Kirby, 1970 ; ILCA depuis 2020), version 4 — la plus petite des trois voilures, pour un barreur de 45 kg et plus. Cotes du constructeur (marconyachting.com, ILCA 4 complet) : longueur 4,21 m, largeur 1,37 m, coque d'environ 57 kg en polyester, voile de 4,70 m² ; mât bas en aluminium, mât haut en carbone, bôme en aluminium. DÉPLACEMENT : 57 kg de coque, une douzaine de gréement, un barreur de 60 kg — 0,13 t. COQUE : une carène plate et peu profonde (17 cm) ; ce qui la tient au vent est la DÉRIVE, 60 cm sous la coque (keelExtra), et un safran relevable de 0,09 m² (rudder.area : la godille, qui sur lui compte vraiment). Le plan de dérive des fiches est la coque seule (longueur × creux), si bien que lateralGrip est fort : il porte la dérive, un profil efficace. GRÉEMENT : une seule voile, bermudienne (triangulaire, sans corne), sur un mât à un peu moins d'un quart de l'avant, sans haubans ni foc ; bôme basse. Pas de machine. Le modèle viendra de Blender (ships/models/ilca4.glb) : d'ici là, la coque est dessinée d'après ses lignes. Un petit bateau ne se gouverne pas comme un galion : la barre franche répond tout de suite (hardOver 0,6 s), la godille et la voile à contre y sont efficaces.",
+
+  "hull": {
+    "length": 4.21,
+    "beam": 1.37,
+    "freeboardMid": 0.34,
+    "sheerBow": 0.10,
+    "sheerStern": 0.02,
+    "keelDepth": 0.17,
+    "keelExtra": 0.60,
+
+    "dragAft": 0.0,
+    "forefootLift": 0.55,
+    "counterLift": 0.05,
+
+    "waterlinePower": 0.9,
+    "waterlineFull": 0.55,
+    "transomWidth": 0.75,
+
+    "sectionTuck": 0.62,
+    "sectionPower": 0.55
+  },
+
+  "displacementTonnes": 0.13,
+  "equipage": 1,
+  "cargoTonnes": 0.02,
+
+  "cog": { "yFracKeel": -0.20, "zFracLength": -0.04 },
+
+  "hydro": {
+    "resistance": 120,
+    "lateralGrip": 1600,
+    "lateralQuad": 320,
+    "heaveDamp": 1100
+  },
+
+  "engine": { "topSpeed": 0.0, "sternPower": 0.0 },
+
+  "rudder": { "power": 150, "maxAngle": 0.75, "postZFrac": -0.5, "postY": -0.05, "hardOver": 0.6, "area": 0.09 },
+
+  "rig": {
+    "type": "gaff",
+    "sailArea": 4.7,
+    "ceHeight": 2.1,
+    "ceZ": 0.25,
+    "maxSheet": 1.45,
+    "belly": 1.3,
+    "masts": [
+      { "zFrac": 0.27, "height": 5.1, "boom": 2.6, "tackAbove": 0.55, "bermudienne": true }
+    ],
+    "jib": null,
+    "bowsprit": null
+  },
+
+  "anchor": false,
+  "lanterns": [],
+  "flags": [],
+
+  "appearance": {
+    "hull": "0xf1f1ec",
+    "timber": "0xe4e4dc",
+    "spar": "0xa3a8ad",
+    "house": "0xe4e4dc",
+    "canvas": "0xf5f5f0"
+  },
+
+  "camera": {
+    "chaseDist": 8,
+    "chaseHigh": 2.6,
+    "orbitDist": 10,
+    "helmZFrac": -0.22,
+    "helmHeight": 0.85
+  }
+}

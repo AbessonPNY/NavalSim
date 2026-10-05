@@ -706,7 +706,12 @@ public partial class ShipDemo : Node3D
            voile se gonfle parce qu'on la borde, avec la même pression qui pousse
            le navire, sans seconde règle à tenir d'accord. */
         var ph = _ship.Physics;
-        _ship.SetTrim(_ship.Ctrl.Sheet, ph.Tack, ph.SetFrac, ph.Luffing, _t, ph.SailLoad);
+        /* la bôme tenue à contre se voit de ce bord : l'angle dessiné vaut −amure ×
+           écoute, d'où l'amure contraire au bord poussé */
+        if (_ship.Ctrl.Backed != 0)
+            _ship.SetTrim(ShipPhysics.BackedAngle, -_ship.Ctrl.Backed, ph.SetFrac, false, _t, ph.SailLoad);
+        else
+            _ship.SetTrim(_ship.Ctrl.Sheet, ph.Tack, ph.SetFrac, ph.Luffing, _t, ph.SailLoad);
         _ship.Sea = _sea.Core;
         _ship.StreamFlags(_t);
         _ship.RecoilTick(_gunnery.Clock, _gunRules.RecoilSpeed);

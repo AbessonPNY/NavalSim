@@ -97,6 +97,7 @@ public partial class ShipDemo : Node3D
         Key(a, "W  S", "machine, en avant et en arrière");
         Key(a, "A  D", "barre à bâbord, à tribord");
         Key(a, "Q  E", "border, choquer les écoutes");
+        Key(a, "⇧E", "tenue : la bôme à contre, pour sortir d'un face au vent");
         Key(a, "Tab", "les objectifs du chapitre");
         Key(a, "V", "établir ou ferler");
         Key(a, "⇧V", "prendre un ris : huniers, bas ris, tout serré");

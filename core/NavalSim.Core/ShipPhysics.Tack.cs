@@ -127,4 +127,50 @@ public sealed partial class ShipPhysics
         Vec3d arm = b.Quat.Rotate(at) + b.Pos - cog;
         torque += arm.Cross(F);
     }
+
+    /// <summary>L'angle de la bôme qu'on tient à contre, en radians depuis l'axe.</summary>
+    public const double BackedAngle = 0.9;
+
+    /// <summary>
+    /// LA VOILE À CONTRE — sortir d'un face au vent. Coincé vent debout, la toile
+    /// faseye et ne pousse rien, et sans erre la barre ne mord pas. On POUSSE LA
+    /// BÔME d'un bord, à la main : le vent prend la voile par sa face avant, la
+    /// pousse vers l'arrière et de ce bord — le navire CULE, et sa poupe part du
+    /// côté où l'on pousse, l'étrave de l'autre. Quand le vent est passé sur la
+    /// joue voulue, on lâche, on borde, et l'on repart sur ce bord. (En culant, la
+    /// barre agit à rebours.)
+    ///
+    /// Une plaque (Cd 1,1) de la grand-voile, à l'angle de la bôme, frappée par le
+    /// vent apparent à son incidence réelle, à l'arrière du mât où est son centre :
+    /// le même vent que dans la toile, gain compris. Rien d'inventé que le geste.
+    /// </summary>
+    void BackSail(Controls ctrl, Ocean ocean, in Vec3d cog,
+                  ref Vec3d force, ref Vec3d torque, in Vec3d fwd, in Vec3d right)
+    {
+        if (ctrl.Backed == 0) return;
+        var S = Spec; var b = Body;
+        double sails = SetFrac * Standing * Whole;
+        if (sails < 0.2 || S.SailArea <= 0) return;
+        Vec3d app = ocean.WindVec - b.Vel;
+        app.Y = 0;
+        double vApp = app.Length;
+        if (vApp < 0.3) return;
+        Vec3d dir = app * (1 / vApp);                        // où va le vent
+        int s = Math.Sign(ctrl.Backed);
+        // la bôme, du mât vers l'arrière, ouverte du bord où on la pousse
+        Vec3d boom = fwd * -Math.Cos(BackedAngle) + right * (s * Math.Sin(BackedAngle));
+        // sa normale, du côté où le vent la pousse
+        Vec3d n = new Vec3d(boom.Z, 0, -boom.X);
+        if (n.Dot(dir) < 0) n = n * -1;
+        double inc = Math.Abs(n.Dot(dir));                  // sin de l'incidence
+        double A = (S.LateenArea > 0 ? S.LateenArea : 0.6 * S.SailArea) * sails;
+        double q = 0.5 * Config.RhoAir * vApp * vApp;
+        Vec3d F = n * (PlateCd * q * A * inc * Config.WindGain);
+        // son centre : à mi-bôme, à mi-hauteur de toile, sur le bord poussé
+        // tribord est −x : la bôme ouverte à tribord va vers −x, vers l'arrière
+        Vec3d at = new Vec3d(-s * Math.Sin(BackedAngle) * 0.3 * S.L, _ce.Y, _ce.Z - Math.Cos(BackedAngle) * 0.3 * S.L);
+        force += F;
+        Vec3d arm = b.Quat.Rotate(at) + b.Pos - cog;
+        torque += arm.Cross(F);
+    }
 }

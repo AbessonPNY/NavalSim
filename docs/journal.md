@@ -14299,6 +14299,34 @@ plus que dans les cases gardées ; tout le semis du fond tombe à 1,0 s (1,8 ava
 l'herbier dense). Coût mesuré : le pré, 8,77 ms contre 8,54 sans le fond ; le récif,
 7,57 comme avant.
 
+## La voile à contre, et l'ILCA 4 (Godot)
+
+LA VOILE À CONTRE (demandée) : le virement de l'équipage mettait déjà la misaine à
+contre, mais ne naissait qu'avec de l'erre (0,3 m/s) — vent debout et arrêté, rien ne
+sortait le navire de là. ShipPhysics.BackSail : la bôme tenue à contre (Controls.Backed,
+⇧E tenue, du bord où elle pend), une plaque de la grand-voile à l'angle de la bôme
+(0,9 rad), frappée par le vent apparent à son incidence réelle, gain compris. Le navire
+CULE et abat de l'autre bord. Mesuré (banc « contre », force 3) : le sloop abat de 73°
+en 20 s en culant à 1,6 nœud, de 67° de l'autre bord ; le galion de 3° ; le cotre, sans
+toile, rien. La bôme dessinée passe à contre (SetTrim, l'amure contraire). Touches : ⇧Q,
+⇧A, ⇧D étaient prises (l'abordage d'essai, le saut, la hache) : ⇧E, un seul geste, du bord
+où pend la bôme — celui qu'on fait d'instinct.
+
+L'ILCA 4 (demandé, anachronisme assumé) : ships/ilca4.json, d'après le constructeur —
+4,21 m, 1,37 m, 57 kg de coque, 4,70 m² ; 0,13 t avec son barreur. Carène de 17 cm, la
+DÉRIVE en keelExtra (60 cm), le plan de dérive des fiches n'étant que la coque :
+lateralGrip fort pour la porter. Deux champs nouveaux : « bermudienne » sur un mât (la
+voile triangulaire, dessin seulement) et rudder.area (la lame réelle, 0,09 m², pour la
+godille). Cale ramenée à 20 kg (la règle des marchands lui en donnait 2 t). Au banc des
+allures, gain 8 : 9 nœuds au travers par force 3, 12 par force 4 — vite, comme tout le
+jeu (le sloop : 10 et 16). Il flotte à 3 cm de tirant de coque, 4,5 % d'immersion :
+juste pour 130 kg sur une carène plate. Il ne tient pas vent debout : il abat seul en
+quelques secondes (barre au milieu : 178° en 30 s, en prenant 8,9 nœuds), ce qui brouille
+les bancs « godille » et « contre » : la godille l'emmène de −97° à −170° selon le geste,
+la voile à contre de +81° (à tribord) ou de −113° (à bâbord) — chaque bord répond, mais
+l'écart à la base ne se lit pas proprement. À juger en jeu, pas au banc.
+Jeu libre : offert (libre.json) ; écarté des rencontres. Le modèle viendra de Blender.
+
 ## La godille au safran (Godot)
 
 Demandé, après une question : sur un Laser face au vent, des coups de barre aident à

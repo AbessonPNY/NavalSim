@@ -48,8 +48,14 @@ public partial class ShipDemo
             c.OarR = Math.Clamp(c.Throttle - c.Rudder, -1, 1);
         }
 
-        if (Physical(Key.Q)) c.Sheet = Math.Max(0, c.Sheet - dt * 0.8);
-        if (Physical(Key.E)) c.Sheet = Math.Min(_ship.Spec.MaxSheet, c.Sheet + dt * 0.8);
+        /* ⇧E TENUE : LA BÔME À CONTRE, poussée du bord où elle pend déjà — le geste
+           qu'on fait d'instinct, vent debout (ShipPhysics.BackSail). L'angle dessiné
+           vaut −amure × écoute : elle pend à tribord (+1) quand l'amure vaut −1.
+           (⇧Q, ⇧A, ⇧D sont pris : l'abordage d'essai, le saut, la hache.) */
+        bool shift = Input.IsKeyPressed(Key.Shift);
+        c.Backed = shift && Physical(Key.E) ? (_ship.Physics.Tack < 0 ? 1 : -1) : 0;
+        if (Physical(Key.Q) && !shift) c.Sheet = Math.Max(0, c.Sheet - dt * 0.8);
+        if (Physical(Key.E) && !shift) c.Sheet = Math.Min(_ship.Spec.MaxSheet, c.Sheet + dt * 0.8);
     }
 
     /// <summary>

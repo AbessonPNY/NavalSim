@@ -66,6 +66,7 @@ switch (mode)
     case "sondeur": Sondeur(); break;
     case "sombrer": Sombrer(); break;
     case "godille": Godille(); break;
+    case "contre": Contre(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -1385,6 +1386,40 @@ void Godille()
         var f1 = ph.Body.Quat.Rotate(new Vec3d(0, 0, 1));
         double turn = Math.Atan2(Math.Sin(Math.Atan2(-f1.X, f1.Z) - h0), Math.Cos(Math.Atan2(-f1.X, f1.Z) - h0)) * 180 / Math.PI;
         Console.WriteLine(FormattableString.Invariant($"  {label,-26} : tourné de {turn,6:F1}° en 30 s, erre en avant au plus {maxFwd / 0.5144:F2} nd"));
+    }
+}
+
+/* LA VOILE À CONTRE : un navire arrêté face au vent, voiles établies, la bôme tenue
+   à contre vingt secondes d'un bord ou de l'autre. [fiche] [force] */
+void Contre()
+{
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    string name = args.Length > 1 ? args[1] : "sloop";
+    double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 3;
+    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(root, "ships", name + ".json")));
+    Config.WindGain = 8; Config.CrewTacks = true;
+    Console.WriteLine(FormattableString.Invariant($"{spec.Name} face au vent, force {force}"));
+    foreach (var (label, side) in new[] { ("rien", 0), ("bôme à contre, tribord", 1), ("bôme à contre, bâbord", -1) })
+    {
+        var ocean = new Ocean { Swell = 1.0, Time = 0 };
+        ocean.SetSeaState(force, 105);
+        var ph = new ShipPhysics(spec, new HullLines(spec));
+        var ctrl = new Controls { SailsSet = true, Sheet = 0.3 };
+        ph.Settle(ocean, ctrl);
+        ph.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), -105 * Math.PI / 180);
+        Vec3d f0 = ph.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+        double h0 = Math.Atan2(-f0.X, f0.Z), dt = 1.0 / 60, tt = 0, back = 0;
+        while (tt < 20)
+        {
+            ctrl.Backed = side;
+            ph.Step(dt, ocean, ctrl, tt); tt += dt;
+            var fw = ph.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+            back = Math.Min(back, ph.Body.Vel.Dot(fw));
+        }
+        var f1 = ph.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+        double h1 = Math.Atan2(-f1.X, f1.Z);
+        double turn = Math.Atan2(Math.Sin(h1 - h0), Math.Cos(h1 - h0)) * 180 / Math.PI;
+        Console.WriteLine(FormattableString.Invariant($"  {label,-24} : l'étrave a tourné de {turn,6:F1}° en 20 s (vers {(turn > 0 ? "bâbord" : "tribord")}), culé jusqu'à {-back / 0.5144:F2} nd"));
     }
 }
 

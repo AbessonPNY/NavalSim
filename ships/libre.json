@@ -8,6 +8,7 @@
     { "ship": "schooner" },
     { "ship": "cotre" },
     { "ship": "sloop" },
+    { "ship": "ilca4", "label": "ILCA 4", "year": 2020 },
     { "ship": "frigate", "locked": "Une frégate de 2 000 t ne se confie pas au premier venu." }
   ]
 }

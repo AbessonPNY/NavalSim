@@ -219,8 +219,7 @@
       "barge",
       "schooner",
       "caisse-bois",
-      "vedette"
-    ]
+      "vedette", "ilca4"]
   },
   "night": {
     "canvas": 0.05,

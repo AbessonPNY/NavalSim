@@ -267,6 +267,12 @@ bras s'écartent).
 
 ## Gouvernail
 
+`rudder.area` (m², facultatif, Godot) : la surface de la lame, pour la GODILLE — une
+barre qu'on balaie à coups secs pousse l'eau même navire arrêté (banc `godille`).
+Absente, elle s'estime à 2,5 % du plan de dérive, ce qui vaut pour un navire ; un
+dériveur a un grand safran (l'ILCA 4 : 0,09 m²). Sur nos coques de vingt tonnes et
+plus, la godille ne se sent pas ; sur l'ILCA, si.
+
 Le safran tourne avec la barre (`rudder.maxAngle` à fond), **à son rythme** :
 `rudder.hardOver` est le nombre de secondes pour aller de la barre droite à la
 barre à fond (par défaut 3 × √(longueur/24) : 3,4 s pour 30 m, 4,7 s pour 60 m).
@@ -412,6 +418,15 @@ planche doit empêcher : une image retournée ou en miroir.
 
 `rig.type` vaut `"gaff"` (bôme pivotante), `"square"` (vergues carrées) ou
 `"none"`. En carré, chaque mât liste ses vergues en fractions de sa hauteur.
+Un mât à bôme peut porter `"bermudienne": true` : sa voile est dessinée
+triangulaire, la têtière au haut du mât, avec un rond de chute, sans corne (l'ILCA 4).
+Le dessin seulement — le solveur ne voit toujours qu'une aile.
+
+**La voile à contre** (⇧E tenue, Godot) : la bôme poussée du bord où elle pend, le
+vent prend la toile par sa face avant — le navire cule et son étrave abat de l'autre
+bord. C'est le geste qui sort d'un face au vent ; mesuré (banc `contre`) : le sloop
+abat de 70° en 20 s, le galion de 3° (sur un trois-mâts, le geste est de brasser à
+contre, et trois cents tonnes ne se tournent pas à la main).
 
 Le solveur ne modélise **qu'une seule aile équivalente** (`sailArea`, `ceHeight`),
 pas chaque voile séparément — le gréement est une représentation visuelle.

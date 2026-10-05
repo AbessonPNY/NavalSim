@@ -370,6 +370,7 @@ public sealed partial class ShipPhysics
 
         Sails(ctrl, ocean, cog, ref force, ref torque, fwd, right);
         CrewTack(dt, ctrl, ocean, cog, ref force, ref torque, fwd, right);
+        BackSail(ctrl, ocean, cog, ref force, ref torque, fwd, right);
         Ground(dt, ref force, ref torque, cog, ocean);
         Jetty(dt, ref force, ref torque, cog, ocean);
         Collide(dt, ref force, ref torque, cog, neighbours);

@@ -54,6 +54,8 @@ public sealed class RudderSpec
     [JsonPropertyName("maxAngle")]  public double MaxAngle { get; set; }
     [JsonPropertyName("postZFrac")] public double PostZFrac { get; set; }
     [JsonPropertyName("postY")]     public double PostY { get; set; }
+    /// <summary>La surface de la lame (m²), si la fiche la connaît : un dériveur a un grand safran (la godille). Nulle : estimée.</summary>
+    [JsonPropertyName("area")]      public double Area { get; set; }
 }
 
 public sealed class MastSpec
@@ -66,6 +68,11 @@ public sealed class MastSpec
     [JsonPropertyName("yards")]     public List<double> Yards { get; set; } = new();
     /// <summary>L'envergure de la basse vergue, en fraction du bau.</summary>
     [JsonPropertyName("yardSpan")]  public double YardSpan { get; set; }
+    /// <summary>
+    /// UNE VOILE BERMUDIENNE et non aurique : triangulaire, sa têtière au haut du
+    /// mât, sans corne. Le dessin seulement — le solveur ne voit qu'une aile.
+    /// </summary>
+    [JsonPropertyName("bermudienne")] public bool Bermuda { get; set; }
 
     /// <summary>Position absolue, derivee de zFrac multiplie par L au chargement.</summary>
     [JsonIgnore] public double Z { get; set; }
@@ -547,7 +554,7 @@ public sealed class ShipSpec
         /* LA LAME DU SAFRAN, pour la godille seulement : deux et demi pour cent du
            plan de dérive — la règle des chantiers, de deux à trois —, et une lame
            une fois et demie plus haute que large. */
-        RudderArea = 0.025 * lateralArea;
+        RudderArea = json.Rudder.Area > 0 ? json.Rudder.Area : 0.025 * lateralArea;
         RudderChord = Math.Sqrt(RudderArea / 1.5);
         RudderMax = json.Rudder.MaxAngle;
         RudderZ = json.Rudder.PostZFrac * L;
