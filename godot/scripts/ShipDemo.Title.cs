@@ -261,7 +261,14 @@ public partial class ShipDemo : Node3D
         {
             int idx = _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == q.Ship);
             if (idx < 0) GD.PushWarning($"[{id}] le navire « {q.Ship} » n'a pas de fiche — on garde celui qu'on a.");
-            else if (idx != _index) Launch(idx);
+            else
+            {
+                if (idx != _index) Launch(idx);
+                /* ET C'EST LUI QUE HOME() GARDE : il rend le navire d'avant l'affiche, et
+                   celui-là, retenu à l'ouverture du titre, était le bord de la partie
+                   précédente — le Chaland reparaissait à la place du sloop (signalé). */
+                _beforeTitle = idx;
+            }
         }
         Home();
         /* LE RANG ET LA BOURSE DU CHAPITRE, après Home() qui remet ceux d'une partie
@@ -458,8 +465,12 @@ public partial class ShipDemo : Node3D
     /// Une image de titre : l'œil, au ras de l'eau à cent mètres du navire,
     /// en fait lentement le tour — un tour en cinq minutes.
     /// </summary>
+    /// <summary>L essai : choisir Histoire au titre, comme la souris (--histoire).</summary>
+    bool _storyTest;
+
     void TitleTick(double dt)
     {
+        if (_storyTest && _booted) { _storyTest = false; Story(); return; }
         var b = _ship.Physics.Body;
         _titleAng += dt * 0.021;
         double r = 95;

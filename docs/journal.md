@@ -14471,6 +14471,12 @@ des textes ({border}…) sont pris à leur EMPLACEMENT : « la barre (Q ou D) »
 Le mémento disait « Q E : choquer, border » — l'inverse de ce que font les touches ;
 corrigé.
 
+
+LE NAVIRE DU CHAPITRE remplacé par celui d'avant (signalé : le Chaland au lieu du sloop).
+Open() retient le bord du joueur (_beforeTitle) avant d'armer la Roter Löwe pour l'affiche ;
+StartQuest armait bien le « ship » du chapitre, puis Home() rendait ce bord retenu — celui de
+la partie précédente. Le navire du chapitre devient ce que Home() garde. Invisible avec
+--quete (le titre ne s'ouvre pas) : --histoire 1 rejoue le vrai chemin, titre puis Histoire.
 ## Les filins se lâchent ; les anneaux de La Boussole (Godot)
 
 Les filins de grappin ne partaient que rompus (34 m) ou tranchés : Grapple.Drop existait

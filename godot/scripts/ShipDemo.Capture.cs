@@ -151,6 +151,8 @@ public partial class ShipDemo
                 case "--quete": _askTitle ??= false; StartQuest(args[i + 1]); break;
                 // un chapitre sans sa cinématique (à placer AVANT --quete)
                 case "--sans-film": _noFilm = true; break;
+                // l'Histoire choisie AU TITRE, par son vrai chemin (le titre s'ouvre, puis on clique)
+                case "--histoire": _storyTest = args[i + 1] != "0"; break;
                 // l'essai du tutoriel : l'écoute bordée puis choquée, comme le ferait la main
                 case "--essai-tuto": _tutorTest = true; break;
                 // le panneau des objectifs (Tab), ouvert

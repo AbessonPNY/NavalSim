@@ -140,7 +140,7 @@
     "note": "Le boulet qui siffle : un tir d'un autre navire sur oneIn, s'il a déjà volé minFlight mètres et passe à moins de range mètres de la caméra. Le son : medias/sound/sons.json → boulet.siffle."
   },
   "camera": {
-    "handheld": 1.0,
+    "handheld": 1.5,
     "note": "Les vues fixes (pont, Fixe, mi-eau, ponton, pièces, cloche) bougent comme une caméra tenue à la main : la respiration, et de lentes dérives. 1 : réglé à l'œil ; 0 : trépied ; 2 : le double. Ni l'orbite, ni le drone, ni le mode création."
   },
   "chimneys": {
