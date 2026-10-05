@@ -5,11 +5,11 @@ using System.Collections.Generic;
 namespace NavalSim;
 
 /// <summary>
-/// LE BORD EN BATTERIE, AU DOIGT — ce que Tab fait déjà en tournant, montré et
+/// LE BORD EN BATTERIE, AU DOIGT — ce que ⇧Tab fait déjà en tournant, montré et
 /// choisi d'un coup d'œil : un bouton par groupe que la coque porte réellement
 /// (tribord, bâbord, poupe, proue), avec ce qui y est prêt. Le bord reste un
 /// ÉTAT unique (_gunSide) : ces boutons l'écrivent, ils n'en gardent pas un
-/// second — sans quoi Tab et eux divergeraient en silence.
+/// second — sans quoi ⇧Tab et eux divergeraient en silence.
 /// </summary>
 public partial class ShipDemo
 {

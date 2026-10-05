@@ -100,6 +100,10 @@ public partial class ShipDemo
             foreach (var o in _others) if (!o.IsGhost) _sails.Add(new Pirate.Sail(o.Physics, o.Battery, IsJolly(o)));
             p.Grappled = prey != null && _grapples.Holds(prey);
             string? ev = p.Pilot(dt, _t, s.Physics, h, _sails, _ship.Physics);
+            /* HORS DE L'ABORDAGE, IL LARGUE SES CROCHETS : le pillage fait, ou la fuite
+               décidée, l'équipage dégage — il ne remorque pas sa proie jusqu'à ce que le
+               chanvre casse. */
+            if (p.State != Pirate.Phase.Abordage) _grapples.Release(s.Physics);
             PirateWarn(s, p);
 
             /* LA VOLÉE. Il lance quand il est à portée de crochet et qu'il n'en a

@@ -106,6 +106,7 @@ Son cerveau est `core/NavalSim.Core/Pirate.cs`.
   - Il cesse le feu, vient dans son sillage puis à couple, et lance quatre grappins à moins de
     26 m, une volée toutes les 6 secondes.
   - Les filins halent. Vous seul pouvez les trancher (⇧D) : un navire mené par le jeu ne coupe pas.
+  - Il largue ses crochets quand il quitte l'abordage ; un filin tenu à une coque qui sombre est tranché.
   - Cinq secondes tenu à couple, il pille.
 - **Le pillage** :
   - Sur vous : la moitié de votre bourse et toute votre cargaison.
@@ -222,15 +223,16 @@ Les chiffres des pirates et de l'escarmouche sont dans le code (`Pirate.cs`,
   Godot).
 - Les navires nés après le chargement ne connaissaient pas les pontons et passaient au travers,
   ceux de la rade compris : ils les reçoivent désormais à leur mise à l'eau (`SpawnFleet`).
+- Les filins de grappin se lâchent : le pirate largue ses crochets dès qu'il quitte
+  l'abordage (pillage fait, fuite) ; un filin dont un bout est sur une coque coulée ou retirée
+  est tranché.
 
 ## À vérifier (relevé dans le code, pas encore éprouvé en jeu)
 
-1. Les filins de grappin ne sont jamais lâchés explicitement : ils ne partent que rompus ou
-   tranchés, même si une des deux coques est retirée.
-2. Le vaisseau qui rôde reste peut-être une cible pour les boulets, malgré son commentaire.
-3. La méfiance (pavillon amené à moins de 1 200 m) passe avant tout le reste. Elle pourrait faire
+1. Le vaisseau qui rôde reste peut-être une cible pour les boulets, malgré son commentaire.
+2. La méfiance (pavillon amené à moins de 1 200 m) passe avant tout le reste. Elle pourrait faire
    appareiller un navire de rade amarré, ou votre navire au mouillage pendant la chaloupe.
-4. Après une victoire, ou après une partie rechargée, un navire sans but garde ses dernières
+3. Après une victoire, ou après une partie rechargée, un navire sans but garde ses dernières
    commandes et ne disparaît plus de lui-même.
-5. Quelles fiches portent des canons dépend des modèles 3D : cela n'a pas été relevé fiche par
+4. Quelles fiches portent des canons dépend des modèles 3D : cela n'a pas été relevé fiche par
    fiche.

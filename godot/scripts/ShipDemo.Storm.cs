@@ -158,6 +158,7 @@ public partial class ShipDemo
 
     void Say(string text)
     {
+        if (_film != null) return;                 // un film ne parle pas : il montre
         _note.Text = text;
         _note.Visible = true;
         _noteLeft = 2.6;
@@ -246,7 +247,8 @@ public partial class ShipDemo
            LE TEMPS, LUI, RESTE : le gros temps, la foudre et l'incendie ne sont
            pas du bestiaire, ce sont les conditions de la bataille, et une
            escarmouche sous un grain vaut mieux qu'une escarmouche par calme. */
-        if (!_skirmish)
+        // ni dans une escarmouche, ni dans le film d'un chapitre : la tempête y suffit
+        if (!_skirmish && _film == null)
         {
             // le kraken ne prend pas les spectres ; la foudre, si
             _orageKraken.Clear();

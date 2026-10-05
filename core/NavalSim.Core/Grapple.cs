@@ -242,6 +242,27 @@ public sealed class Grapple
         Lines.RemoveAll(l => l.From == who || l.To == who);
     }
 
+    /// <summary>Larguer ses propres crochets : celui qui les a lancés quitte l'abordage.</summary>
+    public void Release(ShipPhysics thrower)
+    {
+        for (int i = Lines.Count - 1; i >= 0; i--)
+            if (Lines[i].From == thrower) Lines.RemoveAt(i);
+    }
+
+    /// <summary>
+    /// CE QUI NE TIENT PLUS À RIEN : un filin dont un bout est sur une coque qui a
+    /// sombré — on tranche plutôt que de se laisser entraîner au fond —, ou sur une
+    /// coque qui n'est plus à flot dans la partie (<paramref name="live"/> faux).
+    /// </summary>
+    public void Prune(Func<ShipPhysics, bool> live)
+    {
+        for (int i = Lines.Count - 1; i >= 0; i--)
+        {
+            var l = Lines[i];
+            if (l.From.Foundered || l.To.Foundered || !live(l.From) || !live(l.To)) Lines.RemoveAt(i);
+        }
+    }
+
     public void Clear() => Lines.Clear();
 
     // ---- l'arithmétique du corps rigide, dans la convention du solveur ----

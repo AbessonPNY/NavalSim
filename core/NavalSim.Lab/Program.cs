@@ -64,6 +64,7 @@ switch (mode)
     case "sonde": Sonde(); break;
     case "ecueil": Ecueil(); break;
     case "sondeur": Sondeur(); break;
+    case "sombrer": Sombrer(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -477,6 +478,7 @@ void Traversees()
 void Elan()
 {
     string name = args.Length > 1 ? args[1] : "frigate17e";
+    Config.WindGain = args.Length > 5 ? double.Parse(args[5], CultureInfo.InvariantCulture) : 8;
     var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
     foreach (double thr in new[] { 1.0, 45.0, 180.0 })
     {
@@ -690,6 +692,7 @@ void Bordee()
 void Allures()
 {
     string name = args.Length > 1 ? args[1] : "frigate17e";
+    Config.WindGain = args.Length > 5 ? double.Parse(args[5], CultureInfo.InvariantCulture) : 8;
     var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
     // le facteur de vent en troisieme argument : « -- allures frigate17e 8 »
     Config.WindGain = args.Length > 2 ? double.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture) : 1.0;
@@ -728,6 +731,7 @@ void Allures()
 void Ris()
 {
     string name = args.Length > 1 ? args[1] : "frigate17e";
+    Config.WindGain = args.Length > 5 ? double.Parse(args[5], CultureInfo.InvariantCulture) : 8;
     var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
     Console.WriteLine($"{spec.Name}, vent par le travers");
     foreach (double force in new[] { 3.0, 6.0, 8.0 })
@@ -974,6 +978,18 @@ void Filins()
     int reste = g.Held;
     while (g.Cut(proie)) { Console.WriteLine($"   coupe : il en reste {g.Held}"); if (--reste < 0) break; }
     Console.WriteLine($"apres la hache : {g.Held} filin(s), {g.Lines.Count} bout(s) en tout");
+
+    // le pirate quitte l'abordage : il largue ses crochets
+    g.Throw(pirate, proie, new Random(7)); for (int k = 0; k < 40; k++) g.Step(dt);
+    int avant = g.Lines.Count;
+    g.Release(pirate);
+    Console.WriteLine($"le pirate largue : {avant} -> {g.Lines.Count} bout(s)");
+    // la proie sombre : ce qui la tient est tranché
+    g.Throw(pirate, proie, new Random(9)); for (int k = 0; k < 40; k++) g.Step(dt);
+    avant = g.Lines.Count;
+    proie.Foundered = true;
+    g.Prune(_ => true);
+    Console.WriteLine($"la proie sombre : {avant} -> {g.Lines.Count} bout(s)");
 }
 
 static double Hypo(double a, double b) => Math.Sqrt(a * a + b * b);
@@ -1039,6 +1055,7 @@ void Mouillage()
 void Vent()
 {
     string name = args.Length > 1 ? args[1] : "frigate17e";
+    Config.WindGain = args.Length > 5 ? double.Parse(args[5], CultureInfo.InvariantCulture) : 8;
     var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
     Console.WriteLine($"{spec.Name}, vent par le travers, 4 minutes");
     foreach (double force in new[] { 3.0, 4.0, 6.0 })
@@ -1085,6 +1102,7 @@ void Vent()
 void Virement()
 {
     string name = args.Length > 1 ? args[1] : "frigate17e";
+    Config.WindGain = args.Length > 5 ? double.Parse(args[5], CultureInfo.InvariantCulture) : 8;
     double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 4;
     var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
     Console.WriteLine($"{spec.Name}, force {force:F0}, virement de 70° à -70° du vent");
@@ -1152,7 +1170,7 @@ void Sonde()
     double half = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 2000;
     double step = args.Length > 4 ? double.Parse(args[4], CultureInfo.InvariantCulture) : 50;
     var (cx, cz) = world.Geo.ToXZ(lat, lon);
-    Console.WriteLine(FormattableString.Invariant($"sonde autour de ({cx:F0}, {cz:F0}), nord en haut, est à droite, {step} m par caractère"));
+    Console.WriteLine(FormattableString.Invariant($"sonde autour de ({cx:F0}, {cz:F0}), fond {-world.HeightAt(cx, cz):F1} m au centre, nord en haut, est à droite, {step} m par caractère"));
     for (double z = cz + half; z >= cz - half; z -= step)
     {
         var sb = new System.Text.StringBuilder();
@@ -1296,6 +1314,36 @@ void Sondeur()
         }
 }
 
+/* SOMBRER : combien de temps une coque met à couler, toutes ses tranches percées
+   d'une brèche de tant de mètres carrés (le naufrage du film du chapitre 1).
+   [fiche] [aire] [hauteur 0-1] [force] */
+void Sombrer()
+{
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    string name = args.Length > 1 ? args[1] : "frigate17e";
+    Config.WindGain = args.Length > 5 ? double.Parse(args[5], CultureInfo.InvariantCulture) : 8;
+    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(root, "ships", name + ".json")));
+    double force = args.Length > 4 ? double.Parse(args[4], CultureInfo.InvariantCulture) : 10;
+    foreach (double area in args.Length > 2 ? new[] { double.Parse(args[2], CultureInfo.InvariantCulture) } : new[] { 1.4, 3, 6 })
+    {
+        double hf = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 0.08;
+        var ocean = new Ocean { Swell = 1.0, Time = 0 };
+        ocean.SetSeaState(force, 105);
+        var ph = new ShipPhysics(spec, new HullLines(spec));
+        var ctrl = new Controls { SailsSet = true, Sheet = 0.6 };
+        ph.Settle(ocean, ctrl);
+        for (int i = 0; i < ph.Comps.Length; i++) ph.MakeBreach(i, area, hf, i % 2 == 0 ? 1 : -1);
+        ph.PumpOn = false;
+        double dt = 1.0 / 30, tt = 0, half = -1;
+        while (tt < 300 && !ph.Foundered)
+        {
+            ph.Step(dt, ocean, ctrl, tt); tt += dt;
+            if (half < 0 && ph.SubmergedFrac > 0.5) half = tt;
+        }
+        Console.WriteLine(FormattableString.Invariant($"{spec.Name}, {ph.Comps.Length} tranches percées de {area} m² à {hf:F2} de hauteur, force {force} : à moitié sous l'eau à {half:F0} s, {(ph.Foundered ? $"sombrée à {tt:F0} s" : "à flot au bout de 300 s")}"));
+    }
+}
+
 void Rade()
 {
     string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
@@ -1409,6 +1457,7 @@ void Rade()
 void Envol()
 {
     string name = args.Length > 1 ? args[1] : "frigate17e";
+    Config.WindGain = args.Length > 5 ? double.Parse(args[5], CultureInfo.InvariantCulture) : 8;
     double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 9;
     double off = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 60;
     var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
@@ -1467,6 +1516,7 @@ void Envol()
 void Derive()
 {
     string name = args.Length > 1 ? args[1] : "frigate17e";
+    Config.WindGain = args.Length > 5 ? double.Parse(args[5], CultureInfo.InvariantCulture) : 8;
     double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 4;
     var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
     Console.WriteLine($"{spec.Name}, force {force} : vitesse et derive (angle etrave / route), 4 min");
@@ -1513,6 +1563,7 @@ void Derive()
 void Soute()
 {
     string name = args.Length > 1 ? args[1] : "frigate17e";
+    Config.WindGain = args.Length > 5 ? double.Parse(args[5], CultureInfo.InvariantCulture) : 8;
     int k = args.Length > 2 ? int.Parse(args[2]) : 2;
     double force = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 3;
     if (args.Length > 4) ShipPhysics.HalfDeckLeak = double.Parse(args[4], CultureInfo.InvariantCulture);

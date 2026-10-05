@@ -71,7 +71,7 @@ public partial class ShipDemo
                 // il tombe sur le pont, et c'est là qu'il pèse (ShipDemo.DeckFish.cs)
                 DropFish(lot);
                 FishHold();
-                _quests?.Credit(Goal.Fish, kg);
+                _quests?.Credit(Goal.Fish, kg, f.Key);
                 Say($"Un {f.Name.ToLowerInvariant()} de {Kg(kg)} kg à bord");
             },
             OnLost = (f, kg) => Say(f.Bottom == "roche"

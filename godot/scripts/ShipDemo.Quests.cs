@@ -76,7 +76,9 @@ public partial class ShipDemo : Node3D
             OnChange = () => { AimLine(); SaveQuests(); },
             Aboard = k => _ship.Physics.CargoOf(k),
             OnFreight = Freight,
-            OnRank = r => _rank = r
+            OnRank = r => _rank = r,
+            // la question de fin attend que le dernier message soit lu (NextMessage)
+            OnFinish = q => _pendingEnd = q
         };
         string dir = System.IO.Path.Combine(WorldLoad.Folder, "quests");
         if (!System.IO.Directory.Exists(dir)) return;
@@ -87,7 +89,13 @@ public partial class ShipDemo : Node3D
             if (System.IO.Path.GetFileName(f) == "index.json") continue;
             try
             {
-                if (_quests.Add(QuestSpec.FromJson(System.IO.File.ReadAllText(f)), GD.PushWarning)) kept++;
+                /* LES CHAPITRES DE L'HISTOIRE tiennent dans un seul fichier
+                   (histoire.json → « chapitres ») ; une mission, dans le sien. */
+                string text = System.IO.File.ReadAllText(f);
+                var chapters = QuestSpec.ChaptersFromJson(text);
+                if (chapters.Count > 0)
+                    foreach (var ch in chapters) { if (_quests.Add(ch, GD.PushWarning)) kept++; }
+                else if (_quests.Add(QuestSpec.FromJson(text), GD.PushWarning)) kept++;
             }
             catch (System.Text.Json.JsonException e)
             {
@@ -117,6 +125,7 @@ public partial class ShipDemo : Node3D
 
     void BuildQuestView(CanvasLayer layer)
     {
+        _questLayer = layer;
         /* LA LIGNE D'OBJECTIF, en doré, sous les instruments : elle se place à
            chaque image d'après la hauteur du bandeau, qui change avec l'état du
            navire — un nombre écrit en dur s'en décrocherait au premier échouage. */
@@ -181,7 +190,7 @@ public partial class ShipDemo : Node3D
     public void ShowNotice(string title, string text)
     {
         if (text.Length == 0) return;
-        _msgs.Enqueue((title, text));
+        _msgs.Enqueue((Keyed(title), Keyed(text)));
         if (_msgBox != null && !_msgBox.Visible) NextMessage();
     }
 
@@ -192,6 +201,8 @@ public partial class ShipDemo : Node3D
         {
             _msgBox.Visible = false;
             AimLine();
+            // le dernier mot lu : la question de la suite, s'il y a lieu
+            if (_pendingEnd != null) { var q = _pendingEnd; _pendingEnd = null; AskNext(q); }
             return;
         }
         var (title, text) = _msgs.Dequeue();
@@ -242,7 +253,7 @@ public partial class ShipDemo : Node3D
         if (aim == null && _quests.HereNow && _quests.Current is QuestStep cs && cs.At.None
             && (_msgBox == null || !_msgBox.Visible))
         {
-            _aimLine.Text = $"{(cs.Title.Length > 0 ? cs.Title : $"Étape {_quests.Step + 1}")} — {Counted(cs)}   ({_quests.Step + 1}/{_quests.Active!.Steps.Count})";
+            _aimLine.Text = $"{(cs.Title.Length > 0 ? cs.Title : $"Étape {_quests.Step + 1}")} — {Counted(cs)}{Deadline(cs)}   ({_quests.Step + 1}/{_quests.Active!.Steps.Count})";
             _aimLine.Visible = _hudOn && !_inTitle;
             _aimLine.Position = new Vector2(18, HudTop + TrimHeight + GunBarHeight);
             return;
@@ -263,7 +274,7 @@ public partial class ShipDemo : Node3D
             : FormattableString.Invariant($"{Mille(a.Dist)} au {(int)Math.Round(a.Bearing) % 360:D3}°");
         string title = a.Step.Title.Length > 0 ? a.Step.Title : $"Étape {a.Index + 1}";
         string count = Counted(a.Step);
-        _aimLine.Text = $"{title} — {(count.Length > 0 ? count + " · " : "")}{where}   ({a.Index + 1}/{a.Count})";
+        _aimLine.Text = $"{title} — {(count.Length > 0 ? count + " · " : "")}{where}{Deadline(a.Step)}   ({a.Index + 1}/{a.Count})";
         _aimLine.Visible = _hudOn && !_inTitle;
         // sous le bandeau ET sous le curseur d écoute, quelles que soient leurs hauteurs
         _aimLine.Position = new Vector2(18, HudTop + TrimHeight + GunBarHeight);
@@ -277,17 +288,88 @@ public partial class ShipDemo : Node3D
         : (d / Config.Mile).ToString("F1", System.Globalization.CultureInfo.InvariantCulture).Replace('.', ',') + " M";
 
     /// <summary>Où en est un objectif qui se compte : « 12,4 kg sur 40 ».</summary>
-    string Counted(QuestStep s) => s.Goal switch
+    string Counted(QuestStep s) => CountedOf(s, _quests!.Counted);
+
+    /// <summary>Le compte d'une étape, pour la ligne dorée et le panneau des objectifs (Tab).</summary>
+    static string CountedOf(QuestStep s, double n) => s.Goal switch
     {
-        Goal.Fish => $"{Kg(_quests!.Counted)} kg pêchés sur {Kg(s.Kg ?? 1)}",
-        Goal.Sell => $"{Kg(_quests!.Counted)} kg vendus sur {Kg(s.Kg ?? 1)}",
+        Goal.Fish => $"{Kg(n)} kg {(s.Species.Length > 0 ? "de " + SpeciesName(s.Species) + " " : "")}pêchés sur {Kg(s.Kg ?? 1)}",
+        Goal.Sell => $"{Kg(n)} kg vendus sur {Kg(s.Kg ?? 1)}",
+        Goal.SheetIn => FormattableString.Invariant($"bordé de {Math.Min(n, s.Needed):F0}° sur {s.Needed:F0}°"),
+        Goal.SheetOut => FormattableString.Invariant($"choqué de {Math.Min(n, s.Needed):F0}° sur {s.Needed:F0}°"),
+        Goal.Tack => FormattableString.Invariant($"{n:F0} virement(s) sur {s.Needed:F0}"),
         _ => ""
     };
 
+    static string SpeciesName(string key) => key switch { "merou" => "mérou", _ => key };
+
+    /// <summary>« · avant 19 h » : l'heure limite d'une étape, et ce qu'il en reste.</summary>
+    string Deadline(QuestStep s)
+    {
+        if (s.Before is not double h) return "";
+        double left = ((h - _sky.Core.DayTime) % 24 + 24) % 24;
+        string hh = FormattableString.Invariant($"{(int)h} h{(h % 1 > 0.01 ? ((int)Math.Round(h % 1 * 60)).ToString("00") : "")}");
+        // passée de moins de douze heures : l'heure est passée, on le dit sans rien casser
+        return left > 12 ? $" · la nuit est tombée ({hh})" : $" · avant {hh}";
+    }
+
+    /* LES NOMS DE TOUCHES DANS LES TEXTES : {border}, {choquer}, {babord},
+       {tribord}, {pecher}, {toile}, {objectifs} deviennent la lettre du clavier
+       qu'on a sous les doigts — un texte écrit en AZERTY mentirait en QWERTY, et
+       l'inverse. Les touches sont prises à leur EMPLACEMENT, comme le jeu les lit. */
+    static string Keyed(string text)
+    {
+        if (text.IndexOf('{') < 0) return text;
+        static string L(Key k) => OS.GetKeycodeString(DisplayServer.KeyboardGetKeycodeFromPhysical(k));
+        return text.Replace("{border}", L(Key.Q)).Replace("{choquer}", L(Key.E))
+                   .Replace("{babord}", L(Key.A)).Replace("{tribord}", L(Key.D))
+                   .Replace("{toile}", L(Key.V)).Replace("{pecher}", "Espace")
+                   .Replace("{objectifs}", "Tab");
+    }
+
     /// <summary>À chaque image : ce que les quêtes regardent du navire, et rien de plus.</summary>
+    double _prevSheet = -1;
+    int _tackSide;
+    /// <summary>--essai-tuto : la main du joueur sur l'écoute, jouée par l'essai (border, puis choquer).</summary>
+    bool _tutorTest;
+
+    /* LES GESTES DU TUTORIEL, crédités à mesure : ce que la main fait à l'écoute
+       (en degrés, bordés ou choqués), et chaque fois que le vent passe sur l'autre
+       amure — virement vent devant ou lof pour lof, c'est un changement de bord. */
+    void TutorTick()
+    {
+        if (_quests?.Current is not QuestStep st) { _prevSheet = -1; return; }
+        if (_tutorTest)
+        {
+            double dt = GetProcessDeltaTime();
+            if (st.Goal == Goal.SheetIn) _ship.Ctrl.Sheet = Math.Max(0, _ship.Ctrl.Sheet - dt * 0.8);
+            else if (st.Goal == Goal.SheetOut) _ship.Ctrl.Sheet = Math.Min(_ship.Spec.MaxSheet, _ship.Ctrl.Sheet + dt * 0.8);
+        }
+        double sh = _ship.Ctrl.Sheet;
+        if (_prevSheet >= 0 && (st.Goal == Goal.SheetIn || st.Goal == Goal.SheetOut))
+        {
+            double d = (sh - _prevSheet) * 180 / Math.PI;
+            if (d < -1e-6) _quests.Credit(Goal.SheetIn, -d);
+            else if (d > 1e-6) _quests.Credit(Goal.SheetOut, d);
+        }
+        _prevSheet = sh;
+        // l'amure : de quel bord vient le vent, hors du lit du vent et du vent arrière
+        var b = _ship.Physics.Body;
+        var fw = b.Quat.Rotate(new Vec3d(0, 0, 1));
+        double hd = Math.Atan2(-fw.X, fw.Z), from = _sea.Core.WindDeg * Math.PI / 180;
+        double off = Math.Atan2(Math.Sin(from - hd), Math.Cos(from - hd));
+        int side = Math.Abs(off) > 0.3 && Math.Abs(off) < Math.PI - 0.3 ? Math.Sign(off) : 0;
+        if (side != 0)
+        {
+            if (_tackSide != 0 && side != _tackSide && b.Vel.LengthXZ > 0.3) _quests.Credit(Goal.Tack, 1);
+            _tackSide = side;
+        }
+    }
+
     void QuestTick(double dt)
     {
         if (_quests == null || _world == null) return;
+        TutorTick();
         var wo = _sea.Core.Origin;
         var b = _ship.Physics.Body;
         var p = _ship.Physics;

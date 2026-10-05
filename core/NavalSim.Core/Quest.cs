@@ -25,7 +25,14 @@ public enum Goal
     /// <summary>En vendre <see cref="QuestStep.Kg"/> kilos au comptoir.</summary>
     Sell,
     /// <summary>Acheter un navire au chantier.</summary>
-    Buy
+    Buy,
+    /* LES GESTES DU TUTORIEL (Godot) : l'hôte crédite ce que fait la main. */
+    /// <summary>Border l'écoute de <see cref="QuestStep.Angle"/> degrés.</summary>
+    SheetIn,
+    /// <summary>La choquer d'autant.</summary>
+    SheetOut,
+    /// <summary>Virer de bord <see cref="QuestStep.Count"/> fois : le vent passe sur l'autre amure.</summary>
+    Tack
 }
 
 /// <summary>
@@ -107,6 +114,26 @@ public sealed class QuestStep
     public double? Kg;
     /// <summary>Le rang que l'étape donne quand elle est remplie, ou vide.</summary>
     public string Rank = "";
+    /// <summary>L'espèce qui compte pour une pêche (« merou »), ou vide : toutes.</summary>
+    public string Species = "";
+    /// <summary>L'heure du ciel avant laquelle la faire (« avant » : 19), affichée ; ou nulle.</summary>
+    public double? Before;
+    /// <summary>Les degrés d'écoute à border ou choquer.</summary>
+    public double? Angle;
+    /// <summary>Combien de virements de bord.</summary>
+    public double? Count;
+
+    /// <summary>Ce qu'il faut atteindre pour un objectif qui se compte.</summary>
+    public double Needed => Goal switch
+    {
+        Goal.Fish or Goal.Sell => Kg ?? 1,
+        Goal.SheetIn or Goal.SheetOut => Angle ?? 15,
+        Goal.Tack => Count ?? 1,
+        _ => 1
+    };
+
+    /// <summary>Un objectif qui se compte et non un lieu : rien à viser.</summary>
+    public bool Counts => Goal is Goal.Fish or Goal.SheetIn or Goal.SheetOut or Goal.Tack;
 
     /// <summary>Le rayon du lieu : celui de la fiche, sinon celui de l'objectif.</summary>
     public double R => Radius ?? Quests.Radius(Goal);
@@ -119,7 +146,9 @@ public sealed class QuestStep
             Title = Js.Str(s, "title"), Brief = Js.Str(s, "brief"), Message = Js.Str(s, "message"),
             Goal = Quests.GoalOf(Js.Str(s, "goal")),
             Radius = Js.Opt(s, "radius"), MaxSpeed = Js.Opt(s, "maxSpeed"), Hold = Js.Opt(s, "hold"),
-            Kg = Js.Opt(s, "kg"), Rank = Js.Str(s, "rang")
+            Kg = Js.Opt(s, "kg"), Rank = Js.Str(s, "rang"),
+            Species = Js.Str(s, "espece"), Before = Js.Opt(s, "avant"),
+            Angle = Js.Opt(s, "angle"), Count = Js.Opt(s, "nombre")
         };
         if (s.TryGetProperty("cargo", out var cg)) step.Cargo = Freight.FromJson(cg);
         if (s.TryGetProperty("at", out var at) && at.ValueKind == JsonValueKind.Object)
@@ -168,6 +197,10 @@ public sealed class QuestSpec
     /// <summary>La bourse de départ, en écus, ou nul : celle que la partie donne.</summary>
     public double? Purse;
     public readonly List<QuestStep> Steps = new();
+    /// <summary>La cinématique qui l'ouvre (un chapitre de l'histoire), ou nulle.</summary>
+    public CinematicSpec? Cinematic;
+    /// <summary>La question de fin (« fin ») : ce qu'on dit avant de proposer la suite.</summary>
+    public string End = "";
 
     /// <summary>
     /// Pourquoi cette quête est inacceptable, ou <c>null</c> si elle tient. Une
@@ -179,14 +212,42 @@ public sealed class QuestSpec
         if (string.IsNullOrEmpty(Id)) return "pas d'id";
         if (Steps.Count == 0) return "aucune étape";
         for (int i = 0; i < Steps.Count; i++)
-            if (Steps[i].At.None && Steps[i].Goal != Goal.Fish) return $"étape {i + 1} sans lieu (at)";
+            if (Steps[i].At.None && !Steps[i].Counts) return $"étape {i + 1} sans lieu (at)";
         return null;
     }
 
     public static QuestSpec FromJson(string json)
     {
         using var doc = JsonDocument.Parse(json);
-        var r = doc.RootElement;
+        return FromElement(doc.RootElement);
+    }
+
+    /// <summary>
+    /// LES CHAPITRES DE L'HISTOIRE, tous dans un fichier (<c>quests/histoire.json</c>
+    /// → « chapitres ») : le texte se relit et se retouche d'un seul tenant. Chacun
+    /// est une quête « story » ; son numéro est son rang dans la liste, sauf s'il
+    /// écrit le sien.
+    /// </summary>
+    public static List<QuestSpec> ChaptersFromJson(string json)
+    {
+        var list = new List<QuestSpec>();
+        using var doc = JsonDocument.Parse(json, new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
+        if (!doc.RootElement.TryGetProperty("chapitres", out var ch) || ch.ValueKind != JsonValueKind.Array) return list;
+        int n = 0;
+        foreach (var e in ch.EnumerateArray())
+        {
+            n++;
+            var q = FromElement(e);
+            q.Kind = "story";
+            if (q.Chapter == 0) q.Chapter = n;
+            if (q.Id.Length == 0) q.Id = $"chapitre-{q.Chapter}";
+            list.Add(q);
+        }
+        return list;
+    }
+
+    public static QuestSpec FromElement(JsonElement r)
+    {
         var q = new QuestSpec
         {
             Id = Js.Str(r, "id"), Title = Js.Str(r, "title"), Summary = Js.Str(r, "summary"),
@@ -200,6 +261,8 @@ public sealed class QuestSpec
         if (r.TryGetProperty("steps", out var steps) && steps.ValueKind == JsonValueKind.Array)
             foreach (var st in steps.EnumerateArray())
                 q.Steps.Add(QuestStep.FromJson(st));
+        if (r.TryGetProperty("cinematique", out var ci)) q.Cinematic = CinematicSpec.FromJson(ci);
+        q.End = Js.Str(r, "fin");
         return q;
 
     }
@@ -266,6 +329,8 @@ public sealed class Quests
     public double Counted;
     /// <summary>Un rang vient d'être donné, par une étape remplie.</summary>
     public Action<string>? OnRank;
+    /// <summary>Une quête vient d'être menée à son terme (après son dernier message).</summary>
+    public Action<QuestSpec>? OnFinish;
 
     public Quests(World world) { _world = world; }
 
@@ -286,6 +351,9 @@ public sealed class Quests
         "peche" => Goal.Fish,
         "vente" => Goal.Sell,
         "achat" => Goal.Buy,
+        "border" => Goal.SheetIn,
+        "choquer" => Goal.SheetOut,
+        "virer" => Goal.Tack,
         _ => Goal.Reach
     };
 
@@ -305,9 +373,11 @@ public sealed class Quests
     /// acheté) ; cela ne compte que si c'est ce que l'étape en cours demande — le
     /// poisson pris avant qu'on vous le demande ne se vend pas deux fois.
     /// </summary>
-    public void Credit(Goal g, double amount)
+    public void Credit(Goal g, double amount, string species = "")
     {
         if (Current is not QuestStep s || s.Goal != g || !HereNow) return;
+        // une pêche d'une espèce : le vivaneau n'y compte pas pour le mérou
+        if (s.Species.Length > 0 && species.Length > 0 && s.Species != species) return;
         Counted += amount;
         OnChange?.Invoke();
     }
@@ -407,7 +477,10 @@ public sealed class Quests
                 met = Hold >= (step.Hold ?? 8);
                 break;
             case Goal.Fish:
-            case Goal.Sell: met = Counted + 1e-6 >= (step.Kg ?? 1); break;
+            case Goal.Sell:
+            case Goal.SheetIn:
+            case Goal.SheetOut:
+            case Goal.Tack: met = Counted + 1e-6 >= step.Needed; break;
             case Goal.Buy: met = Counted >= 1; break;
             default: met = inside; break;
         }
@@ -437,6 +510,7 @@ public sealed class Quests
             Done.Add(q.Id);
             if (q.Outro.Length > 0) OnShow?.Invoke(q.Title.Length > 0 ? q.Title : q.Id, q.Outro);
             Active = null; Step = 0;
+            OnFinish?.Invoke(q);
         }
         else Brief();
         OnChange?.Invoke();

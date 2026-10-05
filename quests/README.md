@@ -121,8 +121,17 @@ est exactement ce qu'il faut pour un fret payé au voyage.
 - **`vente`** (Godot) : vendre `kg` kilos de poisson au comptoir depuis le
   début de l'étape.
 - **`achat`** (Godot) : acheter un navire au chantier (market/chantier.json).
+- **`border`** · **`choquer`** (Godot) : border ou choquer l'écoute de `angle`
+  degrés (15 par défaut) — les gestes du tutoriel, crédités à mesure que la main
+  les fait. Pas de lieu.
+- **`virer`** (Godot) : virer de bord `nombre` fois — le vent passe sur l'autre
+  amure, vent devant ou lof pour lof. Pas de lieu.
 
-Le compte de ces trois-là se sauvegarde avec l'étape (`compte` dans
+Une pêche peut ne compter qu'une espèce : `"espece": "merou"` (ou `vivaneau`).
+`"avant": 19` écrit à côté de l'objectif l'heure du ciel avant laquelle le
+faire (« avant 19 h »), et la nuit tombée quand elle est passée ; rien ne casse.
+
+Le compte de ces objectifs se sauvegarde avec l'étape (`compte` dans
 `quetes.json`) : quitter à mi-pêche ne fait pas recommencer.
 
 ### Lieux (`at`)
@@ -149,6 +158,55 @@ une carte anglaise de la fin du XVIIe siècle.
 À l'échelle 0,4, de Port-Royal : Passage Fort 1,3 M, Old Harbour 5,9 M,
 Yallahs 6,2 M, Port Morant 11,6 M, Negril — la pointe de l'ouest — 35,5 M.
 Compter une heure pour six milles, davantage contre l'alizé.
+
+## L'histoire en chapitres (Godot)
+
+Tous les chapitres de l'histoire sont dans **`quests/histoire.json`**, sous
+`"chapitres"`, dans l'ordre : le texte se relit et se retouche d'un seul tenant.
+Chacun est une quête comme les autres (mêmes champs, mêmes objectifs), plus :
+
+- `"cinematique"` : le film qui ouvre le chapitre (voir ci-dessous) ;
+- `"fin"` : le texte de la question posée à la fin de la mission — passer au
+  chapitre suivant, ou continuer à jouer librement.
+
+Son numéro est son rang dans la liste (ou `"chapter"`), son `id` celui qu'il
+écrit (sinon `chapitre-N`). Le menu **Histoire** commence le premier qu'on n'a
+pas fini. Les missions, elles, restent chacune dans leur fichier.
+
+**Tab** montre à tout moment les objectifs du chapitre : ce qui est fait, ce
+qui est en cours et son compte, ce qui reste, et la consigne de l'étape (le
+bord en batterie est passé à ⇧Tab).
+
+Dans les textes, `{border}`, `{choquer}`, `{babord}`, `{tribord}`, `{toile}`,
+`{pecher}` et `{objectifs}` deviennent la touche du clavier du joueur — un
+texte écrit pour l'AZERTY dirait faux en QWERTY.
+
+### La cinématique (`"cinematique"`)
+
+```json
+"cinematique": {
+  "naufrage": { "navire": 7, "lat": 17.900, "lon": -76.800, "heure": 18.5,
+                "force": 10, "duree": 70, "musique": "naufrage.ogg", "volume": 2 },
+  "etablissement": { "port": "port-royal", "heure": 7.5, "duree": 24,
+                     "rayon": 420, "hauteur": 90, "balayage": 110 }
+}
+```
+
+- **`naufrage`** : le navire (son numéro dans `ships/index.json` — 7 est la Roter
+  Löwe — ou le nom de sa fiche) sombre au lieu dit, par la force de vent donnée,
+  à l'heure donnée : la foudre sur sa mâture, puis la mer qui entre ; quand il
+  descend, ses pièces s'en vont en voltigeant et une sphère de lumière de trente
+  centimètres descend au milieu d'elles, la caméra sous l'eau. `duree` borne la
+  scène ; `musique` est un fichier de `medias/sound`, joué même musique coupée
+  (absent : la tempête seule). Son épave reste au fond, inscrite au registre.
+- **`etablissement`** : au matin, la caméra en arc au-dessus du port et de sa
+  rade (`rayon` et `hauteur` en mètres, `balayage` en degrés), puis en fondu le
+  ponton de départ et la fenêtre du chapitre.
+
+Échap, Entrée ou Espace passent le film. Essais : `--quete chapitre-1` (avec le
+film), `--sans-film` avant `--quete` (sans), `--objectifs` (le panneau de Tab
+ouvert), `--essai-tuto` (l'écoute bordée puis choquée comme la main le ferait),
+`--fin-chapitre` (la question de fin, tout de suite).
 
 ## Dans Godot
 

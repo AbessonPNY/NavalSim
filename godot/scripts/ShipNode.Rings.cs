@@ -444,7 +444,10 @@ public partial class ShipNode
             };
             ring.Glow.AddRange(glow);
             _rings.Add(ring);
-            if (sp != null && !sp.On) RingsOrdered = false;
+            /* ÉTEINT AU DÉPART s'il n'est pas dit allumé : un anneau que la fiche ne
+               nomme pas — un modèle qui en gagne un sans que sa fiche le sache, La
+               Boussole le 04/10 — ne doit pas lancer le téléporteur à la mise à l'eau. */
+            if (sp == null || !sp.On) RingsOrdered = false;
             _ringPivots.Add(pivot);
             _apparatusR = Math.Max(_apparatusR, rmax * k);
             GD.Print(FormattableString.Invariant(

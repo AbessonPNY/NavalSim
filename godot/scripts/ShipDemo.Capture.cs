@@ -149,6 +149,13 @@ public partial class ShipDemo
                 // StartQuest arme le navire que la fiche impose, Start ne le fait pas.
                 // une quête demandée se joue tout de suite : pas d affiche par-dessus
                 case "--quete": _askTitle ??= false; StartQuest(args[i + 1]); break;
+                // un chapitre sans sa cinématique (à placer AVANT --quete)
+                case "--sans-film": _noFilm = true; break;
+                // l'essai du tutoriel : l'écoute bordée puis choquée, comme le ferait la main
+                case "--essai-tuto": _tutorTest = true; break;
+                // le panneau des objectifs (Tab), ouvert
+                case "--objectifs": _openGoals = true; break;
+                case "--fin-chapitre": _askEndTest = true; break;
                 /* un navire parlé tout de suite : une chose qu on ne peut éprouver
                    qu en attendant huit minutes est une chose qu on n éprouve pas */
                 case "--parler": if (args[i + 1] != "0") Speak(); break;

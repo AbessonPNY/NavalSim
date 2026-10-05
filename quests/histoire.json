@@ -1,0 +1,200 @@
+{
+  "_aide": "LES CHAPITRES DE L'HISTOIRE, dans l'ordre. Chacun : son titre, son texte d'ouverture (« intro », la fenêtre au ponton de départ), ses étapes (les objectifs, que Tab montre à tout moment), son dernier mot (« outro ») et la question de fin (« fin »). « cinematique » ouvre le chapitre : « naufrage » (navire : son numéro dans ships/index.json — 7 est la Roter Löwe — ou le nom de sa fiche ; lat/lon : où ; heure ; force du vent ; duree : le plus long qu'elle dure, en secondes ; musique : un fichier de medias/sound, joué même musique coupée — absent, la tempête seule ; volume), puis « etablissement » (port ; heure ; duree ; rayon et hauteur de l'arc de la caméra, en mètres ; balayage : de combien de degrés elle tourne). Dans les textes, {border}, {choquer}, {babord}, {tribord}, {toile}, {pecher} et {objectifs} deviennent la touche du clavier du joueur. Objectifs : border et choquer (angle : degrés d'écoute), virer (nombre de virements), peche (kg, espece : merou ou vivaneau), vente (kg, at : un port), achat, et les lieux (reach, leave, stop, dock). « avant » : une heure du ciel, affichée à côté de l'objectif. Format complet : quests/README.md.",
+
+  "chapitres": [
+    {
+      "id": "chapitre-1",
+      "region": "caraibes",
+      "ship": "sloop",
+      "rang": "Pêcheur",
+      "bourse": 2,
+      "title": "Chapitre 1 : Du pêcheur au Skipper",
+      "summary": "Pêcher le mérou au large, rentrer avant la nuit, vendre au marché de Port-Royal.",
+
+      "cinematique": {
+        "naufrage": {
+          "navire": 7,
+          "lat": 17.900, "lon": -76.800,
+          "heure": 18.5,
+          "force": 10,
+          "duree": 70,
+          "musique": "naufrage.ogg",
+          "volume": 2
+        },
+        "etablissement": {
+          "port": "port-royal",
+          "heure": 7.5,
+          "duree": 24,
+          "rayon": 420,
+          "hauteur": 90,
+          "balayage": 110
+        }
+      },
+
+      "intro": "Bienvenue à Port Royal, vous êtes pêcheur au large. Votre journée démarre par un voyage au large pour trouver les meilleurs mérous de la région. Une bonne pêche rapporte pas mal de pièces. 40 kg devraient suffire pour rentrer avant la nuit.\n\nCette première sortie est aussi l'occasion de reprendre la main : border, choquer, virer de bord.\n\n{objectifs} : vos objectifs, à tout moment.",
+
+      "steps": [
+        {
+          "title": "Établir la toile et border l'écoute",
+          "brief": "Établissez la toile ({toile}), puis bordez l'écoute : {border} la raidit, la voile vient vers l'axe du navire. C'est le réglage du près, quand le vent vient de l'avant.",
+          "goal": "border",
+          "angle": 15,
+          "message": "La voile se tend et le sloop prend de la gîte : il porte."
+        },
+        {
+          "title": "Choquer l'écoute",
+          "brief": "Choquez maintenant : {choquer} file l'écoute, la voile s'ouvre au vent. C'est le réglage du largue et du vent arrière. Une voile qui faseye est trop choquée ; une voile qui gîte le navire sans le faire avancer est trop bordée.",
+          "goal": "choquer",
+          "angle": 15,
+          "message": "Bien. Le bon réglage est toujours entre les deux : juste assez bordé pour que la voile ne batte pas."
+        },
+        {
+          "title": "Virer de bord",
+          "brief": "Faites passer le vent d'un bord à l'autre : la barre ({babord} ou {tribord}), et tenez-la. Un sloop vire vent devant — lancé, il passe le lit du vent et repart sur l'autre amure. Sans erre, il reste coincé face au vent : prenez de la vitesse avant.",
+          "goal": "virer",
+          "nombre": 1,
+          "message": "Le vent est passé sur l'autre joue, la bôme a traversé le pont. Vous savez remonter au vent : à vous le large."
+        },
+        {
+          "title": "Pêcher 40 kg de mérou",
+          "brief": "Sortez de la rade, mettez en panne ou mouillez au-dessus d'un fond qui vous plaît, et filez les lignes : {pecher}.\n\nLe mérou tient la roche et les récifs, de huit à quarante-cinq mètres. La sonde vous dira la profondeur, et le suif du plomb ce qu'il y a dessous — du sable qui colle, de la roche qui le laisse propre.\n\nQuand ça mord, {pecher} tout de suite pour ferrer. {pecher} sans touche relève les lignes ; elles se relèvent seules si le navire prend de l'erre.",
+          "goal": "peche",
+          "espece": "merou",
+          "kg": 40,
+          "message": "Quarante kilos de mérou dans la cale, et le soleil tape déjà sur les planches.\n\nLe poisson garde son prix une vingtaine de minutes ; ensuite il perd de sa valeur, et au bout d'une heure il est bon à jeter. Rentrez."
+        },
+        {
+          "title": "Rentrer à Port-Royal et vendre la pêche",
+          "brief": "Rangez-vous le long du ponton avant la nuit : le comptoir prend le poisson frais au kilo, et le paie à sa fraîcheur.",
+          "at": { "port": "port-royal" },
+          "goal": "vente",
+          "kg": 40,
+          "avant": 19,
+          "message": "Le poissonnier pèse, renifle, soulève une ouïe du bout du pouce, et paie."
+        }
+      ],
+
+      "outro": "Une journée de mer, une cale vendue, et des pièces dans la bourse.\n\nSur le port, on commence à vous regarder comme quelqu'un qui sait mener un bateau.",
+      "fin": "Votre mission est terminée. Vous pouvez passer au chapitre suivant, ou continuer à jouer librement."
+    },
+
+    {
+      "id": "les-vivres-du-crawle",
+      "region": "caraibes",
+      "chapter": 2,
+      "ship": "sloop",
+      "title": "Chapitre 2 : Les vivres du Crawle",
+      "summary": "Porter les vivres à l'enclos du colonel Barry, et en ramener la viande. Votre premier fret.",
+      "intro": "Port-Royal, octobre 1690.\n\nSamuel Barry engraisse des porcs de l'autre côté de la rade, sur la plaine de Liguanea, et il nourrit la moitié des tavernes de la ville. Ses gens manquent de tout : farine, sel, futailles vides.\n\nIl n'y a pas de chemin qui vaille pour y aller — à la Jamaïque, la route, c'est l'eau. Il cherche un patron de barque. On vous paiera au retour, sur la viande livrée.",
+      "steps": [
+        {
+          "title": "Charger les vivres à Port-Royal",
+          "brief": "Amarrez-vous au ponton de Port-Royal : les gens de Barry vous attendent avec leurs barriques.",
+          "at": {
+            "port": "port-royal"
+          },
+          "goal": "dock",
+          "cargo": {
+            "load": {
+              "kind": "vivres",
+              "tonnes": 6
+            }
+          },
+          "message": "Six tonnes de farine, de sel et de futailles vides roulent à bord.\n\nElle s'assied de six tonnes — regardez sa ligne d'eau. Le crawle est à moins de deux milles au nord-est, au fond de la rade.\n\nSi vous les jetez par-dessus bord, personne ne vous paiera."
+        },
+        {
+          "title": "Porter les vivres au Hog Crawle",
+          "brief": "Le débarcadère de Samuel Barry, rive nord de la rade. Un ponton de vingt-huit mètres, et rien autour.",
+          "at": {
+            "port": "hog-crawle"
+          },
+          "goal": "dock",
+          "cargo": {
+            "needs": {
+              "kind": "vivres",
+              "tonnes": 6
+            },
+            "unload": "vivres",
+            "load": {
+              "kind": "viande",
+              "tonnes": 5
+            }
+          },
+          "message": "Les barriques descendent, et cinq tonnes de porc salé montent à leur place.\n\nBarry ne vous paie pas ici : il n'y a pas d'argent dans un enclos à cochons. Le comptoir de Port-Royal réglera à la livraison."
+        },
+        {
+          "title": "Ramener la viande à Port-Royal",
+          "brief": "Cinq tonnes de porc salé à rendre au comptoir. Vous serez payé là-bas, et pas avant.",
+          "at": {
+            "port": "port-royal"
+          },
+          "goal": "dock",
+          "cargo": {
+            "needs": {
+              "kind": "viande",
+              "tonnes": 5
+            },
+            "unload": "viande",
+            "pay": 720
+          },
+          "message": "Le porc est pesé, compté, roulé dans l'entrepôt.\n\nDouze écus. Votre premier fret."
+        }
+      ],
+      "outro": "Douze écus pour deux milles et retour, ce n'est pas une fortune — mais c'est la vôtre, et personne ne vous l'a donnée.\n\nBarry dit qu'il aura d'autres barriques. La rade est pleine de gens qui ont besoin qu'on porte quelque chose quelque part."
+    },
+
+    {
+      "id": "le-tour-de-la-jamaique",
+      "region": "caraibes",
+      "chapter": 3,
+      "title": "Chapitre 3 : Le tour de la Jamaïque",
+      "summary": "Apprendre la manœuvre en portant le rôle de l'amirauté d'une rade à l'autre.",
+      "intro": "Vous prenez le commandement à Port-Royal. Avant de vous confier autre chose, l'amirauté veut voir si vous savez mener une coque : vous porterez son rôle à Passage Fort, au fond de la rade, puis à Old Harbour, dans l'ouest.\n\nTout ce qu'il faut est sur le pont. F1 rappelle les commandes à tout moment.",
+      "steps": [
+        {
+          "title": "Appareiller",
+          "brief": "Larguez les amarres avec M, établissez la toile avec V, puis gouvernez avec A et D. Bordez les écoutes avec E, choquez-les avec Q. Sortez de la rade : un demi-mille entre le ponton et vous.",
+          "at": {
+            "port": "port-royal"
+          },
+          "goal": "leave",
+          "radius": 900,
+          "message": "Le ponton s'éloigne. Le vent des alizés souffle de l'est presque toute l'année : il vous poussera vers l'ouest, et il faudra le remonter pour revenir.\n\nCe que vous voyez au fond de la rade est Passage Fort — le débarcadère de St Jago de la Vega."
+        },
+        {
+          "title": "Accoster à Passage Fort",
+          "brief": "Traversez la rade et amarrez-vous au ponton de Passage Fort : approchez sous peu de toile (V pour ferler), et pressez M le long du ponton.\n\nLa touche I ouvre la carte du capitaine — elle ne montre que ce que ce bord a vu.",
+          "at": {
+            "port": "passage-fort"
+          },
+          "goal": "dock",
+          "message": "Le rôle est remis. Un commis vous regarde manœuvrer sans rien dire, ce qui vaut mieux qu'un compliment.\n\n« Vous redescendrez la rade et vous mettrez en panne au sud des Palisadoes. On veut voir si vous savez ATTENDRE. »"
+        },
+        {
+          "title": "Mettre en panne au sud des Palisadoes",
+          "brief": "Sortez de la rade, passez au sud de la langue de sable, et tenez-vous là sans erre : ferlez la toile avec V, ou mouillez avec M. Il faut rester dix secondes sous un nœud et demi.",
+          "at": {
+            "port": "port-royal",
+            "bearing": 180,
+            "miles": 0.8
+          },
+          "goal": "stop",
+          "radius": 400,
+          "maxSpeed": 1.5,
+          "hold": 10,
+          "message": "La coque roule doucement sur la houle, toile ferlée. Un navire qui ne va nulle part travaille encore : la mer le prend par le travers et il dérive.\n\nCap à l'ouest maintenant, vent portant, sur Old Harbour."
+        },
+        {
+          "title": "Relâcher à Old Harbour",
+          "brief": "Longez la côte vers l'ouest jusqu'à Old Harbour et amarrez-vous. Le vent est dans votre dos : choquez les écoutes (Q) pour que la toile le prenne en plein, et surveillez le repère doré du curseur d'écoute.",
+          "at": {
+            "port": "old-harbour"
+          },
+          "goal": "dock",
+          "message": "Old Harbour — le Puerto de Esquivel des Espagnols. Le rôle est complet, et votre carte porte maintenant deux rades que personne ne vous avait montrées."
+        }
+      ],
+      "outro": "« Vous savez appareiller, attendre, porter la toile et accoster. » L'officier referme le rôle.\n\n« Le reste de l'île vous attend : Withywood, Black River, Savanna-la-Mar, Negril, Lucea, Montego Bay, Dry Harbour, Port Maria, Port Antonio, Port Morant, Yallahs. Et Port-Royal est au vent : pour y rentrer, il faudra tirer des bords. »"
+    }
+  ]
+}

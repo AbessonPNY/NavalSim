@@ -190,6 +190,8 @@ public partial class ShipDemo
     {
         if (_tripCamKeep) _tripCam = true;
         if (!_trafficOn || _world == null || _inTitle || _skirmish || _ship == null || _trafficN <= 0) return;
+        // pendant le naufrage du film, la rade dort ; au plan d'ensemble, elle vit
+        if (_film is { Phase: 0 }) return;
         _tripAcc += dt;
         if (_tripAcc < 1) return;
         _tripAcc = 0;

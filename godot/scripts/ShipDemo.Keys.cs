@@ -96,7 +96,8 @@ public partial class ShipDemo : Node3D
         Section(a, "Manœuvre");
         Key(a, "W  S", "machine, en avant et en arrière");
         Key(a, "A  D", "barre à bâbord, à tribord");
-        Key(a, "Q  E", "choquer, border les écoutes");
+        Key(a, "Q  E", "border, choquer les écoutes");
+        Key(a, "Tab", "les objectifs du chapitre");
         Key(a, "V", "établir ou ferler");
         Key(a, "⇧V", "prendre un ris : huniers, bas ris, tout serré");
         Key(a, "B", "l'élan : en route d'un coup, ou stop (B B : vitesse doublée)");

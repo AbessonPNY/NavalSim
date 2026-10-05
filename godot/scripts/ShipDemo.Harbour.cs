@@ -27,6 +27,14 @@ public partial class ShipDemo
     readonly Dictionary<ShipPhysics, double> _volee = new();
     /// <summary>Le sort des crochets. Semé en dur : une volée doit se rejouer à l identique au banc.</summary>
     readonly Random _grappleRng = new(20261001);
+
+    /// <summary>Une coque encore dans la partie : le navire commandé ou l'un des autres.</summary>
+    bool GrappleLive(ShipPhysics p)
+    {
+        if (_ship != null && _ship.Physics == p) return true;
+        for (int i = 0; i < _others.Count; i++) if (_others[i].Physics == p) return true;
+        return false;
+    }
     /// <summary>Les pontons, pour le solveur : il s'y cogne. Voir ShipPhysics.Jetties.</summary>
     (double Sx, double Sz, double Hx, double Hz)[] _jetties = System.Array.Empty<(double, double, double, double)>();
 
@@ -76,6 +84,20 @@ public partial class ShipDemo
         /* LE CINÉMA A SA BANDE, et elle passe même quand la musique d'ambiance est
            coupée : on a demandé un film, pas l'ambiance du jeu. À la sortie du mode,
            elle s'éteint en fondu et la situation reprend la main. */
+        /* LE FILM D'UN CHAPITRE a sa musique (histoire.json → cinematique), même
+           musique coupée ; tant qu'elle manque, il se joue sur la tempête seule. */
+        if (_film != null)
+        {
+            var ws = _film.Phase == 0 ? _film.C.Wreck : null;
+            var es = _film.Phase == 1 ? _film.C.Establish : null;
+            string m = ws?.Music ?? es?.Music ?? "";
+            // un morceau qui manque n'est demandé qu'une fois : sinon l'avertissement à chaque battement
+            if (m.Length > 0 && !System.IO.File.Exists(System.IO.Path.Combine(WorldLoad.Folder, "medias", "sound", m))) m = "";
+            double g = ws?.Volume ?? es?.Volume ?? 1;
+            _sound.DuckSea(m.Length > 0 ? 0.5 : 1, now: true);
+            _sound.Ambiance(m.Length > 0 ? m : null, g, attack: true);
+            return;
+        }
         bool film = _cine && _ambCine.Length > 0;
         // la mer baisse de soixante pour cent sous la bande du film, et remonte après
         _sound.DuckSea(film ? 0.4 : 1, now: film);

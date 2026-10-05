@@ -268,6 +268,9 @@ public partial class ShipDemo : Node3D
            neuve : un pêcheur ne part pas avec les quatre cents écus d'un armateur. */
         if (q is { Rank.Length: > 0 }) _rank = q.Rank;
         if (q?.Purse is double ecus) _purse = new Purse((long)Math.Round(ecus * Market.SousParEcu));
+        /* UN CHAPITRE QUI S'OUVRE SUR UN FILM : la quête commence à sa fin
+           (ShipDemo.Story.cs). --sans-film le saute, pour l'essai. */
+        if (q?.Cinematic != null && !_noFilm) { SaveQuests(); BeginFilm(q); return; }
         _quests.Start(id);
         SaveQuests();
         Play();

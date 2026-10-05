@@ -33,7 +33,7 @@ public partial class ShipDemo : Node3D
 
     void WraithTick(double dt, double hours)
     {
-        if (_wraith == null || _world == null) return;
+        if (_wraith == null || _world == null || _film != null) return;
         var b = _ship.Physics.Body;
         var o = _sea.Core.Origin;
         bool avant = _wraith.State != Wraith.Mood.Away;

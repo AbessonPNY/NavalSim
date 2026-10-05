@@ -62,7 +62,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `Reefs.cs` (noyau) | les récifs de la fiche (`"recifs"`) relevés dans `World.HeightAt` (`Config.Reefs`, Godot seul) et peints par `seabed.gdshaderinc` (**même ourlet des deux côtés**) ; les écueils (`World.Rocks`, semis `"ecueil"`) ; le fond DUR ouvre la coque dès 0,8 m/s et la perd clouée dessus (`ShipPhysics.Gash`, `Rocks`) |
 | `wreck_silt.gdshader` (Godot) | ce que la mer dépose sur une épave selon son âge (`WreckRegistry.SiltCover` : rien le premier jour, pleine en deux semaines) : la vase sur les plats, par la loi de la neige, et la croûte (concrétion, algues, rouille) partout |
 | `chart.js` | la carte marine |
-| `quests.js` | les quêtes : étapes, lieux, objectifs (`quests/*.json`) |
+| `quests.js` | les quêtes : étapes, lieux, objectifs (`quests/*.json`) ; sous Godot, l'HISTOIRE en chapitres dans un seul fichier (`quests/histoire.json`), sa cinématique, ses objectifs sous Tab et la question de fin (`ShipDemo.Story.cs`, `Cinematic.cs`) |
 | `ship-model.js` | coque, gréement, voiles, pavillons, lanternes, safran, fenêtres de nuit, avirons, anneaux (ce qui tourne sans se déformer, `ShipNode.Rings.cs` côté Godot), .glb |
 | `ship-physics.js` | sondes, corps rigide 6 ddl, gouvernail, voiles, avirons |
 | `controls.js` · `camera-rig.js` · `hud.js` | barre, caméras (vues à bord dans la fiche ; sous Godot, le drone Fly-By, `ShipDemo.FlyBy.cs`), instruments |

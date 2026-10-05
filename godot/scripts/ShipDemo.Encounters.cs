@@ -43,7 +43,7 @@ public partial class ShipDemo
 
     void EncounterTick(double dt)
     {
-        if (!_metRules.Enabled || _ship == null || _world == null || _inTitle) return;
+        if (!_metRules.Enabled || _ship == null || _world == null || _inTitle || _film != null) return;
         // une escarmouche est déjà pleine de monde, et les spectres ont leur nuit
         if (_skirmish || _ghosts.Active) return;
 

@@ -275,7 +275,10 @@ public partial class ShipDemo
                 // ⇧O : GAGNER LE LARGE, là où l on croise des voiles
                 case Key.O when k.ShiftPressed: GoOffshore(); break;
                 case Key.O: _settings.Occlusion = !_settings.Occlusion; Changed(); break;
-                case Key.Tab: CycleGunSide(); break;
+                /* TAB : LES OBJECTIFS, à tout moment (demandé) ; le bord en batterie
+                   passe à ⇧Tab, et reste au doigt sur son panneau. */
+                case Key.Tab when k.ShiftPressed: CycleGunSide(); break;
+                case Key.Tab: ToggleObjectives(); break;
                 /* ⇧Y : LE FEU À BORD — Y fait sauter la soute, ⇧Y allume ce qui
                    l'y mènera si personne ne s'en occupe. */
                 case Key.Y when k.ShiftPressed:

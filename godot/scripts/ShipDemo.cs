@@ -674,7 +674,9 @@ public partial class ShipDemo : Node3D
 
         // au titre, la barre et les voiles ne répondent pas : l'œil fait sa ronde
         // en mode création la barre ne répond plus : les touches sont à l'éditeur
-        if (_inTitle) TitleTick(frame); else if (_editing) EditTick(frame); else ReadKeys(frame);
+        if (_filmLater != null) { var fl = _filmLater; _filmLater = null; BeginFilm(fl); }
+        if (_inTitle) TitleTick(frame); else if (_editing) EditTick(frame); else if (_film != null) FilmTick(frame); else ReadKeys(frame);
+        ObjectivesTick(frame);
         // le temps AVANT le solveur : la coque et le shader liront la même mer
         WeatherTick(frame, _t - frame);
 
@@ -714,6 +716,9 @@ public partial class ShipDemo : Node3D
         /* LES FILINS APRÈS LES SOLVEURS : une contrainte corrige ce que
            l'intégration vient de faire. La poser avant reviendrait à corriger
            l'image d'avant, et le bout paraîtrait élastique d'un pas de temps. */
+        /* LES FILINS QUI NE TIENNENT PLUS À RIEN partent avant d'être halés : un bout
+           sur une coque coulée, retirée, ou quittée par le joueur au chantier. */
+        if (_grapples.Lines.Count > 0) _grapples.Prune(GrappleLive);
         _grapples.Step(frame);
         _ship.SyncTransform();
         _grappleNode?.Sync(_grapples);

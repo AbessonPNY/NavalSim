@@ -14299,6 +14299,60 @@ plus que dans les cases gardées ; tout le semis du fond tombe à 1,0 s (1,8 ava
 l'herbier dense). Coût mesuré : le pré, 8,77 ms contre 8,54 sans le fond ; le récif,
 7,57 comme avant.
 
+## L'histoire en chapitres, et son premier film (Godot)
+
+Demandé : l'histoire divisée en chapitres, tout leur texte dans un JSON qu'on
+retouche ; au lancement, une cinématique, puis la fenêtre du chapitre au ponton ; Tab
+pour les objectifs à tout moment ; à la fin de chaque mission, la question — chapitre
+suivant, ou jeu libre. Chapitre 1, « Du pêcheur au Skipper » : le tutoriel (border,
+choquer, virer), 40 kg de mérou, rentrer avant la nuit et vendre (choix de
+l'utilisateur ; l'achat du cotre sort du chapitre). Les chapitres 2 et 3, qui avaient
+chacun leur fichier, sont rangés dans quests/histoire.json avec leur texte et leur id.
+
+LE FILM. Le navire qui sombre est le navire MENÉ pendant le film, comme le galion de
+l'affiche au titre : la mer, l'écume, la caméra et le registre des épaves le suivent
+sans rien apprendre, et son épave reste au fond, inscrite — elle appartient à
+l'histoire. Trois pièges en route :
+- par la ligne de commande, le film commençait pendant le démarrage, qui remettait
+  ensuite le navire mené à son ponton : la Roter Löwe « sombrait » à Port-Royal, par
+  onze mètres (2,2 km en trente secondes : un saut, pas une dérive). Le film attend
+  que le jeu soit monté ;
+- elle ne coule pas d'elle-même : percée partout, pleine à 98 %, ses châteaux la
+  tiennent à fleur d'eau (9 % de coque dehors, jamais « sombrée »). Vrai d'une coque
+  de bois — mais elle porte son fer et son lest : un tiers de sa masse rendu à
+  quatre cinquièmes pleine, et elle descend. Au banc (« sombrer »), le noyau seul la
+  coule en 8 à 12 s ; en jeu, l'eau entre six fois moins vite — non élucidé ;
+- le premier lieu, près des cayes, la faisait sombrer sur le sable de Rackham's Cay :
+  au large, par 137 m.
+La sphère naît au cœur de la nuée de pièces et descend à leur pas (0,32 m/s ; les
+pièces, 0,20 à 0,45), une lampe courte autour d'elle qui les allume. La nuit d'orage
+était noire : le naufrage est au crépuscule, 18 h 30 ; l'aube du plan d'ensemble, 7 h 30,
+l'objectif essuyé de la pluie. Les annonces (« la foudre frappe le mât ») se taisent
+pendant un film, les rencontres, le trafic au naufrage, les fantômes et les monstres
+aussi.
+
+LES GESTES DU TUTORIEL se comptent sur ce que fait la main : les degrés d'écoute
+bordés ou choqués, et chaque passage du vent sur l'autre amure (vent devant ou lof
+pour lof), hors du lit du vent et du vent arrière, avec de l'erre. Les noms de touches
+des textes ({border}…) sont pris à leur EMPLACEMENT : « la barre (Q ou D) » sur un AZERTY.
+Le mémento disait « Q E : choquer, border » — l'inverse de ce que font les touches ;
+corrigé.
+
+## Les filins se lâchent ; les anneaux de La Boussole (Godot)
+
+Les filins de grappin ne partaient que rompus (34 m) ou tranchés : Grapple.Drop existait
+et personne ne l'appelait. Désormais le pirate largue les siens dès qu'il quitte
+l'abordage (Grapple.Release, chaque image hors de la phase Abordage), un filin dont un
+bout est sur une coque coulée ou qui n'est plus dans la partie est tranché avant d'être
+halé (Grapple.Prune, ShipDemo.GrappleLive), et RemoveShip lâche ceux du retiré. Banc
+« filins » : quatre bouts largués, quatre tranchés à la proie qui sombre.
+
+SIGNALÉ : La Boussole partait anneaux allumés. Le hero_ship.glb mis à jour le 04/10 en
+a gagné deux (anneau_1, anneau_2, absents de la version du 03/10), et sa fiche ne les
+nommait pas — un anneau sans fiche partait ALLUMÉ (RingsOrdered vrai par défaut, éteint
+seulement par un « on »: false). La fiche reçoit la déclaration de sa jumelle la Roter
+Löwe, et un anneau que la fiche ne nomme pas part désormais éteint.
+
 ## Les navires du jeu sondent, et ne serpentent plus (Godot)
 
 SIGNALÉ : le sloop sorti de Port-Royal avant le joueur laissait un sillage en serpent.
