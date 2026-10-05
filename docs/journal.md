@@ -14347,6 +14347,22 @@ bâbord, à 49° de 12° vers tribord. LA PIÈCE SE VOIT POINTÉE : son pivot (c
 ShipNode.Recoil) tourne de Train et lève la bouche de Hausse ; le recul suit l'axe tourné. Bouton :
 « proue tribord 1/1 · +3,0° · 12° bâbord » ; une partie neuve remet tout à zéro.
 
+L'ŒIL DERRIÈRE LA PIÈCE (signalé : « je n'arrive pas à me mettre derrière le canon, je suis décalé »).
+Il était posé à 2,2 m derrière la « bouche » retenue par la batterie, et tourné autour d'elle ; la
+pièce dessinée tourne autour de son pivot, et cette bouche n'est pas au bout du tube (à 0,5 m du
+pivot sur la Roter Löwe — mesuré : direction −38°, axe du tube −37°, les directions concordaient, la
+POSITION non). L'œil est désormais lu sur la géométrie de la pièce (ShipNode.PieceEye) : le milieu de
+ses sommets, un pas (1,2 m) derrière son bout arrière le long de sa direction, dans le repère de son
+pivot — puis tourné autour du pivot comme elle. Le tube part du bas de l'image, dans l'axe.
+
+LA MOUSTACHE TOUCHE LA COQUE (signalé : elle naissait devant l'étrave). Une fraction fixe de la
+longueur (0,44 L) tombait sous l'éperon d'un galion, en eau libre. Elle naît maintenant sur le
+bordé : la première station, depuis l'étrave, où la flottaison a le tiers de sa plus grande
+demi-largeur, lue sur le PLAN DE FORMES (Roter Löwe : z 12,8 m sur 15, demi-largeur 1,5 m). PAS sur le
+profil mesuré du modèle : celui de la Roter Löwe est faux — demi-largeur 1,05 m (fiche 3,6), un corps
+de −11 à −8,7 m — et l'éventail partait de la poupe. Ce profil sert aussi au collier d'écume, au
+sillage et à la mer retirée de la coque : défaut à part, signalé.
+
 LA COQUE QUI SOUFFLE (demandé : des gerbes presque verticales près de la coque qui coule). Chaque
 mètre cube que la mer fait entrer en chasse un d'air ; à fleur d'eau il sort EN FORCE par les
 écoutilles : des geysers le long de la ligne d'eau (ShipPhysics.Water), au débit d'envahissement

@@ -29,6 +29,9 @@ public partial class ShipNode
         public Vector3 Back;          // le sens du recul, unitaire
         public double Was = -1;       // l'heure de disponibilité vue au tour d'avant
         public double Fired = -1, Until = -1;
+        /// <summary>Le milieu de la pièce et son bout arrière le long de sa direction, dans le repère du pivot (PieceEye).</summary>
+        public Vector3? AxisMid;
+        public float AxisBack;
     }
 
     readonly List<GunPiece> _gunPieces = new();
@@ -231,6 +234,52 @@ public partial class ShipNode
     /// sa bouche levée de sa hausse (Gun.Train, Gun.Hausse) — autour du milieu de la
     /// pièce, là où est son pivot. Le recul suit l'axe tourné (RecoilTick).
     /// </summary>
+    /// <summary>
+    /// OÙ SE TIENT LE CHEF DE PIÈCE, dans le repère de la pièce posée sur son pivot :
+    /// sur l'axe de ce qu'on voit d'elle (le milieu de ses sommets), à un pas derrière
+    /// son bout arrière le long de sa direction. Lu sur la géométrie : la « bouche » que
+    /// la batterie retient n'est pas toujours au bout du tube dessiné. Null sans pièce.
+    /// </summary>
+    public Vector3? PieceEye(Gun g, float step)
+    {
+        int i = Battery.Guns.IndexOf(g);
+        if (i < 0 || i >= _gunPieces.Count) return null;
+        var p = _gunPieces[i];
+        if (p.Back == Vector3.Zero || p.Pivot == null || !IsInstanceValid(p.Pivot)) return null;
+        var dir = new Vector3((float)g.Dir.X, 0, (float)g.Dir.Z).Normalized();
+        if (p.AxisMid is not Vector3 mid)
+        {
+            // dans le repère du pivot, lu une fois : la pièce n'y bouge pas
+            var inv = p.Pivot.GlobalTransform.AffineInverse();
+            var sum = Vector3.Zero; int n = 0; float lo = float.MaxValue;
+            var pts = new List<Vector3>();
+            foreach (var mi in NodeWalk.Meshes(p.Pivot))
+            {
+                if (mi.Mesh == null) continue;
+                var xf = inv * mi.GlobalTransform;
+                for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
+                {
+                    var arr = mi.Mesh.SurfaceGetArrays(s)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                    int stepN = Math.Max(1, arr.Length / 600);
+                    for (int k = 0; k < arr.Length; k += stepN) { var q = xf * arr[k]; pts.Add(q); sum += q; n++; }
+                }
+            }
+            if (n == 0) return null;
+            mid = sum / n;
+            foreach (var q in pts) lo = Math.Min(lo, (q - mid).Dot(dir));
+            p.AxisMid = mid; p.AxisBack = lo;
+        }
+        return mid + dir * (p.AxisBack - step);
+    }
+
+    /// <summary>Le pivot de la pièce dessinée de ce canon, dans le repère du navire.</summary>
+    public Vector3? PiecePivot(Gun g)
+    {
+        int i = Battery.Guns.IndexOf(g);
+        if (i < 0 || i >= _gunPieces.Count || _gunPieces[i].Back == Vector3.Zero) return null;
+        return _gunPieces[i].Home;
+    }
+
     public void AimPiece(Gun g)
     {
         int i = Battery.Guns.IndexOf(g);

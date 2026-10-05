@@ -342,8 +342,22 @@ public partial class ShipDemo
             }
             double pitch = (v.Pitch) * Math.PI / 180 + _bridgePitch;
             var look = new Vector3((float)(dir.X * Math.Cos(pitch)), (float)Math.Sin(pitch), (float)(dir.Z * Math.Cos(pitch)));
-            var at = g.P.ToGodot()
-                   - dir * (float)(v.Z ?? 2.2) + new Vector3(0, (float)(v.Y ?? 0.55), 0);
+            /* DERRIÈRE LA CULASSE, SUR L'AXE DU TUBE (signalé : décalé quand on la pointait).
+               La pièce tourne autour de son MILIEU (son pivot) ; l'œil tournait autour de la
+               bouche, si bien qu'un pointage le portait de côté, presque sur la culasse. Il
+               tourne maintenant autour du même point qu'elle, et se tient à la longueur du
+               tube derrière son milieu, plus un pas : là où se tient le chef de pièce. */
+            var muzzle = g.P.ToGodot();
+            if (_ship.PiecePivot(g) is Vector3 pv && _ship.PieceEye(g, 1.2f) is Vector3 local)
+            {
+                /* DERRIÈRE LA PIÈCE, SUR SON AXE (signalé : décalé). L'œil est lu sur la pièce
+                   dessinée — un pas derrière son bout arrière, dans l'axe de ses sommets —
+                   puis tourné autour de son pivot comme elle (ShipNode.AimPiece). */
+                double c = Math.Cos(yaw), s = Math.Sin(yaw);
+                var turned = new Vector3((float)(local.X * c + local.Z * s), local.Y, (float)(-local.X * s + local.Z * c));
+                return (pv + turned + new Vector3(0, (float)(v.Y ?? 0.55), 0), look.Normalized());
+            }
+            var at = muzzle - dir * (float)(v.Z ?? 2.2) + new Vector3(0, (float)(v.Y ?? 0.55), 0);
             return (at, look.Normalized());
         }
         return null;

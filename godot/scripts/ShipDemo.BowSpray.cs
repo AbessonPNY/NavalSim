@@ -24,6 +24,14 @@ public partial class ShipDemo
     readonly Dictionary<ShipNode, double> _bowNext = new();
     readonly Random _bowRng = new();
 
+    /// <summary>La demi-largeur de la coque à la flottaison (y = 0) à la station t (0 l'étambot, 1 l'étrave).</summary>
+    static double WaterHalf(HullLines lines, double t)
+    {
+        double deck = lines.DeckY(t), keel = lines.KeelY(t);
+        if (keel >= 0 || deck <= keel) return 0;
+        return lines.HalfB(t) * lines.BeamFactor(Math.Clamp(deck / (deck - keel), 0, 1));
+    }
+
     void BowSprayTick()
     {
         var cam = _cam.GlobalPosition;
@@ -45,8 +53,29 @@ public partial class ShipDemo
         var fwd = b.Quat.Rotate(new Vec3d(0, 0, 1));
         double v = b.Vel.Dot(fwd);
         double fr = v / Math.Sqrt(Config.G * Math.Max(2, sp.L));
-        // l'étrave à la flottaison : un peu en arrière du nez, où la coque entre dans l'eau
-        var stem = b.Quat.Rotate(new Vec3d(0, 0, sp.L * 0.44)) + b.Pos;
+        /* L'ÉTRAVE À LA FLOTTAISON, LUE SUR LA COQUE (signalé : la moustache ne touchait pas
+           la coque). Une fraction fixe de la longueur tombait devant l'étrave d'un galion,
+           dont l'éperon déborde loin au-dessus de l'eau. Le profil de flottaison mesuré sur
+           le modèle (le même que le collier et le sillage) dit où le bordé entre dans l'eau
+           et sa demi-largeur là : la première station, depuis l'avant, où la coque a pris
+           le tiers de son bau — c'est là qu'elle pousse l'eau. L'éventail part DU BORDÉ. */
+        double zStem = sp.L * 0.44, half = Math.Max(0.3, sp.B * 0.08);
+        {
+            /* lue sur le PLAN DE FORMES, l'unique de la fiche (et non sur le profil mesuré du
+               modèle, qui pour la Roter Löwe ne voit qu'un bout de coque) : sa demi-largeur à
+               la flottaison, station par station, depuis l'étrave */
+            var lines = s.Lines;
+            double best = 0;
+            for (int k = 0; k <= 40; k++) best = Math.Max(best, WaterHalf(lines, k / 40.0));
+            for (int k = 40; k >= 0; k--)
+            {
+                double tt = k / 40.0, hw = WaterHalf(lines, tt);
+                if (hw < 0.3 * best) continue;
+                zStem = (tt - 0.5) * sp.L; half = hw;
+                break;
+            }
+        }
+        var stem = b.Quat.Rotate(new Vec3d(0, 0, zStem)) + b.Pos;
         double sea = _sea.Core.Sample(stem.X, stem.Z, _t);
         // l'étrave qui plonge dans la lame : sa vitesse verticale, contre celle de la mer (lue sur un pas)
         double dip = Math.Max(0, -(b.Vel.Y + b.AngVel.Cross(stem - b.Pos).Y));
@@ -62,7 +91,7 @@ public partial class ShipDemo
         foreach (int side in new[] { -1, 1 })
         {
             // de chaque joue de l'étrave, vers l'extérieur, et un peu vers l'avant
-            var at = stem + right * (side * Math.Max(0.3, sp.B * 0.08));
+            var at = stem + right * (side * half * 1.02);
             at = new Vec3d(at.X, sea + 0.1, at.Z);
             var dir = right * side + fwd * 0.35;
             _spray.Pool.Fan(at, dir, water * (0.8 + 0.4 * _bowRng.NextDouble()), speed, carry);
