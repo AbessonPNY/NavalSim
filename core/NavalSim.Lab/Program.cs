@@ -660,18 +660,23 @@ void Bordee()
 {
     string json = File.ReadAllText(Path.Combine(shipsDir, "frigate17e.json"));
     var spec = ShipSpec.FromJson(json);
-    foreach (double area in new[] { 0.10, 0.025 })
-    foreach (bool plug in new[] { false, true })
+    /* « -- bordee 40 » : le nombre de coups au but (24 par défaut). Le trou d'avant
+       (0,025 m², le boulet et le bois autour) contre celui du boulet seul (0,012), et
+       le charpentier d'avant (un tampon toutes les 40 s) contre celui d'une équipe (20). */
+    int hits = args.Length > 1 ? int.Parse(args[1]) : 24;
+    foreach (double area in new[] { 0.025, 0.012 })
+    foreach (double plugEvery in new[] { 40.0, 20.0 })
     {
+        bool plug = plugEvery > 0;
         var ocean = new Ocean { Swell = 1.0, Time = 0 };
         ocean.SetSeaState(3, 0);
         var p = new ShipPhysics(spec, new HullLines(spec));
         var ctrl = new Controls { Throttle = 0, Rudder = 0, Sheet = 0.6, SailsSet = false };
         p.Settle(ocean, ctrl);
-        if (!plug) p.PlugEvery = 0;
+        p.PlugEvery = plugEvery;
         var rng = new Random(7);
         int below = 0;
-        for (int i = 0; i < 24; i++)
+        for (int i = 0; i < hits; i++)
         {
             int c = rng.Next(p.Comps.Length);
             // de trente centimètres sous l eau au pont : la muraille qu un boulet tiré à hauteur de batterie trouve
@@ -681,7 +686,7 @@ void Bordee()
             var br = p.MakeBreach(c, area, frac, 1);
             if (br != null && br.Y < 0) below++;
         }
-        Console.WriteLine($"trou {area:F3} m2, charpentier {(plug ? "oui" : "non")} : {p.Breaches.Count} breches, {below} sous la flottaison, pompes {p.PumpRate * 60:F1} m3/min, {p.Comps.Length} compartiments");
+        Console.WriteLine($"trou {area:F3} m2, charpentier {(plug ? plugEvery + " s" : "non")} : {p.Breaches.Count} breches, {below} sous la flottaison, pompes {p.PumpRate * 60:F1} m3/min, {p.Comps.Length} compartiments");
         double dt = 1.0 / 60, t = 0;
         for (int m = 1; m <= 10; m++)
         {

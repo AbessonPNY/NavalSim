@@ -104,6 +104,7 @@ public partial class ShipDemo
                    mise a quai et non ici : le mouillage de depart passe apres la
                    ligne de commande et reposerait le joueur a Port-Royal pendant
                    que sa ligne attend au large. */
+                case "--combat-journal": _combatLogEvery = args[i + 1].ToFloat(); break;
                 case "--escarmouche": _wantMelee = args[i + 1] != "0"; break;
                 // DÉMONSTRATION : plonger la caméra à tant de mètres par seconde
                 case "--plongee": _diveSpeed = args[i + 1].ToFloat(); break;

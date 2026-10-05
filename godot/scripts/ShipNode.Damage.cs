@@ -123,6 +123,12 @@ public partial class ShipNode
     /* LA SOUTE LES PREND TOUS — mais pas ensemble : à quelques dixièmes de seconde
        et de bords alternés, pour la raison des trois charges. Au même instant cela
        se lit comme un objet qui casse ; décalé, comme un navire qui part en morceaux. */
+    /// <summary>Le mât qui porte cette voile, ou −1.</summary>
+    public int MastOfSail(int sail) => sail >= 0 && sail < _canvases.Count ? _canvases[sail].Mast : -1;
+
+    /// <summary>Combien de ses espars sont tombés ou tombent (les mâts et le beaupré).</summary>
+    public int MastsDown { get { int n = 0; for (int i = 0; i < _damage.Count; i++) if (_damage[i].Down != null) n++; return n; } }
+
     public int DropAllMasts()
     {
         int n = 0, side = _dmgRng.NextDouble() < 0.5 ? -1 : 1;

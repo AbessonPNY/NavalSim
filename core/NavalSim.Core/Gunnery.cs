@@ -176,6 +176,22 @@ public sealed class GunnerySettings
     /// <summary>Combien de trous elle encaisse avant de s'ouvrir tout entière.</summary>
     public int SailHolesMax = 6;
 
+    /* LE TROU D'UN BOULET DANS LE BORDÉ, en m² au plein calibre (un douze livres) :
+       la SECTION DU BOULET, 12 cm de diamètre. Il valait le double — le boulet et le
+       bois arraché autour —, et une frégate coulait en six minutes sous quarante coups
+       au but (banc « bordee 40 ») quand les vaisseaux de l'époque en encaissaient des
+       centaines : le chêne s'éclate en dedans, mais ses fibres se referment à demi
+       sur le passage, et c'est la mâture qui cédait la première. Va comme k² (une
+       surface) et comme ce qui reste d'élan (Ball.Bite). */
+    public double ShotHole = 0.012;
+
+    /* UN BOULET QUI TRAVERSE UNE VOILE NE TRAVERSE PAS QUE LA TOILE : derrière elle
+       il y a la vergue, la hune, les haubans et les étais. La chance, au plein calibre
+       et à bout portant, qu'il blesse le mât qui la porte (trois blessures l'abattent).
+       C'est ce qui démâte un navire qu'on canonne dans ses hauts — le tir « à démâter »
+       des Français — avant qu'il n'ait embarqué de quoi couler. */
+    public double SailMastWound = 0.25;
+
     /// <summary>
     /// LE FEU DE BOUCHE COMME LUMIÈRE — ce que le coup éclaire de son propre bord.
     ///
@@ -202,6 +218,8 @@ public sealed class GunnerySettings
         s.FlashLife = Math.Max(0.01, D("flashLife", s.FlashLife));
         s.SailHoleLoss = Math.Clamp(D("sailHoleLoss", s.SailHoleLoss), 0, 1);
         s.SailHolesMax = (int)Math.Clamp(D("sailHolesMax", s.SailHolesMax), 1, 6);
+        s.ShotHole = Math.Clamp(D("shotHole", s.ShotHole), 0, 0.2);
+        s.SailMastWound = Math.Clamp(D("sailMastWound", s.SailMastWound), 0, 1);
         return s;
     }
 }

@@ -150,6 +150,7 @@ public partial class ShipDemo
     void Struck(ShotTarget t, string kind, int index, double frac, double speed, double k, ShipPhysics from, Vec3d world, Vec3d dir)
     {
         if (t.Tag is not ShipNode s) return;
+        CountHit(s, kind);
         // un coup au but PORTÉ PAR NOUS : compté ici, dit une fois la bordée finie
         if (s == _ship)
         {
@@ -178,6 +179,12 @@ public partial class ShipDemo
             {
                 Say(s == _ship ? "Une voile s'ouvre d'une ralingue à l'autre !"
                                : $"Une voile du {s.Spec.Name} s'ouvre en deux !");
+            }
+            // et ce qui est derrière la toile : la vergue, la hune, les haubans (GunnerySettings.SailMastWound)
+            if (r != -1 && _stormRng.NextDouble() < _gunnery.Rules.SailMastWound * Math.Min(1, k) * Ball.Bite(speed, k))
+            {
+                bool tombe = s.WoundMast(s.MastOfSail(index));
+                if (tombe && s == _ship) Shout("mat", 0.1, 5);
             }
             return;
         }
@@ -238,16 +245,15 @@ public partial class ShipDemo
             return;
         }
         /* LE TROU D'UN BOULET, et comme le CARRÉ du calibre — un trou est une
-           surface. 0,025 m² au plein calibre : le boulet (12 cm pour un douze
-           livres, 0,011 m²) et le bois qu'il arrache autour. Il valait 0,1 m², un
-           trou de 36 cm : deux bordées couchaient une frégate en deux minutes
-           (signalé), quand des vaisseaux encaissaient des centaines de coups. Au
-           bordé du côté TOUCHÉ, et le charpentier le bouchera (ShipPhysics.Plug). */
+           surface. La section du boulet au plein calibre (GunnerySettings.ShotHole,
+           0,012 m²) : il valait 0,1 m², puis 0,025, et les navires coulaient encore
+           avant de perdre un mât (signalé deux fois). Au bordé du côté TOUCHÉ, et le
+           charpentier le bouchera (ShipPhysics.Plug). */
         var b = s.Physics.Body;
         var local = b.Quat.Inverted().Rotate(world - b.Pos);
         /* Et le trou va comme l'énergie QUI RESTE : entier à bout portant, les
            deux tiers à deux cents mètres, la moitié au bout du plein fouet. */
-        s.Physics.MakeBreach(index, 0.025 * k * k * bite, Math.Clamp(frac, 0, 1), local.X);
+        s.Physics.MakeBreach(index, _gunnery.Rules.ShotHole * k * k * bite, Math.Clamp(frac, 0, 1), local.X);
         /* ET PARFOIS LE FEU. Un boulet froid n'allume rien par lui-même ; ce qui
            prend est ce qu'il CREVE en passant — une gargousse qu'on portait, une
            lanterne de batterie, un baril de brai. D'où la chance, faible, et

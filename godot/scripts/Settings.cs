@@ -95,6 +95,8 @@ public sealed class Settings
     /// par un ciel pâle venu d'en dessous, comme avant ; à 1, par l'eau.
     /// </summary>
     public float SeaBounce = 1.0f;
+    /// <summary>Le reflet de lentille quand le soleil est dans le champ (0 : aucun ; 1 : réglé).</summary>
+    public float LensFlare = 1.0f;
 
     // [carte]
     /// <summary>La largeur du bec de la plume, en unités de carte : le plein d'un trait fait le double.</summary>
@@ -152,6 +154,7 @@ public sealed class Settings
         s.SunWarmth = (float)cf.GetValue("lumiere", "chaleur_du_soleil", s.SunWarmth);
         s.SkyShade = (float)cf.GetValue("lumiere", "lumiere_du_ciel_dans_l_ombre", s.SkyShade);
         s.SeaBounce = (float)cf.GetValue("lumiere", "rebond_de_la_mer", s.SeaBounce);
+        s.LensFlare = (float)cf.GetValue("lumiere", "reflet_de_lentille", s.LensFlare);
         s.Sound = (bool)cf.GetValue("son", "bruitages", s.Sound);
         s.Music = (bool)cf.GetValue("son", "musique", s.Music);
         s.Volume = (float)cf.GetValue("son", "volume", s.Volume);
@@ -206,6 +209,7 @@ public sealed class Settings
         cf.SetValue("lumiere", "chaleur_du_soleil", SunWarmth);
         cf.SetValue("lumiere", "lumiere_du_ciel_dans_l_ombre", SkyShade);
         cf.SetValue("lumiere", "rebond_de_la_mer", SeaBounce);
+        cf.SetValue("lumiere", "reflet_de_lentille", LensFlare);
         cf.SetValue("son", "bruitages", Sound);
         cf.SetValue("son", "musique", Music);
         cf.SetValue("son", "volume", Volume);

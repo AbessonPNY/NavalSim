@@ -317,6 +317,7 @@ public partial class ShipDemo
         Slide("Chaleur du soleil", 0, 1, 0.05, st.SunWarmth, x => st.SunWarmth = x);
         Slide("Éclairage ambiant", 0, 1.5, 0.05, st.SkyShade, x => st.SkyShade = x);
         Slide("Rebond de la mer", 0, 1, 0.05, st.SeaBounce, x => st.SeaBounce = x);
+        Slide("Reflet de lentille", 0, 2, 0.05, st.LensFlare, x => st.LensFlare = x);
         Title("Carte", 15);
         Slide("Épaisseur de la plume", 0.5, 4, 0.1, st.PenWidth, x =>
         {

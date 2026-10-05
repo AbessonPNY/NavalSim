@@ -67,7 +67,7 @@ public partial class ShipDemo : Node3D
     public override void _ExitTree()
     {
         if (!_booted) return;                       // fermé pendant le chargement
-        SaveBook(); SaveQuests(); _motionBlur?.Release(); _anamorphic?.Release();
+        SaveBook(); SaveQuests(); _motionBlur?.Release(); _anamorphic?.Release(); _under?.Release(); _flare?.Release();
     }
 
     /// <summary>
@@ -367,8 +367,10 @@ public partial class ShipDemo : Node3D
         _anamorphic = new AnamorphicDofEffect();
         // la profondeur de champ avant le flou de mouvement, comme dans l'objectif puis l'obturateur
         _under = new UnderwaterEffect { Enabled = false };
+        // le reflet de lentille en dernier : il naît dans l'objectif, après tout ce que la scène a fait
+        _flare = new LensFlareEffect { Enabled = false };
         // l'eau d'abord : les flous viennent sur l'image qu'elle a déjà teinte
-        _cam.Compositor = new Compositor { CompositorEffects = new Godot.Collections.Array<CompositorEffect> { _under, _anamorphic, _motionBlur } };
+        _cam.Compositor = new Compositor { CompositorEffects = new Godot.Collections.Array<CompositorEffect> { _under, _anamorphic, _motionBlur, _flare } };
         _dofMarker = new DofMarker();
         AddChild(_dofMarker);
 
@@ -681,6 +683,7 @@ public partial class ShipDemo : Node3D
         ObjectivesTick(frame);
         SwimTick(frame);
         SightTick(frame);
+        CombatLogTick();
         StarsTick();
         SwimAfter(frame);
         // le temps AVANT le solveur : la coque et le shader liront la même mer
@@ -1109,6 +1112,7 @@ public partial class ShipDemo : Node3D
                                             (float)((og.Z % period + period) % period / cell));
         }
         DropletTick(frame, under);
+        FlareTick(under);
         _sky.PushGlobals(_cloud, _t);
         _sky.PushTo(_sea.Material);
         _sea.Material.SetShaderParameter(U.Sunlit, (float)_sky.Sunlit);

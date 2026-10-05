@@ -14690,6 +14690,45 @@ PAS FAIT, À PROPOSER : l'EXTINCTION de la passe ne lit pas encore la vase — d
 Port-Royal ne montre plus son fond à onze mètres, de dessous on y voit aussi loin qu'au large.
 L'aligner (k × (1 + 2,5 × trouble), comme la mer) diviserait par deux la vue en nageant dans le port.
 
+## Des navires qui démâtent avant de couler ; le reflet de lentille (Godot)
+
+SIGNALÉ, après une bataille : « les bateaux coulent plus vite qu'ils ne perdent leurs mâts et leur
+voilure ». C'est l'inverse de l'histoire : un navire de bois coulait rarement au canon ; il était
+démâté, désemparé, pris ou brûlé.
+
+MESURÉ (banc « bordee 40 », frégate, quarante coups au but de 30 cm sous l'eau au pont, seize sous la
+flottaison) : au trou de 0,025 m² au plein calibre, elle coule en six minutes, charpentier compris ; à
+0,012 m² (la section du boulet seule), elle flotte encore à dix minutes avec 75 t d'eau qui montent
+lentement. Avec un charpentier deux fois plus vif (un tampon toutes les 20 s) elle s'assèche :
+insubmersible au boulet, donc non — il garde ses 40 s. Le trou est désormais un réglage
+(settings.json → gunnery → shotHole, 0,012).
+
+LA MÂTURE : un mât tombe à trois blessures, et seul un boulet qui touche L'ESPAR le blesse — un bâton
+de soixante centimètres que les bordées trouvaient rarement. Un boulet qui traverse une voile
+traverse aussi ce qu'il y a derrière (vergue, hune, haubans, étais) : il blesse maintenant le mât
+qui la porte avec la chance sailMastWound (0,25, × calibre et élan restant) — le tir à démâter
+devient une vraie conduite de feu, et la hausse des pièces sert à quelque chose.
+
+LE JOURNAL DE COMBAT (-- --combat-journal 30, ShipDemo.CombatLog.cs) : par navire, coups reçus
+(coque, toile, mâts), brèches et leur aire SOUS l'eau, eau embarquée, mâts tombés. Premier
+enseignement : en escarmouche, des coques s'ouvrent SANS un boulet reçu (le Roter Löwe : trois
+brèches, 0,41 m² sous l'eau, coque 0) — les abordages en vitesse et les échouages (Gash, le choc de
+coque à plus de 2,2 m/s) ; ceux-là ne changent pas ici. L'escarmouche est lente à faire tourner
+sans fenêtre (90 s de jeu en quinze minutes) : le banc a servi à choisir.
+
+LE REFLET DE LENTILLE (demandé ; LensFlareEffect.cs, lens_flare.glsl, ShipDemo.Flare.cs) : une passe
+écran de plus, en queue (après le flou de mouvement : il naît dans l'objectif). Six fantômes sur
+l'axe soleil–centre et au-delà, au bord vif comme un diaphragme, teintés comme des traitements de
+verre ; un voile et six branches autour du soleil ; un anneau pâle. Le shader sonde seize points du
+disque solaire et s'éteint d'autant de ce qui passe devant (un mât fait battre le reflet). PIÈGE :
+le ciel n'est PAS à 60 000 m dans le tampon de screen_copy — il est au PLAN LOINTAIN de la caméra
+(profondeur 0 inversée, projection finie) ; le seuil se tire donc de la projection elle-même
+(inv_proj × (0,0,0,1)). Avant cela, rien ne s'affichait : le diagnostic (teinte rouge quand la
+sonde ne voit pas le ciel) l'a montré d'un coup. Éteint sous l'eau, la nuit, hors du cadre ;
+affaibli par le ciel couvert (Sunlit), la brume de surface, l'orage, le soleil sous 5°. Écart dit :
+c'est un artefact d'OBJECTIF, l'œil n'en voit pas — au menu, Lumière : « Reflet de lentille »
+(0 l'éteint ; reglages.ini → [lumiere] reflet_de_lentille).
+
 ## Ce que coûtent les pâtés de maisons de Port-Royal (Godot)
 
 Mesuré (--sans-ajout <motif>, qui cache les ajouts du mode création dont le modèle
