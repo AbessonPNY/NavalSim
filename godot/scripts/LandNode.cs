@@ -353,6 +353,7 @@ public partial class LandNode : Node3D
             if (Assets.LoadGlb(path) is not Node3D root)
             { GD.PushWarning($"[monde] {a.Glb} illisible"); continue; }
 
+            ShipDemo.LodSay(a.Glb, root);
             var g = World.Geo.ToXZ(a.Lat, a.Lon);
             var hold = new Node3D { Name = a.Name.Length > 0 ? a.Name : "asset" };
             hold.AddChild(root);

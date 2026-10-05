@@ -14299,6 +14299,29 @@ plus que dans les cases gardées ; tout le semis du fond tombe à 1,0 s (1,8 ava
 l'herbier dense). Coût mesuré : le pré, 8,77 ms contre 8,54 sans le fond ; le récif,
 7,57 comme avant.
 
+## Ce que coûtent les pâtés de maisons de Port-Royal (Godot)
+
+Mesuré (--sans-ajout <motif>, qui cache les ajouts du mode création dont le modèle
+contient ce motif, sans rien écrire ; --vsync 0, 1 200 images) : cottage-ville-bloc.glb
+fait 470 000 triangles en 8 appels de dessin, posé dix fois — 4,7 millions de triangles,
+dessinés aussi dans les ombres. Chargé une seule fois (RawModel) et dupliqué : la mémoire
+n'est pas en cause, la carte graphique l'est. Vue haute sur la ville (150 m) : 12,75 ms
+par image avec, 9,02 sans les dix blocs (carte 11,79 → 8,34) ; les huit
+cottage-ville-002 (29 000 triangles) : 0,3 ms. Vue du ponton : 9,52 contre 9,09 ms.
+Le chargement à l'exécution (GltfDocument) ne fabrique AUCUN niveau de détail : un
+bloc à huit cents mètres se dessine avec ses 470 000 triangles.
+
+LE REMÈDE (demandé) : Assets.AddLods, au chargement de ce qui est posé à terre (modèles
+posés, ajouts bruts du mode création) : tout maillage de plus de 20 000 triangles passe
+par ImporterMesh.GenerateLods (meshoptimizer, réglages de l'import : 25°/60°), et le
+rendu choisit son niveau à la taille vue, ombres comprises. Le bloc : 296 000 → 148 000,
+74 000, 38 000 sur sa grande surface, 174 000 → 6 500 sur l'autre — il ne descend pas
+plus bas, le seuil d'erreur l'arrête. 0,55 s au chargement pour lui, 30 ms pour un
+cocotier. Vue haute : 12,75 → 10,80 ms (carte 11,79 → 9,85), contre 9,02 sans les blocs ;
+vue du ponton : inchangée (9,5). Relever le seuil de bascule (MeshLodThreshold 2, 4 px)
+ne gagne presque rien (10,65, 10,52) : laissé à 1. Les navires n'y passent pas — leurs
+maillages sont réécrits en jeu. Ce qui reste se gagnera dans Blender (Decimate).
+
 ## La voile à contre, et l'ILCA 4 (Godot)
 
 LA VOILE À CONTRE (demandée) : le virement de l'équipage mettait déjà la misaine à

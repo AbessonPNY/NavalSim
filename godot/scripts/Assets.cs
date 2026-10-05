@@ -66,6 +66,47 @@ public static class Assets
         return err == Error.Ok ? doc.GenerateScene(state) as Node3D : null;
     }
 
+    /// <summary>Below this many triangles a mesh is drawn as it is: simplifying it gains nothing.</summary>
+    public const int LodFrom = 20000;
+
+    /// <summary>
+    /// LEVELS OF DETAIL for what is posed on land. The editor import pipeline builds
+    /// them; runtime GltfDocument does not, so a 470 000-triangle town block drew all
+    /// of them at 800 m — ten of them took 3.7 ms a frame seen from above (journal,
+    /// « Ce que coûtent les pâtés de maisons »). Every heavy mesh is handed to
+    /// ImporterMesh, which simplifies it (meshoptimizer) into a chain of index
+    /// buffers over the same vertices; the renderer then picks one by screen size,
+    /// shadows included. Ships are left alone: their meshes are rewritten live.
+    /// Returns the triangle count that got levels.
+    /// </summary>
+    public static int AddLods(Node root)
+    {
+        int done = 0;
+        foreach (var mi in NodeWalk.Meshes(root))
+        {
+            if (mi.Mesh is not ArrayMesh am || am.GetBlendShapeCount() > 0) continue;
+            int tris = 0;
+            for (int s = 0; s < am.GetSurfaceCount(); s++)
+                if (am.SurfaceGetPrimitiveType(s) == Mesh.PrimitiveType.Triangles)
+                {
+                    int ix = am.SurfaceGetArrayIndexLen(s);
+                    tris += (ix > 0 ? ix : am.SurfaceGetArrayLen(s)) / 3;
+                }
+            if (tris < LodFrom) continue;
+            var im = new ImporterMesh();
+            for (int s = 0; s < am.GetSurfaceCount(); s++)
+                im.AddSurface(am.SurfaceGetPrimitiveType(s), am.SurfaceGetArrays(s), null, null,
+                              am.SurfaceGetMaterial(s), am.SurfaceGetName(s));
+            // the import defaults: merge normals under 25°, split above 60°
+            im.GenerateLods(25, 60, new Godot.Collections.Array());
+            var lodded = im.GetMesh();
+            lodded.ResourceName = am.ResourceName;
+            mi.Mesh = lodded;
+            done += tris;
+        }
+        return done;
+    }
+
     /// <summary>
     /// Dire au démarrage ce que ce dossier contient. Un doublon oublié est une
     /// panne muette du genre le plus vicieux : on corrige un modèle, on relance,

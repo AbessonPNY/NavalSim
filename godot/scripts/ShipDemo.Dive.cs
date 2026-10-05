@@ -386,6 +386,7 @@ public partial class ShipDemo
     double _diveTestIn = -1;
     /// <summary>--fond : l'œil sur le pâté le plus peuplé d'une foule du fond (« corail », « herbier »).</summary>
     string _bedTest = "";
+    string _hideAddedTest = "";
     /// <summary>--epave-age : l'âge de l'épave d'essai, en jours (sa vase).</summary>
     double _wreckAge;
     (double? Wreck, bool Bell, double Rope, bool Take) _diveTest;
@@ -399,6 +400,15 @@ public partial class ShipDemo
         {
             var o = _sea.Core.Origin; var p = _ship.Physics.Body.Pos;
             GD.Print(FormattableString.Invariant($"[ou] origine ({o.X:F0}, {o.Z:F0}), navire ({p.X:F0}, {p.Z:F0}) local, ({o.X + p.X:F0}, {o.Z + p.Z:F0}) vrai"));
+        }
+        if (_hideAddedTest.Length > 0 && _addedRoot != null && _editReg != null)
+        {
+            int hid = 0;
+            // un nom de nœud ne garde pas les deux-points de l'identifiant
+            foreach (var ed in _editReg.ById.Values)
+                if (ed.Glb.Contains(_hideAddedTest) && _addedRoot.GetNodeOrNull<Node3D>(ed.Id.Replace(':', '_')) is { } h) { h.Visible = false; hid++; }
+            GD.Print($"[mesure] {hid} ajout(s) « {_hideAddedTest} » caché(s)");
+            _hideAddedTest = "";
         }
         // « x,z » en mètres vrais vise un point ; un mot, le pâté d'une foule
         var xz = _bedTest.Split(',');

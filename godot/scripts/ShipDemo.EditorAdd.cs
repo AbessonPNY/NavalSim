@@ -297,6 +297,14 @@ public partial class ShipDemo
     /// mètres. L'unité ne se devine pas : un fort de cent unités et un tonneau de
     /// quatre-vingt-dix-huit se ressemblent dans leur fichier.
     /// </summary>
+    /// <summary>Simplifier au loin un modèle lourd (Assets.AddLods), et dire ce que ça a pris.</summary>
+    public static void LodSay(string rel, Node root)
+    {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        int tris = Assets.AddLods(root);
+        if (tris > 0) GD.Print($"[détail] {rel} : {tris} triangles simplifiés au loin en {clock.ElapsedMilliseconds} ms");
+    }
+
     Raw? RawModel(string rel)
     {
         if (_raws.TryGetValue(rel, out var have)) return have;
@@ -307,6 +315,7 @@ public partial class ShipDemo
             if (Assets.LoadGlb(path) is Node3D root)
             {
                 Aabb? box = NodeWalk.Bounds(root);
+                LodSay(rel, root);
                 var haze = HazePass.New();
                 _editHazed.Add(haze);
                 foreach (var mi in NodeWalk.Meshes(root)) HazePass.Wear(mi, haze);   // l'air devant, comme tout ce qui est à terre

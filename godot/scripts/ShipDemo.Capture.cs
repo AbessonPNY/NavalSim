@@ -307,6 +307,8 @@ public partial class ShipDemo
                 case "--debris": _debrisTest = args[i + 1].ToInt(); _diveTestIn = 1.0; break;
                 // l'œil sous l'eau sur un pâté du fond (« corail », « herbier », « rochers »)
                 case "--fond": _bedTest = args[i + 1]; _diveTestIn = 1.0; _askTitle ??= false; break;
+                // MESURE : les ajouts du mode création dont le modèle contient ce motif, cachés (rien n'est écrit)
+                case "--sans-ajout": _hideAddedTest = args[i + 1]; _diveTestIn = 1.0; break;
                 // DIAGNOSTIC : les pièces que chaque fiche porte, lues sur son modèle — elles ne sont écrites nulle part ailleurs
                 case "--batteries":
                     if (args[i + 1] != "0")
