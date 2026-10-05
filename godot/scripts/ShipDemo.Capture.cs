@@ -84,6 +84,8 @@ public partial class ShipDemo
                         int side = hs[0].ToInt();
                         _gunSide = side; SetGunPost(side);
                         if (hs.Length > 1) NudgeHausse(side, hs[1].ToFloat() * Math.PI / 180 - _hausse.GetValueOrDefault(side));
+                        // « -2,4,10 » : et tournée de dix degrés vers bâbord
+                        if (hs.Length > 2) NudgeTrain(side, hs[2].ToFloat() * Math.PI / 180 - _train.GetValueOrDefault(side));
                         break;
                     }
                 // --soute 1 : tout de suite ; --soute 4 : dans quatre secondes, après un --large par exemple

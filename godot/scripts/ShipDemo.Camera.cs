@@ -78,6 +78,19 @@ public partial class ShipDemo
     readonly Dictionary<int, double> _hausse = new();
     /// <summary>Ce que le coin sous la culasse permet : de cinq degrés sous le but en blanc à douze au-dessus.</summary>
     const double HausseMin = -5 * Math.PI / 180, HausseMax = 12 * Math.PI / 180;
+    /// <summary>Le pointage en direction de chaque groupe (positif : vers bâbord), et ce que l'embrasure en laisse.</summary>
+    readonly Dictionary<int, double> _train = new();
+    const double TrainMax = 15 * Math.PI / 180;
+
+    /// <summary>Tourner la pièce servie sur son affût, et la dire. L'œil du servant tourne avec elle.</summary>
+    void NudgeTrain(int side, double d)
+    {
+        double a = Math.Clamp(_train.GetValueOrDefault(side) + d, -TrainMax, TrainMax);
+        _train[side] = a;
+        if (_gunPost == side) _bridgeYaw = a;
+        foreach (var g in _ship.Battery.Guns) if (g.Side == side) { g.Train = a; _ship.AimPiece(g); }
+        UpdateInfo();
+    }
 
     /// <summary>Le site de la ligne de mire de ce groupe contre l'horizon : son but en blanc, plus sa hausse.</summary>
     double SightOf(int side)
@@ -94,8 +107,11 @@ public partial class ShipDemo
     {
         if (Math.Abs(side) < 2) return "";
         double hz = _hausse.GetValueOrDefault(side) * 180 / Math.PI;
-        if (_gunPost != side && Math.Abs(hz) < 0.05) return "";
-        return FormattableString.Invariant($" · {(hz >= 0 ? "+" : "−")}{Math.Abs(hz):F1}°").Replace('.', ',');
+        double tr = _train.GetValueOrDefault(side) * 180 / Math.PI;
+        if (_gunPost != side && Math.Abs(hz) < 0.05 && Math.Abs(tr) < 0.5) return "";
+        string s = FormattableString.Invariant($" · {(hz >= 0 ? "+" : "−")}{Math.Abs(hz):F1}°");
+        if (Math.Abs(tr) >= 0.5) s += FormattableString.Invariant($" · {Math.Abs(tr):F0}° {(tr > 0 ? "bâbord" : "tribord")}");
+        return s.Replace('.', ',');
     }
 
     /// <summary>Lever ou baisser la pièce servie, et la dire.</summary>
@@ -103,7 +119,7 @@ public partial class ShipDemo
     {
         double h = Math.Clamp(_hausse.GetValueOrDefault(side) + d, HausseMin, HausseMax);
         _hausse[side] = h;
-        foreach (var g in _ship.Battery.Guns) if (g.Side == side) g.Hausse = h;
+        foreach (var g in _ship.Battery.Guns) if (g.Side == side) { g.Hausse = h; _ship.AimPiece(g); }
         UpdateInfo();
     }
 
@@ -114,7 +130,8 @@ public partial class ShipDemo
         if (side is int s && GunEye(s, PostView) != null)
         {
             SetLens((float)(PostView.Fov ?? OutsideFov), (float)(PostView.Near ?? OutsideNear));
-            _bridgeYaw = 0; _bridgePitch = 0;
+            // l'œil derrière la pièce comme elle est pointée
+            _bridgeYaw = _train.GetValueOrDefault(s); _bridgePitch = 0;
             Say("À la pièce de " + GunNames[s]);
         }
         else
@@ -359,7 +376,8 @@ public partial class ShipDemo
             return;
         }
 
-        // à la pièce de chasse, s'il y en a une en batterie : l'œil est sur son axe
+        // à la pièce de chasse, s'il y en a une en batterie : l'œil est sur son axe, comme elle est pointée
+        if (_gunPost is int pt) _bridgeYaw = _train.GetValueOrDefault(pt);
         if (_gunPost is int post2 && GunEye(post2, PostView) is { } poste2)
         {
             var xfp = _ship.GlobalTransform;

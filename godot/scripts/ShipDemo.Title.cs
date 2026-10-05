@@ -335,8 +335,8 @@ public partial class ShipDemo : Node3D
            partie y restait, et la hausse réglée à la pièce aussi. La brume repart de
            rien et la météo la refera si elle doit venir ; les pièces au but en blanc. */
         _seaFog = null; _sky.Core.Fog = 0; _saidFog = false;
-        _hausse.Clear();
-        foreach (var g in _ship.Battery.Guns) g.Hausse = 0;
+        _hausse.Clear(); _train.Clear();
+        foreach (var g in _ship.Battery.Guns) { g.Hausse = 0; g.Train = 0; _ship.AimPiece(g); }
         Restate();
         Moor();
         _reck?.Fix(TruePos().X, TruePos().Z);

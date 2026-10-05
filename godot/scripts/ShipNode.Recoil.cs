@@ -227,6 +227,24 @@ public partial class ShipNode
     }
 
     /// <summary>
+    /// LA PIÈCE POINTÉE SE VOIT : tournée sur son affût de son pointage en direction,
+    /// sa bouche levée de sa hausse (Gun.Train, Gun.Hausse) — autour du milieu de la
+    /// pièce, là où est son pivot. Le recul suit l'axe tourné (RecoilTick).
+    /// </summary>
+    public void AimPiece(Gun g)
+    {
+        int i = Battery.Guns.IndexOf(g);
+        if (i < 0 || i >= _gunPieces.Count) return;
+        var p = _gunPieces[i];
+        if (p.Pivot == null || !IsInstanceValid(p.Pivot)) return;
+        var dir = new Vector3((float)g.Dir.X, 0, (float)g.Dir.Z);
+        if (dir.LengthSquared() < 1e-6f) return;
+        var across = Vector3.Up.Cross(dir.Normalized()).Normalized();
+        // lever la bouche : une rotation négative autour de cet axe porte +z vers +y
+        p.Pivot.Basis = new Basis(Vector3.Up, (float)g.Train) * new Basis(across, (float)-g.Hausse);
+    }
+
+    /// <summary>
     /// Où en sont les pièces qui ont tiré, à cette seconde de jeu. <paramref
     /// name="speed"/> est la vivacité voulue : elle divise le temps du recul et
     /// celui du retour, sans toucher à ce que le rechargement dure.
@@ -246,7 +264,7 @@ public partial class ShipNode
             else if (t < outIn) { double u = t / outIn; back = u * u * (3 - 2 * u); }
             else if (t > all - runOut) { back = MathX.Smooth01((all - t) / runOut); }
             else back = 1;
-            p.Pivot.Position = p.Home + p.Back * (float)(back * Kick);
+            p.Pivot.Position = p.Home + new Basis(Vector3.Up, (float)g.Train) * p.Back * (float)(back * Kick);
         }
     }
 }

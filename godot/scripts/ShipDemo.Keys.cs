@@ -107,7 +107,7 @@ public partial class ShipDemo : Node3D
         Key(a, "N", "la chaloupe : l'affaler, y passer, la rembarquer ; échouée, la pousser à l'eau");
         Section(a, "Artillerie");
         Key(a, "G", "un coup de la pièce suivante");
-        Key(a, "glisser", "à une pièce de chasse : de haut en bas, la hausse (−5° à +12°) — la mire vise contre l'horizon");
+        Key(a, "glisser", "à une pièce de chasse : de haut en bas, la hausse (−5° à +12°) ; de côté, la direction (±15°) — la mire vise contre l'horizon");
         Key(a, "G tenu", "la bordée entière");
         Key(a, "⇧G", "tirer de l'autre bord");
         Key(a, "Tab", "changer le bord en batterie");

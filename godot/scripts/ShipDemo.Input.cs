@@ -394,7 +394,8 @@ public partial class ShipDemo
                une douzaine de pixels. La mire suit, contre l'horizon. */
             if (_gunPost is int gp)
             {
-                _bridgeYaw -= mm.Relative.X * 0.004;
+                // de côté, la pièce tourne sur son affût (l'œil avec elle) ; de haut en bas, la hausse
+                NudgeTrain(gp, -mm.Relative.X * 0.0025);
                 NudgeHausse(gp, -mm.Relative.Y * 0.0015);
             }
             else if (_camMode == 1)

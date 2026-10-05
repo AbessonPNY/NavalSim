@@ -24,6 +24,12 @@ public sealed class Gun
     /// cents mètres ; levée, elle vise plus loin — ou plus haut, la mâture.
     /// </summary>
     public double Hausse;
+    /// <summary>
+    /// LE POINTAGE EN DIRECTION, en radians autour de la verticale, depuis l'axe de son
+    /// sabord (positif : vers bâbord, +x). Une pièce de chasse se tourne à l'anspect sur
+    /// son affût, dans ce que l'embrasure laisse : le jeu la borne à quinze degrés.
+    /// </summary>
+    public double Train;
 }
 
 /// <summary>La batterie d'un navire, et le curseur qui la parcourt coup par coup.</summary>
@@ -371,6 +377,12 @@ public sealed class Gunnery
         d = new Vec3d(d.X, 0, d.Z);                          // son relèvement, pris à plat
         if (d.X * d.X + d.Z * d.Z < 1e-6) d = g.Dir;
         d = d.Normalized();
+        if (g.Train != 0)
+        {
+            // tournée sur son affût : la même rotation que l'œil du servant (ShipDemo.GunEye)
+            double ct = Math.Cos(g.Train), st = Math.Sin(g.Train);
+            d = new Vec3d(d.X * ct + d.Z * st, 0, -d.X * st + d.Z * ct);
+        }
         Vec3d outDir = new Vec3d(d.X, elev, d.Z).Normalized();
         Vec3d up = new(0, 1, 0);
         Vec3d sideV = outDir.Cross(up).Normalized();

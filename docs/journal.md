@@ -14335,8 +14335,17 @@ deux cents ; le cap suit la pièce, le site est celui du tir. Banc « hausse » 
 k 0,35, bouche à 4 m) : +3° passe à 12 m de haut à 200 m, +4° à 15 m, +6° à 22 m ; elle tombe à
 236, 505, 559, 639 m. En jeu, depuis le quai : 296 m de but en blanc, 452 à +2°, 570 à +3°, 748 à
 +6°. Piège d'essai : --bordee avec --large tirait AVANT le saut au large, et le monde glissait de
-dix kilomètres sous le boulet en vol — la gerbe « à 11 km » n'était que la mesure. Le pointage EN
-DIRECTION reste à faire : le glisser de côté tourne l'œil, pas la pièce.
+dix kilomètres sous le boulet en vol — la gerbe « à 11 km » n'était que la mesure.
+
+LE POINTAGE EN DIRECTION (demandé ensuite). Gun.Train : des radians autour de la verticale depuis
+l'axe du sabord (positif : bâbord), ±15° — ce qu'une embrasure de chasse laisse à l'anspect. Le
+glisser DE CÔTÉ à la pièce la tourne (il ne tournait que l'œil) ; l'œil du servant reste derrière la
+culasse et tourne avec elle (GunEye lit _bridgeYaw, recalé sur le pointage à chaque image : une autre
+vue le remettait à zéro). Gunnery.Fire tourne le relèvement de la même rotation que l'œil. Mesuré :
+la pièce de proue tribord, ouverte de 37° dans son sabord, tire à 26° de l'axe tournée de 12° vers
+bâbord, à 49° de 12° vers tribord. LA PIÈCE SE VOIT POINTÉE : son pivot (celui du recul,
+ShipNode.Recoil) tourne de Train et lève la bouche de Hausse ; le recul suit l'axe tourné. Bouton :
+« proue tribord 1/1 · +3,0° · 12° bâbord » ; une partie neuve remet tout à zéro.
 
 LA COQUE QUI SOUFFLE (demandé : des gerbes presque verticales près de la coque qui coule). Chaque
 mètre cube que la mer fait entrer en chasse un d'air ; à fleur d'eau il sort EN FORCE par les

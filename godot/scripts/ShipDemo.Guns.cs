@@ -279,7 +279,7 @@ public partial class ShipDemo
         TargetOf(_ship);
         if (bat.Guns.Count == 0) { Say("Ce navire ne porte pas de batterie"); return; }
         // la hausse réglée à la pièce : un navire neuf a des pièces neuves, à zéro
-        foreach (var g in bat.Guns) g.Hausse = _hausse.GetValueOrDefault(g.Side);
+        foreach (var g in bat.Guns) { g.Hausse = _hausse.GetValueOrDefault(g.Side); g.Train = _train.GetValueOrDefault(g.Side); _ship.AimPiece(g); }
         if (ph.Powder <= 0) { Say("Plus une charge en soute"); return; }
         int side = other ? -_gunSide : _gunSide;
         if (!bat.Has(side)) { Say("Aucune pièce en " + GunNames[side]); return; }
