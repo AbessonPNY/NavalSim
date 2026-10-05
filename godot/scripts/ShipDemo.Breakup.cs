@@ -53,7 +53,12 @@ public partial class ShipDemo
         double cutMs = clock.Elapsed.TotalMilliseconds;
         if (ember == null) { holder.QueueFree(); return; }
 
-        var bow = ph.SplitOff(k);
+        /* L'ARRIÈRE PEND PLUS OU MOINS LONGTEMPS, et la proue part d'ordinaire la première :
+           ce que le souffle a disjoint dans son château n'est jamais deux fois le même —
+           de la moitié à une fois et demie la règle —, et une mer forte qui balaie ses
+           hauts l'emplit plus vite (12 % de plus par degré au-delà de force 3). */
+        double leak = ShipPhysics.AftLeak * (0.5 + _stormRng.NextDouble()) * (1 + 0.12 * Math.Max(0, _force - 3));
+        var bow = ph.SplitOff(k, leak);
         bow.OnSlam = QueueSlam;
         /* LE SOUFFLE LES ÉCARTE, et les soulève : la soute est entre les deux.
            Deux mètres par seconde à elles deux — de quoi ouvrir la brèche à
@@ -64,9 +69,9 @@ public partial class ShipDemo
         ph.Body.Vel += f * (-2.0 * bow.Body.Mass / total) + new Vec3d(0, 0.6, 0);
 
         _halves.Add(new Half { Phys = bow, Node = holder, Char = ember, Born = _t, From = s });
-        // la mer bout là où elle s'est rompue, sur la largeur du navire, une demi-minute
+        // la mer bout là où elle s'est rompue, sur la moitié de sa longueur, trois quarts de minute
         var cut = ph.Body.Quat.Rotate(new Vec3d(0, 0, zCut)) + ph.Body.Pos;
-        _wreckAir.Churn(cut.X, cut.Z, Math.Max(6, s.Spec.L * 0.35), 35);
+        _wreckAir.Churn(cut.X, cut.Z, Math.Max(8, s.Spec.L * 0.5), 45, 1.5);
         Reprofile(s, double.NegativeInfinity, zCut);
         Say(s == _ship ? "La soute nous coupe en deux !" : $"Le {s.Spec.Name} se rompt en deux !");
         GD.Print(FormattableString.Invariant($"rupture de {s.Spec.Id} a la cloison {k} (z {zCut:F1} m) : coupe du bois {cutMs:F1} ms, en tout {clock.Elapsed.TotalMilliseconds:F1} ms"));

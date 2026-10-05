@@ -40,7 +40,7 @@ public sealed class WreckAir
     }
 
     sealed class Bubbling { public double X, Z, R, Born, Life, W; }
-    sealed class Churning { public double X, Z, R, Born, Life, Next; }
+    sealed class Churning { public double X, Z, R, Born, Life, Next, Strength = 1; }
     readonly List<Churning> _churns = new();
     sealed class CompState { public double Owed, Flux, Gulp = 0.5; }
 
@@ -213,14 +213,19 @@ public sealed class WreckAir
             if (u >= 1) { _churns.RemoveAt(i); continue; }
             while (ch.Next <= Clock)
             {
-                // une poche toutes les 0,15 s au début, une par seconde et demie à la fin
-                ch.Next += 0.15 + 1.35 * u * u + 0.2 * _rng();
+                // une poche toutes les 0,08 s au début, une par seconde à la fin
+                ch.Next += 0.08 + 0.9 * u * u + 0.12 * _rng();
                 double a = _rng() * Math.PI * 2, rr = ch.R * Math.Sqrt(_rng());
+                double x = ch.X + Math.Cos(a) * rr, z = ch.Z + Math.Sin(a) * rr;
                 _boils.Add(new Bubbling
                 {
-                    X = ch.X + Math.Cos(a) * rr, Z = ch.Z + Math.Sin(a) * rr,
-                    R = ch.R * (0.35 + 0.35 * _rng()) * (1 - 0.5 * u), Born = Clock, Life = 2.5 + 3 * _rng()
+                    X = x, Z = z,
+                    R = ch.R * (0.45 + 0.45 * _rng()) * (1 - 0.4 * u), Born = Clock, Life = 3 + 4 * _rng()
                 });
+                /* ET LA POCHE JETTE L'EAU qu'elle soulève, comme celles qui montent d'une
+                   épave : franche au début, du mètre cube, puis de moins en moins */
+                if (_rng() < 0.6 * (1 - u))
+                    OnBurst?.Invoke(new Vec3d(x, ocean.Sample(x, z, t), z), (0.4 + 1.6 * _rng()) * (1 - u) * ch.Strength, 3 + 4 * (1 - u), 1.2);
             }
         }
 
@@ -315,9 +320,9 @@ public sealed class WreckAir
     /// comme la sienne. L'air des moitiés, lui, continue de monter au-dessus d'elles
     /// tant qu'elles en rendent : c'est lui qui marque où elles sombrent.
     /// </summary>
-    public void Churn(double x, double z, double r, double life)
+    public void Churn(double x, double z, double r, double life, double strength = 1)
     {
-        _churns.Add(new Churning { X = x, Z = z, R = r, Born = Clock, Life = life, Next = Clock });
+        _churns.Add(new Churning { X = x, Z = z, R = r, Born = Clock, Life = life, Next = Clock, Strength = strength });
     }
 
     public void Rebase(double dx, double dz)

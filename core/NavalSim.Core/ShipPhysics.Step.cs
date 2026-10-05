@@ -173,7 +173,7 @@ public sealed partial class ShipPhysics
 
             // la vitesse de CE point = v + ω × r ; on amortit sa composante verticale
             Vec3d vp = b.AngVel.Cross(r) + b.Vel;
-            double dragF = -vp.Y * dispVol * S.HeaveDamp;
+            double dragF = -vp.Y * dispVol * S.HeaveDamp * HeaveScale;
 
             double fy = fb + dragF;
             force.Y += fy;

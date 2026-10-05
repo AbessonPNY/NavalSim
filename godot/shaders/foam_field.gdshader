@@ -37,7 +37,7 @@ uniform float u_jac_foam = 0.85;     // le même seuil que la mer
 /* LES BOUILLONS D'UNE ÉPAVE : (x, z, rayon, force). Seize par image, un budget
    et non une borne de la mer — le champ garde ce qu'on y a posé, donc un
    bouillon laissé de côté une image n'est pas perdu. */
-#define NBOIL 16
+#define NBOIL 32
 uniform vec4 u_boil[NBOIL];
 uniform int u_boil_count = 0;
 

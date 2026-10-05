@@ -43,6 +43,9 @@ public partial class ShipDemo
         _flotsam.World = _world;
         _wreckAir.OnLastBreath = (at, v) =>
         {
+            /* LE DERNIER BOUILLON : tout l'air de ses hauts part d'un coup, et la mer
+               bout là où elle a disparu — plus large et plus long qu'elle en avait */
+            _wreckAir.Churn(at.X, at.Z, Math.Clamp(3 + 0.8 * Math.Sqrt(v), 5, 16), 20, Math.Clamp(v / 8, 0.6, 1.5));
             var b = _ship.Physics.Body;
             if ((at - b.Pos).Length < 3000)
                 Say(FormattableString.Invariant($"Elle disparaît dans un grand bouillon — {v:F0} m³ d'air d'un coup."));

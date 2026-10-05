@@ -1717,6 +1717,9 @@ void Rupture()
     double kn = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 6;
     int k = args.Length > 3 ? int.Parse(args[3]) : 2;
     Config.WindGain = 8;
+    if (args.Length > 5) ShipPhysics.AftBallast = double.Parse(args[5], CultureInfo.InvariantCulture);
+    if (args.Length > 6) ShipPhysics.BallastSlide = double.Parse(args[6], CultureInfo.InvariantCulture);
+    if (args.Length > 7) ShipPhysics.AftLeak = double.Parse(args[7], CultureInfo.InvariantCulture);
     var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
     var ocean = new Ocean { Swell = 1.0, Time = 0 };
     ocean.SetSeaState(3, 0);
@@ -1732,22 +1735,27 @@ void Rupture()
     aft.Body.Vel += f * (-2.0 * bow.Body.Mass / total) + new Vec3d(0, 0.6, 0);
     Vec3d a0 = aft.Body.Pos, b0 = bow.Body.Pos;
     Console.WriteLine(FormattableString.Invariant($"{spec.Name} à {kn} noeuds, rompue à la cloison {k} ; tranche {bow.CutArea:F1} m² ; avant {bow.Body.Mass / 1000:F0} t, arrière {aft.Body.Mass / 1000:F0} t"));
-    double dt = 1.0 / 60, t = 0;
+    double dt = 1.0 / 60, t = 0, goneA = -1, goneB = -1;
     string Row(ShipPhysics s, Vec3d p0)
     {
         var c = s.Body.Quat.Rotate(s.Body.Com) + s.Body.Pos;
         var ff = s.Body.Quat.Rotate(new Vec3d(0, 0, 1));
         double trim = Math.Asin(Math.Clamp(ff.Y, -1, 1)) * 180 / Math.PI;
-        return FormattableString.Invariant($"avancé {(s.Body.Pos - p0).Dot(f),6:F1} m, vitesse {s.Body.Vel.Dot(f),5:F2} m/s, centre {c.Y,6:F1} m, assiette {trim,6:F1}°{(s.Foundered ? " SOMBRÉE" : "")}");
+        string comps = "";
+        foreach (var cc in s.Comps) if (cc.Cap > 0) comps += FormattableString.Invariant($" {cc.Vol / cc.Cap * 100:F0}%");
+        return FormattableString.Invariant($"avancé {(s.Body.Pos - p0).Dot(f),6:F1} m, vz {s.Body.Vel.Y,5:F2}, centre {c.Y,6:F1} m, assiette {trim,6:F1}° [{comps} ]{(s.Foundered ? " SOMBRÉE" : "")}");
     }
-    for (int i = 0; i <= 60 * 90; i++)
+    for (int i = 0; i <= 60 * 150; i++)
     {
-        if (i % (60 * (t < 20 ? 2 : 10)) == 0)
-            Console.WriteLine(FormattableString.Invariant($"  t {t,3:F0} s  avant : {Row(bow, b0)}   |  arrière : {Row(aft, a0)}"));
+        if (i % (60 * (t < 20 ? 2 : 5)) == 0)
+            Console.WriteLine(args.Length > 4 && args[4] == "arriere" ? FormattableString.Invariant($"  t {t,3:F0} s  arrière : {Row(aft, a0)}") : FormattableString.Invariant($"  t {t,3:F0} s  avant : {Row(bow, b0)}   |  arrière : {Row(aft, a0)}"));
         aft.Step(dt, ocean, ctrl, t);
         bow.Step(dt, ocean, ctrl, t);
         t += dt;
+        if (goneA < 0 && aft.SubmergedFrac > 0.999 && aft.DepthBelow > 6) goneA = t;
+        if (goneB < 0 && bow.SubmergedFrac > 0.999 && bow.DepthBelow > 6) goneB = t;
     }
+    Console.WriteLine(FormattableString.Invariant($"  disparue : avant à {goneB:F0} s, arrière à {goneA:F0} s"));
 }
 
 void Soute()

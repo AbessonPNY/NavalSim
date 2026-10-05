@@ -83,7 +83,7 @@ public partial class FoamField : Node
     /// recentrage comme un déplacement colossal et effacerait tout le champ.
     /// </summary>
     /// <summary>Les bouillons d'épave de cette image, le plus fort d'abord (WreckAir).</summary>
-    public const int NBoil = 16;
+    public const int NBoil = 32;   // le même que NBOIL du shader : un remous de soute en pose une trentaine
     readonly Vector4[] _boils = new Vector4[NBoil];
     static readonly StringName UBoil = "u_boil", UBoilCount = "u_boil_count";
 

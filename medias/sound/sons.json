@@ -26,9 +26,10 @@
   },
 
   "bois": {
-    "_aide": "Le bordé qui éclate sous un boulet. Plusieurs valent mieux qu'un : on reconnaît vite un échantillon unique.",
+    "_aide": "Le bordé qui éclate sous un boulet. Plusieurs valent mieux qu'un : on reconnaît vite un échantillon unique. craking : le bois qui travaille, à bord et près du bord des navires de 300 t et plus, d'autant plus souvent et fort qu'ils roulent et tanguent ; plus fort dans une chambre fermée. craking_gain : son volume, 1 réglé à l'oreille, 0 muet, jusqu'à 3.",
     "choc": ["wood_crash_001.ogg", "wood_crash_002.ogg"],
-	"craking": ["craking_001.ogg", "craking_002.ogg"]
+    "craking": ["craking_001.ogg", "craking_002.ogg"],
+    "craking_gain": 1.0
   },
 
   "voiles": {

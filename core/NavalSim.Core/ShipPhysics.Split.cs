@@ -55,6 +55,25 @@ public sealed partial class ShipPhysics
     /// </summary>
     public static double HalfFloodable = 0.75;
 
+    /// <summary>
+    /// LE LEST DE L'ARRIÈRE, qui glisse vers la tranche : de quelle part de l'écart son
+    /// centre de gravité finit par s'y porter. Des dizaines de tonnes de pierres au fond
+    /// de la cale, et les pièces de la batterie basse — rompu au milieu, le navire les
+    /// garde au bout de la tranche, et à mesure qu'il penche elles y roulent. C'est ce
+    /// qui DRESSE l'arrière pendant que l'air de son château le porte encore.
+    /// </summary>
+    public static double AftBallast = 0.75;
+    /// <summary>Le temps qu'il faut au lest pour rouler (s) : la bascule est progressive.</summary>
+    public static double BallastSlide = 9;
+    /// <summary>La traînée d'une moitié qui coule, sur la surface qu'elle présente à la chute.</summary>
+    public static double SinkCd = 1.0;
+    /// <summary>La part des fentes de l'arrière, loin de la tranche, par rapport à celles de la proue : il pend plus longtemps qu'elle.</summary>
+    public static double AftLeak = 0.25;
+
+    double _comBase, _cutZ, _ballastGoal, _ballastNow;
+    /// <summary>La part de l'amortissement de pilonnement des sondes : 1 à flot ; une moitié noyée tombe par sa traînée vraie.</summary>
+    public double HeaveScale = 1;
+
     /// <summary>La tranche ouverte, en m² : la part de la section que la mer bat (celle de la voie d'eau qu'on y ouvre).</summary>
     public double CutArea;
     /// <summary>Le coefficient de traînée d'une face plate traînée dans l'eau, de face comme de dos.</summary>
@@ -85,6 +104,28 @@ public sealed partial class ShipPhysics
             force -= new Vec3d(b.Vel.X, 0, b.Vel.Z) * (dm / dt);
         }
         _halfMass = b.Mass;
+
+        // le lest qui roule vers la tranche, de plus en plus
+        if (_ballastGoal > 0)
+        {
+            _ballastNow += (_ballastGoal - _ballastNow) * Math.Min(1, dt / BallastSlide);
+            _dryCom = new Vec3d(_dryCom.X, _dryCom.Y, _comBase + (_cutZ - _comBase) * _ballastNow);
+        }
+
+        /* TOUT ENTIÈRE DESSOUS, ELLE TOMBE PAR SA TRAÎNÉE VRAIE. L'amortissement des
+           sondes est celui du pilonnement à flot — linéaire, et le même qu'elle soit à
+           plat ou debout. Une coque qui coule présente à la chute sa SECTION si elle est
+           debout, son PLAN si elle est à plat : debout, elle file. ½ρ·Cd·A·v². */
+        bool sunk = Foundered && SubmergedFrac > 0.95;
+        HeaveScale += ((sunk ? 0.1 : 1) - HeaveScale) * Math.Min(1, dt / 2);
+        if (HeaveScale < 0.99)
+        {
+            double up = Math.Abs(fwd.Y);
+            double section = CutArea / 0.6, plan = (ZHi - ZLo) * Spec.B;
+            double A = up * section + (1 - up) * plan;
+            double vy = b.Vel.Y;
+            force += new Vec3d(0, -0.5 * Config.Rho * SinkCd * A * vy * Math.Abs(vy) * (1 - HeaveScale) / 0.9, 0);
+        }
     }
 
     int CompOf(double z) => Math.Min(Comps.Length - 1, Math.Max(0,
@@ -98,7 +139,8 @@ public sealed partial class ShipPhysics
     /// (compartiments 0 à k−1) et rend l'avant, posé exactement où il était, à la
     /// même vitesse. Les deux tournent désormais autour de leur centre de gravité.
     /// </summary>
-    public ShipPhysics SplitOff(int k)
+    /// <param name="aftLeak">les fentes de l'arrière pour CETTE rupture (négatif : <see cref="AftLeak"/>) — le jeu le tire au hasard, et la mer forte l'agrandit</param>
+    public ShipPhysics SplitOff(int k, double aftLeak = -1)
     {
         int n = Comps.Length;
         k = Math.Clamp(k, 1, n - 1);
@@ -123,6 +165,8 @@ public sealed partial class ShipPhysics
         bow._dryCom = new Vec3d(_dryCom.X, _dryCom.Y, cb + shift);
         _dryMass = mass * va / whole;
         _dryCom = new Vec3d(_dryCom.X, _dryCom.Y, ca + shift);
+        // l'arrière : son lest glissera vers la tranche (HalfDrag) ; la proue garde le sien
+        _comBase = _dryCom.Z; _cutZ = zCut; _ballastGoal = AftBallast;
 
         Probes = aftP.ToArray(); HullVolume = va;
         bow.Probes = bowP.ToArray(); bow.HullVolume = vb;
@@ -165,14 +209,15 @@ public sealed partial class ShipPhysics
            deux moitiés s'emplissaient ensemble et coulaient à plat en quatre
            secondes (banc « soute ») ; avec, le bout ouvert s'enfonce et l'autre se
            dresse, ce qu'on a toujours vu d'un navire rompu. */
-        static void Ends(ShipPhysics s, int open)
+        static void Ends(ShipPhysics s, int open, double leak)
         {
-            foreach (var br in s.Breaches) if (br.Comp != open) br.Area *= EndLeak;
+            foreach (var br in s.Breaches) if (br.Comp != open) br.Area *= leak;
             for (int i = 0; i < s.Comps.Length; i++)
                 if (i != open) s.Comps[i].Vol = Math.Min(s.Comps[i].Vol, s.Comps[i].Cap * EndFill);
         }
-        Ends(this, k - 1);
-        Ends(bow, k);
+        // l'arrière, dressé, ne prend l'eau que par ce que son château a de disjoint : il pend
+        Ends(this, k - 1, EndLeak * (aftLeak >= 0 ? aftLeak : AftLeak));
+        Ends(bow, k, EndLeak);
         foreach (var s in new[] { this, bow })
             foreach (var c in s.Comps) { c.Cap *= HalfFloodable; c.Vol = Math.Min(c.Vol, c.Cap); }
 

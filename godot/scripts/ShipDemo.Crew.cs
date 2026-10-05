@@ -109,6 +109,10 @@ public partial class ShipDemo
             Board("voiles", "descendre", "voile-descend");
             Board("eau", "plonge", "eau-plonge");
             Board("eau", "sort", "eau-sort");
+            // le bois qui travaille, à bord des grands navires (ShipDemo.Creak.cs)
+            Board("bois", "craking", "craquement");
+            if (root.TryGetProperty("bois", out var bo) && bo.TryGetProperty("craking_gain", out var cg) && cg.ValueKind == System.Text.Json.JsonValueKind.Number)
+                _creakGain = Math.Clamp(cg.GetDouble(), 0, 3);
 
             // les bandes de mer
             if (root.TryGetProperty("mer", out var mer))

@@ -14299,6 +14299,20 @@ plus que dans les cases gardées ; tout le semis du fond tombe à 1,0 s (1,8 ava
 l'herbier dense). Coût mesuré : le pré, 8,77 ms contre 8,54 sans le fond ; le récif,
 7,57 comme avant.
 
+## Le bois qui travaille (Godot)
+
+DEMANDÉ, avec deux sons (medias/sound/craking_001/002.ogg, sons.json → bois.craking) : le bois
+qui craque, à bord et près du bord, subtilement, des navires de 300 t et plus — la Boussole, la
+Roter Löwe, le galion pirate, le Speedwell, la frégate. ShipDemo.Creak.cs. Une coque de chêne
+craque quand elle TRAVAILLE : le craquement suit sa vitesse de rotation dans son repère (roulis,
+et tangage compté 1,5 fois : il la tord davantage) — 0,05 + 2·travail par seconde, tiré en
+Poisson, jamais moins de 1,5 s entre deux, un seul à la fois de tout le plan d'eau (la réserve du
+bord, sans retard ni filtre de l'air) ; d'un point de la coque à chaque fois, sous le pont ; gain
+0,12 à 0,45, ×1,6 dans une chambre fermée (là, c'est le bruit principal), × bois.craking_gain.
+Portée : la demi-longueur et vingt-cinq mètres — la caméra d'orbite, à 53 m, ne l'entend pas.
+Mesuré en vue à bord de la Roter Löwe : force 2, trois en seize secondes, gain 0,13 ; force 6,
+onze en trente, gain jusqu'à 0,26.
+
 ## La proue rompue coule sur place ; le remous de la soute (Godot)
 
 SIGNALÉ : après l'explosion, la proue filait nettement avant de couler. Banc « rupture »
@@ -14322,6 +14336,36 @@ MOITIÉ AVANT entre enfin dans la liste des coques dont l'air remonte (ShipDemo.
 n'y était pas, si bien que son air ne crevait nulle part — c'est lui qui marque où elle sombre.
 Vu de haut, une large tache blanche déchirée autour des moitiés ; à fleur d'eau, l'angle rasant la
 cache presque — ce n'est pas un défaut du remous.
+
+PLUS FORT (signalé : « pas spectaculaire » dans la rade) : la tache sur la moitié de la longueur,
+quarante-cinq secondes, une poche toutes les 0,08 s au début, plus larges ; et chacune JETTE l'eau
+qu'elle soulève (OnBurst, comme l'air d'une épave), franche d'abord. Le champ d'écume prend 32
+bouillons à la fois au lieu de 16 (NBOIL du shader et FoamField.NBoil, ensemble). Et le DERNIER
+SOUFFLE de toute coque qui disparaît lâche son propre remous, à sa taille.
+
+L'ARRIÈRE SE DRESSE, PEND, PUIS PLONGE (demandé). Il s'asseyait à 17° et sombrait à plat à 1,4 m/s.
+Deux choses manquaient :
+— LE LEST, des dizaines de tonnes de pierres au fond de la cale et la batterie basse, n'est pas
+  réparti comme la coque : rompu au milieu, il reste au bout de la tranche, et à mesure que le
+  tronçon penche il y roule. Le centre de l'arrière glisse vers la tranche de 0,75 de l'écart
+  (AftBallast), en 9 s (BallastSlide) : la bascule est PROGRESSIVE. La proue garde le sien ;
+  elle convenait. 0,6 donnait 69°, 0,85 n'ajoutait que 2° ;
+— LA CHUTE : l'amortissement des sondes est celui du pilonnement à flot — linéaire, le même à plat
+  qu'à pic. Tout entière dessous, une moitié tombe désormais par ½ρ·Cd·A·v², A la SECTION si
+  elle est debout, le PLAN si elle est à plat (HeaveScale ramène celui des sondes à 0,1).
+Banc « rupture … arriere », Roter Löwe à 6 noeuds, cloison 2 : 24° à 4 s, 48° à 8 s, 68° à 16 s,
+72° à 25 s ; elle pend en descendant de 0,1 à 0,3 m/s jusqu'à 30 s, puis 1 m/s à 35 s, 1,9 à 40,
+2,7 à 45, 3,2 au fond. Cloison 3 : 79°, pendue de 20 à 50 s, puis 3,8 m/s. Dans la rade (11 m), le
+tronçon dressé touche le fond avant d'avoir plongé : on voit la bascule, pas la chute.
+
+L'AVANT DOIT DISPARAÎTRE LE PREMIER (signalé : « l'arrière coule trop vite »), et ce peut être
+« aléatoire en fonction de paramètres physiques ou météo » (demandé). Ce qui emplit l'arrière
+pendant qu'il pend, ce sont les fentes que le souffle a ouvertes loin de la tranche (EndLeak) ;
+celles de l'arrière valent désormais AftLeak = 0,25 de celles de la proue, TIRÉES à chaque rupture
+entre la moitié et une fois et demie (ShipDemo.BreakUp), et agrandies de 12 % par degré de mer
+au-delà de force 3 — une mer qui balaie ses hauts. Banc, aux deux bornes : cloison 2, avant à
+35 s, arrière de 37 à 53 s ; cloison 3, avant à 15 s, arrière de 76 à 94 s. Par grosse mer il
+peut partir avec elle : c'est voulu.
 
 ## À l'eau : nager, plonger, ramasser (Godot)
 
