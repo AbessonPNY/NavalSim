@@ -108,6 +108,13 @@ public static class Config
     public static bool HelmSounds = false;
 
     /// <summary>
+    /// LA GODILLE AU SAFRAN (ShipPhysics, « LA GODILLE ») : une lame qu'on balaie
+    /// pousse l'eau même navire arrêté. Éteinte dans le noyau — la page n'en sait
+    /// rien, le banc de parité compare les coques —, allumée par Godot.
+    /// </summary>
+    public static bool RudderScull = false;
+
+    /// <summary>
     /// Jusqu'où elle s'éloigne du zéro local avant qu'on ne fasse glisser le monde
     /// sous elle. Assez petit pour que la phase de Gerstner garde sa précision,
     /// assez grand pour que le recentrage soit rare — 1500 m, cinq minutes environ

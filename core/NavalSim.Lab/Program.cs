@@ -65,6 +65,7 @@ switch (mode)
     case "ecueil": Ecueil(); break;
     case "sondeur": Sondeur(); break;
     case "sombrer": Sombrer(); break;
+    case "godille": Godille(); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;
@@ -1341,6 +1342,49 @@ void Sombrer()
             if (half < 0 && ph.SubmergedFrac > 0.5) half = tt;
         }
         Console.WriteLine(FormattableString.Invariant($"{spec.Name}, {ph.Comps.Length} tranches percées de {area} m² à {hf:F2} de hauteur, force {force} : à moitié sous l'eau à {half:F0} s, {(ph.Foundered ? $"sombrée à {tt:F0} s" : "à flot au bout de 300 s")}"));
+    }
+}
+
+/* LA GODILLE : un navire arrêté face au vent, voiles établies, trente secondes —
+   barre au milieu, barre tenue, et la godille du clavier (un coup de barre de
+   0,6 s à 1,6 par seconde, puis on lâche et elle revient à 2,5 par seconde), sans
+   puis avec Config.RudderScull. [fiche] [force] */
+void Godille()
+{
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    string name = args.Length > 1 ? args[1] : "sloop";
+    double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 3;
+    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(root, "ships", name + ".json")));
+    Config.WindGain = 8; Config.CrewTacks = true;
+    Console.WriteLine(FormattableString.Invariant($"{spec.Name} face au vent, force {force} : lame {spec.RudderArea:F2} m², corde {spec.RudderChord:F2} m"));
+    foreach (var (label, mode, scull) in new[] { ("barre au milieu", 0, false), ("barre tenue à bâbord", 1, true), ("godille, sans le modèle", 2, false), ("godille", 2, true), ("godille des deux bords", 3, true), ("godille au coup sec", 4, true) })
+    {
+        Config.RudderScull = scull;
+        var ocean = new Ocean { Swell = 1.0, Time = 0 };
+        ocean.SetSeaState(force, 105);
+        var ph = new ShipPhysics(spec, new HullLines(spec));
+        var ctrl = new Controls { SailsSet = true, Sheet = 0.3 };
+        ph.Settle(ocean, ctrl);
+        // l'étrave dans le lit du vent (cap 105) : est = −x
+        double hd = 105 * Math.PI / 180;
+        ph.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), -hd);
+        double dt = 1.0 / 60, tt = 0, maxFwd = 0;
+        Vec3d f0 = ph.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+        double h0 = Math.Atan2(-f0.X, f0.Z);
+        while (tt < 30)
+        {
+            double ph2 = tt % 1.2;
+            if (mode == 1) ctrl.Rudder = Math.Min(1, ctrl.Rudder + dt * 1.6);
+            else if (mode == 2) ctrl.Rudder = ph2 < 0.6 ? Math.Min(1, ctrl.Rudder + dt * 1.6) : ctrl.Rudder * (1 - Math.Min(1, dt * 2.5));
+            else if (mode == 4) ctrl.Rudder = ph2 < 0.6 ? Math.Min(1, ctrl.Rudder + dt * 1.6) : Math.Max(0, ctrl.Rudder - dt * 6.5);
+            else if (mode == 3) ctrl.Rudder = (tt % 2.4) < 1.2 ? Math.Clamp(ctrl.Rudder + (ph2 < 0.6 ? 1 : -1) * dt * 1.6, -1, 1) : Math.Clamp(ctrl.Rudder + (ph2 < 0.6 ? -1 : 1) * dt * 1.6, -1, 1);
+            ph.Step(dt, ocean, ctrl, tt); tt += dt;
+            var fw = ph.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+            maxFwd = Math.Max(maxFwd, ph.Body.Vel.Dot(fw));
+        }
+        var f1 = ph.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+        double turn = Math.Atan2(Math.Sin(Math.Atan2(-f1.X, f1.Z) - h0), Math.Cos(Math.Atan2(-f1.X, f1.Z) - h0)) * 180 / Math.PI;
+        Console.WriteLine(FormattableString.Invariant($"  {label,-26} : tourné de {turn,6:F1}° en 30 s, erre en avant au plus {maxFwd / 0.5144:F2} nd"));
     }
 }
 

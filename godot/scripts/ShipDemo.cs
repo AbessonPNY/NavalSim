@@ -223,6 +223,8 @@ public partial class ShipDemo : Node3D
         // la barre des navires du jeu : réglée sur leur erre (le gain de vent les fait courir), et elle sonde
         Config.HelmBySpeed = true;
         Config.HelmSounds = true;
+        // la godille au safran : des coups de barre secs poussent l eau même navire arrêté
+        Config.RudderScull = true;
         _world = WorldLoad.Load(_regionSheet = PickRegion());
         // les retouches de l'éditeur AVANT que la ville et la terre se bâtissent : elles s'y appliquent en se posant
         EditSetup();

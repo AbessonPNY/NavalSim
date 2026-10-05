@@ -289,6 +289,33 @@ public sealed partial class ShipPhysics
         Vec3d arm = b.Quat.Rotate(new Vec3d(0, S.RudderY, S.RudderZ)) + b.Pos - cog;
         torque += arm.Cross(fVec);
 
+        /* --- LA GODILLE ---
+           Le gouvernail ci-dessus ne vit que de l'eau qui coule le long de la
+           coque : navire arrêté, il ne fait rien. Mais une lame qu'on BALAIE pousse
+           l'eau d'elle-même — c'est la godille, permise en régate pour sortir d'un
+           face au vent (RCV 42.3 d). Une lame qui tourne sur sa mèche à ω frappe
+           l'eau de travers, d'autant plus fort qu'on va loin vers son bord de
+           fuite : intégrée sur la corde c, la réaction normale vaut
+           ρ·Cd·A·c²·ω²/6 (plaque, Cd ≈ 1,9), opposée au mouvement. Normale à la
+           lame : en travers, elle pousse la poupe ; en long, sin δ, elle pousse le
+           navire — en arrière quand on ouvre la barre, en AVANT quand on la
+           ramène. Un coup sec vers le milieu et une ouverture lente font donc
+           tourner et avancer un peu ; des coups égaux ne font rien. La lame suit
+           la barre en huit centièmes de seconde : elle a son inertie et l'eau la
+           sienne, et sans cela un changement d'image ferait un coup infini. */
+        if (Config.RudderScull && inWater > 0 && S.RudderArea > 0)
+        {
+            if (double.IsNaN(_blade)) _blade = delta;
+            double before = _blade;
+            _blade += (delta - _blade) * Math.Min(1, dt / 0.08);
+            double w = (_blade - before) / Math.Max(1e-6, dt);
+            double fs = 1.9 * Config.Rho * S.RudderArea * S.RudderChord * S.RudderChord * w * w / 6;
+            double sgn = -Math.Sign(w);
+            Vec3d fScull = right * (sgn * fs * Math.Cos(_blade)) + fwd * (sgn * fs * Math.Sin(_blade));
+            force += fScull;
+            torque += arm.Cross(fScull);
+        }
+
         /* --- LES AVIRONS ---
            NAGÉS UN BORD À LA FOIS. La poussée d'un banc s'applique À SES PELLES
            et non à ses tolets : le nageur sur son aviron et l'aviron sur son

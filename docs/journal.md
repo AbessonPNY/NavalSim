@@ -14299,6 +14299,26 @@ plus que dans les cases gardées ; tout le semis du fond tombe à 1,0 s (1,8 ava
 l'herbier dense). Coût mesuré : le pré, 8,77 ms contre 8,54 sans le fond ; le récif,
 7,57 comme avant.
 
+## La godille au safran (Godot)
+
+Demandé, après une question : sur un Laser face au vent, des coups de barre aident à
+virer — vrai, c'est la godille (permise en régate pour ça, RCV 42.3 d), et ce n'est
+pas de l'inertie : une lame qu'on BALAIE pousse l'eau d'elle-même. Le gouvernail du
+noyau ne vivait que de l'eau qui coule le long de la coque (∝ v²) : arrêté, rien.
+
+Modèle (Config.RudderScull, Godot seul) : la lame suit la barre en huit centièmes de
+seconde ; tournant sur sa mèche à ω, elle frappe l'eau de ρ·Cd·A·c²·ω²/6 (plaque,
+Cd 1,9), normal à elle — en travers sur la poupe, en long sin δ, en avant quand on la
+ramène. La fiche ne donne pas la lame : 2,5 % du plan de dérive, une fois et demie
+plus haute que large (ShipSpec.RudderArea, RudderChord).
+
+MESURÉ (banc « godille », trente secondes face au vent, force 3) : rien de visible
+sur nos coques. Sloop de 22 t, lame de 0,41 m² : 7,2° de rotation contre 7,1° sans
+rien faire ; au coup sec (ramenée à 4 rad/s), 5,7° ; la chaloupe et le cotre pas
+davantage. Au clavier la barre balaie à 1 rad/s : 36 N contre 22 tonnes. Sur un
+Laser de 130 kg, ces 36 N font tourner — d'où ce qu'on en dit. Le modèle est gardé :
+juste, gratuit, et il servira le jour où une petite coque entrera dans la flotte.
+
 ## L'histoire en chapitres, et son premier film (Godot)
 
 Demandé : l'histoire divisée en chapitres, tout leur texte dans un JSON qu'on

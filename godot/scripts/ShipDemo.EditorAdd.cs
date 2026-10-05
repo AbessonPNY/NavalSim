@@ -418,8 +418,13 @@ public partial class ShipDemo
                 string d = System.IO.Path.Combine(root, dir);
                 if (!System.IO.Directory.Exists(d)) continue;
                 foreach (var f in System.IO.Directory.GetFiles(d, "*.glb"))
-                    // un relief entier ou une scène de trente mégaoctets n'est pas un objet à poser
-                    if (new System.IO.FileInfo(f).Length < 25_000_000) names.Add(System.IO.Path.GetFileName(f));
+                {
+                    /* un relief entier ou une scène de trente mégaoctets n'est pas un
+                       objet à poser — SAUF s'il est nommé dans palette.json : un pâté de
+                       maisons de 27 Mo est un objet, et l'avoir écrit le dit (signalé). */
+                    string n = System.IO.Path.GetFileName(f);
+                    if (new System.IO.FileInfo(f).Length < 25_000_000 || PaletteInfo($"{dir}/{n}").Item1 != null) names.Add(n);
+                }
             }
             foreach (var n in names)
             {

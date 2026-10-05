@@ -339,6 +339,8 @@ public sealed partial class ShipPhysics
     // --- les anti-rebonds d'avarie ---
     double _hardAgo, _hardHit;
     double _underFor;
+    /// <summary>L'angle de la lame, qui suit la barre sans sauter (la godille) ; NaN avant la première image.</summary>
+    double _blade = double.NaN;
     /// <summary>Posée sur un fond DUR à cette sous-étape (récif, roche), et depuis combien de temps pleine d'eau.</summary>
     bool _onHard;
     double _wreckedFor;

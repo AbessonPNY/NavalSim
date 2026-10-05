@@ -431,6 +431,9 @@ public sealed class ShipSpec
     public bool HasAnchor { get; }
 
     public double RudderK { get; }
+    /// <summary>La surface de sa lame (m²) et sa corde (m), estimées : la fiche ne les donne pas (la godille).</summary>
+    public double RudderArea { get; }
+    public double RudderChord { get; }
     public double RudderMax { get; }
     public double RudderZ { get; }
     public double RudderY { get; }
@@ -541,6 +544,11 @@ public sealed class ShipSpec
         HasAnchor = json.Anchor ?? true;
 
         RudderK = json.Rudder.Power * lateralArea;
+        /* LA LAME DU SAFRAN, pour la godille seulement : deux et demi pour cent du
+           plan de dérive — la règle des chantiers, de deux à trois —, et une lame
+           une fois et demie plus haute que large. */
+        RudderArea = 0.025 * lateralArea;
+        RudderChord = Math.Sqrt(RudderArea / 1.5);
         RudderMax = json.Rudder.MaxAngle;
         RudderZ = json.Rudder.PostZFrac * L;
         RudderY = json.Rudder.PostY;
