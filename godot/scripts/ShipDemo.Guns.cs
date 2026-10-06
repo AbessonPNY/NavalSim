@@ -62,6 +62,8 @@ public partial class ShipDemo
                la main sur G (signalé). */
             if (_ship.Physics == ph) _ship.Recoil(gun, _gunnery.Clock);
             else foreach (var s in _others) if (s.Physics == ph) { s.Recoil(gun, _gunnery.Clock); break; }
+            // et le cinéma, s'il tourne, se retourne vers le coup (ShipDemo.CineBattle.cs)
+            CineShot(ph, at, dir);
         };
         /* Un boulet fait un trou ÉTROIT dans l'eau très vite : une colonne haute et
            mince, pas un dôme — le volume est borné par la réserve d'embrun, pour

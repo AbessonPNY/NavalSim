@@ -62,6 +62,7 @@ public partial class ShipDemo
         else
         {
             _cine = false;
+            _duelFoe = null; _battleUntil = -1;
             CineShow();
             // la vue d'avant, par le même chemin que la touche C
             switch (_cineMode)
@@ -84,6 +85,7 @@ public partial class ShipDemo
     {
         if (!_cine) return;
         _cine = false;
+        _duelFoe = null; _battleUntil = -1;
         CineShow();
         ApplySettings();
     }
@@ -95,8 +97,10 @@ public partial class ShipDemo
     void CineFocus()
     {
         if (!_cine || _glassUp) return;
-        double L = _ship.Spec.L;
-        var mid = _ship.Position + new Vector3(0, (float)(0.15 * L), 0);
+        // au contrechamp de bataille, le point est sur L'AUTRE : le nôtre, au premier plan, part dans le flou
+        var focus = _duelFoe != null && IsInstanceValid(_duelFoe) ? _duelFoe : _ship;
+        double L = focus.Spec.L;
+        var mid = focus.Position + new Vector3(0, (float)(0.15 * L), 0);
         float d = _cam.GlobalPosition.DistanceTo(mid);
         float span = (float)(0.7 * L);
         float near = Math.Max(0.5f, d - span), far = d + span;

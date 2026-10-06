@@ -100,25 +100,35 @@ public partial class ShipDemo
         FadeRect().Color = new Color(0, 0, 0, a);
     }
 
+    /// <summary>Le plan suivant : un fondu en croisière, une COUPE franche en bataille.</summary>
+    void NextShot()
+    {
+        if (InBattle) { FlyByOff(); NewShot(); }
+        else FadeTo(NewShot);
+    }
+
     /// <summary>Un plan neuf : un autre couloir en route, une autre place à l'arrêt.</summary>
     void NewShot()
     {
         double L = _ship.Spec.L;
+        bool battle = InBattle;
         if (_flyStill)
         {
             _flyAngle += (_flyRng.Randf() < 0.5 ? -1 : 1) * (1.1 + 1.5 * _flyRng.Randf());
-            _flyR = L * (1.2 + 0.9 * _flyRng.Randf());
-            _flyH = L * (0.12 + 0.45 * _flyRng.Randf());
+            // en bataille, plus près et plus bas : au ras des crêtes, dans la fumée
+            _flyR = L * (battle ? 0.8 + 0.5 * _flyRng.Randf() : 1.2 + 0.9 * _flyRng.Randf());
+            _flyH = L * (battle ? 0.03 + 0.18 * _flyRng.Randf() : 0.12 + 0.45 * _flyRng.Randf());
             _flyTurn = _flyRng.Randf() < 0.5 ? -1 : 1;
             _flyClock = 0;
         }
         else
         {
             /* ASSEZ LOIN POUR QU'IL TIENNE ENTIER dans l'objectif serré : à moins
-               d'une longueur et demie, l'étrave sortait du cadre au passage. */
-            _flySide = (_flyRng.Randf() < 0.5 ? -1 : 1) * L * (1.4 + 1.0 * _flyRng.Randf());
-            _flyH = L * (0.10 + 0.50 * _flyRng.Randf());
-            _flyAlong = -FlySpan();
+               d'une longueur et demie, l'étrave sortait du cadre au passage. En
+               bataille il n'a plus à tenir entier : on le frôle, et le cadre le coupe. */
+            _flySide = (_flyRng.Randf() < 0.5 ? -1 : 1) * L * (battle ? 0.65 + 0.45 * _flyRng.Randf() : 1.4 + 1.0 * _flyRng.Randf());
+            _flyH = L * (battle ? 0.04 + 0.18 * _flyRng.Randf() : 0.10 + 0.50 * _flyRng.Randf());
+            _flyAlong = -FlySpan() * (battle ? 0.6 : 1);
         }
         _flyLook = Vector3.Zero;      // le regard du plan neuf part d'où il doit être, pas du précédent
     }
@@ -128,6 +138,9 @@ public partial class ShipDemo
 
     void FlyByCamera(double dt)
     {
+        // le contrechamp de bataille, s'il y en a un, prend l'image (ShipDemo.CineBattle.cs)
+        if (DuelCamera(dt)) { FadeTick(dt); return; }
+        bool battle = InBattle;
         var b = _ship.Physics.Body;
         var ship = _ship.Position;
         double L = _ship.Spec.L;
@@ -161,39 +174,33 @@ public partial class ShipDemo
             /* LES TOURS : un tour en deux minutes, lent exprès — c'est la mer qui
                doit sembler bouger derrière lui, pas lui sur la mer. */
             _flyClock += dt;
-            _flyAngle += _flyTurn * dt * 2 * Math.PI / 120 * _flySpeed;
+            _flyAngle += _flyTurn * dt * 2 * Math.PI / 120 * _flySpeed * (battle ? 4 : 1);
             eye = ship + new Vector3((float)(Math.Sin(_flyAngle) * _flyR), (float)_flyH, (float)(Math.Cos(_flyAngle) * _flyR));
             // à côté de lui, pas sur lui : le centre de l'image glisse d'un dixième de longueur
             var off = (eye - ship).Cross(Vector3.Up).Normalized() * (float)(0.12 * L * _flyTurn);
             target = ship + new Vector3(0, (float)(0.15 * L), 0) + off;
-            if (_flyClock > _flyHold) FadeTo(NewShot);
+            if (_flyClock > (battle ? Math.Min(3, _flyHold) : _flyHold)) NextShot();
         }
         else
         {
             /* LE TRAVELLING : le drone gagne sur le navire d'un tiers de son erre et
                d'un pas d'homme — lent, mais toujours devant à la fin. */
-            _flyAlong += (0.35 * speed + 1.5) * _flySpeed * dt;
+            _flyAlong += (0.35 * speed + 1.5) * _flySpeed * (battle ? 2.6 : 1) * dt;
             double bob = 0.04 * L * Math.Sin(_t * 0.31);          // une respiration, pas un roulis
             eye = ship + course * (float)_flyAlong + side * (float)_flySide + new Vector3(0, (float)(_flyH + bob), 0);
             target = ship + course * (float)(0.15 * L) + new Vector3(0, (float)(0.15 * L), 0);
-            if (_flyAlong > FlySpan()) FadeTo(NewShot);
+            if (_flyAlong > FlySpan()) NextShot();
         }
 
-        /* NI DANS LA MER NI DANS LA TERRE : trois mètres au-dessus de la crête qui
-           passe sous lui, six au-dessus du relief près des côtes. */
-        double floor = _sea.Core.Sample(eye.X, eye.Z, _sea.Core.Time) + 3;
-        if (_world != null)
-        {
-            var o = _sea.Core.Origin;
-            floor = Math.Max(floor, _world.HeightAt(o.X + eye.X, o.Z + eye.Z) + 6);
-        }
-        if (eye.Y < floor) eye.Y = (float)floor;
+        eye = AboveSeaAndLand(eye);
 
-        // le regard d'un opérateur : une seconde de retard sur ce qu'il cadre
+        // le regard d'un opérateur : une seconde de retard sur ce qu'il cadre ; en bataille il rattrape vite
         var dir = (target - eye).Normalized();
-        _flyLook = _flyLook == Vector3.Zero ? dir : _flyLook.Lerp(dir, (float)(1 - Math.Exp(-dt / 0.9))).Normalized();
+        _flyLook = _flyLook == Vector3.Zero ? dir : _flyLook.Lerp(dir, (float)(1 - Math.Exp(-dt / (battle ? 0.35 : 0.9)))).Normalized();
         _cam.Position = eye;
         _cam.LookAt(eye + _flyLook, Vector3.Up);
+        _cam.Fov = SnapFov(dt, battle);
+        if (battle) HandHeld(_cam.Fov, 1.2f);
         FadeTick(dt);
     }
 }

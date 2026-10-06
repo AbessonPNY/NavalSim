@@ -204,6 +204,8 @@ public partial class ShipDemo
                     _flySpeed = Math.Clamp(fv, 0.1, 10);
                 if (fb.Opt("plan") is double fp)
                     _flyHold = Math.Clamp(fp, 1, 120);
+                if (fb.TryGetProperty("bataille", out var fbb))
+                    _flyBattleOn = fbb.ValueKind != System.Text.Json.JsonValueKind.False;
             }
             if (root.TryGetProperty("mouillage", out var mo2))
             {

@@ -14773,6 +14773,33 @@ s'écarte de ce qu'on a devant soi), une zone morte de 8 % au milieu, et le temp
 (constante de 1/6 s). Pas aux vues de pièce, qui ont leur propre souris (pointage). Vérifié à la vigie
 du Roter Löwe (--pas-de-cote −1 puis 1) : le mât de misaine passe d'un côté à l'autre du centre.
 
+## Le cinéma en bataille (Godot)
+
+DEMANDÉ : « lors d'une bataille, la caméra cinéma plus dynamique : zoom rapide sur le bateau qui tire en
+gardant le nôtre au premier plan, caméra à l'épaule, changements de focale ultra rapides, et le Fly-by
+doux du drone devient agressif ». ShipDemo.CineBattle.cs, accroché à Gunnery.OnFire (CineShot).
+
+LA BATAILLE : un coup de canon d'un navire à moins de 1 500 m de nous, ou de notre bord vers un navire
+(le plus proche dans un cône de 20° autour du tir) ; elle dure vingt-cinq secondes après le dernier.
+Seulement en cinéma (é) et au drone. settings.json → flyby → bataille (false la retire).
+
+LE CONTRECHAMP (2,8 s, pas plus d'un toutes les 5,5) : une COUPE, puis l'œil derrière notre navire, à
+2 L + D/4 en arrière (un premier plan, pas un mur) et 0,3 L au-dessus, décalé pour que le nôtre tombe
+aux huit dixièmes de la demi-largeur ; la focale met l'autre sur 45 % de la largeur, ZOOM ÉCLAIR depuis
+trois fois plus large en 0,28 s (sortie cubique), puis une poussée de 4 %. La mise au point passe sur
+l'autre (CineFocus) : le nôtre part dans le flou. Vérifié (--ship 7 --flotte 1 --cible 160 --cinema 1
+--bordee 1) : la cible nette, nos mâts flous l'encadrent. Une cible par le TRAVERS met notre navire en
+travers de l'image : on la voit entre nos mâts, ce qui est le plan.
+
+LE DRONE AGRESSIF : couloirs à 0,65–1,1 L au lieu de 1,4–2,4, hauteur 0,04–0,22 L, 2,6 fois plus vite,
+tours quatre fois plus vifs à l'arrêt et plans de 3 s au plus, coupes franches au lieu des fondus,
+regard qui rattrape en 0,35 s au lieu de 0,9 ; des COUPS DE FOCALE (22, 30, 40 ou 52°, pris en 0,12 s,
+toutes les 1 à 2,5 s). Hors bataille la focale revient à 40° en une seconde.
+
+À L'ÉPAULE (HandHeld) : lacet, tangage, roulis bruités par sommes de sinus à fréquences étrangères, d'un
+quarantième de la focale — serré on tremble moins en angle pour ne pas trembler plus à l'image —, sur
+le temps RÉEL (Time.GetTicksMsec), pour que la compression du temps ne fasse pas trembler plus vite.
+
 ## Ce que coûtent les pâtés de maisons de Port-Royal (Godot)
 
 Mesuré (--sans-ajout <motif>, qui cache les ajouts du mode création dont le modèle
