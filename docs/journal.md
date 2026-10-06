@@ -14890,6 +14890,13 @@ bôme. Établie (set = 1), rien ne change. ÉCART VOULU avec la page (figée) : 
 désormais les formes serrées de la toile (SailParity, « écart voulu ») et garde la comparaison stricte
 de toute toile établie — 8/8. Vu sur le Roter Löwe à quai : des festons sous chaque vergue.
 
+QUATRE FESTONS PARTOUT (demandé : « comme sur la Frégate Belliqueuse »). Le compte des rabans suivait
+la vergue — un tous les trois mètres, arrondi à 2 ou 4 —, si bien que seules les longues vergues de la
+frégate en avaient quatre, et les autres deux grosses poches. SailCloth.NSwag = 4 pour toute carrée :
+c'est ce que la grille dessine (seize colonnes, quatre par feston), et les rabans d'un vrai navire
+étaient même plus serrés (un à deux mètres). Le banc de parité ne compare plus les festons (swag,
+nSwag) à la page figée : ils ne servent qu'à la toile serrée, déjà écart voulu — 8/8.
+
 ## La flore de 1690, et l'ancre en .glb (Godot)
 
 DEMANDÉ : « peupler Port-Royal d'arbres et de végétaux fidèles à l'époque, sans faire chuter les

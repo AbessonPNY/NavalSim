@@ -116,16 +116,13 @@ public sealed class SailCloth
 
         /* COMMENT ELLE EST SERRÉE. Une voile carrée ferlée n'est pas un boudin :
            ramassée sur sa vergue et tenue par des rabans à intervalles, elle pend
-           entre deux rabans en FESTON. Un raban à peu près tous les trois mètres
-           de vergue — la portée d'un homme —, calé sur un diviseur du nombre de
-           colonnes, sans quoi il tombe entre deux sommets et ne pince rien. */
-        int nSwag = 0;
-        if (c.Kind == "square")
-        {
-            double yard = Dist(c00, c10), want = yard / 3.0, bestErr = double.PositiveInfinity;
-            for (int d = 2; d <= 4; d *= 2)
-                if (Math.Abs(d - want) < bestErr) { bestErr = Math.Abs(d - want); nSwag = d; }
-        }
+           entre deux rabans en FESTON. QUATRE festons sur toute vergue (demandé :
+           « comme sur la Frégate Belliqueuse ») : ils étaient comptés à un raban
+           tous les trois mètres, si bien que les vergues courtes n'en avaient que
+           deux, deux grosses poches. Les rabans d'un vrai navire étaient plus
+           serrés encore — un à deux mètres —, quatre est le compte que la grille
+           sait dessiner (seize colonnes, quatre par feston). */
+        int nSwag = c.Kind == "square" ? 4 : 0;
         NSwag = nSwag;
 
         Vec3d across = c10 - c00;

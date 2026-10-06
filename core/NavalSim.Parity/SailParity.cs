@@ -70,12 +70,14 @@ public static class SailParity
             Cmp("w", s.GetProperty("w"), cloth.W, ref worstBuild);
             Cmp("sag", s.GetProperty("sag"), cloth.Sag, ref worstBuild);
             Cmp("u", s.GetProperty("u"), cloth.U, ref worstBuild);
-            Cmp("swag", s.GetProperty("swag"), cloth.Swag, ref worstBuild);
+            /* LES FESTONS (swag, nSwag) sont un écart voulu aussi : ils ne servent qu'à la
+               toile serrée, et Godot en met quatre sur toute vergue carrée (demandé) quand la
+               page figée les compte encore à un raban tous les trois mètres. */
             Cmp("uv", s.GetProperty("uv"), cloth.Uvs, ref worstBuild);
             var idx = s.GetProperty("index");
             bool idxOk = idx.GetArrayLength() == cloth.Indices.Length
                 && cloth.Indices.Select((v, i) => idx[i].GetInt32() == v).All(b => b);
-            bool metaOk = s.GetProperty("nSwag").GetInt32() == cloth.NSwag && s.GetProperty("nu1").GetInt32() == cloth.Nu1;
+            bool metaOk = s.GetProperty("nu1").GetInt32() == cloth.Nu1;
 
             double worstShape = 0, worstNor = 0;
             int furledSkipped = 0;
