@@ -189,6 +189,9 @@ public partial class ShipDemo
                 // L'INSTRUMENT : l'ouvrir, et « auto » le règle juste (à une minute près) et le lit — pour l'essai
                 case "--hauteur": _sightTest = args[i + 1]; _askTitle ??= false; break;
                 // l'Histoire choisie AU TITRE, par son vrai chemin (le titre s'ouvre, puis on clique)
+                case "--debug": if (args[i + 1] != "0") { _creditLast = Time.GetTicksMsec() / 1000.0; _creditClicks = 2; CreditsClick(); } break;
+                case "--jeu-libre": _freeTest = args[i + 1] != "0"; _askTitle = true; break;
+                case "--carte-missions": _mapTest = args[i + 1] != "0"; _askTitle = true; break;
                 case "--histoire": _storyTest = args[i + 1] != "0"; break;
                 // l'essai du tutoriel : l'écoute bordée puis choquée, comme le ferait la main
                 case "--essai-tuto": _tutorTest = true; break;

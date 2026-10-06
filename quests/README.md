@@ -242,3 +242,21 @@ Naval.app.quests.stop()                             // revenir au mode libre
 
 Une quête mal formée (sans `id`, sans étapes, étape sans `at`, objectif
 inconnu) est ignorée, avec la raison dans la console.
+
+## La carte des missions — `carte-missions.json` (Godot)
+
+Ce n'est pas une quête : le chargeur l'écarte. C'est le parchemin qu'ouvre **Missions** à l'écran titre
+(`MissionMap.cs`, papier `parchment.gdshader`). Coordonnées en part de l'image 16:9 (x de 0 à 1 vers la
+droite, y de 0 à 1 vers le bas) ; le parchemin va de 0,13 à 0,87, ses rouleaux tiennent les bords.
+
+| champ | sens |
+|---|---|
+| `fond` | l'image du parchemin vierge, en 16:9, depuis la racine du projet (png, jpg ou webp) ; absente, le parchemin est dessiné (`parchment.gdshader`) |
+| `chemin` | les points par où passe le trait, dans l'ordre ; il est lissé entre eux |
+| `missions` | dans l'ordre du chemin. `titre` : ce qui est écrit, en anglaise ; `quete` : l'`id` d'une quête de ce dossier — absent ou inconnu, la mission paraît en encre pâle, « En préparation » ; `x`, `y` : le point rouge ; `etiquette` : `[x, y]` du coin bas-gauche du titre, ou `"centre"` |
+
+Le trait est plein jusqu'à la première mission qu'on n'a pas finie, hachuré au-delà ; une mission finie
+porte sa coche. Les quêtes qui ne sont pas sur la carte sont proposées en bas à droite. Toutes les quêtes
+écrites se jouent depuis la carte, dans n'importe quel ordre. Tant que l'Histoire est fermée
+(`StoryOpen`, `ShipDemo.Title.cs`), ses chapitres s'y jouent comme des missions, et leurs parties
+s'enregistrent avec elles. Essai : `-- --carte-missions 1`.

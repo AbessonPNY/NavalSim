@@ -1,0 +1,21 @@
+{
+  "_aide": "LA CARTE DES MISSIONS (Missions, à l'écran titre) : un parchemin déroulé, le chemin des missions et leurs titres en anglaise. Toutes les coordonnées sont en part de l'image 16:9 (x de 0 à 1 de gauche à droite, y de 0 à 1 de haut en bas) : le parchemin va de 0,13 à 0,87, ses rouleaux occupent les bords. « chemin » : les points par où passe le trait, dans l'ordre — il est lissé entre eux. « fond » : l'image du parchemin vierge, 16:9, depuis la racine du projet (png, jpg ou webp) — absente, le parchemin est dessiné par le jeu. « missions » : dans l'ordre du chemin ; « quete » est l'identifiant d'une quête (son « id », dans quests/), absent ou inconnu tant qu'elle n'est pas écrite : la mission paraît alors en encre pâle, « en préparation ». « x », « y » : le point rouge ; « titre » : ce qui est écrit ; « etiquette » : où commence le titre (son coin bas-gauche), « centre » pour le centrer sur ce point. Le trait est plein jusqu'à la première mission qu'on n'a pas finie, en pointillé au-delà ; une mission finie porte sa coche. Les quêtes qui ne sont pas sur la carte sont proposées en bas à droite.",
+  "fond": "godot/backgrounds/free_map.jpg",
+  "chemin": [
+    [0.289, 0.298], [0.259, 0.322], [0.219, 0.352], [0.208, 0.407], [0.224, 0.458],
+    [0.252, 0.470], [0.3125, 0.435], [0.391, 0.389], [0.453, 0.368], [0.484, 0.375],
+    [0.490, 0.417], [0.474, 0.500], [0.427, 0.574], [0.391, 0.648], [0.396, 0.731],
+    [0.4125, 0.764], [0.458, 0.769], [0.521, 0.694], [0.599, 0.593], [0.654, 0.530],
+    [0.6875, 0.528], [0.700, 0.574], [0.695, 0.667], [0.698, 0.731], [0.723, 0.744],
+    [0.767, 0.713]
+  ],
+  "missions": [
+    { "titre": "Partie de Pêche", "quete": "chapitre-1", "x": 0.259, "y": 0.322, "etiquette": [0.205, 0.255] },
+    { "titre": "Les vivres du Crawle", "quete": "les-vivres-du-crawle", "x": 0.252, "y": 0.470, "etiquette": [0.197, 0.545] },
+    { "titre": "Le tour de la Jamaïque", "quete": "le-tour-de-la-jamaique", "x": 0.453, "y": 0.368, "etiquette": [0.405, 0.345] },
+    { "titre": "Le Compas d'Antan", "x": 0.4125, "y": 0.764, "etiquette": [0.235, 0.835] },
+    { "titre": "Perdus en Mer", "x": 0.654, "y": 0.530, "etiquette": [0.571, 0.495] },
+    { "titre": "Bataille pour la Liberté", "x": 0.723, "y": 0.744, "etiquette": [0.620, 0.815] },
+    { "titre": "Épilogue", "x": 0.767, "y": 0.713, "etiquette": [0.781, 0.690] }
+  ]
+}

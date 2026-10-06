@@ -18,21 +18,13 @@ uniform vec3 u_burn : source_color = vec3(0.62, 0.50, 0.32);
 uniform float u_grain = 0.055;
 
 // un grain de papier, pour que le vierge ne soit pas un aplat mort
-float noise(vec2 p) {
-	vec2 i = floor(p), f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
-	float a = fract(sin(dot(i, vec2(127.1, 311.7))) * 43758.5);
-	float b = fract(sin(dot(i + vec2(1.0, 0.0), vec2(127.1, 311.7))) * 43758.5);
-	float c = fract(sin(dot(i + vec2(0.0, 1.0), vec2(127.1, 311.7))) * 43758.5);
-	float d = fract(sin(dot(i + vec2(1.0, 1.0), vec2(127.1, 311.7))) * 43758.5);
-	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-}
+#include "res://shaders/paper.gdshaderinc"
 
 void fragment() {
 	vec4 land = texture(TEXTURE, UV);
 	float seen = texture(u_mask, UV).r;
 
-	vec3 paper = u_paper * (1.0 - u_grain + u_grain * 2.0 * noise(UV * 420.0));
+	vec3 paper = u_paper * (1.0 - u_grain + u_grain * 2.0 * paper_noise(UV * 420.0));
 	// le papier vieillit vers ses bords, comme une feuille qu'on manipule
 	vec2 d = abs(UV - 0.5) * 2.0;
 	paper = mix(paper, u_burn, smoothstep(0.75, 1.05, max(d.x, d.y)) * 0.55);

@@ -86,7 +86,8 @@ public partial class ShipDemo : Node3D
         int kept = 0;
         foreach (string f in System.IO.Directory.GetFiles(dir, "*.json"))
         {
-            if (System.IO.Path.GetFileName(f) == "index.json") continue;
+            // l'index de la page, et la carte des missions (MissionMap) : ce ne sont pas des quêtes
+            if (System.IO.Path.GetFileName(f) is "index.json" or "carte-missions.json") continue;
             try
             {
                 /* LES CHAPITRES DE L'HISTOIRE tiennent dans un seul fichier

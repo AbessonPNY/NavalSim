@@ -83,7 +83,7 @@ public partial class ShipDemo : Node3D
         if (_pickPanel != null) return;
 
         _roster.Clear();
-        _roster.AddRange(ShipLibrary.FreeRoster(_paths));
+        _roster.AddRange(ShipLibrary.FreeRoster(_paths, _debugMode));
 
         var fond = new StyleBoxFlat
         {
@@ -283,6 +283,12 @@ public partial class ShipDemo : Node3D
             ? _roster.FindIndex(f => f.Path == _paths[_pickBefore]) : -1;
         if (mien >= 0) _pickShip = mien;
         else _pickShip = Math.Min(_pickShip, Math.Max(0, _roster.Count - 1));
+        // un bord qu'on ne peut pas prendre n'est pas un point de départ : le premier ouvert
+        if (_pickShip < _roster.Count && _roster[_pickShip].Locked.Length > 0)
+        {
+            int open = _roster.FindIndex(f => f.Locked.Length == 0);
+            if (open >= 0) _pickShip = open;
+        }
         ShowCards();
     }
 

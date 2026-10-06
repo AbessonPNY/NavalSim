@@ -119,8 +119,11 @@ public static class ShipLibrary
     /// pas. Sans le fichier, tout le dossier est offert — on ne prive jamais le
     /// joueur de ses navires sur une faute de virgule, on le dit et on continue.
     /// </summary>
-    public static List<FreeShip> FreeRoster(List<string> paths)
+    /// <param name="debug">Le mode débug (trois clics sur Crédits) : tout est ouvert.</param>
+    public static List<FreeShip> FreeRoster(List<string> paths, bool debug = false)
     {
+        HashSet<string>? open = null;
+        string shut = "Pas encore à votre portée.";
         var listing = new List<FreeShip>();
         string fichier = System.IO.Path.Combine(Folder, "libre.json");
         var demandes = new List<(string ship, string label, int year, string image, string locked)>();
@@ -129,6 +132,14 @@ public static class ShipLibrary
             try
             {
                 using var doc = JsonDocument.Parse(System.IO.File.ReadAllText(fichier));
+                /* CE QUI EST OUVERT D'EMBLÉE : la liste « ouverts », les autres fermés avec la
+                   raison de « fermes » — s'ils n'en ont pas une à eux. */
+                if (doc.RootElement.TryGetProperty("ouverts", out var ov) && ov.ValueKind == JsonValueKind.Array)
+                {
+                    open = new HashSet<string>();
+                    foreach (var o in ov.EnumerateArray()) if (o.GetString() is string s) open.Add(s);
+                }
+                if (Js.Str(doc.RootElement, "fermes") is { Length: > 0 } why) shut = why;
                 if (doc.RootElement.TryGetProperty("ships", out var arr) && arr.ValueKind == JsonValueKind.Array)
                     foreach (var e in arr.EnumerateArray())
                         demandes.Add((Js.Str(e, "ship"), Js.Str(e, "label"),
@@ -176,7 +187,8 @@ public static class ShipLibrary
             listing.Add(new FreeShip
             {
                 Path = paths[k], Label = label, Year = year,
-                Tonnes = spec.Tonnes, Image = img, Locked = d.locked
+                Tonnes = spec.Tonnes, Image = img,
+                Locked = debug ? "" : d.locked.Length > 0 ? d.locked : open != null && !open.Contains(d.ship) ? shut : ""
             });
         }
         return listing;

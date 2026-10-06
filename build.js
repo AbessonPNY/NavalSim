@@ -386,7 +386,7 @@ if (fs.existsSync(GFILE)) {
 let questsData = null;
 const QDIR = path.join(ROOT, 'quests');
 if (fs.existsSync(QDIR)) {
-  const files = fs.readdirSync(QDIR).filter(f => f.endsWith('.json') && f !== 'index.json').sort();
+  const files = fs.readdirSync(QDIR).filter(f => f.endsWith('.json') && f !== 'index.json' && f !== 'carte-missions.json').sort();
   questsData = [];
   for (const f of files) {
     try {

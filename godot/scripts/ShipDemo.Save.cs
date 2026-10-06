@@ -223,7 +223,7 @@ public partial class ShipDemo
     /// le point de reprise, et deux copies auraient fini par différer.
     /// </summary>
     string SaveMode() => _quests?.Active == null ? "libre"
-                       : _quests.Active.Kind == "story" ? "histoire" : "mission";
+                       : _quests.Active.Kind == "story" && StoryOpen ? "histoire" : "mission";
 
     /// <summary>La partie enregistrée la plus fraîche du mode où l'on est, ou nulle.</summary>
     SaveState? LastSave()
@@ -280,10 +280,11 @@ public partial class ShipDemo
     /// </summary>
     string ModeOf(SaveState s)
     {
-        if (s.Mode.Length > 0) return s.Mode;
+        // l'Histoire fermée, ses parties sont reprises avec les missions (StoryOpen)
+        if (s.Mode.Length > 0) return s.Mode == "histoire" && !StoryOpen ? "mission" : s.Mode;
         var m = System.Text.RegularExpressions.Regex.Match(s.Quetes, "\"active\"\\s*:\\s*\"([^\"]+)\"");
         if (!m.Success) return "libre";
-        return _quests?.ById(m.Groups[1].Value)?.Kind == "story" ? "histoire" : "mission";
+        return _quests?.ById(m.Groups[1].Value)?.Kind == "story" && StoryOpen ? "histoire" : "mission";
     }
 
     /// <summary>Les parties d'un mode qu'on peut reprendre, la plus fraîche d'abord.</summary>

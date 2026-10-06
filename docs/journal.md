@@ -14991,6 +14991,52 @@ passe le filtre en rouge, les reflets trouvés en vert. LIMITE DITE : en espace 
 l'image ou au-delà de la portée ne se reflète pas, et au loin la recherche trouve peu. COÛT : +0,1 à
 0,4 ms de carte graphique, au port, au ras de l'eau.
 
+## La carte des missions ; l'Histoire fermée (Godot)
+
+DEMANDÉ : « griser le mode histoire » — les quêtes se travaillent d'abord en missions, chacune avec un
+début et une fin — et, au mode Missions, « une carte identique à celle-ci » (une maquette : parchemin
+déroulé entre deux rouleaux, un chemin, des points rouges, des coches, les titres en Estonia).
+
+L'HISTOIRE FERMÉE : un seul interrupteur, StoryOpen (ShipDemo.Title.cs). L'entrée reste au titre,
+grisée (Button.Disabled, sautée par les flèches). Ses chapitres passent sur la carte des missions, et
+leurs parties s'enregistrent et se reprennent avec les missions (SaveMode, ModeOf) — sans quoi une
+partie de chapitre serait devenue introuvable derrière une entrée qu'on ne peut plus choisir.
+
+LA CARTE (MissionMap.cs, quests/carte-missions.json, format dans quests/README.md) : rien d'une image.
+Le papier est un shader (parchment.gdshader : table en planches, feuille aux bords déchirés et roussis,
+taches de l'âge, deux rouleaux éclairés de la gauche) ; le chemin (Catmull-Rom par les points de la
+fiche, plein jusqu'à la mission à faire, hachuré de traits clairs au-delà comme la maquette), la cire,
+la coche et les titres sont dessinés par le Control, en coordonnées de l'image 16:9 relevées sur la
+maquette : un écran plus large montre plus de table, jamais une carte déformée. Une mission sans quête
+écrite est en encre pâle, « En préparation » ; les quêtes hors carte sont offertes en bas à droite.
+Souris (survol et clic) ou flèches et Entrée ; Échap revient.
+PIÈGE : les taches du papier avaient des BORDS DROITS. Le hachage fract(sin(x) × 43758) aligne ses
+valeurs sur carte graphique, et un seuil sur ce bruit dessinait les cases du réseau ; remplacé par un
+hachage sans sinus, l'interpolation passée en quintique et les octaves tournées (paper.gdshaderinc,
+partagé avec la carte de la chambre, dont le grain change donc un peu).
+LE FOND FOURNI : « fond » dans la fiche (godot/backgrounds/free_map.jpg, le parchemin vierge de la
+maquette, même cadrage) couvre le cadre 16:9 ; le shader reste le papier de secours et la table autour
+d'un écran qui n'est pas en 16:9.
+
+LE JEU LIBRE N'OUVRE QUE DEUX BORDS (demandé) : le sloop et l'ILCA 4 (ships/libre.json → « ouverts »),
+les autres grisés avec la raison de « fermes ». LE MODE DÉBUG : trois clics sur Crédits, chacun à moins
+d'une seconde du précédent — « Débug activé » sous le titre — ouvre tous les navires, la frégate de
+2 000 t comprise ; trois autres le referment. Pour la séance : il ne s'enregistre pas. Le panneau des
+navires se rebâtit à sa prochaine ouverture, et s'ouvre sur le premier bord qu'on peut prendre.
+Essais : -- --debug 1, -- --jeu-libre 1, -- --carte-missions 1.
+
+## La brume ne porte pas les nuages (Godot)
+
+SIGNALÉ (capture, l'île déserte sous la pluie) : « les nuages passent devant la montagne ».
+La brume de tout ce qui a la passe hull_haze — la terre, les modèles posés, les navires, les
+voiles, les cordages — prenait la couleur du ciel DANS LA DIRECTION REGARDÉE, nuages compris
+(ship_haze_colour → naval_sky avec u_cloud). Un sommet haut dans le ciel et noyé d'averse
+montrait donc, en transparence, les nuages qu'il cache. L'air entre l'œil et l'objet est
+éclairé ; il ne porte pas ce qui est derrière l'objet : la brume prend le ciel SANS NUAGES
+(couverture 0, comme le miroir de la mer). Rien ne change à l'horizon, où naval_clouds2 ne
+dessine rien sous 0,02 de hauteur : un navire noyé y prend toujours la couleur exacte du
+dôme. La brume de la mer (ocean.gdshader) regarde sous l'horizon et n'en avait pas.
+
 ## Port-Royal vit : ses mouettes, ses lanternes, sa rumeur et sa forge (Godot)
 
 DEMANDÉ : « les mouettes qui tournent au-dessus de Port-Royal quand on est à quai, elles disparaissent

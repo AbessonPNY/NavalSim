@@ -66,7 +66,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `chart.js` | la carte marine |
 | `ChartNode.Roses.cs` · `ParallelRuler.cs` · `ShipDemo.Ruler.cs` (Godot) · `Compass` (noyau) | les roses des vents imprimées et leur réseau de rumbs · la règle parallèle (R sur la carte) : du point estimé à l'arrivée, marchée jusqu'à la rose, le rumb lu (32 quarts, `Compass.Rumb`), milles et lieues ; Entrée la porte à l'encre |
 | `Sights.cs` · `Stars.cs` (noyau) · `ShipDemo.Sight.cs` · `SightPlate.cs` · `StarMap.cs` · `ShipDemo.Stars.cs` (Godot) · `tools/stars.js` | la latitude à l'instrument (quartier de Davis à midi, arbalestrille sur la Polaire ; bouton de la carte) · le VRAI ciel de 1690 (`world/etoiles.json`, BSC5 porté à l'année), qui tourne au lieu et à l'heure — le soleil dessiné suit le même lieu et la même date. Récit : `docs/navigation-astronomique.md` |
-| `quests.js` | les quêtes : étapes, lieux, objectifs (`quests/*.json`) ; sous Godot, l'HISTOIRE en chapitres dans un seul fichier (`quests/histoire.json`), sa cinématique, ses objectifs sous Tab et la question de fin (`ShipDemo.Story.cs`, `Cinematic.cs`) |
+| `quests.js` | les quêtes : étapes, lieux, objectifs (`quests/*.json`) ; sous Godot, l'HISTOIRE en chapitres dans un seul fichier (`quests/histoire.json`), sa cinématique, ses objectifs sous Tab et la question de fin (`ShipDemo.Story.cs`, `Cinematic.cs`) — **fermée pour l'instant** (`StoryOpen`) : ses chapitres se jouent en missions, sur la CARTE DES MISSIONS (`MissionMap.cs`, `parchment.gdshader`, `quests/carte-missions.json`) |
 | `ship-model.js` | coque, gréement, voiles, pavillons, lanternes, safran, fenêtres de nuit, avirons, anneaux (ce qui tourne sans se déformer, `ShipNode.Rings.cs` côté Godot), .glb |
 | `ship-physics.js` | sondes, corps rigide 6 ddl, gouvernail, voiles, avirons |
 | `controls.js` · `camera-rig.js` · `hud.js` | barre, caméras (vues à bord dans la fiche ; sous Godot, le drone Fly-By, `ShipDemo.FlyBy.cs`), instruments |
@@ -93,7 +93,7 @@ Objets flottants : `props/Props.json`. Pavillons : `ships/textures/flags/flags.j
 Marchandises : `market/marchandises.json`, format dans `market/README.md` — ce
 qu'on charge et ce qu'on revend ; une denrée absente se porte mais ne se vend
 nulle part (le fret sous contrat).
-Fiches navires : `ships/*.json`, format dans `ships/README.md`. Kraken, dauphins, baleine et marins en `.glb` : `creatures/README.md`.
+Fiches navires : `ships/*.json`, format dans `ships/README.md`. Jeu libre : `ships/libre.json` (`ouverts` : sloop et ILCA 4 ; le MODE DÉBUG — trois clics sur Crédits au titre — ouvre tout). Kraken, dauphins, baleine et marins en `.glb` : `creatures/README.md`.
 
 ## Règles à ne jamais casser
 

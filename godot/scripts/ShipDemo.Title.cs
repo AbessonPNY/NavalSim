@@ -31,11 +31,19 @@ public partial class ShipDemo : Node3D
     const string GameTitle = "NavalSim";
     const string GameSub = "une simulation à la voile";
 
+    /* L'HISTOIRE EST FERMÉE (demandé) : ses chapitres se travaillent d'abord en
+       missions, chacune avec un début et une fin. L'entrée reste au titre, grisée ;
+       ses chapitres sont sur la carte des missions, et leurs parties s'enregistrent
+       avec les missions (SaveMode). À rouvrir le jour où l'Histoire se tient. */
+    const bool StoryOpen = false;
+
     /// <summary>Le navire de l'affiche : sa fiche dans ships/.</summary>
     const string TitleShip = "frigate17e";
     int _beforeTitle = -1;
     CanvasLayer? _titleLayer;
     readonly List<Button> _titleItems = new();
+    readonly HashSet<Button> _titleShut = new();
+    MissionMap? _missionMap;
     VBoxContainer? _titleBox;
     FontFile? _titleFont;
     Label? _credits;
@@ -53,7 +61,7 @@ public partial class ShipDemo : Node3D
     /// Le journal dit pourquoi elle ne sert qu'aux titres ; trois intitulés de
     /// trois mots en sont, une liste de réglages n'en est pas.
     /// </summary>
-    static FontFile? Cursive()
+    internal static FontFile? Cursive()
     {
         string p = System.IO.Path.GetFullPath(System.IO.Path.Combine(
             ProjectSettings.GlobalizePath("res://"), "..", "css", "fonts", "estonia-latin.woff2"));
@@ -134,7 +142,7 @@ public partial class ShipDemo : Node3D
     }
 
     /// <summary>Une entrée du titre : grande, en anglaise, à droite.</summary>
-    void Item(string text, Action go, int size = 44)
+    void Item(string text, Action go, int size = 44, bool open = true)
     {
         var box = _titleBox!;
         var font = _titleFont;
@@ -153,17 +161,72 @@ public partial class ShipDemo : Node3D
             int me = _titleItems.Count;
             // la souris DÉPLACE le choix au lieu d'avoir son propre survol : un
             // seul état sélectionné, que la souris et les flèches partagent
-            b.MouseEntered += () => { _titlePick = me; ShowPick(); };
+            if (!open)
+            {
+                // grisée : elle se lit, elle ne se choisit pas, et les flèches la sautent
+                b.Disabled = true;
+                b.MouseDefaultCursorShape = Control.CursorShape.Arrow;
+                b.AddThemeColorOverride("font_disabled_color", new Color(0.62f, 0.64f, 0.66f, 0.55f));
+                _titleShut.Add(b);
+            }
+            b.MouseEntered += () => { if (!b.Disabled) { _titlePick = me; ShowPick(); } };
             b.Pressed += go;
             box.AddChild(b);
             _titleItems.Add(b);
         }
     }
 
+    /* LE MODE DÉBUG (demandé) : trois clics sur Crédits, chacun à moins d'une seconde
+       du précédent. Il ouvre tous les navires du jeu libre — la frégate de 2 000 t
+       comprise — et se referme de même. Pour la séance seulement : il ne s'enregistre
+       pas, on ne le retrouve pas allumé par mégarde. */
+    bool _debugMode;
+    int _creditClicks;
+    double _creditLast = -10;
+    Label? _debugNote;
+
+    void CreditsClick()
+    {
+        if (_credits != null) _credits.Visible = !_credits.Visible;
+        double now = Time.GetTicksMsec() / 1000.0;
+        _creditClicks = now - _creditLast < 1.0 ? _creditClicks + 1 : 1;
+        _creditLast = now;
+        if (_creditClicks < 3) return;
+        _creditClicks = 0;
+        _debugMode = !_debugMode;
+        // le panneau des navires se rebâtit à la prochaine ouverture, avec ses verrous à jour
+        if (_pickPanel != null) { _pickPanel.QueueFree(); _pickPanel = null; _cards.Clear(); }
+        if (_credits != null) _credits.Visible = false;
+        DebugNote(_debugMode ? "Débug activé" : "Débug désactivé");
+        GD.Print(_debugMode ? "[débug] activé : tous les navires sont ouverts" : "[débug] désactivé");
+    }
+
+    /// <summary>Le mot du mode débug, sous le titre, qui s'efface en trois secondes.</summary>
+    void DebugNote(string text)
+    {
+        if (_titleRoot == null) return;
+        if (_debugNote == null)
+        {
+            _debugNote = new Label { Position = new Vector2(70, 220) };
+            if (_titleFont != null) _debugNote.AddThemeFontOverride("font", _titleFont);
+            _debugNote.AddThemeFontSizeOverride("font_size", 34);
+            _debugNote.AddThemeColorOverride("font_color", new Color(1f, 0.86f, 0.55f));
+            _debugNote.AddThemeColorOverride("font_outline_color", new Color(0, 0.02f, 0.04f, 0.9f));
+            _debugNote.AddThemeConstantOverride("outline_size", 7);
+            _titleRoot.AddChild(_debugNote);
+        }
+        _debugNote.Text = text;
+        _debugNote.Modulate = Colors.White;
+        var tw = _debugNote.CreateTween();
+        tw.TweenInterval(2.0);
+        tw.TweenProperty(_debugNote, "modulate:a", 0.0f, 1.0);
+    }
+
     void ClearItems()
     {
         foreach (var b in _titleItems) b.QueueFree();
         _titleItems.Clear();
+        _titleShut.Clear();
         _titlePick = 0;
     }
 
@@ -173,10 +236,10 @@ public partial class ShipDemo : Node3D
         ClearItems();
         Item("Jeu libre", FreeItems);
         Item("Escarmouche", Skirmish);
-        Item("Histoire", StoryItems);
+        Item("Histoire", StoryItems, open: StoryOpen);
         Item("Missions", MissionItems);
         Item("Options", () => { _menu.Visible = true; });
-        Item("Crédits", () => { if (_credits != null) _credits.Visible = !_credits.Visible; });
+        Item("Crédits", CreditsClick);
         Item("Quitter", () => GetTree().Quit());
         ShowPick();
     }
@@ -193,14 +256,41 @@ public partial class ShipDemo : Node3D
         GameItems("mission", "Nouvelle mission", MissionPick);
     }
 
-    /// <summary>Les missions qu'on peut commencer, et le retour.</summary>
+    /// <summary>
+    /// LES MISSIONS SUR LEUR CARTE (MissionMap) : un parchemin, le chemin, les titres.
+    /// Le retour ramène d'où l'on venait : la liste des parties s'il y en a.
+    /// </summary>
     void MissionPick()
+    {
+        if (_titleRoot == null) { MissionList(); return; }
+        if (_missionMap == null)
+        {
+            _missionMap = new MissionMap(_titleFont)
+            {
+                Start = id => { CloseMissionMap(); StartQuest(id); },
+                Back = () => { CloseMissionMap(); if (Saves("mission").Count > 0) MissionItems(); else MainItems(); }
+            };
+            _titleRoot.AddChild(_missionMap);
+        }
+        if (_titleBox != null) _titleBox.Visible = false;
+        if (_credits != null) _credits.Visible = false;
+        _missionMap.Open(_quests);
+    }
+
+    void CloseMissionMap()
+    {
+        if (_missionMap != null) _missionMap.Visible = false;
+        if (_titleBox != null) _titleBox.Visible = true;
+    }
+
+    /// <summary>La liste d'avant la carte, en dernier recours (pas d'écran de titre).</summary>
+    void MissionList()
     {
         ClearItems();
         if (_quests != null)
             foreach (var q in _quests.List)
             {
-                if (q.Kind == "story") continue;
+                if (q.Kind == "story" && StoryOpen) continue;
                 var id = q.Id;
                 string done = _quests.Done.Contains(id) ? "  ✓" : "";
                 Item((q.Title.Length > 0 ? q.Title : q.Id) + done, () => StartQuest(id), 30);
@@ -377,6 +467,18 @@ public partial class ShipDemo : Node3D
     }
 
 
+    /// <summary>Le choix suivant ou précédent, en sautant les entrées grisées.</summary>
+    void StepPick(int dir)
+    {
+        int n = _titleItems.Count;
+        for (int k = 0; k < n; k++)
+        {
+            _titlePick = (_titlePick + dir + n) % n;
+            if (!_titleItems[_titlePick].Disabled) break;
+        }
+        ShowPick();
+    }
+
     void ShowPick()
     {
         for (int i = 0; i < _titleItems.Count; i++)
@@ -385,20 +487,22 @@ public partial class ShipDemo : Node3D
             var b = _titleItems[i];
             // le choix ne change pas de couleur mais d'ÉCLAT et de place : une
             // anglaise soulignée ou encadrée perd ses liaisons
-            b.Modulate = on ? new Color(1f, 0.93f, 0.72f) : new Color(0.82f, 0.86f, 0.89f, 0.72f);
-            b.AddThemeConstantOverride("outline_size", on ? 10 : 6);
+            b.Modulate = b.Disabled ? new Color(0.80f, 0.82f, 0.84f, 0.32f)
+                       : on ? new Color(1f, 0.93f, 0.72f) : new Color(0.82f, 0.86f, 0.89f, 0.72f);
+            b.AddThemeConstantOverride("outline_size", b.Disabled ? 2 : on ? 10 : 6);
         }
     }
 
     /// <summary>Les flèches et l'entrée, tant que le titre est là. Rend vrai s'il a pris la touche.</summary>
     bool TitleKey(Key key)
     {
-        // le panneau du jeu libre passe avant : c'est lui qu'on regarde
+        // la carte des missions, puis le panneau du jeu libre : c'est eux qu'on regarde
+        if (_missionMap is { Visible: true }) return _missionMap.Key(key);
         if (PickKey(key)) return true;
         switch (key)
         {
-            case Key.Up:   _titlePick = (_titlePick + _titleItems.Count - 1) % _titleItems.Count; ShowPick(); return true;
-            case Key.Down: _titlePick = (_titlePick + 1) % _titleItems.Count; ShowPick(); return true;
+            case Key.Up:   StepPick(-1); return true;
+            case Key.Down: StepPick(+1); return true;
             case Key.Enter or Key.KpEnter or Key.Space: _titleItems[_titlePick].EmitSignal(BaseButton.SignalName.Pressed); return true;
             // Échap referme ce qui est ouvert par-dessus, sinon il ne fait rien :
             // on ne quitte pas un jeu par mégarde depuis son écran de titre
@@ -474,10 +578,16 @@ public partial class ShipDemo : Node3D
     /// </summary>
     /// <summary>L essai : choisir Histoire au titre, comme la souris (--histoire).</summary>
     bool _storyTest;
+    /// <summary>L essai : ouvrir la carte des missions au titre (--carte-missions).</summary>
+    bool _mapTest;
+    /// <summary>L essai : ouvrir le panneau des navires du jeu libre (--jeu-libre).</summary>
+    bool _freeTest;
 
     void TitleTick(double dt)
     {
         if (_storyTest && _booted) { _storyTest = false; Story(); return; }
+        if (_mapTest && _booted) { _mapTest = false; MissionPick(); }
+        if (_freeTest && _booted) { _freeTest = false; FreeItems(); }
         var b = _ship.Physics.Body;
         _titleAng += dt * 0.021;
         double r = 95;
