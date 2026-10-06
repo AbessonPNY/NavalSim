@@ -14878,6 +14878,18 @@ au-dessus quand elle est au bas de la feuille. Le cap lu est VRAI : le compas du
 sa variation mal connue est une erreur de l'estime (Reckoning.CompassBias), pas de la règle. Essai :
 --carte-ouverte 1 --regle distance,cap (mètres, degrés, depuis le point estimé).
 
+## La bune pend sous la vergue (Godot)
+
+SIGNALÉ (capture) : la voile au repos « bosselée vers l'avant, elle ne doit l'être que vers le bas ».
+Dans SailCloth.Shape, le rouleau d'une toile serrée (bune = 0,45 × creux × (1 − set)) était poussé le
+long de la normale de la voile, comme le creux d'une voile pleine : vers l'avant pour une carrée. Une
+toile serrée n'a plus de vent pour la creuser — son rouleau TOMBE. Il passe maintenant à la flèche
+(vers le bas) pour toute toile qui PEND de sa rangée zéro (b[r0].y ≥ b[k].y : une carrée sous sa
+vergue) ; une aurique serrée sur sa bôme garde l'ancien sens, sans quoi le rouleau traverserait la
+bôme. Établie (set = 1), rien ne change. ÉCART VOULU avec la page (figée) : le banc de parité saute
+désormais les formes serrées de la toile (SailParity, « écart voulu ») et garde la comparaison stricte
+de toute toile établie — 8/8. Vu sur le Roter Löwe à quai : des festons sous chaque vergue.
+
 ## Ce que coûtent les pâtés de maisons de Port-Royal (Godot)
 
 Mesuré (--sans-ajout <motif>, qui cache les ajouts du mode création dont le modèle

@@ -78,9 +78,15 @@ public static class SailParity
             bool metaOk = s.GetProperty("nSwag").GetInt32() == cloth.NSwag && s.GetProperty("nu1").GetInt32() == cloth.Nu1;
 
             double worstShape = 0, worstNor = 0;
+            int furledSkipped = 0;
             string whereBuild = where;
             foreach (var st in s.GetProperty("shapes").EnumerateArray())
             {
+                /* UN ÉCART VOULU : la toile SERRÉE (set < 1). Sous Godot sa bune pend sous
+                   la vergue (SailCloth.Shape, « la bune pend ») ; la page, figée depuis le
+                   02/10, la gonfle encore vers l'avant. Établie, rien ne change : c'est là
+                   que la parité garde tout son sens. */
+                if (st.GetProperty("set").GetDouble() < 0.999) { furledSkipped++; continue; }
                 cloth.Shape(belly, st.GetProperty("load").GetDouble(), st.GetProperty("luffing").GetBoolean(),
                             st.GetProperty("t").GetDouble(), st.GetProperty("set").GetDouble());
                 Cmp("pos", st.GetProperty("pos"), cloth.Positions, ref worstShape);
@@ -96,6 +102,7 @@ public static class SailParity
             if (!ok) failures++;
             Console.WriteLine($"  {(ok ? "OK  " : "FAUX")}  {s.GetProperty("id").GetString(),-14} creux {belly,4:F2}"
                 + $"   tissage {worstBuild:E1}   forme {worstShape:E1}   normales {worstNor:E1}"
+                + (furledSkipped > 0 ? $"   ({furledSkipped} serrée(s) : écart voulu)" : "")
                 + (ok ? "" : $"   <- {(worstBuild > 1e-6 ? whereBuild : where)}{(idxOk ? "" : " indices")}{(metaOk ? "" : " festons")}"));
         }
 

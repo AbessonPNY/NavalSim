@@ -225,9 +225,17 @@ public sealed class SailCloth
             // son feston : 0,20 sous un raban, 2,05 au creux, 1 tout juste établie
             double q = sw != null ? sw[k] : 1;
             double st = sw != null ? 0.06 * (1 + furl * (0.20 + 1.85 * q - 1)) + 0.94 * sf : stow;
-            double f = w[k] * ((depth + (luffing ? full * 0.22 * Math.Sin(u[k] * 7 - t * 9) : 0)) * sf
-                               + bunt * (sw != null ? 0.35 + 0.85 * q : 1));
-            double g = sg[k] * hang * sf;
+            /* LA BUNE PEND, ELLE NE GONFLE PAS (signalé : la voile au repos « bosselée vers
+               l'avant »). Serrée sous sa vergue, la toile n'a plus de vent pour la creuser :
+               son rouleau tombe sous la vergue, et c'est tout. Elle était poussée le long de
+               la normale, comme le creux d'une voile pleine. Seulement pour une toile qui
+               PEND de sa rangée zéro (une carrée sous sa vergue) : une aurique serrée sur sa
+               bôme garde son rouleau où il est, il traverserait la bôme. */
+            double roll = w[k] * bunt * (sw != null ? 0.35 + 0.85 * q : 1);
+            bool hangs = b[r0 + 1] >= b[i3 + 1];
+            double f = w[k] * (depth + (luffing ? full * 0.22 * Math.Sin(u[k] * 7 - t * 9) : 0)) * sf
+                     + (hangs ? 0 : roll);
+            double g = sg[k] * hang * sf + (hangs ? roll : 0);
             Positions[i3] = (float)(b[r0] + (b[i3] - b[r0]) * st + d.X * f);
             Positions[i3 + 1] = (float)(b[r0 + 1] + (b[i3 + 1] - b[r0 + 1]) * st + d.Y * f - g);
             Positions[i3 + 2] = (float)(b[r0 + 2] + (b[i3 + 2] - b[r0 + 2]) * st + d.Z * f);
