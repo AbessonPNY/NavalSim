@@ -135,6 +135,12 @@ uniform float u_collar = 1.0;
  * jeu la connaît déjà, et un rouleau n'existe que près d'une terre. Au-delà, pas
  * de plage, donc pas de déferlement — quoi que l'image raconte. */
 uniform float u_shore_foam = 1.0;
+/* LE REFLET DU RIVAGE (demandé : « la végétation ne se reflète pas dans l'eau ») : la
+   recherche du miroir (hull_mirror) ne tournait qu'au pied des navires. Elle tourne
+   aussi au BORD DE L'EAU — là où le fond est à moins de 15 m sous le regard, à moins
+   de 700 m de l'œil (au ras de l'eau, c'est loin que la rive se reflète ; l'eau lointaine ne tient qu'une mince bande de l'image, et ne coûte guère) : la végétation, les maisons, les pontons et la côte s'y
+   reflètent. Le large, profond, garde son ciel seul. 0 l'éteint. */
+uniform float u_shore_mirror = 1.0;
 uniform float u_shore_dist = 0.0;
 /* LA VASE D'UN BASSIN. Une rade n'a pas l'eau du large : elle reçoit la terre,
    les rivières et le remuement des coques, et l'on n'y voit pas le fond par onze
@@ -305,7 +311,7 @@ float view_depth(vec2 uv, mat4 inv_proj) {
    bas d'une coque sous l'eau. Le prix : ce qui est hors de l'image ne se reflète
    pas. Le reflet s'efface donc vers les bords de l'écran au lieu de s'y couper.
    Rend (couleur encodée, part touchée). */
-vec4 hull_mirror(vec3 P, vec3 Rv, mat4 proj, mat4 inv_proj) {
+vec4 hull_mirror(vec3 P, vec3 Rv, mat4 proj, mat4 inv_proj, float tmax) {
 	float t = 0.6, prev_t = 0.0;
 	for (int i = 0; i < 40; i++) {
 		vec3 Q = P + Rv * t;
@@ -331,12 +337,12 @@ vec4 hull_mirror(vec3 P, vec3 Rv, mat4 proj, mat4 inv_proj) {
 			vec2 ub = cb.xy / cb.w * 0.5 + 0.5;
 			// s'efface vers les bords de l'image et avec la longueur du rayon
 			vec2 edge = smoothstep(0.0, 0.08, ub) * (1.0 - smoothstep(0.92, 1.0, ub));
-			float w = edge.x * edge.y * (1.0 - smoothstep(60.0, 140.0, b));
+			float w = edge.x * edge.y * (1.0 - smoothstep(tmax * 0.45, tmax, b));
 			return vec4(naval_encode(textureLod(u_screen, ub, 0.0).rgb), w);
 		}
 		prev_t = t;
 		t = t * 1.13 + 0.25;
-		if (t > 140.0) break;
+		if (t > tmax) break;
 	}
 	return vec4(0.0);
 }
@@ -579,13 +585,25 @@ void fragment() {
 		vec2 dd = v_world.xz - u_ship_pos[i].xz;
 		if (dot(dd, dd) < reach * reach) { near_ship = true; break; }
 	}
-	if (near_ship && dist < 400.0) {
+	/* au bord de l'eau : le fond à moins de 12 m À LA VERTICALE de ce point. Mesuré le long
+	   du regard, un trajet rasant traversait des dizaines de mètres d'eau par trois mètres de
+	   fond, et rejetait justement l'eau lointaine où la rive se reflète. Le fond est reconstruit
+	   de l'image de profondeur, sur le même rayon, puis comparé sur la verticale. */
+	bool near_shore = false;
+	if (u_shore_mirror > 0.5 && dist < 700.0) {
+		float behind = view_depth(SCREEN_UV, INV_PROJECTION_MATRIX);
+		vec3 Pb = VERTEX * (behind / max(-VERTEX.z, 1e-3));
+		vec3 up_v = (VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
+		near_shore = dot(VERTEX - Pb, up_v) < 12.0;
+	}
+	if (near_ship && dist < 400.0 || near_shore) {
 		vec3 Nr = normalize(vec3(N.x * 0.5, N.y, N.z * 0.5));
 		vec3 Rw = reflect(-V, Nr);
 		if (Rw.y > 0.0) {
 			vec3 Rv = normalize((VIEW_MATRIX * vec4(Rw, 0.0)).xyz);
-			vec4 hm = hull_mirror(VERTEX, Rv, PROJECTION_MATRIX, INV_PROJECTION_MATRIX);
-			mirror_a = hm.a * (1.0 - smoothstep(250.0, 400.0, dist));
+			// une mâture monte haut, un arbre de rive non : des rayons plus courts au bord de l'eau
+			vec4 hm = hull_mirror(VERTEX, Rv, PROJECTION_MATRIX, INV_PROJECTION_MATRIX, near_ship ? 140.0 : 100.0);
+			mirror_a = hm.a * (1.0 - smoothstep(near_ship ? 250.0 : 500.0, near_ship ? 400.0 : 700.0, dist));
 			sky = mix(sky, hm.rgb, mirror_a);
 		}
 	}

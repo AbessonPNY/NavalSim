@@ -188,7 +188,7 @@ public partial class TownNode
 
     /// <summary>Les maisons d'un même modèle : un MultiMesh par surface.</summary>
     void AddGroup(Node3D holder, Model model, List<House> houses, List<int> who, double cx, double cz,
-                  string idPrefix, string label)
+                  string idPrefix, string label, double facade = 0)
     {
             if (who.Count == 0) return;
             var mms = new List<MultiMesh>(model.Faces.Count);
@@ -218,6 +218,10 @@ public partial class TownNode
                     ExtraCullMargin = 400
                 });
             }
+
+            // les lanternes, sauf à l église : elles suivent leur maison dans l éditeur
+            var lamps = ReferenceEquals(model, _church) ? null
+                : Lamps(holder, model, houses, who, idPrefix.StartsWith("pate:", StringComparison.Ordinal), facade);
 
             /* CHAQUE MAISON EST UN OBJET RETOUCHABLE, posé par la même fonction qu'il
                ait bougé ou non : l'éditeur ne connaît que son état voulu, et c'est
@@ -261,6 +265,13 @@ public partial class TownNode
                                                                                : GeometryInstance3D.ShadowCastingSetting.On
                             });
                         }
+                        // ses lanternes, que la copie emporte
+                        if (lamps != null && lamps.ByHouse[idx].Count > 0)
+                        {
+                            var at = new List<Vector3>();
+                            foreach (int li in lamps.ByHouse[idx]) at.Add(lamps.Local[li]);
+                            n.AddChild(LampNode(at, (int)(h.X * 7 + h.Z * 13)));
+                        }
                         return n;
                     }
                 };
@@ -273,6 +284,7 @@ public partial class TownNode
                     // dix centimètres dans le sol : le relief bouge un peu sous l'emprise
                     var at = new Vector3((float)(ed.X - cx), (float)(ed.GroundY - 0.1), (float)(ed.Z - cz));
                     foreach (var mm in mms) mm.SetInstanceTransform(idx, new Transform3D(basis, at));
+                    lamps?.Pose(idx, ed, at);
                 };
                 /* LES CHEMINÉES QUI FUMENT : une maison sur trois — on ne fait pas du
                    feu partout à toute heure —, deux par pâté, aucune à l'église. Au
@@ -345,7 +357,7 @@ public partial class TownNode
         AddChild(holder);
         var who = new List<int>(g.Blocks.Count);
         for (int i = 0; i < g.Blocks.Count; i++) who.Add(i);
-        AddGroup(holder, model, g.Blocks, who, g.Cx, g.Cz, $"pate:{isl.Key}:", $"un pâté du centre de {isl.Name}");
+        AddGroup(holder, model, g.Blocks, who, g.Cx, g.Cz, $"pate:{isl.Key}:", $"un pâté du centre de {isl.Name}", g.Face * Math.PI / 180);
         _towns.Add((new Vec3d(g.Cx, 0, g.Cz), holder));
         GD.Print($"{isl.Name} : centre-ville, {g.Blocks.Count} pâté(s) en rangées");
     }

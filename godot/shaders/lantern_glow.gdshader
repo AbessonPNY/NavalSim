@@ -16,6 +16,7 @@ shader_type spatial;
 render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
 
 #include "res://shaders/sky.gdshaderinc"
+#include "res://shaders/lantern.gdshaderinc"
 
 uniform vec3 u_color = vec3(1.0, 0.812, 0.478);   // 0xffcf7a, en sRGB : voir plus haut
 uniform float u_opacity = 0.0;
@@ -30,18 +31,6 @@ void vertex() {
 	vec4 c = MODELVIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0);
 	float s = u_size * (u_fixed > 0.5 ? -c.z : 1.0);
 	POSITION = PROJECTION_MATRIX * vec4(c.xyz + vec3(VERTEX.xy * s, 0.0), 1.0);
-}
-
-// Naval.glowTexture : blanc au cœur, puis chaud, puis ambre, puis rien
-vec4 glow(float r) {
-	vec4 a = vec4(1.0, 1.0, 1.0, 1.0);
-	vec4 b = vec4(1.0, 228.0 / 255.0, 170.0 / 255.0, 0.92);
-	vec4 c = vec4(1.0, 170.0 / 255.0, 70.0 / 255.0, 0.32);
-	vec4 d = vec4(1.0, 140.0 / 255.0, 40.0 / 255.0, 0.0);
-	if (r < 0.16) return mix(a, b, r / 0.16);
-	if (r < 0.42) return mix(b, c, (r - 0.16) / 0.26);
-	if (r < 1.0) return mix(c, d, (r - 0.42) / 0.58);
-	return d;
 }
 
 void fragment() {

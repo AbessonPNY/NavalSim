@@ -75,7 +75,8 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `ShipNode.Ports.cs` · `ShipDemo.Ports.cs` (Godot) | les mantelets de sabord, lus par leur NOM (`sabord`, `mantelet` ; jamais `gun`), charnière sur l'arête haute extérieure ; le branle-bas (combat ou ⇧W AZERTY) : mantelet ouvert PUIS pièce en batterie, l'inverse à la fermeture — format dans `ships/README.md` |
 | `cordage.js` | les bouts rompus |
 | `crew.js` | les hommes sur le pont — **désactivés** (`crew.enabled`), gardés pour un marin qui manœuvre |
-| `gulls.js` · `dolphins.js` | les mouettes (à moins de 2 km des côtes) · les dauphins de l'étrave, par mer calme |
+| `gulls.js` · `dolphins.js` | les mouettes (à moins de 2 km des côtes ; sous Godot, un vol au-dessus du port tant qu'on en est à 1,5 km, de jour) · les dauphins de l'étrave, par mer calme |
+| `TownNode.Lamps.cs` · `street_lantern.gdshader` · `CitySound.cs` (Godot) | les lanternes des rues, du crépuscule à deux heures — aucune n'est une lumière, le shader décide qui brûle ; elles suivent leur maison dans l'éditeur, une copie les emporte, la palette en donne aux modèles bruts (`"lanternes"`) · la ville entendue : rumeur au centre des rues, forge de temps en temps, mouettes lointaines au-dessus du vol (`sons.json` → `ville`, `mouettes`) |
 | `sound.js` | le bruit, et le temps qu'il met à venir |
 | `capture.js` | la capture d'écran (touche `I`), écrite par le serveur de dev |
 | `purse.js` | la bourse, le cours des épices, la poudre |

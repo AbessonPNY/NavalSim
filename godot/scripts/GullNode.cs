@@ -27,7 +27,7 @@ public partial class GullNode : Node3D
     public ShaderMaterial? Material { get; private set; }
 
     readonly Gulls _flock;
-    MultiMeshInstance3D _near = null!, _far = null!;
+    MultiMeshInstance3D _near = null!, _far = null!, _port = null!;
     readonly Random _rng = new();
 
     public GullNode(GullRules? k = null)
@@ -43,12 +43,15 @@ public partial class GullNode : Node3D
         var mesh = Build();
 
         int suiveuses = Math.Clamp(Rules.Followers, 0, Rules.Count);
-        _near = Flock(mesh, suiveuses, true);
-        _far = Flock(mesh, Rules.Count - suiveuses, false);
+        _near = Flock(mesh, suiveuses, 1);
+        _far = Flock(mesh, Rules.Count - suiveuses, 0);
+        _port = Flock(mesh, Math.Max(0, Rules.PortCount), 2);
     }
 
-    MultiMeshInstance3D Flock(Mesh mesh, int n, bool follow)
+    /// <param name="kind">0 : au perchoir du rivage ; 1 : au navire ; 2 : au-dessus d'un port.</param>
+    MultiMeshInstance3D Flock(Mesh mesh, int n, int kind)
     {
+        bool follow = kind == 1;
         var mm = new MultiMesh
         {
             TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
@@ -63,9 +66,10 @@ public partial class GullNode : Node3D
             /* TOUT CE QUI FAIT QU'UN OISEAU N'EST PAS UN AUTRE, fixé À LA
                NAISSANCE : un bandeau dont les membres seraient retirés au hasard
                à chaque image scintillerait au lieu de voler. */
-            double rayon = follow ? R(22, 78) : Rules.Reach * R(0.30, 0.95);
-            double alt = follow ? R(11, 34) : R(14, 46);
-            double omega = (follow ? R(0.055, 0.135) : R(0.028, 0.062)) * (_rng.NextDouble() < 0.5 ? -1 : 1);
+            // au-dessus d'un port, des cercles serrés sur les toits et les quais, plus haut que l'eau ne le demande
+            double rayon = kind == 2 ? R(35, 240) : follow ? R(22, 78) : Rules.Reach * R(0.30, 0.95);
+            double alt = kind == 2 ? R(18, 62) : follow ? R(11, 34) : R(14, 46);
+            double omega = (kind == 2 ? R(0.035, 0.09) : follow ? R(0.055, 0.135) : R(0.028, 0.062)) * (_rng.NextDouble() < 0.5 ? -1 : 1);
             mm.SetInstanceCustomData(i, new Color(
                 (float)_rng.NextDouble(), (float)rayon, (float)alt, (float)omega));
         }
@@ -183,6 +187,12 @@ public partial class GullNode : Node3D
         return mesh;
     }
 
+    /// <summary>La nuit du ciel (0 jour, 1 nuit) : la nuit, le vol du port est posé sur les toits.</summary>
+    public double Night;
+
+    /// <summary>Le port au-dessus duquel le vol tourne en ce moment, ou rien : ses cris le suivent (CitySound).</summary>
+    public Isle? Port { get; private set; }
+
     /// <summary>
     /// Les poser contre l'origine du moment. <paramref name="here"/> et
     /// <paramref name="origin"/> sont en mètres VRAIS, comme pour la terre : les
@@ -201,10 +211,23 @@ public partial class GullNode : Node3D
         _askWorld = world; _askX = here.X; _askZ = here.Z;
         _flock.Step(dt, here.X, here.Z, shore, _nearest ??= () => _askWorld!.NearestShore(_askX, _askZ));
 
-        _near.Visible = _far.Visible = _flock.Flying;
-        if (!_flock.Flying) return;
+        /* LE VOL DU PORT : au-dessus du port le plus proche, tant qu'on en est à moins
+           de PortRange ; plus loin il n'y est plus — un vol de mouettes à deux kilomètres
+           n'est qu'un grain de poussière, et le port a sa vie sans nous. */
+        Isle? port = null; double pd = Rules.PortRange;
+        foreach (var isl in world.Isles)
+        {
+            if (isl.Wild) continue;
+            double d = Math.Sqrt((isl.X - here.X) * (isl.X - here.X) + (isl.Z - here.Z) * (isl.Z - here.Z));
+            if (d < pd) { pd = d; port = isl; }
+        }
+        _port.Visible = Rules.Enabled && port != null && Night < 0.5;
+        Port = _port.Visible ? port : null;
+        if (port != null) _port.Position = new Vector3((float)(port.X - origin.X), 0, (float)(port.Z - origin.Z));
 
-        Material?.SetShaderParameter(U.Time, (float)clock);
+        _near.Visible = _far.Visible = _flock.Flying;
+        if (_flock.Flying || _port.Visible) Material?.SetShaderParameter(U.Time, (float)clock);
+        if (!_flock.Flying) return;
         var c = _flock.Centre;
         _near.Position = new Vector3((float)(c.X - origin.X), 0, (float)(c.Z - origin.Z));
         if (_flock.Roost is { } r)

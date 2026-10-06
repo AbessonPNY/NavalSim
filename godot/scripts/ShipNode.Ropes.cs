@@ -395,6 +395,11 @@ public partial class ShipNode
     /// passent par ici. Rend, pour chaque pièce convertie, ses cordes en lignes
     /// continues (repère de la pièce) — les haubans et les tubes, pas les enfléchures.
     /// </summary>
+    /* LES VRAIES SECTIONS, en rayon : un grand hauban d'un galion de 1597 faisait
+       six à sept pouces de tour (5 cm de diamètre), une enfléchure, filin mince
+       qu'on enjambe, deux centimètres. */
+    const float ShroudR = 0.025f, RatlineR = 0.010f;
+
     public static List<(MeshInstance3D Mi, List<List<Vector3>> Lines, List<float> Radii, bool Tube)> ConvertRopes(Node3D root, ShipSpec spec, List<ShaderMaterial> hazed, string who)
     {
         var done = new List<(MeshInstance3D, List<List<Vector3>>, List<float>, bool)>();
@@ -425,7 +430,13 @@ public partial class ShipNode
                     lineCache[mat.AlbedoTexture] = tl = ReadTexLines(mat.AlbedoTexture);
                 if (tl is not { } ln) continue;
                 var shrouds = new List<RopeSeg>();
-                FromTexture(mi.Mesh, ln.Cols, ln.Rows, shrouds, segs);
+                /* L'ÉPAISSEUR D'UN DESSIN N'EST PAS CELLE D'UNE CORDE. Les lignes de la
+                   texture sont grasses pour se voir sur un plan : 9 px sur 250, un hauban de
+                   7 cm, une enfléchure de 5,5 — de près (la vue de la pièce, le pas de côté),
+                   le filet devenait une échelle de bois (signalé). Plafonnées aux vraies
+                   sections, en mètres rapportés au repère de la pièce. */
+                float perMetre = 1f / Math.Max(1e-6f, (root.Transform * RelTo(mi, root)).Basis.Scale.X);
+                FromTexture(mi.Mesh, ln.Cols, ln.Rows, shrouds, segs, ShroudR * perMetre, RatlineR * perMetre);
                 segs.AddRange(shrouds);
                 lines.AddRange(Chain(shrouds));
                 kind = $"plan texturé, {ln.Cols.Count} haubans et {ln.Rows.Count} enfléchures par panneau";
@@ -540,7 +551,8 @@ public partial class ShipNode
     }
 
     /// <summary>Chaque ligne de la texture, suivie à travers les triangles du plan.</summary>
-    static void FromTexture(Mesh mesh, List<TexLine> cols, List<TexLine> rows, List<RopeSeg> shrouds, List<RopeSeg> segs)
+    static void FromTexture(Mesh mesh, List<TexLine> cols, List<TexLine> rows, List<RopeSeg> shrouds, List<RopeSeg> segs,
+                            float shroudCap = float.MaxValue, float ratlineCap = float.MaxValue)
     {
         var arr = mesh.SurfaceGetArrays(0);
         var v = arr[(int)Mesh.ArrayType.Vertex].AsVector3Array();
@@ -560,8 +572,8 @@ public partial class ShipNode
             // ce que vaut, en mètres, un pas de texture en u et en v sur ce triangle
             var Pu = (e1 * du2.Y - e2 * du1.Y) / det;
             var Pv = (e2 * du1.X - e1 * du2.X) / det;
-            foreach (var c in cols) Cross(P, T, 0, c, Pu.Length(), shrouds);
-            foreach (var r in rows) Cross(P, T, 1, r, Pv.Length(), segs);
+            foreach (var c in cols) Cross(P, T, 0, c, Pu.Length(), shrouds, shroudCap);
+            foreach (var r in rows) Cross(P, T, 1, r, Pv.Length(), segs, ratlineCap);
         }
     }
 
@@ -569,7 +581,7 @@ public partial class ShipNode
     /// Le morceau de la ligne (u = C si axis 0, v = C si axis 1) qui traverse ce
     /// triangle, rogné à l'étendue où la texture la dessine.
     /// </summary>
-    static void Cross(Span<Vector3> P, Span<Vector2> T, int axis, TexLine line, float metresPerUnit, List<RopeSeg> segs)
+    static void Cross(Span<Vector3> P, Span<Vector2> T, int axis, TexLine line, float metresPerUnit, List<RopeSeg> segs, float cap)
     {
         Vector3 a = default, b = default;
         float sa = 0, sb = 0;
@@ -592,7 +604,7 @@ public partial class ShipNode
         float fa = Math.Clamp((lo - sa) / (sb - sa), 0, 1), fb = Math.Clamp((hi - sa) / (sb - sa), 0, 1);
         var pa = a.Lerp(b, Math.Min(fa, fb)); var pb = a.Lerp(b, Math.Max(fa, fb));
         if ((pb - pa).LengthSquared() < 1e-8f) return;
-        segs.Add(new RopeSeg(pa, pb, 0.5f * (float)line.W * metresPerUnit));
+        segs.Add(new RopeSeg(pa, pb, Math.Min(cap, 0.5f * (float)line.W * metresPerUnit)));
     }
 
     /// <summary>

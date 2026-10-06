@@ -265,12 +265,12 @@ public partial class ShipDemo
     /// qu'on y lit et sa taille en mètres (sa plus grande dimension). Lu une fois
     /// par dossier ; un modèle absent n'a ni l'un ni l'autre.
     /// </summary>
-    (string? Name, double Size, double Far) PaletteInfo(string rel)
+    (string? Name, double Size, double Far, int Lamps) PaletteInfo(string rel)
     {
         string dir = System.IO.Path.GetDirectoryName(rel)?.Replace('\\', '/') ?? "";
         if (!_paletteDirs.TryGetValue(dir, out var map))
         {
-            map = new Dictionary<string, (string?, double, double)>();
+            map = new Dictionary<string, (string?, double, double, int)>();
             string file = System.IO.Path.Combine(Assets.Root, dir, "palette.json");
             if (System.IO.File.Exists(file))
                 try
@@ -280,14 +280,15 @@ public partial class ShipDemo
                         foreach (var m in ms.EnumerateObject())
                             map[m.Name] = (m.Value.TryGetProperty("nom", out var n) ? n.GetString() : null,
                                            m.Value.TryGetProperty("taille", out var t) ? t.GetDouble() : 0,
-                                           m.Value.TryGetProperty("loin", out var lo) ? lo.GetDouble() : 0);
+                                           m.Value.TryGetProperty("loin", out var lo) ? lo.GetDouble() : 0,
+                                           m.Value.TryGetProperty("lanternes", out var la) ? la.GetInt32() : 0);
                 }
                 catch (Exception ex) { GD.PushWarning($"[éditeur] {file} illisible : {ex.Message}"); }
             _paletteDirs[dir] = map;
         }
-        return map.TryGetValue(System.IO.Path.GetFileName(rel), out var info) ? info : (null, 0, 0);
+        return map.TryGetValue(System.IO.Path.GetFileName(rel), out var info) ? info : (null, 0, 0, 0);
     }
-    readonly Dictionary<string, Dictionary<string, (string?, double, double)>> _paletteDirs = new();
+    readonly Dictionary<string, Dictionary<string, (string?, double, double, int)>> _paletteDirs = new();
 
     /// <summary>
     /// UN MODÈLE BRUT, lu une fois. On ne sait ni son échelle ni où Blender a
@@ -336,6 +337,8 @@ public partial class ShipDemo
                     float k = declared > 0 ? (float)(declared / ext) : ext > 40 ? 4f / ext : 1f;
                     var ctr = bb.GetCenter();
                     var tmpl = root;
+                    int lampCount = PaletteInfo(rel).Lamps;
+                    int made = 0;
                     outp = new Raw
                     {
                         Radius = 0.5 * Math.Max(bb.Size.X, bb.Size.Z) * k,
@@ -347,6 +350,9 @@ public partial class ShipDemo
                             c.Scale = Vector3.One * k;
                             c.Position = new Vector3(-ctr.X * k, -bb.Position.Y * k, -ctr.Z * k);
                             w.AddChild(c);
+                            // ses lanternes de nuit, sur sa façade +z (palette : « lanternes »)
+                            if (_town?.LampsOnFront(lampCount, bb.Size.X * k, (bb.End.Z - ctr.Z) * k, rel.Length * 7919 + 31 * made++) is { } lamps)
+                                w.AddChild(lamps);
                             return w;
                         }
                     };
@@ -447,7 +453,7 @@ public partial class ShipDemo
             }
             foreach (var n in names)
             {
-                var (nom, size, _) = PaletteInfo($"{dir}/{n}");
+                var (nom, size, _, _) = PaletteInfo($"{dir}/{n}");
                 string label = nom != null ? FormattableString.Invariant($"{nom} · {dir}/{n}{(size > 0 ? $" · {size:0.#} m" : "")}") : $"modèle brut · {dir}/{n}";
                 _paletteItems.Add((label, null, $"{dir}/{n}", ""));
             }

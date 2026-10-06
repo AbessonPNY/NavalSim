@@ -14975,6 +14975,65 @@ silence ; le craquement en prend 0,5 s, quel que soit le navire.
 ESSAIS : -- --quai montego-bay (le départ à un autre port, Moor(Isle)) ; -- --flore-carte dossier,
 centrée maintenant sur le navire.
 
+## Le reflet du rivage (Godot)
+
+DEMANDÉ : « la végétation ne se reflète pas dans l'eau », puis « essaie la copie retournée de la végétation
+du bord de l'eau ». ESSAYÉ AUTREMENT, et dit : la mer cherche ses reflets DANS L'IMAGE rendue (hull_mirror,
+un rayon renvoyé suivi pas à pas) ; la végétation, opaque, y est déjà — la recherche ne tournait qu'au pied
+des navires. La copie retournée (celle des anneaux du téléporteur) ne sert qu'à ce qui est transparent,
+doublerait la géométrie et ne refléterait que les plantes. ocean.gdshader → u_shore_mirror (1 ; 0
+l'éteint) : la recherche tourne aussi là où le fond est à moins de 12 m À LA VERTICALE du point (le fond
+reconstruit de l'image de profondeur sur le même rayon), à moins de 700 m de l'œil ; rayons de 100 m au
+lieu de 140 au bord de l'eau. PIÈGES : (1) l'épaisseur mesurée LE LONG du regard rejetait l'eau rasante
+lointaine — des dizaines de mètres d'eau par trois de fond ; (2) des palétuviers debout dans l'eau se
+prennent pour leur reflet : comparer avec et sans (--reflet-rive 0|1) ; (3) le diagnostic utile : l'eau qui
+passe le filtre en rouge, les reflets trouvés en vert. LIMITE DITE : en espace écran, ce qui est hors de
+l'image ou au-delà de la portée ne se reflète pas, et au loin la recherche trouve peu. COÛT : +0,1 à
+0,4 ms de carte graphique, au port, au ras de l'eau.
+
+## Port-Royal vit : ses mouettes, ses lanternes, sa rumeur et sa forge (Godot)
+
+DEMANDÉ : « les mouettes qui tournent au-dessus de Port-Royal quand on est à quai, elles disparaissent
+quand on s'éloigne » ; « des lanternes de nuit dans les rues qui dessineraient un peu les contours de la
+ville jusqu'à deux heures du matin » ; « un son de jour en émission au centre de la ville, un forgeron
+joué aléatoirement mais pas en continu » ; puis « mouettes_lointaines.ogg, on l'entendrait depuis le
+ponton de départ ».
+
+LE VOL DU PORT (GullNode, GullRules.PortCount 18, PortRange 1500 m) : un troisième MultiMesh de mouettes,
+posé sur le port non sauvage le plus proche à moins de 1500 m, cercles de 35 à 240 m, de 18 à 62 m de
+haut ; la nuit il n'y est pas (Night ≥ 0,5). GullNode.Port dit où il tourne — le son le suit.
+
+LES LANTERNES (TownNode.Lamps.cs, shaders/street_lantern.gdshader) : AUCUNE n'est une lumière (la règle,
+et trois cents OmniLight coûteraient plus que la ville). Trois panneaux par lanterne dans trois MultiMesh
+par groupe de maisons : le halo (3 m), le repère à taille d'écran (ce qui trace la ville vue de la rade)
+et la flaque sur le pavé (6,5 m). Deux par pâté de la grille, vers ses coins, sur la façade côté rue
+(StreetGrid.Face) ; une maison sur quatre des faubourgs à sa porte ; pas l'église. TOUT LE TEMPS EST DANS
+LE SHADER : chaque instance porte sa phase de flamme, l'heure où on la souffle (1 h 30 à 2 h) et la nuit
+qu'il faut pour qu'on l'allume (0,32 à 0,54) — l'allumeur fait sa tournée, elles s'éteignent une à une.
+Elles SUIVENT LEUR MAISON dans l'éditeur (LampSet.Pose dans le Push) ; une maison retirée les emporte
+(échelle nulle) ; une maison agrandie ne les grossit pas. Les COPIES les emportent (MakeVisual), et un
+modèle brut de la palette en porte autant que son « lanternes » le dit, sur sa face +z (TownNode.LampNode,
+LampsOnFront). Le dégradé de la lueur est maintenant une définition à deux usagers (lantern.gdshaderinc :
+fanaux du bord et lanternes des rues).
+PIÈGE DE LA MESURE : la première capture « montrait » des lanternes tout le long de la ville — c'étaient
+les FENÊTRES. Elles brillaient trop peu (une par pâté, halo de 2,2 m, flaque à 0,3) ; jugées fenêtres
+éteintes (-- --fenetres 0, l'idée est du demandeur), puis renforcées. COÛT : médiane 10,0 ms avec et
+sans (-- --lanternes 0), --vsync 0, de nuit au port.
+RÉALISME, dit : l'éclairage PUBLIC est alors une affaire de capitales (Paris depuis 1667, Londres dans les
+années 1680) ; ici ce sont les lanternes des portes, des tavernes et des boutiques.
+
+LA VILLE ENTENDUE (CitySound.cs ; sons.json → ville, mouettes) : des lecteurs À ELLE, sur le bus du dehors
+(une chambre ou l'eau les étouffent). La RUMEUR au centre de la grille des rues (taille d'unité 110 m :
+une ville est une source large ; muette au-delà de 1800 m), jour puis nuit — nuit_ambiance est vide, la
+ville se tait la nuit ; fondu de 4 s. La FORGE (sons_aleatoires), de jour, au pâté le plus proche du
+quai — le forgeron ferre ce qu'on débarque —, un son puis un silence tiré entre silence_min et
+silence_max (25–80 s). Les MOUETTES LOINTAINES (mouettes.loin), en boucle au-dessus du vol du port, et
+seulement quand il y est. Volumes dans sons.json (jour_volume, nuit_volume, aleatoires_volume,
+loin_volume). PIÈGE : un lecteur qu'on arrêtait dès que son volume était nul s'arrêtait aussi à la
+PREMIÈRE image de sa montée ; il ne s'arrête plus qu'en s'éteignant. ET : le sons.json reçu n'était plus
+du JSON (une virgule manquait après le bloc « mouettes ») — tout le manifeste était ignoré, craquements
+et musiques compris ; réparé.
+
 ## Ce que coûtent les pâtés de maisons de Port-Royal (Godot)
 
 Mesuré (--sans-ajout <motif>, qui cache les ajouts du mode création dont le modèle
@@ -15526,6 +15585,16 @@ pâleur au loin devient une part de pixels que le TAA moyenne. Les deux variante
 partagent rope_ribbon.gdshaderinc ; ShipNode.RibbonMode bascule les navires à
 flot quand l'anticrénelage change. Pas reproduit caméra fixe : c'est le
 MOUVEMENT qui étale, et une capture fixe ne le montre pas.
+
+**« La génération de cordage est cassée »** (capture depuis la pièce de poupe : des haubans
+en ÉCHELLES DE BOIS, claires et épaisses). Rien n'avait cassé : même image avec l'export
+d'avant les mantelets, et le calcul du rayon était celui du premier jour. C'est l'épaisseur
+du DESSIN, prise pour celle de la corde — 9 px sur 250 pour un hauban (7 cm), une enfléchure
+de 5,5 cm —, invisible à 45 m où le ruban pâlit au plancher d'un pixel, flagrante de près
+depuis que l'œil va à la pièce et fait un pas de côté. Plafonnée aux vraies sections
+(ShroudR 2,5 cm, RatlineR 1 cm de rayon, en mètres rapportés à l'échelle de la pièce) : le
+filet redevient des haubans qui montent à la hune et des enfléchures fines. Diagnostic utile :
+cacher les pièces de cordage (les échelles partaient avec), puis lire ce que la texture donne.
 
 **Les cordages deviennent les bouts rompus.** Un mât abattu faisait disparaître
 ses cordages, et deux bouts génériques pendaient aux trois quarts de sa hauteur,

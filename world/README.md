@@ -378,6 +378,8 @@ palette et la TAILLE d'un modèle brut en mètres (sa plus grande dimension). L'
 pas : un fort de cent unités et un tonneau de quatre-vingt-dix-huit se ressemblent. Un modèle absent paraît
 quand même, à l'échelle de son fichier. Changer une taille ici change la taille de base des ajouts déjà posés :
 leur `echelle` est relative à elle.
+`lanternes` : combien de lanternes de nuit le modèle porte à sa façade, sa face **+z** (0 par défaut) — allumées au
+crépuscule, soufflées avant deux heures (`TownNode.Lamps.cs`). Les maisons des villes et leurs copies ont les leurs.
 
 ```json
 { "modeles": { "fort_001.glb": { "nom": "Fort", "taille": 100, "loin": 300 } } }

@@ -29,6 +29,13 @@ public sealed class GullRules
     public int Count = 12;
     /// <summary>Celles qui viennent au navire ; les autres restent sur leur île.</summary>
     public int Followers = 4;
+    /// <summary>
+    /// LE VOL DU PORT (demandé) : ce qui tourne au-dessus d'un port quand on y est — le
+    /// poisson qu'on débarque, les déchets des quais. Combien, et à quelle distance du
+    /// port on cesse de les voir (en mètres).
+    /// </summary>
+    public int PortCount = 18;
+    public double PortRange = 1500;
     /// <summary>L'envergure, en mètres : une grande mouette.</summary>
     public double Span = 2.2;
     /// <summary>Au-delà de cette distance au rivage, plus d'oiseaux du tout.</summary>

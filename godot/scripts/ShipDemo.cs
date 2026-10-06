@@ -212,6 +212,9 @@ public partial class ShipDemo : Node3D
         AddChild(_coins);
         _sound = new SoundNode();
         AddChild(_sound);
+        // la ville entendue : ses lecteurs à elle, sur le bus du dehors
+        _city = new CitySound();
+        _sound.AddChild(_city);
         // les manifestes APRÈS lui : ils rangent leurs échantillons dans le nœud
         LoadSounds();
         LoadCrewVoices();
@@ -816,7 +819,9 @@ public partial class ShipDemo : Node3D
             // le niveau de la mer sous le navire décide de la hauteur d'eau
             _fishNode?.Update(_world, here, new Vec3d(wo.X, 0, wo.Z), frame,
                 _sea.Core.Sample(b.Pos.X, b.Pos.Z, _t));
+            if (_gulls != null) _gulls.Night = _sky.Core.Night;
             _gulls?.Update(_world, here, new Vec3d(wo.X, 0, wo.Z), frame, _t);
+            _city?.Update(_world, here, new Vec3d(wo.X, 0, wo.Z), _sky.Core.Night, _gulls?.Port, _sound?.On == true, frame);
             if (_dolphins != null)
             {
                 /* L'ÉTAT DE MER ET LA CÔTE décident s'ils viennent ; le temps de
@@ -980,7 +985,8 @@ public partial class ShipDemo : Node3D
             _dofMarker.Draw(_cam, _sea.Core, _t, _settings.DofNear, _settings.DofDistance, _settings.DofFade);
         // les feux et les fenêtres suivent la nuit du ciel, et s'effacent au loin
         _ship.SetLantern(_sky.Core.Night, _t, _cam.GlobalPosition, _sky.Core);
-        _town?.SetNight(_sky.Core.Night);     // les villes s allument avec les fanaux
+        _town?.SetNight(_windowsOff ? 0 : _sky.Core.Night);     // les villes s allument avec les fanaux
+        _town?.SetLamps(_sky.Core.Night, _sky.Core.DayTime, _t);
         foreach (var s in _others) s.SetLantern(_sky.Core.Night, _t, _cam.GlobalPosition, _sky.Core);
         // après les feux : la scène lit la nuit par leur règle
         GhostTick(frame);

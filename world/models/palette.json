@@ -2,10 +2,11 @@
   "note": "La palette du mode création (², Tab) : le nom qu'on y lit et la taille d'un modèle brut, en mètres (sa plus grande dimension). Un modèle absent d'ici y paraît quand même, à l'échelle de son fichier. Format : world/README.md.",
   "modeles": {
     "fort_001.glb": { "nom": "Fort", "taille": 100 },
-    "cottage-ville.glb": { "nom": "Maison de ville", "taille": 31 },
-	"cottage-ville-bloc.glb": { "nom": "Pâté de maisons de ville", "taille": 64 },
+    "cottage-ville.glb": { "nom": "Maison de ville", "taille": 31, "lanternes": 1 },
+    "cottage-ville-002.glb": { "lanternes": 1 },
+	"cottage-ville-bloc.glb": { "nom": "Pâté de maisons de ville", "taille": 64, "lanternes": 2 },
     "eglise.glb": { "nom": "Église", "taille": 20.1 },
-    "maison-a.glb": { "nom": "Maison A", "taille": 7.7 },
-    "maison-b.glb": { "nom": "Maison B", "taille": 8 }
+    "maison-a.glb": { "nom": "Maison A", "taille": 7.7, "lanternes": 1 },
+    "maison-b.glb": { "nom": "Maison B", "taille": 8, "lanternes": 1 }
   }
 }

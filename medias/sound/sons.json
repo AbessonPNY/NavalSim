@@ -20,6 +20,7 @@
   },
   
 
+
   "boulet": {
     "_aide": "siffle : le boulet qui passe tout près en sifflant, comme une balle — un tir d'un AUTRE navire sur vingt, qui a déjà volé cinq mètres et passe à portée d'oreille de la caméra (settings.json → whistle : oneIn, range, minFlight). Plusieurs par clé : il en tire un au hasard. Vide, le boulet se tait.",
     "siffle": []
@@ -39,12 +40,22 @@
   },
   
   "ville": {
-    "_aide": "Ambiances pour les villes du jeu",
+    "_aide": "Ambiances pour les villes du jeu. jour_ambiance / nuit_ambiance : la rumeur, en boucle, posée au centre des rues (Port-Royal) — entendue à moins de 1800 m, en fondu ; vide, la ville se tait. sons_aleatoires : de jour seulement, joués de temps en temps au pâté le plus proche du quai (la forge), avec un silence tiré entre silence_min et silence_max secondes après chaque son. Les volumes vont de 0 à 1.",
     "nuit_ambiance": [],
 	"sons_aleatoires" : ["forgeron.ogg"],
-    "jour_ambiance": ["city_ambiance.ogg"]
+    "jour_ambiance": ["city_ambiance.ogg"],
+    "jour_volume": 0.55,
+    "nuit_volume": 0.25,
+    "aleatoires_volume": 0.7,
+    "silence_min": 25,
+    "silence_max": 80
   },
-
+  
+"mouettes" : {
+	"_aide": "Sons de mouettes. loin : en boucle, au-dessus du port où tourne leur vol (à moins de 1500 m du port, de jour) — on les entend du ponton. loin_volume de 0 à 1.",
+	"loin": ["mouettes_lointaines.ogg"],
+	"loin_volume": 0.5
+},
 
   "etouffe": {
     "_aide": "CE QUI ETOUFFE, ET DE COMBIEN. Une coupure en Hz (tout ce qui est plus aigu est coupe) et une baisse en dB. Cela s ecoute et ne se calcule pas : poussez. Plus BAS en Hz = plus sourd ; plus NEGATIF en dB = plus faible. La pente du filtre est la plus raide que Godot offre, 24 dB par octave — a six, la valeur par defaut, on n entendait rien du tout.",

@@ -146,7 +146,7 @@ public static class Town
         double ux = Math.Cos(th), uz = Math.Sin(th);       // le long de la terre
         double vx = -uz, vz = ux;                           // en travers
 
-        var g = new StreetGrid { Key = isl.Key, Glb = c.Glb, Cx = mx, Cz = mz, Ux = ux, Uz = uz, Street = c.Street };
+        var g = new StreetGrid { Key = isl.Key, Glb = c.Glb, Cx = mx, Cz = mz, Ux = ux, Uz = uz, Street = c.Street, Face = c.Face };
         double pairPitch = 2 * c.Deep + c.Yard + c.Street;
         double rowOff = (c.Yard + c.Deep) * 0.5;
         int along = (int)(c.Length / (c.Long + c.Alley)) + 2;
@@ -192,6 +192,8 @@ public sealed class StreetGrid
 {
     public string Key = "", Glb = "";
     public double Cx, Cz, Ux, Uz, Street;
+    /// <summary>De combien la façade du modèle est tournée par rapport à son +z, en degrés (la fiche : « facade »).</summary>
+    public double Face;
     public readonly List<House> Blocks = new();
     readonly List<(double U, double V, double Hl, double Hd)> _cells = new();
     double _u0 = double.MaxValue, _u1 = double.MinValue, _v0 = double.MaxValue, _v1 = double.MinValue;

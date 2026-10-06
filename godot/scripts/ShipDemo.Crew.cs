@@ -114,6 +114,33 @@ public partial class ShipDemo
             if (root.TryGetProperty("bois", out var bo) && bo.TryGetProperty("craking_gain", out var cg) && cg.ValueKind == System.Text.Json.JsonValueKind.Number)
                 _creakGain = Math.Clamp(cg.GetDouble(), 0, 3);
 
+            // la ville entendue (CitySound) : sa rumeur, sa forge, et les mouettes du port
+            if (_city != null)
+            {
+                void List(string bloc, string champ, List<string> into)
+                {
+                    if (!root.TryGetProperty(bloc, out var b) || !b.TryGetProperty(champ, out var arr)
+                        || arr.ValueKind != System.Text.Json.JsonValueKind.Array) return;
+                    into.Clear();
+                    foreach (var f in arr.EnumerateArray())
+                        if (f.GetString() is string file && file.Length > 0) into.Add(file);
+                }
+                List("ville", "jour_ambiance", _city.Day);
+                List("ville", "nuit_ambiance", _city.Night);
+                List("ville", "sons_aleatoires", _city.Sporadic);
+                List("mouettes", "loin", _city.GullsFar);
+                if (root.TryGetProperty("ville", out var vi))
+                {
+                    _city.DayGain = Math.Clamp(vi.Num("jour_volume", _city.DayGain), 0, 1);
+                    _city.NightGain = Math.Clamp(vi.Num("nuit_volume", _city.NightGain), 0, 1);
+                    _city.SporadicGain = Math.Clamp(vi.Num("aleatoires_volume", _city.SporadicGain), 0, 1);
+                    _city.QuietMin = Math.Max(0, vi.Num("silence_min", _city.QuietMin));
+                    _city.QuietMax = Math.Max(_city.QuietMin, vi.Num("silence_max", _city.QuietMax));
+                }
+                if (root.TryGetProperty("mouettes", out var mo))
+                    _city.GullsGain = Math.Clamp(mo.Num("loin_volume", _city.GullsGain), 0, 1);
+            }
+
             // les bandes de mer
             if (root.TryGetProperty("mer", out var mer))
             {

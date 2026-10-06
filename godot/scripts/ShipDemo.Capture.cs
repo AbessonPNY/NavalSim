@@ -114,6 +114,10 @@ public partial class ShipDemo
                 case "--flore-carte": DumpFlora(args[i + 1]); break;
                 // ESSAI : à quai à un autre port, par sa clé (« montego-bay »)
                 case "--quai": _quaiTest = args[i + 1]; if (_world?.ByKey(_quaiTest) is { } quai) Moor(quai); break;
+                // MESURE : le reflet du rivage dans la mer (ocean.gdshader, u_shore_mirror), 0 l'éteint
+                case "--fenetres": _windowsOff = args[i + 1] == "0"; break;
+                case "--lanternes": if (_town != null) _town.LampsOn = args[i + 1] != "0"; break;
+                case "--reflet-rive": _sea.Material?.SetShaderParameter("u_shore_mirror", args[i + 1].ToFloat()); break;
                 case "--escarmouche": _wantMelee = args[i + 1] != "0"; break;
                 // DÉMONSTRATION : plonger la caméra à tant de mètres par seconde
                 case "--plongee": _diveSpeed = args[i + 1].ToFloat(); break;
