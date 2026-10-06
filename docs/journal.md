@@ -14896,6 +14896,13 @@ frégate en avaient quatre, et les autres deux grosses poches. SailCloth.NSwag =
 c'est ce que la grille dessine (seize colonnes, quatre par feston), et les rabans d'un vrai navire
 étaient même plus serrés (un à deux mètres). Le banc de parité ne compare plus les festons (swag,
 nSwag) à la page figée : ils ne servent qu'à la toile serrée, déjà écart voulu — 8/8.
+MOINS HAUTS ET RONDS (capture annotée : des courbes douces, le tiers de la hauteur). Le creux d'un
+feston descendait à 2,05 fois le rouleau de base (six pour cent de la chute), plus la bune : 1,2 fois
+désormais, la bune moins appuyée au creux. Et quatre colonnes par feston dessinaient un V : SailCloth
+prend un nombre de colonnes pour une carrée (squareColumns), seize par défaut — la page et le banc de
+parité, intacts, 8/8 — et Godot en demande quarante-huit (ShipNode.Rig, SailSurface), douze par
+feston : la courbe s'arrondit. Trois fois plus de sommets pour une carrée, quelques milliers pour la
+frégate. MESURÉ au port, de nuit, --vsync 0 : médiane 9,1 ms avec, 9,5 sans — dans le bruit.
 
 ## La flore de 1690, et l'ancre en .glb (Godot)
 

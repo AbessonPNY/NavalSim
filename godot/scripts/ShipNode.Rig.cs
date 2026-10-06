@@ -498,7 +498,8 @@ public partial class ShipNode
 
     MeshInstance3D SailSurface(Vec3d[] corners, Vec3d dir, SailCut cut)
     {
-        var cloth = new SailCloth(corners, dir, cut);
+        // quarante-huit colonnes pour une carrée : ses festons serrés s'arrondissent (SailCloth)
+        var cloth = new SailCloth(corners, dir, cut, squareColumns: 48);
         int n = cloth.U.Length;
         var c = new Canvas
         {

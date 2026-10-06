@@ -97,7 +97,9 @@ public sealed class SailCloth
     /// Tisser la voile entre ses coins, donnés dans l'ordre cyclique ; une voile
     /// à trois coins répète le dernier et la grille se ferme le long de ce bord.
     /// </summary>
-    public SailCloth(Vec3d[] corners, Vec3d dir, SailCut c)
+    /// <param name="squareColumns">Les colonnes d'une carrée : seize, celles de la page (le banc de parité) ;
+    /// Godot en demande quarante-huit, pour que ses festons serrés s'arrondissent.</param>
+    public SailCloth(Vec3d[] corners, Vec3d dir, SailCut c, int squareColumns = 16)
     {
         Kind = c.Kind;
         double chordFree = c.FreeU ?? c.Free;
@@ -108,7 +110,10 @@ public sealed class SailCloth
            imposé : un feston veut quatre colonnes pour se dessiner en boucle et
            non en encoche, et un raban qui tombe ENTRE deux colonnes n'est jamais
            échantillonné à son pincement. Rien d'autre à bord n'en veut autant. */
-        int nu = c.Kind == "square" ? 16 : 8, nv = 8;
+        /* ET UNE TOILE PLUS FINE SOUS GODOT (demandé : « l'effet low poly ») : quatre
+           colonnes par feston dessinent un V, douze une courbe. La page et le banc de
+           parité gardent seize. */
+        int nu = c.Kind == "square" ? Math.Max(16, squareColumns / 4 * 4) : 8, nv = 8;
         double HangU(double x) => (hPinU0 ? 0 : (1 - x) * (1 - x)) + (hPinU1 ? 0 : x * x);
         double HangV(double x) => (hPinV0 ? 0 : (1 - x) * (1 - x)) + (hPinV1 ? 0 : x * x);
         Vec3d c00 = corners[0], c10 = corners[1], c11 = corners[2];
@@ -219,16 +224,18 @@ public sealed class SailCloth
         for (int k = 0, n = w.Length; k < n; k++)
         {
             int i3 = k * 3, r0 = (k % nu1) * 3;         // sa place sur la rangée zéro
-            // son feston : 0,20 sous un raban, 2,05 au creux, 1 tout juste établie
+            /* son feston : 0,25 sous un raban, 1,2 au creux, 1 tout juste établie. Il
+               descendait à 2,05 : des poches hautes comme le tiers de la voile (signalé —
+               « moins hautes ») ; une toile serrée pend d'une main, pas d'un bras. */
             double q = sw != null ? sw[k] : 1;
-            double st = sw != null ? 0.06 * (1 + furl * (0.20 + 1.85 * q - 1)) + 0.94 * sf : stow;
+            double st = sw != null ? 0.06 * (1 + furl * (0.25 + 0.95 * q - 1)) + 0.94 * sf : stow;
             /* LA BUNE PEND, ELLE NE GONFLE PAS (signalé : la voile au repos « bosselée vers
                l'avant »). Serrée sous sa vergue, la toile n'a plus de vent pour la creuser :
                son rouleau tombe sous la vergue, et c'est tout. Elle était poussée le long de
                la normale, comme le creux d'une voile pleine. Seulement pour une toile qui
                PEND de sa rangée zéro (une carrée sous sa vergue) : une aurique serrée sur sa
                bôme garde son rouleau où il est, il traverserait la bôme. */
-            double roll = w[k] * bunt * (sw != null ? 0.35 + 0.85 * q : 1);
+            double roll = w[k] * bunt * (sw != null ? 0.45 + 0.45 * q : 1);
             bool hangs = b[r0 + 1] >= b[i3 + 1];
             double f = w[k] * (depth + (luffing ? full * 0.22 * Math.Sin(u[k] * 7 - t * 9) : 0)) * sf
                      + (hangs ? 0 : roll);
