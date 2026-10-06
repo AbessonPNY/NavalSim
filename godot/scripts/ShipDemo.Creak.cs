@@ -70,6 +70,7 @@ public partial class ShipDemo
         var at = s.GlobalTransform * local;
         bool inside = mine && _indoors > 0.5;
         double gain = Math.Clamp(0.12 + 1.4 * work, 0.12, 0.45) * (inside ? 1.6 : 1) * _creakGain;
-        _sound.Crew("craquement", at.ToCore(), gain, 1.2, inside);
+        // jamais deux à la fois, d'aucun navire : la clé se tait jusqu'à la fin du craquement, plus une demi-seconde
+        _sound.Crew("craquement", at.ToCore(), gain, -0.5, inside);
     }
 }

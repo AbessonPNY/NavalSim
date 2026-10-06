@@ -474,6 +474,8 @@ public partial class LandNode : Node3D
     /// enfoncement que le semis pièce à pièce ; mais rien à reprendre en mode
     /// création, pièce par pièce.
     /// </summary>
+    string? _regionPrint;
+
     int BuildCrowd(ScatterSpec sp, Node3D root, Aabb bb, float ext)
     {
         var centre = bb.GetCenter();
@@ -495,9 +497,24 @@ public partial class LandNode : Node3D
            des arbres vus à deux kilomètres en cases de quarante-huit mètres en feraient des
            milliers. Un sixième de la portée, entre 48 et 400 m. */
         double cellSz = Math.Clamp(sp.Visible / 6, CrowdCell, 400);
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        // relues du disque quand rien n'a changé (ScatterCache)
+        _regionPrint ??= ScatterCache.RegionPrint(World);
+        var placed = ScatterCache.Places(World, sp, _regionPrint, out bool cached);
+        long placeMs = clock.ElapsedMilliseconds;
+        /* ET D'AU MOINS UNE DOUZAINE DE PIÈCES PAR CASE en moyenne : semée sur toute une île,
+           une espèce clairsemée occupait une case par arbre — des dizaines de milliers de
+           nœuds. On grossit la case (jusqu'à 700 m) tant qu'elle reste trop vide. */
+        for (int guard = 0; guard < 6 && placed.Count > 0 && cellSz < 700; guard++)
+        {
+            var occ = new HashSet<(int, int)>();
+            foreach (var p in placed) occ.Add(((int)Math.Floor(p.X / cellSz), (int)Math.Floor(p.Z / cellSz)));
+            if (placed.Count >= 12 * occ.Count) break;
+            cellSz = Math.Min(700, cellSz * 1.5);
+        }
         var cells = new Dictionary<(int, int), List<Transform3D>>();
         int n = 0;
-        foreach (var p in Scatter.Place(World, sp))
+        foreach (var p in placed)
         {
             float k = (float)(p.Size / ext);
             double y = World.HeightAt(p.X, p.Z) + bb.Size.Y * k * 0.5 * (1 - sp.Sink);
@@ -538,7 +555,7 @@ public partial class LandNode : Node3D
             AddChild(hold);
             _assets.Add(hold, (key.Item1 + 0.5) * cellSz, 0, (key.Item2 + 0.5) * cellSz);
         }
-        GD.Print($"monde : « {sp.Name} », {n} pièce(s) en {cells.Count} case(s)");
+        GD.Print($"monde : « {sp.Name} », {n} pièce(s) en {cells.Count} case(s) — {(cached ? "relues du cache" : "semées")} en {placeMs} ms, bâties en {clock.ElapsedMilliseconds - placeMs} ms");
         return n;
     }
 

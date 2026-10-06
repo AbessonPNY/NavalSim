@@ -118,6 +118,8 @@ public partial class TownNode : Node3D
     public void Build(string name, double cx, double cz, double radius, int want, uint seed)
     {
         var houses = Town.Plant(_world, cx, cz, radius, want, seed);
+        // chaque maison inscrite au monde : la végétation semée ensuite s'en écarte (World.Built)
+        foreach (var h in houses) _world.MarkBuilt(h.X, h.Z, 8);
         if (houses.Count == 0)
         {
             GD.PushWarning($"{name} : aucun terrain à bâtir — ville ignorée.");

@@ -132,6 +132,24 @@
 
     {"name": "Fourré de l'îlot", "glb": "props/flore/buisson.glb", "patch": "ilot-cocotiers", "nombre": 300, "taille": [0.7,1.6], "frange": [0.8,6], "penche": 6, "ecart": 1.6, "enfonce": 0.1, "visible": 400, "graine": 82, "foule": true},
 
+    {"name": "Cocotiers des grèves de l'île", "glb": "props/cocotier_low.glb", "lat": 18.11, "lon": -77.3, "rayon": 48000, "hors": [17.965,-76.84,7000], "nombre": 6000, "taille": [9,17], "frange": [0.8,4], "amas": [500,250], "penche": 10, "ecart": 6, "enfonce": 0.02, "visible": 2500, "degage": 10, "graine": 91, "foule": true, "ombre": true},
+
+    {"name": "Raisiniers de l'île", "glb": "props/flore/raisinier.glb", "lat": 18.11, "lon": -77.3, "rayon": 48000, "hors": [17.965,-76.84,7000], "nombre": 12000, "taille": [2.2,5], "frange": [0.5,4], "penche": 6, "ecart": 3.5, "enfonce": 0.05, "visible": 900, "degage": 8, "graine": 92, "foule": true, "ombre": true},
+
+    {"name": "Palétuviers de l'île", "glb": "props/flore/paletuvier.glb", "lat": 18.11, "lon": -77.3, "rayon": 48000, "hors": [17.965,-76.84,7000], "nombre": 10000, "taille": [3.5,7], "frange": [-0.35,0.7], "penche": 5, "ecart": 2.8, "enfonce": 0.02, "visible": 1200, "degage": 10, "graine": 93, "foule": true, "ombre": true, "calme": 4000},
+
+    {"name": "Gaïacs de l'île", "glb": "props/flore/gaiac.glb", "lat": 18.11, "lon": -77.3, "rayon": 48000, "hors": [17.965,-76.84,7000], "nombre": 30000, "taille": [3.5,7], "frange": [2,120], "amas": [1200,220], "penche": 5, "ecart": 5, "enfonce": 0.02, "visible": 1400, "degage": 12, "graine": 94, "foule": true, "ombre": true},
+
+    {"name": "Acajous des hauteurs", "glb": "props/flore/acajou.glb", "lat": 18.11, "lon": -77.3, "rayon": 48000, "hors": [17.965,-76.84,7000], "nombre": 30000, "taille": [12,20], "frange": [15,600], "amas": [1500,300], "penche": 4, "ecart": 9, "enfonce": 0.02, "visible": 1800, "degage": 12, "graine": 95, "foule": true, "ombre": true},
+
+    {"name": "Lataniers de l'île", "glb": "props/flore/latanier.glb", "lat": 18.11, "lon": -77.3, "rayon": 48000, "hors": [17.965,-76.84,7000], "nombre": 10000, "taille": [5,10], "frange": [1.5,150], "amas": [700,150], "penche": 8, "ecart": 7, "enfonce": 0.02, "visible": 2000, "degage": 12, "graine": 96, "foule": true, "ombre": true},
+
+    {"name": "Fromagers de l'île", "glb": "props/flore/fromager.glb", "lat": 18.11, "lon": -77.3, "rayon": 48000, "hors": [17.965,-76.84,7000], "nombre": 3000, "taille": [18,28], "frange": [3,300], "penche": 3, "ecart": 70, "enfonce": 0.02, "visible": 3500, "degage": 20, "graine": 97, "foule": true, "ombre": true},
+
+    {"name": "Fourré de l'île", "glb": "props/flore/buisson.glb", "lat": 18.11, "lon": -77.3, "rayon": 48000, "hors": [17.965,-76.84,7000], "nombre": 30000, "taille": [0.7,2], "frange": [0.6,200], "amas": [2500,120], "penche": 6, "ecart": 1.8, "enfonce": 0.1, "visible": 450, "degage": 6, "graine": 98, "foule": true},
+
+    {"name": "Cierges des côtes sèches de l'île", "glb": "props/flore/cierge.glb", "lat": 18.11, "lon": -77.3, "rayon": 48000, "hors": [17.965,-76.84,7000], "nombre": 3000, "taille": [2.5,5.5], "frange": [4,150], "amas": [300,90], "penche": 4, "ecart": 4, "enfonce": 0.02, "visible": 700, "degage": 8, "graine": 99, "foule": true, "ombre": true},
+
     { "name": "Corail cerveau des récifs", "ecueil": true, "glb": "props/fond/corail-cerveau.glb", "lat": 17.9330, "lon": -76.8330, "rayon": 4000, "nombre": 900, "taille": [0.4, 2.2], "frange": [-12, -1.2], "abri": [0.8, 1], "amas": [45, 28], "penche": 12, "enfonce": 0.15, "visible": 140, "graine": 41, "foule": true },
 
     { "name": "Corne d'élan des récifs", "ecueil": true, "glb": "props/fond/corail-corne.glb", "lat": 17.9330, "lon": -76.8330, "rayon": 4000, "nombre": 700, "taille": [0.8, 2.6], "frange": [-5, -0.9], "abri": [0.85, 1], "amas": [45, 28], "penche": 8, "enfonce": 0.05, "visible": 140, "graine": 41, "foule": true },

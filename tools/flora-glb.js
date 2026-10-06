@@ -19,7 +19,9 @@
  *                  dense et sombre des bois secs du sud ;
  *  - fromager    : Ceiba pentandra, le fromager (le « cotton tree » des Anglais), géant
  *                  aux contreforts, couronne plate au-dessus de tout ;
- *  - buisson     : le fourré bas des côtes sèches (acacias, crotons), en touffes.
+ *  - buisson     : le fourré bas des côtes sèches (acacias, crotons), en touffes ;
+ *  - acajou      : Swietenia mahagoni, l'acajou de la Jamaïque — le grand arbre des
+ *                  bois humides des hauteurs et de la côte nord, fût droit, cime en dôme.
  * PAS de manguier (1782), d'arbre à pain (1793), d'akée (1778), ni de bois de campêche,
  * qu'on ne plante en Jamaïque qu'en 1715 — Port-Royal le revendait, il venait de la
  * baie de Campêche.
@@ -43,7 +45,8 @@ const MAT = {
   palme:       M('palme_latanier', 0x6a8a48, 0.8, true),
   gaiac:       M('feuilles_gaiac', 0x2f4a2a),
   fromager:    M('feuilles_fromager', 0x57783c),
-  buisson:     M('feuilles_buisson', 0x6a7440)
+  buisson:     M('feuilles_buisson', 0x6a7440),
+  acajou:      M('feuilles_acajou', 0x3c5c2c)
 };
 
 let seed = 11;
@@ -282,9 +285,24 @@ function buisson() {
   return m;
 }
 
+function acajou() {
+  const m = model();
+  const H = 15;
+  tube(m, 'ecorceRouge', [{ p: [0, 0, 0], r: 0.45 }, { p: [0, 1, 0], r: 0.32 }, { p: [0.2, 6, 0], r: 0.26 }, { p: [0, 8.5, 0.1], r: 0.2 }], 6);
+  // quatre maîtresses branches qui montent en coupe, et la cime en dôme dessus
+  for (let k = 0; k < 5; k++) {
+    const a = k / 5 * Math.PI * 2 + R() * 0.4;
+    const tip = [Math.cos(a) * 3.2, 11 + R() * 1.5, Math.sin(a) * 3.2];
+    tube(m, 'ecorceRouge', [{ p: [0, 7.5, 0], r: 0.16 }, { p: tip, r: 0.07 }], 4);
+    blob(m, 'acajou', add(tip, [0, 0.8, 0]), 2.6, 1.7, 2.6, 0.25);
+  }
+  blob(m, 'acajou', [0, H - 1.6, 0], 3.4, 2.0, 3.4, 0.22);
+  return m;
+}
+
 const out = path.join(__dirname, '..', 'props', 'flore');
 const only = process.argv.slice(2);
-for (const [name, make] of Object.entries({ raisinier, paletuvier, cierge, raquette, latanier, gaiac, fromager, buisson })) {
+for (const [name, make] of Object.entries({ raisinier, paletuvier, cierge, raquette, latanier, gaiac, fromager, buisson, acajou })) {
   if (only.length && !only.includes(name)) continue;
   seed = 11 + name.length * 97;
   const m = make();

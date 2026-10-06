@@ -16,7 +16,10 @@ public partial class ShipDemo
 {
     void DumpFlora(string dir)
     {
-        if (_world?.StartPort is not { } sp) return;
+        if (_world == null) return;
+        // autour du navire, là où il est (un --quai l'a pu poser ailleurs qu'au départ)
+        var o0 = _sea.Core.Origin; var b0 = _ship.Physics.Body.Pos;
+        var sp = (X: o0.X + b0.X, Z: o0.Z + b0.Z);
         var pts = new StringBuilder();
         foreach (var s in _world.Region.Scatters)
         {

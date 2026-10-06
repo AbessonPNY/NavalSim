@@ -279,8 +279,10 @@ public partial class SoundNode : Node3D
     {
         if (!On || !_crew.TryGetValue(key, out var list) || list.Count == 0) return false;
         if (_crewAgain.TryGetValue(key, out double t) && _now < t) return false;
-        _crewAgain[key] = _now + hold;
         var stream = list[(int)(_rng.Randf() * list.Count) % list.Count];
+        /* UN HOLD NÉGATIF ATTEND LA FIN DE L'ÉCHANTILLON TIRÉ, puis tant de silence : un
+           craquement dure plus qu'un délai fixe, et deux se chevauchaient (signalé). */
+        _crewAgain[key] = _now + (hold < 0 ? stream.GetLength() - hold : hold);
         var p = Free();
         if (p == null) return false;
         p.Bus = inside ? "Master" : OutBus;

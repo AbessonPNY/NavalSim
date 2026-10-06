@@ -257,6 +257,7 @@ Un modèle répandu au hasard sur une zone — les rochers d'une plage. Dans `wo
 | `foule` | `true` : des milliers de petites pièces, dessinées par cases (MultiMesh) au lieu d'un nœud chacune — la case va comme la portée (`visible` / 6, de 48 à 400 m : un appel de dessin par case et par matière) ; on ne les reprend pas une à une en mode création |
 | `degage` | à tant de mètres du BÂTI au moins (`World.Built`) : les villes de la fiche, les rues et pâtés d'un port, et ce qu'on a posé ou déplacé en mode création (maisons, pâtés, église, forts). Pour la végétation : rien ne pousse dans une rue |
 | `ombre` | `true` : une foule qui porte ombre (un arbre ; sans, il flotte). Le fond et les touffes s'en passent |
+| `hors` | `[lat, lon, rayon]` : pas dans ce cercle — une zone qu'un autre semis couvre déjà plus finement (la rade de Port-Royal dans les semis de toute l'île) |
 | `calme` | en EAU CALME seulement : de ce point, trois directions au plus sur seize filent sur tant de mètres d'eau sans toucher terre (`Scatter.Calm`). La mangrove : 4000 — l'envers d'un cordon, le fond d'une rade, jamais la côte du large |
 | `ecueil` | `true` : un ÉCUEIL — la coque le heurte et s'y ouvre (rochers, têtes de corail). Il est inscrit à sa place vue : déplacé, retiré ou copié en mode création, son danger le suit |
 | `recifs` | `true` : seulement sur les récifs de la fiche (le corail des cayes) |

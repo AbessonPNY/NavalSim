@@ -14932,6 +14932,49 @@ plan X–Y, jas le long de Z, organeau vers y = 1,05 ; deux matières, fer et bo
 échelonnée, brume posée ; absente, l'ancre dessinée. ET L'ANCRE DESSINÉE AVAIT SON JAS LE LONG DES BRAS :
 d'équerre maintenant — c'est lui qui la fait basculer pour qu'une patte morde.
 
+## La végétation de toute l'île ; le semis gardé sur le disque ; l'ancre à poste (Godot)
+
+DEMANDÉ : « étends la végétation au reste de l'île », puis « l'ancre accrochée sur le flanc comme une
+vraie » (photographie d'un vaisseau, l'ancre traversée), « les craquements se chevauchent parfois », et
+« tu ne refais pas ton semis à chaque chargement ? ».
+
+L'ÎLE : neuf semis sur un cercle de 48 km autour de la Jamaïque, « hors » de la rade (déjà semée plus
+finement) — cocotiers des grèves en bosquets (cocotier_low), raisiniers, palétuviers en eau calme,
+gaïacs, ACAJOUS des hauteurs (Swietenia mahagoni, nouveau modèle, 15 à 600 m), lataniers, fromagers,
+fourré, cierges : 137 000 pièces. TROIS OBSTACLES, mesurés :
+- LE TRI GROSSIER à 12 m sur 96 km de côté, c'était soixante millions d'essais : 48 m pour une grande
+  zone (le relief ne vaut que 45 m au pixel), la bande d'altitude élargie d'un mètre et demi pour ce
+  seul tri ; et les ALTITUDES lues une fois par zone, en parallèle, partagées par les neuf espèces
+  (Scatter.HeightGrid) ; les centres des bosquets tirés parmi les cases qui conviennent (neuf sur dix
+  des essais tombaient en mer). 6,5 s → 2,9 s ;
+- LES CASES DE RENDU : une espèce clairsemée occupait une case par arbre ; elles grossissent (jusqu'à
+  700 m) tant qu'elles portent moins d'une douzaine de pièces ;
+- LES MAISONS DES PORTS (Town.Plant, 420 m autour de chaque port) n'étaient pas dans World.Built : des
+  arbres poussaient contre les murs de Montego Bay. TownNode les inscrit en les posant (World.MarkBuilt,
+  un cercle de 8 m par maison, par cases de 32 m), avant le semis.
+LE CACHE (ScatterCache.cs, user://semis-cache) : les places d'une foule relues d'un fichier dont le nom
+porte l'empreinte de chaque champ du semis et de la taille et de la date des fichiers de la région (fiche,
+relief, carreaux, retouches) ; une règle de placement changée passe par ScatterCache.Recipe. Mesuré :
+« semées en 1040 ms » → « relues du cache en 0 ms » ; il reste la construction des MultiMesh (≈ 1,3 s pour
+toute la flore). COÛT PAR IMAGE, au port, --vsync 0 : médiane 9,7 ms (9,5 sans l'île, 9,1–9,3 sans flore).
+
+LE PIÈGE DE LA MESURE : une première mesure donnait 32 ms par image et en accusait la flore de l'île —
+retirée, il en restait 35. C'était L'ANCRE À POSTE, posée à chaque image pour chaque navire par un
+calcul qui lit le bordé sur le modèle (HalfAt) ; la pose est maintenant mesurée une fois (Item.Fished).
+Une mesure qui accuse doit être refaite SANS le suspect avant d'y toucher.
+
+L'ANCRE À POSTE (AnchorNode.PoseStowed, FishedPose) : rentrée, elle n'est plus cachée mais TRAVERSÉE le
+long du bord tribord — l'organeau sous le bossoir, la verge couchée vers l'arrière, le jas debout, la
+patte intérieure au bordé (à HalfAt + 0,36 de la taille de l'ancre). Pour tous les navires qui en ont
+une ; les ancres des navires partis sont libérées (Prune).
+
+LES CRAQUEMENTS : la clé se taisait 1,2 s, moins qu'un craquement, et deux navires proches pouvaient
+craquer ensemble. SoundNode.Crew : un « hold » NÉGATIF attend la fin de l'échantillon tiré, plus tant de
+silence ; le craquement en prend 0,5 s, quel que soit le navire.
+
+ESSAIS : -- --quai montego-bay (le départ à un autre port, Moor(Isle)) ; -- --flore-carte dossier,
+centrée maintenant sur le navire.
+
 ## Ce que coûtent les pâtés de maisons de Port-Royal (Godot)
 
 Mesuré (--sans-ajout <motif>, qui cache les ajouts du mode création dont le modèle

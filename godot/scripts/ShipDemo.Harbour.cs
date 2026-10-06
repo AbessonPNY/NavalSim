@@ -370,14 +370,19 @@ public partial class ShipDemo
         _sky.PushTo(m);
     }
 
-    void Moor()
+    void Moor() => Moor(_quaiTest != null ? _world?.ByKey(_quaiTest) : null);
+    /// <summary>ESSAI (-- --quai clé) : le départ à un autre port.</summary>
+    string? _quaiTest;
+
+    /// <summary>À quai à ce port, ou à celui du départ (<paramref name="at"/> nul).</summary>
+    void Moor(NavalSim.Core.Isle? at)
     {
-        if (_world?.StartPort is not NavalSim.Core.Isle home) return;
+        if ((at ?? _world?.StartPort) is not NavalSim.Core.Isle home) return;
         var (x, z, heading) = NavalSim.Core.Berth.At(home, _ship.Spec.L, _ship.Spec.B);
         /* UN DÉPART ÉCRIT DANS LA FICHE l'emporte sur le ponton : une place, un cap
            (boussole : 0 nord, 90 est — d'où le signe), et l'ancre au fond dès la
            première image. */
-        if (home.StartAt is { } st)
+        if (at == null && home.StartAt is { } st)
         {
             (x, z, heading) = (st.X, st.Z, Compass.YawOf(st.Cap));
             _anchorAtStart = true;

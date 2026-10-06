@@ -70,6 +70,11 @@ public sealed class ScatterSpec
     /// n'arrive pas : une rade, une baie fermée, l'envers d'un cordon. Nul : partout.
     /// </summary>
     public double Calm;
+    /// <summary>
+    /// HORS DE CE CERCLE (lat, lon, rayon en mètres) : une zone déjà semée plus finement
+    /// par un autre semis — la rade de Port-Royal dans le semis de toute l'île.
+    /// </summary>
+    public double OutLat, OutLon, OutRadius;
     /// <summary>IL PORTE OMBRE (une foule de terre : un arbre sans ombre flotte au-dessus du sol) ; le fond et les touffes s'en passent.</summary>
     public bool Shadow;
 }
@@ -110,11 +115,16 @@ public static class Scatter
             r2 = s.Radius * s.Radius;
         }
 
-        bool Fits(double x, double z)
+        double ox = 0, oz = 0, or2 = -1;
+        if (s.OutRadius > 0) { (ox, oz) = w.Geo.ToXZ(s.OutLat, s.OutLon); or2 = s.OutRadius * s.OutRadius; }
+
+        bool Fits(double x, double z) => FitsBand(x, z, 0, double.NaN);
+        bool FitsBand(double x, double z, double slack, double known)
         {
             if ((x - cx) * (x - cx) + (z - cz) * (z - cz) > r2) return false;
-            double h = w.HeightAt(x, z);
-            if (h < s.HMin || h > s.HMax) return false;
+            if (or2 > 0 && (x - ox) * (x - ox) + (z - oz) * (z - oz) < or2) return false;
+            double h = double.IsNaN(known) ? w.HeightAt(x, z) : known;
+            if (h < s.HMin - slack || h > s.HMax + slack) return false;
             if (s.ShelterMin > 0 || s.ShelterMax < 1)
             {
                 double sh = w.Shelter(x, z);
@@ -144,11 +154,31 @@ public static class Scatter
         uint sc = (uint)(s.Seed * 2654435761u) | 1;
         double RC() { sc ^= sc << 13; sc ^= sc >> 17; sc ^= sc << 5; return (sc & 0xFFFFFF) / 16777216.0; }
         var centres = new List<(double X, double Z)>();
-        for (int tries = 0; tries < s.Clusters * 400 && centres.Count < s.Clusters; tries++)
+        bool wide = Math.Max(x1 - x0, z1 - z0) > 30000;
+        if (wide && s.Clusters > 0)
         {
-            double x = x0 + (x1 - x0) * RC(), z = z0 + (z1 - z0) * RC();
-            if (Fits(x, z)) centres.Add((x, z));
+            /* SUR TOUTE UNE ÎLE, les centres sont tirés parmi les cases qui conviennent (les
+               altitudes partagées, HeightGrid) : au hasard sur la zone, neuf essais sur dix
+               tombaient en mer, chacun une lecture du relief. */
+            const double Cs = 48;
+            var hg = HeightGrid(w, x0, z0, x1, z1, Cs);
+            int nx = (int)Math.Ceiling((x1 - x0) / Cs), nz = (int)Math.Ceiling((z1 - z0) / Cs);
+            var cand = new List<int>();
+            for (int i = 0; i < hg.Length; i++)
+                if (hg[i] >= s.HMin && hg[i] <= s.HMax) cand.Add(i);
+            for (int tries = 0; tries < s.Clusters * 40 && centres.Count < s.Clusters && cand.Count > 0; tries++)
+            {
+                int c = cand[(int)(RC() * cand.Count) % cand.Count];
+                double x = x0 + (c % nx + RC()) * Cs, z = z0 + (c / nx + RC()) * Cs;
+                if (Fits(x, z)) centres.Add((x, z));
+            }
         }
+        else
+            for (int tries = 0; tries < s.Clusters * 400 && centres.Count < s.Clusters; tries++)
+            {
+                double x = x0 + (x1 - x0) * RC(), z = z0 + (z1 - z0) * RC();
+                if (Fits(x, z)) centres.Add((x, z));
+            }
         if (s.Clusters > 0 && centres.Count == 0) return outp;
 
         /* LES VOISINS PAR CASES : une foule compte des milliers de pièces, et les
@@ -163,14 +193,26 @@ public static class Scatter
            trouver les prés d'herbier (deux sur mille tombaient juste) — 6,8 s au
            chargement. Le semis pièce à pièce garde son tirage : ses retouches en
            dépendent. */
-        const double Coarse = 12;
+        /* SUR TOUTE UNE ÎLE, des cases de 48 m : à douze, cent kilomètres de côté feraient
+           soixante millions d'essais au chargement. Le relief ne vaut que 45 m au pixel ;
+           la bande d'altitude est élargie d'un mètre et demi pour ce tri grossier, sans
+           quoi une grève étroite tomberait entre deux centres de case — chaque pièce, elle,
+           est encore éprouvée à la lettre. */
+        double Coarse = wide ? 48 : 12;
         List<(double X, double Z)>? kept = null;
         if (s.Crowd && centres.Count == 0)
         {
             kept = new List<(double X, double Z)>();
-            for (double gz = z0; gz < z1; gz += Coarse)
-                for (double gx = x0; gx < x1; gx += Coarse)
-                    if (Fits(gx + Coarse / 2, gz + Coarse / 2)) kept.Add((gx, gz));
+            // les altitudes d'une grande zone, lues une fois et partagées par toutes ses espèces
+            float[]? hg = wide ? HeightGrid(w, x0, z0, x1, z1, Coarse) : null;
+            int nx = (int)Math.Ceiling((x1 - x0) / Coarse);
+            int iz = 0;
+            for (double gz = z0; gz < z1; gz += Coarse, iz++)
+            {
+                int ix = 0;
+                for (double gx = x0; gx < x1; gx += Coarse, ix++)
+                    if (FitsBand(gx + Coarse / 2, gz + Coarse / 2, wide ? 1.5 : 0, hg != null ? hg[iz * nx + ix] : double.NaN)) kept.Add((gx, gz));
+            }
             if (kept.Count == 0) return outp;
         }
 
@@ -214,6 +256,30 @@ public static class Scatter
             outp.Add(new ScatterPlace(x, z, yaw, Math.Cos(ta) * tm, Math.Sin(ta) * tm, size));
         }
         return outp;
+    }
+
+    /* LES ALTITUDES D'UNE GRANDE ZONE, aux centres de ses cases grossières : lues une
+       fois, gardées pour toutes les espèces qui la partagent (toute l'île en compte
+       neuf) — c'était des millions de lectures du relief, recommencées neuf fois. */
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<World, Dictionary<(long, long, long, long, int), float[]>> _heightGrids = new();
+
+    static float[] HeightGrid(World w, double x0, double z0, double x1, double z1, double step)
+    {
+        var byZone = _heightGrids.GetOrCreateValue(w);
+        var key = ((long)Math.Round(x0), (long)Math.Round(z0), (long)Math.Round(x1), (long)Math.Round(z1), (int)step);
+        lock (byZone)
+        {
+            if (byZone.TryGetValue(key, out var had)) return had;
+            int nx = (int)Math.Ceiling((x1 - x0) / step), nz = (int)Math.Ceiling((z1 - z0) / step);
+            var g = new float[nx * nz];
+            System.Threading.Tasks.Parallel.For(0, nz, iz =>
+            {
+                double gz = z0 + iz * step + step / 2;
+                for (int ix = 0; ix < nx; ix++) g[iz * nx + ix] = (float)w.HeightAt(x0 + ix * step + step / 2, gz);
+            });
+            byZone[key] = g;
+            return g;
+        }
     }
 
     /// <summary>

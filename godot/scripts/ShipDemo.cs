@@ -841,6 +841,10 @@ public partial class ShipDemo : Node3D
             if (_anchor2 != null)
             {
                 _anchor2.Step(frame, _t);
+                // et à poste sur le flanc, celles qui ne sont pas mouillées (AnchorNode.PoseStowed)
+                _anchor2.PoseStowed(_ship);
+                foreach (var s in _others) _anchor2.PoseStowed(s);
+                _anchor2.Prune();
                 foreach (var m in _anchor2.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
             }
             PushHarbour(here);

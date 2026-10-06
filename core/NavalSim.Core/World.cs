@@ -294,6 +294,8 @@ public sealed class RegionSpec
                 sp.Clear = a.Opt("degage") ?? 0;
                 sp.Shadow = Js.True(a, "ombre");
                 sp.Calm = a.Opt("calme") ?? 0;
+                if (a.TryGetProperty("hors", out var ho) && ho.ValueKind == JsonValueKind.Array && ho.GetArrayLength() == 3)
+                { sp.OutLat = ho[0].GetDouble(); sp.OutLon = ho[1].GetDouble(); sp.OutRadius = ho[2].GetDouble(); }
                 if (sp.Glb.Length > 0) s.Scatters.Add(sp);
             }
         return s;
@@ -848,7 +850,45 @@ public sealed class World : IGround
             if ((x - tx) * (x - tx) + (z - tz) * (z - tz) < r * r) return true;
         }
         foreach (var g in Grids) if (g.Covers(x, z, margin)) return true;
+        if (Marked(x, z, margin)) return true;
         return Occupied?.Invoke(x, z, margin) == true;
+    }
+
+    /* LES MAISONS POSÉES, inscrites par qui les pose (TownNode) : chaque port plante sa
+       ville au hasard tenu, et le semis n'en savait rien — des arbres poussaient contre
+       les murs de Montego Bay. Un cercle par maison, rangés par cases de 32 m. */
+    readonly Dictionary<(int, int), List<(double X, double Z, double R)>> _marked = new();
+    const double MarkCell = 32;
+
+    /// <summary>Inscrire un bâti posé : (x, z) en mètres vrais, son rayon.</summary>
+    public void MarkBuilt(double x, double z, double r)
+    {
+        int i0 = (int)Math.Floor((x - r) / MarkCell), i1 = (int)Math.Floor((x + r) / MarkCell);
+        int j0 = (int)Math.Floor((z - r) / MarkCell), j1 = (int)Math.Floor((z + r) / MarkCell);
+        for (int j = j0; j <= j1; j++)
+            for (int i = i0; i <= i1; i++)
+            {
+                if (!_marked.TryGetValue((i, j), out var l)) _marked[(i, j)] = l = new List<(double, double, double)>();
+                l.Add((x, z, r));
+            }
+    }
+
+    bool Marked(double x, double z, double margin)
+    {
+        if (_marked.Count == 0) return false;
+        int ci = (int)Math.Floor(x / MarkCell), cj = (int)Math.Floor(z / MarkCell);
+        int reach = 1 + (int)(margin / MarkCell);
+        for (int j = cj - reach; j <= cj + reach; j++)
+            for (int i = ci - reach; i <= ci + reach; i++)
+            {
+                if (!_marked.TryGetValue((i, j), out var l)) continue;
+                foreach (var (ox, oz, r) in l)
+                {
+                    double rr = r + margin;
+                    if ((x - ox) * (x - ox) + (z - oz) * (z - oz) < rr * rr) return true;
+                }
+            }
+        return false;
     }
 
     /// <summary>Ce que la main a posé, en mètres vrais : vrai si (x, z) est à moins de la marge d'un bâti ajouté ou déplacé.</summary>

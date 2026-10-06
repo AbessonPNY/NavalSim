@@ -49,6 +49,10 @@ public partial class AnchorNode : Node3D
         public Node3D Mesh = null!;
         public MultiMesh Cable = null!;
         public MeshInstance3D CableView = null!;
+        /// <summary>Le nœud qui dessine le câble, pour le libérer avec l'ancre.</summary>
+        public MultiMeshInstance3D? CableNode;
+        /// <summary>La pose à poste, dans le repère du navire : mesurée une fois sur le bordé (HalfAt lit le modèle), elle ne change pas.</summary>
+        public Transform3D? Fished;
         public readonly double[] Px = new double[N], Py = new double[N], Pz = new double[N];
         public readonly double[] Ox = new double[N], Oy = new double[N], Oz = new double[N];
         public bool Strung;
@@ -190,7 +194,8 @@ public partial class AnchorNode : Node3D
             VisibleInstanceCount = 0
         };
         it.CableView = new MeshInstance3D { Mesh = null };
-        AddChild(new MultiMeshInstance3D { Multimesh = it.Cable, MaterialOverride = _chain, ExtraCullMargin = 300 });
+        it.CableNode = new MultiMeshInstance3D { Multimesh = it.Cable, MaterialOverride = _chain, ExtraCullMargin = 300 };
+        AddChild(it.CableNode);
         it.Mesh.Visible = false;
         _items[ph] = it;
         return it;
@@ -327,6 +332,62 @@ public partial class AnchorNode : Node3D
         it.Mesh.Visible = false;
         it.Cable.VisibleInstanceCount = 0;
         if (it.Moor != null) { it.Ph.Moorings.Remove(it.Moor); it.Moor = null; }
+    }
+
+    /* L'ANCRE À POSTE (demandé, photographie à l'appui) : rentrée, elle n'est pas cachée,
+       elle est TRAVERSÉE le long du bord comme sur un vaisseau du temps — l'organeau
+       pendu au bossoir, la verge couchée vers l'arrière contre la muraille, le jas
+       debout, une patte au bordé. Posée dans le repère du navire, elle le suit dans sa
+       houle ; rien à simuler, elle ne bouge pas tant qu'on ne la largue pas. */
+    public void PoseStowed(ShipNode ship)
+    {
+        if (!ship.Spec.HasAnchor || ship.IsGhost) return;
+        var it = Of(ship);
+        if (it.State != St.Stowed) return;
+        var ph = it.Ph;
+        bool show = ship.Visible && !ph.Foundered && !ph.Broken;
+        it.Mesh.Visible = show;
+        if (show) it.Mesh.GlobalTransform = ship.GlobalTransform * (it.Fished ??= FishedPose(it));
+    }
+
+    /// <summary>La pose de l'ancre à poste, dans le repère du navire (le diamant à l'origine du modèle).</summary>
+    Transform3D FishedPose(Item it)
+    {
+        var S = it.Ph.Spec;
+        double s = it.Size;
+        var cat = Hawse(it);
+        double side = cat.X < 0 ? -1 : 1;
+        // l'organeau sous le bossoir
+        var ring = new Vector3((float)cat.X, (float)(cat.Y - 0.15 * s), (float)cat.Z);
+        // le diamant vers l'arrière, un peu plus bas, la patte intérieure au bordé
+        double zc = cat.Z - 1.0 * s, yc = cat.Y - 0.35 * s;
+        double half = it.Ship.HalfAt(zc, yc) ?? 0.5 * S.B;
+        var want = new Vector3((float)(side * (half + 0.36 * s)), (float)yc, (float)zc);
+        // la verge, de l'organeau au diamant, à sa longueur vraie (l'organeau est à 1,05 de la verge)
+        var Y = (ring - want).Normalized();
+        var crown = ring - Y * (float)(1.05 * s);
+        // le jas debout (l'axe Z du modèle), les bras à plat (l'axe X)
+        var down = new Vector3(0, -1, 0);
+        var Z = (down - Y * Y.Dot(down)).Normalized();
+        var X = Y.Cross(Z);
+        return new Transform3D(new Basis(X, Y, Z), crown);
+    }
+
+    /// <summary>Les ancres des navires partis : leur fer et leur câble avec eux.</summary>
+    public void Prune()
+    {
+        List<ShipPhysics>? gone = null;
+        foreach (var (ph, it) in _items)
+            if (!IsInstanceValid(it.Ship)) (gone ??= new()).Add(ph);
+        if (gone == null) return;
+        foreach (var ph in gone)
+        {
+            var it = _items[ph];
+            if (it.Moor != null) ph.Moorings.Remove(it.Moor);
+            if (IsInstanceValid(it.Mesh)) it.Mesh.QueueFree();
+            if (it.CableNode != null && IsInstanceValid(it.CableNode)) it.CableNode.QueueFree();
+            _items.Remove(ph);
+        }
     }
 
     /// <summary>Pour les essais : l'état de l'ancre et sa distance à l'écubier.</summary>
