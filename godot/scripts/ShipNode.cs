@@ -337,6 +337,8 @@ public partial class ShipNode : Node3D
     }
 
     ShaderMaterial? _hazePass, _snowPass;
+    /// <summary>Le verre d'un modèle : sous les passes de la coque (−7 à −4), donc avant la mer (−1) et la fumée (0).</summary>
+    const int GlassPriority = -8;
     /// <summary>
     /// LA LUMIÈRE DE L'EAU SUR LES CARÈNES, une seule pour TOUTE la flotte —
     /// coques procédurales et modèles .glb —, parce qu'elle ne dépend que de la
@@ -415,6 +417,14 @@ public partial class ShipNode : Node3D
                     mi.SetSurfaceOverrideMaterial(s, mat);
                 }
                 if (!done.Add(mat)) continue;
+                /* LE VERRE EST DE LA COQUE, PAS DE L'AIR. Une vitre transparente (le
+                   « glass » des modèles, en BLEND) est triée avec les autres transparences
+                   sur le centre de son objet, et une petite vitre proche passait devant la
+                   fumée de sa propre bordée (signalé, comme les pièces dans la brume). Elle
+                   est peinte avec la coque, avant ses passes et avant tout ce qui flotte :
+                   même raison que les priorités de la brume plus haut. */
+                if (mat is BaseMaterial3D glass && glass.Transparency != BaseMaterial3D.TransparencyEnum.Disabled)
+                    glass.RenderPriority = GlassPriority;
                 var last = mat;
                 while (last.NextPass != null && last.NextPass != _hazePass && last.NextPass != _snowPass && last.NextPass != _scarPass)
                     last = last.NextPass;

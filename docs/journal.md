@@ -14421,6 +14421,13 @@ Godot dessinait l'override, qui passe avant toutes les surfaces : des tubes à l
 noyée. AttachHaze et HazePass.Chain prennent maintenant l'override d'abord. Règle : sur un
 MeshInstance3D, la matière DESSINÉE est MaterialOverride ?? surface override ?? celle du maillage.
 
+LES VITRES DEVANT LA FUMÉE (signalé ensuite, « comme pour les canons ») : autre cause. Le « glass »
+des modèles (Roter Löwe, sloop, hero_ship) est en BLEND : une transparence, triée avec la fumée sur le
+centre de son OBJET — une petite vitre proche passait devant le nuage de sa propre bordée. AttachHaze
+peint désormais le verre d'un modèle de navire à GlassPriority (−8) : avec la coque, avant ses passes
+(−7 à −4), avant la mer (−1) et la fumée (0). Pas vérifié à l'image (la poupe ne s'est pas laissé
+cadrer derrière la fumée) : la logique est celle des passes de la coque, qui a réglé le même défaut.
+
 ## La rupture déchiquetée ; une partie neuve sans brume ni hausse (Godot)
 
 DEMANDÉ : une découpe moins nette des deux morceaux. HullCut coupait par le plan z = zCut. Il
