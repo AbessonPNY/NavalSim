@@ -102,6 +102,36 @@
 
     { "name": "Cocotiers de l'îlot, en masse", "glb": "props/cocotier_low.glb", "patch": "ilot-cocotiers", "nombre": 220, "taille": [9, 18], "frange": [2.8, 12], "penche": 10, "ecart": 5, "enfonce": 0.02, "visible": 4500, "graine": 6 },
 
+    {"name": "Raisiniers des Palisadoes", "glb": "props/flore/raisinier.glb", "patch": "port-royal", "nombre": 700, "taille": [2.2,4.5], "frange": [0.4,3.5], "penche": 6, "ecart": 3.2, "enfonce": 0.05, "visible": 900, "degage": 6, "graine": 61, "foule": true, "ombre": true},
+
+    {"name": "Cierges des Palisadoes", "glb": "props/flore/cierge.glb", "patch": "port-royal", "nombre": 180, "taille": [2.5,5], "frange": [0.8,30], "penche": 4, "ecart": 4, "enfonce": 0.02, "visible": 700, "degage": 6, "graine": 62, "foule": true, "ombre": true},
+
+    {"name": "Raquettes des Palisadoes", "glb": "props/flore/raquette.glb", "patch": "port-royal", "nombre": 400, "taille": [0.8,1.7], "frange": [0.6,30], "penche": 8, "ecart": 2, "enfonce": 0.05, "visible": 300, "degage": 4, "graine": 63, "foule": true},
+
+    {"name": "Fourré des Palisadoes", "glb": "props/flore/buisson.glb", "patch": "port-royal", "nombre": 1400, "taille": [0.7,1.8], "frange": [0.6,30], "penche": 6, "ecart": 1.6, "enfonce": 0.1, "visible": 400, "degage": 4, "graine": 64, "foule": true},
+
+    {"name": "Palétuviers de la rade, aux Palisadoes", "glb": "props/flore/paletuvier.glb", "patch": "port-royal", "nombre": 600, "taille": [3.5,6], "frange": [-0.35,0.6], "penche": 5, "ecart": 2.6, "enfonce": 0.02, "visible": 1000, "degage": 8, "graine": 65, "foule": true, "calme": 4000, "ombre": true},
+
+    {"name": "Lataniers des Palisadoes", "glb": "props/flore/latanier.glb", "patch": "port-royal", "nombre": 60, "taille": [5,8.5], "frange": [1,30], "penche": 8, "ecart": 10, "enfonce": 0.02, "visible": 2000, "degage": 8, "graine": 66, "foule": true, "ombre": true},
+
+    {"name": "Palétuviers de la rade", "glb": "props/flore/paletuvier.glb", "lat": 17.965, "lon": -76.84, "rayon": 7000, "nombre": 3000, "taille": [3.5,7], "frange": [-0.35,0.7], "penche": 5, "ecart": 2.8, "enfonce": 0.02, "visible": 1200, "degage": 10, "graine": 71, "foule": true, "calme": 4000, "ombre": true},
+
+    {"name": "Raisiniers de la côte", "glb": "props/flore/raisinier.glb", "lat": 17.965, "lon": -76.84, "rayon": 7000, "nombre": 2500, "taille": [2.2,5], "frange": [0.5,4], "penche": 6, "ecart": 3.5, "enfonce": 0.05, "visible": 900, "degage": 8, "graine": 72, "foule": true, "ombre": true},
+
+    {"name": "Gaïacs du bois sec", "glb": "props/flore/gaiac.glb", "lat": 17.965, "lon": -76.84, "rayon": 7000, "nombre": 4000, "taille": [3.5,7], "frange": [2,120], "amas": [90,140], "penche": 5, "ecart": 5, "enfonce": 0.02, "visible": 1400, "degage": 12, "graine": 73, "foule": true, "ombre": true},
+
+    {"name": "Lataniers de la plaine", "glb": "props/flore/latanier.glb", "lat": 17.965, "lon": -76.84, "rayon": 7000, "nombre": 1200, "taille": [5,10], "frange": [1.5,80], "amas": [60,120], "penche": 8, "ecart": 7, "enfonce": 0.02, "visible": 2000, "degage": 12, "graine": 74, "foule": true, "ombre": true},
+
+    {"name": "Fromagers de la plaine", "glb": "props/flore/fromager.glb", "lat": 17.965, "lon": -76.84, "rayon": 7000, "nombre": 140, "taille": [18,28], "frange": [3,150], "penche": 3, "ecart": 60, "enfonce": 0.02, "visible": 3500, "degage": 20, "graine": 75, "foule": true, "ombre": true},
+
+    {"name": "Fourré de la plaine", "glb": "props/flore/buisson.glb", "lat": 17.965, "lon": -76.84, "rayon": 7000, "nombre": 9000, "taille": [0.7,2], "frange": [0.6,150], "amas": [160,110], "penche": 6, "ecart": 1.8, "enfonce": 0.1, "visible": 450, "degage": 6, "graine": 76, "foule": true},
+
+    {"name": "Cierges des collines sèches", "glb": "props/flore/cierge.glb", "lat": 17.965, "lon": -76.84, "rayon": 7000, "nombre": 600, "taille": [2.5,5.5], "frange": [4,150], "amas": [40,90], "penche": 4, "ecart": 4, "enfonce": 0.02, "visible": 700, "degage": 8, "graine": 77, "foule": true, "ombre": true},
+
+    {"name": "Raisiniers de l'îlot", "glb": "props/flore/raisinier.glb", "patch": "ilot-cocotiers", "nombre": 120, "taille": [2.2,4], "frange": [0.6,3.5], "penche": 6, "ecart": 3.5, "enfonce": 0.05, "visible": 900, "graine": 81, "foule": true, "ombre": true},
+
+    {"name": "Fourré de l'îlot", "glb": "props/flore/buisson.glb", "patch": "ilot-cocotiers", "nombre": 300, "taille": [0.7,1.6], "frange": [0.8,6], "penche": 6, "ecart": 1.6, "enfonce": 0.1, "visible": 400, "graine": 82, "foule": true},
+
     { "name": "Corail cerveau des récifs", "ecueil": true, "glb": "props/fond/corail-cerveau.glb", "lat": 17.9330, "lon": -76.8330, "rayon": 4000, "nombre": 900, "taille": [0.4, 2.2], "frange": [-12, -1.2], "abri": [0.8, 1], "amas": [45, 28], "penche": 12, "enfonce": 0.15, "visible": 140, "graine": 41, "foule": true },
 
     { "name": "Corne d'élan des récifs", "ecueil": true, "glb": "props/fond/corail-corne.glb", "lat": 17.9330, "lon": -76.8330, "rayon": 4000, "nombre": 700, "taille": [0.8, 2.6], "frange": [-5, -0.9], "abri": [0.85, 1], "amas": [45, 28], "penche": 8, "enfonce": 0.05, "visible": 140, "graine": 41, "foule": true },

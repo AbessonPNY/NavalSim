@@ -491,14 +491,18 @@ public partial class LandNode : Node3D
         }
         if (parts.Count == 0) return 0;
 
+        /* LA CASE VA COMME LA PORTÉE : chaque case est un appel de dessin par matière, et
+           des arbres vus à deux kilomètres en cases de quarante-huit mètres en feraient des
+           milliers. Un sixième de la portée, entre 48 et 400 m. */
+        double cellSz = Math.Clamp(sp.Visible / 6, CrowdCell, 400);
         var cells = new Dictionary<(int, int), List<Transform3D>>();
         int n = 0;
         foreach (var p in Scatter.Place(World, sp))
         {
             float k = (float)(p.Size / ext);
             double y = World.HeightAt(p.X, p.Z) + bb.Size.Y * k * 0.5 * (1 - sp.Sink);
-            var key = ((int)Math.Floor(p.X / CrowdCell), (int)Math.Floor(p.Z / CrowdCell));
-            double cx = (key.Item1 + 0.5) * CrowdCell, cz = (key.Item2 + 0.5) * CrowdCell;
+            var key = ((int)Math.Floor(p.X / cellSz), (int)Math.Floor(p.Z / cellSz));
+            double cx = (key.Item1 + 0.5) * cellSz, cz = (key.Item2 + 0.5) * cellSz;
             var basis = new Basis(Vector3.Up, (float)p.Yaw) * new Basis(Vector3.Right, (float)p.TiltX) * new Basis(Vector3.Back, (float)p.TiltZ);
             // comme le semis pièce à pièce : ramené à sa taille, recentré sur sa boîte
             var t = new Transform3D(basis, new Vector3((float)(p.X - cx), (float)y, (float)(p.Z - cz)))
@@ -516,7 +520,7 @@ public partial class LandNode : Node3D
         foreach (var (key, list) in cells)
         {
             if (!_crowdBest.TryGetValue(sp.Name, out var best) || list.Count > best.N)
-                _crowdBest[sp.Name] = ((key.Item1 + 0.5) * CrowdCell, (key.Item2 + 0.5) * CrowdCell, list.Count);
+                _crowdBest[sp.Name] = ((key.Item1 + 0.5) * cellSz, (key.Item2 + 0.5) * cellSz, list.Count);
             var hold = new Node3D { Name = sp.Name };
             foreach (var (mesh, local) in parts)
             {
@@ -525,14 +529,14 @@ public partial class LandNode : Node3D
                 hold.AddChild(new MultiMeshInstance3D
                 {
                     Multimesh = mm,
-                    // le fond n'a pas d'ombre à porter qui se verrait : la lumière y est déjà diffuse
-                    CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
-                    VisibilityRangeEnd = (float)(sp.Visible + CrowdCell * 0.71),
+                    // le fond n'a pas d'ombre à porter qui se verrait (la lumière y est déjà diffuse) ; un arbre, si : « ombre »
+                    CastShadow = sp.Shadow ? GeometryInstance3D.ShadowCastingSetting.On : GeometryInstance3D.ShadowCastingSetting.Off,
+                    VisibilityRangeEnd = (float)(sp.Visible + cellSz * 0.71),
                     VisibilityRangeEndMargin = (float)(sp.Visible * 0.1)
                 });
             }
             AddChild(hold);
-            _assets.Add(hold, (key.Item1 + 0.5) * CrowdCell, 0, (key.Item2 + 0.5) * CrowdCell);
+            _assets.Add(hold, (key.Item1 + 0.5) * cellSz, 0, (key.Item2 + 0.5) * cellSz);
         }
         GD.Print($"monde : « {sp.Name} », {n} pièce(s) en {cells.Count} case(s)");
         return n;

@@ -100,8 +100,41 @@ public partial class AnchorNode : Node3D
        un jas de bois en travers de la tête et d'équerre avec les bras, et deux
        bras courbes finissant en pattes. C'est le jas qui la fait lire comme une
        ancre de n'importe quel côté — sans lui, c'est un grappin. */
+    /* LE MODÈLE DE L'ANCRE, s'il y en a un (props/ancre.glb — tools/anchor-glb.js, ou
+       celui de l'artiste) : la verge longue d'UNE unité, le diamant à l'origine, la
+       verge vers +Y, les bras dans le plan X–Y, le jas le long de Z, l'organeau en haut
+       (y ≈ 1,05). Lu une fois, dupliqué pour chaque navire, échelonné à sa taille ; la
+       brume posée sur ses matières. Absent, l'ancre dessinée ci-dessous. */
+    Node3D? _anchorProto;
+    bool _anchorTried;
+    ShaderMaterial? _anchorHaze;
+
+    Node3D? AnchorModel(double s)
+    {
+        if (!_anchorTried)
+        {
+            _anchorTried = true;
+            string path = Assets.Path("props/ancre.glb");
+            if (System.IO.File.Exists(path) && Assets.LoadGlb(path) is { } proto)
+            {
+                _anchorHaze = HazePass.New();
+                Hazed.Add(_anchorHaze);
+                HazePass.Chain(proto, _anchorHaze);
+                _anchorProto = proto;
+            }
+        }
+        if (_anchorProto == null) return null;
+        var n = (Node3D)_anchorProto.Duplicate();
+        n.Scale = Vector3.One * (float)s;
+        var g = new Node3D();
+        g.AddChild(n);
+        AddChild(g);
+        return g;
+    }
+
     Node3D AnchorMesh(double s)
     {
+        if (AnchorModel(s) is { } model) return model;
         var g = new Node3D();
         void Add(Mesh m, Material mat, Vector3 at, Vector3 rot = default)
             => g.AddChild(new MeshInstance3D { Mesh = m, MaterialOverride = mat, Position = at, Rotation = rot });
@@ -110,8 +143,8 @@ public partial class AnchorNode : Node3D
             _iron, new Vector3(0, (float)(s * 0.5), 0));
         Add(new TorusMesh { InnerRadius = (float)(0.10 * s), OuterRadius = (float)(0.17 * s), RingSegments = 8, Rings = 6 },
             _iron, new Vector3(0, (float)(s * 1.05), 0), new Vector3(Mathf.Pi / 2, 0, 0));
-        // le jas, en travers
-        Add(new BoxMesh { Size = new Vector3((float)(0.95 * s), (float)(0.09 * s), (float)(0.09 * s)) },
+        // le jas, en travers de la tête ET D'ÉQUERRE AVEC LES BRAS (le long de Z) : il était le long des bras, comme eux
+        Add(new BoxMesh { Size = new Vector3((float)(0.09 * s), (float)(0.09 * s), (float)(0.95 * s)) },
             _wood, new Vector3(0, (float)(s * 0.88), 0));
         // les deux bras, et leurs pattes
         foreach (int side in new[] { -1, 1 })

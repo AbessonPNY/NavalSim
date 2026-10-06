@@ -110,6 +110,8 @@ public partial class ShipDemo
                 case "--branle-bas": _portsOrder = args[i + 1] != "0" ? true : null; break;
                 // ESSAI : une bordée commandée d'emblée (sabords fermés : elle attend qu'ils s'ouvrent)
                 case "--feu-sabords": _fireWhenOpen = (false, true); break;
+                // MESURE : la flore semée autour du port, vue d'en haut (ShipDemo.FloraMap.cs)
+                case "--flore-carte": DumpFlora(args[i + 1]); break;
                 case "--escarmouche": _wantMelee = args[i + 1] != "0"; break;
                 // DÉMONSTRATION : plonger la caméra à tant de mètres par seconde
                 case "--plongee": _diveSpeed = args[i + 1].ToFloat(); break;

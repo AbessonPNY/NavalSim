@@ -291,6 +291,9 @@ public sealed class RegionSpec
                 sp.Sway = a.Opt("ondule") ?? 0;
                 sp.Hazard = Js.True(a, "ecueil");
                 sp.OnReef = Js.True(a, "recifs");
+                sp.Clear = a.Opt("degage") ?? 0;
+                sp.Shadow = Js.True(a, "ombre");
+                sp.Calm = a.Opt("calme") ?? 0;
                 if (sp.Glb.Length > 0) s.Scatters.Add(sp);
             }
         return s;
@@ -828,6 +831,28 @@ public sealed class World : IGround
         }
     }
     List<StreetGrid>? _grids;
+
+    /// <summary>
+    /// CE QUI EST BÂTI, et où rien ne pousse : les villes de la fiche (leur rayon), les
+    /// rues et pâtés d'un port (ses grilles), et ce que la main a posé en mode création
+    /// (<see cref="Occupied"/>, que le moteur renseigne d'après ses retouches). Un arbre
+    /// semé au milieu d'une rue serait pire que pas d'arbre. <paramref name="margin"/> :
+    /// de combien on s'en tient écarté, en mètres.
+    /// </summary>
+    public bool Built(double x, double z, double margin)
+    {
+        foreach (var t in Region.Towns)
+        {
+            var (tx, tz) = Geo.ToXZ(t.Lat, t.Lon);
+            double r = t.Radius + margin;
+            if ((x - tx) * (x - tx) + (z - tz) * (z - tz) < r * r) return true;
+        }
+        foreach (var g in Grids) if (g.Covers(x, z, margin)) return true;
+        return Occupied?.Invoke(x, z, margin) == true;
+    }
+
+    /// <summary>Ce que la main a posé, en mètres vrais : vrai si (x, z) est à moins de la marge d'un bâti ajouté ou déplacé.</summary>
+    public Func<double, double, double, bool>? Occupied;
 
     /// <summary>Ce point est-il une rue pavée ?</summary>
     public bool PavedAt(double x, double z)

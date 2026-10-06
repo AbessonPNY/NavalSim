@@ -14890,6 +14890,48 @@ bôme. Établie (set = 1), rien ne change. ÉCART VOULU avec la page (figée) : 
 désormais les formes serrées de la toile (SailParity, « écart voulu ») et garde la comparaison stricte
 de toute toile établie — 8/8. Vu sur le Roter Löwe à quai : des festons sous chaque vergue.
 
+## La flore de 1690, et l'ancre en .glb (Godot)
+
+DEMANDÉ : « peupler Port-Royal d'arbres et de végétaux fidèles à l'époque, sans faire chuter les
+performances ; cela servirait aussi pour l'île ». Puis : « un GLB pour l'ancre, que je la remplace ».
+
+LES ESPÈCES (tools/flora-glb.js → props/flore/*.glb, 240 à 870 triangles, remplaçables par l'artiste) :
+raisinier bord de mer (Coccoloba), palétuvier rouge sur ses échasses (Rhizophora), cierge colonnaire,
+raquette (Opuntia), latanier en éventail, gaïac (lignum vitæ), fromager (Ceiba, aux contreforts), fourré.
+ÉCARTÉS comme anachroniques : manguier (1782), arbre à pain (1793), akée (1778), et le bois de campêche,
+qu'on ne plante en Jamaïque qu'en 1715 (Port-Royal le revendait de la baie de Campêche). Faces vérifiées
+une à une (normale géométrique contre normale écrite) : les contreforts du fromager étaient à l'envers.
+
+LES SEMIS (world/caraibes.json) : sur les Palisadoes (le carreau port-royal) raisiniers, cierges,
+raquettes, fourré, lataniers, palétuviers ; autour de la rade et dans la plaine (7 km), palétuviers,
+raisiniers, gaïacs et lataniers en bosquets (amas), fromagers épars, fourré en taches, cierges des
+collines ; l'îlot aux cocotiers, raisiniers et fourré. Tous en foule. TROIS AJOUTS AU SEMIS :
+- « degage » (World.Built) : RIEN NE POUSSAIT À L'ÉCART DU BÂTI, le semis n'évitait que les pontons.
+  Les villes de la fiche (rayon), les grilles de rues des ports, et ce que la main a posé ou déplacé
+  (World.Occupied, rempli par ShipDemo.Occupied.cs d'après les retouches : maisons 8 m, pâtés 18 m,
+  église et forts 16 m, dans une grille de cases de 32 m) ;
+- « ombre » : une foule de terre porte ombre ; un arbre sans ombre flotte ;
+- « calme » (Scatter.Calm) : la mangrove ne vit qu'en eau calme. L'abri des ports ne suffisait pas
+  (il couvre toute la pointe de Port-Royal, côté large compris) : de chaque point, seize rayons de
+  4 km ; trois au plus filant sur l'eau libre, c'est calme. Gardé par cases de 150 m. Vu à la carte :
+  l'envers des Palisadoes, la rade de Kingston, le bassin ouest — plus la côte du large ni les cayes.
+ET LA CASE DE LA FOULE VA COMME LA PORTÉE (visible / 6, de 48 à 400 m) : des arbres vus à deux
+kilomètres en cases de 48 m auraient fait des milliers d'appels de dessin. Le fourré épars de la plaine
+occupait 5 714 cases pour 9 000 touffes — en taches (« amas »), 1 187.
+
+PIÈGE : la bande d'altitude. Le carreau de Port-Royal monte à 16 m ; bornée à 6–8 m, tout le plateau
+restait nu. MESURE : -- --flore-carte dossier (ShipDemo.FloraMap.cs) écrit la flore semée et la terre
+autour du port, de quoi la dessiner vue d'en haut. COÛT : +0,3 ms par image en médiane (9,1–9,3 → 9,5,
+--vsync 0, au port), environ une seconde de plus au chargement (le semis). Pas encore : le reste de l'île
+(au-delà de la rade) — mêmes semis, d'autres zones.
+
+L'ANCRE (tools/anchor-glb.js → props/ancre.glb, AnchorNode.AnchorModel) : l'ancre d'amirauté de 1690 —
+verge octogonale, bras en croissant, pattes en pelle larges EN TRAVERS du plan des bras, jas de bois
+cerclé de fer, organeau. CONVENTION : verge d'une unité, diamant à l'origine, verge vers +Y, bras dans le
+plan X–Y, jas le long de Z, organeau vers y = 1,05 ; deux matières, fer et bois. Lue une fois, dupliquée,
+échelonnée, brume posée ; absente, l'ancre dessinée. ET L'ANCRE DESSINÉE AVAIT SON JAS LE LONG DES BRAS :
+d'équerre maintenant — c'est lui qui la fait basculer pour qu'une patte morde.
+
 ## Ce que coûtent les pâtés de maisons de Port-Royal (Godot)
 
 Mesuré (--sans-ajout <motif>, qui cache les ajouts du mode création dont le modèle

@@ -81,6 +81,8 @@ public partial class ShipDemo
         if (_world == null) return;
         _editReg = new EditRegistry(RetouchPath(_world.Region.Key), _world.Region.Key);
         if (_editReg.Edits.Count > 0) GD.Print($"[éditeur] {_editReg.Edits.Count} retouche(s) lue(s) pour {_world.Region.Key}");
+        // et le bâti qu'elles posent, tenu à l'écart de la végétation (ShipDemo.Occupied.cs)
+        OccupiedSetup();
     }
 
     /// <summary>Où la terre et les villes se chargent : l'œil de l'éditeur, ou le navire.</summary>

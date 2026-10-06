@@ -254,7 +254,10 @@ Un modèle répandu au hasard sur une zone — les rochers d'une plage. Dans `wo
 | `abri` | `[min, max]` : l'abri où il vit, de 0 (le fond d'une rade) à 1 (le large) — le même que celui de la mer. Un corail ne pousse pas dans la vase d'un port |
 | `amas` | `[centres, rayon]` : en pâtés — tant de centres tirés dans la zone, chaque pièce à moins du rayon de l'un d'eux. Les centres sont tirés sur la seule `graine` : deux semis de même graine dans la même zone partagent leurs récifs |
 | `herbier` | `true` : seulement sur les prés d'herbier que le fond peint de lui-même (`core/Seabed.cs`, jumelle de `seabed.gdshaderinc`) |
-| `foule` | `true` : des milliers de petites pièces, dessinées par cases de 48 m (MultiMesh) au lieu d'un nœud chacune ; on ne les reprend pas une à une en mode création |
+| `foule` | `true` : des milliers de petites pièces, dessinées par cases (MultiMesh) au lieu d'un nœud chacune — la case va comme la portée (`visible` / 6, de 48 à 400 m : un appel de dessin par case et par matière) ; on ne les reprend pas une à une en mode création |
+| `degage` | à tant de mètres du BÂTI au moins (`World.Built`) : les villes de la fiche, les rues et pâtés d'un port, et ce qu'on a posé ou déplacé en mode création (maisons, pâtés, église, forts). Pour la végétation : rien ne pousse dans une rue |
+| `ombre` | `true` : une foule qui porte ombre (un arbre ; sans, il flotte). Le fond et les touffes s'en passent |
+| `calme` | en EAU CALME seulement : de ce point, trois directions au plus sur seize filent sur tant de mètres d'eau sans toucher terre (`Scatter.Calm`). La mangrove : 4000 — l'envers d'un cordon, le fond d'une rade, jamais la côte du large |
 | `ecueil` | `true` : un ÉCUEIL — la coque le heurte et s'y ouvre (rochers, têtes de corail). Il est inscrit à sa place vue : déplacé, retiré ou copié en mode création, son danger le suit |
 | `recifs` | `true` : seulement sur les récifs de la fiche (le corail des cayes) |
 | `ondule` | une foule qui ondule avec le ressac de la houle (`seaweed.gdshader`) ; sa souplesse : 1 pour l'herbe, 0,35 pour une gorgone cornée. Fort dans les hauts-fonds, éteint par grand fond, calmé par l'abri |

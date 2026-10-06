@@ -59,6 +59,19 @@ public sealed class ScatterSpec
     public bool Hazard;
     /// <summary>SUR LES RÉCIFS seulement (World.ReefAt) : le corail des cayes.</summary>
     public bool OnReef;
+    /// <summary>
+    /// À L'ÉCART DU BÂTI, de tant de mètres (World.Built : villes, rues, ce qu'on a posé) :
+    /// la végétation ne pousse ni dans une rue ni dans une maison. Nul : partout.
+    /// </summary>
+    public double Clear;
+    /// <summary>
+    /// EN EAU CALME seulement : à moins de ce nombre de mètres d'eau libre dans presque
+    /// toutes les directions (Scatter.Calm) — la mangrove ne tient que là où la houle
+    /// n'arrive pas : une rade, une baie fermée, l'envers d'un cordon. Nul : partout.
+    /// </summary>
+    public double Calm;
+    /// <summary>IL PORTE OMBRE (une foule de terre : un arbre sans ombre flotte au-dessus du sol) ; le fond et les touffes s'en passent.</summary>
+    public bool Shadow;
 }
 
 /// <summary>Une place tirée : où, comment tourné, comment penché, de quelle taille.</summary>
@@ -109,7 +122,19 @@ public static class Scatter
             }
             if (s.Meadow && Seabed.Meadow(w, x, z) < 0.5) return false;
             if (s.OnReef && w.ReefAt(x, z) < 0.6) return false;
+            if (s.Clear > 0 && w.Built(x, z, s.Clear)) return false;
+            if (s.Calm > 0 && !CalmAt(x, z)) return false;
             return !NearJetty(w, x, z, 35);
+        }
+
+        /* L'EAU CALME, gardée par cases de 150 m : elle coûte seize rayons de quelques
+           kilomètres, et ne change pas d'un mètre à l'autre. */
+        var calmMemo = new Dictionary<(int, int), bool>();
+        bool CalmAt(double x, double z)
+        {
+            var k = ((int)Math.Floor(x / 150), (int)Math.Floor(z / 150));
+            if (calmMemo.TryGetValue(k, out bool c)) return c;
+            return calmMemo[k] = Calm(w, (k.Item1 + 0.5) * 150, (k.Item2 + 0.5) * 150, s.Calm);
         }
 
         /* LES PÂTÉS d'abord, s'il en faut : des centres qui tombent eux-mêmes où il
@@ -189,6 +214,27 @@ public static class Scatter
             outp.Add(new ScatterPlace(x, z, yaw, Math.Cos(ta) * tm, Math.Sin(ta) * tm, size));
         }
         return outp;
+    }
+
+    /// <summary>
+    /// UNE EAU OÙ LA HOULE N'ENTRE PAS : de ce point, sur seize directions, combien
+    /// filent sur <paramref name="fetch"/> mètres d'eau sans toucher terre ? Un rivage
+    /// ouvert sur le large en a sept ou huit (le demi-cercle de la mer) ; le fond d'une
+    /// rade, l'envers d'un cordon, une ou deux (le goulet). Calme : trois au plus. On
+    /// part de cent mètres au large, pour ne pas compter le rivage même.
+    /// </summary>
+    public static bool Calm(World w, double x, double z, double fetch)
+    {
+        int open = 0;
+        for (int k = 0; k < 16; k++)
+        {
+            double a = k * Math.PI / 8, dx = Math.Sin(a), dz = Math.Cos(a);
+            bool land = false;
+            for (double d = 100; d <= fetch; d += 100)
+                if (w.HeightAt(x + dx * d, z + dz * d) > 0) { land = true; break; }
+            if (!land && ++open > 3) return false;
+        }
+        return true;
     }
 
     internal static bool NearJetty(World w, double x, double z, double d)
