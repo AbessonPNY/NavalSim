@@ -299,6 +299,31 @@ public partial class ShipDemo
         _jettyPitch = Math.Clamp(Math.Atan2(dy, Math.Sqrt(dx * dx + dz * dz)), -0.9, 0.9);
     }
 
+    /* UN PAS DE CÔTÉ, LA TÊTE QUI SE PENCHE (demandé : la vue de la dunette souvent
+       cachée par le fanal arrière, celle de la vigie par le mât). On ne reste pas
+       planté derrière ce qui bouche la vue : on se penche. L'œil suit la souris de
+       gauche à droite — sa POSITION sur l'écran, sans bouton, la capture étant muette
+       sur ces écrans —, de part et d'autre de la place écrite dans la fiche, en
+       travers du REGARD (on s'écarte de ce qu'on a devant soi, pas du bord du navire),
+       et avec le temps d'une tête qui bouge. Soixante centimètres de chaque côté, ce
+       que donne un corps qui se penche sans lâcher prise ; reglages.ini le règle
+       (« Pas de côté de l'œil », 0 l'ôte). */
+    const float LeanReach = 0.6f;
+    float _lean, _leanTest = float.NaN;
+
+    Vector3 DeckLean(double yaw)
+    {
+        var vp = GetViewport();
+        float w = vp.GetVisibleRect().Size.X;
+        float u = !float.IsNaN(_leanTest) ? _leanTest : w > 1 ? Mathf.Clamp(vp.GetMousePosition().X / w * 2 - 1, -1, 1) : 0;
+        // un rien au milieu de l'écran ne bouge pas : la souris posée au centre tient l'œil à sa place
+        u = Mathf.Sign(u) * Mathf.Clamp((Mathf.Abs(u) - 0.08f) / 0.92f, 0, 1);
+        float want = u * LeanReach * _settings.DeckLean;
+        _lean += (want - _lean) * (1 - Mathf.Exp(-(float)GetProcessDeltaTime() * 6));
+        // la droite de l'écran, dans le repère du navire : tribord est −x
+        return new Vector3((float)-Math.Cos(yaw), 0, (float)Math.Sin(yaw)) * _lean;
+    }
+
     void DeckCamera()
     {
         var spec = _ship.Spec;
@@ -322,6 +347,7 @@ public partial class ShipDemo
         double yaw = v.Yaw * Math.PI / 180 + _bridgeYaw, pitch = v.Pitch * Math.PI / 180 + _bridgePitch;
         double cp = Math.Cos(pitch);
         var dir = new Vector3((float)(Math.Sin(yaw) * cp), (float)Math.Sin(pitch), (float)(Math.Cos(yaw) * cp));
+        eye += DeckLean(yaw);
         var xf = _ship.GlobalTransform;
         _cam.Position = xf * eye;
         _cam.LookAt(xf * (eye + dir * (float)(120 * k)), Vector3.Up);

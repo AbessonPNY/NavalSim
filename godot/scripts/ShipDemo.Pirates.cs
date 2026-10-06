@@ -204,14 +204,30 @@ public partial class ShipDemo
        pour lui échapper ou le combattre. Paru sous le vent, il mettrait une
        demi-heure à louvoyer jusqu'à vous, gagnant sept dixièmes de nœud au vent. */
     /// <summary>Faire paraître un pirate à <paramref name="dist"/> mètres, au vent de vous, sa soute pleine.</summary>
+    /// <summary>
+    /// La tête de mort hissée sur une coque qui ne la porte pas dans sa fiche (le
+    /// pavillon pirate de flags.json) — AVANT de l'armer, puisque Arm lit le pavillon.
+    /// </summary>
+    void Blacken(ShipNode s)
+    {
+        if (IsJolly(s) || _nations.Pirate is not { } jolly) return;
+        s.SetEnsign(jolly.Image, jolly);
+    }
+
     void SpawnPirate(double dist)
     {
-        int idx = _paths.FindIndex(p => System.IO.Path.GetFileName(p) == "pirate.json");
-        if (idx < 0) { GD.PushWarning("ships/pirate.json introuvable"); return; }
+        /* PARMI TOUTES LES COQUES QUE DES FORBANS PEUVENT ARMER — le galion, et
+           celles dont la fiche porte « pirate » : true —, et non plus le galion
+           seul : six fois U donnaient six galions (signalé). Au hasard vrai : le
+           tirage des rencontres suit une graine, celui-ci est un essai à la main. */
+        var (pool, _) = MetPool();
+        if (pool.Count == 0) { GD.PushWarning("aucune fiche pirate"); return; }
+        int idx = pool[_flagRng.Next(pool.Count)];
         int before = _others.Count;
         SpawnFleet(1, idx);
         if (_others.Count == before) return;
         var s = _others[^1];
+        Blacken(s);
         var b = s.Physics.Body;
         var me = _ship.Physics.Body.Pos;
         // d'où vient le vent, en relèvement : l'avant est +z, l'est −x
@@ -223,5 +239,6 @@ public partial class ShipDemo
         s.SyncTransform();
         Arm(s);
         Say("Une voile sous pavillon noir !");
+        GD.Print($"pirate : {s.Spec.Name} à {dist:F0} m, pavillon {s.Ensign?.Nationalite ?? s.Spec.Appearance.Ensign}, {s.Battery.Guns.Count} pièce(s)");
     }
 }

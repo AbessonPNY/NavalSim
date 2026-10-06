@@ -377,6 +377,8 @@ public partial class ShipDemo
                 // l'âge de l'épave d'essai, en jours : sa vase
                 case "--epave-age": _wreckAge = args[i + 1].ToFloat(); break;
                 case "--mi-eau-haut": _splitLift = args[i + 1].ToFloat(); break;
+                // ESSAI : la souris tenue à cette place de l'écran, de −1 (à gauche) à 1 (à droite)
+                case "--pas-de-cote": _leanTest = args[i + 1].ToFloat(); break;
                 case "--vue": _camMode = 1; _deck = Math.Clamp(args[i + 1].ToInt(), 0, _ship.Spec.Decks.Count - 1); EnterDeck(); break;
                 case "--msaa": _settings.Msaa = args[i + 1].ToInt(); ApplySettings(); break;
                 case "--dofn": _settings.DofNear = args[i + 1].ToFloat(); ApplySettings(); break;

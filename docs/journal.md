@@ -14752,6 +14752,27 @@ Vérifié (rencontre « aux prises » forcée sur le sloop) : pavillon pirate, I
 proie. Le tirage des rencontres suit une graine fixe en essai : quatre galions de suite n'étaient pas
 une panne.
 
+PUIS (signalé : « U six fois, six galions ») : U ne passait pas par les rencontres, il posait
+pirate.json. Il tire maintenant au hasard vrai parmi les coques que des forbans peuvent armer
+(MetPool), et hisse la tête de mort (Blacken, partagé avec Put). Le Speedwell porte aussi « pirate » :
+true (demandé, à la place de la goélette, qui n'a pas de modèle donc pas de batterie). Relevé en
+essai : le SLOOP N'A AUCUNE PIÈCE — son modèle n'a pas de maillage nommé canon/cannon/gun —, et un
+pirate sans canons restait planté à sa garde de 185 m, attendant que sa proie s'abîme toute seule.
+Pirate.Armed : sans pièce en état, la chasse passe droit à l'abordage, comme les flibustiers des
+barques et des pirogues.
+
+## Le pas de côté de l'œil, à bord (Godot)
+
+DEMANDÉ : « que les caméras fixes de bord se décalent latéralement en suivant la souris, sur une petite
+amplitude — celle de la dunette est souvent cachée par le fanal arrière, la vigie par le mât ».
+ShipDemo.Camera.cs, DeckLean : l'œil d'une vue de la fiche se déplace de ±0,6 m (× « Pas de côté de
+l'œil » au menu, Le bord ; reglages.ini → [vue] pas_de_cote ; 0 l'ôte) selon la POSITION du curseur
+de gauche à droite de l'écran — sans bouton : la capture de la souris est muette sur les écrans
+virtuels de l'utilisateur, et le bouton tenu sert déjà à tourner la tête. En travers du REGARD (on
+s'écarte de ce qu'on a devant soi), une zone morte de 8 % au milieu, et le temps d'une tête qui bouge
+(constante de 1/6 s). Pas aux vues de pièce, qui ont leur propre souris (pointage). Vérifié à la vigie
+du Roter Löwe (--pas-de-cote −1 puis 1) : le mât de misaine passe d'un côté à l'autre du centre.
+
 ## Ce que coûtent les pâtés de maisons de Port-Royal (Godot)
 
 Mesuré (--sans-ajout <motif>, qui cache les ajouts du mode création dont le modèle

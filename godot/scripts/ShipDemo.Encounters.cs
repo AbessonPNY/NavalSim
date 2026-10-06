@@ -280,9 +280,9 @@ public partial class ShipDemo
         SpawnFleet(1, specIndex, arm);
         if (_others.Count == before) return null;
         var s = _others[^1];
-        if (black && !IsJolly(s) && _nations.Pirate is { } jolly)
+        if (black && !IsJolly(s))
         {
-            s.SetEnsign(jolly.Image, jolly);
+            Blacken(s);
             if (arm) Arm(s);
         }
         var b = s.Physics.Body;

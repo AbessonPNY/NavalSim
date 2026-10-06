@@ -58,6 +58,20 @@ public sealed class Pirate
 
     /* ABÎMÉE, sur ce qui existe déjà et sans compteur à part : de l'eau embarquée,
        un mât perdu, un quart de ses pièces démontées, ou quatre voies d'eau. */
+    /// <summary>A-t-il une pièce en état ? Sa batterie se lit dans la flotte, comme celle de sa proie.</summary>
+    static bool Armed(ShipPhysics self, IReadOnlyList<Sail> fleet)
+    {
+        for (int i = 0; i < fleet.Count; i++)
+        {
+            if (fleet[i].Physics != self) continue;
+            var bat = fleet[i].Battery;
+            if (bat == null) return false;
+            foreach (var g in bat.Guns) if (!g.Out) return true;
+            return false;
+        }
+        return true;          // pas dans la flotte : on ne sait pas, on garde sa conduite
+    }
+
     public static bool Damaged(ShipPhysics p, Battery? b)
     {
         int outN = 0, all = 0;
@@ -117,7 +131,11 @@ public sealed class Pirate
         {
             helm.Standoff = Garde;
             helm.Target = pb.Pos;
-            if (Damaged(prey, preyBat)) { State = Phase.Abordage; Tenu = 0; return "abordage"; }
+            /* SANS CANONS, IL N'Y A RIEN À ATTENDRE au plein fouet : la proie ne
+               s'abîmera pas toute seule, et il restait planté à sa garde pour
+               toujours. Les flibustiers des pirogues et des barques le savaient —
+               on vient droit à couple, et c'est le nombre qui décide. */
+            if (Damaged(prey, preyBat) || !Armed(self, fleet)) { State = Phase.Abordage; Tenu = 0; return "abordage"; }
             return null;
         }
 

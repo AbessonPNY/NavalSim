@@ -307,6 +307,7 @@ public partial class ShipDemo
         /* EN TÊTE, parce que c'est le seul ORDRE du menu et qu'on le cherche : le
            reste se règle une fois, celui-ci se donne en cours de route. */
         Action("Revenir au ponton", BackToBerth);
+        Slide("Pas de côté de l'œil", 0, 2, 0.05, st.DeckLean, x => st.DeckLean = x);
         Title("Lanternes", 15);
         Check("Ombres des lanternes", st.LanternShadows, on => st.LanternShadows = on);
         Check("Lanterne du grand mât", st.MastLantern, on => st.MastLantern = on);

@@ -81,6 +81,8 @@ public sealed class Settings
     public float SeaShafts = 1f, SeaDensity = 1f;
     /// <summary>Sous l'eau : le flou qui grandit avec la distance, et les grains en suspension (1 = réglé, 0 les ôte).</summary>
     public float SeaBlur = 1f, SeaMotes = 1f;
+    /// <summary>À bord, le pas de côté de l'œil qui suit la souris (1 : soixante centimètres de chaque côté ; 0 l'ôte).</summary>
+    public float DeckLean = 1f;
 
     // [navire]
     /// <summary>Le pavillon hissé sur le navire à la barre : l'id d'une nation de flags.json, vide pour celui de la fiche.</summary>
@@ -171,6 +173,7 @@ public sealed class Settings
         s.SeaDensity = (float)cf.GetValue("mer", "densite_de_l_eau", s.SeaDensity);
         s.SeaBlur = (float)cf.GetValue("mer", "flou_sous_eau", s.SeaBlur);
         s.SeaMotes = (float)cf.GetValue("mer", "grains_sous_eau", s.SeaMotes);
+        s.DeckLean = (float)cf.GetValue("vue", "pas_de_cote", s.DeckLean);
         s.ParallelSolvers = (bool)cf.GetValue("performance", "solveurs_paralleles", s.ParallelSolvers);
         return s;
     }
@@ -226,6 +229,7 @@ public sealed class Settings
         cf.SetValue("mer", "densite_de_l_eau", SeaDensity);
         cf.SetValue("mer", "flou_sous_eau", SeaBlur);
         cf.SetValue("mer", "grains_sous_eau", SeaMotes);
+        cf.SetValue("vue", "pas_de_cote", DeckLean);
         cf.SetValue("performance", "solveurs_paralleles", ParallelSolvers);
         Error e = cf.Save(Path);
         if (e != Error.Ok) GD.PushWarning($"réglages non enregistrés dans {Path} : {e}");
