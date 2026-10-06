@@ -41,6 +41,8 @@ public sealed class Sky
 
     /// <summary>Le gros temps, de 0 à 1. Écrit par <see cref="SetSeaState"/>.</summary>
     public double Storm { get; private set; }
+    /// <summary>Le gros temps de la MER seule, 0 à 1 : ce que l'écume et le remous lisent — la pluie n'y entre pas.</summary>
+    public double SeaStorm { get; private set; }
 
     /// <summary>L'éclair proche : il éclaire tout le ciel et tout le pont.</summary>
     public double Flash;
@@ -241,12 +243,29 @@ public sealed class Sky
     /// </summary>
     public void SetSeaState(double seaState)
     {
-        SetStorm((seaState - 5.0) / 3.2);
-
         double st = Math.Max(0, Math.Min(1, (seaState - 5.0) / 3.2));
+        SeaStorm = st;
+        /* LA PLUIE FERME LE CIEL SANS LA TEMPÊTE (demandé : « une pluie diluvienne,
+           une faible visibilité »). Une averse lourde par petite brise est un ciel
+           d'ardoise au-dessus d'une mer qui n'a rien de gros : elle tire le couvercle
+           (RainLid, pas tout à fait celui d'un coup de vent) et ferme l'horizon, mais
+           la mer ne le sait pas — SeaStorm reste celui de la mer. */
+        double r = Math.Max(0, Math.Min(1, Rain));
+        double rs = r * r * (3 - 2 * r);
+        SetStorm(Math.Max(st, RainLid * rs));
+
         Haze = 0.00085 * (1 + 6.4 * st * st);
         // et elle remplit la hauteur aussi, ou le ciel reste clair au-dessus de la crasse
         HazeHeight = 150.0 * (1 + 2.4 * st);
+        /* LA VUE SOUS L'AVERSE : une pluie diluvienne (50 mm/h et plus) ne laisse voir
+           qu'à six ou sept cents mètres — une extinction de 3,9 / V. La pluie tombe de
+           haut, donc la couche monte avec elle : la mâture d'un navire à un demi-mille
+           s'efface comme sa coque. */
+        if (r > 0)
+        {
+            Haze = Math.Max(Haze, 0.00085 + RainHaze * Math.Pow(r, 1.5));
+            HazeHeight = Math.Max(HazeHeight, 150.0 + RainHazeHeight * r);
+        }
 
         /* LA BRUME DE SURFACE (SeaFog) : la même loi, une couche basse et dense.
            La densité au ras de l'eau monte vers celle de la brume, la hauteur
@@ -264,6 +283,10 @@ public sealed class Sky
 
     /// <summary>La brume de surface, de 0 à 1 — posée par l'appelant avant SetSeaState.</summary>
     public double Fog;
+    /// <summary>Ce qui tombe (pluie ou neige), de 0 à 1 — posé par l'appelant avant SetSeaState.</summary>
+    public double Rain;
+    /// <summary>Le couvercle d'une averse au plus fort ; l'extinction qu'elle ajoute (par mètre) et la hauteur de sa couche.</summary>
+    public double RainLid = 0.7, RainHaze = 0.0055, RainHazeHeight = 500;
     public double FogDensity = 0.02, FogHeight = 12;
 
     /// <summary>

@@ -214,6 +214,9 @@ public partial class ShipDemo
                 case Key.Right: _weather.On = false; _windDeg = (_windDeg + 15) % 360; Restate(); break;
                 // ⇧T : la brume de surface, tout de suite, pour trois heures de jeu
                 case Key.T when k.ShiftPressed: (_seaFog ??= new SeaFog(_fogRules)).Force(3); Say("La brume monte sur l'eau"); break;
+                /* Ctrl T : UNE AVERSE DILUVIENNE, tout de suite — deux heures et demie de jeu,
+                   au plus fort dix minutes après, sans un souffle de plus : la pluie sans la tempête */
+                case Key.T when k.CtrlPressed: _climate.StartShower(150, 1.0, steady: true); Say("Une averse diluvienne s'abat"); break;
                 case Key.T: SetAutoWeather(!_weather.On); break;
                 // Espace : lancer les lignes, ferrer, relever (ShipDemo.Fishing.cs)
                 case Key.Space: FishKey(); break;

@@ -189,6 +189,8 @@ public partial class GullNode : Node3D
 
     /// <summary>La nuit du ciel (0 jour, 1 nuit) : la nuit, le vol du port est posé sur les toits.</summary>
     public double Night;
+    /// <summary>Ce qui tombe, 0 à 1 : sous une forte averse, les mouettes se posent.</summary>
+    public double Rain;
 
     /// <summary>Le port au-dessus duquel le vol tourne en ce moment, ou rien : ses cris le suivent (CitySound).</summary>
     public Isle? Port { get; private set; }
@@ -221,11 +223,12 @@ public partial class GullNode : Node3D
             double d = Math.Sqrt((isl.X - here.X) * (isl.X - here.X) + (isl.Z - here.Z) * (isl.Z - here.Z));
             if (d < pd) { pd = d; port = isl; }
         }
-        _port.Visible = Rules.Enabled && port != null && Night < 0.5;
+        // la nuit, et sous une forte averse, le vol du port est posé sur les toits
+        _port.Visible = Rules.Enabled && port != null && Night < 0.5 && Rain < 0.45;
         Port = _port.Visible ? port : null;
         if (port != null) _port.Position = new Vector3((float)(port.X - origin.X), 0, (float)(port.Z - origin.Z));
 
-        _near.Visible = _far.Visible = _flock.Flying;
+        _near.Visible = _far.Visible = _flock.Flying && Rain < 0.45;
         if (_flock.Flying || _port.Visible) Material?.SetShaderParameter(U.Time, (float)clock);
         if (!_flock.Flying) return;
         var c = _flock.Centre;

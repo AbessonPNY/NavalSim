@@ -141,6 +141,16 @@ public partial class ShipDemo
                     _city.GullsGain = Math.Clamp(mo.Num("loin_volume", _city.GullsGain), 0, 1);
             }
 
+            // le bruit de l'averse (RainSound)
+            if (_rainSound != null && root.TryGetProperty("pluie", out var pl))
+            {
+                _rainSound.Loops.Clear();
+                if (pl.TryGetProperty("boucle", out var bl) && bl.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    foreach (var f in bl.EnumerateArray())
+                        if (f.GetString() is string file && file.Length > 0) _rainSound.Loops.Add(file);
+                _rainSound.Gain = Math.Clamp(pl.Num("volume", _rainSound.Gain), 0, 1);
+            }
+
             // les bandes de mer
             if (root.TryGetProperty("mer", out var mer))
             {

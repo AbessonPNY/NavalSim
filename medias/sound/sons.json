@@ -51,6 +51,12 @@
     "silence_max": 80
   },
   
+"pluie" : {
+	"_aide": "Le bruit de l'averse : une boucle partout, sans lieu, dont le volume suit ce qui tombe (en fondu de trois secondes). Plusieurs : il en tire une. Vide : la pluie tombe en silence. volume : au plus fort de l'averse, de 0 à 1.",
+	"boucle": [],
+	"volume": 0.8
+},
+
 "mouettes" : {
 	"_aide": "Sons de mouettes. loin : en boucle, au-dessus du port où tourne leur vol (à moins de 1500 m du port, de jour) — on les entend du ponton. loin_volume de 0 à 1.",
 	"loin": ["mouettes_lointaines.ogg"],

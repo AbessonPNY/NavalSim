@@ -240,6 +240,7 @@ public partial class ShipDemo
 
         double wet = Math.Clamp((_sea.Core.SeaState - 5.5) / 2.8, 0, 1);
         _fall = _climate.Precipitation(wet);
+        _rainSound?.Update(_fall.Snow ? 0 : _fall.Amount, _sound?.On == true, dt);
 
         // ce qui tombe réfléchit : la clarté de l'horizon, qui porte l'heure
         var h = _sky.Core.Horizon;

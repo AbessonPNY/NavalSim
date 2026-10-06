@@ -34,7 +34,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 |---|---|
 | `config.js` | constantes du monde (ρ, g, grille de sondes, liste de repli des navires) |
 | `weather.js` · `storms.js` | le vent qui se conduit seul · les dépressions, qui ont un lieu |
-| `rain.js` · `snow.js` · `splash.js` | le rideau de pluie · la neige · l'eau jetée par ce qui tombe dedans |
+| `rain.js` · `snow.js` · `splash.js` | le rideau de pluie · la neige · l'eau jetée par ce qui tombe dedans — sous Godot, l'averse ferme aussi le ciel et l'horizon SANS la tempête (`Sky.Rain` ; la mer garde `Sky.SeaStorm`), crève l'eau d'anneaux (`u_rain`, `rain_rings` dans `ocean.gdshader`) ; Ctrl T en demande une, en palier |
 | `climate.js` | la température (en mots), les averses, pluie ou neige |
 | `wreck-air.js` | l'air qui remonte d'une épave |
 | `lightning.js` · `kraken.js` | la foudre qui tombe sur une tête de mât · le monstre des dépressions |

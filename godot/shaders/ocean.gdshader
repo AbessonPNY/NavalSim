@@ -141,6 +141,14 @@ uniform float u_shore_foam = 1.0;
    de 700 m de l'œil (au ras de l'eau, c'est loin que la rive se reflète ; l'eau lointaine ne tient qu'une mince bande de l'image, et ne coûte guère) : la végétation, les maisons, les pontons et la côte s'y
    reflètent. Le large, profond, garde son ciel seul. 0 l'éteint. */
 uniform float u_shore_mirror = 1.0;
+/* LA PLUIE SUR L'EAU, de 0 à 1 (l'averse du climat ; pas la neige, qui fond sans
+   rien dire). Elle crève la surface d'anneaux qui s'ouvrent et meurent en une
+   demi-seconde, de près, et la mate au loin : une mer sous l'averse ne renvoie plus
+   le ciel, elle est grise et piquée. */
+uniform float u_rain = 0.0;
+/* le gros temps de la MER seule (Sky.SeaStorm) : u_storm monte aussi sous la pluie,
+   qui ferme le ciel sans remuer l'eau — le remous au bordé ne lit que celui-ci */
+uniform float u_sea_storm = 0.0;
 uniform float u_shore_dist = 0.0;
 /* LA VASE D'UN BASSIN. Une rade n'a pas l'eau du large : elle reçoit la terre,
    les rivières et le remuement des coques, et l'on n'y voit pas le fond par onze
@@ -484,6 +492,33 @@ float hull_shadow(vec3 P, vec2 pix) {
 	return s * smoothstep(0.0, 0.035, u_sun.y) * (1.0 - 0.7 * u_storm);
 }
 
+/* UN ANNEAU PAR GOUTTE : la surface en cases de 40 cm, une goutte par case à une
+   heure tirée, un anneau qui s'ouvre jusqu'à 14 cm et s'amortit. Rend la pente de
+   la surface (xy) et la gerbe de l'impact (z), qui ne dure qu'un éclair. Deux
+   réseaux décalés, pour que les gouttes ne tombent pas en quadrillage. */
+vec3 rain_rings(vec2 p, float t, float amount) {
+	vec3 acc = vec3(0.0);
+	for (int layer = 0; layer < 2; layer++) {
+		vec2 q = p / 0.40 + vec2(float(layer) * 0.5, float(layer) * 0.37);
+		vec2 cell = floor(q);
+		vec2 h = fract(sin(vec2(dot(cell, vec2(127.1, 311.7)), dot(cell, vec2(269.5, 183.3))) + float(layer) * 7.13) * 43758.5);
+		// pas de goutte dans toutes les cases : une averse légère en crible peu
+		if (h.x > amount * 0.95 + 0.05) continue;
+		vec2 off = q - cell - 0.5 - (h - 0.5) * 0.30;
+		float d = length(off) * 0.40;
+		float period = 0.8 + 0.6 * h.y;
+		float age = fract(t / period + h.x * 13.7);
+		float radius = age * 0.14;
+		float x = (d - radius) / 0.012;
+		float env = (1.0 - age) * (1.0 - age);
+		// la dérivée d'une onde amortie en travers de l'anneau, le long du rayon
+		float slope = -2.0 * x * exp(-x * x) * env;
+		acc.xy += normalize(off + 1e-5) * slope;
+		acc.z += smoothstep(0.08, 0.0, age) * smoothstep(0.03, 0.0, d);
+	}
+	return acc;
+}
+
 void fragment() {
 	vec3 eye = CAMERA_POSITION_WORLD;
 	vec3 V = normalize(eye - v_world);
@@ -509,6 +544,16 @@ void fragment() {
 	vec3 kg = kelvin_slope(v_world.xz, length(fwidth(v_world.xz)));
 	N = normalize(vec3(N.x - kg.x, N.y, N.z - kg.y));
 
+	/* les anneaux de la pluie, de près seulement : au-delà de quarante mètres ils
+	   tombent sous le pixel et ne feraient que grouiller — la mer s'y mate (rough_w) */
+	float rain_splash = 0.0;
+	if (u_rain > 0.003 && dist < 45.0) {
+		vec3 rr = rain_rings(v_world.xz, u_time, u_rain);
+		float near_r = (1.0 - smoothstep(18.0, 45.0, dist)) * u_rain;
+		N = normalize(vec3(N.x + rr.x * 1.6 * near_r, N.y, N.z + rr.y * 1.6 * near_r));
+		rain_splash = rr.z * near_r * (1.0 - smoothstep(6.0, 20.0, dist));
+	}
+
 	// --- le miroir ---
 	vec3 R = reflect(-V, N);
 	R.y = abs(R.y) + 0.003;             // ne jamais échantillonner sous l'horizon
@@ -521,7 +566,7 @@ void fragment() {
 	   renvoie plus l'image du ciel, elle en renvoie la moyenne, tirée vers le
 	   haut. La rugosité monte avec le vent (u_ripple le porte). */
 	float wind_n = smoothstep(0.4, 2.6, u_ripple);
-	float rough_w = u_rough_base + u_rough_wind * wind_n;
+	float rough_w = u_rough_base + u_rough_wind * wind_n + 0.30 * u_rain;
 	vec3 sky_soft = naval_sky(normalize(R + vec3(0.0, 0.8, 0.0)), u_sun, u_zenith, u_horizon, 0.0);
 	sky = mix(sky, sky_soft, clamp(rough_w * 2.5 * u_sky_blur, 0.0, 0.9));
 
@@ -641,7 +686,7 @@ void fragment() {
 	   étalait sa route jusqu'à l'effacer — relevé sur une capture de grosse mer
 	   au soleil bas. Le vent élargit la route (Cox et Munk), il ne l'éteint pas :
 	   un peu du vent seulement. */
-	float rough = clamp(0.055 + 0.08 * wind_n + 0.30 * v_foam + 0.24 * far + 0.26 * coarse, 0.03, 0.6);
+	float rough = clamp(0.055 + 0.08 * wind_n + 0.30 * v_foam + 0.24 * far + 0.26 * coarse + 0.20 * u_rain, 0.03, 0.6);
 	float a = rough * rough;
 	float nh = max(dot(N, H), 0.0);
 	float D = naval_ggx(nh, a);
@@ -845,7 +890,7 @@ void fragment() {
 
 		   Il était une constante, réglée sur un navire en route — donc présent à
 		   l'arrêt par calme plat, et absent quand on le cherchait. */
-		float remous = max(way, u_storm);
+		float remous = max(way, u_sea_storm);
 		float collar = (1.0 - smoothstep(0.0, 0.85 + 0.45 * remous, gap_m))
 		             * smoothstep(-1.3, -0.1, gap_m);
 
@@ -1085,6 +1130,8 @@ void fragment() {
 		}
 	}
 
+	// la gerbe d'une goutte qui crève la surface : un éclat de l'eau, qui renvoie le jour
+	c += u_horizon * 2.0 * rain_splash;
 	ALBEDO = naval_display(c);
 	// transparente pour lire ce qui est derrière, mais pleinement opaque à l'œil
 	ALPHA = 1.0;

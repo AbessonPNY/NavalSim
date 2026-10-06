@@ -215,6 +215,9 @@ public partial class ShipDemo : Node3D
         // la ville entendue : ses lecteurs à elle, sur le bus du dehors
         _city = new CitySound();
         _sound.AddChild(_city);
+        // et l'averse, qui tombe partout à la fois
+        _rainSound = new RainSound();
+        _sound.AddChild(_rainSound);
         // les manifestes APRÈS lui : ils rangent leurs échantillons dans le nœud
         LoadSounds();
         LoadCrewVoices();
@@ -819,7 +822,7 @@ public partial class ShipDemo : Node3D
             // le niveau de la mer sous le navire décide de la hauteur d'eau
             _fishNode?.Update(_world, here, new Vec3d(wo.X, 0, wo.Z), frame,
                 _sea.Core.Sample(b.Pos.X, b.Pos.Z, _t));
-            if (_gulls != null) _gulls.Night = _sky.Core.Night;
+            if (_gulls != null) { _gulls.Night = _sky.Core.Night; _gulls.Rain = _fall.Amount; }
             _gulls?.Update(_world, here, new Vec3d(wo.X, 0, wo.Z), frame, _t);
             _city?.Update(_world, here, new Vec3d(wo.X, 0, wo.Z), _sky.Core.Night, _gulls?.Port, _sound?.On == true, frame);
             if (_dolphins != null)
@@ -946,6 +949,8 @@ public partial class ShipDemo : Node3D
         double dayBefore = _sky.Core.DayTime;
         // ce qui ferme le ciel en plus de l'orage : l'averse, le grain, la brume, la couverture
         _sky.Overcast = Math.Max(Wet(), 0.7 * Math.Clamp((_cloud - 0.55) / 0.45, 0, 1));
+        // ce qui tombe ferme aussi l'horizon et le ciel, même par petite brise (Sky.Rain)
+        _sky.Core.Rain = _fall.Amount;
         _sky.UpdateWeather(frame, _sea.Core.SeaState);
         FallTick(frame, dayBefore);
         StormTick(frame);
@@ -1128,6 +1133,9 @@ public partial class ShipDemo : Node3D
         _sky.PushGlobals(_cloud, _t);
         _sky.PushTo(_sea.Material);
         _sea.Material.SetShaderParameter(U.Sunlit, (float)_sky.Sunlit);
+        // la pluie sur l'eau (pas la neige) ; et le gros temps de la mer seule, pour le remous
+        _sea.Material.SetShaderParameter(U.Rain, (float)(_fall.Snow ? 0 : _fall.Amount));
+        _sea.Material.SetShaderParameter(U.SeaStorm, (float)_sky.Core.SeaStorm);
         _sky.PushTo(_sea.FarMaterial);      // l horizon se noie dans le meme ciel
         _sky.SetCloud(_sea.Material, _cloud, _t);
         foreach (var m in _ship.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }

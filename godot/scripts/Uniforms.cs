@@ -100,6 +100,7 @@ public static class U
     public static readonly StringName Kelvin = new("u_kelvin");
     public static readonly StringName Night = new("u_night");
     public static readonly StringName Hour = new("u_hour");
+    public static readonly StringName SeaStorm = new("u_sea_storm");
     public static readonly StringName Wet = new("u_wet");
     public static readonly StringName Sheet = new("u_sheet");
     public static readonly StringName Aspect = new("u_aspect");

@@ -135,6 +135,7 @@ public partial class ShipDemo : Node3D
         Key(b, "⇧K", "une baleine, qui vient charger");
         Key(b, "⇧J", "une averse, et le serpent de mer");
         Key(b, "⇧T", "la brume de surface, tout de suite");
+        Key(b, "Ctrl T", "une averse diluvienne, tout de suite");
         Key(b, "P", "la flotte fantôme");
         Key(b, "⇧P", "amener ou hisser le pavillon");
         Key(b, "⇧N", "la flotte : mettre à l'eau, retirer");

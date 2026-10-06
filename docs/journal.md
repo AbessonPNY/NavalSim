@@ -14991,6 +14991,41 @@ passe le filtre en rouge, les reflets trouvés en vert. LIMITE DITE : en espace 
 l'image ou au-delà de la portée ne se reflète pas, et au loin la recherche trouve peu. COÛT : +0,1 à
 0,4 ms de carte graphique, au port, au ras de l'eau.
 
+## La pluie sans la tempête ; partir d'une partie neuve (Godot)
+
+DEMANDÉ : « une pluie diluvienne me fait penser que nous n'avons pas la pluie forte sans la tempête —
+avec des impacts visibles sur l'eau ; quitter la rade de Port-Royal sous la pluie, avec une faible
+visibilité ».
+
+CE QUI MANQUAIT : l'averse du climat dessinait son rideau et ternissait la lumière (SkyNode.Overcast),
+mais le CIEL et l'HORIZON ne lisaient que l'état de mer : une averse par petite brise restait sous un
+ciel bleu, à dix kilomètres de vue. Sky.Rain (posé par l'hôte avant SetSeaState, comme Fog) :
+- le couvercle : Storm = max(gros temps de la mer, RainLid 0,7 × averse lissée) — ciel d'ardoise, plus
+  de nuages dessinés, plus de soleil à prendre au quartier de Davis ;
+- la vue : extinction 0,00085 + RainHaze 0,0055 × r^1,5 (une pluie diluvienne laisse voir à six ou sept
+  cents mètres : 3,9 / V), couche montée de RainHazeHeight 500 m — la mâture s'efface avec la coque ;
+- MAIS LA MER NE LE SAIT PAS : Sky.SeaStorm garde le gros temps de la mer seule, et le remous au bordé
+  (ocean.gdshader, u_sea_storm) le lit, sans quoi un navire stoppé sous l'averse aurait eu son collier
+  d'écume de coup de vent.
+LES IMPACTS (ocean.gdshader, rain_rings, u_rain) : des cases de 40 cm, une goutte par case à une heure
+tirée, un anneau qui s'ouvre jusqu'à 14 cm en une seconde et s'amortit, deux réseaux décalés ; la gerbe
+de l'impact, un éclat bref ; de près seulement (45 m), et au loin la mer se mate (rugosité + 0,30) :
+une mer sous l'averse ne renvoie plus le ciel. La neige n'y fait rien.
+LES MOUETTES SE POSENT sous une forte averse (GullNode.Rain ≥ 0,45) : relevé à la capture, le vol du
+port faisait des taches sombres dans la grisaille.
+L'AVERSE QU'ON DEMANDE : Ctrl T (et -- --averse minutes) — deux heures et demie de jeu, en PALIER (dix
+minutes pour venir et partir) et non en cloche, qui ne tenait son plus fort qu'un instant
+(Climate.StartShower steady). Les averses du hasard gardent leur cloche : le banc de parité les compare
+à la page.
+LE BRUIT : sons.json → pluie (boucle, volume), RainSound.cs ; vide pour l'instant, elle tombe en silence.
+Banc de parité : 8 tenus.
+
+PARTIR D'UNE PARTIE NEUVE (demandé : « si je quitte une mission, le jeu doit me proposer de
+sauvegarder, pas le faire systématiquement quand c'est une nouvelle partie »). Le menu d'Échap
+écrivait d'office toute mission en cours. Désormais (ShipDemo.Pause.cs, Leave) : une partie qui a déjà
+un nom s'enregistre en passant ; une neuve, mission ou jeu libre, DEMANDE — Enregistrer, Ne pas
+enregistrer, Annuler. Une escarmouche ne s'enregistre jamais.
+
 ## La carte des missions ; l'Histoire fermée (Godot)
 
 DEMANDÉ : « griser le mode histoire » — les quêtes se travaillent d'abord en missions, chacune avec un

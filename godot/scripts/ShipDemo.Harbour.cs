@@ -61,6 +61,7 @@ public partial class ShipDemo
     AnchorNode? _anchor2;
     SoundNode? _sound;
     CitySound? _city;
+    RainSound? _rainSound;
     /// <summary>-- --fenetres 0 : les fenêtres des villes éteintes, pour juger les lanternes seules.</summary>
     bool _windowsOff;
     /// <summary>La première image bâtit tout ce qui est à portée : on ne part pas d'un port à moitié dessiné.</summary>

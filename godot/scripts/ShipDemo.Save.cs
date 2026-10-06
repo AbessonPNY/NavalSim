@@ -252,9 +252,9 @@ public partial class ShipDemo
            d'Échap le dit en toutes lettres (« Partie non enregistrée ») et sa
            première entrée est justement de l'enregistrer.
 
-           Une quête en cours, elle, s'enregistre toujours : une Histoire ou une
-           Mission perdue en fermant le jeu serait une tout autre affaire. */
-        if (!asked && _gameId.Length == 0 && _quests?.Active == null) return;
+           Une mission neuve non plus (demandé) : en partant, le menu d'Échap DEMANDE
+           s'il faut la garder (ShipDemo.Pause.cs, Leave) au lieu de l'écrire d'office. */
+        if (!asked && _gameId.Length == 0) return;
         DirAccess.MakeDirRecursiveAbsolute(ProjectSettings.GlobalizePath(SaveDir));
         var s = Collect();
         _gameId = s.Id;

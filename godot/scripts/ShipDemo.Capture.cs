@@ -46,7 +46,7 @@ public partial class ShipDemo
                         SailTo(args[i + 1]);
                     }
                     break;
-                case "--averse": _climate.StartShower(args[i + 1].ToFloat(), 1.0); break;
+                case "--averse": _climate.StartShower(args[i + 1].ToFloat(), 1.0, steady: true); break;
                 case "--kraken": _kraken.Summon(args[i + 1] == "1", PreyOf(_ship)); break;
                 // --baleine 0 : indifférente, 1 : curieuse, 2 : hostile
                 case "--baleine": SummonWhale((WhaleMood)Math.Clamp(args[i + 1].ToInt(), 0, 2)); break;

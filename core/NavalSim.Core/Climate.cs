@@ -55,6 +55,7 @@ public sealed class Climate
     // l'averse en cours : son âge, sa durée et son plus fort, en heures de jeu
     public bool Showering { get; private set; }
     double _showerT, _showerLen, _showerPeak;
+    bool _showerSteady;
     /// <summary>Ce que l'averse fait tomber en ce moment, 0 à 1.</summary>
     public double Amount { get; private set; }
     public double Temp { get; private set; } = 10;
@@ -101,12 +102,20 @@ public sealed class Climate
             _showerT += dtHours;
             double u = _showerT / _showerLen;
             if (u >= 1) { Showering = false; Amount = 0; }
+            else if (_showerSteady)
+            {
+                // dix minutes pour venir et autant pour partir, le plein entre les deux
+                double edge = Math.Min(0.5, (10.0 / 60) / _showerLen);
+                double k = Math.Min(1, Math.Min(u, 1 - u) / edge);
+                Amount = _showerPeak * k * k * (3 - 2 * k);
+            }
             else Amount = _showerPeak * Math.Sin(Math.PI * u);      // elle vient, et repart
         }
         else if (dtHours > 0 && _random() < K.ShowersPerDay * dtHours / 24)
         {
             Showering = true;
             _showerT = 0;
+            _showerSteady = false;
             _showerLen = (K.ShowerMinLo + _random() * (K.ShowerMinHi - K.ShowerMinLo)) / 60;
             _showerPeak = 0.35 + _random() * 0.65;
         }
@@ -125,9 +134,11 @@ public sealed class Climate
     /// plus fort <paramref name="peak"/> — pour l'essayer sans attendre le hasard.
     /// Un ajout du portage : la page n'en a pas.
     /// </summary>
-    public void StartShower(double minutes, double peak)
+    /// <param name="steady">Vrai : un palier au plus fort (dix minutes pour venir et pour partir) au lieu de la cloche — l averse diluvienne qu on demande.</param>
+    public void StartShower(double minutes, double peak, bool steady = false)
     {
         Showering = true;
+        _showerSteady = steady;
         _showerT = 0;
         _showerLen = Math.Max(1, minutes) / 60;
         _showerPeak = Math.Clamp(peak, 0, 1);
