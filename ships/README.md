@@ -547,6 +547,24 @@ JSON : on ne peut pas déduire un volume de carène fiable d'un maillage
 quelconque sans une voxelisation coûteuse. Si le modèle ne charge pas, la coque
 procédurale est conservée et un avertissement est écrit en console.
 
+### Pièces et mantelets de sabord (Godot)
+
+- **Une pièce** est un objet dont le nom contient `canon`, `cannon` ou `gun`
+  (`canonTribord_001`) : elle recule au coup avec tout ce qu'elle porte (affût, roues).
+- **Un mantelet** est un objet dont le nom contient `sabord` ou `mantelet`
+  (`sabordTribord_001`), modelé **fermé**, sur son sabord. Rien d'autre à préparer :
+  la charnière est prise sur son **arête haute, côté extérieur**, et il se relève vers le
+  dehors autour de l'axe du navire. Pas de `canon` ni de `gun` dans son nom
+  (« gunport » ferait une pièce). Un mantelet dans l'axe (poupe) est laissé fixe.
+- **Le branle-bas** : chaque mantelet est rattaché à la pièce la plus proche de son bord.
+  Sabord fermé, la pièce est rentrée de la longueur de son recul ; au branle-bas, le
+  mantelet s'ouvre, PUIS la pièce sort, de l'avant à l'arrière ; à la fermeture,
+  l'inverse. Ils s'ouvrent seuls au combat (un ennemi à moins de 1 500 m, ou un coup
+  tiré depuis moins de deux minutes), et sur l'ordre (⇧ et la touche du plan
+  d'arrimage, le W d'un AZERTY). Essai sans modèle :
+  `-- --sabords-essai 1 --ship 7 --branle-bas 1` pose une planche rouge sur chaque
+  pièce de bordée.
+
 ### Rugosité et relief
 
 Les matériaux du .glb sont gardés tels quels : couleur, **rugosité**

@@ -111,6 +111,7 @@ public partial class ShipDemo : Node3D
         Key(a, "G tenu", "la bordée entière");
         Key(a, "⇧G", "tirer de l'autre bord");
         Key(a, "Tab", "changer le bord en batterie");
+        Key(a, "⇧" + StowKeyName, "branle-bas : ouvrir les sabords et mettre les pièces en batterie, ou les rentrer (s'ouvrent seuls au combat)");
         Section(a, "Avaries");
         Key(a, "R", "réparer et renflouer");
         Key(a, "Y", "faire sauter la soute");

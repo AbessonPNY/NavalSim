@@ -282,6 +282,8 @@ public partial class ShipDemo
                    rien : le Z d'un QWERTY, le W d'un AZERTY. Par son EMPLACEMENT,
                    pour ne jamais tomber sur la machine ; le mémento et le panneau
                    disent la lettre du clavier qu'on a sous les doigts. */
+                // ⇧ et la même place : le branle-bas, sabords ouverts et pièces en batterie (ShipDemo.Ports.cs)
+                case Key.Z when k.ShiftPressed: TogglePorts(); break;
                 case Key.Z: ToggleStow(); break;
                 // l'occlusion ambiante et l'illumination globale, pour juger à l'œil
                 // ⇧O : GAGNER LE LARGE, là où l on croise des voiles

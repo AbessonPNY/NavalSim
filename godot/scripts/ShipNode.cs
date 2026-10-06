@@ -183,6 +183,9 @@ public partial class ShipNode : Node3D
             _oars.Clear();
             if (Spec.Oars != null) { _rig = new Node3D(); AddChild(_rig); BuildOars(); }
             FindGuns();
+            // les mantelets de sabord, appariés aux pièces qu'on vient de trouver (ShipNode.Ports.cs)
+            MakeTestLids();
+            FindPortLids();
             // ce qui est dedans ne reçoit plus la lumière des fanaux du pont
             MarkInside();
             // et les anneaux reviennent, sur leurs pivots, une fois l'échelle connue

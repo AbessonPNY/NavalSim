@@ -105,6 +105,9 @@ public partial class ShipDemo
                    ligne de commande et reposerait le joueur a Port-Royal pendant
                    que sa ligne attend au large. */
                 case "--combat-journal": _combatLogEvery = args[i + 1].ToFloat(); break;
+                // ESSAI : des mantelets de planche sur chaque pièce de bordée, faute d'en avoir de modelés ; puis le branle-bas
+                case "--sabords-essai": ShipNode.TestLids = args[i + 1] != "0"; break;
+                case "--branle-bas": _portsOrder = args[i + 1] != "0"; break;
                 case "--escarmouche": _wantMelee = args[i + 1] != "0"; break;
                 // DÉMONSTRATION : plonger la caméra à tant de mètres par seconde
                 case "--plongee": _diveSpeed = args[i + 1].ToFloat(); break;

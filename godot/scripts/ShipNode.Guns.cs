@@ -224,7 +224,8 @@ public partial class ShipNode
             foreach (var ch in n.GetChildren())
             {
                 // trouvé : on ne descend pas, ses enfants sont à elle
-                if (ch is Node3D n3 && GunNames.IsMatch(n3.Name.ToString())) { found.Add(n3); continue; }
+                // un mantelet n'est pas une pièce, même nommé « sabordCanon » (ShipNode.Ports.cs)
+                if (ch is Node3D n3 && GunNames.IsMatch(n3.Name.ToString()) && !LidNames.IsMatch(n3.Name.ToString())) { found.Add(n3); continue; }
                 Gather(ch);
             }
         }

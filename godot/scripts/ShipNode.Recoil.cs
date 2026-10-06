@@ -34,6 +34,8 @@ public partial class ShipNode
         public float AxisBack;
         /// <summary>Détachée : elle tombe à part (ShipDemo.LooseGuns), la coque ne la mène plus.</summary>
         public bool Loose;
+        /// <summary>Ce qui a été écrit au pivot la dernière fois (recul ou pièce rentrée, et sa direction) : on n'écrit que ce qui change.</summary>
+        public double WasBack = -1, WasTrain;
     }
 
     readonly List<GunPiece> _gunPieces = new();
@@ -310,6 +312,7 @@ public partial class ShipNode
             p.Pivot.Reparent(holder, true);
             moved.Add((p.Pivot, g, home));
         }
+        HandOverLids(zCut, holder);
         return moved;
     }
 
@@ -353,13 +356,19 @@ public partial class ShipNode
             var g = Battery.Guns[i];
             var p = _gunPieces[i];
             if (p.Loose || p.Pivot == null || !IsInstanceValid(p.Pivot)) continue;
-            if (p.Fired < 0) continue;
-            double t = clock - p.Fired, all = Math.Max(0.5, p.Until - p.Fired);
-            double back;
-            if (t < 0 || t > all) { back = 0; p.Fired = -1; }
-            else if (t < outIn) { double u = t / outIn; back = u * u * (3 - 2 * u); }
-            else if (t > all - runOut) { back = MathX.Smooth01((all - t) / runOut); }
-            else back = 1;
+            double back = 0;
+            if (p.Fired >= 0)
+            {
+                double t = clock - p.Fired, all = Math.Max(0.5, p.Until - p.Fired);
+                if (t < 0 || t > all) { back = 0; p.Fired = -1; }
+                else if (t < outIn) { double u = t / outIn; back = u * u * (3 - 2 * u); }
+                else if (t > all - runOut) { back = MathX.Smooth01((all - t) / runOut); }
+                else back = 1;
+            }
+            // sabord fermé, pièce rentrée de toute la longueur de son recul (ShipNode.Ports.cs)
+            back = Math.Max(back, LidInboard(i));
+            if (back == p.WasBack && g.Train == p.WasTrain) continue;
+            p.WasBack = back; p.WasTrain = g.Train;
             p.Pivot.Position = p.Home + new Basis(Vector3.Up, (float)g.Train) * p.Back * (float)(back * Kick);
         }
     }

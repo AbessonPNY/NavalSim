@@ -722,6 +722,8 @@ public partial class ShipDemo : Node3D
         _ship.Sea = _sea.Core;
         _ship.StreamFlags(_t);
         _ship.RecoilTick(_gunnery.Clock, _gunRules.RecoilSpeed);
+        // le branle-bas : les sabords de chacun, avant que le recul de l'image suivante ne lise ses pièces
+        PortsTick(frame);
         // les avirons balancent EN MESURE avec le coup que le solveur vient de donner
         _ship.SetOars(frame);
         foreach (var s2 in _others) s2.SetOars(frame);

@@ -14807,6 +14807,37 @@ toutes les 1 à 2,5 s). Hors bataille la focale revient à 40° en une seconde.
 quarantième de la focale — serré on tremble moins en angle pour ne pas trembler plus à l'image —, sur
 le temps RÉEL (Time.GetTicksMsec), pour que la compression du temps ne fasse pas trembler plus vite.
 
+## Les mantelets de sabord et le branle-bas (Godot)
+
+DEMANDÉ : « peux-tu mettre en place une ouverture des sabords avec le modèle de la Roter Löwe, ou
+faut-il que je les sépare du modèle ? ». RELEVÉ D'ABORD, par des rayons tirés de l'intérieur devant
+chaque pièce sur la coque (Plane, 9 980 triangles) : les SABORDS SONT PERCÉS — des trous d'environ
+50 × 45 cm, fermés de bois sur les quatre côtés —, et il n'y a AUCUN mantelet dans le modèle. Rien à
+séparer, donc ; l'utilisateur les modèle (choisi), et le moteur est prêt à les lire.
+
+ShipNode.Ports.cs : un objet dont le nom contient « sabord » ou « mantelet » est un mantelet, modelé
+FERMÉ. La charnière se prend sur l'arête HAUTE côté EXTÉRIEUR de sa boîte (dans le repère du navire),
+un pivot y est posé, et il tourne autour de l'axe du navire (Rotation.Z = signe du bord × angle :
++x bâbord, un point sous la charnière part vers +x). 1,45 rad, un peu moins que l'horizontale. Pas
+« gunport » : GunNames (canon|cannon|gun) en ferait une pièce — NamedPieces écarte désormais ce que
+LidNames reconnaît. Chacun est apparié à la pièce la plus proche de son bord (1,5 m au plus).
+
+LE BRANLE-BAS DANS L'ORDRE D'UN BORD : une phase 0 → 2 par mantelet (0 fermé ; 1 ouvert, pièce
+rentrée ; 2 en batterie) : il s'ouvre en 1,2 s, PUIS la pièce sort en 1,6 s, de l'avant à l'arrière,
+0,25 s d'une pièce à la suivante ; à la fermeture l'inverse. Sabord fermé, la pièce est rentrée de
+toute la longueur de son recul (RecoilTick : max(recul, rentrée), et le pivot n'est écrit que sur
+changement — recul et direction retenus). Qui veut ses sabords ouverts (ShipDemo.Ports.cs) : un
+navire qui a un ennemi à moins de 1 500 m ou qui a tiré depuis moins de deux minutes ; le nôtre
+aussi quand on sert une pièce, ou sur l'ordre ⇧W (AZERTY ; ⇧ et la place du plan d'arrimage).
+À la rupture, les mantelets de l'avant partent avec lui, figés (HandOverLids, appelé par HandOver).
+
+ESSAI SANS MODÈLE : -- --sabords-essai 1 --ship 7 --branle-bas 0|1 pose une planche rouge sur chaque
+pièce de bordée (MakeTestLids, nommée « sabordEssai_n »). Vérifié de près par le travers : fermés, le
+rouge au fond des sabords ; ouverts, les planches relevées à l'horizontale au-dessus et les tubes
+sortis. Pas encore vu : un vrai mantelet modelé, et le sabord ouvert par grosse mer (il pourrait un
+jour embarquer, comme une voie d'eau). Un coup tiré sabord fermé part quand même — il l'ouvre,
+mais n'attend pas qu'il le soit.
+
 ## Ce que coûtent les pâtés de maisons de Port-Royal (Godot)
 
 Mesuré (--sans-ajout <motif>, qui cache les ajouts du mode création dont le modèle
