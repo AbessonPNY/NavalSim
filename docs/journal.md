@@ -14838,6 +14838,46 @@ sortis. Pas encore vu : un vrai mantelet modelé, et le sabord ouvert par grosse
 jour embarquer, comme une voie d'eau). Un coup tiré sabord fermé part quand même — il l'ouvre,
 mais n'attend pas qu'il le soit.
 
+PUIS (signalé) : « on tire sabord fermé, le coup part avant l'ouverture ; et ⇧W, les sabords ouverts
+seuls, ne fait rien ». (1) Fire attend : si un mantelet du bord visé n'est pas en batterie
+(ShipNode.PortsReady), l'ordre est RETENU (_fireWhenOpen : l'autre bord ou non, la bordée ou une
+pièce), les sabords s'ouvrent, et il part à la mise en batterie — mesuré (--feu-sabords 1, Roter
+Löwe) : 4,0 s d'attente, puis la bordée qui s'égrène. Les pièces sans mantelet (chasse) tirent
+d'emblée. (2) L'ordre était un booléen basculé à l'aveugle : le combat les avait ouverts, l'ordre
+valait « fermés », la touche le passait à « ouverts » — sans effet visible. C'est maintenant un
+ordre à trois états (ouverts, fermés, rien : le combat décide), posé d'après ce qu'on VOIT
+(PortsWanted). Fermés à la main en plein combat, ils le restent jusqu'au prochain coup commandé, qui
+rend la main au combat.
+
+## La règle parallèle et les roses des vents (Godot)
+
+DEMANDÉ, après l'explication de la navigation de 1690 : la règle parallèle sur la carte. Il fallait
+d'abord de quoi la faire marcher : LA CARTE N'AVAIT AUCUNE ROSE.
+
+LES ROSES (ChartNode.Roses.cs) : deux ou trois, imprimées dans le fond de carte (sous la plume, hors du
+voile de découverte : c'est le papier), posées sur une grille de candidats en mer profonde, la plus loin
+de toute terre d'abord (World.ShoreDistance), chacune à plus d'un tiers de feuille des autres. De chacune,
+les 32 rumbs tirés jusqu'au bord, très pâles, aux couleurs d'usage : noir les huit vents, vert les
+demi-vents, rouge les quarts. Fleur de lys au nord, croix à l'est.
+
+LES QUARTS (Compass, noyau) : BearingDeg (relèvement vrai, est = −x), Point/RumbShort/Rumb (« NE ¼ E »,
+« nord-est quart est » — chaque quart nommé d'après le vent principal le plus proche) et Quadrantal
+(« N 61° E »). Banc « rumbs » : seize caps, tous justes.
+
+LA RÈGLE (ParallelRuler.cs, ShipDemo.Ruler.cs) : R sur la carte ouverte. Clic : l'arrivée, le départ
+étant le POINT ESTIMÉ (Believed, pas la vérité) ; clic droit : un autre départ ; Entrée : la route
+portée au carnet à l'encre bleue. Un trait de crayon, deux lattes d'ébène liées de laiton posées
+dessus, qui MARCHENT jusqu'à la rose la plus proche du milieu du trait en quatre pas, une latte puis
+l'autre (chacune parcourt deux demi-déplacements : elles restent parallèles, les bras tournent, comme
+le vrai instrument) ; le bord de la première passe par le centre de la rose, le rumb y est tiré au
+crayon rouge et lu à la plume. En bas : route vraie, quadrant, degrés, milles (minutes de latitude,
+MetresPerMinute — l'échelle de la région) et lieues (trois milles). PIÈGE : à la loupe d'un port, la
+rose est à vingt milles, et la règle marchait HORS DE L'ÉCRAN : la carte recule désormais juste assez
+pour cadrer le trait et la rose (FrameRuler), sans jamais grossir. La lecture se met sous la rose, ou
+au-dessus quand elle est au bas de la feuille. Le cap lu est VRAI : le compas du jeu montre le vrai, et
+sa variation mal connue est une erreur de l'estime (Reckoning.CompassBias), pas de la règle. Essai :
+--carte-ouverte 1 --regle distance,cap (mètres, degrés, depuis le point estimé).
+
 ## Ce que coûtent les pâtés de maisons de Port-Royal (Godot)
 
 Mesuré (--sans-ajout <motif>, qui cache les ajouts du mode création dont le modèle

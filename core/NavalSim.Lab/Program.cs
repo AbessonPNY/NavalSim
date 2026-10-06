@@ -72,6 +72,7 @@ switch (mode)
     case "nage": Nage(); break;
     case "contre": Contre(); break;
     case "abordage": Abordage(); break;
+    case "rumbs": foreach (double h in new[] { 0, 5.5, 11.25, 22.5, 56.25, 61, 67.5, 90, 135, 180, 200, 247.5, 270, 303.75, 348.75, 355 }) Console.WriteLine(FormattableString.Invariant($"{h,7:F2}° : {Compass.RumbShort(h),-8} {Compass.Rumb(h),-28} {Compass.Quadrantal(h)}")); Console.WriteLine(FormattableString.Invariant($"relèvement d un point au nord-est : {Compass.BearingDeg(0, 0, -1, 1):F1}°")); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
         return 1;

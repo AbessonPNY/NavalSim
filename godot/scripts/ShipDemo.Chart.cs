@@ -102,6 +102,7 @@ public partial class ShipDemo : Node3D
         _undoButton.Pressed += UndoStroke;
         root.AddChild(_undoButton);
         BuildNoonButton(root);
+        BuildRuler(root);
     }
 
     Button? _undoButton;
@@ -154,6 +155,8 @@ public partial class ShipDemo : Node3D
         }
         var origin = shown.Position;
         _chart.SetScreenInk(p => (p - origin) * k, k, _chartOpen);
+        // la règle parallèle, par-dessus l'encre, dans le même repère (ShipDemo.Ruler.cs)
+        LayoutRuler(p => (p - origin) * k);
     }
 
     Control? _chartInk;
@@ -181,6 +184,8 @@ public partial class ShipDemo : Node3D
         else
         {
             _drawing = null;
+            _ruling = false;
+            LiftRuler();
             if (_chartEntry != null) { _chartEntry.Visible = false; _chartEntry.ReleaseFocus(); }
             SaveBook();                 // ce qu'on vient d'écrire ne se perd pas
             CloseRoute();
@@ -191,9 +196,12 @@ public partial class ShipDemo : Node3D
     void Hint()
     {
         if (_chartHint == null) return;
-        _chartHint.Text = $"clic : tracer à l'encre {InkNames[_ink]}   ·   E : changer d'encre   ·   "
-                        + "clic droit : une note   ·   molette : la loupe   ·   clic milieu : déplacer   ·   "
-                        + "Retour arrière : effacer   ·   I ou Échap : fermer";
+        _chartHint.Text = _ruling
+            ? "RÈGLE PARALLÈLE   ·   clic : l'arrivée (départ : votre point estimé)   ·   clic droit : un autre départ   ·   "
+              + "Entrée : porter la route à l'encre   ·   molette : la loupe   ·   R : ranger la règle"
+            : $"clic : tracer à l'encre {InkNames[_ink]}   ·   E : changer d'encre   ·   R : la règle parallèle   ·   "
+              + "clic droit : une note   ·   molette : la loupe   ·   clic milieu : déplacer   ·   "
+              + "Retour arrière : effacer   ·   I ou Échap : fermer";
     }
 
     /// <summary>Où la souris touche la carte, en mètres du monde — ou rien si elle est à côté.</summary>
@@ -267,6 +275,9 @@ public partial class ShipDemo : Node3D
             }
             return false;
         }
+
+        // la règle en main prend les clics gauche et droit et Entrée (ShipDemo.Ruler.cs)
+        if (RulerInput(e)) return true;
 
         if (e is InputEventMouseButton mb)
         {
@@ -365,6 +376,7 @@ public partial class ShipDemo : Node3D
             {
                 case Key.Escape: ToggleChart(); return true;
                 case Key.E: _ink = (_ink + 1) % InkNames.Length; Hint(); return true;
+                case Key.R: ToggleRuler(); return true;
                 case Key.Backspace:
                     UndoStroke();
                     return true;

@@ -294,6 +294,15 @@ public partial class ShipDemo
         int side = other ? -_gunSide : _gunSide;
         if (!bat.Has(side)) { Say("Aucune pièce en " + GunNames[side]); return; }
         if (bat.Count(side).Ok == 0) { Say("Plus une pièce en état · " + GunNames[side]); return; }
+        // sabords fermés : l'ordre attend qu'ils s'ouvrent, et on rend le reste au combat (ShipDemo.Ports.cs)
+        if (!_ship.PortsReady(side))
+        {
+            bool already = _fireWhenOpen != null;
+            _fireWhenOpen = (other, held || (_fireWhenOpen?.Held ?? false));
+            _portsOrder = null;
+            if (!already) Say("Ouvrez les sabords ! Le feu à la mise en batterie");
+            return;
+        }
         /* L'ORDRE DE PARER RETIENT LE FEU. Tant que tout le bord n'est pas
            chargé, rien ne part — c'est cela qu'on a demandé aux servants, et
            c'est ce qui coûte : on attend la plus lente. Une pièce démontée ne

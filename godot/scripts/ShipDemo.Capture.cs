@@ -107,7 +107,9 @@ public partial class ShipDemo
                 case "--combat-journal": _combatLogEvery = args[i + 1].ToFloat(); break;
                 // ESSAI : des mantelets de planche sur chaque pièce de bordée, faute d'en avoir de modelés ; puis le branle-bas
                 case "--sabords-essai": ShipNode.TestLids = args[i + 1] != "0"; break;
-                case "--branle-bas": _portsOrder = args[i + 1] != "0"; break;
+                case "--branle-bas": _portsOrder = args[i + 1] != "0" ? true : null; break;
+                // ESSAI : une bordée commandée d'emblée (sabords fermés : elle attend qu'ils s'ouvrent)
+                case "--feu-sabords": _fireWhenOpen = (false, true); break;
                 case "--escarmouche": _wantMelee = args[i + 1] != "0"; break;
                 // DÉMONSTRATION : plonger la caméra à tant de mètres par seconde
                 case "--plongee": _diveSpeed = args[i + 1].ToFloat(); break;
@@ -159,6 +161,16 @@ public partial class ShipDemo
                 case "--carte": _overChart = args[i + 1] != "0"; break;
                 // la carte ouverte d emblee, pour la juger
                 case "--carte-ouverte": if (args[i + 1] != "0") ToggleChart(); break;
+                // ESSAI (après --carte-ouverte) : la règle parallèle vers un point à « distance (m), cap (°) » du point estimé
+                case "--regle":
+                {
+                    var rv = ParseVec(args[i + 1] + ",0");
+                    _ruling = true; Hint();
+                    var (rx, rz) = Believed();
+                    double rh = rv.Y * Math.PI / 180;
+                    RuleTo(rx - Math.Sin(rh) * rv.X, rz + Math.Cos(rh) * rv.X);
+                    break;
+                }
                 // une quete lancee d emblee, par son id : --quete apprendre-la-mer
                 // PAR LA MEME PORTE QUE LE MENU, sinon le levier n eprouve pas ce que le joueur fait :
                 // StartQuest arme le navire que la fiche impose, Start ne le fait pas.

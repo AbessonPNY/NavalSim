@@ -49,6 +49,18 @@ public partial class ShipNode
     /// <summary>Ses sabords sont-ils tous ouverts et ses pièces en batterie ?</summary>
     public bool PortsOpen { get { foreach (var l in _lids) if (l.Phase < 2) return false; return _lids.Count > 0; } }
 
+    /// <summary>
+    /// Les pièces de ce bord peuvent-elles tirer ? Vrai si chaque mantelet qui couvre une
+    /// pièce de ce bord est ouvert et sa pièce en batterie — et toujours vrai pour une
+    /// pièce sans mantelet (la chasse, ou un modèle qui n'en a pas).
+    /// </summary>
+    public bool PortsReady(int side)
+    {
+        foreach (var l in _lids)
+            if (l.Gun >= 0 && l.Gun < Battery.Guns.Count && Battery.Guns[l.Gun].Side == side && l.Phase < 2) return false;
+        return true;
+    }
+
     /// <summary>L'ouverture d'un mantelet, en radians : un peu moins que l'horizontale, comme on les voit sur les gravures.</summary>
     const float LidOpen = 1.45f;
     /// <summary>Ce que prend un mantelet à s'ouvrir, la pièce à sortir, et l'écart d'une pièce à la suivante, en secondes.</summary>

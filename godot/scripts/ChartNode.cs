@@ -119,6 +119,9 @@ public partial class ChartNode : Node
             StretchMode = TextureRect.StretchModeEnum.Scale
         };
         _vp.AddChild(_land);
+        // les roses et leur réseau, imprimés sur le papier, sous la plume (ChartNode.Roses.cs)
+        PlaceRoses();
+        _vp.AddChild(new RosePrint(this) { Size = new Vector2(Side, hgt) });
 
         _font = ThemeDB.FallbackFont;
         // l'écriture du capitaine, lue une fois pour tous ses usagers (HandFont)

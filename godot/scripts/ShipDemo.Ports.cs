@@ -16,8 +16,19 @@ namespace NavalSim;
 /// </summary>
 public partial class ShipDemo
 {
-    /// <summary>L'ordre du capitaine : sabords ouverts quoi qu'il arrive.</summary>
-    bool _portsOrder;
+    /// <summary>
+    /// L'ordre du capitaine : ouverts, fermés, ou rien (le combat décide). ⇧W le pose
+    /// d'après ce qu'on VOIT — ouverts, il les ferme ; fermés, il les ouvre (signalé :
+    /// ouverts seuls au combat, la touche croyait les ouvrir et ne faisait rien).
+    /// </summary>
+    bool? _portsOrder;
+    /// <summary>
+    /// UN FEU COMMANDÉ SABORDS FERMÉS ATTEND QU'ILS S'OUVRENT : on ne tire pas à
+    /// travers un mantelet (signalé : le coup partait avant l'ouverture). L'ordre est
+    /// retenu — l'autre bord ou non, la bordée ou une pièce — et donné dès que les
+    /// pièces de ce bord sont en batterie.
+    /// </summary>
+    (bool Other, bool Held)? _fireWhenOpen;
     /// <summary>Le dernier coup de chaque navire, en temps de jeu.</summary>
     readonly Dictionary<ShipPhysics, double> _firedAt = new();
 
@@ -45,8 +56,13 @@ public partial class ShipDemo
     {
         if (_ship.HasPortLids)
         {
-            _ship.PortsWanted = _portsOrder || _gunPost != null || InAction(_ship);
+            _ship.PortsWanted = _fireWhenOpen != null || (_portsOrder ?? (_gunPost != null || InAction(_ship)));
             _ship.PortsTick(frame);
+            if (_fireWhenOpen is { } f && _ship.PortsReady(f.Other ? -_gunSide : _gunSide))
+            {
+                _fireWhenOpen = null;
+                Fire(f.Other, f.Held);
+            }
         }
         foreach (var s in _others)
         {
@@ -59,8 +75,11 @@ public partial class ShipDemo
     void TogglePorts()
     {
         if (!_ship.HasPortLids) { Say("Ce navire n'a pas de mantelets à ses sabords"); return; }
-        _portsOrder = !_portsOrder;
-        Say(_portsOrder ? "Branle-bas de combat ! Ouvrez les sabords, en batterie !"
-                        : "Rentrez les pièces, fermez les sabords");
+        // d'après ce qu'on voit, et non d'après le dernier ordre : le combat a pu les ouvrir seul
+        bool open = !_ship.PortsWanted;
+        _portsOrder = open;
+        if (!open) _fireWhenOpen = null;
+        Say(open ? "Branle-bas de combat ! Ouvrez les sabords, en batterie !"
+                 : "Rentrez les pièces, fermez les sabords");
     }
 }
