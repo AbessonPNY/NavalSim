@@ -30,6 +30,42 @@ public partial class LandNode
 
     readonly Dictionary<(int, int), Chunked> _chunked = new();
 
+    /// <summary>Une case de foule (BuildCrowd) : ses pièces, où elles sont, et leurs maillages.</summary>
+    sealed class CrowdPatch
+    {
+        public double X0, Z0, Size;
+        public List<(double X, double Z, double Lift)> Seats = null!;
+        public List<Transform3D> Ts = null!;
+        public readonly List<(MultiMesh Mm, Transform3D Local)> Parts = new();
+    }
+    readonly List<CrowdPatch> _crowds = new();
+
+    /// <summary>
+    /// LA VÉGÉTATION SUIT LE SOL (demandé : « recaler la végétation en direct après un
+    /// terrassement »). Chaque pièce de foule dans le rectangle reprend la hauteur du sol
+    /// sous elle, plus ce qu'elle en dépassait : un arbre monte avec la butte, un buisson
+    /// descend dans le creux. Seules les cases touchées sont relues.
+    /// </summary>
+    void Reseat(double x0, double z0, double x1, double z1)
+    {
+        foreach (var c in _crowds)
+        {
+            if (c.X0 > x1 || c.Z0 > z1 || c.X0 + c.Size < x0 || c.Z0 + c.Size < z0) continue;
+            for (int i = 0; i < c.Seats.Count; i++)
+            {
+                var (x, z, lift) = c.Seats[i];
+                if (x < x0 || x > x1 || z < z0 || z > z1) continue;
+                var t = c.Ts[i];
+                // l'origine du maillage est recentrée sur sa boîte : on ne change que sa hauteur
+                float dy = (float)(World.HeightAt(x, z) + lift) - t.Origin.Y;
+                if (Math.Abs(dy) < 1e-3f) continue;
+                t.Origin += new Vector3(0, dy, 0);
+                c.Ts[i] = t;
+                foreach (var (mm, local) in c.Parts) mm.SetInstanceTransform(i, t * local);
+            }
+        }
+    }
+
     /// <summary>Ce carreau touche-t-il un carré de terrassement ?</summary>
     bool Terraced(int i, int j)
     {
@@ -166,5 +202,6 @@ public partial class LandNode
                     t.Far = null;
                 }
             }
+        Reseat(x0, z0, x1, z1);
     }
 }

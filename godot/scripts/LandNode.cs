@@ -516,11 +516,14 @@ public partial class LandNode : Node3D
             cellSz = Math.Min(700, cellSz * 1.5);
         }
         var cells = new Dictionary<(int, int), List<Transform3D>>();
+        // et chaque pièce retenue, pour la reposer si le sol bouge sous elle (Reseat)
+        var seats = new Dictionary<(int, int), List<(double X, double Z, double Lift)>>();
         int n = 0;
         foreach (var p in placed)
         {
             float k = (float)(p.Size / ext);
-            double y = World.HeightAt(p.X, p.Z) + bb.Size.Y * k * 0.5 * (1 - sp.Sink);
+            double lift = bb.Size.Y * k * 0.5 * (1 - sp.Sink);
+            double y = World.HeightAt(p.X, p.Z) + lift;
             var key = ((int)Math.Floor(p.X / cellSz), (int)Math.Floor(p.Z / cellSz));
             double cx = (key.Item1 + 0.5) * cellSz, cz = (key.Item2 + 0.5) * cellSz;
             var basis = new Basis(Vector3.Up, (float)p.Yaw) * new Basis(Vector3.Right, (float)p.TiltX) * new Basis(Vector3.Back, (float)p.TiltZ);
@@ -529,6 +532,8 @@ public partial class LandNode : Node3D
                   * new Transform3D(Basis.FromScale(Vector3.One * k), -centre * k);
             if (!cells.TryGetValue(key, out var list)) cells[key] = list = new List<Transform3D>();
             list.Add(t);
+            if (!seats.TryGetValue(key, out var sl)) seats[key] = sl = new();
+            sl.Add((p.X, p.Z, lift));
             n++;
             // un écueil de la foule : pas de retouche, donc inscrit une fois pour toutes
             if (sp.Hazard)
@@ -542,9 +547,15 @@ public partial class LandNode : Node3D
             if (!_crowdBest.TryGetValue(sp.Name, out var best) || list.Count > best.N)
                 _crowdBest[sp.Name] = ((key.Item1 + 0.5) * cellSz, (key.Item2 + 0.5) * cellSz, list.Count);
             var hold = new Node3D { Name = sp.Name };
+            var crowd = new CrowdPatch
+            {
+                X0 = key.Item1 * cellSz, Z0 = key.Item2 * cellSz, Size = cellSz, Seats = seats[key], Ts = list
+            };
+            _crowds.Add(crowd);
             foreach (var (mesh, local) in parts)
             {
                 var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = mesh, InstanceCount = list.Count };
+                crowd.Parts.Add((mm, local));
                 for (int i = 0; i < list.Count; i++) mm.SetInstanceTransform(i, list[i] * local);
                 hold.AddChild(new MultiMeshInstance3D
                 {

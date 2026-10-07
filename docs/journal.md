@@ -15036,8 +15036,12 @@ la médiane) vont de 5 à 26 d'un essai à l'autre SUR LA MÊME VERSION — le b
 l'outil : en 2 × 2 morceaux on en relève autant.
 LE DRAGAGE GAGNE SOUS L'EAU : dans le bassin d'un port, tout fond négatif est tenu à la profondeur du
 quai (World.Dredge) ; un haut-fond ne s'y relève donc qu'en sortant de l'eau.
-CE QUI SE RECALE AU PROCHAIN CHARGEMENT : la végétation semée, les maisons des faubourgs, le champ de
-distance au rivage, l'abri. Essai sans rien écrire : -- --terrasser dx,dz,rayon,mètres (depuis le
+LA VÉGÉTATION SUIT LE SOL EN DIRECT (demandé ensuite) : chaque case de foule garde ses pièces (x, z,
+ce qu'elles dépassent du sol) et leurs transformées (LandNode.CrowdPatch) ; LandNode.Reshape les
+repose dans le rectangle touché (Reseat), à chaque rebâti des morceaux — un arbre monte avec la butte.
+Une dizaine de mégaoctets pour toute l'île. Vu : +5 m sur la plage, les arbres dessus.
+CE QUI SE RECALE AU PROCHAIN CHARGEMENT : les maisons des faubourgs, le champ de distance au rivage,
+l'abri, les écueils semés. Essai sans rien écrire : -- --terrasser dx,dz,rayon,mètres (depuis le
 quai du port de départ ; l'œil s'y pose). Vu : +3 m sur 18 m de rayon au bord de la plage, une butte
 verte au-dessus du sable, sans couture.
 
