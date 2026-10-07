@@ -15039,6 +15039,11 @@ bruit montrait l'une ou l'autre échelle. Elle est désormais à la MÊME échel
 les deux se départagent par la hauteur du grain (un fondu superposait deux jeux de rides). Reste le
 plaquage d'en haut : sur une pente le grain s'allonge (×1,15 à 30°) — un plaquage triplanaire si besoin.
 L'OCCLUSION en troisième pile (L8), écrite dans AO : elle n'assombrit que la lumière du ciel.
+COÛT (grève plein écran, synchro coupée, 570 images) : carte graphique 5,9 ms sans texture, 6,45 avec ;
+l'image ne bouge pas (8,7 ms, le processeur décide). Puis chaque matière n'est plus LUE que là où elle a une
+part (natural_acc ; les gardes de seabed — un argument de fonction est évalué avant l'appel, surf_mix ne
+pouvait l'éviter) et rien de la terre sous 0,8 m, que le sable blanc recouvre (seabed_white) : 6,2 ms, image
+identique (écart moyen 0,06). Le gain croît avec chaque matière texturée.
 
 LA MER : profond et clair (u_deep, u_shallow, sea_far), et l'eau vue du dessous prise au tiers du profond
 (c'étaient déjà ces valeurs, écrites à la main). Essai avec un sable de synthèse (rides, grains, 512²) posé

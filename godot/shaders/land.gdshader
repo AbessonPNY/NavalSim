@@ -54,11 +54,30 @@ varying vec3 v_world;
 uniform float u_sand_top = 0.6;
 uniform float u_grass_from = 2.0;
 
+/* Une somme pondérée ramenée à un poids total de un. */
+Surf surf_norm(Surf s, float sum) {
+	float k = 1.0 / max(sum, 1e-4);
+	s.col *= k; s.n *= k; s.rough *= k; s.metal *= k; s.h *= k; s.ao *= k;
+	return s;
+}
+
+/* Une matière naturelle, pesée par sa part ET sa hauteur — LUE seulement si elle a une
+   part : le sable texturé n'a rien à faire au sommet des montagnes. */
+Surf natural_acc(Surf acc, inout float sum, int id, vec3 flat_col, float share, vec2 q) {
+	if (share <= 0.001) return acc;
+	Surf s = u_mat_layer[id] > 0 ? surf_tex(id, q) : surf_flat(flat_col, id);
+	float k = share * pow(0.5 + s.h, 4.0);
+	sum += k;
+	return surf_acc(acc, s, k);
+}
+
 Surf natural(vec4 vcol, vec3 world, float pix) {
 	Surf base = surf_flat(vcol.rgb, 2);
 	base.rough = 0.94;
 	float paved = 1.0 - smoothstep(0.6, 0.9, vcol.a);
 	if (u_mat_any < 0.5) return base;
+	// sous 0,8 m le sable blanc du fond recouvre tout (seabed) : rien à lire ici
+	if (seabed_white(-world.y) >= 0.999) return base;
 	vec2 q = world.xz + u_true;
 	float detail = 1.0 - smoothstep(0.06, 0.35, pix);
 	float h = world.y;
@@ -67,20 +86,17 @@ Surf natural(vec4 vcol, vec3 world, float pix) {
 	float grass = ts * (1.0 - clamp((h - 18.0) / 102.0, 0.0, 1.0));
 	float rock = h < 120.0 ? 0.0 : (h < 700.0 ? min(1.0, (h - 120.0) / 580.0) * 0.7 : 0.7 + 0.3 * min(1.0, (h - 700.0) / 600.0));
 	float wood = max(0.0, 1.0 - sand - grass - rock);
-	// une matière naturelle sans texture garde sa teinte, plate, comme les sommets
-	Surf ss = u_mat_layer[2] > 0 ? surf_tex(2, q) : surf_flat(u_sand, 2);
-	Surf sg = u_mat_layer[0] > 0 ? surf_tex(0, q) : surf_flat(u_grass, 0);
-	Surf sr = u_mat_layer[6] > 0 ? surf_tex(6, q) : surf_flat(u_rock, 6);
-	Surf sw = u_mat_layer[7] > 0 ? surf_tex(7, q) : surf_flat(u_wood, 7);
-	/* par la hauteur de chacune : la plus haute perce, comme dans surf_mix */
-	float ks = sand * pow(0.5 + ss.h, 4.0), kg = grass * pow(0.5 + sg.h, 4.0);
-	float kr = rock * pow(0.5 + sr.h, 4.0), kw = wood * pow(0.5 + sw.h, 4.0);
-	float sum = max(ks + kg + kr + kw, 1e-4);
+	/* une matière naturelle sans texture garde sa teinte, plate, comme les sommets ; par
+	   la hauteur de chacune : la plus haute perce, comme dans surf_mix */
 	Surf n = surf_zero();
-	n = surf_acc(n, ss, ks / sum); n = surf_acc(n, sg, kg / sum);
-	n = surf_acc(n, sr, kr / sum); n = surf_acc(n, sw, kw / sum);
+	float sum = 0.0;
+	n = natural_acc(n, sum, 2, u_sand, sand, q);
+	n = natural_acc(n, sum, 0, u_grass, grass, q);
+	n = natural_acc(n, sum, 6, u_rock, rock, q);
+	n = natural_acc(n, sum, 7, u_wood, wood, q);
+	n = surf_norm(n, sum);
 	// la rue pavée, là où la grille l'a tracée
-	return surf_mix(n, m_cobble(q, q, detail), paved);
+	return paved > 0.001 ? surf_mix(n, m_cobble(q, q, detail), paved) : n;
 }
 
 void vertex() {
