@@ -398,7 +398,7 @@ public partial class ShipDemo
         // les coques qui étaient à flot : remises à leur place et sur leur erre
         foreach (var c in s.Flotte)
         {
-            int idx = _paths.FindIndex(q => System.IO.Path.GetFileName(q) == c.Fiche);
+            int idx = _paths.FindIndex(q => System.IO.Path.GetFileName(q) == ShipLibrary.Current(c.Fiche));
             if (idx < 0) continue;
             int before = _others.Count;
             SpawnFleet(1, idx);

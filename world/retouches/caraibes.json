@@ -57,7 +57,7 @@
     { "id": "ajout:54", "de": "semis:Rochers de l\u0027\u00EElot aux cocotiers:0", "x": -336.47, "z": -47.38, "cap": 157.3, "echelle": 4.765 },
     { "id": "ajout:55", "glb": "props/coffre_1k.glb", "x": -339.11, "z": -53.15, "cap": 50.0, "echelle": 1.551 },
     { "id": "ajout:56", "glb": "world/models/ponton-petit.glb", "x": -183.00, "z": 21.09, "cap": 95.0 },
-    { "id": "ajout:57", "fiche": "speedwell", "x": -340.98, "z": 395.47, "cap": 75.0 },
+    { "id": "ajout:57", "fiche": "roebuck", "x": -340.98, "z": 395.47, "cap": 75.0 },
     { "id": "ajout:58", "fiche": "frigate17e", "x": -730.99, "z": 532.82, "cap": -95.0 },
     { "id": "ajout:59", "fiche": "frigate", "x": -519.14, "z": 565.68, "cap": 85.0 },
     { "id": "ajout:6", "de": "pate:port-royal:21", "x": -578.75, "z": 462.51, "cap": -180.4 },

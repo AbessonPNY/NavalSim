@@ -60,6 +60,16 @@ public static class ShipLibrary
     }
 
     /// <summary>
+    /// LES FICHES RENOMMÉES : une partie enregistrée avant garde l'ancien nom de fichier.
+    /// Le Speedwell est devenu le Roebuck (07/10/2026) : trop peu de plans et de peintures
+    /// d'époque pour le premier.
+    /// </summary>
+    static readonly System.Collections.Generic.Dictionary<string, string> Renamed = new() { ["speedwell.json"] = "roebuck.json" };
+
+    /// <summary>Le nom de fichier d'aujourd'hui d'une fiche nommée par une sauvegarde.</summary>
+    public static string Current(string file) => Renamed.TryGetValue(file, out var now) ? now : file;
+
+    /// <summary>
     /// Charge une fiche. Une fiche illisible n'interrompt jamais rien -- meme
     /// contrat que le modele .glb manquant cote JavaScript, ou la coque
     /// procedurale est conservee avec un avertissement.

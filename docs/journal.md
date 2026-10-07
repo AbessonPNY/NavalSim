@@ -15094,6 +15094,23 @@ LA MER : profond et clair (u_deep, u_shallow, sea_far), et l'eau vue du dessous 
 (c'étaient déjà ces valeurs, écrites à la main). Essai avec un sable de synthèse (rides, grains, 512²) posé
 sous godot-models/world/ : 55 ms de lecture, les rides éclairées par la normale, la grève qui mord l'herbe.
 
+## Le Speedwell devient le Roebuck (Godot)
+
+DEMANDÉ : « trop peu d'info sur le Speedwell pour retrouver ses plans ou peintures d'époque ». ships/roebuck.json
+(id roebuck, « HMS Roebuck 1690 »), ships/models/roebuck.glb, la clé de tools/ship-glb.js, le chantier, le jeu libre,
+les horaires et l'ajout:57 des retouches. Les sauvegardes nomment la fiche par son FICHIER : ShipLibrary.Current
+rend « roebuck.json » pour « speedwell.json », aux deux endroits où une partie retrouve ses navires. Le Roebuck réel
+(Wapping, Snellgrove, lancé le 17 avril 1690 ; brûlot de 8 pièces, cinquième rang de 26 vers 1695 ; Dampier 1699) :
+96 × 25 pi 6 po, 292 tx. LA FICHE GARDE la coque du Speedwell (94 × 24 pi 11 po, 2 % de moins) et son armement de
+1690 (28 bouches) — écrit dans sa note. Relevé de parité régénéré (tools/parity-dump.js), banc tenu.
+
+PUIS AUX VRAIES COTES (threedecks.org 6226, donné par lui) : 96 pi de pont, 84 pi 5 po de quille, 25 pi 6 po de bau,
+9 pi 9¾ de creux, 291 92/94 tx ; et l'armement du 17 avril 1691 est CELUI QUE LA FICHE PORTAIT (4 de 9, 20 de 6,
+4 de 4 : 86 livres) — les « 8 canons » de Wikipédia étaient faux. Fiche mise à l'échelle : longueurs × 96/94, bau
+7,77 m, surfaces × 1,044, vitesse × √(96/94), coefficients au m² inchangés ; déplacement au rapport du Speedwell,
+1,21 × la jauge = 353 t ; batteries de tools/ship-glb.js aux mêmes places × 96/94 ; modèle régénéré (29,26 × 7,77 m).
+MESURÉ à la mise en eau (settle) : 3,52 m de tirant (11 pi 6 po) et 44,7 % d'immersion, contre 3,34 m et 42,5 %.
+
 ## Les navires à quai : la voile serrée et le heurt (Godot)
 
 DEMANDÉ : « les navires à quai avec la collision et les voiles au repos — la Frégate a l'air bien nue ».

@@ -8,7 +8,7 @@ namespace NavalSim;
 /// <summary>
 /// LE BOIS QUI TRAVAILLE (demandé) — sons.json → bois.craking, à bord et près du bord
 /// des navires de trois cents tonneaux et plus (la Boussole, la Roter Löwe, le galion
-/// pirate, le Speedwell, la frégate) : un sloop de vingt tonnes est trop raide pour
+/// pirate, le Roebuck, la frégate) : un sloop de vingt tonnes est trop raide pour
 /// qu'on l'entende.
 ///
 /// UNE COQUE DE CHÊNE CRAQUE QUAND ELLE TRAVAILLE : la houle la tord, le roulis et le

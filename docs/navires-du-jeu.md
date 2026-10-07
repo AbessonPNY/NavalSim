@@ -81,7 +81,7 @@ triche pas.
   - à 4 000–5 000 m de vous, à 1 500 m au moins de toute terre.
 - **Une rencontre sur quatre est un pirate.** Une sur six environ (18 %) est une paire aux prises :
   un pirate posé par le travers d'un marchand, à 160 m.
-- **Ses fiches** : Boussole, frégate, Roter Löwe, sloop, Speedwell. La liste `encounters.exclude`
+- **Ses fiches** : Boussole, frégate, Roebuck, Roter Löwe, sloop. La liste `encounters.exclude`
   écarte la barge, le cotre, la goélette, la vedette, la chaloupe et les objets flottants.
 - **Sa route** : un port tiré au sort dont la route est dégagée, sinon un point à 15 km devant lui.
 - **Il se méfie** si vous avez amené vos couleurs (⇧P) et êtes à moins de 1 200 m : il fuit

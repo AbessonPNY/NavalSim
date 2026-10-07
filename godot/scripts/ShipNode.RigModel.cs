@@ -824,7 +824,7 @@ public partial class ShipNode
                    est bordée au pavois, pas à travers — et fausse sous un beaupré,
                    où la toile pend au-dessus de l'eau et s'y mouille. Elle bornait
                    la civadière à trois centimètres de chute NÉGATIVE, donc à rien
-                   (mesuré sur le Speedwell avant de le voir). */
+                   (mesuré sur le Roebuck avant de le voir). */
                 bool overhang = Math.Abs(y.Mid.Z) > spec.L * 0.5;
                 double floorY = overhang ? 0.4 : deckAt(y.Mid.Z) + 0.02 * spec.L;
                 double drop = Math.Min(Math.Min(0.82 * gap, 1.1 * half), yy - floorY);
@@ -867,7 +867,7 @@ public partial class ShipNode
                les mâts SANS vergue carrée, ce qui suppose qu'une antenne exclut
                un hunier — vrai d'une caravelle, faux d'un navire de 1690, dont
                l'artimon porte une latine ET un hunier d'artimon au-dessus (vu sur
-               le Speedwell : la latine portait sans être dessinée, et l'artimon
+               le Roebuck : la latine portait sans être dessinée, et l'artimon
                paraissait n'avoir qu'un carré). On l'essaie donc aussi ici, sur le
                plus en arrière, et LateenOn ne trouve d'antenne que s'il y en a
                une. */

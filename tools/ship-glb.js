@@ -13,8 +13,8 @@
   coque aux cotes de la fiche, des mâts et des vergues au plan de voilure, et une
   batterie NOMMÉE (canonBabord_001…), dont chaque tube a l'âme de son calibre.
 
-      node tools/ship-glb.js speedwell
-      node tools/ship-glb.js speedwell --out ships/models/speedwell.glb
+      node tools/ship-glb.js roebuck
+      node tools/ship-glb.js roebuck --out ships/models/roebuck.glb
 */
 'use strict';
 const fs = require('fs');
@@ -307,13 +307,13 @@ function writeGlb(out, meshes) {
 /* ------------------------------------------------------------------ */
 
 const BATTERIES = {
-  /* HMS Speedwell, état du 3 avril 1690 : 4 pièces de 9 livres en batterie
+  /* HMS Roebuck, état du 17 avril 1691 (threedecks.org 6226) — places mises à l'échelle 96/94 depuis le Speedwell : 4 pièces de 9 livres en batterie
      basse, 20 de 6 en batterie haute, 4 de 4 sur la dunette. Par BORD : 2, 10
      et 2 — vingt-huit bouches, 86 livres de bordée. */
-  speedwell: [
-    { livres: 9, nombre: 2, y: 0.95, z0: -8.0, z1: -4.0 },
-    { livres: 6, nombre: 10, y: 2.45, z0: -9.5, z1: 9.0 },
-    { livres: 4, nombre: 2, y: 4.15, z0: -8.5, z1: -5.0 }
+  roebuck: [
+    { livres: 9, nombre: 2, y: 0.97, z0: -8.17, z1: -4.09 },
+    { livres: 6, nombre: 10, y: 2.5, z0: -9.7, z1: 9.19 },
+    { livres: 4, nombre: 2, y: 4.24, z0: -8.68, z1: -5.11 }
   ]
 };
 

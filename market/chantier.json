@@ -9,7 +9,7 @@
     {
       "port": "port-royal",
       "nom": "Chantier de Chocolata Hole",
-      "navires": ["sloop", "cotre", "schooner", "speedwell", "frigate17e"]
+      "navires": ["sloop", "cotre", "schooner", "roebuck", "frigate17e"]
     }
   ]
 }

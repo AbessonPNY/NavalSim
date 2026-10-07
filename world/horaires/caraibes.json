@@ -10,14 +10,14 @@
     "departs": [
       { "heure": "06:00", "poste": 1, "vers": "passage-fort", "fiches": ["sloop", "schooner"] },
       { "heure": "08:30", "poste": 2, "vers": "large", "fiches": ["sloop", "schooner"] },
-      { "heure": "10:00", "poste": 3, "vers": "large", "puis": "Carthagène", "lat": 10.4236, "lon": -75.5253, "fiches": ["speedwell"] },
+      { "heure": "10:00", "poste": 3, "vers": "large", "puis": "Carthagène", "lat": 10.4236, "lon": -75.5253, "fiches": ["roebuck"] },
       { "heure": "13:00", "poste": 1, "vers": "passage-fort", "fiches": ["sloop"] },
       { "heure": "16:00", "poste": 2, "vers": "large", "fiches": ["schooner"] }
     ],
     "arrivees": [
       { "heure": "07:00", "de": "passage-fort", "poste": 2, "fiches": ["sloop"] },
       { "heure": "11:00", "de": "large", "poste": 1, "fiches": ["schooner", "sloop"] },
-      { "heure": "15:00", "de": "large", "origine": "Carthagène", "poste": 3, "fiches": ["speedwell"] },
+      { "heure": "15:00", "de": "large", "origine": "Carthagène", "poste": 3, "fiches": ["roebuck"] },
       { "heure": "18:00", "de": "passage-fort", "poste": 3, "fiches": ["sloop"] }
     ]
   }
