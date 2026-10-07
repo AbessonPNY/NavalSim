@@ -73,7 +73,7 @@ vec3 seabed_rock(vec2 q, float detail) {
 	float lump = paint_noise(q * 0.8) * 0.6 + paint_noise(q * 4.0) * 0.4;
 	return u_rock * mix(1.0, 0.6 + 0.8 * lump, max(detail, 0.5));
 }
-Surf m_rock(vec2 q, float detail) { return u_mat_layer[6] > 0 ? surf_tex(6, q) : surf_flat(seabed_rock(q, detail), 6); }
+Surf m_rock(vec2 q, vec3 tp, vec3 nw, float detail) { return u_mat_layer[6] > 0 ? surf_tri(6, tp, nw) : surf_flat(seabed_rock(q, detail), 6); }
 
 /* La part du sable blanc à cette profondeur : il recouvre TOUT dès 0,8 m — ce qui est
    dessous n'a alors pas à être calculé (land.gdshader, natural). */
@@ -83,10 +83,11 @@ float seabed_white(float d) { return smoothstep(-0.6, 0.8, d); }
    shaders ; `pix` : la largeur d'un pixel au sol.
    Chaque matière n'est LUE que là où elle a une part : les arguments d'une fonction
    sont évalués avant l'appel, et surf_mix ne saurait l'éviter. */
-Surf seabed(Surf base, vec3 world, float pix) {
+Surf seabed(Surf base, vec3 world, float pix, vec3 nw) {
 	float d = -world.y;                         // la profondeur
 	if (d < -0.6) return base;                  // au-dessus de la laisse : la grève
 	vec2 q = world.xz + u_true;                 // en mètres vrais
+	vec3 tp = vec3(q.x, world.y, q.y);
 	float detail = 1.0 - smoothstep(0.06, 0.35, pix);
 	// la pente, tirée des dérivées : un carreau de cinq mètres suffit à la lire
 	vec3 n = normalize(cross(dFdy(world), dFdx(world)));
@@ -95,24 +96,24 @@ Surf seabed(Surf base, vec3 world, float pix) {
 
 	// le sable de la grève devient blanc en entrant dans l'eau
 	float white = seabed_white(d);
-	Surf col = white > 0.001 ? surf_mix(base, m_whitesand(q, q, detail), white) : base;
+	Surf col = white > 0.001 ? surf_mix(base, m_whitesand(q, tp, nw, detail), white) : base;
 
 	// la vase : l'eau calme d'une rade, et le grand fond — par nappes
 	float calm = smoothstep(0.8, 0.35, shelter) * smoothstep(1.0, 4.0, d);
 	float deep = smoothstep(16.0, 40.0, d) * 0.85;
 	float blot = paint_noise(q * 0.03) * 0.7 + paint_noise(q * 0.2) * 0.3;
 	float mud = clamp(max(calm, deep) * smoothstep(0.2, 0.55, blot + max(calm, deep) * 0.35), 0.0, 1.0);
-	if (mud > 0.001) col = surf_mix(col, m_mud(q, q, detail), mud);
+	if (mud > 0.001) col = surf_mix(col, m_mud(q, tp, nw, detail), mud);
 
 	// l'herbier : par plaques, sur le plat, là où la lumière arrive
 	float band = smoothstep(0.8, 2.0, d) * (1.0 - smoothstep(8.0, 12.0, d));
 	float meadow = paint_noise(q * 0.018) * 0.65 + paint_noise(q * 0.07) * 0.35;
 	float grass = band * smoothstep(0.52, 0.62, meadow) * (1.0 - smoothstep(0.12, 0.25, slope)) * (1.0 - mud * 0.7);
-	if (grass > 0.001) col = surf_mix(col, m_seagrass(q, q, detail), grass);
+	if (grass > 0.001) col = surf_mix(col, m_seagrass(q, tp, nw, detail), grass);
 
 	// la roche, où rien ne tient
 	float rock = smoothstep(0.32, 0.55, slope + (paint_noise(q * 0.15) - 0.5) * 0.15) * smoothstep(0.3, 1.5, d);
-	if (rock > 0.001) col = surf_mix(col, m_rock(q, detail), rock);
+	if (rock > 0.001) col = surf_mix(col, m_rock(q, tp, nw, detail), rock);
 
 	// le récif : du corail sur le plateau et le haut du tombant, pas sur la caye sèche
 	if (u_reef_n > 0) {

@@ -502,8 +502,10 @@ Sans `cartes.couleur`, la matière garde son DESSIN (celui d'avant, à l'identiq
 textures, et toutes les autres cartes sont facultatives. Sa HAUTEUR décide de la frontière avec sa voisine : le
 grain qui monte le plus haut l'emporte (le sable perce l'herbe par ses crêtes au lieu de s'y fondre). La
 texture est relue décalée et tournée de 15°, à la même échelle, et les deux lectures se départagent par plaques
-et par la hauteur du grain : une plage ne montre pas son carreau. Elle est PLAQUÉE D'EN HAUT (en x et z) : sur
-une pente, le grain s'allonge dans le sens de la pente (×1,15 à 30°, ×2 à 60°). Les textures de toutes les matières sont rangées en deux piles d'une même taille — la plus petite des
+et par la hauteur du grain : une plage ne montre pas son carreau. Elle est plaquée SOUS TROIS ANGLES (d'en haut et de
+deux côtés, pesés par la pente) : le grain garde sa taille sur un talus ; un sol de moins de 25° environ ne lit
+que la vue d'en haut. La normale est lue en convention OpenGL (vert vers le haut de l'image) sauf
+`"normale": "directx"`. Les textures de toutes les matières sont rangées en deux piles d'une même taille — la plus petite des
 couleurs lues, plafonnée par `taille_texture` (2048) : une carte plus grande est réduite, jamais l'inverse.
 PNG, JPG, WebP, TGA, BMP ; une carte en niveaux de gris se lit sur son rouge. Une texture lourde peut
 vivre sous `godot-models/` au même chemin (Godot seul la lit, de toute façon).

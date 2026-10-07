@@ -63,15 +63,15 @@ Surf surf_norm(Surf s, float sum) {
 
 /* Une matière naturelle, pesée par sa part ET sa hauteur — LUE seulement si elle a une
    part : le sable texturé n'a rien à faire au sommet des montagnes. */
-Surf natural_acc(Surf acc, inout float sum, int id, vec3 flat_col, float share, vec2 q) {
+Surf natural_acc(Surf acc, inout float sum, int id, vec3 flat_col, float share, vec3 tp, vec3 nw) {
 	if (share <= 0.001) return acc;
-	Surf s = u_mat_layer[id] > 0 ? surf_tex(id, q) : surf_flat(flat_col, id);
+	Surf s = u_mat_layer[id] > 0 ? surf_tri(id, tp, nw) : surf_flat(flat_col, id);
 	float k = share * pow(0.5 + s.h, 4.0);
 	sum += k;
 	return surf_acc(acc, s, k);
 }
 
-Surf natural(vec4 vcol, vec3 world, float pix) {
+Surf natural(vec4 vcol, vec3 world, float pix, vec3 nw) {
 	Surf base = surf_flat(vcol.rgb, 2);
 	base.rough = 0.94;
 	float paved = 1.0 - smoothstep(0.6, 0.9, vcol.a);
@@ -79,6 +79,7 @@ Surf natural(vec4 vcol, vec3 world, float pix) {
 	// sous 0,8 m le sable blanc du fond recouvre tout (seabed) : rien à lire ici
 	if (seabed_white(-world.y) >= 0.999) return base;
 	vec2 q = world.xz + u_true;
+	vec3 tp = vec3(q.x, world.y, q.y);
 	float detail = 1.0 - smoothstep(0.06, 0.35, pix);
 	float h = world.y;
 	float ts = clamp((h - u_sand_top) / (u_grass_from - u_sand_top), 0.0, 1.0);
@@ -90,13 +91,13 @@ Surf natural(vec4 vcol, vec3 world, float pix) {
 	   la hauteur de chacune : la plus haute perce, comme dans surf_mix */
 	Surf n = surf_zero();
 	float sum = 0.0;
-	n = natural_acc(n, sum, 2, u_sand, sand, q);
-	n = natural_acc(n, sum, 0, u_grass, grass, q);
-	n = natural_acc(n, sum, 6, u_rock, rock, q);
-	n = natural_acc(n, sum, 7, u_wood, wood, q);
+	n = natural_acc(n, sum, 2, u_sand, sand, tp, nw);
+	n = natural_acc(n, sum, 0, u_grass, grass, tp, nw);
+	n = natural_acc(n, sum, 6, u_rock, rock, tp, nw);
+	n = natural_acc(n, sum, 7, u_wood, wood, tp, nw);
 	n = surf_norm(n, sum);
 	// la rue pavée, là où la grille l'a tracée
-	return paved > 0.001 ? surf_mix(n, m_cobble(q, q, detail), paved) : n;
+	return paved > 0.001 ? surf_mix(n, m_cobble(q, tp, nw, detail), paved) : n;
 }
 
 void vertex() {
@@ -113,7 +114,9 @@ void fragment() {
 	   toute façon plus de caustique à voir. */
 	// la finesse vient des dérivées d'écran : la largeur d'un pixel sur le sable
 	float pix = length(fwidth(v_world.xz));
-	Surf s = ground_paint(seabed(natural(COLOR, v_world, pix), v_world, pix), v_world, pix);
+	// la normale du relief, au monde : elle choisit sous quels angles une texture est plaquée
+	vec3 nw = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	Surf s = ground_paint(seabed(natural(COLOR, v_world, pix, nw), v_world, pix, nw), v_world, pix, nw);
 	ALBEDO = s.col * caustiques(v_world, length(v_world - CAMERA_POSITION_WORLD), pix);
 	ROUGHNESS = s.rough;
 	METALLIC = s.metal;
@@ -122,8 +125,7 @@ void fragment() {
 	/* LA NORMALE D'UNE MATIÈRE TEXTURÉE, posée sur celle du relief : une texture plaquée
 	   au sol, en x et z du monde — son repère tangent est donc +x et +z, couchés sur la pente. */
 	if (dot(s.n, s.n) > 1e-6) {
-		vec3 nw = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
-		vec3 t = normalize(vec3(1.0, 0.0, 0.0) - nw * nw.x);
+		vec3 t = ground_tangent(nw);
 		vec3 b = cross(t, nw);
 		vec3 pn = normalize(t * s.n.x + b * s.n.y + nw * sqrt(max(0.0, 1.0 - dot(s.n, s.n))));
 		NORMAL = normalize((VIEW_MATRIX * vec4(pn, 0.0)).xyz);

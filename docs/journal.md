@@ -15038,6 +15038,17 @@ plus ou moins étiré » : la seconde lecture anti-répétition était 2,3 fois 
 bruit montrait l'une ou l'autre échelle. Elle est désormais à la MÊME échelle, décalée et tournée de 15°, et
 les deux se départagent par la hauteur du grain (un fondu superposait deux jeux de rides). Reste le
 plaquage d'en haut : sur une pente le grain s'allonge (×1,15 à 30°) — un plaquage triplanaire si besoin.
+
+LE TRIPLANAIRE (surf_tri) : trois vues — (x, z), (z, y), (x, y) —, pesées par |n|⁴, et une vue sous 5 % pas
+LUE : un sol de moins de 25° environ ne paie que celle d'en haut (grève plein écran : 6,2 → 6,3 ms de carte
+graphique). La normale de chaque vue est portée au monde par ses axes (U, V) puis ramenée au repère du sol
+(ground_tangent, une seule définition avec land.gdshader, et qui prend z sur une falaise face à x). Essai :
+une butte de 10 m sur 12 (--terrasser 60,-40,12,10), l'herbe prêtée la texture du sable : les traînées
+verticales du flanc disparaissent.
+EN PASSANT, LA NORMALE ÉTAIT RETOURNÉE : le v de Godot descend l'image, le vert d'une carte OpenGL la monte.
+Vérifié sur wavy-sand en corrélant ses cartes (rouge contre dH/dx : négatif ; vert contre dH/dv : positif) ;
+la convention de la fiche ("opengl" par défaut) dit maintenant vrai. Le sable de synthèse du premier essai
+était écrit en DirectX sans le savoir : il ne prouvait rien.
 L'OCCLUSION en troisième pile (L8), écrite dans AO : elle n'assombrit que la lumière du ciel.
 COÛT (grève plein écran, synchro coupée, 570 images) : carte graphique 5,9 ms sans texture, 6,45 avec ;
 l'image ne bouge pas (8,7 ms, le processeur décide). Puis chaque matière n'est plus LUE que là où elle a une

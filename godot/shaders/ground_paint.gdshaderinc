@@ -146,6 +146,14 @@ Surf surf_flat(vec3 col, int id) {
 	return s;
 }
 
+/* Une somme pondérée de surfaces (les matières d'un pixel peint) — le poids total vaut un. */
+Surf surf_acc(Surf acc, Surf s, float w) {
+	acc.col += s.col * w; acc.n += s.n * w; acc.rough += s.rough * w; acc.metal += s.metal * w;
+	acc.h += s.h * w; acc.ao += s.ao * w; acc.tex = max(acc.tex, s.tex * step(0.001, w));
+	return acc;
+}
+Surf surf_zero() { Surf s; s.col = vec3(0.0); s.n = vec2(0.0); s.rough = 0.0; s.metal = 0.0; s.h = 0.0; s.tex = 0.0; s.ao = 0.0; return s; }
+
 /* LIRE UNE MATIÈRE TEXTURÉE, sans que sa répétition se voie : une seconde lecture,
    DÉCALÉE et à peine tournée (15°), À LA MÊME ÉCHELLE — plus grande, elle faisait des
    plaques où le grain paraissait étiré (signalé). Les deux se départagent par plaques
@@ -168,9 +176,45 @@ Surf surf_tex(int id, vec2 q) {
 	s.col = a.rgb * u_mat_tint[id];
 	s.h = a.a;
 	s.n = (b.rg * 2.0 - 1.0) * u_mat_nstr[id];
-	if (u_mat_nflip[id] > 0.5) s.n.y = -s.n.y;
+	/* le v de Godot DESCEND l'image, le vert d'une carte OpenGL la MONTE : retourné, sauf
+	   pour une carte DirectX (vert vers le bas). Vérifié sur wavy-sand : son vert croît avec
+	   la pente vers le haut de l'image, son rouge décroît avec la pente vers la droite. */
+	if (u_mat_nflip[id] < 0.5) s.n.y = -s.n.y;
 	s.rough = b.b; s.metal = b.a; s.tex = 1.0; s.ao = o;
 	return s;
+}
+
+/* LE REPÈRE TANGENT DU SOL : x couché sur la pente, puis le troisième — celui où vit
+   Surf.n. Une seule définition, ici et dans land.gdshader. Une falaise face à x n'a plus
+   de x à coucher : elle prend z. */
+vec3 ground_tangent(vec3 nw) {
+	return abs(nw.x) < 0.95 ? normalize(vec3(1.0, 0.0, 0.0) - nw * nw.x)
+	                        : normalize(vec3(0.0, 0.0, 1.0) - nw * nw.z);
+}
+
+/* Une lecture plaquée selon (U, V) du monde : sa normale ramenée au repère du sol. */
+Surf tri_face(Surf s, vec3 U, vec3 V, vec3 t, vec3 b) {
+	vec3 p = U * s.n.x + V * s.n.y;
+	s.n = vec2(dot(p, t), dot(p, b));
+	return s;
+}
+
+/* PLAQUÉE SOUS TROIS ANGLES (demandé : le grain qui s'étirait sur les pentes). D'en haut
+   (x, z), et de côté (z, y) et (x, y), chacune pesée par la part de la normale qui la
+   regarde, à la puissance quatre ; une vue qui pèse moins de 5 % n'est pas LUE — un sol
+   plat ou une grève douce (moins de 25° environ) ne paie que la vue d'en haut, comme
+   avant. `tp` : la position en mètres vrais ; `nw` : la normale du relief, au monde. */
+Surf surf_tri(int id, vec3 tp, vec3 nw) {
+	vec3 w = pow(abs(nw), vec3(4.0));
+	w /= (w.x + w.y + w.z);
+	w = max(w - 0.05, 0.0);
+	w /= max(w.x + w.y + w.z, 1e-4);
+	vec3 t = ground_tangent(nw), b = cross(t, nw);
+	Surf acc = surf_zero();
+	if (w.y > 0.0) acc = surf_acc(acc, tri_face(surf_tex(id, tp.xz), vec3(1.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0), t, b), w.y);
+	if (w.x > 0.0) acc = surf_acc(acc, tri_face(surf_tex(id, tp.zy), vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0), t, b), w.x);
+	if (w.z > 0.0) acc = surf_acc(acc, tri_face(surf_tex(id, tp.xy), vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), t, b), w.z);
+	return acc;
 }
 
 /* MÊLER DEUX SURFACES. Dessinées toutes deux : le fondu d'avant. Si l'une est une
@@ -193,26 +237,19 @@ Surf surf_mix(Surf a, Surf b, float t) {
 	return r;
 }
 
-/* chaque matière : sa texture si elle en a une (lue en mètres vrais, tq), sinon son
-   dessin (lu en q, son repère à lui) */
-Surf m_grass(vec2 q, vec2 tq, float detail)     { return u_mat_layer[0] > 0 ? surf_tex(0, tq) : surf_flat(paint_grass(q, detail), 0); }
-Surf m_cobble(vec2 q, vec2 tq, float detail)    { return u_mat_layer[1] > 0 ? surf_tex(1, tq) : surf_flat(paint_cobble(q, detail), 1); }
-Surf m_sand(vec2 q, vec2 tq, float detail)      { return u_mat_layer[2] > 0 ? surf_tex(2, tq) : surf_flat(paint_sand(q, detail), 2); }
-Surf m_whitesand(vec2 q, vec2 tq, float detail) { return u_mat_layer[3] > 0 ? surf_tex(3, tq) : surf_flat(paint_whitesand(q, detail), 3); }
-Surf m_mud(vec2 q, vec2 tq, float detail)       { return u_mat_layer[4] > 0 ? surf_tex(4, tq) : surf_flat(paint_mud(q, detail), 4); }
-Surf m_seagrass(vec2 q, vec2 tq, float detail)  { return u_mat_layer[5] > 0 ? surf_tex(5, tq) : surf_flat(paint_seagrass(q, detail), 5); }
+/* chaque matière : sa texture si elle en a une (lue en mètres vrais, tp, sous trois
+   angles), sinon son dessin (lu en q, son repère à lui) */
+Surf m_grass(vec2 q, vec3 tp, vec3 nw, float detail)     { return u_mat_layer[0] > 0 ? surf_tri(0, tp, nw) : surf_flat(paint_grass(q, detail), 0); }
+Surf m_cobble(vec2 q, vec3 tp, vec3 nw, float detail)    { return u_mat_layer[1] > 0 ? surf_tri(1, tp, nw) : surf_flat(paint_cobble(q, detail), 1); }
+Surf m_sand(vec2 q, vec3 tp, vec3 nw, float detail)      { return u_mat_layer[2] > 0 ? surf_tri(2, tp, nw) : surf_flat(paint_sand(q, detail), 2); }
+Surf m_whitesand(vec2 q, vec3 tp, vec3 nw, float detail) { return u_mat_layer[3] > 0 ? surf_tri(3, tp, nw) : surf_flat(paint_whitesand(q, detail), 3); }
+Surf m_mud(vec2 q, vec3 tp, vec3 nw, float detail)       { return u_mat_layer[4] > 0 ? surf_tri(4, tp, nw) : surf_flat(paint_mud(q, detail), 4); }
+Surf m_seagrass(vec2 q, vec3 tp, vec3 nw, float detail)  { return u_mat_layer[5] > 0 ? surf_tri(5, tp, nw) : surf_flat(paint_seagrass(q, detail), 5); }
 
-/* Une somme pondérée de surfaces (les matières d'un pixel peint) — le poids total vaut un. */
-Surf surf_acc(Surf acc, Surf s, float w) {
-	acc.col += s.col * w; acc.n += s.n * w; acc.rough += s.rough * w; acc.metal += s.metal * w;
-	acc.h += s.h * w; acc.ao += s.ao * w; acc.tex = max(acc.tex, s.tex * step(0.001, w));
-	return acc;
-}
-Surf surf_zero() { Surf s; s.col = vec3(0.0); s.n = vec2(0.0); s.rough = 0.0; s.metal = 0.0; s.h = 0.0; s.tex = 0.0; s.ao = 0.0; return s; }
 
 /* Le sol en ce point : celui de dessous, recouvert de ce qu'on a peint. `pix` est la
    largeur d'un pixel au sol, en mètres. */
-Surf ground_paint(Surf base, vec3 world, float pix) {
+Surf ground_paint(Surf base, vec3 world, float pix, vec3 nw) {
 	if (u_paint_on < 0.5) return base;
 	vec2 q = world.xz - u_paint_rect.xy;           // en mètres, depuis le coin du carré
 	vec2 uv = q * u_paint_rect.zw;
@@ -221,23 +258,23 @@ Surf ground_paint(Surf base, vec3 world, float pix) {
 	vec4 s = texture(u_paint2, uv);
 	if (p.a < 0.004 && s.a < 0.004) return base;
 	float detail = 1.0 - smoothstep(0.06, 0.35, pix);
-	vec2 tq = world.xz + u_true;
+	vec3 tp = vec3(world.x + u_true.x, world.y, world.z + u_true.y);
 	Surf out_s = base;
 	if (p.a >= 0.004) {
 		vec3 w = p.rgb / max(1e-3, p.r + p.g + p.b);
 		Surf painted = surf_zero();
-		if (w.r > 0.003) painted = surf_acc(painted, m_grass(q, tq, detail), w.r);
-		if (w.g > 0.003) painted = surf_acc(painted, m_cobble(q, tq, detail), w.g);
-		if (w.b > 0.003) painted = surf_acc(painted, m_sand(q, tq, detail), w.b);
+		if (w.r > 0.003) painted = surf_acc(painted, m_grass(q, tp, nw, detail), w.r);
+		if (w.g > 0.003) painted = surf_acc(painted, m_cobble(q, tp, nw, detail), w.g);
+		if (w.b > 0.003) painted = surf_acc(painted, m_sand(q, tp, nw, detail), w.b);
 		out_s = surf_mix(out_s, painted, p.a);
 	}
 	// les fonds par-dessus : le pinceau de l'une efface l'autre, l'ordre ne compte guère
 	if (s.a >= 0.004) {
 		vec3 w = s.rgb / max(1e-3, s.r + s.g + s.b);
 		Surf painted = surf_zero();
-		if (w.r > 0.003) painted = surf_acc(painted, m_whitesand(q, tq, detail), w.r);
-		if (w.g > 0.003) painted = surf_acc(painted, m_mud(q, tq, detail), w.g);
-		if (w.b > 0.003) painted = surf_acc(painted, m_seagrass(q, tq, detail), w.b);
+		if (w.r > 0.003) painted = surf_acc(painted, m_whitesand(q, tp, nw, detail), w.r);
+		if (w.g > 0.003) painted = surf_acc(painted, m_mud(q, tp, nw, detail), w.g);
+		if (w.b > 0.003) painted = surf_acc(painted, m_seagrass(q, tp, nw, detail), w.b);
 		out_s = surf_mix(out_s, painted, s.a);
 	}
 	return out_s;
