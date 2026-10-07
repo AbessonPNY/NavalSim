@@ -30,7 +30,7 @@ public static class GroundMaterials
     public sealed class Mat
     {
         public Color Col;                 // linéaire
-        public double Rough = 0.94, Metal, Size = 2, NormalStrength = 1;
+        public double Rough = 0.94, Metal, Size = 2, NormalStrength = 1, Pierce;
         public bool DirectX;
         public Color Tint = Colors.White; // linéaire
         public int Layer = -1;            // sa couche dans les piles, -1 : dessinée
@@ -89,6 +89,12 @@ public static class GroundMaterials
             var c = new Godot.Collections.Array<Image>();
             var pending = new List<(int i, JsonElement maps)>();
             if (root.TryGetProperty("matieres", out var mats))
+            {
+                foreach (var p in mats.EnumerateObject())
+                    if (Array.IndexOf(Keys, p.Name) < 0)
+                        GD.PushWarning($"[matières] « {p.Name} » n'est pas une matière connue ({string.Join(", ", Keys)}) : ignorée");
+            }
+            if (root.TryGetProperty("matieres", out mats))
                 for (int i = 0; i < N; i++)
                 {
                     if (!mats.TryGetProperty(Keys[i], out var e)) continue;
@@ -98,6 +104,7 @@ public static class GroundMaterials
                     m.Metal = e.Num("metal", m.Metal);
                     m.Size = Math.Max(0.05, e.Num("taille", m.Size));
                     m.NormalStrength = e.Num("force_normale", m.NormalStrength);
+                    m.Pierce = Math.Clamp(e.Num("perce", m.Pierce), 0, 1);
                     m.DirectX = e.Str("normale") == "directx";
                     if (e.Str("teinte") != "") m.Tint = Hex(e.Str("teinte"));
                     if (e.TryGetProperty("cartes", out var maps) && maps.ValueKind == JsonValueKind.Object
@@ -209,7 +216,7 @@ public static class GroundMaterials
         Load();
         var layer = new int[N];
         var size = new float[N]; var rough = new float[N]; var metal = new float[N];
-        var nstr = new float[N]; var nflip = new float[N]; var tint = new Vector3[N];
+        var nstr = new float[N]; var nflip = new float[N]; var tint = new Vector3[N]; var pierce = new float[N];
         bool any = false;
         for (int i = 0; i < N; i++)
         {
@@ -219,6 +226,7 @@ public static class GroundMaterials
             size[i] = (float)m.Size; rough[i] = (float)m.Rough; metal[i] = (float)m.Metal;
             nstr[i] = (float)m.NormalStrength; nflip[i] = m.DirectX ? 1 : 0;
             tint[i] = new Vector3(m.Tint.R, m.Tint.G, m.Tint.B);
+            pierce[i] = (float)m.Pierce;
         }
         mat.SetShaderParameter("u_mat_layer", layer);
         mat.SetShaderParameter("u_mat_size", size);
@@ -227,6 +235,7 @@ public static class GroundMaterials
         mat.SetShaderParameter("u_mat_nstr", nstr);
         mat.SetShaderParameter("u_mat_nflip", nflip);
         mat.SetShaderParameter("u_mat_tint", tint);
+        mat.SetShaderParameter("u_mat_pierce", pierce);
         mat.SetShaderParameter("u_mat_any", any ? 1f : 0f);
         if (_a != null) { mat.SetShaderParameter("u_mat_a", _a); mat.SetShaderParameter("u_mat_b", _b); mat.SetShaderParameter("u_mat_c", _c); }
         // les teintes, celles des sommets : une seule définition, ici

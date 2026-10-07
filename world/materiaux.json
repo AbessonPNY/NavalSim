@@ -2,27 +2,70 @@
   "_doc": "Les matières du sol et de la mer (Godot). Format : world/README.md, « Les matières ».",
   "taille_texture": 2048,
   "matieres": {
-    "herbe":       { "couleur": "#4f6a3a", "rugosite": 0.94 },
-    "paves":       { "couleur": "#5e5c58", "rugosite": 0.94 },
+    "herbe": {
+      "couleur": "#4f6a3a",
+      "rugosite": 0.94,
+      "cartes": {
+        "couleur": "world/textures/sol/herbe/wispy-grass-meadow_albedo.png",
+        "normale": "world/textures/sol/herbe/wispy-grass-meadow_normal-ogl.png",
+        "rugosite": "world/textures/sol/herbe/wispy-grass-meadow_roughness.png",
+        "hauteur": "world/textures/sol/herbe/wispy-grass-meadow_height.png",
+        "metal": "world/textures/sol/herbe/wispy-grass-meadow_metallic.png",
+        "occlusion": "world/textures/sol/herbe/wispy-grass-meadow_ao.png"
+      },
+      "taille": 2,
+      "normale": "opengl"
+    },
+    "paves": {
+      "couleur": "#5e5c58",
+      "rugosite": 0.94,
+      "cartes": {
+        "couleur": "world/textures/sol/paves/wedged-cobblestone_albedo.png",
+        "normale": "world/textures/sol/paves/wedged-cobblestone_normal-ogl.png",
+        "rugosite": "world/textures/sol/paves/wedged-cobblestone_roughness.png",
+        "hauteur": "world/textures/sol/paves/wedged-cobblestone_height.png",
+        "metal": "world/textures/sol/paves/wedged-cobblestone_metallic.png",
+        "occlusion": "world/textures/sol/paves/wedged-cobblestone_ao.png"
+      },
+      "taille": 3,
+      "perce": 0.8,
+      "normale": "opengl"
+    },
     "sable": {
       "couleur": "#c9b183",
       "rugosite": 0.94,
       "cartes": {
-        "couleur":  "world/textures/sol/sable/wavy-sand_albedo.png",
-        "normale":  "world/textures/sol/sable/wavy-sand_normal-ogl.png",
+        "couleur": "world/textures/sol/sable/wavy-sand_albedo.png",
+        "normale": "world/textures/sol/sable/wavy-sand_normal-ogl.png",
         "rugosite": "world/textures/sol/sable/wavy-sand_roughness.png",
-        "hauteur":  "world/textures/sol/sable/wavy-sand_height.png",
-        "metal":    "world/textures/sol/sable/wavy-sand_metallic.png",
+        "hauteur": "world/textures/sol/sable/wavy-sand_height.png",
+        "metal": "world/textures/sol/sable/wavy-sand_metallic.png",
         "occlusion": "world/textures/sol/sable/wavy-sand_ao.png"
       },
       "taille": 2,
       "normale": "opengl"
     },
     "sable_blanc": { "couleur": "#e6ddc4", "rugosite": 0.94 },
-    "vase":        { "couleur": "#4a4738", "rugosite": 0.94 },
-    "herbier":     { "couleur": "#304626", "rugosite": 0.94 },
-    "roche":       { "couleur": "#6c665c", "rugosite": 0.94 },
-    "foret":       { "couleur": "#34502c", "rugosite": 0.94 }
+    "vase": {
+      "couleur": "#4a4738",
+      "rugosite": 0.94,
+      "cartes": {
+        "couleur": "world/textures/sol/boue/mud_albedo.png",
+        "normale": "world/textures/sol/boue/mud_normal-ogl.png",
+        "rugosite": "world/textures/sol/boue/mud_roughness.png",
+        "hauteur": "world/textures/sol/boue/mud_height.png",
+        "metal": "world/textures/sol/boue/mud_metallic.png",
+        "occlusion": "world/textures/sol/boue/mud_ao.png"
+      },
+      "taille": 2,
+      "normale": "opengl"
+    },
+    "herbier": { "couleur": "#304626", "rugosite": 0.94 },
+    "roche": { "couleur": "#6c665c", "rugosite": 0.94 },
+    "foret": { "couleur": "#34502c", "rugosite": 0.94 }
   },
-  "mer": { "profond": "#0e3347", "clair": "#2f8fa8" }
+  "mer": {
+    "profond": "#0e3347",
+    "clair": "#2f8fa8"
+  }
 }

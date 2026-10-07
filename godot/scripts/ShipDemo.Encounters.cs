@@ -121,6 +121,8 @@ public partial class ShipDemo
     /// du mouillage suivrait le glissement et se retrouverait au large avec
     /// nous, ce qui n'est pas une rencontre mais un déménagement.
     /// </summary>
+    bool _largeFacing;
+
     void GoOffshore()
     {
         if (_world == null || _ship == null || _inTitle) return;
@@ -145,6 +147,8 @@ public partial class ShipDemo
         b.Pos = new Vec3d(at.X - o.X, b.Pos.Y, at.Z - o.Z);
         b.Vel = Vec3d.Zero;
         b.AngVel = Vec3d.Zero;
+        // l'essai -- --large 2 : l'étrave vers le port, la caméra d'orbite regarde donc la terre
+        if (_largeFacing) b.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), Math.Atan2(hx - at.X, hz - at.Z));
         _ship.SyncTransform();
         _nextSail = _t + 2;                  // et la première vient presque tout de suite
         double loin = _world.ShoreDistance(at.X, at.Z);

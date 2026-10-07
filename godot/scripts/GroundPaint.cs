@@ -79,6 +79,13 @@ public sealed class GroundPaint
     /// <summary>Une matière des fonds ?</summary>
     public static bool Seabed(Brush b) => b >= Brush.WhiteSand;
 
+    /// <summary>Une part qui va vers sa cible ; qui descend, jamais sous ce qu'elle garde (sans l'élever).</summary>
+    static byte Toward(byte v, byte target, double k, byte keep)
+    {
+        byte n = (byte)Math.Round(v + (target - v) * k);
+        return target == 0 ? Math.Max(n, Math.Min(v, keep)) : n;
+    }
+
     /// <summary>Un coup de pinceau commence : l'état d'avant va sur la pile.</summary>
     public void BeginStroke()
     {
@@ -109,6 +116,12 @@ public sealed class GroundPaint
             case Brush.Sand: case Brush.Seagrass: tb = 255; break;
         }
         byte[] own = _px[layer], other = _px[1 - layer];
+        /* CE QUI PERCE NE S'EFFACE PAS TOUT À FAIT sous une autre matière de sa couche : il en
+           garde un quart de sa « perce » (world/materiaux.json) — de l'herbe peinte sur des
+           pavés peints laisse leurs têtes, l'herbe prend les joints. La gomme seule les ôte. */
+        var keep = new byte[3];
+        for (int c = 0; c < 3; c++)
+            keep[c] = (byte)Math.Round(255 * 0.25 * GroundMaterials.Get(layer * 3 + c).Pierce);
         for (int j = j0; j <= j1; j++)
             for (int i = i0; i <= i1; i++)
             {
@@ -121,9 +134,9 @@ public sealed class GroundPaint
                 // l'autre couche cède ce que celle-ci prend ; la gomme les rend toutes deux
                 other[o + 3] = (byte)Math.Round(other[o + 3] * (1 - k));
                 if (erase) { own[o + 3] = (byte)Math.Round(own[o + 3] * (1 - k)); continue; }
-                own[o] = (byte)Math.Round(own[o] + (tr - own[o]) * k);
-                own[o + 1] = (byte)Math.Round(own[o + 1] + (tg - own[o + 1]) * k);
-                own[o + 2] = (byte)Math.Round(own[o + 2] + (tb - own[o + 2]) * k);
+                own[o] = Toward(own[o], tr, k, keep[0]);
+                own[o + 1] = Toward(own[o + 1], tg, k, keep[1]);
+                own[o + 2] = Toward(own[o + 2], tb, k, keep[2]);
                 own[o + 3] = (byte)Math.Round(own[o + 3] + (255 - own[o + 3]) * k);
             }
         _stale[0] = _stale[1] = true;

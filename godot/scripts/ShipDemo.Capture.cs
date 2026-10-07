@@ -129,7 +129,7 @@ public partial class ShipDemo
                 // gagner le large, puis faire venir une voile ou deux aux prises
                 // le large d'abord, la voile une seconde après : elle doit naître
                 // d'un navire DÉJÀ au large, sinon la règle des 2500 m la refuse
-                case "--large": if (args[i + 1] != "0") _largeIn = 1.5; break;
+                case "--large": if (args[i + 1] != "0") _largeIn = 1.5; _largeFacing = args[i + 1] == "2"; break;
                 // le retour au ponton, comme le bouton du menu
                 case "--ponton": if (args[i + 1] != "0") _pontonIn = args[i + 1].ToFloat(); break;
                 case "--rencontre": _metPair = args[i + 1].StartsWith("p"); _metIn = 2.5; break;
@@ -403,6 +403,8 @@ public partial class ShipDemo
                 case "--coller": _edPasteTest = args[i + 1].ToInt(); _edTest = 1; _diveTestIn = 1.0; break;
                 // le pinceau, sans rien enregistrer : trois disques et une rue autour de (x, z) vrais
                 case "--peindre": _paintTest = ParseVec(args[i + 1]); _diveTestIn = 1.0; break;
+                // de l'herbe peinte sur une rue pavée de la ville (ce qui perce) — rien d'enregistré
+                case "--herbe-rue": _streetGrassTest = args[i + 1].ToInt(); _diveTestIn = 1.0; break;
                 // une épave d'essai, à tant de mètres par le travers : son coffre avec
                 case "--epave": _diveTest.Wreck = args[i + 1].ToFloat(); _diveTestIn = 1.0; break;
                 // l'âge de l'épave d'essai, en jours : sa vase

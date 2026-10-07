@@ -136,6 +136,57 @@ public partial class ShipDemo
         GD.Print(FormattableString.Invariant($"[peinture] essai autour de ({x:F0}, {z:F0}) ; dans le carré : {_paint.Covers(x, z)}"));
     }
 
+    int _streetGrassTest;
+
+    /// <summary>
+    /// L'HERBE SUR UNE RUE (-- --herbe-rue) : le premier bout de rue pavée du carré peint, en
+    /// partant de son centre, reçoit une touche d'herbe à pleine force, et une à demi-force dix
+    /// mètres plus loin ; l'œil au-dessus. <paramref name="hill"/> : hors de la ville, sur l'herbe, des
+    /// pavés peints puis de l'herbe à pleine force par-dessus (la même couche). Rien n'est enregistré.
+    /// </summary>
+    void StreetGrassTest(bool hill)
+    {
+        if (_paint == null || _world == null) { GD.Print("[peinture] pas de sol peint"); return; }
+        double cx = _paint.X0 + _paint.Side * 0.5, cz = _paint.Z0 + _paint.Side * 0.5;
+        bool Street(double x, double z)
+        {
+            if (hill)
+            {
+                for (int a = -2; a <= 2; a++)
+                    for (int b = -2; b <= 2; b++)
+                    {
+                        double hh = _world.HeightAt(x + a * 5, z + b * 5);
+                        if (_world.PavedAt(x + a * 5, z + b * 5) || hh < 3 || hh > 15) return false;
+                    }
+                return true;
+            }
+            for (int a = -1; a <= 1; a++)
+                for (int b = -1; b <= 1; b++)
+                    if (!_world.PavedAt(x + a * 6, z + b * 6)) return false;
+            return _world.PavedAt(x + 10, z) && _world.PavedAt(x + 14, z);
+        }
+        for (double r = 0; r < _paint.Side * 0.5; r += 2)
+            for (double t = 0; t < Math.Tau; t += Math.Max(0.05, 2 / Math.Max(r, 1)))
+            {
+                double x = cx + r * Math.Cos(t), z = cz + r * Math.Sin(t);
+                if (!Street(x, z)) continue;
+                // HORS de l'éditeur : c'est en le quittant qu'on enregistre, et sa caméra prendrait la main
+                _paint.BeginStroke();
+                if (hill) { _paint.Dab(x, z, 5, GroundPaint.Brush.Cobble, 1); _paint.Dab(x + 12, z, 5, GroundPaint.Brush.Cobble, 1); }
+                _paint.Dab(x, z, 4, GroundPaint.Brush.Grass, 1);
+                _paint.Dab(x + 12, z, 4, GroundPaint.Brush.Grass, 0.5);
+                _paint.Flush(0, true);
+                var o = _sea.Core.Origin;
+                double h = _world.HeightAt(x, z);
+                _fixLook = new Vector3((float)(x + 6 - o.X), (float)h, (float)(z - o.Z));
+                _fixEye = _fixLook + new Vector3(-4, 9, 9);
+                _planted = true;
+                GD.Print(FormattableString.Invariant($"[peinture] herbe sur la rue en ({x:F0}, {z:F0}) : pleine force, et demi-force à +12 m ; non enregistré"));
+                return;
+            }
+        GD.Print("[peinture] aucune rue pavée dans le carré");
+    }
+
     /// <summary>La ligne d'état du pinceau.</summary>
     string PaintStatus() => _paint == null ? "" :
         FormattableString.Invariant(

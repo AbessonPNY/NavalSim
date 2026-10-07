@@ -493,6 +493,7 @@ active par région pour l'instant.
   },
   "taille": 2,                    // mètres couverts par une répétition
   "force_normale": 1,
+  "perce": 0,                    // 0 à 1 : ce que son relief garde hors d'une matière peinte par-dessus
   "normale": "opengl",            // ou "directx" (le vert vers le bas : Unreal, Substance par défaut)
   "teinte": "#ffffff"             // multiplie la couleur lue, pour l'accorder sans repeindre
 }
@@ -500,7 +501,11 @@ active par région pour l'instant.
 
 Sans `cartes.couleur`, la matière garde son DESSIN (celui d'avant, à l'identique) ; avec, elle est lue dans ses
 textures, et toutes les autres cartes sont facultatives. Sa HAUTEUR décide de la frontière avec sa voisine : le
-grain qui monte le plus haut l'emporte (le sable perce l'herbe par ses crêtes au lieu de s'y fondre). La
+grain qui monte le plus haut l'emporte (le sable perce l'herbe par ses crêtes au lieu de s'y fondre). Une
+matière peinte à pleine force recouvre tout, SAUF ce que `perce` garde dehors : à 1, la couverture qu'on lui
+impose est rabattue de moitié, et c'est la moitié des creux — de l'herbe peinte sur une rue pousse dans les
+joints, les têtes des pavés restent (les pavés : 0,8). Les clés reconnues sont celles du tableau ; une autre
+(« boue ») est signalée et ignorée. La
 texture est relue décalée et tournée de 15°, à la même échelle, et les deux lectures se départagent par plaques
 et par la hauteur du grain : une plage ne montre pas son carreau. Elle est plaquée SOUS TROIS ANGLES (d'en haut et de
 deux côtés, pesés par la pente) : le grain garde sa taille sur un talus ; un sol de moins de 25° environ ne lit

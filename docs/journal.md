@@ -15056,6 +15056,32 @@ part (natural_acc ; les gardes de seabed — un argument de fonction est évalu�
 pouvait l'éviter) et rien de la terre sous 0,8 m, que le sable blanc recouvre (seabed_white) : 6,2 ms, image
 identique (écart moyen 0,06). Le gain croît avec chaque matière texturée.
 
+HERBE ET PAVÉS TEXTURÉS, et une question : « je peux superposer les deux (des pavés épars dans l'herbe, très
+joli), mais de l'herbe sur les pavés de la ville masque totalement la pierre ». Les deux viennent du même
+mélange par la hauteur (surf_mix) : une matière peinte à demi-force partage le sol avec celle de dessous, et
+la hauteur décide qui l'emporte (les têtes de pavés sortent) ; à pleine force elle recouvre tout. Or la rue de
+la ville est déjà pavée de dessous (les sommets) : l'herbe peinte dessus à pleine force l'efface. D'où « perce »
+(u_mat_pierce, Surf.pierce) : la couverture imposée à une matière est rabattue de moitié à 1, et le partage par
+la hauteur donne cette moitié aux creux. Essai -- --herbe-rue 1 (hors éditeur : c'est en le QUITTANT qu'on
+enregistre, et sa caméra prend la main ; --after compte des IMAGES, 300 au moins) : à 0 la rue disparaît, à
+0,8 les têtes de pavés sortent de l'herbe. Quatre matières en 2048² : 1,9 s de lecture.
+LA MÊME COUCHE (signalé ensuite : « la vase ou la gomme laissent les pavés, l'herbe efface leur couleur et seule leur
+empreinte reste avant de s'effacer ») : l'herbe et les pavés sont deux canaux d'UNE couche peinte, que
+ground_paint mêlait par une somme — la couleur de l'herbe dominait vite, le relief des pavés restait dans la
+moyenne. Ils se mêlent maintenant par la hauteur (layer_mix, les pavés d'abord : c'est le « dessous » qui
+perce), et le pinceau ne descend plus une matière qui perce sous le quart de sa perce (GroundPaint.Toward) ;
+la gomme seule l'ôte. La force (⇧ molette) est une VITESSE : tenue, toute touche finit à 100 %. Essai --herbe-rue 2.
+
+LES GRADIENTS (signalé : des traînées qui scintillent sur la terre lointaine, vues du large) : les textures
+étaient lues sous des conditions (part de la matière, vue du triplanaire), où la dérivée implicite qui choisit
+le niveau de détail n'est pas définie. Elles reçoivent maintenant leurs gradients (textureGrad, struct Where
+calculée en tête du fragment). Mesuré sur cette machine : aucune différence (3,16 contre 3,15 d'écart entre
+voisins) — le pilote s'en tirait ; la correction vaut pour les autres. La traînée n'est PAS reproduite au large
+de Port-Royal (quatre images, --large 2 : l'étrave tournée vers le port).
+
+PIÈGE DE L'ESSAI : peinture et terrassement changés sur le disque pendant un essai — par sa partie à lui,
+ouverte en même temps. Restaurés par-dessus : sa version perdue. Ne jamais restaurer ces fichiers.
+
 LA MER : profond et clair (u_deep, u_shallow, sea_far), et l'eau vue du dessous prise au tiers du profond
 (c'étaient déjà ces valeurs, écrites à la main). Essai avec un sable de synthèse (rides, grains, 512²) posé
 sous godot-models/world/ : 55 ms de lecture, les rides éclairées par la normale, la grève qui mord l'herbe.
