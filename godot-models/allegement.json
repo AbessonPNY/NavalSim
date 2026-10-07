@@ -9,5 +9,6 @@
   "props/coffre_2k.glb": { "page": false },
   "props/planche.glb": { "page": false },
   "props/cocotier_low.glb": { "page": false },
-  "ships/models/chaloupe.glb": { "page": false }
+  "ships/models/chaloupe.glb": { "page": false },
+  "ships/models/hms_roebuck_1690.glb": { "page": false }
 }

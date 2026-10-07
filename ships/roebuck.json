@@ -6,7 +6,7 @@
   "hull": {
     "length": 29.26,
     "beam": 7.77,
-    "freeboardMid": 1.79,
+    "freeboardMid": 2.1,
     "sheerBow": 1.17,
     "sheerStern": 0.97,
     "keelDepth": 3.42,
@@ -103,9 +103,10 @@
     ]
   },
   "model": {
-    "glb": "ships/models/roebuck.glb",
+    "glb": "ships/models/hms_roebuck_1690.glb",
     "lengthAxis": "z",
-    "offset": [0, 0, 0],
-    "rotationY": 0
+    "offset": [0, -1.51, 0],
+    "rotationY": 0,
+    "scale": 1
   }
 }
