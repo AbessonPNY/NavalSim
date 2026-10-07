@@ -460,8 +460,55 @@ b = herbier. a = combien chacune recouvre la teinte du relief (0 : on n'y a pas 
 l'autre au même endroit. Elles s'écrivent au pinceau du mode création (², puis P) : 1 herbe, 2 pavés, 3 sable,
 4 la gomme qui rend le relief, 5 6 7 sable blanc, vase, herbier — le pinceau des fonds vise à travers l'eau ; molette pour le rayon, ⇧ molette pour la force ; Ctrl+Z annule le dernier coup ; Ctrl+S (ou ² en
 sortant) enregistre. Les matières sont dessinées par le shader (`ground_paint.gdshaderinc`) dans les teintes
-de la terre (`LandNode`) : touffes d'herbe, pavés jointoyés, grain de sable, qui s'effacent vers leur couleur
-moyenne au loin. Une seule peinture active par région pour l'instant.
+de `world/materiaux.json` : touffes d'herbe, pavés jointoyés, grain de sable, qui s'effacent vers leur couleur
+moyenne au loin — ou lues dans leurs textures, si la fiche leur en donne (ci-dessous). Une seule peinture
+active par région pour l'instant.
+
+## Les matières du sol et de la mer (Godot)
+
+`world/materiaux.json` — une fiche pour toutes les régions. Huit matières, et la mer :
+
+| clé | où elle sert |
+|---|---|
+| `herbe` | la terre de 2 à 18 m (fondue vers la forêt jusqu'à 120), le pinceau 1 |
+| `paves` | les rues d'un centre-ville, le pinceau 2 |
+| `sable` | la grève jusqu'à 0,6 m (fondue vers l'herbe jusqu'à 2), tout le fond qu'aucun autre ne prend, le pinceau 3 |
+| `sable_blanc` | les hauts-fonds clairs, le pinceau 5 |
+| `vase` | le fond des bassins abrités, le pinceau 6 |
+| `herbier` | les prés sous-marins d'un à douze mètres, le pinceau 7 |
+| `roche` | les tombants trop raides, les hauts sommets |
+| `foret` | la terre de 120 à 700 m |
+
+```json
+"sable": {
+  "couleur": "#c9b183",          // sa teinte, sRGB : celle des sommets de la terre et du dessin
+  "rugosite": 0.94, "metal": 0,   // là où une carte manque
+  "cartes": {                     // facultatif : chemins depuis la racine du dépôt
+    "couleur":  "world/textures/sol/sable/basecolor.png",
+    "normale":  "world/textures/sol/sable/normal.png",
+    "rugosite": "world/textures/sol/sable/roughness.png",
+    "hauteur":  "world/textures/sol/sable/height.png",
+    "metal":    "world/textures/sol/sable/metallic.png"
+  },
+  "taille": 2,                    // mètres couverts par une répétition
+  "force_normale": 1,
+  "normale": "opengl",            // ou "directx" (le vert vers le bas : Unreal, Substance par défaut)
+  "teinte": "#ffffff"             // multiplie la couleur lue, pour l'accorder sans repeindre
+}
+```
+
+Sans `cartes.couleur`, la matière garde son DESSIN (celui d'avant, à l'identique) ; avec, elle est lue dans ses
+textures, et toutes les autres cartes sont facultatives. Sa HAUTEUR décide de la frontière avec sa voisine : le
+grain qui monte le plus haut l'emporte (le sable perce l'herbe par ses crêtes au lieu de s'y fondre). La
+texture est relue sous un angle et à une échelle autres, mêlée par plaques : une plage ne montre pas son
+carreau. Les textures de toutes les matières sont rangées en deux piles d'une même taille — la plus petite des
+couleurs lues, plafonnée par `taille_texture` (2048) : une carte plus grande est réduite, jamais l'inverse.
+PNG, JPG, WebP, TGA, BMP ; une carte en niveaux de gris se lit sur son rouge. Une texture lourde peut
+vivre sous `godot-models/` au même chemin (Godot seul la lit, de toute façon).
+
+`mer` : `profond` (l'eau du large, et celle qu'on voit sous la surface, au tiers) et `clair` (l'eau qui
+laisse voir le fond) — les teintes de `ocean.gdshader`, en sRGB. Lu une fois par lancement : relancer le jeu
+après une retouche du fichier.
 
 ## Les autres régions, et les traversées (Godot)
 

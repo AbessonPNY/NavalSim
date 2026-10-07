@@ -15005,6 +15005,59 @@ passe le filtre en rouge, les reflets trouvés en vert. LIMITE DITE : en espace 
 l'image ou au-delà de la portée ne se reflète pas, et au loin la recherche trouve peu. COÛT : +0,1 à
 0,4 ms de carte graphique, au port, au ras de l'eau.
 
+## Les matières du sol et de la mer en fiche (Godot)
+
+DEMANDÉ : « définir dans un json les matériaux herbe, sable, pavés, boue, ceux des fonds marins, et celui
+de la mer — j'ai récupéré un sable en PBR plutôt réussi » ; partout, cartes couleur, rugosité, normale,
+hauteur, métal. world/materiaux.json, lu par GroundMaterials.cs ; format dans world/README.md.
+
+UNE COULEUR DEVIENT UNE SURFACE. Le sol peint, les fonds et la terre ne se passaient qu'une couleur ; ils se
+passent maintenant une Surf (ground_paint.gdshaderinc) : couleur, normale tangente, rugosité, métal, hauteur.
+Une matière sans carte rend la Surf de son dessin, rugosité 0,94 : l'image d'avant (mesuré, même capture des
+deux shaders : écart moyen 0,9 sur 765 sur la terre, le reste la houle et les feuilles).
+
+LA TERRE DE ELLE-MÊME (land.gdshader, natural) : sa teinte est dans les SOMMETS, fondus de bande en bande par
+LandNode.Tint ; une texture ne s'y peint pas. Dès qu'une matière est texturée (u_mat_any), le shader refait le
+partage — mêmes seuils, SandTop et GrassFrom poussés, les autres écrits des deux côtés et commentés — et pèse
+chaque matière par sa part ET sa hauteur (part × (0,5 + h)⁴) : la frontière suit le grain. Les rues sont
+marquées dans l'alpha des sommets (0,5 : Paved), la seule chose que la teinte ne disait pas.
+
+DEUX PILES (Texture2DArray) plutôt qu'une texture par matière : A couleur + hauteur, B normale xy, rugosité,
+métal ; une seule taille, la plus petite des couleurs lues. Les répétitions se cachent par une seconde
+lecture tournée, 2,3 fois plus grande, mêlée par plaques de bruit. Les textures s'ancrent aux mètres VRAIS
+(u_true, remonté dans ground_paint) : la peinture comptait depuis le coin de son carré, et un sable peint
+sur du sable aurait montré sa couture.
+
+PIÈGE : un tableau d'uniformes n'a PAS de valeur par défaut sous Godot (« Setting default values to uniform
+arrays is not supported ») — il vaut zéro tant qu'on ne l'a pas poussé. D'où la couche écrite +1 (0 : pas de
+texture), et GroundMaterials.Apply qui pousse TOUS les tableaux à chaque fois, rugosité comprise.
+
+LA MER : profond et clair (u_deep, u_shallow, sea_far), et l'eau vue du dessous prise au tiers du profond
+(c'étaient déjà ces valeurs, écrites à la main). Essai avec un sable de synthèse (rides, grains, 512²) posé
+sous godot-models/world/ : 55 ms de lecture, les rides éclairées par la normale, la grève qui mord l'herbe.
+
+## Les navires à quai : la voile serrée et le heurt (Godot)
+
+DEMANDÉ : « les navires à quai avec la collision et les voiles au repos — la Frégate a l'air bien nue ».
+Un navire au mouillage (MooredNode) n'est qu'un .glb posé sur l'eau ; la toile d'un navire du jeu est
+TISSÉE par le code (ShipNode.RigModel → SailCloth), pas peinte dans le modèle : rien sous ses vergues.
+
+LA VOILE SERRÉE, TISSÉE UNE FOIS PAR MODÈLE (MooredNode.Furl, ShipNode.FurledSails) : un ShipNode
+d'essai bâti en VOILES SEULES (ShipNode.SailsOnly : le modèle et son gréement, sans rubans, reliefs,
+pièces, mantelets, feux ni pavillons), sa toile mise en forme au repos (set 0 : les festons), recopiée
+en maillages FIXES dans le repère de son modèle, puis rendu. Chaque coque de la rade accroche la copie
+à son modèle : aucun calcul par image. Leurs matières vont à MooredNode.Hazed (le ciel poussé avec la
+rade). Mesuré : sloop 59 ms, galion 702 (son modèle de 18 Mo relu), La Couronne 80, Speedwell 15. La
+rade entre maintenant dans le coût de la carte (MapCost « rade », 2 s avec ses modèles).
+
+LE HEURT (MooredNode.Colliders) : chaque coque à portée du navire du joueur reçoit une coque de solveur
+FIGÉE — jamais avancée —, posée à chaque image où la houle la met ; elle s'ajoute aux voisines que lit
+le contact entre coques (ShipPhysics.Collide), qui ne pousse que celle qui avance : un navire amarré ne
+recule pas. Le navire du joueur seulement — les navires du jeu ont des routes de rade qui ne les
+évitent pas. Au-delà d'un mètre et demi par seconde de travers, le bordé s'ouvre, comme à l'abordage.
+Essai (-- --heurter frigate17e : la coque posée en travers devant l'étrave, le navire lancé à 4 m/s) :
+arrivé à 2,7 m/s, enfoncé de 0,96 m, renvoyé à 2,1 m/s. Coût par image : dans le bruit.
+
 ## Le terrassement des ports ; ce que coûte la carte (Godot)
 
 DEMANDÉ : « des outils de terrassement pour monter le sol et le descendre — ajuster la hauteur au bord

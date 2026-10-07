@@ -1,0 +1,27 @@
+{
+  "_doc": "Les matières du sol et de la mer (Godot). Format : world/README.md, « Les matières ».",
+  "taille_texture": 2048,
+  "matieres": {
+    "herbe":       { "couleur": "#4f6a3a", "rugosite": 0.94 },
+    "paves":       { "couleur": "#5e5c58", "rugosite": 0.94 },
+    "sable": {
+      "couleur": "#c9b183",
+      "rugosite": 0.94,
+      "cartes": {
+        "couleur":  "world/textures/sol/sable/wavy-sand_albedo.png",
+        "normale":  "world/textures/sol/sable/wavy-sand_normal-ogl.png",
+        "rugosite": "world/textures/sol/sable/wavy-sand_roughness.png",
+        "hauteur":  "world/textures/sol/sable/wavy-sand_height.png",
+        "metal":    "world/textures/sol/sable/wavy-sand_metallic.png"
+      },
+      "taille": 2,
+      "normale": "opengl"
+    },
+    "sable_blanc": { "couleur": "#e6ddc4", "rugosite": 0.94 },
+    "vase":        { "couleur": "#4a4738", "rugosite": 0.94 },
+    "herbier":     { "couleur": "#304626", "rugosite": 0.94 },
+    "roche":       { "couleur": "#6c665c", "rugosite": 0.94 },
+    "foret":       { "couleur": "#34502c", "rugosite": 0.94 }
+  },
+  "mer": { "profond": "#0e3347", "clair": "#2f8fa8" }
+}

@@ -141,7 +141,7 @@ public partial class LandNode
                 // la pente aux différences centrées : la même des deux côtés d'une couture
                 double dx = (hh[q + 1] - hh[q - 1]) / (2 * d), dz = (hh[q + w] - hh[q - w]) / (2 * d);
                 nrm[k] = new Vector3((float)-dx, 1, (float)-dz).Normalized();
-                col[k] = h >= SandTop && World.PavedAt(x0 + x, z0 + z) ? Cobble : Tint(h);
+                col[k] = h >= SandTop && World.PavedAt(x0 + x, z0 + z) ? Paved : Tint(h);
             }
         var idx = new int[m * m * 6];
         int t = 0;

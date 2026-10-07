@@ -74,6 +74,7 @@ public partial class ShipDemo
         }
         SpawnPending();
         TerraTestTick();
+        BumpTestTick();
         Chimneys(origin, dt);
         ShoreFlagsTick();
         _addedHolds.Update(origin);

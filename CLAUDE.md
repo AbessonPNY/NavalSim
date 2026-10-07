@@ -57,6 +57,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `ShelterMap.cs` (noyau) | l'abri que donne la FORME du rivage autour d'un port (`"abri"`) — le quatrième usager de l'abri, avec le môle |
 | `tools/jetty-glb.js` · `tools/glb-write.js` | les pièces d'un ponton en .glb (travee, pieu, bitte) · la mise en paquet .glb commune aux outils |
 | `GroundPaint.cs` · `ground_paint.gdshaderinc` (Godot) | le sol peint au pinceau (², P) : herbe, pavés, sable au demi-mètre ; `world/peinture/*.png` |
+| `GroundMaterials.cs` (Godot) | les matières du sol, des fonds et la teinte de la mer en fiche (`world/materiaux.json`) : teinte, et cartes PBR facultatives rangées en deux `Texture2DArray` ; le shader passe des `Surf` (couleur, normale, rugosité, métal, hauteur), et une matière sans carte garde son dessin |
 | `Grapple.cs` (Godot) | les filins à crochet de l'abordage — ils HALENT, on les tranche (⇧D) |
 | `seabed.gdshaderinc` · `Seabed.cs` (noyau) · `tools/reef-glb.js` · `seaweed.gdshader` (Godot) | le fond de lui-même (sable blanc, vase, herbier, roche ; le pinceau par-dessus) · ses prés côté processeur, pour y semer l'herbier — **jumeaux, mêmes seuils** · coraux, gorgones, éponges, oursins en `props/fond/*.glb`, semés en foule (`"foule"`, `"amas"`, `"abri"`) · l'herbier et les gorgones qui ondulent au ressac (`gerstner_surge`, lu par le GPU seul ; `"ondule"`) |
 | `Reefs.cs` (noyau) | les récifs de la fiche (`"recifs"`) relevés dans `World.HeightAt` (`Config.Reefs`, Godot seul) et peints par `seabed.gdshaderinc` (**même ourlet des deux côtés**) ; les écueils (`World.Rocks`, semis `"ecueil"`) ; le fond DUR ouvre la coque dès 0,8 m/s et la perd clouée dessus (`ShipPhysics.Gash`, `Rocks`) |
@@ -224,7 +225,9 @@ La musique n'est pas embarquée (trop lourde). `node build.js` écrit
 - Fusionner les voies d'eau d'un même endroit (voir le journal).
 - Navires au mouillage : faits (`Moored.cs`, `MooredNode.cs`, journal « Les ports
   ne sont plus vides »). Trois fiches seulement pour l instant — sloop, Roter Löwe,
-  vaisseau de ligne ; ils n ont ni pavillon, ni feux de nuit, ni chaîne d ancre.
+  vaisseau de ligne ; leur toile serrée est tissée une fois par modèle (`ShipNode.SailsOnly`,
+  `FurledSails`) et le navire du joueur les heurte (`MooredNode.Colliders`) ; ils n ont ni
+  pavillon, ni feux de nuit, ni chaîne d ancre.
 - Chaloupe : portée (N l'affale et la hisse, `ShipDemo.Boat.cs`), elle nage à
   l'aviron et ne mouille pas ; reste sa console de barre, encore celle d'un
   navire, et elle n'a pas de `.glb`.

@@ -344,8 +344,12 @@ public partial class ShipDemo : Node3D
         }
         Launch(first);
         // et les rades, maintenant qu on connaît le navire dont il faut laisser le poste
-        _moored?.Build(System.IO.Path.Combine(Assets.Root, "ships"), _sea.Core, _ship.Spec.L, _ship.Spec.B);
-        _moored?.BuildAnchored(System.IO.Path.Combine(Assets.Root, "ships"), _sea.Core);
+        // la rade est du décor de la carte : elle entre dans son coût (MapCost), voiles serrées comprises
+        using (MapCost.Time("rade"))
+        {
+            _moored?.Build(System.IO.Path.Combine(Assets.Root, "ships"), _sea.Core, _ship.Spec.L, _ship.Spec.B);
+            _moored?.BuildAnchored(System.IO.Path.Combine(Assets.Root, "ships"), _sea.Core);
+        }
         // les réglages du fichier d'abord ; la ligne de commande, lue ensuite, a le dernier mot
         ApplySettings();
         SetupCapture();
@@ -456,7 +460,7 @@ public partial class ShipDemo : Node3D
        coque, pour la raison qui a déjà coûté un bogue à la page : une référence
        gardée se périme dès que la flotte change. Les spectres ont la leur : ils
        ne se cognent qu'entre eux, et une étrave passe au travers. */
-    readonly List<ShipPhysics> _afloat = new(), _wraiths = new();
+    readonly List<ShipPhysics> _afloat = new(), _wraiths = new(), _withMoored = new();
     readonly System.Collections.Concurrent.ConcurrentQueue<(Vec3d At, double Rate, double Speed)> _slamQueue = new();
     int _stepSub;
     double _stepDt, _stepT0;
@@ -471,13 +475,23 @@ public partial class ShipDemo : Node3D
         _stepping.AddRange(_others);
         _afloat.Clear(); _wraiths.Clear();
         foreach (var s in _stepping) (s.IsGhost ? _wraiths : _afloat).Add(s.Physics);
+        /* ET LES COQUES AU MOUILLAGE, pour le navire du joueur seulement : figées, elles
+           le repoussent ; les navires du jeu, eux, ne les voient pas — leurs routes de
+           rade n'ont pas été tracées pour les éviter. */
+        _withMoored.Clear();
+        _withMoored.AddRange(_afloat);
+        if (_moored != null)
+        {
+            _moored.Colliders(_ship.Position, _ship.Spec.L * 0.5 + 10);
+            _withMoored.AddRange(_moored.Near);
+        }
         _stepSub = sub; _stepDt = dt; _stepT0 = t0;
         // un délégué gardé : en recréer un à chaque image serait de la mémoire à ramasser
         _stepOne ??= i =>
         {
             var s = _stepping[i];
             double t = _stepT0;
-            var near = s.IsGhost ? _wraiths : _afloat;
+            var near = s.IsGhost ? _wraiths : s == _ship ? _withMoored : _afloat;
             for (int k = 0; k < _stepSub; k++) { s.Physics.Step(_stepDt, _sea.Core, s.Ctrl, t, near); t += _stepDt; }
         };
         /* EN PARALLÈLE, UNE COQUE LIT LA POSE D'UNE AUTRE PENDANT QU'ELLE S'ÉCRIT.
@@ -1114,7 +1128,8 @@ public partial class ShipDemo : Node3D
             double wl = Math.Max(0.05, _sky.Core.WaterLight);
             // un tiers de l'eau vue de dessus : sous la surface on regarde DANS elle,
             // et ce qu'on y voit est ce qui a traversé, non ce qu'elle renvoie
-            _under.Water = new Color((float)(0.0015 * wl), (float)(0.0120 * wl), (float)(0.0240 * wl));
+            var deep = GroundMaterials.Deep;
+            _under.Water = new Color((float)(0.35 * deep.R * wl), (float)(0.35 * deep.G * wl), (float)(0.35 * deep.B * wl));
             _under.Time = (float)_t;
             _under.Straddle = straddle;
             /* LES GRAINS ET LE FLOU, du lieu : le fond sous l'œil (ils s'épaississent près de

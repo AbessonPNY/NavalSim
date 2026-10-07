@@ -56,6 +56,77 @@ public partial class MooredNode : Node3D
     }
 
     readonly List<HandHull> _hand = new();
+
+    /* LES VOILES SERRÉES de chaque modèle, tissées une fois (ShipNode.FurledSails), et la
+       fiche de chaque coque posée — pour la heurter (Colliders). */
+    readonly Dictionary<ShipSpec, Node3D?> _sails = new();
+    readonly Dictionary<Node3D, ShipSpec> _specOf = new();
+    readonly Dictionary<Node3D, ShipPhysics> _hulls = new();
+    /// <summary>Les coques au mouillage contre lesquelles le navire du joueur peut buter, cette image-ci.</summary>
+    public readonly List<ShipPhysics> Near = new();
+
+    /// <summary>Accrocher ses voiles serrées à une coque, et retenir sa fiche.</summary>
+    void Dress(Node3D copie, Node3D holder, ShipSpec spec)
+    {
+        _specOf[holder] = spec;
+        if (!_sails.TryGetValue(spec, out var tpl)) _sails[spec] = tpl = Furl(spec);
+        if (tpl != null) copie.AddChild(tpl.Duplicate());
+    }
+
+    /// <summary>
+    /// UN NAVIRE DU JEU, LE TEMPS DE TISSER SA TOILE : bâti, ses voiles serrées recopiées en
+    /// maillages fixes, puis rendu. Une fois par modèle, au chargement — c'est ce qui rend
+    /// le gréement gratuit à chaque image : rien ne bouge sous une vergue serrée.
+    /// </summary>
+    Node3D? Furl(ShipSpec spec)
+    {
+        try
+        {
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var probe = new ShipNode { SailsOnly = true };
+            AddChild(probe);
+            probe.Build(spec);
+            var mats = new List<ShaderMaterial>();
+            var s = probe.FurledSails(mats);
+            foreach (var m in mats) if (!Hazed.Contains(m)) Hazed.Add(m);
+            RemoveChild(probe);
+            probe.QueueFree();
+            GD.Print($"[rade] {spec.Name} : {s.GetChildCount()} voile(s) serrée(s), tissées en {clock.ElapsedMilliseconds} ms");
+            return s.GetChildCount() > 0 ? s : null;
+        }
+        catch (Exception e) { GD.PushWarning($"[rade] {spec.Name} : voiles non tissées ({e.Message})"); return null; }
+    }
+
+    /// <summary>
+    /// LES COQUES QU'ON PEUT HEURTER (demandé : « les navires à quai avec la collision »).
+    /// Chacune a une coque de solveur FIGÉE — jamais avancée — posée à chaque image où la
+    /// houle la met ; le contact entre coques (ShipPhysics.Collide) la lit comme un voisin
+    /// et repousse seul le navire qui arrive : un navire amarré ne recule pas. Seulement
+    /// celles qui sont à portée de <paramref name="at"/> (repère du moment).
+    /// </summary>
+    public void Colliders(Vector3 at, double reach)
+    {
+        Near.Clear();
+        foreach (var h in _hand) if (!h.Removed && h.Node.Visible) Touch(h.Node, at, reach);
+        foreach (var p in _ports)
+            if (p.Group.Visible)
+                foreach (var s in p.Ships) if (s.Node.Visible) Touch(s.Node, at, reach);
+    }
+
+    void Touch(Node3D node, Vector3 at, double reach)
+    {
+        if (!_specOf.TryGetValue(node, out var spec)) return;
+        var pos = node.Position;
+        double far = reach + spec.Hull.Length * 0.5;
+        if ((pos.X - at.X) * (pos.X - at.X) + (pos.Z - at.Z) * (pos.Z - at.Z) > far * far) return;
+        if (!_hulls.TryGetValue(node, out var ph)) _hulls[node] = ph = new ShipPhysics(spec, new HullLines(spec));
+        var q = node.Basis.GetRotationQuaternion();
+        var b = ph.Body;
+        b.Pos = new Vec3d(pos.X, pos.Y, pos.Z);
+        b.Quat = new Quatd(q.X, q.Y, q.Z, q.W);
+        b.Vel = Vec3d.Zero; b.AngVel = Vec3d.Zero;
+        Near.Add(ph);
+    }
     string? _shipsDir;
     Ocean? _sea;
 
@@ -69,6 +140,7 @@ public partial class MooredNode : Node3D
         copie.Rotation = new Vector3(0, (float)mdl.Spec.Model!.RotationY, 0);
         var holder = new Node3D { Name = "pose_" + sheet };
         holder.AddChild(copie);
+        Dress(copie, holder, mdl.Spec);
         AddChild(holder);
         var h = new HandHull { Node = holder, At = new Vec3d(x, mdl.Y, z), Cap = yaw, L = mdl.Spec.Hull.Length, Name = mdl.Spec.Name };
         _hand.Add(h);
@@ -221,6 +293,7 @@ public partial class MooredNode : Node3D
                 copie.Rotation = new Vector3(0, (float)mdl.Spec.Model!.RotationY, 0);
                 var holder = new Node3D();
                 holder.AddChild(copie);
+                Dress(copie, holder, mdl.Spec);
                 m2.Group.AddChild(holder);
                 m2.Ships.Add((holder, new Vec3d(postes[i].X, mdl.Y, postes[i].Z), postes[i].Cap,
                               postes[i].Mouille, mdl.Spec.Hull.Length));
@@ -260,6 +333,7 @@ public partial class MooredNode : Node3D
             copie.Rotation = new Vector3(0, (float)mdl.Spec.Model!.RotationY, 0);
             var holder = new Node3D();
             holder.AddChild(copie);
+            Dress(copie, holder, mdl.Spec);
             m2.Group.AddChild(holder);
             double yaw = Compass.YawOf(a.Cap);
             int slot = m2.Ships.Count;

@@ -76,13 +76,20 @@ public partial class ShipNode : Node3D
         if (_snowPushed > 0) m.SetShaderParameter(U.Snow, _snowPushed);
     }
 
+    /// <summary>
+    /// VOILES SEULES (MooredNode : la toile serrée d'un navire au mouillage) : le modèle et
+    /// son gréement, sans rien de ce qui ne sert qu'à naviguer — cordages en rubans, reliefs,
+    /// pièces, mantelets, feux, pavillons. Le galion passe de 1,1 s à bâtir à bien moins.
+    /// </summary>
+    public bool SailsOnly;
+
     public void Build(ShipSpec spec)
     {
         Spec = spec;
         Lines = new HullLines(spec);
         Physics = new ShipPhysics(spec, Lines);
         // ses impacts peints, avant qu'aucune matière ne naisse : chacune les reçoit à sa création
-        LoadImpactAtlas();
+        if (!SailsOnly) LoadImpactAtlas();
 
         _hull = new MeshInstance3D
         {
@@ -95,6 +102,7 @@ public partial class ShipNode : Node3D
 
         BuildRig();
         LoadModel();
+        if (SailsOnly) return;
         // les feux après le gréement : la lanterne du grand mât se pend à SON mât
         BuildLanterns();
         RankLanterns();
@@ -147,9 +155,12 @@ public partial class ShipNode : Node3D
             var rings = TakeRings(obj);
             // la sphere d energie aussi : vingt metres de rayon, elle serait prise pour la coque
             var bulle = Detach(obj, SphereNames);
-            ReliefFromRoughness(obj, m.Relief ?? 0);
-            // et les tangentes des reliefs que le modèle apporte lui-même
-            TangentsForRelief(obj);
+            if (!SailsOnly)
+            {
+                ReliefFromRoughness(obj, m.Relief ?? 0);
+                // et les tangentes des reliefs que le modèle apporte lui-même
+                TangentsForRelief(obj);
+            }
 
             // sa COQUE ramenée à la longueur que le solveur fait flotter
             double k = m.Scale ?? HullScale(obj, m.LengthAxis, Spec.L);
@@ -173,6 +184,8 @@ public partial class ShipNode : Node3D
             AddChild(obj);
             ModelRoot = obj;
             RigModel();
+            // la toile seule : ce qui suit ne sert qu'à un navire qui navigue
+            if (SailsOnly) return true;
             // les cordages en rubans, une fois rangés à leurs mâts (ShipNode.Ropes.cs)
             RibbonRopes();
             // la chaloupe posée sur le pont, qu'on cache quand elle est à l'eau (ShipNode.DeckBoat.cs)

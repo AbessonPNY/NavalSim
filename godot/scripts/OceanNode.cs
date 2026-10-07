@@ -326,6 +326,8 @@ public partial class OceanNode : Node3D
         mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arr);
 
         _farMat = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/sea_far.gdshader"), RenderPriority = -2 };
+        // les teintes de l'eau, celles de world/materiaux.json (« mer »)
+        GroundMaterials.ApplySea(_mat, _farMat);
         _far = new MeshInstance3D
         {
             Mesh = mesh, MaterialOverride = _farMat,

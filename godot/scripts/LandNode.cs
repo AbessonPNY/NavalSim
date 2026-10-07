@@ -99,15 +99,16 @@ public partial class LandNode : Node3D
         _mat.SetShaderParameter("u_caustic_far", (float)CausticRules.Far);
         _mat.SetShaderParameter("u_caustic_floor", (float)CausticRules.Floor);
         _mat.SetShaderParameter("u_caustic_spread", (float)CausticRules.Spread);
-        // le sol peint reprend les teintes des sommets : une seule définition, ici
-        _mat.SetShaderParameter("u_grass", new Vector3(Grass.R, Grass.G, Grass.B));
-        _mat.SetShaderParameter("u_cobble", new Vector3(Cobble.R, Cobble.G, Cobble.B));
-        _mat.SetShaderParameter("u_sand", new Vector3(Sand.R, Sand.G, Sand.B));
-        _mat.SetShaderParameter("u_whitesand", new Vector3(WhiteSand.R, WhiteSand.G, WhiteSand.B));
-        _mat.SetShaderParameter("u_mud", new Vector3(Mud.R, Mud.G, Mud.B));
-        _mat.SetShaderParameter("u_seagrass", new Vector3(Seagrass.R, Seagrass.G, Seagrass.B));
-        // la roche des tombants, celle des sommets (seabed.gdshaderinc)
-        _mat.SetShaderParameter("u_rock", new Vector3(Rock.R, Rock.G, Rock.B));
+        /* LES MATIÈRES (world/materiaux.json) : leurs teintes, celles des sommets que les
+           carreaux vont prendre, et leurs textures s'il y en a — le sol peint, les fonds et
+           la terre de elle-même les lisent toutes. Une seule définition, le fichier. */
+        Sand = GroundMaterials.Sand; Grass = GroundMaterials.Grass; Wood = GroundMaterials.Wood;
+        Rock = GroundMaterials.Rock; Cobble = GroundMaterials.Cobble;
+        Paved = new Color(Cobble.R, Cobble.G, Cobble.B, 0.5f);
+        GroundMaterials.Apply(_mat);
+        // le partage de la terre par la hauteur, le même que Tint
+        _mat.SetShaderParameter("u_sand_top", (float)SandTop);
+        _mat.SetShaderParameter("u_grass_from", (float)GrassFrom);
         /* LES RÉCIFS, les mêmes ellipses que le noyau relève (Reef) : le fond les
            peint de corail. Seize au plus, ceux de la région chargée. */
         if (Config.Reefs && World.ReefList.Count > 0)
@@ -128,20 +129,11 @@ public partial class LandNode : Node3D
 
     }
 
-    /* Les teintes de la page, en sRGB. Les couleurs de sommet de Godot sont
-       prises pour LINÉAIRES : sans la conversion, la côte sortirait délavée. */
-    static readonly Color Sand = Color.Color8(0xc9, 0xb1, 0x83).SrgbToLinear();
-    static readonly Color Grass = Color.Color8(0x4f, 0x6a, 0x3a).SrgbToLinear();
-    static readonly Color Wood = Color.Color8(0x34, 0x50, 0x2c).SrgbToLinear();
-    static readonly Color Rock = Color.Color8(0x6c, 0x66, 0x5c).SrgbToLinear();
-    // le pavé des rues d'un centre-ville : galets et brique usée, plus gris que la grève
-    static readonly Color Cobble = Color.Color8(0x5e, 0x5c, 0x58).SrgbToLinear();
-    /* LES FONDS PEINTS : le sable blanc des hauts-fonds (l'eau turquoise), la
-       vase d'un bassin, l'herbier de posidonies. Vus à travers l'eau : la mer en
-       mange le rouge, et c'est ce qui les teinte de vert et de bleu. */
-    static readonly Color WhiteSand = Color.Color8(0xe6, 0xdd, 0xc4).SrgbToLinear();
-    static readonly Color Mud = Color.Color8(0x4a, 0x47, 0x38).SrgbToLinear();
-    static readonly Color Seagrass = Color.Color8(0x30, 0x46, 0x26).SrgbToLinear();
+    /* Les teintes de la terre, LINÉAIRES (les couleurs de sommet de Godot le sont : sans la
+       conversion, la côte sortirait délavée). Elles viennent de world/materiaux.json
+       (GroundMaterials), posées à _Ready avant le premier carreau. Le pavé des rues porte
+       un alpha de 0,5 : la marque que lit land.gdshader quand les matières sont texturées. */
+    static Color Sand, Grass, Wood, Rock, Cobble, Paved;
 
     const double SandTop = 0.6, GrassFrom = 2.0;
 
@@ -185,7 +177,7 @@ public partial class LandNode : Node3D
                 double h = World.HeightAt(x0 + x, z0 + z);
                 pos.Add(new Vector3((float)x, (float)h, (float)z));
                 // une rue pavée, au-dessus de la laisse : la grille du centre-ville
-                col.Add(h >= SandTop && World.PavedAt(x0 + x, z0 + z) ? Cobble : Tint(h));
+                col.Add(h >= SandTop && World.PavedAt(x0 + x, z0 + z) ? Paved : Tint(h));
             }
         for (int b = 0; b < n; b++)
             for (int a = 0; a < n; a++)

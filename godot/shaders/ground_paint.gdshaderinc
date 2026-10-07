@@ -22,12 +22,16 @@ uniform sampler2D u_paint : filter_linear, repeat_disable;
 uniform sampler2D u_paint2 : filter_linear, repeat_disable;
 uniform vec4 u_paint_rect = vec4(0.0, 0.0, 0.0, 0.0);  // coin (scène), 1 / côté
 uniform float u_paint_on = 0.0;
+/* l'origine en mètres vrais : les textures des matières y sont ancrées, la peinture
+   comme le sol de lui-même — un sable peint sur du sable ne montre pas de couture */
+uniform vec2 u_true = vec2(0.0);
 uniform vec3 u_grass = vec3(0.078, 0.141, 0.042);
 uniform vec3 u_cobble = vec3(0.111, 0.105, 0.097);
 uniform vec3 u_sand = vec3(0.584, 0.439, 0.223);
 uniform vec3 u_whitesand = vec3(0.79, 0.73, 0.57);
 uniform vec3 u_mud = vec3(0.07, 0.065, 0.04);
 uniform vec3 u_seagrass = vec3(0.03, 0.06, 0.02);
+uniform vec3 u_wood = vec3(0.034, 0.081, 0.025);
 
 vec2 paint_hash22(vec2 p) {
 	vec3 a = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
@@ -107,9 +111,98 @@ vec3 paint_seagrass(vec2 q, float detail) {
 	return mix(u_whitesand * 0.55, grass, clump);
 }
 
-/* La couleur du sol en ce point : celle des sommets, recouverte de ce qu'on a
-   peint. `pix` est la largeur d'un pixel au sol, en mètres. */
-vec3 ground_paint(vec3 base, vec3 world, float pix) {
+/* ------------------------------------------------------------------ */
+/*  LES MATIÈRES DU SOL (world/materiaux.json, GroundMaterials.cs)      */
+/* ------------------------------------------------------------------ */
+
+/* UNE SURFACE, et non plus une couleur : ce qu'une matière PBR apporte — sa couleur,
+   sa normale (en repère tangent, xy), sa rugosité, son métal et sa HAUTEUR, qui décide
+   d'où passe la frontière entre deux matières (le grain du sable perce l'herbe, il ne
+   se fond pas dedans). « tex » : vient d'une texture ; deux surfaces dessinées se
+   mélangent comme avant, au fondu. */
+struct Surf { vec3 col; vec2 n; float rough; float metal; float h; float tex; };
+
+/* LES MATIÈRES, dans l'ordre de GroundMaterials.Keys : 0 herbe, 1 pavés, 2 sable,
+   3 sable blanc, 4 vase, 5 herbier, 6 roche, 7 forêt. Une matière texturée a sa
+   couche dans les deux piles (A : couleur + hauteur ; B : normale xy, rugosité, métal),
+   une matière dessinée a 0 et garde son dessin (couche + 1 : un tableau d'uniformes
+   vaut zéro tant qu'on ne l'a pas poussé). */
+#define MATS 8
+uniform sampler2DArray u_mat_a : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2DArray u_mat_b : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform int u_mat_layer[MATS];       // la couche + 1 ; 0 : pas de texture (un tableau d'uniformes n'a pas de défaut)
+uniform float u_mat_size[MATS];      // mètres couverts par une répétition de la texture
+uniform float u_mat_rough[MATS];
+uniform float u_mat_metal[MATS];
+uniform float u_mat_nstr[MATS];      // la force de la normale
+uniform float u_mat_nflip[MATS];     // 1 : normale DirectX (vert vers le bas)
+uniform vec3 u_mat_tint[MATS];
+uniform float u_mat_any = 0.0;       // au moins une matière texturée : la terre se recalcule
+
+Surf surf_flat(vec3 col, int id) {
+	Surf s; s.col = col; s.n = vec2(0.0); s.rough = u_mat_rough[id]; s.metal = u_mat_metal[id]; s.h = 0.5; s.tex = 0.0;
+	return s;
+}
+
+/* LIRE UNE MATIÈRE TEXTURÉE, sans que sa répétition se voie : une seconde lecture,
+   tournée et plus grande, mêlée à la première par plaques de quelques répétitions —
+   une plage de cent mètres ne montre plus son carreau de deux. */
+Surf surf_tex(int id, vec2 q) {
+	float layer = float(u_mat_layer[id] - 1), sz = max(0.05, u_mat_size[id]);
+	vec2 uv1 = q / sz;
+	vec2 uv2 = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8)) * q / (sz * 2.3) + vec2(0.37, 0.71);
+	float k = smoothstep(0.3, 0.7, paint_noise(q / (sz * 3.1)));
+	vec4 a = mix(texture(u_mat_a, vec3(uv1, layer)), texture(u_mat_a, vec3(uv2, layer)), k);
+	vec4 b = mix(texture(u_mat_b, vec3(uv1, layer)), texture(u_mat_b, vec3(uv2, layer)), k);
+	Surf s;
+	s.col = a.rgb * u_mat_tint[id];
+	s.h = a.a;
+	s.n = (b.rg * 2.0 - 1.0) * u_mat_nstr[id];
+	if (u_mat_nflip[id] > 0.5) s.n.y = -s.n.y;
+	s.rough = b.b; s.metal = b.a; s.tex = 1.0;
+	return s;
+}
+
+/* MÊLER DEUX SURFACES. Dessinées toutes deux : le fondu d'avant. Si l'une est une
+   texture : par la hauteur — celle qui monte le plus haut au point l'emporte, sur une
+   bande étroite autour du mélange voulu. */
+Surf surf_mix(Surf a, Surf b, float t) {
+	if (t <= 0.001) return a;
+	if (t >= 0.999) return b;
+	float k = t;
+	if (a.tex + b.tex > 0.0) {
+		float ma = a.h + (1.0 - t), mb = b.h + t;
+		float m = max(ma, mb) - 0.2;
+		float wa = max(ma - m, 0.0), wb = max(mb - m, 0.0);
+		k = wb / max(wa + wb, 1e-4);
+	}
+	Surf r;
+	r.col = mix(a.col, b.col, k); r.n = mix(a.n, b.n, k);
+	r.rough = mix(a.rough, b.rough, k); r.metal = mix(a.metal, b.metal, k);
+	r.h = mix(a.h, b.h, k); r.tex = max(a.tex, b.tex);
+	return r;
+}
+
+/* chaque matière : sa texture si elle en a une (lue en mètres vrais, tq), sinon son
+   dessin (lu en q, son repère à lui) */
+Surf m_grass(vec2 q, vec2 tq, float detail)     { return u_mat_layer[0] > 0 ? surf_tex(0, tq) : surf_flat(paint_grass(q, detail), 0); }
+Surf m_cobble(vec2 q, vec2 tq, float detail)    { return u_mat_layer[1] > 0 ? surf_tex(1, tq) : surf_flat(paint_cobble(q, detail), 1); }
+Surf m_sand(vec2 q, vec2 tq, float detail)      { return u_mat_layer[2] > 0 ? surf_tex(2, tq) : surf_flat(paint_sand(q, detail), 2); }
+Surf m_whitesand(vec2 q, vec2 tq, float detail) { return u_mat_layer[3] > 0 ? surf_tex(3, tq) : surf_flat(paint_whitesand(q, detail), 3); }
+Surf m_mud(vec2 q, vec2 tq, float detail)       { return u_mat_layer[4] > 0 ? surf_tex(4, tq) : surf_flat(paint_mud(q, detail), 4); }
+Surf m_seagrass(vec2 q, vec2 tq, float detail)  { return u_mat_layer[5] > 0 ? surf_tex(5, tq) : surf_flat(paint_seagrass(q, detail), 5); }
+
+/* Une somme pondérée de surfaces (les matières d'un pixel peint) — le poids total vaut un. */
+Surf surf_acc(Surf acc, Surf s, float w) {
+	acc.col += s.col * w; acc.n += s.n * w; acc.rough += s.rough * w; acc.metal += s.metal * w;
+	acc.h += s.h * w; acc.tex = max(acc.tex, s.tex * step(0.001, w));
+	return acc;
+}
+Surf surf_zero() { Surf s; s.col = vec3(0.0); s.n = vec2(0.0); s.rough = 0.0; s.metal = 0.0; s.h = 0.0; s.tex = 0.0; return s; }
+
+/* Le sol en ce point : celui de dessous, recouvert de ce qu'on a peint. `pix` est la
+   largeur d'un pixel au sol, en mètres. */
+Surf ground_paint(Surf base, vec3 world, float pix) {
 	if (u_paint_on < 0.5) return base;
 	vec2 q = world.xz - u_paint_rect.xy;           // en mètres, depuis le coin du carré
 	vec2 uv = q * u_paint_rect.zw;
@@ -118,23 +211,24 @@ vec3 ground_paint(vec3 base, vec3 world, float pix) {
 	vec4 s = texture(u_paint2, uv);
 	if (p.a < 0.004 && s.a < 0.004) return base;
 	float detail = 1.0 - smoothstep(0.06, 0.35, pix);
-	vec3 col = base;
+	vec2 tq = world.xz + u_true;
+	Surf out_s = base;
 	if (p.a >= 0.004) {
 		vec3 w = p.rgb / max(1e-3, p.r + p.g + p.b);
-		vec3 painted = vec3(0.0);
-		if (w.r > 0.003) painted += w.r * paint_grass(q, detail);
-		if (w.g > 0.003) painted += w.g * paint_cobble(q, detail);
-		if (w.b > 0.003) painted += w.b * paint_sand(q, detail);
-		col = mix(col, painted, p.a);
+		Surf painted = surf_zero();
+		if (w.r > 0.003) painted = surf_acc(painted, m_grass(q, tq, detail), w.r);
+		if (w.g > 0.003) painted = surf_acc(painted, m_cobble(q, tq, detail), w.g);
+		if (w.b > 0.003) painted = surf_acc(painted, m_sand(q, tq, detail), w.b);
+		out_s = surf_mix(out_s, painted, p.a);
 	}
 	// les fonds par-dessus : le pinceau de l'une efface l'autre, l'ordre ne compte guère
 	if (s.a >= 0.004) {
 		vec3 w = s.rgb / max(1e-3, s.r + s.g + s.b);
-		vec3 painted = vec3(0.0);
-		if (w.r > 0.003) painted += w.r * paint_whitesand(q, detail);
-		if (w.g > 0.003) painted += w.g * paint_mud(q, detail);
-		if (w.b > 0.003) painted += w.b * paint_seagrass(q, detail);
-		col = mix(col, painted, s.a);
+		Surf painted = surf_zero();
+		if (w.r > 0.003) painted = surf_acc(painted, m_whitesand(q, tq, detail), w.r);
+		if (w.g > 0.003) painted = surf_acc(painted, m_mud(q, tq, detail), w.g);
+		if (w.b > 0.003) painted = surf_acc(painted, m_seagrass(q, tq, detail), w.b);
+		out_s = surf_mix(out_s, painted, s.a);
 	}
-	return col;
+	return out_s;
 }
