@@ -35,6 +35,8 @@ public partial class ShipDemo
 
     /// <summary>--poser-navire fiche : un navire posé à la main devant le port de départ, SANS enregistrer — pour l'essai.</summary>
     string _hullTest = "";
+    /// <summary>--poser-pavillon nation : un mât de pavillon sur un fort, SANS enregistrer — pour l'essai.</summary>
+    string _flagTest = "";
 
     /// <summary>Chaque image, dans les deux modes : faire naître les ajouts relus, et les poser contre l'origine.</summary>
     void EditFrame(Vec3d origin, double dt)
@@ -54,8 +56,24 @@ public partial class ShipDemo
                 _hullTest = "";
             }
         }
+        /* --poser-pavillon nation : un mât sur le fort ajout:52, monté de huit mètres, NON
+           enregistré — pour le voir flotter sans toucher aux retouches */
+        if (_flagTest.Length > 0 && _editReg.ById.TryGetValue("ajout:52", out var fort))
+        {
+            _clip = (null, ShoreFlagKey + _flagTest, "essai", 0.0, 1.0, 8.0, "");
+            if (EditPaste(new Vec3d(fort.X, 0, fort.Z)) is { } placed)
+            {
+                GD.Print(FormattableString.Invariant($"[éditeur] essai : pavillon {_flagTest} posé sur le fort, non enregistré"));
+                var o = _sea.Core.Origin;
+                _fixLook = new Vector3((float)(fort.X - o.X), (float)(placed.GroundY + 9), (float)(fort.Z - o.Z));
+                _fixEye = _fixLook + new Vector3(30, 4, 36);
+                _planted = true;
+            }
+            _flagTest = "";
+        }
         SpawnPending();
         Chimneys(origin, dt);
+        ShoreFlagsTick();
         _addedHolds.Update(origin);
         foreach (var m in _editHazed) { _sky.PushTo(m); _sky.SetCloud(m, _cloud, _t); }
     }
@@ -314,6 +332,8 @@ public partial class ShipDemo
     Raw? RawModel(string rel)
     {
         if (_raws.TryGetValue(rel, out var have)) return have;
+        // un mât de pavillon n'est pas un fichier : il est bâti ici (ShipDemo.ShoreFlags.cs)
+        if (rel.StartsWith(ShoreFlagKey, StringComparison.Ordinal)) return _raws[rel] = ShoreFlagRaw(rel);
         Raw? outp = null;
         string path = Assets.Path(rel);
         if (System.IO.File.Exists(path))
@@ -435,6 +455,10 @@ public partial class ShipDemo
             _paletteItems.Add((e.FamilyLabel, e, "", ""));
         }
         _paletteItems.Sort((a, b) => string.Compare(a.Label, b.Label, StringComparison.CurrentCulture));
+        /* LES MÂTS DE PAVILLON, un par nation, EN TÊTE des modèles (demandé : ils se
+           perdaient au bas d'une longue liste) : sur un fort, une batterie, un ponton */
+        foreach (var nat in _nations.All)
+            _paletteItems.Add(($"pavillon · {nat.Pays ?? nat.Nationalite ?? nat.Id} · mât de {ShoreStaff:0} m", null, ShoreFlagKey + nat.Id, ""));
         foreach (var dir in new[] { "world/models", "props" })
         {
             var names = new SortedSet<string>(StringComparer.Ordinal);

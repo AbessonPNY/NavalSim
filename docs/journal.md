@@ -15005,6 +15005,51 @@ passe le filtre en rouge, les reflets trouvés en vert. LIMITE DITE : en espace 
 l'image ou au-delà de la portée ne se reflète pas, et au loin la recherche trouve peu. COÛT : +0,1 à
 0,4 ms de carte graphique, au port, au ras de l'eau.
 
+## La fumée dans la brume (Godot)
+
+SIGNALÉ (capture) : dans la brume, la fumée des cheminées était « dessinée au-dessus » — des panaches
+noirs, nets, sur des maisons noyées. Les bouffées (puff.gdshaderinc : poudre, soute, cheminées,
+flammes) n'avaient AUCUNE brume. Elles prennent maintenant celle des navires : ship_haze.gdshaderinc,
+le ciel lu en uniformes globaux (comme les rubans de cordage — leurs matières ne recevaient rien du ciel,
+leur couleur se calcule sur le processeur, donc rien d'autre ne change), haze_along^1,5. Ce qui voile
+(puff_mix) prend la couleur de la brume ; ce qui brille (puff_add, PUFF_ADD) s'y éteint. Vu en brume
+épaisse au-dessus de Port-Royal : plus de panache noir sur la ville noyée.
+
+## Des pavillons sur les forts ; le pavillon qui pend au calme (Godot)
+
+DEMANDÉ : « en mettre sur les forts posés dans Port-Royal », puis « un pavillon sans vent reste droit, le
+tissu ne tombe pas ».
+
+LE MÂT DE PAVILLON À TERRE (ShipDemo.ShoreFlags.cs) : un objet du mode création, offert par la palette
+(Tab) une fois par nation de flags.json — « pavillon · Angleterre · mât de 12 m ». Il se pose, se monte
+sur le fort (↑, ⇧↑), se copie ; le fichier des retouches retient « glb » : "pavillon:angleterre"
+(RawModel le bâtit au lieu de lire un fichier). L'étamine est celle des navires (FlagCloth, la matière
+des voiles, l'image de la nation), trois mètres de guindant, et elle flotte au VENT VRAI
+(Ocean.WindVec) : un fort ne fait pas route. Plus animé au-delà de deux kilomètres. Essai sans rien
+écrire : -- --poser-pavillon angleterre (sur le fort ajout:52, monté de huit mètres).
+RÉALISME, dit : un fort anglais de 1690 hissait plutôt l'Union (le Jack de 1606) que l'enseigne
+marchande ; c'est l'image « image » de la nation qui est prise.
+
+LE PAVILLON QUI PEND : au calme, FlagCloth.Stream l'affaissait d'une moitié de sa longueur en lui
+laissant les quatre cinquièmes de sa portée — une planche qui plie. FlagCloth.Hangs (Godot ; la page et
+le banc de parité gardent l'ancien, 8/8) : l'étamine TOURNE vers le bas autour de sa drisse, jusqu'à 85°
+au calme plat, le battant le long de la hampe, avec des plis verticaux lents ; le vent qui revient la
+relève par degrés (pleine à 8 m/s). Vu à la capture, force 0, sur le fort : le pavillon pend.
+ET DANS L'EAU, EN TORCHE (demandé) : noyée, elle gardait toute sa largeur en ondulant. Elle se
+resserre maintenant sur sa ligne médiane (jusqu'à 85 %, davantage vers le battant libre qu'au guindant
+tenu) et se vrille comme un bout de cordage, d'un tour et quart sur sa longueur, la vrille travaillée
+lentement par le courant. Même interrupteur (Hangs). Essai : -- --poser-pavillon angleterre
+--pavillon-noye 1 (le pavillon du fort traité comme noyé).
+ENTRER DANS L'EAU SANS SAUTER (signalé : « met longtemps à se retrouver à l'eau lors d'un naufrage, et
+fait des glitchs en sautant de l'état air à l'état eau »). Deux causes, dans ShipNode.StreamFlags : on
+mesurait la hauteur à la POMME de la drisse, et un pavillon qui pend trempait bien avant elle ; et la
+mesure suivait chaque lame au ras de l'eau, l'étamine passant d'une forme à l'autre d'une image à la
+suivante. On mesure maintenant le MILIEU de l'étoffe (Flag.Mid, u 0,55 v 0,5, dans sa position de
+l'image d'avant), noyé de 0,5 m au-dessus à 0,7 m dessous, et l'état (Flag.Wet) y va en une
+demi-seconde. Relevé, la soute sautée : la pomme du grand mât encore à 4 m après 84 s — un pavillon
+de tête de mât est la dernière chose à couler, et c'est juste. La palette offre maintenant les mâts
+de pavillon EN TÊTE de ses modèles (ils se perdaient en bas d'une longue liste).
+
 ## La pluie sans la tempête ; partir d'une partie neuve (Godot)
 
 DEMANDÉ : « une pluie diluvienne me fait penser que nous n'avons pas la pluie forte sans la tempête —

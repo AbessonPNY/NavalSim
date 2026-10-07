@@ -301,6 +301,8 @@ public partial class ShipDemo
                 // d'origine : une camera qui suit une coque soulevee de quarante
                 // metres se retrouve dans la vague, et la comparaison ne vaut rien
                 // la caméra suit le premier navire de la rade (ShipDemo.Traffic.cs)
+                case "--pavillon-noye": _flagDrownTest = Math.Clamp(args[i + 1].ToFloat(), 0, 1); break;
+                case "--poser-pavillon": _flagTest = args[i + 1]; _askTitle ??= false; break;
                 case "--poser-navire": _hullTest = args[i + 1]; _askTitle ??= false; break;
                 case "--rade-vue": _tripCam = true; _askTitle ??= false; break;
                 // un mouvement des horaires échu dès l'ouverture (« depart:3 », « arrivee:1 »)

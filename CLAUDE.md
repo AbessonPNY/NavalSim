@@ -53,7 +53,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `world.js` · `land.js` | la Jamaïque (×0,4) lue dans `world/` (relief, ports, modèles posés, `Naval.Geo`) · le relief en carreaux |
 | `jetty.js` | le ponton d'un port |
 | `Moored.cs` (Godot) | où mouiller les navires d'un port : à quai les petits, en rade les gros |
-| `Edits.cs` · `EditRegistry.cs` · `ShipDemo.Editor.cs` (Godot) | le mode création (²) : retoucher, copier, coller ce que le monde pose ; `world/retouches/<région>.json` |
+| `Edits.cs` · `EditRegistry.cs` · `ShipDemo.Editor.cs` (Godot) | le mode création (²) : retoucher, copier, coller ce que le monde pose ; `world/retouches/<région>.json` ; les mâts de pavillon à terre (`ShipDemo.ShoreFlags.cs`, `"pavillon:<nation>"`) |
 | `ShelterMap.cs` (noyau) | l'abri que donne la FORME du rivage autour d'un port (`"abri"`) — le quatrième usager de l'abri, avec le môle |
 | `tools/jetty-glb.js` · `tools/glb-write.js` | les pièces d'un ponton en .glb (travee, pieu, bitte) · la mise en paquet .glb commune aux outils |
 | `GroundPaint.cs` · `ground_paint.gdshaderinc` (Godot) | le sol peint au pinceau (², P) : herbe, pavés, sable au demi-mètre ; `world/peinture/*.png` |

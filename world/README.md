@@ -378,6 +378,7 @@ palette et la TAILLE d'un modèle brut en mètres (sa plus grande dimension). L'
 pas : un fort de cent unités et un tonneau de quatre-vingt-dix-huit se ressemblent. Un modèle absent paraît
 quand même, à l'échelle de son fichier. Changer une taille ici change la taille de base des ajouts déjà posés :
 leur `echelle` est relative à elle.
+**Mât de pavillon** : la palette offre aussi « pavillon · <pays> », un mât de 12 m et l'étamine de la nation (flags.json), qui flotte au vent vrai ; dans les retouches, `"glb": "pavillon:<id de la nation>"`.
 `lanternes` : combien de lanternes de nuit le modèle porte à sa façade, sa face **+z** (0 par défaut) — allumées au
 crépuscule, soufflées avant deux heures (`TownNode.Lamps.cs`). Les maisons des villes et leurs copies ont les leurs.
 

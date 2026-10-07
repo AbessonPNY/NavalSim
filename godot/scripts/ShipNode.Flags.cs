@@ -31,6 +31,10 @@ public partial class ShipNode
         public bool ByNation;
         public string? NationKey;
         public Node3D? Staff;                  // la hampe, à son pied
+        /// <summary>Le sommet au milieu de l'étamine : c'est LUI qu'on mesure contre la mer.</summary>
+        public int Mid;
+        /// <summary>Ce qui est dans l'eau, lissé : 0 dans l'air, 1 noyé.</summary>
+        public double Wet;
         public readonly Godot.Collections.Array Arrays = NewArrays();
         LiveCloth? _live;
         public LiveCloth Live => _live ??= new LiveCloth(Arrays);
@@ -116,7 +120,7 @@ public partial class ShipNode
        sort charbon, ce qui est un pavillon sale et non un pavillon sinistre. Une
        image apporte donc la sienne, bien plus faible. La toile du navire, pour le
        reste : la lumière qui la traverse est la même. */
-    ShaderMaterial NewFlagMat() =>
+    internal static ShaderMaterial NewFlagMat() =>
         new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/sail.gdshader") };
 
     /// <summary>La repousser à toutes ses toiles — pour juger le réglage sans rebâtir.</summary>
@@ -127,7 +131,7 @@ public partial class ShipNode
         foreach (var m in _flagMats.Values) m.SetShaderParameter(UCanvasFloor, (float)CanvasFloor);
     }
 
-    void Dress(ShaderMaterial m, Texture2D? map, Color colour, bool painted)
+    internal static void Dress(ShaderMaterial m, Texture2D? map, Color colour, bool painted)
     {
         m.SetShaderParameter(U.Canvas, colour);
         m.SetShaderParameter(U.Emissive, ColorX.Hex(painted ? "0x2a2a2e" : "0x7c7a72"));
@@ -397,7 +401,8 @@ public partial class ShipNode
     /// </summary>
     Flag FlagAt(Node3D parent, double x, double topY, double z, FlagSpec l, double tilt)
     {
-        var cloth = new FlagCloth(Spec.L, l, Rng.Randf() * 6.28);
+        // sous le calme, elle tombe pour de bon (FlagCloth.Hangs ; la page garde l'ancien affaissement)
+        var cloth = new FlagCloth(Spec.L, l, Rng.Randf() * 6.28) { Hangs = true };
         string shapeName = cloth.ShapeName;
         bool byNation = l.Image != null && (l.Image == "nation" || l.Image.StartsWith("nation:"));
         string? key = byNation ? (l.Image!.Length > 7 ? l.Image[7..] : shapeName) : null;
@@ -408,6 +413,13 @@ public partial class ShipNode
             V = new Vector3[n], N = new Vector3[n], Uv = new Vector2[n], Idx = new int[cloth.Indices.Length]
         };
         f.Mat = byNation ? NationMat(key!) : l.Image != null ? FlagMat(l.Image) : _flagMat;
+        // le milieu de l'étoffe, une fois pour toutes
+        double bestMid = double.MaxValue;
+        for (int k = 0; k < n; k++)
+        {
+            double dm = Math.Abs(cloth.U[k] - 0.55) + Math.Abs(cloth.V[k] - 0.5);
+            if (dm < bestMid) { bestMid = dm; f.Mid = k; }
+        }
         for (int k = 0; k < n; k++) f.Uv[k] = new Vector2(cloth.Uvs[k * 2], 1 - cloth.Uvs[k * 2 + 1]);
         // le sens des triangles retourné, comme la toile : face avant horaire chez Godot
         for (int t = 0; t < f.Idx.Length; t += 3)
@@ -443,10 +455,14 @@ public partial class ShipNode
     /// <summary>La mer, pour savoir si un pavillon est encore dans le vent ou déjà dans l'eau.</summary>
     public NavalSim.Core.Ocean? Sea;
 
+    double _flagT = double.NaN;
+
     public void StreamFlags(double t)
     {
         var p = Physics;
         ColourTick();
+        double dt = double.IsNaN(_flagT) ? 0 : Math.Clamp(t - _flagT, 0, 0.25);
+        _flagT = t;
         foreach (var f in _flags)
         {
             if (!f.Pivot.Visible || !f.Node.IsVisibleInTree()) continue;
@@ -456,18 +472,23 @@ public partial class ShipNode
                sa longueur en retombant. Lu sur SA hauteur à lui, pas sur celle du
                navire : le grand pavillon de poupe touche l'eau bien avant les
                têtes de mât. */
-            double vApp = p.AppWindSpeed, lift = 0;
+            /* MESURÉ AU MILIEU DE L'ÉTOFFE, ET LISSÉ (signalé : le pavillon « met longtemps
+               à se retrouver à l'eau » et « fait des glitchs en sautant de l'état air à
+               l'état eau »). On mesurait la pomme de la drisse : un pavillon qui pend
+               trempait bien avant elle. Et la mesure suivait chaque lame au ras de l'eau,
+               si bien que l'étamine sautait d'une forme à l'autre d'une image à la suivante :
+               ce qui est dans l'eau y entre et en sort maintenant en une demi-seconde. */
+            double vApp = p.AppWindSpeed;
             if (Sea != null)
             {
-                var w = f.Mount.GlobalPosition;
+                int m3 = f.Mid * 3;
+                var w = f.Node.GlobalTransform * new Vector3(f.Cloth.Positions[m3], f.Cloth.Positions[m3 + 1], f.Cloth.Positions[m3 + 2]);
                 double over = w.Y - Sea.Sample(w.X, w.Z, t);
-                if (over < 1.5)
-                {
-                    double air = Math.Clamp(over / 1.5, 0, 1);
-                    vApp *= air;
-                    lift = 1 - air;          // ce qui est dans l'eau y est PORTÉ
-                }
+                double target = Math.Clamp((0.5 - over) / 1.2, 0, 1);
+                f.Wet += (target - f.Wet) * Math.Min(1, dt / 0.5);
             }
+            double lift = f.Wet;
+            vApp *= 1 - lift;            // ce qui est dans l'eau y est PORTÉ, et plus dans le vent
             double yaw = f.Cloth.Stream(p.AppWindAngle, p.Tack, vApp, t, lift);
             f.Pivot.Rotation = new Vector3(0, (float)yaw, 0);
             UploadFlag(f);
@@ -481,7 +502,7 @@ public partial class ShipNode
     static readonly Dictionary<string, Texture2D?> FlagImages = new();
 
     /* Une image de pavillon, partagée par tous ceux qui la nomment. */
-    static Texture2D? FlagImage(string src)
+    internal static Texture2D? FlagImage(string src)
     {
         if (FlagImages.TryGetValue(src, out var t)) return t;
         var img = Image.LoadFromFile(System.IO.Path.Combine(RepoRoot, src));

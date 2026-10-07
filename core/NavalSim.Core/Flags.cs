@@ -120,6 +120,15 @@ public sealed class FlagCloth
     /// la PORTE — elle ondule lentement, soulevée par en dessous, et son onde
     /// s'étire d'autant. C'est le seul écart avec la page, qui n'a pas d'eau.
     /// </param>
+    /// <summary>
+    /// TOMBER POUR DE BON sous le calme (Godot ; demandé : « un pavillon sans vent reste droit,
+    /// le tissu ne tombe pas »). Faux — la page et le banc de parité —, il s'affaisse d'une
+    /// moitié de sa longueur en gardant les quatre cinquièmes de sa portée : une planche qui
+    /// plie. Vrai, l'étamine TOURNE vers le bas autour de sa drisse et pend le long de la
+    /// hampe, en plis.
+    /// </summary>
+    public bool Hangs;
+
     public double Stream(double beta, double tack, double vApp, double t, double lift = 0)
     {
         double yaw = Math.Atan2(tack * Math.Sin(beta), -Math.Cos(beta));
@@ -135,10 +144,37 @@ public sealed class FlagCloth
             // dans l'air, le vent la fait claquer ; dans l'eau, un lent balancement qui ne s'arrête pas
             p[i3] = (float)(sway * Math.Max(drive, 0.45 * lift));
             // elle pend d'autant moins qu'elle est portée : dans l'eau, elle se SOULÈVE
-            double droop = (1 - drive) * (1 - lift) * u * u * Fly * 0.55;
             double rise = lift * u * u * Fly * 0.22 * (0.6 + 0.4 * Math.Sin(t * 0.7 + Seed + u * 2.0));
-            p[i3 + 1] = (float)(Base[i3 + 1] - droop + rise);
-            p[i3 + 2] = (float)(Base[i3 + 2] * (0.80 + 0.20 * Math.Max(drive, 0.8 * lift)));
+            double reach = 0.80 + 0.20 * Math.Max(drive, 0.8 * lift);
+            if (Hangs)
+            {
+                /* elle tourne vers le bas autour de sa drisse, d'autant plus que le vent
+                   manque : à 85° au calme plat, le battant le long de la hampe. Le vent
+                   qui revient la relève par degrés — sous trois mètres par seconde, elle
+                   ne fait que se soulever. */
+                double calm = (1 - drive) * (1 - lift);
+                double ang = 1.48 * calm * calm * (3 - 2 * calm);
+                double s = Base[i3 + 2];
+                /* ET DANS L'EAU, EN TORCHE (demandé). Une étamine noyée ne garde pas sa
+                   largeur : l'eau la plaque sur elle-même, elle se resserre sur sa ligne
+                   médiane et se vrille comme un bout de cordage — d'autant plus vers le
+                   battant, libre, qu'au guindant tenu par la drisse. La vrille tourne
+                   lentement : le courant la travaille. */
+                double mid = -Hoist * 0.5, off = Base[i3 + 1] - mid;
+                double squeeze = 1 - 0.85 * lift * Math.Min(1, 0.3 + u * 1.4);
+                double twist = lift * (u * 7.5 + 0.5 * Math.Sin(t * 0.45 + Seed));
+                p[i3 + 1] = (float)(mid + off * squeeze * Math.Cos(twist) - s * Math.Sin(ang) + rise);
+                p[i3 + 2] = (float)(s * Math.Cos(ang) * reach);
+                p[i3] += (float)(off * squeeze * Math.Sin(twist));
+                // et elle fait des plis, ce que fait une étoffe qui pend : verticaux, lents
+                p[i3] += (float)(calm * Hoist * 0.07 * u * Math.Sin(u * 11 + V[k] * 0.8 + Seed + t * 0.6));
+            }
+            else
+            {
+                double droop = (1 - drive) * (1 - lift) * u * u * Fly * 0.55;
+                p[i3 + 1] = (float)(Base[i3 + 1] - droop + rise);
+                p[i3 + 2] = (float)(Base[i3 + 2] * reach);
+            }
         }
         SailCloth.ComputeNormals(Positions, Normals, Indices);
         return yaw;

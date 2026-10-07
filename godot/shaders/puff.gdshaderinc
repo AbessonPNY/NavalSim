@@ -7,7 +7,11 @@
  * puff_mix), qui ne diffèrent que par leur render_mode.
  */
 
-#include "res://shaders/sky.gdshaderinc"
+/* LE CIEL EN GLOBAL, comme les rubans de cordage : la bouffée ne recevait rien du
+   ciel et sa couleur se calcule sur le processeur ; seule la brume en a besoin, et
+   SkyNode l écrit une fois par image (PushGlobals). */
+#define NAVAL_SKY_GLOBAL
+#include "res://shaders/ship_haze.gdshaderinc"
 
 uniform sampler2D u_tex : source_color, filter_linear_mipmap, repeat_disable;
 
@@ -35,7 +39,15 @@ void vertex() {
 void fragment() {
 	vec4 t = texture(u_tex, UV);
 	if (t.a * v_col.a < 0.002) discard;
-	ALBEDO = v_col.rgb * t.rgb;
+	/* L AIR ENTRE L ŒIL ET ELLE (signalé : dans la brume, la fumée des cheminées était
+	   « dessinée au-dessus », noire sur des maisons noyées). Ce qui voile prend la couleur
+	   de la brume, comme un navire (hull_haze) ; ce qui brille s y éteint. */
+	float hz = pow(haze_along(CAMERA_POSITION_WORLD, v_world), 1.5);
+#ifdef PUFF_ADD
+	ALBEDO = v_col.rgb * t.rgb * (1.0 - hz);
+#else
+	ALBEDO = mix(v_col.rgb * t.rgb, ship_haze_colour(CAMERA_POSITION_WORLD, v_world), hz);
+#endif
 	ALPHA = t.a * v_col.a;
 	/* LA FUMÉE SE FOND DANS L'EAU au lieu d'y être coupée : une bouffée couchée
 	   sur la mer a la moitié basse de son disque sous la surface, et la mer, qui

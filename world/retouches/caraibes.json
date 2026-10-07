@@ -3,7 +3,9 @@
   "note": "Retouches de l'éditeur (mode création, ²) : ce que la main a changé aux objets que le monde pose de lui-même. Format : world/README.md.",
   "retouches": [
     { "id": "ajout:1", "de": "semis:Rochers des plages de Port-Royal:7", "x": -430.53, "z": 23.95, "cap": 401.0, "echelle": 3.733 },
-    { "id": "ajout:10", "glb": "world/models/fort_001.glb", "x": -395.90, "z": 478.59, "cap": 125.0, "echelle": 0.396 },
+    { "id": "ajout:10", "glb": "world/models/fort_001.glb", "x": -404.50, "z": 479.51, "cap": 125.0, "echelle": 0.396 },
+    { "id": "ajout:100", "glb": "pavillon:angleterre", "x": -300.85, "z": -187.54, "cap": 0.0, "echelle": 1.629 },
+    { "id": "ajout:101", "glb": "pavillon:angleterre", "x": -394.78, "z": 477.92, "cap": 0.0, "dy": 7.90 },
     { "id": "ajout:11", "de": "pate:port-royal:18", "x": -546.38, "z": 4.48, "cap": -75.4 },
     { "id": "ajout:12", "de": "pate:port-royal:18", "x": -538.35, "z": 34.17, "cap": -75.4 },
     { "id": "ajout:13", "de": "pate:port-royal:19", "x": -482.39, "z": 144.00, "cap": -75.4 },

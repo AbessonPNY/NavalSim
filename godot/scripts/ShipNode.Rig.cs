@@ -42,7 +42,7 @@ public partial class ShipNode
         public LiveCloth Live => _live ??= new LiveCloth(Arrays);
     }
 
-    static Godot.Collections.Array NewArrays()
+    internal static Godot.Collections.Array NewArrays()
     {
         var a = new Godot.Collections.Array();
         a.Resize((int)Mesh.ArrayType.Max);
