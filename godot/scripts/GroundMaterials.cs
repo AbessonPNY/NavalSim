@@ -37,7 +37,7 @@ public static class GroundMaterials
     }
 
     static readonly Mat[] _mats = new Mat[N];
-    static Texture2DArray? _a, _b;
+    static Texture2DArray? _a, _b, _c;
     static bool _loaded;
 
     /// <summary>Les teintes de la mer : l'eau profonde, l'eau claire des hauts-fonds (linéaires).</summary>
@@ -86,6 +86,7 @@ public static class GroundMaterials
             }
             var a = new Godot.Collections.Array<Image>();
             var b = new Godot.Collections.Array<Image>();
+            var c = new Godot.Collections.Array<Image>();
             var pending = new List<(int i, JsonElement maps)>();
             if (root.TryGetProperty("matieres", out var mats))
                 for (int i = 0; i < N; i++)
@@ -123,11 +124,13 @@ public static class GroundMaterials
                 a.Add(PackA(col, Read(maps.Str("hauteur"), Keys[i]), size));
                 b.Add(PackB(Read(maps.Str("normale"), Keys[i]), Read(maps.Str("rugosite"), Keys[i]),
                             Read(maps.Str("metal"), Keys[i]), m, size));
+                c.Add(PackC(Read(maps.Str("occlusion"), Keys[i]), size));
             }
             if (a.Count > 0)
             {
                 _a = new Texture2DArray(); _a.CreateFromImages(a);
                 _b = new Texture2DArray(); _b.CreateFromImages(b);
+                _c = new Texture2DArray(); _c.CreateFromImages(c);
             }
             MapCost.Add("matières", sw.Elapsed.TotalMilliseconds);
             if (a.Count > 0) GD.Print($"[matières] {a.Count} texturée(s) en {size}² ({sw.ElapsedMilliseconds} ms)");
@@ -186,6 +189,17 @@ public static class GroundMaterials
         return img;
     }
 
+    /// <summary>La pile C : l'occlusion, sur un seul canal (pleine lumière si absente).</summary>
+    static Image PackC(Image? ao, int size)
+    {
+        var s = Fit(ao, size);
+        var o = new byte[size * size];
+        for (int p = 0; p < size * size; p++) o[p] = s.Length > 0 ? s[p * 4] : (byte)255;
+        var img = Image.CreateFromData(size, size, false, Image.Format.L8, o);
+        img.GenerateMipmaps();
+        return img;
+    }
+
     /// <summary>
     /// Tout pousser dans la matière de la terre — TOUJOURS, chaque tableau : un tableau
     /// d'uniformes n'a pas de valeur par défaut, et une rugosité jamais poussée vaut zéro.
@@ -214,7 +228,7 @@ public static class GroundMaterials
         mat.SetShaderParameter("u_mat_nflip", nflip);
         mat.SetShaderParameter("u_mat_tint", tint);
         mat.SetShaderParameter("u_mat_any", any ? 1f : 0f);
-        if (_a != null) { mat.SetShaderParameter("u_mat_a", _a); mat.SetShaderParameter("u_mat_b", _b); }
+        if (_a != null) { mat.SetShaderParameter("u_mat_a", _a); mat.SetShaderParameter("u_mat_b", _b); mat.SetShaderParameter("u_mat_c", _c); }
         // les teintes, celles des sommets : une seule définition, ici
         string[] names = { "u_grass", "u_cobble", "u_sand", "u_whitesand", "u_mud", "u_seagrass", "u_rock", "u_wood" };
         for (int i = 0; i < N; i++) mat.SetShaderParameter(names[i], new Vector3(_mats[i].Col.R, _mats[i].Col.G, _mats[i].Col.B));

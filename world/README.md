@@ -488,7 +488,8 @@ active par région pour l'instant.
     "normale":  "world/textures/sol/sable/normal.png",
     "rugosite": "world/textures/sol/sable/roughness.png",
     "hauteur":  "world/textures/sol/sable/height.png",
-    "metal":    "world/textures/sol/sable/metallic.png"
+    "metal":    "world/textures/sol/sable/metallic.png",
+    "occlusion": "world/textures/sol/sable/ao.png"   // n'assombrit que la lumière du ciel
   },
   "taille": 2,                    // mètres couverts par une répétition
   "force_normale": 1,
@@ -500,8 +501,9 @@ active par région pour l'instant.
 Sans `cartes.couleur`, la matière garde son DESSIN (celui d'avant, à l'identique) ; avec, elle est lue dans ses
 textures, et toutes les autres cartes sont facultatives. Sa HAUTEUR décide de la frontière avec sa voisine : le
 grain qui monte le plus haut l'emporte (le sable perce l'herbe par ses crêtes au lieu de s'y fondre). La
-texture est relue sous un angle et à une échelle autres, mêlée par plaques : une plage ne montre pas son
-carreau. Les textures de toutes les matières sont rangées en deux piles d'une même taille — la plus petite des
+texture est relue décalée et tournée de 15°, à la même échelle, et les deux lectures se départagent par plaques
+et par la hauteur du grain : une plage ne montre pas son carreau. Elle est PLAQUÉE D'EN HAUT (en x et z) : sur
+une pente, le grain s'allonge dans le sens de la pente (×1,15 à 30°, ×2 à 60°). Les textures de toutes les matières sont rangées en deux piles d'une même taille — la plus petite des
 couleurs lues, plafonnée par `taille_texture` (2048) : une carte plus grande est réduite, jamais l'inverse.
 PNG, JPG, WebP, TGA, BMP ; une carte en niveaux de gris se lit sur son rouge. Une texture lourde peut
 vivre sous `godot-models/` au même chemin (Godot seul la lit, de toute façon).

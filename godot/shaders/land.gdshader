@@ -101,6 +101,8 @@ void fragment() {
 	ALBEDO = s.col * caustiques(v_world, length(v_world - CAMERA_POSITION_WORLD), pix);
 	ROUGHNESS = s.rough;
 	METALLIC = s.metal;
+	// l'occlusion d'une matière texturée : le ciel seul, le soleil n'en sait rien (AO_LIGHT_AFFECT nul)
+	AO = s.ao;
 	/* LA NORMALE D'UNE MATIÈRE TEXTURÉE, posée sur celle du relief : une texture plaquée
 	   au sol, en x et z du monde — son repère tangent est donc +x et +z, couchés sur la pente. */
 	if (dot(s.n, s.n) > 1e-6) {

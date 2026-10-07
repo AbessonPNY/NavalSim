@@ -120,7 +120,7 @@ vec3 paint_seagrass(vec2 q, float detail) {
    d'où passe la frontière entre deux matières (le grain du sable perce l'herbe, il ne
    se fond pas dedans). « tex » : vient d'une texture ; deux surfaces dessinées se
    mélangent comme avant, au fondu. */
-struct Surf { vec3 col; vec2 n; float rough; float metal; float h; float tex; };
+struct Surf { vec3 col; vec2 n; float rough; float metal; float h; float tex; float ao; };
 
 /* LES MATIÈRES, dans l'ordre de GroundMaterials.Keys : 0 herbe, 1 pavés, 2 sable,
    3 sable blanc, 4 vase, 5 herbier, 6 roche, 7 forêt. Une matière texturée a sa
@@ -130,6 +130,8 @@ struct Surf { vec3 col; vec2 n; float rough; float metal; float h; float tex; };
 #define MATS 8
 uniform sampler2DArray u_mat_a : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2DArray u_mat_b : filter_linear_mipmap_anisotropic, repeat_enable;
+// C : l'occlusion (r) — la lumière du ciel qui n'entre pas au creux des rides
+uniform sampler2DArray u_mat_c : filter_linear_mipmap_anisotropic, repeat_enable;
 uniform int u_mat_layer[MATS];       // la couche + 1 ; 0 : pas de texture (un tableau d'uniformes n'a pas de défaut)
 uniform float u_mat_size[MATS];      // mètres couverts par une répétition de la texture
 uniform float u_mat_rough[MATS];
@@ -140,26 +142,34 @@ uniform vec3 u_mat_tint[MATS];
 uniform float u_mat_any = 0.0;       // au moins une matière texturée : la terre se recalcule
 
 Surf surf_flat(vec3 col, int id) {
-	Surf s; s.col = col; s.n = vec2(0.0); s.rough = u_mat_rough[id]; s.metal = u_mat_metal[id]; s.h = 0.5; s.tex = 0.0;
+	Surf s; s.col = col; s.n = vec2(0.0); s.rough = u_mat_rough[id]; s.metal = u_mat_metal[id]; s.h = 0.5; s.tex = 0.0; s.ao = 1.0;
 	return s;
 }
 
 /* LIRE UNE MATIÈRE TEXTURÉE, sans que sa répétition se voie : une seconde lecture,
-   tournée et plus grande, mêlée à la première par plaques de quelques répétitions —
-   une plage de cent mètres ne montre plus son carreau de deux. */
+   DÉCALÉE et à peine tournée (15°), À LA MÊME ÉCHELLE — plus grande, elle faisait des
+   plaques où le grain paraissait étiré (signalé). Les deux se départagent par plaques
+   de quelques répétitions, et par la HAUTEUR du grain, non par un fondu : un fondu
+   superpose deux jeux de rides et les brouille ; là, c'est l'une ou l'autre, la
+   frontière passant par les creux. */
 Surf surf_tex(int id, vec2 q) {
 	float layer = float(u_mat_layer[id] - 1), sz = max(0.05, u_mat_size[id]);
 	vec2 uv1 = q / sz;
-	vec2 uv2 = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8)) * q / (sz * 2.3) + vec2(0.37, 0.71);
-	float k = smoothstep(0.3, 0.7, paint_noise(q / (sz * 3.1)));
-	vec4 a = mix(texture(u_mat_a, vec3(uv1, layer)), texture(u_mat_a, vec3(uv2, layer)), k);
+	vec2 uv2 = mat2(vec2(0.966, 0.259), vec2(-0.259, 0.966)) * q / sz + vec2(0.37, 0.71);
+	float t = smoothstep(0.3, 0.7, paint_noise(q / (sz * 3.1)));
+	vec4 a1 = texture(u_mat_a, vec3(uv1, layer)), a2 = texture(u_mat_a, vec3(uv2, layer));
+	float m1 = a1.a + (1.0 - t), m2 = a2.a + t, mm = max(m1, m2) - 0.15;
+	float w1 = max(m1 - mm, 0.0), w2 = max(m2 - mm, 0.0);
+	float k = w2 / max(w1 + w2, 1e-4);
+	vec4 a = mix(a1, a2, k);
 	vec4 b = mix(texture(u_mat_b, vec3(uv1, layer)), texture(u_mat_b, vec3(uv2, layer)), k);
+	float o = mix(texture(u_mat_c, vec3(uv1, layer)).r, texture(u_mat_c, vec3(uv2, layer)).r, k);
 	Surf s;
 	s.col = a.rgb * u_mat_tint[id];
 	s.h = a.a;
 	s.n = (b.rg * 2.0 - 1.0) * u_mat_nstr[id];
 	if (u_mat_nflip[id] > 0.5) s.n.y = -s.n.y;
-	s.rough = b.b; s.metal = b.a; s.tex = 1.0;
+	s.rough = b.b; s.metal = b.a; s.tex = 1.0; s.ao = o;
 	return s;
 }
 
@@ -179,7 +189,7 @@ Surf surf_mix(Surf a, Surf b, float t) {
 	Surf r;
 	r.col = mix(a.col, b.col, k); r.n = mix(a.n, b.n, k);
 	r.rough = mix(a.rough, b.rough, k); r.metal = mix(a.metal, b.metal, k);
-	r.h = mix(a.h, b.h, k); r.tex = max(a.tex, b.tex);
+	r.h = mix(a.h, b.h, k); r.tex = max(a.tex, b.tex); r.ao = mix(a.ao, b.ao, k);
 	return r;
 }
 
@@ -195,10 +205,10 @@ Surf m_seagrass(vec2 q, vec2 tq, float detail)  { return u_mat_layer[5] > 0 ? su
 /* Une somme pondérée de surfaces (les matières d'un pixel peint) — le poids total vaut un. */
 Surf surf_acc(Surf acc, Surf s, float w) {
 	acc.col += s.col * w; acc.n += s.n * w; acc.rough += s.rough * w; acc.metal += s.metal * w;
-	acc.h += s.h * w; acc.tex = max(acc.tex, s.tex * step(0.001, w));
+	acc.h += s.h * w; acc.ao += s.ao * w; acc.tex = max(acc.tex, s.tex * step(0.001, w));
 	return acc;
 }
-Surf surf_zero() { Surf s; s.col = vec3(0.0); s.n = vec2(0.0); s.rough = 0.0; s.metal = 0.0; s.h = 0.0; s.tex = 0.0; return s; }
+Surf surf_zero() { Surf s; s.col = vec3(0.0); s.n = vec2(0.0); s.rough = 0.0; s.metal = 0.0; s.h = 0.0; s.tex = 0.0; s.ao = 0.0; return s; }
 
 /* Le sol en ce point : celui de dessous, recouvert de ce qu'on a peint. `pix` est la
    largeur d'un pixel au sol, en mètres. */

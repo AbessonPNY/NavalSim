@@ -15032,6 +15032,14 @@ PIÈGE : un tableau d'uniformes n'a PAS de valeur par défaut sous Godot (« Set
 arrays is not supported ») — il vaut zéro tant qu'on ne l'a pas poussé. D'où la couche écrite +1 (0 : pas de
 texture), et GroundMaterials.Apply qui pousse TOUS les tableaux à chaque fois, rugosité comprise.
 
+LE PREMIER VRAI SABLE (wavy-sand, 2048²) : d'abord invisible — son bloc écrit à la racine du fichier et non
+dans « matieres » ; une matière mal rangée est maintenant signalée. Puis « des portions où le sable paraît
+plus ou moins étiré » : la seconde lecture anti-répétition était 2,3 fois plus grande, et chaque plaque de
+bruit montrait l'une ou l'autre échelle. Elle est désormais à la MÊME échelle, décalée et tournée de 15°, et
+les deux se départagent par la hauteur du grain (un fondu superposait deux jeux de rides). Reste le
+plaquage d'en haut : sur une pente le grain s'allonge (×1,15 à 30°) — un plaquage triplanaire si besoin.
+L'OCCLUSION en troisième pile (L8), écrite dans AO : elle n'assombrit que la lumière du ciel.
+
 LA MER : profond et clair (u_deep, u_shallow, sea_far), et l'eau vue du dessous prise au tiers du profond
 (c'étaient déjà ces valeurs, écrites à la main). Essai avec un sable de synthèse (rides, grains, 512²) posé
 sous godot-models/world/ : 55 ms de lecture, les rides éclairées par la normale, la grève qui mord l'herbe.
