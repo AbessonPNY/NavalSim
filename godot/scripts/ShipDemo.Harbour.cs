@@ -337,6 +337,7 @@ public partial class ShipDemo
             _town.Build(t.Name, g.X, g.Z, t.Radius, t.Houses, seed += 7919);
         }
         GD.Print(FormattableString.Invariant($"villes bâties en {watch.Elapsed.TotalMilliseconds:F0} ms"));
+        MapCost.Add("villes", watch.Elapsed.TotalMilliseconds);
         Plage();
     }
 

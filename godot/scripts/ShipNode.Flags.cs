@@ -35,6 +35,8 @@ public partial class ShipNode
         public int Mid;
         /// <summary>Ce qui est dans l'eau, lissé : 0 dans l'air, 1 noyé.</summary>
         public double Wet;
+        /// <summary>Le temps passé hors de l'eau depuis qu'elle a trempé : au bout de deux minutes, elle a séché.</summary>
+        public double DryFor;
         public readonly Godot.Collections.Array Arrays = NewArrays();
         LiveCloth? _live;
         public LiveCloth Live => _live ??= new LiveCloth(Arrays);
@@ -489,6 +491,16 @@ public partial class ShipNode
             }
             double lift = f.Wet;
             vApp *= 1 - lift;            // ce qui est dans l'eau y est PORTÉ, et plus dans le vent
+            /* UNE FOIS TREMPÉE, EN TORCHE (demandé) : elle ne reprend pas le vent ni la houle ;
+               elle sèche en deux minutes hors de l'eau, si le navire s'en relève. */
+            if (f.Wet > 0.5) { f.Cloth.Soaked = true; f.DryFor = 0; }
+            else if (f.Cloth.Soaked && (f.DryFor += dt) > 120) f.Cloth.Soaked = false;
+            if (f.Cloth.Soaked)
+            {
+                f.Cloth.Stream(0, 1, 0, t, 1);      // la forme ne dépend plus de rien : elle pend
+                UploadFlag(f);
+                continue;                           // et son pivot ne tourne plus au vent
+            }
             double yaw = f.Cloth.Stream(p.AppWindAngle, p.Tack, vApp, t, lift);
             f.Pivot.Rotation = new Vector3(0, (float)yaw, 0);
             UploadFlag(f);

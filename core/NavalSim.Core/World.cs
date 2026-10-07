@@ -562,7 +562,24 @@ public sealed class World : IGround
     RockField? IGround.Rocks => Rocks;
 
     /// <summary>Le relief seul, ouvrages exclus — ce contre quoi un môle se mesure.</summary>
-    public double IslandHeight(double x, double z) => Decode(Grey(x, z));
+    public double IslandHeight(double x, double z) => Decode(Grey(x, z)) + Terraced(x, z);
+
+    /// <summary>
+    /// LES TERRASSEMENTS DES PORTS (Terraform), posés par l'hôte au chargement : le relief
+    /// retouché à la main. Vide — la page, le banc de parité —, rien ne change.
+    /// </summary>
+    public readonly List<Terraform> Terraforms = new();
+
+    double Terraced(double x, double z)
+    {
+        double d = 0;
+        // indexed: this runs for every probe of every hull, every sub-step
+        for (int i = 0; i < Terraforms.Count; i++) d += Terraforms[i].At(x, z);
+        return d;
+    }
+
+    /// <summary>Le relief de la fiche seul, sans terrassement ni ouvrage : ce contre quoi le terrassement se mesure.</summary>
+    public double ReliefHeight(double x, double z) => Decode(Grey(x, z));
 
     /// <summary>
     /// LE BASSIN EST PROFOND JUSQU'AU QUAI. Autour d'un mouillage le fond est

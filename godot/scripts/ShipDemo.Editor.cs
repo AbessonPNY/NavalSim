@@ -114,9 +114,11 @@ public partial class ShipDemo
             _sel = null; _edDragging = false; _edLooking = false;
             _fixEye = _edPrevEye; _fixLook = _edPrevLook;
             _painting = false; _paintDown = false;
+            if (_terraDown) TerraEnd();
+            _terracing = false; _terraDown = false;
             if (!_cine) CineShow();
             EditHud(false);
-            string painted = _paint is { Dirty: true } ? (_paint.Save() ? " · sol peint enregistré" : " · sol peint NON enregistré") : "";
+            string painted = (_paint is { Dirty: true } ? (_paint.Save() ? " · sol peint enregistré" : " · sol peint NON enregistré") : "") + TerraSave();
             if (_editReg.Dirty)
                 Say((_editReg.Save() ? $"Retouches enregistrées ({_editReg.Edits.Count})" : "Retouches NON enregistrées : le fichier d'origine était illisible") + painted);
             else Say("Fin du mode création" + painted);
@@ -204,14 +206,16 @@ public partial class ShipDemo
                 ? "Cliquer un bâtiment, un rocher, un arbre."
                 : FormattableString.Invariant(
                     $"{_sel.Label} · {_sel.Id}\ncap {((_sel.Yaw * 180 / Math.PI) % 360 + 360) % 360:F0}° · {(_sel.Smoke ? "force" : "échelle")} {_sel.Scale:F2} · levé {_sel.Dy:+0.0;-0.0;0} m{(_sel.Pristine ? " · à sa place" : " · retouché")}");
-            if (_painting) { _edLabel.Text = head + "\n" + PaintStatus() + "\nZQSD se déplacer · A E descendre, monter · clic droit regarder · Ctrl+S enregistrer · ² quitter"; }
+            if (_terracing) { _edLabel.Text = head + "\n" + TerraStatus() + "\nZQSD se déplacer · A E descendre, monter · clic droit regarder · Ctrl+S enregistrer · ² quitter"; }
+            else if (_painting) { _edLabel.Text = head + "\n" + PaintStatus() + "\nZQSD se déplacer · A E descendre, monter · clic droit regarder · Ctrl+S enregistrer · ² quitter"; }
             else _edLabel.Text = head + "\n" + what +
                 "\nZQSD se déplacer · A E descendre, monter · ⇧ plus vite · clic droit regarder" +
                 "\nglisser déplacer · molette tourner (⇧ 45°) · PgUp PgDn échelle · ↑ ↓ lever · Suppr retirer · ⌫ rendre à l'automatique" +
-                "\nCtrl+C copier · Ctrl+V coller sous la souris · Tab la palette · P le pinceau (herbe, pavés, sable)" +
+                "\nCtrl+C copier · Ctrl+V coller sous la souris · Tab la palette · P le pinceau (herbe, pavés, sable) · T terrasser" +
                 "\nCtrl+Z annuler · Ctrl+S enregistrer · ² quitter (et enregistrer)";
         }
         PaintTick(dt);
+        TerraceTick(dt);
     }
 
     /// <summary>Le mode création prend TOUT ce qui arrive ; ² le bascule de partout.</summary>
@@ -228,6 +232,7 @@ public partial class ShipDemo
         if (e is InputEventKey ak && (ak.AltPressed || ak.PhysicalKeycode == Key.F1)) return false;
         if (OverPalette(e)) return false;
         if (PaintInput(e)) return true;
+        if (TerraceInput(e)) return true;
 
         if (e is InputEventKey kk && kk.Pressed)
         {
@@ -235,11 +240,12 @@ public partial class ShipDemo
             bool shift = kk.ShiftPressed, ctrl = kk.CtrlPressed;
             if (ctrl && key == Key.S && !kk.Echo)
             {
-                string painted = _paint is { Dirty: true } ? (_paint.Save() ? " · sol peint enregistré" : " · sol peint NON enregistré") : "";
+                string painted = (_paint is { Dirty: true } ? (_paint.Save() ? " · sol peint enregistré" : " · sol peint NON enregistré") : "") + TerraSave();
                 Say((_editReg!.Save() ? $"Retouches enregistrées ({_editReg.Edits.Count})" : "Le fichier d'origine était illisible : rien d'écrit") + painted);
                 return true;
             }
-            if (key == Key.P && !ctrl && !kk.Echo) { TogglePaintMode(); return true; }
+            if (key == Key.P && !ctrl && !kk.Echo) { _terracing = false; TogglePaintMode(); return true; }
+            if (key == Key.T && !ctrl && !kk.Echo) { ToggleTerraceMode(); return true; }
             if (ctrl && key == Key.Z) { EditUndo(); return true; }
             if (ctrl && key == Key.C && !kk.Echo) { EditCopy(); return true; }
             if (ctrl && key == Key.V && !kk.Echo) { EditPaste(); return true; }

@@ -15005,6 +15005,50 @@ passe le filtre en rouge, les reflets trouvés en vert. LIMITE DITE : en espace 
 l'image ou au-delà de la portée ne se reflète pas, et au loin la recherche trouve peu. COÛT : +0,1 à
 0,4 ms de carte graphique, au port, au ras de l'eau.
 
+## Le terrassement des ports ; ce que coûte la carte (Godot)
+
+DEMANDÉ : « des outils de terrassement pour monter le sol et le descendre — ajuster la hauteur au bord
+de l'eau, surélever le terrain qui le nécessite ».
+
+LA GRILLE (core/Terraform.cs) : des DÉCALAGES de hauteur au mètre, sur le carré du sol peint du port
+(1 024 m à Port-Royal, 1 025 × 1 025), ajoutés au relief par World.IslandHeight — tout ce qui lit la
+terre la voit : échouage, sondes, fond, œil. World.ReliefHeight rend le relief sans eux. Vide (la
+page, le banc de parité), rien ne change. Sur le disque : world/terrassement/<port>.bin (« NVTR »,
+côté, pas, puis des centimètres en int16), écrit avec les retouches (Ctrl+S, ou en quittant le mode),
+et dans l'empreinte du cache de semis (ScatterCache.RegionPrint). Chargé JUSTE APRÈS le monde
+(ShipDemo.TerraSetup), avant les villes, les abris et les semis.
+
+L'OUTIL (ShipDemo.EditorTerrace.cs) : T en mode création ; 1 monter, 2 descendre, 3 aplanir (à la
+hauteur sous le premier clic), 4 adoucir ; molette le rayon (1 à 80 m), ⇧ la force (m/s au centre) ;
+plein jusqu'à mi-rayon puis un fondu ; Ctrl+Z annule le coup (six coups gardés). Il vise à travers
+l'eau : on relève un haut-fond comme une berge. Les objets posés à la main sous le coup reprennent
+leur pied au lever.
+
+LA TERRE DESSINÉE (LandNode.Terrace.cs) : un carreau de 1 440 m était bâti d'un bloc, jamais rebâti
+(le relief ne changeait pas). Ceux qui touchent un carré de terrassement se bâtissent DEUX FOIS PLUS
+FINS (576, 2,5 m) et EN 8 × 8 MORCEAUX : un coup ne rebâtit que les morceaux touchés (mesuré : 4 à 18 ms),
+dix fois par seconde pendant le geste. Leurs normales aux différences centrées, sur les voisins même
+hors du morceau (pas de couture d'éclairage) ; leur bord RECOUSU sur le voisin grossier (un sommet sur
+deux prend la moyenne des deux qui l'entourent : pas de fente). Les hauteurs en parallèle
+(Parallel.For : le relief se lit de plusieurs fils, le semis le faisait déjà) : un carreau 450 → 60 ms.
+COÛT PAR IMAGE au port, --vsync 0 : médiane 8,9–9,4 ms avec, 9,3 sans ; les à-coups (au-delà de 1,5 ×
+la médiane) vont de 5 à 26 d'un essai à l'autre SUR LA MÊME VERSION — le bruit de la mesure, pas
+l'outil : en 2 × 2 morceaux on en relève autant.
+LE DRAGAGE GAGNE SOUS L'EAU : dans le bassin d'un port, tout fond négatif est tenu à la profondeur du
+quai (World.Dredge) ; un haut-fond ne s'y relève donc qu'en sortant de l'eau.
+CE QUI SE RECALE AU PROCHAIN CHARGEMENT : la végétation semée, les maisons des faubourgs, le champ de
+distance au rivage, l'abri. Essai sans rien écrire : -- --terrasser dx,dz,rayon,mètres (depuis le
+quai du port de départ ; l'œil s'y pose). Vu : +3 m sur 18 m de rayon au bord de la plage, une butte
+verte au-dessus du sable, sans couture.
+
+CE QUE COÛTE LA CARTE (MapCost.cs ; demandé : « le coût en ms du chargement des assets de la map, hors
+bateau et physique », sous les images par seconde). Chaque étape s'inscrit en se chronométrant : le
+monde lu (et son terrassement, ses retouches), les pontons, les villes, les modèles posés, la
+végétation, la terre (chaque carreau, ceux qui se bâtissent en route compris), les ajouts du mode
+création — pas les navires posés. Au panneau (H) sous les images par seconde, et une ligne dans la
+console quand le dernier ajout est né. Relevé au départ : 4 060 ms — monde 126 · pontons 102 · villes
+388 · modèles 179 · végétation 1 716 · terre 418 · ajouts 1 131. Essai : -- --instruments 1.
+
 ## La fumée dans la brume (Godot)
 
 SIGNALÉ (capture) : dans la brume, la fumée des cheminées était « dessinée au-dessus » — des panaches
@@ -15049,6 +15093,13 @@ l'image d'avant), noyé de 0,5 m au-dessus à 0,7 m dessous, et l'état (Flag.We
 demi-seconde. Relevé, la soute sautée : la pomme du grand mât encore à 4 m après 84 s — un pavillon
 de tête de mât est la dernière chose à couler, et c'est juste. La palette offre maintenant les mâts
 de pavillon EN TÊTE de ses modèles (ils se perdaient en bas d'une longue liste).
+TREMPÉ, IL NE BOUGE PLUS (signalé : « il sautille encore avec la houle » ; demandé : coller à l'eau
+ou se mettre en torche « dès lors qu'il a touché une fois l'eau, car mouillé il ne bouge plus au
+vent »). Retenu : la torche. FlagCloth.Soaked (Godot) : dès que Flag.Wet passe 0,5, l'étamine pend
+en torche le long de sa drisse — resserrée, vrillée d'une vrille FIGÉE —, sans onde, sans balancement
+ni soulèvement (c'étaient eux, réglés sur l'horloge, qui la faisaient sautiller), et son pivot ne
+tourne plus au vent. Seule la drisse, qui suit le mât, la bouge encore. Elle sèche en deux minutes
+hors de l'eau, si le navire s'en relève (Flag.DryFor). Banc de parité : 8/8.
 
 ## La pluie sans la tempête ; partir d'une partie neuve (Godot)
 

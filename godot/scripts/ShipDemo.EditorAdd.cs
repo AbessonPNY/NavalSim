@@ -28,6 +28,7 @@ public partial class ShipDemo
     readonly PlacedSet _addedHolds = new();
     readonly List<ShaderMaterial> _editHazed = new();
     List<Edit>? _pendingAdds;
+    bool _mapCostSaid;
     (Editable? Src, string Glb, string Label, double Yaw, double Scale, double Dy, string Sheet)? _clip;
     PanelContainer? _edPalette;
     ItemList? _edList;
@@ -72,6 +73,7 @@ public partial class ShipDemo
             _flagTest = "";
         }
         SpawnPending();
+        TerraTestTick();
         Chimneys(origin, dt);
         ShoreFlagsTick();
         _addedHolds.Update(origin);
@@ -89,11 +91,22 @@ public partial class ShipDemo
         for (int i = _pendingAdds.Count - 1; i >= 0; i--)
         {
             var a = _pendingAdds[i];
-            if (SpawnAdded(a.Id, a.From, a.Glb, a.X, a.Z, a.Yaw * Math.PI / 180, a.Scale, a.Dy, a.Sheet) != null)
+            // un navire posé n'est pas la carte : seul le décor entre dans son coût (MapCost)
+            long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+            var born = SpawnAdded(a.Id, a.From, a.Glb, a.X, a.Z, a.Yaw * Math.PI / 180, a.Scale, a.Dy, a.Sheet);
+            if (a.Sheet.Length == 0)
+                MapCost.Add("ajouts", (System.Diagnostics.Stopwatch.GetTimestamp() - t0) * 1000.0 / System.Diagnostics.Stopwatch.Frequency);
+            if (born != null)
             {
                 _pendingAdds.RemoveAt(i);
                 GD.Print($"[éditeur] {a.Id} posé ({(a.Sheet.Length > 0 ? "navire " + a.Sheet : a.From.Length > 0 ? "copie de " + a.From : a.Glb)})");
             }
+        }
+        // le dernier ajout né, la carte est chargée : son coût, une fois, dans la console
+        if (_pendingAdds.Count == 0 && !_mapCostSaid)
+        {
+            _mapCostSaid = true;
+            GD.Print(FormattableString.Invariant($"carte chargée en {MapCost.Total:F0} ms : {MapCost.Detail()}"));
         }
     }
 

@@ -114,6 +114,8 @@ public partial class ShipDemo
             $"{_ship.Spec.Name}   ({_index + 1}/{_paths.Count})\n" +
             // la moyenne du moteur sur la dernière seconde, et le temps qu'elle vaut
             $"{Engine.GetFramesPerSecond(),4:F0} images/s   {1000.0 / Math.Max(1, Engine.GetFramesPerSecond()),5:F1} ms\n" +
+            // ce que la carte a coûté à charger, navires et physique exclus (MapCost)
+            $"carte      {MapCost.Total,6:F0} ms de chargement\n   {MapCost.Detail()}\n" +
             $"\n" +
             $"cap        {hdg,6:F0}°      vitesse   {speedKn,5:F1} nds\n" +
             $"gîte       {heel,6:F1}°      assiette  {trim,5:F1}°\n" +

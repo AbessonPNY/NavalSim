@@ -231,9 +231,15 @@ public partial class ShipDemo : Node3D
         Config.HelmSounds = true;
         // la godille au safran : des coups de barre secs poussent l eau même navire arrêté
         Config.RudderScull = true;
-        _world = WorldLoad.Load(_regionSheet = PickRegion());
-        // les retouches de l'éditeur AVANT que la ville et la terre se bâtissent : elles s'y appliquent en se posant
-        EditSetup();
+        // ce que coûte la carte (MapCost) : le monde lu, son terrassement, ses retouches
+        using (MapCost.Time("monde"))
+        {
+            _world = WorldLoad.Load(_regionSheet = PickRegion());
+            // le relief retouché à la main, AVANT que rien n'y lise (villes, abris, semis)
+            TerraSetup();
+            // les retouches de l'éditeur AVANT que la ville et la terre se bâtissent : elles s'y appliquent en se posant
+            EditSetup();
+        }
         /* LE CIMETIÈRE DES GALIONS est un lieu de la Jamaïque, donné en mètres de
            SA carte : ailleurs les mêmes chiffres tomberaient n'importe où. */
         if (_world != null && _world.Region.Key != "caraibes") _ghosts.Rules.Enabled = false;
@@ -292,7 +298,7 @@ public partial class ShipDemo : Node3D
             /* ET LE SOLVEUR APPREND OÙ ILS SONT. Une fois : un ponton ne bouge pas.
                En mètres MONDE VRAIS, comme tout ce qui est « du monde » — le solveur
                retranche l'origine lui-même, à chaque sous-pas. */
-            _jetty?.BuildPiers();
+            using (MapCost.Time("pontons")) _jetty?.BuildPiers();
             if (_jetty != null) _jetty.PiersChanged += RefreshJetties;
             RefreshJetties();
             _book = LoadBook();

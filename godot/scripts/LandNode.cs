@@ -56,11 +56,12 @@ public partial class LandNode : Node3D
     sealed class Patch
     {
         public bool Has;
-        public MeshInstance3D? Near, Far;
+        // un carreau terrassé est un nœud de morceaux (LandNode.Terrace.cs), les autres un seul maillage
+        public Node3D? Near, Far;
     }
 
     readonly Dictionary<(int, int), Patch> _tiles = new();
-    readonly HashSet<MeshInstance3D> _seen = new();
+    readonly HashSet<Node3D> _seen = new();
     bool _assetsBuilt;
     ShaderMaterial _mat = null!;
 
@@ -171,6 +172,8 @@ public partial class LandNode : Node3D
 
     MeshInstance3D Build(int i, int j, int n)
     {
+        // chaque carreau compte, ceux de l'arrivée comme ceux qui se bâtissent en route
+        using var cost = MapCost.Time("terre");
         var pos = new List<Vector3>((n + 1) * (n + 1));
         var col = new List<Color>(pos.Capacity);
         var idx = new List<int>(n * n * 6);
@@ -578,7 +581,12 @@ public partial class LandNode : Node3D
 
     public void Update(Vec3d centre, Vec3d origin, bool eager = false)
     {
-        if (!_assetsBuilt) { _assetsBuilt = true; BuildAssets(); BuildScatter(); }
+        if (!_assetsBuilt)
+        {
+            _assetsBuilt = true;
+            using (MapCost.Time("modèles")) BuildAssets();
+            using (MapCost.Time("végétation")) BuildScatter();
+        }
         // le fond ancré au monde : ses motifs se calculent en mètres vrais
         _mat.SetShaderParameter(UTrue, new Vector2((float)origin.X, (float)origin.Z));
         // le carré peint, contre l'origine du moment : son coin est en mètres vrais
@@ -617,7 +625,8 @@ public partial class LandNode : Node3D
                        rade ne coûte pas un million de sommets. */
                     double px = World.ReliefPx(i * Tile, j * Tile, (i + 1) * Tile, (j + 1) * Tile);
                     int n = (int)Math.Round(Tile / px);
-                    t.Near = Build(i, j, Math.Clamp(n, 8, FineMax));
+                    // terrassé : deux fois plus fin, et en morceaux qu'un coup de pinceau rebâtit seuls
+                    t.Near = Terraced(i, j) ? BuildTerraced(i, j, FineMax * 2) : Build(i, j, Math.Clamp(n, 8, FineMax));
                 }
                 if (!fine && t.Far == null)
                 {

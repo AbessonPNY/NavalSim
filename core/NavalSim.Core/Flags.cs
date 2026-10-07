@@ -129,6 +129,15 @@ public sealed class FlagCloth
     /// </summary>
     public bool Hangs;
 
+    /// <summary>
+    /// TREMPÉE (Godot, avec Hangs ; demandé : « dès lors qu'il a touché une fois l'eau, car
+    /// mouillé il ne bouge plus au vent »). Une étamine qui a bu ne flotte plus : elle pend
+    /// en torche le long de sa drisse, lourde, sans onde ni balancement — c'étaient eux,
+    /// réglés sur l'horloge, qui la faisaient sautiller avec la houle. L'hôte la met et
+    /// l'ôte (elle sèche) ; seule la drisse, qui suit le mât, la bouge encore.
+    /// </summary>
+    public bool Soaked;
+
     public double Stream(double beta, double tack, double vApp, double t, double lift = 0)
     {
         double yaw = Math.Atan2(tack * Math.Sin(beta), -Math.Cos(beta));
@@ -146,7 +155,18 @@ public sealed class FlagCloth
             // elle pend d'autant moins qu'elle est portée : dans l'eau, elle se SOULÈVE
             double rise = lift * u * u * Fly * 0.22 * (0.6 + 0.4 * Math.Sin(t * 0.7 + Seed + u * 2.0));
             double reach = 0.80 + 0.20 * Math.Max(drive, 0.8 * lift);
-            if (Hangs)
+            if (Hangs && Soaked)
+            {
+                double s0 = Base[i3 + 2];
+                double mid0 = -Hoist * 0.5, off0 = Base[i3 + 1] - mid0;
+                double sq0 = 1 - 0.85 * Math.Min(1, 0.3 + u * 1.4);
+                double tw0 = u * 7.5 + Seed * 0.3;           // la vrille prise en tombant, figée
+                const double down = 1.48;                    // pendue, le battant contre la drisse
+                p[i3] = (float)(off0 * sq0 * Math.Sin(tw0));
+                p[i3 + 1] = (float)(mid0 + off0 * sq0 * Math.Cos(tw0) - s0 * Math.Sin(down));
+                p[i3 + 2] = (float)(s0 * Math.Cos(down) * 0.8);
+            }
+            else if (Hangs)
             {
                 /* elle tourne vers le bas autour de sa drisse, d'autant plus que le vent
                    manque : à 85° au calme plat, le battant le long de la hampe. Le vent

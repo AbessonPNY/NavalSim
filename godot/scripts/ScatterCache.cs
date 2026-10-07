@@ -42,6 +42,10 @@ public static class ScatterCache
         Add(w.Region.Relief.Image);
         foreach (var p in w.Region.Patches) Add(p.Image);
         Add($"world/retouches/{key}.json");
+        // le terrain terrassé : une berge relevée change ce qui y pousse
+        string terr = Assets.Path("world/terrassement");
+        if (System.IO.Directory.Exists(terr))
+            foreach (var f in System.IO.Directory.GetFiles(terr, "*.bin")) Add("world/terrassement/" + System.IO.Path.GetFileName(f));
         return sb.ToString();
     }
 
