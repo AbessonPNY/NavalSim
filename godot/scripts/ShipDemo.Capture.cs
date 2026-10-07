@@ -312,6 +312,10 @@ public partial class ShipDemo
                 case "--horaire": _forceSailing = args[i + 1]; _askTitle ??= false; break;
                 // l'œil sur un poste du port (ShipDemo.Traffic.cs)
                 case "--horaire-vue": _berthView = args[i + 1].ToInt(); _askTitle ??= false; break;
+                // l'œil à tant de mètres au sud d'un récif de la fiche, à telle hauteur, tourné vers lui : « i,m,h »
+                // de même vers un point du monde : « lat,lon,m,h » (l'îlot aux cocotiers : 17.84,-76.90,3000,10)
+                case "--vers": _cayView = "geo:" + args[i + 1]; _diveTestIn = 1.0; break;
+                case "--vers-caye": _cayView = args[i + 1]; _diveTestIn = 1.0; break;
                 case "--eye": _fixEye = ParseVec(args[i + 1]); _planted = true; break;
                 case "--look": _fixLook = ParseVec(args[i + 1]); break;
                 case "--foamcheck": _foamCheckIn = args[i + 1].ToInt(); break;

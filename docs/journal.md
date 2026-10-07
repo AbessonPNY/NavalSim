@@ -15079,6 +15079,14 @@ calculée en tête du fragment). Mesuré sur cette machine : aucune différence 
 voisins) — le pilote s'en tirait ; la correction vaut pour les autres. La traînée n'est PAS reproduite au large
 de Port-Royal (quatre images, --large 2 : l'étrave tournée vers le port).
 
+LA BRUME SOUS L'EAU (ocean.gdshader) : la mer brumait sa surface, PUIS ajoutait ce qu'on voit au travers — le
+fond lu dans l'image de l'opaque, qui n'a pas de brume (sa passe est cachée par l'eau dessinée devant). Le sable
+d'un platier à des kilomètres pouvait donc ressortir en couleur franche sur une mer toute embrumée. Ce terme
+reçoit maintenant (1 − hz). Mesuré vers Lime Cay et l'îlot aux cocotiers (--vers-caye i,m,h ; --vers lat,lon,m,h) :
+aucune différence sur ces vues, et les traînées signalées NE SONT PAS reproduites. Ce qui s'y voit : la ligne des
+plages, un à deux pixels de sable vif brumé à 85 % seulement (la passe de brume monte à la puissance 1,5 pour ne
+pas blanchir un bordé sombre ; la mer, elle, prend hz entier), que la houle masque par morceaux.
+
 PIÈGE DE L'ESSAI : peinture et terrassement changés sur le disque pendant un essai — par sa partie à lui,
 ouverte en même temps. Restaurés par-dessus : sa version perdue. Ne jamais restaurer ces fichiers.
 

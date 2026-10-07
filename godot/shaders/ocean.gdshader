@@ -1114,7 +1114,7 @@ void fragment() {
 		vec3 behind = naval_encode(textureLod(u_screen, suv, 0.0).rgb);
 		if (u_submerged > 0.5 && !FRONT_FACING) {
 			// par en dessous, ce qu'on voit à travers la fenêtre est EN L'AIR : rien à partager
-			c = mix(c, behind, T);
+			c = mix(c, behind, T * (1.0 - hz));
 		} else {
 			/* CE QUE L'EAU LAISSE PASSER NE REMPLACE QUE CE QU'ELLE DIFFUSE, PAS
 			   CE QU'ELLE RENVOIE. La surface est une somme : F de reflet — le ciel,
@@ -1126,7 +1126,13 @@ void fragment() {
 			   coque comme dans un aquarium, sans ligne d'eau (signalé). Ici le
 			   reflet reste en place, et la flottaison se découpe sur le bordé
 			   comme sur une vraie coque : de biais, presque tout est reflet. */
-			c += (1.0 - F) * T * veil * (behind - body);
+			/* ET LA BRUME DESSUS : la surface a reçu la sienne plus haut, ce qui passe au travers
+			   la reçoit aussi. Le fond lu dans l'image de l'opaque n'en a aucune (sa passe de brume
+			   est cachée par l'eau qu'on dessine) : sans ce facteur, le sable de l'eau peu profonde
+			   des plages à des kilomètres ressortait en couleur franche sur une mer toute embrumée,
+			   et scintillait au passage des crêtes (signalé : « des traînées qui scintillent à
+			   l'horizon »). */
+			c += (1.0 - hz) * (1.0 - F) * T * veil * (behind - body);
 		}
 	}
 

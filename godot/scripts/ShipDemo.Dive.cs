@@ -384,6 +384,7 @@ public partial class ShipDemo
     }
 
     double _diveTestIn = -1;
+    string? _cayView;
     /// <summary>--fond : l'œil sur le pâté le plus peuplé d'une foule du fond (« corail », « herbier »).</summary>
     string _bedTest = "";
     string _hideAddedTest = "";
@@ -440,6 +441,30 @@ public partial class ShipDemo
         if (_edTest != 0) EditTest();
         if (_whistleTest > 0) WhistleTest();
         if (_seeModels.Length > 0) SeeModels();
+        if (_cayView != null && _world != null)
+        {
+            if (_cayView.StartsWith("geo:"))
+            {
+                var g = _cayView[4..].Split(','); _cayView = null;
+                var gat = _world.Geo.ToXZ(g[0].ToFloat(), g[1].ToFloat()); var og = _sea.Core.Origin;
+                double gm = g.Length > 2 ? g[2].ToFloat() : 3000, gh = g.Length > 3 ? g[3].ToFloat() : 10;
+                _fixLook = new Vector3((float)(gat.X - og.X), 1f, (float)(gat.Z - og.Z));
+                _fixEye = new Vector3((float)(gat.X - og.X), (float)gh, (float)(gat.Z - gm - og.Z));
+                _planted = true;
+                GD.Print(FormattableString.Invariant($"[vers] ({g[0]}, {g[1]}) vu de {gm:F0} m au sud, œil à {gh:F1} m ; sol au point {_world.HeightAt(gat.X, gat.Z):F1} m"));
+                return;
+            }
+            var a = _cayView.Split(','); _cayView = null;
+            int ri = a[0].ToInt(); double m = a[1].ToFloat(), h = a.Length > 2 ? a[2].ToFloat() : 6;
+            if (ri < _world.ReefList.Count)
+            {
+                var r = _world.ReefList[ri]; var o = _sea.Core.Origin;
+                _fixLook = new Vector3((float)(r.X - o.X), 0.3f, (float)(r.Z - o.Z));
+                _fixEye = new Vector3((float)(r.X - o.X), (float)h, (float)(r.Z - m - o.Z));
+                _planted = true;
+                GD.Print(FormattableString.Invariant($"[caye] {r.Spec.Name} vue de {m:F0} m au sud, œil à {h:F1} m"));
+            }
+        }
         if (_paintTest is Vector3 pt) { _paintTest = null; PaintTest(pt.X, pt.Z, pt.Y > 0.5); }
         if (_streetGrassTest > 0) { StreetGrassTest(_streetGrassTest == 2); _streetGrassTest = 0; }
         if (_diveTest.Wreck is double d) TestWreck(d);
