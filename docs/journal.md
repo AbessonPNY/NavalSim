@@ -15111,6 +15111,22 @@ PUIS AUX VRAIES COTES (threedecks.org 6226, donné par lui) : 96 pi de pont, 84 
 1,21 × la jauge = 353 t ; batteries de tools/ship-glb.js aux mêmes places × 96/94 ; modèle régénéré (29,26 × 7,77 m).
 MESURÉ à la mise en eau (settle) : 3,52 m de tirant (11 pi 6 po) et 44,7 % d'immersion, contre 3,34 m et 42,5 %.
 
+## Le Roebuck dans son modèle Godot : la fiche suit le modèle (Godot)
+
+Son modèle (godot-models/ships/models/hms_roebuck_1690.glb, « page »: false) est redessiné par lui sur un plan
+d'époque, puis sur les deux gravures du navire : dix pièces près de l'eau, deux sous le château arrière. LA FICHE
+SUIT LE MODÈLE, dans cet ordre : (1) la flottaison se lit sur le modèle — y = 0,65, où l'axe des pièces basses
+passe à 1,16 m, le plat-bord à 3,0 m, le pont à 2,06 ; (2) le déplacement est le VOLUME du modèle sous elle,
+calculé tranche par tranche sur ses triangles : 299 m³ → 306 t (à y = 1,0 : 371 t ; à 1,37 : 441 t ; 1,81 t/cm) ;
+(3) le plan de formes est accordé à ce poids : le creuser moins ne remonte presque pas son fond (moins creux, il
+s'enfonce d'autant), c'est la quille SAILLANTE (keelExtra 0,61 → 0,2, presque sans volume) qui le ramène à 5 cm
+du fond du modèle ; (4) le relèvement (model.offset) pose y = 0,65 sur la mer : −0,65 − l'assiette du solveur
+(l'origine flotte à +0,263) = −0,91. Le pont de la fiche (freeboardMid) est dans le repère du solveur : 1,86.
+PIÈGE : ses déplacements d'ensemble dans Blender avaient monté la MÂTURE de 2,45 m au-dessus de l'eau ; la fiche
+suit (mâts 18,81 / 20,48 / 17,68 au-dessus du pont, centre de voilure 12,05 m, latine 9,8), ce qui la rend plus
+vive à la gîte. Outil de mise en eau sans écriture : scratchpad settle-try.js (le banc de parité détourné). Les
+canons ne sont qu'à tribord pour l'instant (il les doublera) : le jeu les lit sur le modèle, « tribord 12/12 ».
+
 ## Les navires à quai : la voile serrée et le heurt (Godot)
 
 DEMANDÉ : « les navires à quai avec la collision et les voiles au repos — la Frégate a l'air bien nue ».

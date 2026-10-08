@@ -2,15 +2,15 @@
   "id": "roebuck",
   "name": "HMS Roebuck 1690",
   "pirate": true,
-  "note": "HMS Roebuck, brûlot de cinquième rang (threedecks.org, fiche 6226 : « Fifth Rate Fireship »). Commandé le 6 décembre 1689, armé le 11 avril 1690, acquis le 17 avril 1690 ; construit à Wapping (Londres) par Edward Snelgrove. Cotes d'origine converties du pied anglais (0,3048 m) : pont de batterie 96 pi = 29,26 m ; quille 84 pi 5 po = 25,73 m ; maître-bau 25 pi 6 po = 7,77 m (threedecks écrit 7,6505 m) ; creux dans la cale 9 pi 9¾ po = 2,99 m ; jauge 291 92/94 tonneaux. ARMEMENT du 17 avril 1691 : 4 pièces de 9 livres en batterie basse, 20 de 6 en batterie haute, 4 de 4 sur le gaillard — 28 bouches, 86 livres de bordée. Puis 22 de 12 et 4 de 4 au 10 juin 1695 (140 livres), cinquième rang de 24 refondu le 23 mai 1695, sixième rang de 12 le 11 août 1698 ; 50 hommes au 1er janvier 1699. Barfleur le 19 mai 1692 ; baie de Bertheaume le 10 mai 1694 ; échappé à l'escadre de Duguay-Trouin en avril 1695 ; protection des pêches de Yarmouth en 1697 ; parti des Downs le 14 janvier 1699 pour le voyage de William Dampier (Nouvelle-Hollande, Batavia le 17 octobre 1700, Le Cap le 11 janvier 1701, Sainte-Hélène) ; sombré sur ses ancres dans Clarence Bay, île de l'Ascension, le 24 février 1701. LA FICHE VIENT DE CELLE DU SPEEDWELL, brûlot jumeau de la même commande (Rotherhithe, 94 pi), mise à l'échelle : longueurs × 96/94, bau aux 25 pi 6 po, surfaces × 1,044, vitesse × √(96/94) ; coefficients hydrodynamiques inchangés (ils sont rapportés au m²). LE TONNEAU DE JAUGE N'EST PAS UN DÉPLACEMENT : c'est une capacité (quille × bau × bau/2 / 94). Le déplacement garde le rapport mesuré sur le Speedwell, 1,21 fois la jauge : 353 t. Le modèle est engendré par tools/ship-glb.js DEPUIS cette fiche. VOILURE de 1690 : misaine et grand mât à trois vergues (basse voile, hunier, perroquet), artimon à une seule (le hunier d'artimon, au-dessus de la latine de rig.lateen), pas de foc mais une CIVADIÈRE sous le beaupré (rig.spritsail).",
+  "note": "HMS Roebuck, brûlot de cinquième rang (threedecks.org, fiche 6226 : « Fifth Rate Fireship »). Commandé le 6 décembre 1689, armé le 11 avril 1690, acquis le 17 avril 1690 ; construit à Wapping (Londres) par Edward Snelgrove. Cotes d'origine converties du pied anglais (0,3048 m) : pont de batterie 96 pi = 29,26 m ; quille 84 pi 5 po = 25,73 m ; maître-bau 25 pi 6 po = 7,77 m (threedecks écrit 7,6505 m) ; creux dans la cale 9 pi 9¾ po = 2,99 m ; jauge 291 92/94 tonneaux. ARMEMENT du 17 avril 1691 : 4 pièces de 9 livres en batterie basse, 20 de 6 en batterie haute, 4 de 4 sur le gaillard — 28 bouches, 86 livres de bordée. Puis 22 de 12 et 4 de 4 au 10 juin 1695 (140 livres), cinquième rang de 24 refondu le 23 mai 1695, sixième rang de 12 le 11 août 1698 ; 50 hommes au 1er janvier 1699. Barfleur le 19 mai 1692 ; baie de Bertheaume le 10 mai 1694 ; échappé à l'escadre de Duguay-Trouin en avril 1695 ; protection des pêches de Yarmouth en 1697 ; parti des Downs le 14 janvier 1699 pour le voyage de William Dampier (Nouvelle-Hollande, Batavia le 17 octobre 1700, Le Cap le 11 janvier 1701, Sainte-Hélène) ; sombré sur ses ancres dans Clarence Bay, île de l'Ascension, le 24 février 1701. LE MODÈLE DE JEU (godot-models/ships/models/hms_roebuck_1690.glb, Godot seul) a été redessiné sur les deux gravures connues du navire : dix pièces près de l'eau par bord, et deux plus haut sous le château arrière — 24 bouches, et non les 28 de la liste de 1691. LA FICHE SUIT CE MODÈLE : sa coque, sous une flottaison choisie pour que l'axe des pièces basses passe à 1,16 m au-dessus de l'eau (le plat-bord à 3,0 m au milieu, comme sur les gravures), déplace 306 m³ de mer, soit 306 t (1,05 fois la jauge) ; le plan de formes y est accordé (quille saillante 0,2 m : son fond à 5 cm de celui du modèle) et le pont posé à 2,06 m au-dessus de l'eau. La mâture du modèle porte plus haut que celle de l'ancienne fiche : mâts et centres de voilure en suivent les cotes. Pleinement chargé (cale de 118 t), il enfonce d'environ 65 cm et la batterie basse n'a plus que 0,5 m de franc-bord — le défaut des petits deux-ponts de ce temps, qui ne pouvaient ouvrir leurs sabords bas par grosse mer. VOILURE de 1690 : misaine et grand mât à trois vergues (basse voile, hunier, perroquet), artimon à une seule (le hunier d'artimon, au-dessus de la latine de rig.lateen), pas de foc mais une CIVADIÈRE sous le beaupré (rig.spritsail).",
   "hull": {
     "length": 29.26,
     "beam": 7.77,
-    "freeboardMid": 2.1,
+    "freeboardMid": 1.86,
     "sheerBow": 1.17,
     "sheerStern": 0.97,
     "keelDepth": 3.42,
-    "keelExtra": 0.61,
+    "keelExtra": 0.2,
     "dragAft": 0.87,
     "forefootLift": 0.72,
     "counterLift": 0.36,
@@ -20,7 +20,7 @@
     "sectionTuck": 0.44,
     "sectionPower": 0.62
   },
-  "displacementTonnes": 353,
+  "displacementTonnes": 306,
   "cargoTonnes": 118,
   "cog": {
     "yFracKeel": -0.43,
@@ -45,15 +45,15 @@
   "rig": {
     "type": "square",
     "sailArea": 449,
-    "ceHeight": 9.6,
+    "ceHeight": 12.05,
     "ceZ": -0.41,
     "maxSheet": 1.3,
-    "lateen": { "area": 44, "ceHeight": 7.35, "ceZ": -9.8, "maxSheet": 1.45 },
+    "lateen": { "area": 44, "ceHeight": 9.8, "ceZ": -9.8, "maxSheet": 1.45 },
     "belly": 1.65,
     "masts": [
-      { "zFrac": 0.25, "height": 16.85, "yards": [0.3, 0.52, 0.72], "yardSpan": 0.96 },
-      { "zFrac": -0.02, "height": 18.89, "yards": [0.28, 0.5, 0.7], "yardSpan": 1.1 },
-      { "zFrac": -0.3, "height": 15.83, "yards": [0.62], "yardSpan": 0.62 }
+      { "zFrac": 0.25, "height": 18.81, "yards": [0.3, 0.52, 0.72], "yardSpan": 0.96 },
+      { "zFrac": -0.02, "height": 20.48, "yards": [0.28, 0.5, 0.7], "yardSpan": 1.1 },
+      { "zFrac": -0.3, "height": 17.68, "yards": [0.62], "yardSpan": 0.62 }
     ],
     "spritsail": { "at": 0.55, "span": 0.78, "under": 0.35, "drop": 2.25 },
     "bowsprit": { "length": 7.56, "steeve": 0.22 }
@@ -85,9 +85,9 @@
     "chaseHigh": 15.3,
     "orbitDist": 55,
     "helmZFrac": -0.4,
-    "helmHeight": 3.47,
+    "helmHeight": 6.4,
     "decks": [
-      { "name": "Passerelle", "x": 0, "y": 7.76, "zFrac": -0.4, "yaw": 0, "pitch": 0, "fov": 35 },
+      { "name": "Passerelle", "x": 0, "y": 6.4, "zFrac": -0.4, "yaw": 0, "pitch": 0, "fov": 35 },
       {
         "name": "Chambre du capitaine",
         "x": 0,
@@ -99,13 +99,13 @@
         "near": 0.08,
         "closed": true
       },
-      { "name": "Pont de batterie", "x": 0, "y": 4.19, "z": 5.11, "yaw": 0, "pitch": -2, "fov": 55, "near": 0.08 }
+      { "name": "Pont de batterie", "x": 0, "y": 3.8, "z": 5.11, "yaw": 0, "pitch": -2, "fov": 55, "near": 0.08 }
     ]
   },
   "model": {
     "glb": "ships/models/hms_roebuck_1690.glb",
     "lengthAxis": "z",
-    "offset": [0, -1.51, 0],
+    "offset": [0, -0.91, 0],
     "rotationY": 0,
     "scale": 1
   }
