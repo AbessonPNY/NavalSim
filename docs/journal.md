@@ -15111,6 +15111,19 @@ PUIS AUX VRAIES COTES (threedecks.org 6226, donné par lui) : 96 pi de pont, 84 
 1,21 × la jauge = 353 t ; batteries de tools/ship-glb.js aux mêmes places × 96/94 ; modèle régénéré (29,26 × 7,77 m).
 MESURÉ à la mise en eau (settle) : 3,52 m de tirant (11 pi 6 po) et 44,7 % d'immersion, contre 3,34 m et 42,5 %.
 
+## La mer lue par sa forme : crête claire, pointe blanche, creux sombre (Godot)
+
+DEMANDÉ : « les pointes les plus dures et hautes blanches, les creux plus foncés ». Il y avait déjà la lueur verte
+de crête (contre-jour) et le creux assombri (c *= 0,62 à 1 selon open). Ajouté en tête d'ocean.gdshader :
+u_trough_dark (0,5 ; c'était 0,38) ; u_crest_white (0,6) — un dégradé qui éclaircit le haut des crêtes (+35 % ×
+réglage), et un blanc franc (par l'écume, donc par son éclairage) là où la crête est à la fois HAUTE et DURE :
+v_sharp, la compression de la surface ramenée de 1 (plat) au seuil des moutons (u_jac_foam). RELEVÉ EN FAUSSES
+COULEURS (rouge hauteur, vert dureté, bleu creux), force 8 : la dureté vient des vagues COURTES et couvre de larges
+étendues, creux compris ; les plus hautes crêtes ne sont pas les plus dures. Les premiers seuils blanchissaient
+donc des bandes, puis rien (la hauteur était comptée sur u_amp_max, la somme des vagues en phase, qu'une crête ne
+atteint jamais) : blanc retenu pour hauteur > 0,3–0,6 u_amp_max ET dureté > 0,45–0,9. Effet discret sous la pluie
+et le ciel gris de force 8 ; à régler à l'œil.
+
 ## Les rides de la mer tirées d'un spectre (Godot)
 
 DEMANDÉ : une texture de mer, sans toucher à la physique. Les dix-huit longues vagues suivent le vent : la plus courte

@@ -55,6 +55,12 @@ uniform float u_sky_blur = 0.6;
 uniform float u_cap_gain = 1.0;
 uniform float u_foam_gain = 1.0;
 uniform float u_jac_foam = 0.85;
+/* LA CRÊTE BLANCHE ET LE CREUX SOMBRE (demandé : « les pointes les plus dures et hautes blanches, les
+   creux plus foncés »). u_crest_white : ce que blanchit une crête à la fois HAUTE et PINCÉE, avant même
+   qu'elle casse — l'eau aérée de sa pointe, que le vent arrache (0,6 ; 0 l'éteint). u_trough_dark : ce que
+   le creux perd de lumière, cerné d'eau plus haute qui lui cache le ciel (0,5 ; c'était 0,38 ; 0 : aucun). */
+uniform float u_crest_white = 0.6;
+uniform float u_trough_dark = 0.5;
 uniform float u_streak_gain = 1.0;
 uniform float u_kelvin_gain = 1.0;
 uniform float u_submerged = 0.0;    // l'œil est sous la surface  // le V de Kelvin : relief et ombrage
@@ -182,6 +188,8 @@ varying vec3 v_world;
 varying vec3 v_nrm;
 varying float v_foam;
 varying float v_rel;
+// la dureté de la crête : 0 sur une eau qui ne se tasse pas, 1 au seuil des moutons (u_jac_foam)
+varying float v_sharp;
 varying float v_spacing;
 varying float v_shelter;
 
@@ -226,6 +234,7 @@ void vertex() {
 	   à 8, et presque jamais sous 0,5 — d'où un seuil à 0,75 et non à 0,5. */
 	v_foam = smoothstep(u_jac_foam, u_jac_foam - 0.25, jacobian);
 	v_rel = height;
+	v_sharp = smoothstep(1.0, u_jac_foam, jacobian);   // pleine au seuil des moutons, montée dès que l'eau se tasse
 }
 
 // ---------------------------------------------------------------------------
@@ -661,7 +670,10 @@ void fragment() {
 	float sun_lit = 1.0;
 	c = mix(c, c * (1.0 - u_shadow), shade * (1.0 - 0.6 * F));
 	c *= 1.0 + kg.z;                    // les crêtes du V : claires au ciel, sombres au dos
-	c *= mix(0.62, 1.0, mix(open, 1.0, far));
+	c *= mix(1.0 - u_trough_dark, 1.0, mix(open, 1.0, far));
+	/* ET LE HAUT DE LA CRÊTE S'ÉCLAIRCIT : un dégradé de forme, du creux sombre à la crête claire — la
+	   vague se lit par ses masses. Le blanc franc, lui, est réservé à la pointe (plus bas, « cap »). */
+	c *= 1.0 + 0.35 * u_crest_white * smoothstep(0.25, 0.7, hrel) * (1.0 - far);
 
 	/* --- LA ROUTE DE SCINTILLEMENT ---
 	   Un lobe GGX, et non un point de miroir unique. La rugosité monte avec le
@@ -804,6 +816,14 @@ void fragment() {
 	float lc = 0.4 * battue + 0.2;
 	if (lace_mix < 1.0 && crest_ramp > 0.0) lc = mix(lace(v_world.xz, battue, fine), lc, lace_mix);
 	float crest_foam = clamp(lc * crest_ramp * (0.75 + 0.35 * fn) * u_foam_gain, 0.0, 1.0);
+	/* ET LA POINTE BLANCHIT AVANT DE CASSER : haute (au-dessus du tiers de la plus haute crête) ET
+	   pincée (v_sharp) — une crête ronde, si haute soit-elle, reste d'eau. Elle passe par l'écume, donc
+	   par son éclairage : ce qui réfléchit suit la lumière. Déchirée par le même bruit que les moutons. */
+	/* u_amp_max est la somme des vagues en phase, qui n'arrive jamais : une vraie crête en dépasse rarement
+	   le tiers. La dureté (v_sharp) vient surtout des vagues COURTES et couvre de larges étendues, creux
+	   compris (relevé en fausses couleurs) : le blanc ne prend qu'où les deux sont au plus haut à la fois. */
+	float cap = smoothstep(0.3, 0.6, v_rel / max(u_amp_max, 0.05)) * smoothstep(0.45, 0.9, v_sharp) * u_crest_white;
+	crest_foam = max(crest_foam, cap * (0.55 + 0.45 * fn) * (1.0 - far));
 	/* LES STRIES QUI SUIVENT LA PENTE. Sur la face d'une grosse vague, l'eau
 	   ruisselle et l'écume se déchire en longues traînées qui descendent, dans le
 	   sens de la plus grande pente — ce que montrent les images de tempête, et
