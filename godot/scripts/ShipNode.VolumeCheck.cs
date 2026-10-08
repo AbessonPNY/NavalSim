@@ -69,15 +69,15 @@ public partial class ShipNode
         double model = vol * 1.025, sheet = Spec.Raw.DisplacementTonnes;
         /* EST-CE BIEN LA COQUE ? Une coque en plusieurs morceaux (la Roter Löwe : bordé, préceinte,
            galeries) n'a pas de « plus gros maillage » qui la soit : en mesurer un annonçait 23 t pour 300.
-           La largeur trouvée à la flottaison le dit sans ambiguïté — moins de 70 % du bau, ce n'est pas
+           La largeur trouvée à la flottaison le dit sans ambiguïté — moins de la moitié du bau, ce n'est pas
            la coque qu'on a tranchée. On se tait plutôt que de crier au loup. */
-        if (wlHalf < 0.35 * Spec.B)
+        if (wlHalf < 0.25 * Spec.B)
         {
             GD.Print(FormattableString.Invariant($"[{Spec.Id}] poids du modèle non contrôlé : son plus gros maillage n'a que {2 * wlHalf:F1} m de large à la flottaison, pour {Spec.B:F1} au bau — coque en plusieurs morceaux"));
             return;
         }
         double gap = (model - sheet) / sheet;
-        string line = FormattableString.Invariant($"[{Spec.Id}] le modèle déplace {model:F0} t à la flottaison où flotte la fiche, qui en annonce {sheet:F0} ({gap * 100:+0;-0} %)");
+        string line = FormattableString.Invariant($"[{Spec.Id}] le modèle déplace {model:F0} t à la flottaison où flotte la fiche, qui en annonce {sheet:F0} ({Math.Round(gap * 100):+0;-0;0} %)");
         if (Math.Abs(gap) > VolumeTolerance)
             GD.PushWarning(line + $" — modèle retouché ? node tools/fit-ship.js {Spec.Id} --ecrire");
         else GD.Print(line);

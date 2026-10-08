@@ -2,7 +2,6 @@
   "id": "barge",
   "name": "Chaland Bourrasque",
   "note": "Exemple de coque chargée depuis un .glb. Le modèle ne fournit que l'apparence : la flottaison vient toujours des cotes ci-dessous, car on ne peut pas déduire un volume de carène fiable d'un maillage quelconque. Le .glb est mis à l'échelle sur `hull.length`, étrave vers +z, origine sur la flottaison.",
-
   "hull": {
     "length": 28,
     "beam": 7.6,
@@ -11,48 +10,53 @@
     "sheerStern": 0.15,
     "keelDepth": 1.9,
     "keelExtra": 0.4,
-
     "dragAft": 0.15,
     "forefootLift": 0.55,
-    "counterLift": 0.20,
-
-    "waterlinePower": 0.70,
-    "waterlineFull": 0.30,
+    "counterLift": 0.2,
+    "waterlinePower": 0.7,
+    "waterlineFull": 0.3,
     "transomWidth": 0.85,
-
-    "sectionTuck": 0.70,
+    "sectionTuck": 0.7,
     "sectionPower": 0.45
   },
-
   "displacementTonnes": 210,
-
-  "cog": { "yFracKeel": -0.40, "zFracLength": -0.02 },
-
+  "cog": {
+    "yFracKeel": -0.4,
+    "zFracLength": -0.02
+  },
   "hydro": {
     "resistance": 78,
     "lateralGrip": 500,
     "lateralQuad": 120,
     "heaveDamp": 1100
   },
-
-  "engine": { "topSpeed": 3.4, "sternPower": -0.7 },
-
-  "rudder": { "power": 78, "maxAngle": 0.61, "postZFrac": -0.47, "postY": -0.8 },
-
+  "engine": {
+    "topSpeed": 3.4,
+    "sternPower": -0.7
+  },
+  "rudder": {
+    "power": 78,
+    "maxAngle": 0.61,
+    "postZFrac": -0.47,
+    "postY": -0.8
+  },
   "rig": {
     "type": "none",
     "sailArea": 0,
-    "ceHeight": 2.0,
+    "ceHeight": 2,
     "ceZ": 0,
-    "maxSheet": 1.0,
+    "maxSheet": 1,
     "belly": 0,
     "masts": [],
     "jib": null,
     "bowsprit": null
   },
-
-  "deckhouse": { "beamFrac": 0.45, "height": 1.6, "lengthFrac": 0.20, "zFrac": -0.28 },
-
+  "deckhouse": {
+    "beamFrac": 0.45,
+    "height": 1.6,
+    "lengthFrac": 0.2,
+    "zFrac": -0.28
+  },
   "appearance": {
     "hull": "0x3a3226",
     "timber": "0x6a5a42",
@@ -60,13 +64,17 @@
     "house": "0xbdb5a2",
     "canvas": "0xd8cdb4"
   },
-
-  "camera": { "chaseDist": 46, "chaseHigh": 17, "orbitDist": 56, "helmZFrac": -0.40, "helmHeight": 3.75 },
-
+  "camera": {
+    "chaseDist": 46,
+    "chaseHigh": 17,
+    "orbitDist": 56,
+    "helmZFrac": -0.4,
+    "helmHeight": 3.75
+  },
   "model": {
     "glb": "modele.glb",
     "lengthAxis": "z",
-    "offset": [0, 0, 0],
+    "offset": [0, -0.45, 0],
     "rotationY": 0
   }
 }

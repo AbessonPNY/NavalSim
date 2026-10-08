@@ -44,8 +44,13 @@ COÏNCIDER les deux. L'outil le fait (17 s pour le Roebuck) :
 5. **le pont** (`hull.freeboardMid`) sur un maillage nommé `pont`, `deck` ou `tillac`, et **les mâts**
    (`rig.masts[].height`, `rig.ceHeight`) sur les espars du modèle au droit de chaque mât.
 
-Sans `--ecrire`, il dit ce qu'il changerait. Le modèle est lu à l'échelle `model.scale` (1 si
-absent) ; la coque est son plus gros maillage qui n'est ni une pièce, ni un espar, ni le pont. Le
+Sans `--ecrire`, il dit ce qu'il changerait, et le **franc-bord du modèle au milieu** (le haut de la
+coque coupée à mi-longueur, au-dessus de l'eau) : c'est ce que l'œil juge. Le modèle est lu à l'échelle
+où le jeu le pose : `model.scale`, ou, absente, la longueur de la fiche sur celle de son maillage le plus
+volumineux (`ShipNode.HullScale`). La coque est son plus gros maillage qui n'est ni une pièce, ni un
+espar, ni le pont ; un maillage est une pièce par son nom (`canon`, `gun`), ou si TOUTES ses matières
+le disent. Après une fiche réécrite, les deux relevés de parité : `node tools/parity-dump.js` et
+`node tools/parity-physics.js`. Le
 jeu, au chargement, avertit encore d'une quille de modèle loin de celle du plan.
 
 **Le contrôle au chargement** (`ShipNode.VolumeCheck.cs`) : une fois le navire mis à l'eau, le jeu

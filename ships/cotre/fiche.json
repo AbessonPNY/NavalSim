@@ -9,7 +9,7 @@
     "sheerBow": 1.05,
     "sheerStern": 0.55,
     "keelDepth": 1.6,
-    "keelExtra": 0.55,
+    "keelExtra": 0.05,
     "dragAft": 0.55,
     "forefootLift": 0.78,
     "counterLift": 0.42,
@@ -68,16 +68,13 @@
     "chaseDist": 38,
     "chaseHigh": 14,
     "orbitDist": 46,
-    "helmZFrac": -0.44, "helmHeight": 3.3
+    "helmZFrac": -0.44,
+    "helmHeight": 3.3
   },
   "model": {
     "glb": "modele.glb",
     "lengthAxis": "z",
-    "offset": [
-      0,
-      0,
-      0
-    ],
+    "offset": [0, 0.16, 0],
     "rotationY": 0
   }
 }

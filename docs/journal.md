@@ -15161,6 +15161,19 @@ Nations.Draw prend un filtre. Et « nation » dans une fiche : le Roebuck, vaiss
 pavillon — il sort anglais. RÉALISME : en 1690 l'Espagne est l'alliée de l'Angleterre contre la France (Grande Alliance), et des
 balandres espagnoles venaient bel et bien à Port Royal acheter des esclaves sous licence ; fermer la rade aux Espagnols est un
 choix de jeu, qui se défait d'un mot dans le fichier.
+
+LES SIX FICHES SIGNALÉES, RECALÉES (chaland, chaloupe, cotre, sloop, Couronne, galion pirate) — et trois défauts de fit-ship
+trouvés en chemin : (1) sans model.scale, il lisait le modèle à 1 quand le jeu le ramène à la longueur de la fiche (la chaloupe :
+1,90 m pour 7) — il prend maintenant l'échelle du jeu (HullScale) ; (2) le galion pirate porte sa coque dans un maillage dont
+UNE des quatre matières s'appelle « black_canon » : pris pour une pièce, sa coque laissait la place à un espar (relèvement de
+−20 m proposé) — une pièce par sa matière seulement si toutes le disent ; (3) le franc-bord du modèle au milieu, désormais affiché,
+se mesure par une COUPE (arêtes des triangles) : par sommets, la Couronne (592 sommets) sortait à 0,34 m. Aucun de ces navires n'a
+de pièce de bordée : la flottaison est celle où le modèle déplace le tonnage de la fiche, qui reste. Relèvements : chaland −0,45,
+chaloupe +0,10, cotre +0,16, sloop −0,64 (franc-bord au milieu 0,55 m), Couronne +0,92, pirate −0,91. Le cotre et la Couronne
+gardent un plan plus creux que le modèle (21 cm, 1,2 m) : la quille saillante est déjà au plancher, c'est keelDepth qu'il
+faudrait toucher, et donc la carène — laissé. PARITÉ : après une fiche réécrite, DEUX relevés (parity-dump ET parity-physics,
+qui écrit parity-physics.json et parity-settle.json) ; le premier seul laissait « ECART bati 0,2 ». Le contrôle au chargement :
+garde abaissée à la moitié du bau (le cotre, évasé, ne fait que 70 % du sien à la flottaison) ; « -+0 % » corrigé.
 ## Les fenêtres de nuit adoucies, et dans les réglages (Godot)
 
 DEMANDÉ : diminuer l'éclat des fenêtres des maisons et des navires, avec un réglage. Les navires avaient un gain écrit

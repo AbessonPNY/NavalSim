@@ -3,7 +3,6 @@
   "name": "Sloop Experiment 1677",
   "pirate": true,
   "note": "Sloop anglais, non classé : threedecks.org (fiche 13560). Commandé le 22 mars 1676/77, nommé le 25 juillet 1677, armé le 30 juillet, construit à Greenwich par Joseph Lawrence. Donné en avril 1680 à Thomas Allen. Cotes d'origine converties du pied anglais (0,3048 m) : quille 35 pi = 10,67 m ; maître-bau 11 pi 6 po = 3,505 m ; creux dans la cale 6 pi 4 po = 1,93 m ; port en lourd 24 58/94 tonneaux. QUATRE pièces, DIX hommes — un sloop de service, pas un navire de combat. LE TONNEAU DE JAUGE N'EST PAS UN DÉPLACEMENT, comme l'établit la fiche du Roebuck (celle du Speedwell à l'origine) : c'est une capacité. Les 22 t sont le déplacement en charge, soit 0,89 fois la jauge — MOINS qu'elle, à l'inverse d'un cinquième rang, et c'est la formule qui l'explique : la jauge se calcule quille × bau × bau/2 / 94 (vérifié sur ces cotes, 24,6 contre les 24 58/94 annoncés), et ce produit surestime une coque basse et large. RELEVÉ EN JEU : 1,53 m de tirant pour 1,55 déclaré au plan de formes, 40,2 % d'immersion — la fiche s'accorde à elle-même. À 34 t elle s'enfonçait à 60,6 %, à 24 t à 44 %. GRÉEMENT : un seul mât, aurique, à un tiers de l'avant, avec une bôme qui déborde le tableau et un beaupré long — la signature du sloop, une grande voilure sur une petite coque. VOILURE : 110 m², soit un rapport voilure/déplacement de 13,9 — celui d'un fin voilier. La règle d'échelle du projet (surfaces en s²) depuis la goélette de 24 m donnait 72 m², ce qui mettait le sloop SOUS le galion par tonne (9,2 contre 11,3) : l'inverse de ce qu'un sloop des Antilles était, le voilier rapide de ces mers. La règle vaut entre coques comparables, pas entre un mât unique et un trois-mâts carré. LE MODÈLE : sloop_1700s.glb, relevé 3,60 × 3,60 × 10,62 m, étrave vers +z comme le veut la convention, mât à 39 % de l'avant et beaupré qui déborde l'étrave de 1,4 m. Son origine est à 1,19 m en arrière du milieu de la coque, ce qui se rattrape par offset si le profil le demande. LES QUATRE CANONS VIENDRONT DU MODÈLE et non d'ici : le moteur les trouve aux maillages dont le nom contient « canon », « cannon » ou « gun ».",
-
   "hull": {
     "length": 10.6,
     "beam": 3.5,
@@ -11,36 +10,38 @@
     "sheerBow": 0.45,
     "sheerStern": 0.25,
     "keelDepth": 1.55,
-    "keelExtra": 0.28,
-
+    "keelExtra": 0.38,
     "dragAft": 0.5,
     "forefootLift": 0.75,
     "counterLift": 0.4,
-
     "waterlinePower": 0.8,
     "waterlineFull": 0.56,
     "transomWidth": 0.4,
-
     "sectionTuck": 0.36,
     "sectionPower": 0.72
   },
-
   "displacementTonnes": 22,
   "equipage": 10,
-
-  "cog": { "yFracKeel": -0.45, "zFracLength": -0.06 },
-
+  "cog": {
+    "yFracKeel": -0.45,
+    "zFracLength": -0.06
+  },
   "hydro": {
     "resistance": 61,
     "lateralGrip": 654,
     "lateralQuad": 131,
     "heaveDamp": 1100
   },
-
-  "engine": { "topSpeed": 3.1, "sternPower": -0.7 },
-
-  "rudder": { "power": 91.5, "maxAngle": 0.65, "postZFrac": -0.47, "postY": -0.45 },
-
+  "engine": {
+    "topSpeed": 3.1,
+    "sternPower": -0.7
+  },
+  "rudder": {
+    "power": 91.5,
+    "maxAngle": 0.65,
+    "postZFrac": -0.47,
+    "postY": -0.45
+  },
   "rig": {
     "type": "gaff",
     "sailArea": 110,
@@ -48,22 +49,17 @@
     "ceZ": -0.2,
     "maxSheet": 1.5,
     "belly": 1.65,
-    "masts": [
-      { "zFrac": 0.16, "height": 12.0, "boom": 7.0, "tackAbove": 1.1 }
-    ],
+    "masts": [{ "zFrac": 0.16, "height": 12, "boom": 7, "tackAbove": 1.1 }],
     "jib": { "footFrac": 0.26, "tackAbove": 0.7, "clewAbove": 1.3, "headDrop": 1.8 },
     "bowsprit": { "length": 4.2, "steeve": 0.16 }
   },
-
   "lanterns": [
     { "x": 0, "zFrac": -0.44 }
   ],
-
   "flags": [
     { "at": "stern", "size": 0.8, "image": "nation:poupe" },
     { "mast": 1, "shape": "streamer", "size": 0.5, "image": "nation" }
   ],
-
   "appearance": {
     "hull": "0x2a3a33",
     "timber": "0x8a6a45",
@@ -71,7 +67,6 @@
     "house": "0xd9d2c2",
     "canvas": "0xd8cdb4"
   },
-
   "camera": {
     "chaseDist": 19,
     "chaseHigh": 7,
@@ -79,11 +74,10 @@
     "helmZFrac": -0.42,
     "helmHeight": 1.9
   },
-
   "model": {
     "glb": "modele.glb",
     "lengthAxis": "z",
-    "offset": [0, 0, 0],
+    "offset": [0, -0.64, 0],
     "rotationY": 0
   }
 }

@@ -9,7 +9,7 @@
     "sheerBow": 1.2,
     "sheerStern": 0.9,
     "keelDepth": 3.2,
-    "keelExtra": 0.65,
+    "keelExtra": 1.08,
     "dragAft": 0.9,
     "forefootLift": 0.7,
     "counterLift": 0.35,
@@ -51,47 +51,12 @@
     "lateen": { "area": 45, "ceHeight": 7.5, "ceZ": -10, "maxSheet": 1.45 },
     "belly": 1.65,
     "masts": [
-      {
-        "zFrac": 0.26,
-        "height": 17,
-        "yards": [
-          0.3,
-          0.52,
-          0.72
-        ],
-        "yardSpan": 0.98
-      },
-      {
-        "zFrac": -0.02,
-        "height": 19,
-        "yards": [
-          0.28,
-          0.5,
-          0.7
-        ],
-        "yardSpan": 1.12
-      },
-      {
-        "zFrac": -0.3,
-        "height": 16,
-        "yards": [
-          0.3,
-          0.54,
-          0.74
-        ],
-        "yardSpan": 0.86
-      }
+      { "zFrac": 0.26, "height": 17, "yards": [0.3, 0.52, 0.72], "yardSpan": 0.98 },
+      { "zFrac": -0.02, "height": 19, "yards": [0.28, 0.5, 0.7], "yardSpan": 1.12 },
+      { "zFrac": -0.3, "height": 16, "yards": [0.3, 0.54, 0.74], "yardSpan": 0.86 }
     ],
-    "jib": {
-      "footFrac": 0.235,
-      "tackAbove": 1.1,
-      "clewAbove": 2,
-      "headDrop": 3
-    },
-    "bowsprit": {
-      "length": 7.75,
-      "steeve": 0.22
-    }
+    "jib": { "footFrac": 0.235, "tackAbove": 1.1, "clewAbove": 2, "headDrop": 3 },
+    "bowsprit": { "length": 7.75, "steeve": 0.22 }
   },
   "lanterns": [
     { "x": 0, "zFrac": -0.471 }
@@ -108,17 +73,11 @@
     "spar": "0xa8875a",
     "house": "0xc9bda4",
     "canvas": "0xd8cdb4",
-    "canvasMap": {
-      "square": "ships/textures/toile-carree.jpg"
-    },
+    "canvasMap": { "square": "ships/textures/toile-carree.jpg" },
     "ensign": "jolly",
     "ensignMap": "ships/textures/flags/jolly_roger_1690.jpg",
     "impactMaps": [
-      [
-        "ships/textures/impacts/impact_001_stage_1.png",
-        "ships/textures/impacts/impact_001_stage_2.png",
-        "ships/textures/impacts/impact_001_stage_3.png"
-      ]
+      ["ships/textures/impacts/impact_001_stage_1.png", "ships/textures/impacts/impact_001_stage_2.png", "ships/textures/impacts/impact_001_stage_3.png"]
     ]
   },
   "camera": {
@@ -131,11 +90,7 @@
   "model": {
     "glb": "modele.glb",
     "lengthAxis": "z",
-    "offset": [
-      0,
-      0,
-      0
-    ],
+    "offset": [0, -0.91, 0],
     "rotationY": 0
   }
 }

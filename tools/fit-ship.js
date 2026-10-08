@@ -50,8 +50,10 @@ const glbRel = sheet.model && sheet.model.glb;
 if (!glbRel) { console.error('la fiche ne nomme pas de modèle (model.glb)'); process.exit(1); }
 const glbPath = glbRel.includes('/') ? path.join(ROOT, glbRel) : path.join(sheetDir, glbRel);
 if (!fs.existsSync(glbPath)) { console.error('modèle introuvable : ' + glbPath); process.exit(1); }
-const K = (sheet.model.scale != null) ? sheet.model.scale : 1;
-if (sheet.model.scale == null) console.log('model.scale absent : le jeu met le modèle à l\'échelle de lui-même ; l\'outil le lit à 1.');
+/* L'ÉCHELLE, comme le jeu la prend (ShipNode.HullScale) : model.scale si la fiche la donne, sinon la
+   longueur de la fiche sur celle du maillage le plus volumineux. Lu à 1 quand elle manquait, le modèle
+   de la chaloupe faisait 1,90 m pour 7 : tout ce qui suivait était faux. Posée après la lecture. */
+let K = 1;
 
 // ---------- le modèle, ses maillages posés par leur hiérarchie ----------
 const buf = fs.readFileSync(glbPath);
@@ -77,7 +79,7 @@ function walk(ni, parent) {
       const base = V.length;
       for (let i = 0; i < a.count; i++) {
         const x = bin.readFloatLE(off + i * st), y = bin.readFloatLE(off + i * st + 4), z = bin.readFloatLE(off + i * st + 8);
-        V.push([(m[0] * x + m[4] * y + m[8] * z + m[12]) * K, (m[1] * x + m[5] * y + m[9] * z + m[13]) * K, (m[2] * x + m[6] * y + m[10] * z + m[14]) * K]);
+        V.push([m[0] * x + m[4] * y + m[8] * z + m[12], m[1] * x + m[5] * y + m[9] * z + m[13], m[2] * x + m[6] * y + m[10] * z + m[14]]);
       }
       if (p.indices !== undefined) {
         const ia = gltf.accessors[p.indices], iv = gltf.bufferViews[ia.bufferView];
@@ -94,7 +96,21 @@ function walk(ni, parent) {
 }
 const I4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 for (const r of gltf.scenes[gltf.scene || 0].nodes) walk(r, I4);
-const isGun = m => /canon|cannon|gun/i.test(m.name) || /canon|cannon/i.test(m.mat);
+if ((sheet.model.rotationY || 0) !== 0 || (sheet.model.lengthAxis || 'z') !== 'z')
+  console.log('  ! model.rotationY ou lengthAxis « x » : l\'outil lit le modèle tel quel, étrave vers +z');
+{
+  const vol = m => (m.hi[0] - m.lo[0]) * (m.hi[1] - m.lo[1]) * (m.hi[2] - m.lo[2]);
+  const big = meshes.reduce((a, b) => vol(b) > vol(a) ? b : a, meshes[0]);
+  K = sheet.model.scale != null ? sheet.model.scale : sheet.hull.length / (big.hi[2] - big.lo[2]);
+  if (sheet.model.scale == null) console.log(`model.scale absent : le jeu ramène « ${big.name} » à la longueur de la fiche, soit ×${K.toFixed(4)}`);
+  if (K !== 1) for (const m of meshes) {
+    for (const p of m.V) { p[0] *= K; p[1] *= K; p[2] *= K; }   // the triangles hold these very points
+    m.lo = m.lo.map(v => v * K); m.hi = m.hi.map(v => v * K);
+  }
+}
+/* a gun by its name, or by its material when ALL of them say so: the pirate galleon's hull carries a
+   « black_canon » among its four, and was taken whole for a gun (its spar became the hull) */
+const isGun = m => /canon|cannon|gun/i.test(m.name) || (m.mat.trim() !== '' && m.mat.trim().split(/\s+/).every(x => /canon|cannon/i.test(x)));
 const isSpar = m => /m[aâ]t|mast|vergue|yard|beaupr|bowsprit|antenne|civad|artimon|misaine|spar|hune/i.test(m.name) || /spar/i.test(m.mat);
 const isDeck = m => /^(pont|deck|tillac)/i.test(m.name);
 const vol3 = m => (m.hi[0] - m.lo[0]) * (m.hi[1] - m.lo[1]) * (m.hi[2] - m.lo[2]);
@@ -211,6 +227,18 @@ const f2 = v => (v >= 0 ? ' ' : '') + v.toFixed(2);
 console.log(`${id} : modèle ${path.relative(ROOT, glbPath).split(path.sep).join('/')}, coque « ${hull.name} » ${(hull.hi[2] - hull.lo[2]).toFixed(2)} × ${(hull.hi[0] - hull.lo[0]).toFixed(2)} m (fiche ${L} × ${sheet.hull.beam})`);
 console.log(`flottaison y ${yw.toFixed(2)} du modèle : ${why}`);
 console.log(`  quille ${modelBottom.toFixed(2)} m sous l'eau ; ${broadside.length ? `pièce la plus basse à ${(Math.min(...broadside.map(g => g.y)) - yw).toFixed(2)} m au-dessus` : 'pas de pièce de bordée'}`);
+// what the eye judges: the hull's lowest top edge over the middle fifth, above the water
+// what the eye judges: the hull's top edge where the cross-section at mid-length cuts it, above the water
+{
+  const zm = (hull.lo[2] + hull.hi[2]) / 2;
+  let top = -Infinity;
+  for (const t of hull.tris) for (let e = 0; e < 3; e++) {
+    const a = t[e], b = t[(e + 1) % 3];
+    if ((a[2] - zm) * (b[2] - zm) > 0 || a[2] === b[2]) continue;
+    top = Math.max(top, a[1] + (zm - a[2]) / (b[2] - a[2]) * (b[1] - a[1]));
+  }
+  if (isFinite(top)) console.log(`  franc-bord du modèle au milieu : ${(top - yw).toFixed(2)} m`);
+}
 const rows = [
   ['displacementTonnes', sheet.displacementTonnes, next.displacementTonnes],
   ['hull.keelExtra', sheet.hull.keelExtra, next.hull.keelExtra],
