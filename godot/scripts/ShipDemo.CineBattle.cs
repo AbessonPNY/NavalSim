@@ -191,10 +191,30 @@ public partial class ShipDemo
         _cam.RotateObjectLocal(Vector3.Back, roll);
     }
 
-    /// <summary>Ni dans la mer ni dans la terre : trois mètres au-dessus de la crête, six au-dessus du relief.</summary>
+    /// <summary>
+    /// NI DANS LA MER NI DANS LA TERRE. Au-dessus de la mer, non pas de la crête qui passe sous
+    /// l'œil — par gros temps chaque lame le soulevait d'un coup (signalé : « trop près de la houle,
+    /// elle sursaute à chaque vague ») — mais de la PLUS HAUTE crête que cette mer peut lever
+    /// (Ocean.AmpMax), et de quatre mètres encore : une garde qui ne bouge qu'avec l'état de mer, si
+    /// bien que la houle passe dessous sans le toucher. La crête du moment reste un garde-fou, et le
+    /// relief six mètres.
+    /// </summary>
+    const double SeaMargin = 4;
+
+    /* LA PLUS HAUTE CRÊTE QU'ON VERRA, et non la plus haute possible. AmpMax est la somme de toutes
+       les vagues en phase (16 m par force 9) : elle n'arrive jamais, et le drone restait collé à vingt
+       mètres. La surface est la somme de dix-huit sinusoïdes de phases indépendantes, d'écart type
+       √(Σa²/2) ; trois écarts types, c'est la crête que l'on croise une fois sur quelques centaines. */
+    double HighCrest()
+    {
+        double s2 = 0;
+        foreach (var w in _sea.Core.Waves) s2 += w.Amp * w.Amp;
+        return Math.Min(_sea.Core.AmpMax, 3 * Math.Sqrt(s2 / 2));
+    }
+
     Vector3 AboveSeaAndLand(Vector3 eye)
     {
-        double floor = _sea.Core.Sample(eye.X, eye.Z, _sea.Core.Time) + 3;
+        double floor = Math.Max(HighCrest() + SeaMargin, _sea.Core.Sample(eye.X, eye.Z, _sea.Core.Time) + 3);
         if (_world != null)
         {
             var o = _sea.Core.Origin;

@@ -303,6 +303,8 @@ public partial class ShipDemo
                 // la caméra suit le premier navire de la rade (ShipDemo.Traffic.cs)
                 case "--pavillon-noye": _flagDrownTest = Math.Clamp(args[i + 1].ToFloat(), 0, 1); break;
                 // un navire en paix par notre travers, et le feu ouvert sur lui (ShipDemo.Readiness.cs)
+                // la hauteur de l'œil relevée N secondes : moyenne, écart, plus grand saut d'une image à l'autre
+                case "--mesure-oeil": _eyeProbe = args[i + 1].ToFloat(); break;
                 case "--surprise": _surpriseTest = args[i + 1]; _askTitle ??= false; break;
                 case "--heurter": _bumpTest = args[i + 1]; _askTitle ??= false; break;
                 case "--instruments": _info.Visible = args[i + 1] != "0"; break;

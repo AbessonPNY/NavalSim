@@ -58,6 +58,8 @@ public partial class ShipDemo
     }
 
     /// <summary>Le voile du fondu, sous le HUD : le noir couvre l'image, pas les instruments.</summary>
+    float _flyShipY;
+
     ColorRect FadeRect()
     {
         if (_flyFadeRect != null) return _flyFadeRect;
@@ -144,6 +146,11 @@ public partial class ShipDemo
         var b = _ship.Physics.Body;
         var ship = _ship.Position;
         double L = _ship.Spec.L;
+        /* L'ŒIL NE PLONGE PAS AVEC LA COQUE : la hauteur du navire, lissée sur trois secondes,
+           porte le drone — son tangage et son pilonnement restent DANS l'image, ils ne secouent plus
+           le cadre (signalé : « elle sursaute à chaque vague »). Le regard, lui, suit le vrai navire. */
+        _flyShipY = _flyInit ? Mathf.Lerp(_flyShipY, ship.Y, (float)(1 - Math.Exp(-dt / 3.0))) : ship.Y;
+        var carry = new Vector3(ship.X, _flyShipY, ship.Z);
         var v = new Vector3((float)b.Vel.X, 0, (float)b.Vel.Z);
         float speed = v.Length();
         var fw = b.Quat.Rotate(new Vec3d(0, 0, 1));
@@ -175,9 +182,9 @@ public partial class ShipDemo
                doit sembler bouger derrière lui, pas lui sur la mer. */
             _flyClock += dt;
             _flyAngle += _flyTurn * dt * 2 * Math.PI / 120 * _flySpeed * (battle ? 4 : 1);
-            eye = ship + new Vector3((float)(Math.Sin(_flyAngle) * _flyR), (float)_flyH, (float)(Math.Cos(_flyAngle) * _flyR));
+            eye = carry + new Vector3((float)(Math.Sin(_flyAngle) * _flyR), (float)_flyH, (float)(Math.Cos(_flyAngle) * _flyR));
             // à côté de lui, pas sur lui : le centre de l'image glisse d'un dixième de longueur
-            var off = (eye - ship).Cross(Vector3.Up).Normalized() * (float)(0.12 * L * _flyTurn);
+            var off = (eye - carry).Cross(Vector3.Up).Normalized() * (float)(0.12 * L * _flyTurn);
             target = ship + new Vector3(0, (float)(0.15 * L), 0) + off;
             if (_flyClock > (battle ? Math.Min(3, _flyHold) : _flyHold)) NextShot();
         }
@@ -187,7 +194,7 @@ public partial class ShipDemo
                d'un pas d'homme — lent, mais toujours devant à la fin. */
             _flyAlong += (0.35 * speed + 1.5) * _flySpeed * (battle ? 2.6 : 1) * dt;
             double bob = 0.04 * L * Math.Sin(_t * 0.31);          // une respiration, pas un roulis
-            eye = ship + course * (float)_flyAlong + side * (float)_flySide + new Vector3(0, (float)(_flyH + bob), 0);
+            eye = carry + course * (float)_flyAlong + side * (float)_flySide + new Vector3(0, (float)(_flyH + bob), 0);
             target = ship + course * (float)(0.15 * L) + new Vector3(0, (float)(0.15 * L), 0);
             if (_flyAlong > FlySpan()) NextShot();
         }

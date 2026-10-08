@@ -15111,6 +15111,26 @@ PUIS AUX VRAIES COTES (threedecks.org 6226, donné par lui) : 96 pi de pont, 84 
 1,21 × la jauge = 353 t ; batteries de tools/ship-glb.js aux mêmes places × 96/94 ; modèle régénéré (29,26 × 7,77 m).
 MESURÉ à la mise en eau (settle) : 3,52 m de tirant (11 pi 6 po) et 44,7 % d'immersion, contre 3,34 m et 42,5 %.
 
+## Le naufrage filmé ; le drone au-dessus de la houle (Godot)
+
+DEMANDÉ : « quand le navire sombre, la caméra passe en mode cinéma ». ShipDemo.SinkFilm.cs : dès que le navire est
+PERDU (trois quarts de sa contenance en eau, coupé en deux, ou sombré), l'interface s'efface, les bandes descendent
+(FilmMaskOn), et trois plans : large de trois quarts arrière (7 s), par le travers au ras de l'eau en glissant, puis
+sous la surface à la suivre qui descend (12 s) et le noir — le voile du drone (FadeRect), le noir de l'histoire
+n'existant que dans son film. Puis la vue d'avant et le bandeau (LostTick attend la fin). Échap / Entrée / Espace le
+passent ; settings.json → wreck.film. VU : coupé en deux, le cadre prenait la moitié avant qui dérivait et coulait
+— le navire n'était plus qu'un point ; elle n'entre plus qu'à moins de deux longueurs, l'écart plafonné à 2,5 L.
+L'arrière d'un navire coupé, dressé par ses hauts, mettait deux minutes à partir : au bout d'une minute on passe
+sous l'eau (film de 72 s au plus ; 31 s quand il coule vite). Essai : -- --ship 10 --large 1 --soute 1.
+
+LE DRONE PRÈS DE LA HOULE (signalé : « trop près de la houle par gros temps, elle sursaute à chaque vague »). Deux
+causes : AboveSeaAndLand relevait l'œil à 3 m de la crête QUI PASSAIT SOUS LUI, et la hauteur du drone suivait le
+pilonnement du navire. Maintenant : une garde au-dessus de la plus haute crête RÉALISTE (HighCrest : trois écarts
+types de la surface, √(Σa²/2) — AmpMax, toutes les vagues en phase, valait 16 m par force 9 et collait le drone à
+20 m), plus 4 m ; et la hauteur du navire lissée sur 3 s (le regard suit le vrai navire). Relevé (-- --mesure-oeil 40,
+au large, cinéma) : force 9, avant de −1,72 à 22,35 m (l'œil SOUS l'eau) ; après 16,06 m tenus, la crête réaliste
+étant de 12 m — la houle du jeu est très creuse à cette force. Force 5 : garde de 7 m, plans de 7 à 16 m.
+
 ## Pris par surprise : le branle-bas avant la riposte (Godot)
 
 DEMANDÉ : « un navire attaqué par surprise ne doit pas répliquer à la seconde, il n'a pas eu le temps de se

@@ -984,6 +984,7 @@ public partial class ShipDemo : Node3D
         CrewTick(frame);
         TackCalls();
 
+        SinkFilmTick(frame);
         WreckTick(frame);
         TickSunPanel(frame);
         /* La lueur n'existe pas le jour — bloom.js saute sa passe tant que la nuit

@@ -44,7 +44,7 @@ public partial class ShipDemo
     }
 
     /// <summary>Le masque 2,35, qu'il soit réglé ou imposé par le cinéma.</summary>
-    bool FilmMaskOn => _settings?.FilmMask == true || _cine || _film != null;
+    bool FilmMaskOn => _settings?.FilmMask == true || _cine || _film != null || _sinkT >= 0;
 
     void ToggleCinema()
     {

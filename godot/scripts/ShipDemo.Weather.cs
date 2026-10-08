@@ -156,6 +156,8 @@ public partial class ShipDemo
             if (root.TryGetProperty("reckoning", out var rk)) _reckRules = ReckoningSettings.FromJson(rk);
             if (root.TryGetProperty("wreck", out var wr) && wr.TryGetProperty("bottleOneIn", out var bo))
                 _bottleOneIn = bo.GetInt32();
+            // le naufrage filmé (ShipDemo.SinkFilm.cs) : vrai sauf « film »: false
+            if (root.TryGetProperty("wreck", out var wf) && wf.TryGetProperty("film", out var sinkFilm)) _sinkFilmOn = sinkFilm.ValueKind != System.Text.Json.JsonValueKind.False;
             if (root.TryGetProperty("gunnery", out var gu)) _gunRules = GunnerySettings.FromJson(gu);
             if (root.TryGetProperty("encounters", out var ec)) _metRules = EncounterSettings.FromJson(ec);
             if (root.TryGetProperty("snow", out var sw)) _snowRules = SnowSettings.FromJson(sw);

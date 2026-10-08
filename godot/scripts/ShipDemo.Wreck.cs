@@ -162,6 +162,8 @@ public partial class ShipDemo
     {
         // le naufrage du film n'est pas le vôtre
         if (_film != null) return;
+        // le nôtre se raconte d'abord ; le bandeau vient après (ShipDemo.SinkFilm.cs)
+        if (_sinkT >= 0) return;
         if (_lostBox == null || _captured) return;   // capturée : le bandeau est à elle
         _capsizedFor = Capsized() && !_ship.Physics.Foundered ? _capsizedFor + (double)GetProcessDeltaTime() : 0;
         if (_capsizedFor > 3)

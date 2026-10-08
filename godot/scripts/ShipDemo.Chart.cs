@@ -244,6 +244,8 @@ public partial class ShipDemo : Node3D
         if (!_booted) return;                       // rien à commander sous le rideau
         // le film prend tout : Échap, Entrée ou Espace le passent
         if (FilmInput(e)) { GetViewport().SetInputAsHandled(); return; }
+        // et le naufrage filmé de même (ShipDemo.SinkFilm.cs)
+        if (SinkFilmInput(e)) { GetViewport().SetInputAsHandled(); return; }
         // le mode création prend tout ce qui lui arrive, et ² le bascule de partout
         if (EditInput(e)) { GetViewport().SetInputAsHandled(); return; }
         // une page ouverte prend TOUT : on y écrit, et rien ne doit passer derrière

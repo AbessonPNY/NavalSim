@@ -76,6 +76,7 @@ public partial class ShipDemo
         TerraTestTick();
         BumpTestTick();
         SurpriseTick();
+        EyeProbeTick(GetProcessDeltaTime());
         Chimneys(origin, dt);
         ShoreFlagsTick();
         _addedHolds.Update(origin);

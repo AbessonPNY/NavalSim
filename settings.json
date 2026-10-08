@@ -372,6 +372,8 @@
     "navires": ["sloop.json", "frigate17e.json", "frigate.json"]
   },
   "wreck": {
-    "bottleOneIn": 6
+    "_aide": "LE NAUFRAGE. bottleOneIn : une bouteille à la mer sur combien de naufrages. film : quand VOTRE navire est perdu (les trois quarts de l'eau qu'il peut contenir, coupé en deux, ou sombré), la caméra passe en cinéma et le raconte — de loin, par le travers au ras de l'eau, puis sous la surface à le suivre qui descend ; Échap, Entrée ou Espace le passent. false : pas de film, le bandeau seul.",
+    "bottleOneIn": 6,
+    "film": true
   }
 }

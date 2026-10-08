@@ -132,3 +132,26 @@ public partial class ShipDemo
         if (_surpriseT > 240) _surpriseTest = null;
     }
 }
+
+/// <summary>LE RELEVÉ DE L'ŒIL (-- --mesure-oeil N) : sa hauteur sur l'eau et ses sauts, sur N secondes.</summary>
+public partial class ShipDemo
+{
+    double _eyeProbe = -1, _eyeT, _eyeSum, _eyeSum2, _eyeMin = 1e9, _eyeMax = -1e9, _eyeJump, _eyeLast = double.NaN;
+    int _eyeN;
+
+    void EyeProbeTick(double dt)
+    {
+        if (_eyeProbe <= 0 || !_booted || _inTitle) return;
+        _eyeT += dt;
+        if (_eyeT < 8) return;                       // que la mer et le drone aient pris leur allure
+        double y = _cam.GlobalPosition.Y;
+        _eyeSum += y; _eyeSum2 += y * y; _eyeN++;
+        _eyeMin = Math.Min(_eyeMin, y); _eyeMax = Math.Max(_eyeMax, y);
+        if (!double.IsNaN(_eyeLast)) _eyeJump = Math.Max(_eyeJump, Math.Abs(y - _eyeLast) / Math.Max(1e-3, dt));
+        _eyeLast = y;
+        if (_eyeT < 8 + _eyeProbe) return;
+        double m = _eyeSum / _eyeN, sd = Math.Sqrt(Math.Max(0, _eyeSum2 / _eyeN - m * m));
+        GD.Print(FormattableString.Invariant($"[oeil] {_eyeN} images : hauteur {m:F2} m (écart {sd:F2}, de {_eyeMin:F2} à {_eyeMax:F2}) ; plus vive montée ou descente {_eyeJump:F1} m/s ; plus haute crête réaliste {HighCrest():F2} m (toutes en phase : {_sea.Core.AmpMax:F2})"));
+        _eyeProbe = -1;
+    }
+}
