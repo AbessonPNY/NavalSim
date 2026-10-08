@@ -1,0 +1,5 @@
+{
+  "_aide": "LES PAVILLONS ADMIS DANS UN PORT (format : world/README.md, « Les pavillons d un port »). Par clé de port (celle de la fiche du monde et des horaires), les nations qui peuvent en partir et y venir : identifiants de ships/textures/flags/flags.json (france, hollande, espagne, angleterre). Un trajet doit être admis À SES DEUX BOUTS. Un port absent d ici les admet toutes ; le large aussi. Ne touche que les navires des horaires : ni les rencontres du large, ni les pirates.",
+
+  "port-royal": ["angleterre", "hollande"]
+}

@@ -131,3 +131,37 @@ public sealed class Sailing
 
     public string Name => (Arrival ? "arrivée " : "départ ") + Index;
 }
+
+/// <summary>
+/// LES PAVILLONS ADMIS DANS UN PORT — world/pavillons-des-ports.json, format dans world/README.md
+/// (« Les pavillons d'un port »). Par clé de port, les nations (identifiants de flags.json) qui
+/// peuvent en partir et y venir ; un port qui n'y est pas les admet toutes. Demandé : « aucun
+/// navire espagnol ou français ne doit s'approcher de Port Royal ou n'en partir ».
+///
+/// Un fichier à part et non les horaires : c'est une règle du PORT, pas d'une ligne, et elle vaut
+/// pour tout ce qui y touche, quelle que soit la région qui l'écrit.
+/// </summary>
+public sealed class PortNations
+{
+    public readonly Dictionary<string, HashSet<string>> Ports = new();
+
+    public static PortNations FromJson(string json)
+    {
+        var r = new PortNations();
+        using var doc = JsonDocument.Parse(json, new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
+        foreach (var p in doc.RootElement.EnumerateObject())
+        {
+            if (p.Name.StartsWith('_') || p.Value.ValueKind != JsonValueKind.Array) continue;
+            var set = new HashSet<string>();
+            foreach (var x in p.Value.EnumerateArray()) if (x.GetString() is { Length: > 0 } id) set.Add(id);
+            r.Ports[p.Name] = set;
+        }
+        return r;
+    }
+
+    /// <summary>Ce port admet-il ce pavillon ? Un port sans règle (ou « large ») admet tout.</summary>
+    public bool Admits(string port, string nation) => !Ports.TryGetValue(port, out var set) || set.Contains(nation);
+
+    /// <summary>Le pavillon d'un trajet doit être admis À SES DEUX BOUTS : on part de l'un pour entrer dans l'autre.</summary>
+    public bool Admits(string from, string to, string nation) => Admits(from, nation) && Admits(to, nation);
+}

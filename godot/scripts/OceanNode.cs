@@ -140,6 +140,8 @@ public partial class OceanNode : Node3D
     public readonly Vector3[] LampCol = new Vector3[8];
     /// <summary>Son rayon en mètres : nul pour un fanal, vingt pour une sphère. Voir u_lamp_size.</summary>
     public readonly float[] LampSize = new float[8];
+    /// <summary>Où il éclaire : nul pour un feu qui rayonne partout, l'axe d'une fenêtre sinon. Voir u_lamp_aim.</summary>
+    public readonly Vector3[] LampAim = new Vector3[8];
 
     /// <summary>Les <paramref name="count"/> premiers feux de <see cref="Lamps"/>, vers la mer.</summary>
     public void PushLamps(int count)
@@ -151,6 +153,7 @@ public partial class OceanNode : Node3D
         _mat.SetNow(U.LampRange, LampRange);
         _mat.SetNow(U.LampCol, LampCol);
         _mat.SetNow(U.LampSize, LampSize);
+        _mat.SetNow(U.LampAim, LampAim);
     }
 
     // ------------------------------------------------------------------

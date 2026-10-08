@@ -48,6 +48,21 @@ Sans `--ecrire`, il dit ce qu'il changerait. Le modèle est lu à l'échelle `mo
 absent) ; la coque est son plus gros maillage qui n'est ni une pièce, ni un espar, ni le pont. Le
 jeu, au chargement, avertit encore d'une quille de modèle loin de celle du plan.
 
+**Le contrôle au chargement** (`ShipNode.VolumeCheck.cs`) : une fois le navire mis à l'eau, le jeu
+tranche la coque DESSINÉE sous la ligne où la fiche le fait flotter et compare son poids au
+`displacementTonnes`. Au-delà de 5 %, un avertissement en console qui donne la commande
+(`node tools/fit-ship.js <id> --ecrire`) ; **rien n'est réécrit**, la fiche reste à son auteur. Il se
+tait sur un objet de moins d'une tonne, et sur une coque en plusieurs maillages (le plus gros n'a
+pas la largeur du bau à la flottaison : la Roter Löwe, la Boussole). Gonfler le modèle dans Blender
+ne change donc pas le navire en jeu : on recale la fiche, et le jeu dit quand il le faut.
+
+## Sa nation — `"nation"`
+
+Facultatif : un identifiant de `ships/textures/flags/flags.json` (`"angleterre"`). Le navire n'arbore
+alors que ces couleurs, en rade comme au large — un vaisseau du roi n'en change pas (le Roebuck).
+Absent, la nation est tirée au poids, comme pour un marchand. Le pavillon noir d'un forban démasqué
+passe toujours devant.
+
 Une fiche illisible est ignorée avec un avertissement en console — elle
 n'empêche jamais les autres navires de se charger.
 
@@ -193,6 +208,12 @@ Sans image, il reste le repli par **nom de matière** : une matière nommée
 une matière `glass`.
 
 `model.nightGlow` règle la force (1 par défaut, 0 pour ne rien allumer).
+
+**Leur reflet sur l'eau** : les vitres sont groupées (à trois mètres près) et les deux plus grands
+groupes deviennent des feux de la mer, aussi larges qu'eux, d'une force qui suit leur surface et
+leur éclat (`settings.json` → `night.glow`), tournés vers le dehors. Un maillage aussi long que
+près de la moitié de la coque (une lueur peinte sur le bordé) n'est pas pris : il ne dit pas où
+est la fenêtre. Le journal du gréement (`--dumprig 1`) liste les groupes trouvés.
 
 ### Ce qui est dedans
 

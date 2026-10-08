@@ -15132,6 +15132,35 @@ plus basse pièce de bordée à 1,15 m), poids = volume sous elle (tranches de t
 nommé, mâts au droit des espars. Sur le dernier export du Roebuck (coque 29,57 × 7,84 m, retouchée depuis) : 267 t au lieu
 de 306, pont 1,56, relèvement −1,15 ; fond du plan à 2 cm de celui du modèle.
 
+
+## Le poids du modèle contrôlé au chargement ; le reflet des fenêtres ; les pavillons d'un port (Godot)
+
+DEMANDÉ : « si je gonfle un peu le modèle, le tonnage se remettra-t-il seul ? » — non, la physique ne lit que la fiche. D'où
+ShipNode.VolumeCheck.cs : la coque dessinée tranchée (pas 0,5 m × 0,1 m, sur ses triangles, comme fit-ship) sous la ligne où
+le solveur fait flotter la fiche, comparée au displacementTonnes ; au-delà de 5 %, un avertissement qui donne la commande, rien
+de réécrit. PIÈGE DE L'OUTIL, trouvé par ce contrôle : fit-ship mettait la fiche à l'eau AVANT d'y régler le pont, qui change
+l'assise (0,49 m à l'outil, 0,654 en jeu : −11 % au contrôle). Boucle pont / quille / relèvement jusqu'à ce que tout tienne :
+Lab et outil d'accord à 0,571 m, contrôle à +0 %. FAUSSES ALARMES : la Roter Löwe (coque en morceaux : le « plus gros
+maillage » mesurait 23 t pour 300) — écartée par la largeur trouvée à la flottaison (< 70 % du bau : ce n'est pas la coque) ;
+les objets de moins d'une tonne, écartés. Restent en avertissement, et à juste titre semble-t-il (fiches écrites à la main) :
+chaland −30 %, chaloupe +28 %, cotre +11 %, Couronne +30 %, galion pirate −44 %, sloop −64 %.
+
+REFLETS (« ils ne me semblent pas suivre la force de l'éclairage visible ») : la mer ne voyait que les fanaux, jamais les
+fenêtres (des matières émissives, sans lampe). Les vitres d'un modèle sont groupées à trois mètres près, les deux plus grands
+groupes deviennent des feux de la mer (u_lamp, NLAMP 8 pour toute la flotte), aussi larges qu'eux. DEUX ERREURS EN CHEMIN :
+(1) une énergie de fanal (≈ 2,5) étalée par la taille du groupe ne laissait presque rien — une source étendue renvoie en
+proportion de sa SURFACE (intensité = luminance × aire) : WindowLamp × m² de vitres × éclat ; (2) dix-huit mètres carrés posés
+en un point allumaient sous la voûte un halo vert (la part « entrée dans l'eau », teinte u_shallow) qu'aucune fenêtre n'y jette.
+u_lamp_aim : l'axe d'une fenêtre (au dehors, horizontal), éclairage en cosinus ; nul pour un fanal, qui ne change pas d'un bit.
+Mesuré sur la poupe du Roebuck à 22 h, force 4 : avant, seul le scintillement des fanaux hauts, loin devant ; après, une
+traînée chaude sous la galerie. Une capture sur quatre est sortie noire, une seule fois et pas reproduite.
+
+PAVILLONS D'UN PORT (« aucun navire espagnol ou français ne doit s'approcher de Port Royal ou n'en partir ; seulement Anglais
+et Néerlandais ») : world/pavillons-des-ports.json, PortNations (Timetable.cs). Le trajet doit être admis À SES DEUX BOUTS ;
+Nations.Draw prend un filtre. Et « nation » dans une fiche : le Roebuck, vaisseau du roi, tirait jusque-là n'importe quel
+pavillon — il sort anglais. RÉALISME : en 1690 l'Espagne est l'alliée de l'Angleterre contre la France (Grande Alliance), et des
+balandres espagnoles venaient bel et bien à Port Royal acheter des esclaves sous licence ; fermer la rade aux Espagnols est un
+choix de jeu, qui se défait d'un mot dans le fichier.
 ## Les fenêtres de nuit adoucies, et dans les réglages (Godot)
 
 DEMANDÉ : diminuer l'éclat des fenêtres des maisons et des navires, avec un réglage. Les navires avaient un gain écrit

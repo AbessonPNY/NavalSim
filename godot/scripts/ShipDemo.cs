@@ -596,6 +596,8 @@ public partial class ShipDemo : Node3D
            sinon —, à la flottaison qu'elle vient de trouver. */
         _prof = _ship.MakeProfile(-y);
         _sea.SetHullProfile(0, _prof);
+        // le modèle pèse-t-il ce que dit sa fiche ? un mot si non (ShipNode.VolumeCheck.cs)
+        _ship.CheckModelVolume(-y);
         // et l'embrun ne la traverse plus : il rebondit sur son bordé ou reste sur son pont
         if (_hullCollider != null) _spray.Pool.Colliders.Remove(_hullCollider);
         _hullCollider = _ship.MakeCollider(_prof);
@@ -1027,9 +1029,10 @@ public partial class ShipDemo : Node3D
            et les fanaux les prennent volontiers toutes. Une sphere de vingt metres
            qui ne se refleterait pas parce qu un feu de poupe avait pris le dernier
            creneau serait une panne difficile a comprendre. */
+        Array.Clear(_sea.LampAim);      // tout feu rayonne partout, sauf une fenêtre qui dit où elle regarde
         int lamps = _ship.FillRingLamp(_sea.Lamps, _sea.LampRange, _sea.LampCol, _sea.LampSize, 0);
-        lamps += _ship.FillLamps(_sea.Lamps, _sea.LampRange, _sea.LampCol, _sea.LampSize, lamps);
-        foreach (var s in _others) lamps += s.FillLamps(_sea.Lamps, _sea.LampRange, _sea.LampCol, _sea.LampSize, lamps);
+        lamps += _ship.FillLamps(_sea.Lamps, _sea.LampRange, _sea.LampCol, _sea.LampSize, _sea.LampAim, lamps);
+        foreach (var s in _others) lamps += s.FillLamps(_sea.Lamps, _sea.LampRange, _sea.LampCol, _sea.LampSize, _sea.LampAim, lamps);
         _sea.PushLamps(lamps);
         /* L'ŒIL SOUS LA SURFACE : la mer le dit à son shader, qui dessine alors sa
            face de dessous — la fenêtre de Snell. */

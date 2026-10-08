@@ -48,6 +48,15 @@ public partial class ShipDemo
            « un marchand » faute de savoir le dire, et un camp ne l'aurait pas
            reconnue pour sienne. */
         if (IsJolly(s)) return;
-        if (_nations.Draw(_flagRng.NextDouble) is { } n) s.SetEnsign(n.Image, n);
+        if ((OwnNation(s) ?? _nations.Draw(_flagRng.NextDouble)) is { } n) s.SetEnsign(n.Image, n);
+    }
+
+    /// <summary>La nation que sa fiche lui donne (« nation »), ou rien : elle se tire alors.</summary>
+    Nation? OwnNation(ShipNode s)
+    {
+        if (s.Spec.Raw.Nation is not { Length: > 0 } id) return null;
+        var n = _nations.All.Find(x => x.Id == id);
+        if (n == null) GD.PushWarning($"[{s.Spec.Id}] nation « {id} » inconnue de flags.json : elle sera tirée");
+        return n;
     }
 }

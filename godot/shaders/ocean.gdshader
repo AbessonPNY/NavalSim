@@ -102,6 +102,12 @@ uniform vec3  u_lamp_col[NLAMP];
    c'est un modèle faux : un chemin de lune est large parce que la lune a un
    diamètre apparent, pas parce qu'elle est brillante. */
 uniform float u_lamp_size[NLAMP];
+/* OÙ IL ÉCLAIRE. Nul pour un fanal, qui rayonne partout ; pour une galerie de
+   poupe, l'axe de ses vitres. Une fenêtre éclaire DEVANT elle, en cosinus, et
+   la voûte de poupe met l'eau qu'elle surplombe à l'ombre : sans lui, dix-huit
+   mètres carrés de vitres posés en un point allumaient sous l'arcasse un halo
+   vert qu'aucune fenêtre n'y jette. */
+uniform vec3  u_lamp_aim[NLAMP];
 uniform int   u_lamp_count = 0;
 // leurs deux forces, réglables (reglages.ini, [lanternes])
 uniform float u_lamp_reflection = 2.4;
@@ -757,6 +763,8 @@ void fragment() {
 		float win = max(1.0 - nd, 0.0);
 		win *= win;
 		float irr = u_lamp[i].w * win / max(dl * dl, 0.01);
+		vec3 aim = u_lamp_aim[i];
+		if (dot(aim, aim) > 0.0) irr *= max(dot(-L, aim), 0.0);
 		if (irr <= 1e-5) continue;
 		vec3 lc = u_lamp_col[i] * irr * max(dot(N, L), 0.0);
 		vec3 Hl = normalize(L + V);

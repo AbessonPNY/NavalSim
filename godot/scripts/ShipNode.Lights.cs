@@ -147,6 +147,15 @@ public partial class ShipNode
         }
     }
     readonly List<(BaseMaterial3D Mat, double Base)> _nightMats = new();
+    /// <summary>Les fenêtres vues par la mer : groupes de vitres (repère du navire), leur demi-largeur et leur force.</summary>
+    readonly List<(Vector3 At, float Half, double Power)> _glowSpots = new();
+    /// <summary>
+    /// L'éclat d'une fenêtre, vu par la mer : une SOURCE ÉTENDUE renvoie en proportion de sa surface
+    /// (intensité = luminance × aire), d'où une énergie par mètre carré de vitre à force 1. Posée en un
+    /// point comme une flamme (2,6, un fanal), une galerie de dix-huit mètres carrés ne laissait sur l'eau
+    /// qu'un reflet étalé et pâle. 1,0 : réglé sur la poupe du Roebuck à 22 h, mer de force 4.
+    /// </summary>
+    const double WindowLamp = 1.0;
     /// <summary>
     /// LES FEUX ALLUMÉS SUR ORDRE, quelle que soit l'heure.
     ///
@@ -519,7 +528,7 @@ public partial class ShipNode
     /// </summary>
     public static readonly Vector3 LampWarm = new(1.0f, 0.473f, 0.130f);
 
-    public int FillLamps(Vector4[] lamp, float[] range, Vector3[] col, float[] size, int start)
+    public int FillLamps(Vector4[] lamp, float[] range, Vector3[] col, float[] size, Vector3[] aim, int start)
     {
         int n = start;
         foreach (var L in _lanterns)
@@ -533,6 +542,19 @@ public partial class ShipNode
             size[n] = 0;                 // un fanal EST un point, a l'echelle de la mer
             n++;
         }
+        // les fenêtres, à la force même qu'elles ont à l'œil (SetLantern) : même réglage, même veille
+        if (_glowLit && _glowVeil > 0)
+            foreach (var (at, half, power) in _glowSpots)
+            {
+                if (n >= lamp.Length) break;
+                var p = ToGlobal(at);
+                lamp[n] = new Vector4(p.X, p.Y, p.Z, (float)(WindowLamp * power * NightGlowGain * _glowVeil));
+                range[n] = (float)(26 * Spec.L / 24);
+                col[n] = LampWarm;
+                size[n] = half;
+                aim[n] = GlobalBasis * new Vector3(at.X, 0, at.Z).Normalized();   // elle regarde au dehors : l'arrière, le flanc
+                n++;
+            }
         return n - start;
     }
 
@@ -723,11 +745,15 @@ public partial class ShipNode
         double gain = Spec.Model?.NightGlow ?? 1;
         if (!(gain > 0)) return;
         var seen = new HashSet<Material>();
-        foreach (var (mi, _) in Meshes(this))
+        var boxes = new List<(Aabb Box, BaseMaterial3D Mat)>();
+        var toShip = Transform.AffineInverse();
+        foreach (var (mi, t) in Meshes(this))
             for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
             {
                 if ((mi.GetSurfaceOverrideMaterial(s) ?? mi.Mesh.SurfaceGetMaterial(s)) is not BaseMaterial3D mat) continue;
                 bool byName = GlowNames.IsMatch(mat.ResourceName ?? "");
+                // where it shines, for the sea: every object that carries it, before the « already seen » test
+                if (byName || mat.EmissionTexture != null) boxes.Add((toShip * t * mi.GetAabb(), mat));
                 /* le verre et les fanaux laissent passer la lumière : pas d'ombre — et
                    CHAQUE objet qui en porte, pas le premier seulement. Le test « déjà
                    vue » passait avant : deux vitres sur quatre du Roter Löwe, qui
@@ -748,6 +774,41 @@ public partial class ShipNode
                 mat.EmissionEnergyMultiplier = 0;
             }
         foreach (var (m, b) in _nightMats) RigLog.Add(FormattableString.Invariant($"fenêtre de nuit {m.ResourceName} force {b:F2}"));
+        GroupGlowSpots(boxes);
+    }
+
+    /// <summary>
+    /// LES FENÊTRES SE REFLÈTENT AUSSI (signalé : « les reflets ne suivent pas la force de l'éclairage
+    /// visible »). La mer ne voyait que les fanaux : une poupe allumée comme une lanterne ne laissait
+    /// sur l'eau que le reflet de la lanterne d'à côté. Les vitres sont groupées à trois mètres près
+    /// (une galerie de poupe, un château) et les deux plus grands groupes deviennent des lampes de la
+    /// mer, aussi larges qu'eux — huit places pour toute la flotte, on ne les prend pas toutes. Un
+    /// maillage grand comme la coque (une lueur PEINTE sur le bordé) ne dit pas où est la fenêtre :
+    /// il est laissé de côté.
+    /// </summary>
+    void GroupGlowSpots(List<(Aabb Box, BaseMaterial3D Mat)> boxes)
+    {
+        _glowSpots.Clear();
+        var force = new Dictionary<BaseMaterial3D, double>();
+        foreach (var (m, b) in _nightMats) force[m] = b;
+        var groups = new List<(Aabb Box, double Area, double Base)>();
+        foreach (var (box, mat) in boxes)
+        {
+            if (!force.TryGetValue(mat, out double b)) continue;
+            if (box.Size[(int)box.GetLongestAxisIndex()] > 0.4 * Spec.L) continue;
+            double area = Math.Max(box.Size.X, box.Size.Z) * Math.Max(box.Size.Y, 0.1);
+            int g = groups.FindIndex(q => q.Box.Grow(3).Intersects(box));
+            if (g < 0) groups.Add((box, area, b * area));
+            else groups[g] = (groups[g].Box.Merge(box), groups[g].Area + area, groups[g].Base + b * area);
+        }
+        groups.Sort((x, y) => y.Area.CompareTo(x.Area));
+        for (int i = 0; i < Math.Min(2, groups.Count); i++)
+        {
+            var (box, area, sum) = groups[i];
+            float half = 0.5f * Math.Max(box.Size.X, box.Size.Z);
+            _glowSpots.Add((box.GetCenter(), half, sum));
+            RigLog.Add(FormattableString.Invariant($"reflet de fenêtres en ({box.GetCenter().X:F1}, {box.GetCenter().Y:F1}, {box.GetCenter().Z:F1}), {2 * half:F1} m de large, {area:F1} m² de vitres, force {sum / area:F2}"));
+        }
     }
 
     /// <summary>

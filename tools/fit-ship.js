@@ -147,7 +147,7 @@ else if (broadside.length) {
 const vol = volumeUnder(yw);
 const tonnes = Math.round(vol * RHO);
 
-// ---------- 3. le plan accordé : la quille saillante, par la mise en eau du solveur ----------
+// ---------- 3–4. le plan accordé (quille saillante, pont) et le relèvement, par la mise en eau du solveur ----------
 const tmp = path.join(require('os').tmpdir(), `fit-ship-${id}.json`);
 function settle(s) {
   fs.writeFileSync(tmp, JSON.stringify(s));
@@ -159,26 +159,34 @@ function settle(s) {
 const next = JSON.parse(JSON.stringify(sheet));
 next.displacementTonnes = tonnes;
 const modelBottom = yw - yMin;                       // la quille du modèle sous l'eau
-let st = settle(next);
-for (let i = 0; i < 3; i++) {
-  const planBottom = next.hull.keelDepth + next.hull.keelExtra - st.y;
-  const diff = planBottom - modelBottom;
-  if (Math.abs(diff) < 0.03) break;
-  next.hull.keelExtra = +Math.min(1.5, Math.max(0.05, next.hull.keelExtra - diff)).toFixed(2);
-  st = settle(next);
-}
-const planBottom = next.hull.keelDepth + next.hull.keelExtra - st.y;
-
-// ---------- 4. le relèvement ----------
-const offY = +(-yw - st.y).toFixed(2);
-next.model.offset = [next.model.offset ? next.model.offset[0] : 0, offY, next.model.offset ? next.model.offset[2] : 0];
-
-// ---------- 5. le pont, la mâture ----------
+/* LE PONT, LA MISE EN EAU ET LE RELÈVEMENT SE TIENNENT : le pont de la fiche change un peu la forme
+   du plan sous l'eau, donc son assise ; le relèvement dépend de l'assise, et le pont (dans le repère de
+   la fiche) du relèvement. Mis à l'eau AVANT de régler le pont, le Roebuck sortait assis à 0,49 m quand
+   le jeu l'asseyait à 0,65 — onze pour cent de tonnage d'écart. On boucle jusqu'à ce que tout tienne. */
 const notes = [];
+let deckMid = null;
 if (deck) {
   const mid = deck.V.filter(p => Math.abs(p[2]) < L * 0.08 && Math.abs(p[0]) < 1.5).map(p => p[1]).sort((a, b) => a - b);
-  if (mid.length) next.hull.freeboardMid = +(mid[(mid.length / 2) | 0] + offY).toFixed(2);
-} else notes.push('pas de pont nommé (pont, deck, tillac) : hull.freeboardMid gardé');
+  if (mid.length) deckMid = mid[(mid.length / 2) | 0];
+}
+if (deckMid === null) notes.push('pas de pont nommé (pont, deck, tillac) : hull.freeboardMid gardé');
+let st, offY = 0;
+for (let i = 0; i < 8; i++) {
+  st = settle(next);
+  offY = +(-yw - st.y).toFixed(2);
+  let moved = false;
+  if (deckMid !== null) {
+    const fb = +(deckMid + offY).toFixed(2);
+    if (Math.abs(fb - next.hull.freeboardMid) >= 0.01) { next.hull.freeboardMid = fb; moved = true; }
+  }
+  const diff = next.hull.keelDepth + next.hull.keelExtra - st.y - modelBottom;
+  if (Math.abs(diff) >= 0.03) { next.hull.keelExtra = +Math.min(1.5, Math.max(0.05, next.hull.keelExtra - diff)).toFixed(2); moved = true; }
+  if (!moved) break;
+}
+const planBottom = next.hull.keelDepth + next.hull.keelExtra - st.y;
+next.model.offset = [next.model.offset ? next.model.offset[0] : 0, offY, next.model.offset ? next.model.offset[2] : 0];
+
+// ---------- 5. la mâture ----------
 const oldDeck = sheet.hull.freeboardMid;
 const rises = [];
 (sheet.rig && sheet.rig.masts || []).forEach((mt, i) => {

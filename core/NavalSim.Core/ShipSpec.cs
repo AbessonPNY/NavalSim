@@ -373,6 +373,12 @@ public sealed class ShipJson
     /// qui n'est que pirate, comme le galion).
     /// </summary>
     [JsonPropertyName("pirate")] public bool? Pirate { get; set; }
+    /// <summary>
+    /// SA NATION, quand elle n'est pas à tirer : un vaisseau du roi n'arbore que les couleurs du roi.
+    /// Un identifiant de flags.json (« angleterre ») ; absent, la nation est tirée au poids comme
+    /// pour un marchand. Le pavillon noir d'un forban démasqué passe toujours devant.
+    /// </summary>
+    [JsonPropertyName("nation")] public string? Nation { get; set; }
     [JsonPropertyName("rig")]    public RigSpec Rig { get; set; } = new();
     [JsonPropertyName("model")]  public ModelSpec? Model { get; set; }
     [JsonPropertyName("appearance")] public AppearanceSpec Appearance { get; set; } = new();

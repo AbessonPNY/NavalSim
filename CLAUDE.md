@@ -81,7 +81,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `sound.js` | le bruit, et le temps qu'il met à venir |
 | `capture.js` | la capture d'écran (touche `I`), écrite par le serveur de dev |
 | `purse.js` | la bourse, le cours des épices, la poudre |
-| `HarbourRoute.cs` · `HarbourPilot.cs` (noyau) · `ShipDemo.Traffic.cs` (Godot) | la vie d'une rade, à heure fixe : postes au bout des pontons, départs et arrivées (`world/horaires/<région>.json`, `Timetable.cs` ; `settings.json` → `trafic`) — une route qui contourne la terre, un pilote qui la suit |
+| `HarbourRoute.cs` · `HarbourPilot.cs` (noyau) · `ShipDemo.Traffic.cs` (Godot) | la vie d'une rade, à heure fixe : postes au bout des pontons, départs et arrivées (`world/horaires/<région>.json`, `Timetable.cs` ; `settings.json` → `trafic` ; les nations admises par port : `world/pavillons-des-ports.json`, `PortNations`) — une route qui contourne la terre, un pilote qui la suit |
 | `ShipNode.Ropes.cs` · `rope_ribbon.gdshader` (Godot) | les cordages d'un modèle redessinés en rubans tournés vers l'œil (fiche : `model.rubans`) — lus sur ses plans texturés et ses tubes, rien à préparer |
 | `Fishing.cs` · `Shipyard.cs` (Godot) | la pêche à la ligne à main (`ShipDemo.Fishing.cs`, `fishing/` ; les prises sur le pont, avec leur physique et leur poids : `ShipDemo.DeckFish.cs`, `ShipNode.Deck.cs`) · le chantier où l'on change de bord (`ShipDemo.Yard.cs`, `market/chantier.json`) |
 | `MapCost.cs` (Godot) | ce que la carte coûte à charger, étape par étape (navires et physique exclus) : au panneau H sous les images par seconde, et dans la console |
@@ -95,7 +95,7 @@ Objets flottants : `props/Props.json`. Pavillons : `ships/textures/flags/flags.j
 Marchandises : `market/marchandises.json`, format dans `market/README.md` — ce
 qu'on charge et ce qu'on revend ; une denrée absente se porte mais ne se vend
 nulle part (le fret sous contrat).
-Fiches navires : UN DOSSIER PAR NAVIRE, `ships/<id>/fiche.json` + `modele.glb` (l'identifiant est le nom du dossier, `ShipLibrary.IdOf` — jamais le nom de fichier), les mods dans `mods/navires/<id>/` ; un chemin de fiche sans dossier se lit dans celui du navire (`ShipSpec.Resolve`) ; caler une fiche sur son modèle : `node tools/fit-ship.js <id> --ecrire` ; format dans `ships/README.md`. LA PAGE n'est plus construisible avec ce rangement (modèles lourds, chemins relatifs) — elle est figée. Jeu libre : `ships/libre.json` (`ouverts` : sloop et ILCA 4 ; le MODE DÉBUG — trois clics sur Crédits au titre — ouvre tout). Kraken, dauphins, baleine et marins en `.glb` : `creatures/README.md`.
+Fiches navires : UN DOSSIER PAR NAVIRE, `ships/<id>/fiche.json` + `modele.glb` (l'identifiant est le nom du dossier, `ShipLibrary.IdOf` — jamais le nom de fichier), les mods dans `mods/navires/<id>/` ; un chemin de fiche sans dossier se lit dans celui du navire (`ShipSpec.Resolve`) ; caler une fiche sur son modèle : `node tools/fit-ship.js <id> --ecrire` (le jeu compare au chargement le poids du modèle à celui de la fiche, `ShipNode.VolumeCheck.cs`, et ne réécrit rien) ; `"nation"` fixe les couleurs d'une fiche ; format dans `ships/README.md`. LA PAGE n'est plus construisible avec ce rangement (modèles lourds, chemins relatifs) — elle est figée. Jeu libre : `ships/libre.json` (`ouverts` : sloop et ILCA 4 ; le MODE DÉBUG — trois clics sur Crédits au titre — ouvre tout). Kraken, dauphins, baleine et marins en `.glb` : `creatures/README.md`.
 
 ## Règles à ne jamais casser
 

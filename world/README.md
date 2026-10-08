@@ -677,3 +677,18 @@ retouches (`ponton:N`) viseraient alors le voisin.
 Essais : `--horaire depart:3` (ou `arrivee:1`) rend ce mouvement échu dès
 l'ouverture ; `--horaire-vue 2` pose l'œil sur le poste 2 ; `--rade-vue 1` suit le
 premier navire en route ; `--heure 9.5` règle le ciel.
+
+### Les pavillons d'un port — `world/pavillons-des-ports.json`
+
+Par clé de port, les nations (identifiants de `ships/textures/flags/flags.json`) qui peuvent en
+partir et y venir :
+
+```json
+{ "port-royal": ["angleterre", "hollande"] }
+```
+
+Un départ ou une arrivée prend ses couleurs parmi celles qu'admettent **les deux bouts** de son
+trajet (on part de l'un pour entrer dans l'autre) ; un port absent du fichier, et le large, les
+admettent toutes. Un navire dont la fiche fixe la nation (`"nation"`) la garde : si le port la
+refuse, la console le dit, et c'est la ligne des horaires qu'il faut corriger. La règle ne touche
+que les navires des horaires — ni les rencontres du large, ni les pirates.

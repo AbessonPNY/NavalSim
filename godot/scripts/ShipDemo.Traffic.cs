@@ -57,6 +57,8 @@ public partial class ShipDemo
     readonly List<(Sailing Sg, double At)> _dueSailings = new();
     readonly HashSet<string> _berthWarned = new();
     Timetable? _timetable;
+    /// <summary>world/pavillons-des-ports.json : qui peut partir d'un port et y venir. Vide : tout le monde.</summary>
+    PortNations _portNations = new();
     bool _timetableRead, _tripSeeded;
     double _tripAcc, _prevHour = -1;
     Isle? _tripPort;
@@ -99,6 +101,7 @@ public partial class ShipDemo
     Timetable? LoadTimetable()
     {
         _timetableRead = true;
+        _portNations = LoadPortNations();
         string path = System.IO.Path.Combine(Assets.Root, "world", "horaires", _world!.Region.Key + ".json");
         if (!System.IO.File.Exists(path)) return null;
         try
@@ -115,6 +118,28 @@ public partial class ShipDemo
         {
             GD.PushWarning($"[horaires] {path} illisible : {ex.Message}");
             return null;
+        }
+    }
+
+    PortNations LoadPortNations()
+    {
+        string path = System.IO.Path.Combine(Assets.Root, "world", "pavillons-des-ports.json");
+        if (!System.IO.File.Exists(path)) return new PortNations();
+        try
+        {
+            var r = PortNations.FromJson(System.IO.File.ReadAllText(path));
+            foreach (var (key, set) in r.Ports)
+            {
+                foreach (var id in set)
+                    if (!_nations.All.Exists(n => n.Id == id)) GD.PushWarning($"[pavillons] {key} : « {id} » n'est pas une nation de flags.json");
+                GD.Print($"[pavillons] {_world!.ByKey(key)?.Name ?? key} : {string.Join(", ", set)}");
+            }
+            return r;
+        }
+        catch (Exception ex)
+        {
+            GD.PushWarning($"[pavillons] {path} illisible : {ex.Message}");
+            return new PortNations();
         }
     }
 
@@ -421,6 +446,22 @@ public partial class ShipDemo
         SpawnFleet(1, idx, arm: false);
         if (_others.Count <= before) return false;
         var s = _others[^1];
+        /* SES COULEURS : celles qu'admettent les deux bouts de son trajet. SpawnFleet en a tiré
+           parmi toutes ; un port qui ferme sa rade à une nation la retire du tirage. Si les deux
+           bouts n'en ont aucune en commun, le port d'attache décide (et on le dit). */
+        if (!IsJolly(s))
+        {
+            string from = port.Key, to = sg.Other;
+            var n = OwnNation(s)
+                 ?? _nations.Draw(_tripRng.NextDouble, x => _portNations.Admits(from, to, x.Id))
+                 ?? _nations.Draw(_tripRng.NextDouble, x => _portNations.Admits(from, x.Id));
+            // a ship of a fixed nation is the timetable's choice: say it if the port refuses it
+            if (n != null && OwnNation(s) == n && !_portNations.Admits(from, to, n.Id))
+                GD.PushWarning($"[pavillons] {sg.Name} de {port.Name} : {spec.Name} est {n.Nationalite ?? n.Id}, et ce trajet n'admet pas sa nation — à retirer des « fiches » de cette ligne");
+            else if (n == null) GD.PushWarning($"[pavillons] {port.Name} n'admet aucune nation de flags.json : {spec.Name} garde ses couleurs");
+            else if (!_portNations.Admits(from, to, n.Id)) GD.PushWarning($"[pavillons] {port.Name} et {OtherName(_world!, sg)} n'ont aucune nation en commun : {spec.Name} sous pavillon {n.Nationalite ?? n.Id}");
+            if (n != null) s.SetEnsign(n.Image, n);
+        }
         var b = s.Physics.Body;
         bool atQuay = !sg.Arrival && dist < 0;
         double hd = Math.Atan2(next.X - at.X, next.Z - at.Z);
@@ -454,7 +495,7 @@ public partial class ShipDemo
         };
         if (atQuay) { trip.Due = sg.Hour; trip.Pinned = true; trip.Pin = at; }
         _trips[s] = trip;
-        GD.Print($"[horaires] {sg.Name} ({Timetable.Clock(sg.Hour)}) : {spec.Name}, {trip.From} → {trip.To}"
+        GD.Print($"[horaires] {sg.Name} ({Timetable.Clock(sg.Hour)}) : {spec.Name}{(s.Ensign?.Nationalite is { } nat ? " " + nat : "")}, {trip.From} → {trip.To}"
             + (atQuay ? ", à quai" : dist > 0 ? FormattableString.Invariant($", déjà en route ({dist:F0} m)") : ", en route"));
         return true;
     }

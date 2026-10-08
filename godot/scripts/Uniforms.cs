@@ -25,6 +25,7 @@ public static class U
     public static readonly StringName LampRange = new("u_lamp_range");
     public static readonly StringName LampCol = new("u_lamp_col");
     public static readonly StringName LampSize = new("u_lamp_size");
+    public static readonly StringName LampAim = new("u_lamp_aim");
     public static readonly StringName LampCount = new("u_lamp_count");
     public static readonly StringName WaterLight = new("u_water_light");
     public static readonly StringName Moon = new("u_moon");

@@ -247,16 +247,16 @@ public sealed class Nations
 
     public Nation? Pirate => All.Find(x => x.Pirate);
 
-    /// <summary>Un pavillon national, tiré au poids — jamais le noir.</summary>
-    public Nation? Draw(Func<double> random)
+    /// <summary>Un pavillon national, tiré au poids — jamais le noir ; parmi ceux que <paramref name="allow"/> admet, s'il est donné.</summary>
+    public Nation? Draw(Func<double> random, Predicate<Nation>? allow = null)
     {
         double tot = 0;
-        foreach (var x in All) if (!x.Pirate) tot += x.Poids;
+        foreach (var x in All) if (!x.Pirate && (allow == null || allow(x))) tot += x.Poids;
         double r = random() * tot;
         Nation? last = null;
         foreach (var x in All)
         {
-            if (x.Pirate) continue;
+            if (x.Pirate || (allow != null && !allow(x))) continue;
             last = x;
             r -= x.Poids;
             if (r <= 0) return x;
