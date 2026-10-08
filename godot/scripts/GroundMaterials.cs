@@ -38,6 +38,9 @@ public static class GroundMaterials
 
     static readonly Mat[] _mats = new Mat[N];
     static Texture2DArray? _a, _b, _c;
+    // les rides de la mer : la pile des images, et ce que le shader doit savoir d'elles
+    static Texture2DArray? _ride;
+    static Vector4 _rideA, _rideB;
     static bool _loaded;
 
     /// <summary>Les teintes de la mer : l'eau profonde, l'eau claire des hauts-fonds (linéaires).</summary>
@@ -83,6 +86,7 @@ public static class GroundMaterials
             {
                 if (sea.Str("profond") != "") Deep = Hex(sea.Str("profond"));
                 if (sea.Str("clair") != "") Shallow = Hex(sea.Str("clair"));
+                if (sea.TryGetProperty("rides", out var rides)) LoadRipples(rides);
             }
             var a = new Godot.Collections.Array<Image>();
             var b = new Godot.Collections.Array<Image>();
@@ -143,6 +147,35 @@ public static class GroundMaterials
             if (a.Count > 0) GD.Print($"[matières] {a.Count} texturée(s) en {size}² ({sw.ElapsedMilliseconds} ms)");
         }
         catch (Exception ex) { GD.PushWarning($"[matières] world/materiaux.json illisible : {ex.Message}"); }
+    }
+
+    /// <summary>
+    /// LES RIDES DE LA MER (mer.rides) : la mosaïque de tools/sea-ripples.js, huit images par ligne,
+    /// découpée en une pile — une couche par image, que le shader interpole dans le temps.
+    /// </summary>
+    static void LoadRipples(JsonElement r)
+    {
+        string rel = r.Str("carte");
+        int frames = (int)r.Num("images", 32);
+        var sheet = Read(rel, "mer.rides");
+        if (sheet == null || frames < 1) return;
+        int cols = Math.Min(8, frames), rows = (frames + cols - 1) / cols;
+        int n = sheet.GetWidth() / cols;
+        if (n * cols != sheet.GetWidth() || n * rows != sheet.GetHeight())
+        { GD.PushWarning($"[matières] mer.rides : {sheet.GetWidth()}×{sheet.GetHeight()} ne fait pas {frames} images de {cols} par ligne"); return; }
+        var layers = new Godot.Collections.Array<Image>();
+        for (int f = 0; f < frames; f++)
+        {
+            var img = sheet.GetRegion(new Rect2I((f % cols) * n, (f / cols) * n, n, n));
+            img.GenerateMipmaps();
+            layers.Add(img);
+        }
+        _ride = new Texture2DArray();
+        _ride.CreateFromImages(layers);
+        _rideA = new Vector4(1, frames, (float)r.Num("periode", 12), (float)r.Num("taille", 10));
+        _rideB = new Vector4((float)r.Num("pente_max", 0.5574), (float)r.Num("force", 1),
+                             (float)r.Num("echelle2", 3), (float)r.Num("poids2", 0.6));
+        GD.Print(FormattableString.Invariant($"[matières] rides de la mer : {frames} images de {n}², {_rideA.W} m, boucle de {_rideA.Z} s"));
     }
 
     /// <summary>Une carte, à partir de la racine du dépôt ; rien si elle n'est pas donnée ou pas lisible.</summary>
@@ -251,5 +284,12 @@ public static class GroundMaterials
         near?.SetShaderParameter("u_deep", d);
         near?.SetShaderParameter("u_shallow", new Vector3(Shallow.R, Shallow.G, Shallow.B));
         far?.SetShaderParameter("u_deep", d);
+        // les rides, en global : la mer et tout ce qui lit sa lumière (ride.gdshaderinc)
+        if (_ride != null)
+        {
+            RenderingServer.GlobalShaderParameterSet("naval_ride_map", _ride);
+            RenderingServer.GlobalShaderParameterSet("naval_ride_a", _rideA);
+            RenderingServer.GlobalShaderParameterSet("naval_ride_b", _rideB);
+        }
     }
 }

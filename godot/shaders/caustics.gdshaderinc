@@ -41,6 +41,17 @@ const vec3 IOR = vec3(1.331, 1.335, 1.340);
    la part réglée : la ride qui éclaire le fond est exactement celle qu'on voit
    luire à la surface. */
 vec3 ride_courbure(vec2 p, float e) {
+	/* LA CARTE DES RIDES chargée : les courbures sont les écarts de PENTE entre voisins, lus au
+	   niveau de détail qui répond à l'écart e — ce qui est plus fin que lui ne met rien au point
+	   sur le fond qu'on regarde. */
+	if (naval_ride_a.x > 0.5) {
+		float texel = naval_ride_a.w / float(textureSize(naval_ride_map, 0).x);
+		float lod = max(0.0, log2(e / texel));
+		vec2 gx = ride_tex_grad(p + vec2(e, 0.0), lod), gX = ride_tex_grad(p - vec2(e, 0.0), lod);
+		vec2 gz = ride_tex_grad(p + vec2(0.0, e), lod), gZ = ride_tex_grad(p - vec2(0.0, e), lod);
+		float k = ride_tex_gain() / (2.0 * e);
+		return vec3((gx.x - gX.x) * k, (gz.y - gZ.y) * k, (gz.x - gZ.x) * k);
+	}
 	float h  = ride_h(p);
 	float hx = ride_h(p + vec2(e, 0.0));
 	float hX = ride_h(p - vec2(e, 0.0));

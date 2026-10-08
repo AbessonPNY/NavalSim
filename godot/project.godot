@@ -51,6 +51,21 @@ anti_aliasing/quality/use_taa=false
 
 [shader_globals]
 
+; LES RIDES DE LA MER EN TEXTURE (ride.gdshaderinc, tools/sea-ripples.js) : posées par
+; GroundMaterials depuis world/materiaux.json → mer.rides ; x de naval_ride_a à 0, le bruit de Perlin.
+naval_ride_map={
+"type": "sampler2DArray",
+"value": ""
+}
+naval_ride_a={
+"type": "vec4",
+"value": Vector4(0, 32, 12, 10)
+}
+naval_ride_b={
+"type": "vec4",
+"value": Vector4(0.5574, 1, 3, 0.6)
+}
+
 ; LE CIEL DES SHADERS QUI LE PRENNENT EN GLOBAL (#define NAVAL_SKY_GLOBAL : la
 ; coque, sa passe de brume, la toile, les cordages en rubans). SkyNode.PushGlobals
 ; les écrit une fois par image ; ces valeurs ne servent qu avant la première, et

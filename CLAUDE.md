@@ -47,7 +47,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `ship-spec.js` | lit une fiche JSON et en **dérive** ce que le solveur consomme |
 | `hull-lines.js` | le plan de formes, en fonctions pures |
 | `stage.js` · `calendar.js` | renderer, scène, lumière, ciel, lune · la date et la saison |
-| `ocean.js` | houle de Gerstner : shader GPU **et** échantillonnage CPU |
+| `ocean.js` | houle de Gerstner : shader GPU **et** échantillonnage CPU — sous Godot, les rides plus courtes qu'elle viennent d'une TEXTURE de spectre (`tools/sea-ripples.js`, `world/materiaux.json` → `mer.rides`, globale `naval_ride_map` lue par `ride.gdshaderinc` pour la mer et les caustiques) |
 | `foam.js` · `ssao.js` | champ d'écume persistant · occlusion ambiante du navire |
 | `underwater.js` | la coque vue à travers l'eau |
 | `world.js` · `land.js` | la Jamaïque (×0,4) lue dans `world/` (relief, ports, modèles posés, `Naval.Geo`) · le relief en carreaux |

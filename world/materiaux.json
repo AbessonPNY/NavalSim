@@ -66,6 +66,7 @@
   },
   "mer": {
     "profond": "#0e3347",
-    "clair": "#2f8fa8"
+    "clair": "#2f8fa8",
+    "rides": { "carte": "world/textures/mer/rides.png", "images": 32, "periode": 12, "taille": 10, "pente_max": 0.5574, "vent": 7, "force": 1, "echelle2": 3, "poids2": 0.6 }
   }
 }

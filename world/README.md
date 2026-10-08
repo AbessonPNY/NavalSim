@@ -516,7 +516,12 @@ PNG, JPG, WebP, TGA, BMP ; une carte en niveaux de gris se lit sur son rouge. Un
 vivre sous `godot-models/` au même chemin (Godot seul la lit, de toute façon).
 
 `mer` : `profond` (l'eau du large, et celle qu'on voit sous la surface, au tiers) et `clair` (l'eau qui
-laisse voir le fond) — les teintes de `ocean.gdshader`, en sRGB. Lu une fois par lancement : relancer le jeu
+laisse voir le fond), et `rides` : la TEXTURE des rides, plus courtes que les dix-huit longues vagues de la
+houle, écrite par `node tools/sea-ripples.js` (`--vent`, `--taille`, `--images`, `--periode`) — les pentes d'un
+spectre de vagues de vent (Phillips, Tessendorf), carrelables, bouclées dans le temps, calées sur Cox et Munk.
+L'outil dit l'entrée à reporter (`carte`, `images`, `periode`, `taille`, `pente_max`) ; à régler à l'œil :
+`force` (1), `echelle2` (3 : la seconde nappe, agrandie) et `poids2` (0,6). Sans `rides`, le bruit d'avant. Elles
+servent à la mer ET aux caustiques du fond (une seule définition, ride.gdshaderinc, en global). — les teintes de `ocean.gdshader`, en sRGB. Lu une fois par lancement : relancer le jeu
 après une retouche du fichier.
 
 ## Les autres régions, et les traversées (Godot)

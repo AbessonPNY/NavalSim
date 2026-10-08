@@ -239,11 +239,13 @@ void DumpWaves()
     var ocean = new Ocean { Swell = swell, Time = 0 };
     ocean.SetSeaState(force, 210);
     Console.WriteLine($"force {force}, creux {swell}, sharp {ocean.Sharp:F4}, cpu {ocean.CpuWaveCount}");
-    for (int i = 0; i < ocean.CpuWaveCount; i++)
+    // « tout » : les dix-huit, pas seulement celles que lit le processeur, avec leur longueur d'onde
+    bool all = args.Length > 3 && args[3] == "tout";
+    for (int i = 0; i < (all ? ocean.Waves.Length : ocean.CpuWaveCount); i++)
     {
         var w = ocean.Waves[i];
         Console.WriteLine(FormattableString.Invariant(
-            $"  {w.Amp:F7} {w.K:F9} {w.Dx:F8} {w.Dz:F8} {w.Omega:F8} {w.Q:F8}"));
+            $"  {w.Amp:F7} {w.K:F9} {w.Dx:F8} {w.Dz:F8} {w.Omega:F8} {w.Q:F8}") + (all ? FormattableString.Invariant($"   λ {2 * Math.PI / w.K:F1} m") : ""));
     }
 }
 

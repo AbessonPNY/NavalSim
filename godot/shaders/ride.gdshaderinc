@@ -64,8 +64,62 @@ float ride_h(vec2 p) {
 	return h;
 }
 
+/* LES RIDES EN TEXTURE (tools/sea-ripples.js ; world/materiaux.json → mer.rides) : les pentes
+   d'un vrai spectre de vagues de vent (Phillips, Tessendorf), carrelables et bouclées dans le
+   temps, calées sur Cox et Munk. Chargées, elles remplacent le bruit de Perlin ci-dessus — pour
+   la mer ET pour le fond (caustics.gdshaderinc), une seule définition. Deux nappes : la carte à sa
+   taille, et la même trois fois plus grande, tournée d'une demi-radian et décalée dans le temps,
+   qui comble l'écart jusqu'aux plus courtes des dix-huit longues vagues par gros temps.
+   En GLOBAL : cinq shaders lisent les rides, et la carte se pose une fois (GroundMaterials). */
+global uniform sampler2DArray naval_ride_map : filter_linear_mipmap, repeat_enable;
+global uniform vec4 naval_ride_a;   // x : 1 si la carte est chargée ; y : images ; z : période (s) ; w : taille (m)
+global uniform vec4 naval_ride_b;   // x : pente_max ; y : force ; z : échelle de la seconde nappe ; w : son poids
+
+// la pente de la carte au point uvm (mètres, le long du vent puis en travers), à l'image du moment
+vec2 ride_tex_at(vec2 uvm, float toff, float lod) {
+	float fr = fract((u_time + toff) / naval_ride_a.z) * naval_ride_a.y;
+	float f0 = floor(fr), k = fr - f0, f1 = mod(f0 + 1.0, naval_ride_a.y);
+	vec2 uv = uvm / naval_ride_a.w;
+	vec2 s0, s1;
+	if (lod < 0.0) {
+		s0 = texture(naval_ride_map, vec3(uv, f0)).rg;
+		s1 = texture(naval_ride_map, vec3(uv, f1)).rg;
+	} else {
+		s0 = textureLod(naval_ride_map, vec3(uv, f0), lod).rg;
+		s1 = textureLod(naval_ride_map, vec3(uv, f1), lod).rg;
+	}
+	return (mix(s0, s1, k) * (255.0 / 127.0) - 128.0 / 127.0) * naval_ride_b.x;
+}
+
+/* Les deux nappes, dans le repère du vent. La seconde est la carte agrandie : ses pentes sont
+   celles de la carte (une mer de vent est à peu près semblable à elle-même), ramenées dans le
+   repère de la première par la rotation inverse. Leur somme garde la pente moyenne de Cox et Munk. */
+vec2 ride_tex_slope(vec2 x, float lod) {
+	vec2 a = ride_tex_at(x, 0.0, lod);
+	float sc = naval_ride_b.z, c = cos(0.5), s = sin(0.5);
+	vec2 xr = vec2(c * x.x - s * x.y, s * x.x + c * x.y) / sc;
+	vec2 b = ride_tex_at(xr, naval_ride_a.z * 0.37, lod >= 0.0 ? max(0.0, lod - log2(sc)) : -1.0);
+	b = vec2(c * b.x + s * b.y, -s * b.x + c * b.y);
+	return (a + naval_ride_b.w * b) * inversesqrt(1.0 + naval_ride_b.w * naval_ride_b.w);
+}
+
+// la pente des rides au point p du monde, en x et z du monde ; lod < 0 : celui du pixel
+vec2 ride_tex_grad(vec2 p, float lod) {
+	vec2 w = u_wind, pw = vec2(-w.y, w.x);
+	vec2 g = ride_tex_slope(vec2(dot(p, w), dot(p, pw)), lod);
+	return g.x * w + g.y * pw;
+}
+
+/* La force : la pente de la carte est celle d'un vent de référence ; u_ripple dit le vent du
+   moment (0,9 par défaut, comme le bruit), la fiche peut la régler (« force »). */
+float ride_tex_gain() { return u_ripple / 0.9 * u_ride_gain * naval_ride_b.y; }
+
 vec3 ride_normale(vec2 p, float fade) {
 	if (fade <= 0.001) return vec3(0.0, 1.0, 0.0);
+	if (naval_ride_a.x > 0.5) {
+		vec2 g = ride_tex_grad(p, -1.0) * ride_tex_gain() * fade;
+		return normalize(vec3(-g.x, 1.0, -g.y));
+	}
 	float e = 0.2;
 	float h  = ride_h(p);
 	float hx = ride_h(p + vec2(e, 0.0));

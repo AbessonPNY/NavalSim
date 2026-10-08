@@ -15111,6 +15111,23 @@ PUIS AUX VRAIES COTES (threedecks.org 6226, donné par lui) : 96 pi de pont, 84 
 1,21 × la jauge = 353 t ; batteries de tools/ship-glb.js aux mêmes places × 96/94 ; modèle régénéré (29,26 × 7,77 m).
 MESURÉ à la mise en eau (settle) : 3,52 m de tirant (11 pi 6 po) et 44,7 % d'immersion, contre 3,34 m et 42,5 %.
 
+## Les rides de la mer tirées d'un spectre (Godot)
+
+DEMANDÉ : une texture de mer, sans toucher à la physique. Les dix-huit longues vagues suivent le vent : la plus courte
+fait 1,7 m par force 3, 5,9 par force 5, 23 par force 9 (banc « waves f 1.35 tout »). Tout ce qui est plus court vit
+dans la normale ; le bruit de Perlin la donnait d'UNE échelle (0,6 à 3 m) — une grande tache étirée pour le reflet
+du soleil. tools/sea-ripples.js : Tessendorf — Phillips orienté (cos⁴, le quart contre le vent, coupé sous 2 cm),
+h0 gaussiennes, ω² = g k ARRONDIE au multiple de 2π/période (la boucle se referme), FFT inverse des pentes i k h.
+32 images de 256², 10 m, 12 s ; force de Cox et Munk (σ² = 0,003 + 0,00512 U : pente 0,197 à 7 m/s), écrêtage
+0,1 %. Encodeur PNG couleur ajouté à tools/grey-png.js (une définition). Shader : deux nappes (×1, et ×3 tournée
+d'une demi-radian, décalée dans le temps, poids 0,6, la somme ramenée à la même pente moyenne), dans le repère du
+vent, interpolées entre deux images ; × u_ripple / 0,9 (le vent du moment). EN GLOBAL (naval_ride_map,
+naval_ride_a/b, project.godot) : cinq shaders lisent les rides. Les caustiques prennent les COURBURES dans les écarts
+de pente, au niveau de détail qui répond à leur écart de lecture. VU : le reflet du soleil devient une poussière de
+points, celui de la coque se brise. Coût : 6,2–6,8 ms de carte graphique contre 7,0 au Perlin (trois octaves en
+trois points). Caustiques non jugées à l'œil (la rade est trouble). PIÈGE de mesure : une capture à 400 images
+tombait sous l'eau — la caméra d'orbite plongeait avec une vague, rien à voir avec la texture.
+
 ## Le naufrage filmé ; le drone au-dessus de la houle (Godot)
 
 DEMANDÉ : « quand le navire sombre, la caméra passe en mode cinéma ». ShipDemo.SinkFilm.cs : dès que le navire est

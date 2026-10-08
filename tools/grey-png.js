@@ -72,4 +72,16 @@ function encodeGreyPng(w, h, bytes) {
     chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
 }
 
-module.exports = { decodeGreyPng, encodeGreyPng };
+/** Un PNG RGBA 8 bits, sans filtre : w × h × 4 octets, une ligne après l'autre. */
+function encodeRgbaPng(w, h, bytes) {
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8; ihdr[9] = 6; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+  const row = w * 4, raw = Buffer.alloc((row + 1) * h);
+  const img = Buffer.from(bytes.buffer ? bytes.buffer : bytes, bytes.byteOffset || 0, row * h);
+  for (let j = 0; j < h; j++) { raw[j * (row + 1)] = 0; img.copy(raw, j * (row + 1) + 1, j * row, (j + 1) * row); }
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
+}
+
+module.exports = { decodeGreyPng, encodeGreyPng, encodeRgbaPng };
