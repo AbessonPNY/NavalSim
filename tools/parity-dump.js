@@ -52,8 +52,9 @@ const hullProfile = eval('({' + modelSrc.slice(hpAt, hpEnd) + '})').hullProfile;
 const isSpec = j => j && !Array.isArray(j) && typeof j.id === 'string' && j.hull;
 
 const out = {};
-for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.json'))) {
-  const json = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+// un navire, un dossier : ships/<id>/fiche.json
+for (const d of fs.readdirSync(dir).filter(d => fs.existsSync(path.join(dir, d, 'fiche.json')))) {
+  const json = JSON.parse(fs.readFileSync(path.join(dir, d, 'fiche.json'), 'utf8'));
   if (!isSpec(json)) continue;
   const spec = new Naval.ShipSpec(json);
   const hl = new Naval.HullLines(spec);

@@ -68,7 +68,7 @@ public partial class ShipDemo
             for (int i = 0; i < _paths.Count; i++)
             {
                 var spec = ShipLibrary.Load(_paths[i]);
-                _fleetPick.AddItem(spec?.Name ?? System.IO.Path.GetFileNameWithoutExtension(_paths[i]), i);
+                _fleetPick.AddItem(spec?.Name ?? ShipLibrary.IdOf(_paths[i]), i);
             }
         if (_fleetPanel.Visible) DrawFleet();
     }

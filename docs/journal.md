@@ -15111,6 +15111,34 @@ PUIS AUX VRAIES COTES (threedecks.org 6226, donné par lui) : 96 pi de pont, 84 
 1,21 × la jauge = 353 t ; batteries de tools/ship-glb.js aux mêmes places × 96/94 ; modèle régénéré (29,26 × 7,77 m).
 MESURÉ à la mise en eau (settle) : 3,52 m de tirant (11 pi 6 po) et 44,7 % d'immersion, contre 3,34 m et 42,5 %.
 
+## Un navire, un dossier ; les mods ; l'outil de calage (Godot)
+
+DEMANDÉ : « que les bateaux aient leur dossier individuel pour favoriser l'ajout de mods », et « pour le calcul du
+modèle flottant, remplir la fiche à la main serait suffisant ? ». ships/<id>/fiche.json + modele.glb (git mv : l'histoire
+suit) ; les modèles lourds de godot-models/ships/models/ y passent (la page est figée, plus de copie allégée) ; la Boussole
+garde hero_ship sous le nom modele.glb ; ships/textures/ reste le commun. Les mods : mods/navires/<id>/, lus APRÈS (les
+indices des navires du jeu ne bougent pas : l'histoire en nomme un par son rang), un identifiant déjà pris écarté.
+PIÈGE PRINCIPAL : le jeu nommait ses navires par leur FICHIER (GetFileName, GetFileNameWithoutExtension) à une vingtaine
+d'endroits — tous auraient lu « fiche ». Une définition : ShipLibrary.IdOf (le dossier), Key (« x.json » ou « x », et les
+renommés : speedwell → roebuck), IndexOf, SheetPath. Les sauvegardes gardent « x.json » (compatibles dans les deux sens).
+ShipSpec.Folder, posé par ShipLibrary.Load, et Resolve : un chemin sans dossier se lit dans celui du navire (modèle, toile,
+pavillon, impacts). Bancs : ShipSpec.SheetIn (vingt-huit lectures du Lab, la parité). Outils : parity-dump, parity-physics,
+add-ship (crée le dossier, --mod), ship-glb (écrit genere.glb : il écrivait au chemin de la fiche, et celle du Roebuck nomme
+le modèle fait main). LA PAGE n'est plus construisible (build.js lit encore ships/*.json à plat, et les modèles lourds
+dépassent ses seize mégaoctets) : figée, laissée telle.
+L'OUTIL DE CALAGE, tools/fit-ship.js, refait ce qu'on a fait à la main pour le Roebuck : flottaison lue sur le modèle (la
+plus basse pièce de bordée à 1,15 m), poids = volume sous elle (tranches de triangles), plan accordé par la quille saillante
+(mise en eau du solveur : nouvelle commande Lab « assiette », identique au JS : 0,263 / 2,989 / 39,4 %), relèvement, pont
+nommé, mâts au droit des espars. Sur le dernier export du Roebuck (coque 29,57 × 7,84 m, retouchée depuis) : 267 t au lieu
+de 306, pont 1,56, relèvement −1,15 ; fond du plan à 2 cm de celui du modèle.
+
+## Les fenêtres de nuit adoucies, et dans les réglages (Godot)
+
+DEMANDÉ : diminuer l'éclat des fenêtres des maisons et des navires, avec un réglage. Les navires avaient un gain écrit
+en dur (ShipNode.NightGlowGain = 2,6) alors que settings.json portait déjà night.glow (2,6) pour la page : Godot le
+lit désormais, abaissé à 1,4. Les maisons gardaient le u_gain de town_windows.gdshaderinc (2,2), jamais poussé :
+night.townGlow (1,2), écrit par TownNode.SetNight quand il change seulement (ou qu'une vitre est née).
+
 ## La mer lue par sa forme : crête claire, pointe blanche, creux sombre (Godot)
 
 DEMANDÉ : « les pointes les plus dures et hautes blanches, les creux plus foncés ». Il y avait déjà la lueur verte

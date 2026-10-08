@@ -261,7 +261,7 @@ public partial class ShipNode
     /// quoi les chercher. Ce qu'il a, ce sont des vergues, et une vergue se
     /// reconnaît à sa FORME : bien plus large en travers qu'épaisse, posée
     /// d'équerre sur l'axe. Les lire sur la géométrie veut dire que tout
-    /// trois-mâts carré déposé dans ships/models sort gréé, sans une ligne de
+    /// trois-mâts carré déposé dans le dossier d un navire sort gréé, sans une ligne de
     /// donnée par navire.
     ///
     /// Les vergues sont ensuite reparentées DANS les pivots qui portent les

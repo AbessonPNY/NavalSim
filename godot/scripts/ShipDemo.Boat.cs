@@ -194,8 +194,8 @@ public partial class ShipDemo : Node3D
         if (b0.Vel.LengthXZ > 1.5)
             return "Trop d'erre pour mettre la chaloupe à l'eau";
         if (_fleet.Count >= Config.MaxShips) return "Plus de place à flot pour la chaloupe";
-        int idx = _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == _ship.Spec.Boat
-                                     || System.IO.Path.GetFileNameWithoutExtension(p).Contains(_ship.Spec.Boat));
+        int idx = _paths.FindIndex(p => ShipLibrary.IdOf(p) == _ship.Spec.Boat
+                                     || ShipLibrary.IdOf(p).Contains(_ship.Spec.Boat));
         if (idx < 0) return $"Chaloupe introuvable : {_ship.Spec.Boat}";
 
         _boatBusy = true;

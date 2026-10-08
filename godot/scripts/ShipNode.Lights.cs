@@ -21,7 +21,9 @@ namespace NavalSim;
 public partial class ShipNode
 {
     /// <summary>Allumés au crépuscule, soufflés à l'aube — Naval.NIGHT.</summary>
-    const double NightGlowGain = 2.6, LightAt = 0.35, SnuffAt = 0.25;
+    const double LightAt = 0.35, SnuffAt = 0.25;
+    /// <summary>L'éclat des fenêtres de nuit d'un navire — settings.json → night.glow (abaissé de 2,6 à 1,4 à sa demande).</summary>
+    public static double NightGlowGain = 1.4;
     const double FarFrom = 1500, FarFade = 1.5, FarMinSize = 0.35;
 
     sealed class Lantern

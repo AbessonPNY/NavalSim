@@ -442,7 +442,7 @@ public partial class ShipDemo
                 case "--parallele": _settings.ParallelSolvers = args[i + 1] == "1"; break;
                 case "--flotte":
                     SpawnFleet(args[i + 1].ToInt(), _flotteShip >= 0 ? _flotteShip
-                        : Math.Max(0, _paths.FindIndex(p => System.IO.Path.GetFileName(p) == "frigate17e.json")));
+                        : Math.Max(0, ShipLibrary.IndexOf(_paths, "frigate17e.json")));
                     break;
                 case "--flotte-navire": _flotteShip = args[i + 1].ToInt(); break;
                 case "--dumprig":

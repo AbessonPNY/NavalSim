@@ -137,7 +137,8 @@ public partial class ShipNode : Node3D
     {
         var m = Spec.Model;
         if (m == null || string.IsNullOrEmpty(m.Glb)) return false;
-        string path = Assets.Path(m.Glb);
+        // relatif au dossier du navire s'il ne nomme pas de dossier (« modele.glb »)
+        string path = Assets.Path(Spec.Resolve(m.Glb));
         try
         {
             if (Assets.LoadGlb(path, out Error err) is not Node3D obj)

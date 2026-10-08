@@ -213,7 +213,8 @@ public partial class MooredNode : Node3D
     /// <summary>Un modèle de la flotte au mouillage, lu une fois par fiche — les ports et la fiche du monde le partagent.</summary>
     (ShipSpec Spec, Node3D Root, double K, double Y)? Model(string shipsDir, string rel, Ocean sea)
     {
-        string name = System.IO.Path.GetFileName(rel);
+        // « sloop.json » ou « sloop » : la clé d'un navire, quel que soit son rangement
+        string name = ShipLibrary.Key(rel);
         if (_models.TryGetValue(name, out var have)) return have;
         return _models[name] = LoadModel(shipsDir, name, sea);
     }
@@ -221,11 +222,11 @@ public partial class MooredNode : Node3D
     (ShipSpec Spec, Node3D Root, double K, double Y)? LoadModel(string shipsDir, string rel, Ocean sea)
     {
         {
-            string sheet = System.IO.Path.Combine(shipsDir, System.IO.Path.GetFileName(rel));
-            if (!System.IO.File.Exists(sheet)) { GD.PushWarning($"[rade] {rel} introuvable"); return null; }
-            var spec = ShipSpec.FromJson(System.IO.File.ReadAllText(sheet));
+            string? sheet = ShipLibrary.SheetPath(rel);
+            if (sheet == null) { GD.PushWarning($"[rade] {rel} introuvable"); return null; }
+            if (ShipLibrary.Load(sheet) is not { } spec) return null;
             if (spec.Model == null || spec.Model.Glb.Length == 0) return null;
-            string path = Assets.Path(spec.Model.Glb);
+            string path = Assets.Path(spec.Resolve(spec.Model.Glb));
             if (!System.IO.File.Exists(path)) { GD.PushWarning($"[rade] {spec.Model.Glb} introuvable"); return null; }
             if (Assets.LoadGlb(path) is not Node3D root) return null;
             /* LA MÊME ÉCHELLE QUE LA FLOTTE, par la même fonction : un galion au

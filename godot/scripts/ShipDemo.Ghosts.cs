@@ -51,8 +51,8 @@ public partial class ShipDemo : IGhostHost
 
     GhostHull? IGhostHost.Launch(string id, int side)
     {
-        int idx = _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == id);
-        if (idx < 0) { GD.PushWarning($"ships/{id}.json introuvable"); return null; }
+        int idx = ShipLibrary.IndexOf(_paths, id);
+        if (idx < 0) { GD.PushWarning($"ships/{id}/fiche.json introuvable"); return null; }
         int before = _others.Count;
         // sans humeur de pirate : un spectre se bat pour son camp, pas pour le butin
         SpawnFleet(1, idx, arm: false);

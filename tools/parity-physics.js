@@ -173,7 +173,7 @@ const scenarios = [
 ];
 
 for (const sc of scenarios) {
-  const json = JSON.parse(fs.readFileSync(path.join(root, 'ships', sc.ship + '.json'), 'utf8'));
+  const json = JSON.parse(fs.readFileSync(path.join(root, 'ships', sc.ship, 'fiche.json'), 'utf8'));
   const spec = new Naval.ShipSpec(json);
   const lines = new Naval.HullLines(spec);
   const phys = new Naval.ShipPhysics(spec, lines);
@@ -199,7 +199,7 @@ for (const sc of scenarios) {
      comme la page le fait a chaque image. */
   let mate = null;
   if (sc.consort) {
-    const mj = JSON.parse(fs.readFileSync(path.join(root, 'ships', sc.consort.ship + '.json'), 'utf8'));
+    const mj = JSON.parse(fs.readFileSync(path.join(root, 'ships', sc.consort.ship, 'fiche.json'), 'utf8'));
     const ms = new Naval.ShipSpec(mj);
     mate = new Naval.ShipPhysics(ms, new Naval.HullLines(ms));
     mate.body.pos.x = sc.consort.dx;
@@ -280,7 +280,7 @@ console.log(`releve solveur ecrit : ${dest}  (${out.length} scenarios)`);
    de derive qu on puisse ecrire. */
 const settles = [];
 for (const name of ['barge', 'bouee-canard', 'cotre', 'frigate', 'frigate17e', 'pirate', 'schooner']) {
-  const json = JSON.parse(fs.readFileSync(path.join(root, 'ships', name + '.json'), 'utf8'));
+  const json = JSON.parse(fs.readFileSync(path.join(root, 'ships', name, 'fiche.json'), 'utf8'));
   const spec = new Naval.ShipSpec(json);
   const lines = new Naval.HullLines(spec);
   const phys = new Naval.ShipPhysics(spec, lines);

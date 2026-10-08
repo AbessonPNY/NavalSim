@@ -349,7 +349,7 @@ public partial class ShipDemo : Node3D
         var q = _quests.List.Find(x => x.Id == id);
         if (q is { Ship.Length: > 0 })
         {
-            int idx = _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == q.Ship);
+            int idx = ShipLibrary.IndexOf(_paths, q.Ship);
             if (idx < 0) GD.PushWarning($"[{id}] le navire « {q.Ship} » n'a pas de fiche — on garde celui qu'on a.");
             else
             {
@@ -441,7 +441,7 @@ public partial class ShipDemo : Node3D
            galion de 1597, sa toile carrée et ses châteaux. Le navire du joueur lui
            est rendu à l'entrée dans le jeu. */
         _beforeTitle = _index;
-        int lion = _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == TitleShip);
+        int lion = ShipLibrary.IndexOf(_paths, TitleShip);
         if (lion >= 0 && lion != _index) Launch(lion);
         Offshore();
         TitleDof();

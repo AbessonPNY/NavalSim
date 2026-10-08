@@ -96,8 +96,8 @@ public partial class ShipDemo
     int FilmShipIndex(string ship)
     {
         if (int.TryParse(ship, out int n) && n >= 0 && n < _paths.Count) return n;
-        int i = _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == ship);
-        return i >= 0 ? i : _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == TitleShip);
+        int i = ShipLibrary.IndexOf(_paths, ship);
+        return i >= 0 ? i : ShipLibrary.IndexOf(_paths, TitleShip);
     }
 
     void StartWreck(WreckShot w)

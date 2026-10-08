@@ -1,9 +1,10 @@
-/* Turn a .glb you dropped into ships/models/ into a working ship spec.
+/* Turn a .glb into a working ship: its own folder, ships/<id>/ (or mods/navires/<id>/ with --mod),
+ * the model copied in as modele.glb and a starting fiche.json next to it.
  *
- *   node tools/add-ship.js ships/models/frigate.glb
- *   node tools/add-ship.js ships/models/frigate.glb --nom "Frégate Sirène" --tonnes 1400
+ *   node tools/add-ship.js chemin/frigate.glb
+ *   node tools/add-ship.js chemin/frigate.glb --nom "Frégate Sirène" --tonnes 1400 --mod
  *
- * It reads the model's real bounding box and writes ships/<id>.json with
+ * It reads the model's real bounding box and writes ships/<id>/fiche.json with
  * matching dimensions, then the dev server picks it up on the next reload.
  *
  * The tonnage it guesses is a STARTING POINT, not a measurement: a mesh says
@@ -152,20 +153,26 @@ const spec = {
                 house:'0xd9d2c2', canvas:'0xd8cdb4' },
   camera: { chaseDist: +(38*k).toFixed(0), chaseHigh: +(14*k).toFixed(0),
             orbitDist: +(46*k).toFixed(0), helmZFrac: -0.44 },
-  model: { glb: glbRel.replace(/\\/g,'/'), lengthAxis, offset:[0,0,0], rotationY: 0 }
+  model: { glb: 'modele.glb', lengthAxis, offset:[0,0,0], rotationY: 0 }
 };
 
-const out = path.join(ROOT, 'ships', id + '.json');
+/* UN NAVIRE, UN DOSSIER : ships/<id>/ (ou mods/navires/<id>/ avec --mod), sa fiche et son modèle
+   côte à côte — le modèle y est copié sous le nom que la fiche lui donne. */
+const home = args.includes('--mod') ? path.join('mods', 'navires', id) : path.join('ships', id);
+const folder = path.join(ROOT, home);
+const out = path.join(folder, 'fiche.json');
 if(fs.existsSync(out) && !args.includes('--force')){
-  console.error('ships/' + id + '.json existe déjà — ajoutez --force pour l\'écraser.');
+  console.error(home.split(path.sep).join('/') + '/fiche.json existe déjà — ajoutez --force pour l\'écraser.');
   process.exit(1);
 }
+fs.mkdirSync(folder, { recursive: true });
+const modelOut = path.join(folder, 'modele.glb');
+if(path.resolve(glbPath) !== path.resolve(modelOut)) fs.copyFileSync(glbPath, modelOut);
 fs.writeFileSync(out, JSON.stringify(spec, null, 2) + '\n', 'utf8');
 
 console.log('modèle    : ' + glbRel + '  (étrave sur ' + lengthAxis + ')');
 console.log('dimensions: ' + L.toFixed(1) + ' × ' + B.toFixed(1) + ' × ' + H.toFixed(1) + ' m');
 console.log('carène    : ' + volume.toFixed(0) + ' m³ d\'enveloppe');
 console.log('tonnage   : ' + tonnes + ' t  (~' + Math.round(TARGET_IMMERSION*100) + '% d\'immersion)');
-console.log('écrit     : ships/' + id + '.json');
-console.log('\nRechargez la page : elle apparaît dans le sélecteur.');
-console.log('Pour publier : node build.js');
+console.log('écrit     : ' + home.split(path.sep).join('/') + '/fiche.json et modele.glb');
+console.log('\nPuis caler la fiche sur le modèle : node tools/fit-ship.js ' + id);

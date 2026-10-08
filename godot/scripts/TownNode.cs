@@ -189,13 +189,28 @@ public partial class TownNode : Node3D
     /// bien que les fenêtres s'allument quand les lanternes s'allument et non
     /// quand un second seuil en décide.
     /// </summary>
+    /// <summary>L'éclat des fenêtres des maisons — settings.json → night.townGlow (2,2 dans le shader, abaissé à 1,2 à sa demande).</summary>
+    public static double WindowGain = 1.2;
+    static readonly StringName GainU = "u_gain";
+    float _gainSet = -1;
+
     public void SetNight(double night)
     {
         float n = (float)Math.Clamp(night, 0, 1);
         _walls?.SetShaderParameter(U.Night, n);
         foreach (var g in _glassSet.Values) g.SetShaderParameter(U.Night, n);
         _glass?.SetShaderParameter(U.Night, n);
+        // l'éclat, écrit quand il change seulement (et pour les vitres nées depuis)
+        float k = (float)WindowGain;
+        if (k != _gainSet || _glassSet.Count != _gainGlass)
+        {
+            _gainSet = k; _gainGlass = _glassSet.Count;
+            _walls?.SetShaderParameter(GainU, k);
+            foreach (var g in _glassSet.Values) g.SetShaderParameter(GainU, k);
+            _glass?.SetShaderParameter(GainU, k);
+        }
     }
+    int _gainGlass = -1;
 
     /// <summary>Poser les villes contre l'origine du moment, et cacher celles qui sont loin.</summary>
     public void Update(Vec3d centre, Vec3d origin)

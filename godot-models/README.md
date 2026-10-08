@@ -1,5 +1,9 @@
 # Les modèles propres à Godot
 
+> **Les navires n'y sont plus** (08/10/2026) : chacun a son dossier, `ships/<id>/`, et son modèle en
+> pleine définition y est (`modele.glb`) — la page étant figée, il n'y a plus de copie allégée à tenir.
+> Ce dossier ne sert plus qu'aux décors (`props/`, `world/`).
+
 Ce dossier **double l'arborescence du dépôt**. Un fichier qu'on y trouve remplace
 celui de la racine — **pour Godot seulement**.
 

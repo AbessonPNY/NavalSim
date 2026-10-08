@@ -64,7 +64,7 @@
   "camera": { "chaseDist": 46, "chaseHigh": 17, "orbitDist": 56, "helmZFrac": -0.40, "helmHeight": 3.75 },
 
   "model": {
-    "glb": "ships/models/barge.glb",
+    "glb": "modele.glb",
     "lengthAxis": "z",
     "offset": [0, 0, 0],
     "rotationY": 0

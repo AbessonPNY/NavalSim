@@ -52,12 +52,9 @@ foreach (var entry in doc.RootElement.EnumerateObject())
        qu'on peut prendre en jeu libre — ni l'un ni l'autre n'a d'« id », et
        GetProperty faisait tomber le banc entier sur le premier rencontré. Une
        fiche est un fichier QUI A UN ID : on le demande, on ne le suppose pas. */
-    string specFile = Directory.GetFiles(shipsDir, "*.json")
-        .FirstOrDefault(f => JsonDocument.Parse(File.ReadAllText(f))
-                                 .RootElement is { ValueKind: JsonValueKind.Object } root
-                          && root.TryGetProperty("id", out var pid)
-                          && pid.ValueKind == JsonValueKind.String
-                          && pid.GetString() == id) ?? "";
+    // un navire, un dossier : ships/<id>/fiche.json
+    string specFile = ShipSpec.SheetIn(shipsDir, id);
+    if (!File.Exists(specFile)) specFile = "";
     if (specFile.Length == 0) { Console.Error.WriteLine($"  {id}: fiche introuvable"); failures++; continue; }
 
     var spec = ShipSpec.FromJson(File.ReadAllText(specFile));

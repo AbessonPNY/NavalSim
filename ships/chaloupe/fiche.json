@@ -82,7 +82,7 @@
   },
 
   "model": {
-    "glb": "ships/models/chaloupe.glb",
+    "glb": "modele.glb",
     "lengthAxis": "z",
     "offset": [0, -0.44, 0],
     "rotationY": 0

@@ -1,21 +1,52 @@
 # Fiches navires
 
-Un fichier JSON par bâtiment. **Le dossier fait foi** : déposez le fichier ici,
-rechargez la page, il est dans le sélecteur. Rien à déclarer ailleurs.
+**Un navire, un dossier** (depuis le 08/10/2026) : `ships/<id>/fiche.json`, et à côté ce qui
+lui est propre — `modele.glb`, ses textures, ses sons. L'identifiant du navire EST le nom du
+dossier (`roebuck`, `sloop`) : c'est lui que nomment les horaires, le chantier, le jeu libre,
+les retouches et les sauvegardes. **Le dossier fait foi** : un dossier de plus avec sa fiche, et
+le navire est dans le sélecteur. Un dossier sans `fiche.json` n'est pas un navire —
+`ships/textures/` garde ce que les navires PARTAGENT (pavillons, impacts, toile, menu).
+
+Dans une fiche, **un chemin sans dossier se lit dans le dossier du navire** (`"glb": "modele.glb"`) ;
+un chemin avec dossier part de la racine du dépôt (`ships/textures/toile-carree.jpg`).
+
+**Les mods** : même forme, dans `mods/navires/<id>/` (voir `mods/navires/README.md`). Le jeu lit
+ses navires puis ceux des mods ; un mod ne peut pas reprendre l'identifiant d'un navire du jeu.
 
 ## Ajouter un navire depuis un .glb
 
 ```bash
-node tools/add-ship.js ships/models/mon-bateau.glb --nom "La Sirène"
+node tools/add-ship.js chemin/mon-bateau.glb --nom "La Sirène"          # ships/mon-bateau/
+node tools/add-ship.js chemin/mon-bateau.glb --nom "La Sirène" --mod    # mods/navires/mon-bateau/
+node tools/fit-ship.js mon-bateau --ecrire                              # puis la caler sur son modèle
 ```
 
-L'outil lit la boîte englobante réelle du maillage, en déduit longueur, largeur
-et tirant, **mesure le volume d'enveloppe avec les mêmes formules que le
-solveur**, et fixe un tonnage qui la pose à ~36 % d'immersion. Il écrit
-`ships/<id>.json`, qu'il ne reste qu'à affiner.
+`add-ship` crée le dossier, y copie le modèle sous le nom `modele.glb`, lit la boîte englobante
+réelle du maillage, en déduit longueur, largeur et tirant, **mesure le volume d'enveloppe avec les
+mêmes formules que le solveur**, et écrit une `fiche.json` de départ.
 
 Options : `--tonnes N` pour imposer le déplacement, `--id slug`, `--force` pour
-écraser une fiche existante.
+écraser une fiche existante, `--mod` pour la ranger dans les mods.
+
+## Caler la fiche sur son modèle — `tools/fit-ship.js`
+
+**La physique ne lit jamais le modèle** : elle fait flotter le plan de formes de la fiche, et le
+.glb est posé par-dessus. Remplir la fiche à la main suffit ; ce qui est délicat, c'est de faire
+COÏNCIDER les deux. L'outil le fait (17 s pour le Roebuck) :
+
+1. **la flottaison**, lue sur le modèle : `--flottaison y` (repère du modèle) si on la connaît ;
+   sinon l'axe de la plus basse pièce de bordée à `--degagement` m au-dessus de l'eau (1,15) ;
+   sinon celle où le modèle déplace le poids de la fiche ;
+2. **le poids** : le volume de la coque sous elle, tranche par tranche sur ses triangles, × 1,025 ;
+3. **le plan accordé** : la fiche mise à l'eau par le solveur (`NavalSim.Lab assiette`), la quille
+   saillante (`hull.keelExtra`) ramène le fond du plan sur celui du modèle ;
+4. **le relèvement** `model.offset[1]` qui pose la flottaison du modèle sur la mer ;
+5. **le pont** (`hull.freeboardMid`) sur un maillage nommé `pont`, `deck` ou `tillac`, et **les mâts**
+   (`rig.masts[].height`, `rig.ceHeight`) sur les espars du modèle au droit de chaque mât.
+
+Sans `--ecrire`, il dit ce qu'il changerait. Le modèle est lu à l'échelle `model.scale` (1 si
+absent) ; la coque est son plus gros maillage qui n'est ni une pièce, ni un espar, ni le pont. Le
+jeu, au chargement, avertit encore d'une quille de modèle loin de celle du plan.
 
 Une fiche illisible est ignorée avec un avertissement en console — elle
 n'empêche jamais les autres navires de se charger.

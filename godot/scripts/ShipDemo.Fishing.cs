@@ -314,7 +314,7 @@ public partial class ShipDemo
                 // une image au moins : la quête passe à l'achat à sa propre mise à jour
                 if (_t - _fishTestT < 1) break;
                 _purse.Add(150 * Market.SousParEcu);
-                int idx = _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == "cotre");
+                int idx = ShipLibrary.IndexOf(_paths, "cotre");
                 if (YardSpec("cotre") is { } spec) BuyShip(idx, spec);
                 GD.Print(FormattableString.Invariant($"[pêche] après l'achat : {_ship.Spec.Name}, bourse {_purse.Sous} sous, rang « {_rank} », quête {(_quests.Active?.Id ?? "achevée")}"));
                 _fishTestT = _t; _fishTestState = 5;

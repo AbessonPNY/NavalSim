@@ -14,7 +14,7 @@
   batterie NOMMÉE (canonBabord_001…), dont chaque tube a l'âme de son calibre.
 
       node tools/ship-glb.js roebuck
-      node tools/ship-glb.js roebuck --out ships/models/roebuck.glb
+      node tools/ship-glb.js roebuck --out ships/roebuck/genere.glb
 */
 'use strict';
 const fs = require('fs');
@@ -322,7 +322,7 @@ const BATTERIES = {
 const args = process.argv.slice(2);
 const id = args[0];
 if (!id) { console.error('usage : node tools/ship-glb.js <id de fiche> [--out chemin.glb]'); process.exit(1); }
-const sheetPath = path.join(ROOT, 'ships', id + '.json');
+const sheetPath = path.join(ROOT, 'ships', id, 'fiche.json');
 if (!fs.existsSync(sheetPath)) { console.error('fiche introuvable : ' + sheetPath); process.exit(1); }
 
 const json = JSON.parse(fs.readFileSync(sheetPath, 'utf8'));
@@ -335,8 +335,11 @@ rigMeshes(spec, lines, meshes);
 const count = gunMeshes(spec, lines, BATTERIES[id] || [], meshes);
 
 const i = args.indexOf('--out');
+/* PAR DÉFAUT À CÔTÉ DE LA FICHE, sous un nom à lui : genere.glb. Il écrivait au chemin que nomme
+   la fiche, et celle du Roebuck nomme le modèle fait main (modele.glb) — il l'aurait écrasé. Pour en
+   faire le modèle du navire, --out ships/<id>/modele.glb, en sachant ce qu'on remplace. */
 const out = i >= 0 && args[i + 1] ? path.join(ROOT, args[i + 1])
-                                  : path.join(ROOT, json.model?.glb || ('ships/models/' + id + '.glb'));
+                                  : path.join(ROOT, 'ships', id, 'genere.glb');
 writeGlb(out, meshes);
 
 const tris = meshes.reduce((n, m) => n + m.F.length / 3, 0);

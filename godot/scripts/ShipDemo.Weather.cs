@@ -139,6 +139,12 @@ public partial class ShipDemo
             if (root.TryGetProperty("night", out var nt)
                 && nt.Opt("canvas") is double cv)
                 ShipNode.CanvasFloor = Math.Clamp(cv, 0, 1);
+            // l'éclat des fenêtres de nuit : les navires (glow), les maisons (townGlow)
+            if (root.TryGetProperty("night", out var ng))
+            {
+                if (ng.Opt("glow") is double gl) ShipNode.NightGlowGain = Math.Max(0, gl);
+                if (ng.Opt("townGlow") is double tg) TownNode.WindowGain = Math.Max(0, tg);
+            }
             if (root.TryGetProperty("whale", out var wh)) _whaleRules = WhaleSettings.FromJson(wh);
             if (root.TryGetProperty("serpent", out var sp)) _serpentRules = SerpentSettings.FromJson(sp);
             if (root.TryGetProperty("fog", out var fg))

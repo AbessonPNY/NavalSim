@@ -1,7 +1,7 @@
 {
-  "id": "pirate",
-  "name": "Galion pirate",
-  "note": "Petit galion de 30 m, 240 t : meme carene que la Roter Lowe, aux memes cotes. Longueurs en x0,5, voilure en x0,25, vitesse machine en x racine(0,5). rudder.power revient a 91,5, etant par unite de surface.",
+  "id": "boussole",
+  "name": "La Boussole 1597",
+  "note": "JUMELLE DE LA ROTER LOWE, et pour l instant sa copie exacte : meme coque, meme voilure, meme modele a un fichier pres (hero_ship.glb). Elle est la pour EVOLUER — c est le navire du joueur, celui qu on refond. Tant qu un champ n a pas ete touche ici, il vaut ce qu il vaut dans frigate17e.json, et les deux fiches doivent etre lues ensemble. Petit galion de 30 m, 240 t : demi-echelle de la fregate de 60 m. Longueurs en x0,5, voilure en x0,25, vitesse machine en x racine(0,5). rudder.power revient a 91,5, etant par unite de surface.",
   "hull": {
     "length": 30,
     "beam": 7.25,
@@ -94,11 +94,18 @@
     }
   },
   "lanterns": [
-    { "x": 0, "zFrac": -0.471 }
+    { "x": 0, "zFrac": -0.448 },
+    { "kind": "candle", "hang": "cabineLantern", "x": 1.25, "y": 4.0, "zFrac": -0.30, "size": 0.1, "color": "0xffb24a" }
+  ],
+  "flags": [
+    { "at": "stern", "size": 1.6, "image": "nation:poupe" },
+    { "mast": 1 },
+    { "mast": -1, "shape": "streamer", "size": 0.8, "image": "nation" },
+    { "at": "bow", "size": 0.6 }
   ],
   "deckhouse": {
     "beamFrac": 0.34,
-    "height": 2.35,
+    "height": 8.35,
     "lengthFrac": 0.14,
     "zFrac": -0.3
   },
@@ -108,11 +115,9 @@
     "spar": "0xa8875a",
     "house": "0xc9bda4",
     "canvas": "0xd8cdb4",
-    "canvasMap": {
+	 "canvasMap": {
       "square": "ships/textures/toile-carree.jpg"
     },
-    "ensign": "jolly",
-    "ensignMap": "ships/textures/flags/jolly_roger_1690.jpg",
     "impactMaps": [
       [
         "ships/textures/impacts/impact_001_stage_1.png",
@@ -125,17 +130,26 @@
     "chaseDist": 46,
     "chaseHigh": 16,
     "orbitDist": 57.5,
-    "helmZFrac": -0.4,
-    "helmHeight": 9.43
+    "decks": [
+      { "name": "Passerelle", "x": 0, "y": 8, "zFrac": -0.4, "yaw": 0, "pitch": 0, "fov": 35 },
+      { "name": "Chambre du capitaine", "x": 0, "y": 4.0, "zFrac": -0.33, "yaw": 0, "pitch": -4, "fov": 50, "near": 0.08, "closed": true },
+      { "name": "Pont de batterie", "x": 0, "y": 4.3, "z": 5.4, "yaw": 0, "pitch": -2, "fov": 55, "near": 0.08 },
+      { "name": "Vigie", "x": 0, "y": 13.3, "z": 0.4, "yaw": 0, "pitch": -2, "fov": 55, "near": 0.08 }
+    ]
   },
   "model": {
-    "glb": "ships/models/pirateship.glb",
+    "glb": "modele.glb",
     "lengthAxis": "z",
     "offset": [
       0,
       0,
       0
     ],
-    "rotationY": 0
+    "rotationY": 0,
+    "relief": 16,
+    "rings": [
+      { "match": "anneau_1", "rpm": 6, "spin": "vertical", "on": false },
+      { "match": "anneau_2", "rpm": -3.7, "spin": "etrave", "on": false }
+    ]
   }
 }

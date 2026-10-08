@@ -99,7 +99,7 @@ public partial class ShipDemo
         if ((_surpriseWait -= dt) > 0) return;
         if (_surpriseShip == null)
         {
-            int idx = _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == _surpriseTest);
+            int idx = ShipLibrary.IndexOf(_paths, _surpriseTest);
             if (idx < 0) { GD.Print($"[surprise] fiche {_surpriseTest} introuvable"); _surpriseTest = null; return; }
             var b = _ship.Physics.Body;
             var fwd = b.Quat.Rotate(new Vec3d(0, 0, 1)); fwd = new Vec3d(fwd.X, 0, fwd.Z).Normalized();

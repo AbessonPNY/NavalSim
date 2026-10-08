@@ -197,7 +197,7 @@ public partial class ShipDemo
         if (_ship.Battery.Guns.Count == 0)
             foreach (var name in Combatants)
             {
-                int k = _paths.FindIndex(p => System.IO.Path.GetFileName(p) == name);
+                int k = ShipLibrary.IndexOf(_paths, name);
                 if (k < 0) continue;
                 Launch(k);
                 Offshore();
@@ -229,7 +229,7 @@ public partial class ShipDemo
         var specs = new List<int>();
         foreach (var name in Combatants)
         {
-            int k = _paths.FindIndex(p => System.IO.Path.GetFileName(p) == name);
+            int k = ShipLibrary.IndexOf(_paths, name);
             if (k >= 0) specs.Add(k);
         }
         for (int k = 0; k < _paths.Count; k++) if (!specs.Contains(k)) specs.Add(k);

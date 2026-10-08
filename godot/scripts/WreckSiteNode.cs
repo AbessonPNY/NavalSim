@@ -249,13 +249,12 @@ public partial class WreckSiteNode : Node3D
     (Node3D? Root, ShipSpec? Spec) Model(string ship)
     {
         if (_models.TryGetValue(ship, out var m)) return m;
-        string sheet = System.IO.Path.Combine(_shipsDir, ship + ".json");
-        if (!System.IO.File.Exists(sheet)) return _models[ship] = (null, null);
-        var spec = ShipSpec.FromJson(System.IO.File.ReadAllText(sheet));
+        string? sheet = ShipLibrary.SheetPath(ship);
+        if (sheet == null || ShipLibrary.Load(sheet) is not { } spec) return _models[ship] = (null, null);
         Node3D? root = null;
-        if (spec.Model is { } mm && mm.Glb.Length > 0 && System.IO.File.Exists(Assets.Path(mm.Glb)))
+        if (spec.Model is { } mm && mm.Glb.Length > 0 && System.IO.File.Exists(Assets.Path(spec.Resolve(mm.Glb))))
         {
-            if (Assets.LoadGlb(Assets.Path(mm.Glb)) is Node3D r)
+            if (Assets.LoadGlb(Assets.Path(spec.Resolve(mm.Glb))) is Node3D r)
             {
                 ShipNode.StripRings(r);
                 double k = mm.Scale ?? ShipNode.HullScale(r, mm.LengthAxis, spec.Hull.Length);

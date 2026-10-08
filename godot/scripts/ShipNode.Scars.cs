@@ -123,7 +123,7 @@ public partial class ShipNode
                 for (int si = 0; si < stages; si++)
                 {
                     string src = list[vi][Math.Min(si, list[vi].Count - 1)];
-                    var cell = Image.LoadFromFile(System.IO.Path.Combine(RepoRoot, src));
+                    var cell = Image.LoadFromFile(System.IO.Path.Combine(RepoRoot, Spec.Resolve(src)));
                     if (cell == null || cell.IsEmpty()) { GD.PushWarning($"[impacts] image introuvable : {src}"); continue; }
                     cell.Convert(Image.Format.Rgba8);
                     cell.Resize(CELL, CELL, Image.Interpolation.Lanczos);

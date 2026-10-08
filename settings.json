@@ -228,8 +228,10 @@
       "vedette", "ilca4"]
   },
   "night": {
+    "_aide": "LA NUIT. canvas : ce qui reste de la toile sous les étoiles. glow : l'éclat des fenêtres de nuit des NAVIRES (poupe, château ; 1,4 — c'était 2,6). townGlow : celui des fenêtres des MAISONS (1,2 — c'était 2,2). 0 les éteint ; Godot seul pour townGlow.",
     "canvas": 0.05,
-    "glow": 2.6,
+    "glow": 1.4,
+    "townGlow": 1.2,
     "lightAt": 0.35,
     "snuffAt": 0.25,
     "farFrom": 1500,

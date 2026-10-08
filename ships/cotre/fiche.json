@@ -71,7 +71,7 @@
     "helmZFrac": -0.44, "helmHeight": 3.3
   },
   "model": {
-    "glb": "ships/models/cotre.glb",
+    "glb": "modele.glb",
     "lengthAxis": "z",
     "offset": [
       0,

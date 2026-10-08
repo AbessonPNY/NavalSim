@@ -95,7 +95,7 @@ Objets flottants : `props/Props.json`. Pavillons : `ships/textures/flags/flags.j
 Marchandises : `market/marchandises.json`, format dans `market/README.md` — ce
 qu'on charge et ce qu'on revend ; une denrée absente se porte mais ne se vend
 nulle part (le fret sous contrat).
-Fiches navires : `ships/*.json`, format dans `ships/README.md`. Jeu libre : `ships/libre.json` (`ouverts` : sloop et ILCA 4 ; le MODE DÉBUG — trois clics sur Crédits au titre — ouvre tout). Kraken, dauphins, baleine et marins en `.glb` : `creatures/README.md`.
+Fiches navires : UN DOSSIER PAR NAVIRE, `ships/<id>/fiche.json` + `modele.glb` (l'identifiant est le nom du dossier, `ShipLibrary.IdOf` — jamais le nom de fichier), les mods dans `mods/navires/<id>/` ; un chemin de fiche sans dossier se lit dans celui du navire (`ShipSpec.Resolve`) ; caler une fiche sur son modèle : `node tools/fit-ship.js <id> --ecrire` ; format dans `ships/README.md`. LA PAGE n'est plus construisible avec ce rangement (modèles lourds, chemins relatifs) — elle est figée. Jeu libre : `ships/libre.json` (`ouverts` : sloop et ILCA 4 ; le MODE DÉBUG — trois clics sur Crédits au titre — ouvre tout). Kraken, dauphins, baleine et marins en `.glb` : `creatures/README.md`.
 
 ## Règles à ne jamais casser
 

@@ -482,7 +482,7 @@ public partial class ShipNode
         m.SetShaderParameter(U.Emissive, ColorX.Hex("0x8d866f"));
         if (mapSrc != null)
         {
-            var img = Image.LoadFromFile(System.IO.Path.Combine(RepoRoot, mapSrc));
+            var img = Image.LoadFromFile(System.IO.Path.Combine(RepoRoot, Spec.Resolve(mapSrc)));
             if (img != null && !img.IsEmpty())
             {
                 img.GenerateMipmaps();

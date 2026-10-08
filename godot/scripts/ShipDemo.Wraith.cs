@@ -96,8 +96,8 @@ public partial class ShipDemo : Node3D
 
     void RaiseWraith()
     {
-        int idx = _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == _wraithRules.Hull);
-        if (idx < 0) { GD.PushWarning($"vaisseau fantôme : ships/{_wraithRules.Hull}.json introuvable"); return; }
+        int idx = ShipLibrary.IndexOf(_paths, _wraithRules.Hull);
+        if (idx < 0) { GD.PushWarning($"vaisseau fantôme : ships/{_wraithRules.Hull}/fiche.json introuvable"); return; }
         int before = _others.Count;
         SpawnFleet(1, idx, arm: false);
         if (_others.Count == before) return;

@@ -152,7 +152,7 @@ public partial class ShipDemo
     ShipSpec? TripSpec(string id)
     {
         if (_tripSpecs.TryGetValue(id, out var s)) return s;
-        int idx = _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == id);
+        int idx = ShipLibrary.IndexOf(_paths, id);
         s = idx >= 0 ? ShipLibrary.Load(_paths[idx]) : null;
         _tripSpecs[id] = s;
         return s;
@@ -416,7 +416,7 @@ public partial class ShipDemo
         }
         if (!Unseen(Local(at))) return false;
 
-        int idx = _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == id);
+        int idx = ShipLibrary.IndexOf(_paths, id);
         int before = _others.Count;
         SpawnFleet(1, idx, arm: false);
         if (_others.Count <= before) return false;

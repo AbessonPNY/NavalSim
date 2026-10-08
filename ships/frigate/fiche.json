@@ -73,7 +73,7 @@
   "camera": { "chaseDist": 92, "chaseHigh": 32, "orbitDist": 115, "helmZFrac": -0.42, "helmHeight": 8.85 },
 
   "model": {
-    "glb": "ships/models/laCouronne17e.glb",
+    "glb": "modele.glb",
     "lengthAxis": "z",
     "offset": [
       0,

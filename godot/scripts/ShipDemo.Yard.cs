@@ -84,7 +84,7 @@ public partial class ShipDemo
     ShipSpec? YardSpec(string id)
     {
         if (_yardSpecs.TryGetValue(id, out var s)) return s;
-        int idx = _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == id);
+        int idx = ShipLibrary.IndexOf(_paths, id);
         s = idx >= 0 ? ShipLibrary.Load(_paths[idx]) : null;
         if (s == null) GD.PushWarning($"[chantier] pas de fiche « {id} »");
         _yardSpecs[id] = s;
@@ -112,11 +112,11 @@ public partial class ShipDemo
             _mkYard.AddChild(MkLabel(yard.Name.Length > 0 ? yard.Name : "Chantier", 13, gold));
             _mkYard.AddChild(MkLabel(FormattableString.Invariant(
                 $"le vôtre repris {_yard.Allowance(_ship.Spec.Tonnes) / Market.SousParEcu:F0} écus"), 12, dim));
-            string mine = System.IO.Path.GetFileNameWithoutExtension(_paths[_index]);
+            string mine = ShipLibrary.IdOf(_paths[_index]);
             foreach (var id in yard.Ships)
             {
                 if (id == mine || YardSpec(id) is not { } spec) continue;
-                int idx = _paths.FindIndex(p => System.IO.Path.GetFileNameWithoutExtension(p) == id);
+                int idx = ShipLibrary.IndexOf(_paths, id);
                 var row = new HBoxContainer();
                 row.AddThemeConstantOverride("separation", 8);
                 var name = MkLabel(spec.Name, 14, ink, expand: true);

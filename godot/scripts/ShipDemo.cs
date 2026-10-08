@@ -339,7 +339,7 @@ public partial class ShipDemo : Node3D
         int first = _arriving?.Ship ?? 0;
         if (_loading is { } sv && sv.Navire.Length > 0)
         {
-            int k = _paths.FindIndex(q => System.IO.Path.GetFileName(q) == ShipLibrary.Current(sv.Navire));
+            int k = ShipLibrary.IndexOf(_paths, sv.Navire);
             if (k >= 0) first = k;
         }
         Launch(first);

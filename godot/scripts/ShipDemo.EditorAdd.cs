@@ -503,7 +503,7 @@ public partial class ShipDemo
         foreach (var path in _paths)
         {
             if (ShipLibrary.Load(path) is not { Model: { Glb.Length: > 0 } } spec) continue;
-            string sheet = System.IO.Path.GetFileNameWithoutExtension(path);
+            string sheet = ShipLibrary.IdOf(path);
             _paletteItems.Add((FormattableString.Invariant($"navire · {spec.Name} · {spec.Hull.Length:0} m"), null, "", sheet));
         }
         _edList!.Clear();

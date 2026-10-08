@@ -42,7 +42,7 @@ public static class PhysicsParity
             string id = sc.GetProperty("id").GetString()!;
             string ship = sc.GetProperty("ship").GetString()!;
 
-            var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, ship + ".json")));
+            var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, ship)));
             var lines = new HullLines(spec);
             /* L'ANCIEN AMORTISSEUR DE TANGAGE, celui de la page. Godot amortit le
                tangage par la seule carène mouillée (journal : « L'étrave qui tombe ») ;
@@ -126,7 +126,7 @@ public static class PhysicsParity
             if (sc.TryGetProperty("consort", out var jco) && jco.ValueKind == JsonValueKind.Object)
             {
                 var ms = ShipSpec.FromJson(File.ReadAllText(
-                    Path.Combine(shipsDir, jco.GetProperty("ship").GetString() + ".json")));
+                    ShipSpec.SheetIn(shipsDir, jco.GetProperty("ship").GetString()!)));
                 mate = new ShipPhysics(ms, new HullLines(ms)) { DampInAir = true, SlamBrake = 0 };
                 mate.Body.Pos = new Vec3d(jco.GetProperty("dx").GetDouble(), 0, 0);
                 both = new List<ShipPhysics> { phys, mate };
@@ -276,7 +276,7 @@ public static class PhysicsParity
         foreach (var e in doc.RootElement.EnumerateArray())
         {
             string ship = e.GetProperty("ship").GetString()!;
-            var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, ship + ".json")));
+            var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, ship)));
             var phys = new ShipPhysics(spec, new HullLines(spec));
             var ocean = new Ocean { Swell = 1.35, Time = 0 };
             ocean.SetSeaState(5, 140);

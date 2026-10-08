@@ -163,7 +163,7 @@ public partial class ShipNode
         var A = Spec.Appearance;
         _flagMat = Registered(NewFlagMat());
         if (A.Ensign == "jolly" || A.EnsignMap != null)
-            Dress(_flagMat, A.EnsignMap != null ? FlagImage(A.EnsignMap) : Jolly(), Colors.White, true);
+            Dress(_flagMat, A.EnsignMap != null ? FlagImage(Spec.Resolve(A.EnsignMap)) : Jolly(), Colors.White, true);
         else
         {
             Color c = ColorX.Hex("0xf6f4ef");

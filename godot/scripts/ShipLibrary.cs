@@ -32,17 +32,18 @@ public static class ShipLibrary
         }
     }
 
-    /// <summary>
-    /// CE QUI EST DANS ships/ SANS ETRE UN NAVIRE : des LISTES de navires.
-    /// index.json dit lesquels la page doit demander, libre.json lesquels le jeu
-    /// libre propose. Les lire comme des fiches donnerait deux bateaux fantomes
-    /// dans le selecteur, et qui decalent tous les indices derriere eux.
-    /// </summary>
-    public static readonly string[] NotShips = { "index.json", "libre.json" };
+    /// <summary>Le dossier des navires ajoutés par les mods : mods/navires/, à la racine du dépôt.</summary>
+    public static string ModsFolder => System.IO.Path.Combine(Assets.Root, "mods", "navires");
+
+    /// <summary>Le nom de la fiche dans le dossier d'un navire.</summary>
+    public const string SheetName = "fiche.json";
 
     /// <summary>
-    /// Les fiches presentes, triees. Les listes en sont ecartees : voir
-    /// <see cref="NotShips"/>.
+    /// UN NAVIRE, UN DOSSIER (08/10/2026, pour les mods) : ships/&lt;id&gt;/fiche.json, son modèle et ce
+    /// qui lui est propre à côté. Les fiches présentes : celles du jeu, triées, PUIS celles des mods,
+    /// triées — un mod ajouté ne décale pas les indices des navires du jeu (l'histoire en nomme un
+    /// par son rang). Un dossier sans fiche (textures/, communes) n'est pas un navire. Un mod qui porte
+    /// l'identifiant d'un navire du jeu est écarté, avec un mot.
     /// </summary>
     public static List<string> Discover()
     {
@@ -52,11 +53,66 @@ public static class ShipLibrary
             GD.PushWarning($"dossier des fiches introuvable : {Folder}");
             return found;
         }
-        foreach (string f in System.IO.Directory.GetFiles(Folder, "*.json"))
-            if (Array.IndexOf(NotShips, System.IO.Path.GetFileName(f)) < 0)
+        var ids = new HashSet<string>();
+        foreach (var root in new[] { Folder, ModsFolder })
+        {
+            if (!System.IO.Directory.Exists(root)) continue;
+            var dirs = new List<string>(System.IO.Directory.GetDirectories(root));
+            dirs.Sort(StringComparer.Ordinal);
+            foreach (var d in dirs)
+            {
+                string f = System.IO.Path.Combine(d, SheetName);
+                if (!System.IO.File.Exists(f)) continue;
+                string id = IdOf(f);
+                if (!ids.Add(id)) { GD.PushWarning($"[navires] {f} : l'identifiant « {id} » est déjà pris, ce navire est écarté"); continue; }
                 found.Add(f);
-        found.Sort();
+            }
+        }
         return found;
+    }
+
+    /// <summary>
+    /// L'IDENTIFIANT D'UN NAVIRE d'après le chemin de sa fiche : le nom de son dossier (« roebuck »).
+    /// Une seule définition — le jeu nommait ses navires par leur fichier, et vingt endroits auraient lu
+    /// « fiche ». Un ancien chemin plat (« x.json ») donne encore « x ».
+    /// </summary>
+    public static string IdOf(string path)
+    {
+        string name = System.IO.Path.GetFileName(path);
+        return name == SheetName
+            ? System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(path) ?? "")
+            : System.IO.Path.GetFileNameWithoutExtension(path);
+    }
+
+    /// <summary>
+    /// UNE CLÉ DE DONNÉES ramenée à un identifiant : « frigate.json » ou « frigate » (les fiches du
+    /// monde et les réglages écrivent l'un ou l'autre), et le nom d'aujourd'hui d'un navire renommé.
+    /// </summary>
+    public static string Key(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return "";
+        s = System.IO.Path.GetFileName(s.Replace('\\', '/'));
+        if (s.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) s = s[..^5];
+        return RenamedIds.TryGetValue(s, out var now) ? now : s;
+    }
+
+    /// <summary>Le rang d'un navire dans une liste de fiches, d'après une clé de données ; −1 s'il n'y est pas.</summary>
+    public static int IndexOf(List<string> paths, string key)
+    {
+        string k = Key(key);
+        return paths.FindIndex(p => IdOf(p) == k);
+    }
+
+    /// <summary>Le chemin de la fiche d'un navire d'après sa clé, ou null : le jeu, puis les mods.</summary>
+    public static string? SheetPath(string key)
+    {
+        string id = Key(key);
+        foreach (var root in new[] { Folder, ModsFolder })
+        {
+            string f = System.IO.Path.Combine(root, id, SheetName);
+            if (System.IO.File.Exists(f)) return f;
+        }
+        return null;
     }
 
     /// <summary>
@@ -64,10 +120,7 @@ public static class ShipLibrary
     /// Le Speedwell est devenu le Roebuck (07/10/2026) : trop peu de plans et de peintures
     /// d'époque pour le premier.
     /// </summary>
-    static readonly System.Collections.Generic.Dictionary<string, string> Renamed = new() { ["speedwell.json"] = "roebuck.json" };
-
-    /// <summary>Le nom de fichier d'aujourd'hui d'une fiche nommée par une sauvegarde.</summary>
-    public static string Current(string file) => Renamed.TryGetValue(file, out var now) ? now : file;
+    static readonly Dictionary<string, string> RenamedIds = new() { ["speedwell"] = "roebuck" };
 
     /// <summary>
     /// Charge une fiche. Une fiche illisible n'interrompt jamais rien -- meme
@@ -78,11 +131,15 @@ public static class ShipLibrary
     {
         try
         {
-            return ShipSpec.FromJson(System.IO.File.ReadAllText(path));
+            var spec = ShipSpec.FromJson(System.IO.File.ReadAllText(path));
+            // son dossier, depuis la racine du dépôt : ce qu'elle nomme sans dossier s'y lit
+            string dir = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path)) ?? "";
+            spec.Folder = System.IO.Path.GetRelativePath(Assets.Root, dir).Replace('\\', '/');
+            return spec;
         }
         catch (System.Exception e)
         {
-            GD.PushWarning($"fiche illisible {System.IO.Path.GetFileName(path)} : {e.Message}");
+            GD.PushWarning($"fiche illisible {IdOf(path)} : {e.Message}");
             return null;
         }
     }
@@ -160,11 +217,11 @@ public static class ShipLibrary
         }
         if (demandes.Count == 0)
             foreach (var q in paths)
-                demandes.Add((System.IO.Path.GetFileNameWithoutExtension(q), "", 0, "", ""));
+                demandes.Add((IdOf(q), "", 0, "", ""));
 
         foreach (var d in demandes)
         {
-            int k = paths.FindIndex(q => System.IO.Path.GetFileNameWithoutExtension(q) == d.ship);
+            int k = paths.FindIndex(q => IdOf(q) == Key(d.ship));
             if (k < 0) { GD.PushWarning($"libre.json nomme « {d.ship} », qui n'a pas de fiche"); continue; }
             var spec = Load(paths[k]);
             if (spec == null) continue;

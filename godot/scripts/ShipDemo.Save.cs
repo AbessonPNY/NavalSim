@@ -144,7 +144,7 @@ public partial class ShipDemo
             Id = _gameId.Length > 0 ? _gameId : Guid.NewGuid().ToString("N")[..8],
             Ecrit = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
             Region = _world?.Region.Key ?? "caraibes",
-            Navire = _paths.Count > 0 ? System.IO.Path.GetFileName(_paths[_index]) : "",
+            Navire = _paths.Count > 0 ? ShipLibrary.IdOf(_paths[_index]) + ".json" : "",
             X = tx, Z = tz,
             Cap = Compass.HeadingDeg(f),       // l'est est −x
             Erre = b.Vel.LengthXZ,
@@ -398,7 +398,7 @@ public partial class ShipDemo
         // les coques qui étaient à flot : remises à leur place et sur leur erre
         foreach (var c in s.Flotte)
         {
-            int idx = _paths.FindIndex(q => System.IO.Path.GetFileName(q) == ShipLibrary.Current(c.Fiche));
+            int idx = ShipLibrary.IndexOf(_paths, c.Fiche);
             if (idx < 0) continue;
             int before = _others.Count;
             SpawnFleet(1, idx);

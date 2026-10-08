@@ -28,6 +28,7 @@ string mode = args.Length > 0 ? args[0] : "gale";
 switch (mode)
 {
     case "gale": Gale(); break;
+    case "assiette": Assiette(); break;
     case "waves": DumpWaves(); break;
     case "parallele": Parallele(); break;
     case "embrun": Embrun(); break;
@@ -110,7 +111,7 @@ void Canon()
 void Embrun()
 {
     string name = args.Length > 1 ? args[1] : "schooner";
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
     var lines = new HullLines(spec);
     var phys = new ShipPhysics(spec, lines);
     var ocean = new Ocean { Swell = 1.35, Time = 0 };
@@ -170,7 +171,7 @@ void Parallele()
 {
     int n = args.Length > 1 ? int.Parse(args[1], CultureInfo.InvariantCulture) : 16;
     string name = args.Length > 2 ? args[2] : "frigate17e";
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
     var ocean = new Ocean { Swell = 1.6, Time = 0 };
     ocean.SetSeaState(7, 210);
 
@@ -232,6 +233,22 @@ void Parallele()
 
 /* Les vagues que lit le solveur, une par ligne, pour les poser à côté de
    `Naval.app.ocean.cpuWaves` dans la page : amp, k, dx, dz, omega, Q. */
+/* L'ASSIETTE D'UNE FICHE, mise en eau calme : la hauteur de son origine sur la mer, son tirant, sa
+   part immergée — ce dont tools/fit-ship.js a besoin pour poser un modèle sur la flottaison.
+     dotnet run --project core/NavalSim.Lab -c Release -- assiette roebuck
+     dotnet run --project core/NavalSim.Lab -c Release -- assiette chemin/fiche.json */
+void Assiette()
+{
+    string a = args.Length > 1 ? args[1] : "sloop";
+    string f = File.Exists(a) ? a : ShipSpec.SheetIn(shipsDir, a);
+    var spec = ShipSpec.FromJson(File.ReadAllText(f));
+    var phys = new ShipPhysics(spec, new HullLines(spec));
+    var ocean = new Ocean { Swell = 1.35, Time = 0 };
+    ocean.SetSeaState(5, 140);
+    double y = phys.Settle(ocean, new Controls());
+    Console.WriteLine(FormattableString.Invariant($"assiette y={y:F4} tirant={phys.Draft:F4} immersion={phys.SubmergedFrac:F4}"));
+}
+
 void DumpWaves()
 {
     double force = args.Length > 1 ? double.Parse(args[1], CultureInfo.InvariantCulture) : 9.9;
@@ -262,7 +279,7 @@ void Gale()
     double swell = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 1.35;
     string name = args.Length > 3 ? args[3] : "schooner";
 
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
     var lines = new HullLines(spec);
     var phys = new ShipPhysics(spec, lines);
 
@@ -489,7 +506,7 @@ void Elan()
 {
     string name = args.Length > 1 ? args[1] : "frigate17e";
     Config.WindGain = args.Length > 5 ? double.Parse(args[5], CultureInfo.InvariantCulture) : 8;
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
     foreach (double thr in new[] { 1.0, 45.0, 180.0 })
     {
         var ocean = new Ocean { Swell = 1.0, Time = 0 };
@@ -512,7 +529,7 @@ void Elan()
      dotnet run --project core/NavalSim.Lab -- baleine */
 void Baleine()
 {
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, "frigate17e.json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, "frigate17e")));
     foreach (var mood in new[] { WhaleMood.Indifferent, WhaleMood.Curious, WhaleMood.Hostile })
     {
         var ocean = new Ocean { Swell = 1.0, Time = 0 };
@@ -585,7 +602,7 @@ void Estime()
      dotnet run --project core/NavalSim.Lab -- serpent */
 void Serpent()
 {
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, "frigate17e.json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, "frigate17e")));
     var ocean = new Ocean { Swell = 1.0, Time = 0 };
     ocean.SetSeaState(3, 210);
     var p = new ShipPhysics(spec, new HullLines(spec));
@@ -621,7 +638,7 @@ void Serpent()
      dotnet run --project core/NavalSim.Lab -- latine */
 void Latine()
 {
-    string json = File.ReadAllText(Path.Combine(shipsDir, "frigate17e.json"));
+    string json = File.ReadAllText(ShipSpec.SheetIn(shipsDir, "frigate17e"));
     var with = ShipSpec.FromJson(json);
     var without = ShipSpec.FromJson(System.Text.RegularExpressions.Regex.Replace(json, "\"lateen\":[^}]*},", ""));
     var centred = ShipSpec.FromJson(json.Replace("\"ceHeight\": 7.5, \"ceZ\": -10", "\"ceHeight\": 9.75, \"ceZ\": -0.5"));
@@ -662,7 +679,7 @@ void Latine()
      dotnet run --project core/NavalSim.Lab -c Release -- bordee */
 void Bordee()
 {
-    string json = File.ReadAllText(Path.Combine(shipsDir, "frigate17e.json"));
+    string json = File.ReadAllText(ShipSpec.SheetIn(shipsDir, "frigate17e"));
     var spec = ShipSpec.FromJson(json);
     /* « -- bordee 40 » : le nombre de coups au but (24 par défaut). Le trou d'avant
        (0,025 m², le boulet et le bois autour) contre celui du boulet seul (0,012), et
@@ -708,7 +725,7 @@ void Allures()
 {
     string name = args.Length > 1 ? args[1] : "frigate17e";
     Config.WindGain = args.Length > 5 ? double.Parse(args[5], CultureInfo.InvariantCulture) : 8;
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
     // le facteur de vent en troisieme argument : « -- allures frigate17e 8 »
     Config.WindGain = args.Length > 2 ? double.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture) : 1.0;
     Console.WriteLine($"{spec.Name} : L {spec.L:F0} m, voilure {spec.SailArea:F0} m2, gain {Config.WindGain:F1}");
@@ -747,7 +764,7 @@ void Ris()
 {
     string name = args.Length > 1 ? args[1] : "frigate17e";
     Config.WindGain = args.Length > 5 ? double.Parse(args[5], CultureInfo.InvariantCulture) : 8;
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
     Console.WriteLine($"{spec.Name}, vent par le travers");
     foreach (double force in new[] { 3.0, 6.0, 8.0 })
     {
@@ -943,7 +960,7 @@ void Saut()
    ne soit NaN. */
 void Filins()
 {
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, "frigate17e.json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, "frigate17e")));
     var ocean = new Ocean { Swell = 1.0, Time = 0 };
     ocean.SetSeaState(3, 210);
 
@@ -1071,7 +1088,7 @@ void Vent()
 {
     string name = args.Length > 1 ? args[1] : "frigate17e";
     Config.WindGain = args.Length > 5 ? double.Parse(args[5], CultureInfo.InvariantCulture) : 8;
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
     Console.WriteLine($"{spec.Name}, vent par le travers, 4 minutes");
     foreach (double force in new[] { 3.0, 4.0, 6.0 })
     {
@@ -1119,7 +1136,7 @@ void Virement()
     string name = args.Length > 1 ? args[1] : "frigate17e";
     Config.WindGain = args.Length > 5 ? double.Parse(args[5], CultureInfo.InvariantCulture) : 8;
     double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 4;
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
     Console.WriteLine($"{spec.Name}, force {force:F0}, virement de 70° à -70° du vent");
     foreach (bool crew in new[] { false, true })
     foreach (double gain in new[] { 1.0, 2.0, 4.0, 8.0 })
@@ -1228,7 +1245,7 @@ void Ecueil()
     double sx = pr.X - 1500, sz = pr.Z - 2000;
     while (world.HeightAt(sx, sz) < 0 && sz < pr.Z + 2000) sz += 5;
     var cases = new (string Name, double X, double Z)[] { ("récif de Lime Cay", lime.X, lime.Z), ("roche isolée", rx, rz), ("plage des Palisadoes", sx, sz) };
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, "sloop.json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, "sloop")));
     Console.WriteLine(FormattableString.Invariant($"{spec.Name}, lancé à {knots} nœuds ; {world.Rocks.Count} roche(s)"));
     foreach (var (name, tx, tz) in cases)
     {
@@ -1288,7 +1305,7 @@ void Sondeur()
     Config.Reefs = true; Config.WindGain = gain; Config.CrewTacks = true; Config.HelmBySpeed = true;
     var world = new World(region, iw, ih, grey, m => { }, imgs);
     var lime = world.ReefList.Find(x => x.Spec.Name == "Lime Cay")!;
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(root, "ships", "sloop.json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(Path.Combine(root, "ships"), "sloop")));
     // le vent vient du 105 (est-sud-est) : est = −x. Au vent, on part de l'ouest vers l'est.
     var legs = new (string Name, double Fx, double Fz, double Tx, double Tz)[]
     {
@@ -1337,7 +1354,7 @@ void Sombrer()
     string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
     string name = args.Length > 1 ? args[1] : "frigate17e";
     Config.WindGain = args.Length > 5 ? double.Parse(args[5], CultureInfo.InvariantCulture) : 8;
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(root, "ships", name + ".json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(Path.Combine(root, "ships"), name)));
     double force = args.Length > 4 ? double.Parse(args[4], CultureInfo.InvariantCulture) : 10;
     foreach (double area in args.Length > 2 ? new[] { double.Parse(args[2], CultureInfo.InvariantCulture) } : new[] { 1.4, 3, 6 })
     {
@@ -1368,7 +1385,7 @@ void Godille()
     string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
     string name = args.Length > 1 ? args[1] : "sloop";
     double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 3;
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(root, "ships", name + ".json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(Path.Combine(root, "ships"), name)));
     Config.WindGain = 8; Config.CrewTacks = true;
     Console.WriteLine(FormattableString.Invariant($"{spec.Name} face au vent, force {force} : lame {spec.RudderArea:F2} m², corde {spec.RudderChord:F2} m"));
     foreach (var (label, mode, scull) in new[] { ("barre au milieu", 0, false), ("barre tenue à bâbord", 1, true), ("godille, sans le modèle", 2, false), ("godille", 2, true), ("godille des deux bords", 3, true), ("godille au coup sec", 4, true) })
@@ -1409,7 +1426,7 @@ void Godille()
    un bordé, pas celle du navire sur l'eau. */
 void Abordage()
 {
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, "frigate17e.json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, "frigate17e")));
     Console.WriteLine($"{spec.Name}, B {spec.B:F1} m");
     foreach (double way in new[] { 0.0, 3.0 })
     foreach (double cross in new[] { 0.5, 1.0, 2.0, 3.0, 4.0 })
@@ -1442,7 +1459,7 @@ void Contre()
     string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
     string name = args.Length > 1 ? args[1] : "sloop";
     double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 3;
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(root, "ships", name + ".json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(Path.Combine(root, "ships"), name)));
     Config.WindGain = 8; Config.CrewTacks = true;
     Console.WriteLine(FormattableString.Invariant($"{spec.Name} face au vent, force {force}"));
     foreach (var (label, side) in new[] { ("rien", 0), ("bôme à contre, tribord", 1), ("bôme à contre, bâbord", -1) })
@@ -1562,7 +1579,7 @@ void Rade()
     var pr = Quay("port-royal"); var pf = Quay("passage-fort");
     foreach (string name in new[] { "sloop", "schooner" })
     {
-        var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+        var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
         double need = spec.Hull.KeelDepth + spec.Hull.KeelExtra + 1.5;
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var toSea = HarbourRoute.ToSea(world, pr.Item1, pr.Item2, need);
@@ -1614,7 +1631,7 @@ void Rade()
     }
     // LE CHALAND POUR CARTHAGÈNE : la route du large, puis le cap sur la ville
     {
-        var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, "barge.json")));
+        var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, "barge")));
         double need = spec.Hull.KeelDepth + spec.Hull.KeelExtra + 1.5;
         var route = HarbourRoute.ToSea(world, pr.Item1, pr.Item2, need)!;
         var ocean = new Ocean { Swell = 1.0, Time = 0 };
@@ -1651,7 +1668,7 @@ void Envol()
     Config.WindGain = args.Length > 5 ? double.Parse(args[5], CultureInfo.InvariantCulture) : 8;
     double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 9;
     double off = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 60;
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
     Console.WriteLine($"{spec.Name}, force {force}, vent a {off} deg de l etrave, sous voiles, 10 min");
     foreach (var (label, old, lo, hi, brk) in new[] { ("ancien, sans frein ", true, 0.1, 0.5, 0.0), ("etrave, sans frein ", false, 0.1, 0.5, 0.0), ("etrave, frein 0,5  ", false, 0.1, 0.5, 0.5), ("etrave, frein 1    ", false, 0.1, 0.5, 1.0) })
     {
@@ -1709,7 +1726,7 @@ void Derive()
     string name = args.Length > 1 ? args[1] : "frigate17e";
     Config.WindGain = args.Length > 5 ? double.Parse(args[5], CultureInfo.InvariantCulture) : 8;
     double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 4;
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
     Console.WriteLine($"{spec.Name}, force {force} : vitesse et derive (angle etrave / route), 4 min");
     foreach (var (gain, brk) in new[] { (1.0, 0.0), (1.0, 0.5), (3.0, 0.0), (3.0, 0.5) })
     {
@@ -1764,7 +1781,7 @@ void Rupture()
     if (args.Length > 5) ShipPhysics.AftBallast = double.Parse(args[5], CultureInfo.InvariantCulture);
     if (args.Length > 6) ShipPhysics.BallastSlide = double.Parse(args[6], CultureInfo.InvariantCulture);
     if (args.Length > 7) ShipPhysics.AftLeak = double.Parse(args[7], CultureInfo.InvariantCulture);
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
     var ocean = new Ocean { Swell = 1.0, Time = 0 };
     ocean.SetSeaState(3, 0);
     var aft = new ShipPhysics(spec, new HullLines(spec));
@@ -1875,7 +1892,7 @@ void Soute()
     double force = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 3;
     if (args.Length > 4) ShipPhysics.HalfDeckLeak = double.Parse(args[4], CultureInfo.InvariantCulture);
     if (args.Length > 5) ShipPhysics.HalfFloodable = double.Parse(args[5], CultureInfo.InvariantCulture);
-    var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(shipsDir, name + ".json")));
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
     var ocean = new Ocean { Swell = 1.0, Time = 0 };
     ocean.SetSeaState(force, 0);
     var aft = new ShipPhysics(spec, new HullLines(spec));
@@ -2135,7 +2152,7 @@ void Pontons()
         }
         else
         {
-            var spec = ShipSpec.FromJson(File.ReadAllText(Path.Combine(root, "ships", parts[0])));
+            var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(Path.Combine(root, "ships"), parts[0])));
             double draft = spec.Hull.KeelDepth + spec.Hull.KeelExtra;
             double bx = mx, bz = mz; int n = 0;
             // le navire tient par le travers de sa demi-largeur : on l eloigne jusqu a ce que tout le fond porte

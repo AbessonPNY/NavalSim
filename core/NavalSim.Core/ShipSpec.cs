@@ -400,6 +400,28 @@ public sealed class ShipSpec
 {
     public ShipJson Raw { get; }
     public string Id { get; }
+    /// <summary>
+    /// SON DOSSIER, depuis la racine du dépôt (« ships/roebuck », « mods/navires/x ») : posé par qui
+    /// la lit (ShipLibrary.Load). Un chemin de la fiche SANS dossier (« modele.glb ») s'y lit — c'est
+    /// ce qui rend un navire déplaçable, et un mod autonome.
+    /// </summary>
+    public string Folder { get; set; } = "";
+    /// <summary>
+    /// LA FICHE D'UN NAVIRE dans un dossier de navires : &lt;dossier&gt;/&lt;id&gt;/fiche.json (« x.json » ou
+    /// « x » acceptés), ou l'ancien fichier plat s'il existe encore. Les bancs la cherchent par là.
+    /// </summary>
+    public static string SheetIn(string shipsDir, string id)
+    {
+        if (id.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) id = id[..^5];
+        string f = System.IO.Path.Combine(shipsDir, id, "fiche.json");
+        if (System.IO.File.Exists(f)) return f;
+        string flat = System.IO.Path.Combine(shipsDir, id + ".json");
+        return System.IO.File.Exists(flat) ? flat : f;
+    }
+
+    /// <summary>Un chemin de la fiche, ramené à la racine du dépôt : tel quel s'il nomme un dossier, sinon dans le sien.</summary>
+    public string Resolve(string? p) =>
+        string.IsNullOrEmpty(p) || p.Contains('/') || p.Contains('\\') || Folder.Length == 0 ? p ?? "" : Folder + "/" + p;
     public string Name { get; }
     public string Note { get; }
     /// <summary>L'identifiant de la chaloupe qu'elle porte, vide si elle n'en porte pas.</summary>

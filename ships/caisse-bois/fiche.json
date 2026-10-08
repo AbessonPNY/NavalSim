@@ -71,7 +71,7 @@
     "helmZFrac": -0.44
   },
   "model": {
-    "glb": "ships/models/caissebois.glb",
+    "glb": "modele.glb",
     "lengthAxis": "z",
     "offset": [0.084, 0.176, 16.896],
     "rotationY": 0

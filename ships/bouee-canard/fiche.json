@@ -71,7 +71,7 @@
     "helmZFrac": -0.44
   },
   "model": {
-    "glb": "ships/models/boueecanard.glb",
+    "glb": "modele.glb",
     "lengthAxis": "z",
     "offset": [
       0,
