@@ -157,6 +157,11 @@ public static class Ball
 public sealed class GunnerySettings
 {
     public double ReloadLo = 30, ReloadHi = 60;     // secondes qu'une pièce est hors d'usage après le coup
+    /// <summary>
+    /// LE BRANLE-BAS d'un navire du jeu pris en paix : les secondes, tirées entre les deux, qu'il
+    /// met à charger et mettre en batterie avant de pouvoir tirer (Godot, ShipDemo.Readiness.cs).
+    /// </summary>
+    public double ClearLo = 90, ClearHi = 180;
 
     /// <summary>
     /// LA VIVACITÉ DU RECUL — un facteur, pas des secondes : 1 était la première
@@ -210,6 +215,8 @@ public sealed class GunnerySettings
         var s = new GunnerySettings();
         if (j.TryGetProperty("reload", out var r) && r.ValueKind == JsonValueKind.Array && r.GetArrayLength() == 2)
         { s.ReloadLo = r[0].GetDouble(); s.ReloadHi = r[1].GetDouble(); }
+        if (j.TryGetProperty("branleBas", out var bb) && bb.ValueKind == JsonValueKind.Array && bb.GetArrayLength() == 2)
+        { s.ClearLo = Math.Max(0, bb[0].GetDouble()); s.ClearHi = Math.Max(s.ClearLo, bb[1].GetDouble()); }
         if (j.TryGetProperty("recoilSpeed", out var v) && v.ValueKind == JsonValueKind.Number)
             s.RecoilSpeed = Math.Max(0.1, v.GetDouble());
         double D(string k, double d) => j.Num(k, d);

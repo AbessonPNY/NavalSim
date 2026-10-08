@@ -302,6 +302,8 @@ public partial class ShipDemo
                 // metres se retrouve dans la vague, et la comparaison ne vaut rien
                 // la caméra suit le premier navire de la rade (ShipDemo.Traffic.cs)
                 case "--pavillon-noye": _flagDrownTest = Math.Clamp(args[i + 1].ToFloat(), 0, 1); break;
+                // un navire en paix par notre travers, et le feu ouvert sur lui (ShipDemo.Readiness.cs)
+                case "--surprise": _surpriseTest = args[i + 1]; _askTitle ??= false; break;
                 case "--heurter": _bumpTest = args[i + 1]; _askTitle ??= false; break;
                 case "--instruments": _info.Visible = args[i + 1] != "0"; break;
                 case "--terrasser": _terraTest = args[i + 1]; _askTitle ??= false; break;

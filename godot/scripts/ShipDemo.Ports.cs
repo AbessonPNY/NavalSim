@@ -67,7 +67,8 @@ public partial class ShipDemo
         foreach (var s in _others)
         {
             if (!s.HasPortLids) continue;
-            s.PortsWanted = !s.IsGhost && !s.Physics.Foundered && InAction(s);
+            // les mantelets s'ouvrent à la fin du branle-bas, pas au premier coup reçu
+            s.PortsWanted = !s.IsGhost && !s.Physics.Foundered && InAction(s) && ClearingLids(s);
             s.PortsTick(frame);
         }
     }

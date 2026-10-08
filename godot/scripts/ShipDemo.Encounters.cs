@@ -362,6 +362,8 @@ public partial class ShipDemo
 
         _hostile[raider] = (prey, 0);
         _hostile[prey] = (raider, 0);
+        // ils se sont vus venir : ni l'un ni l'autre n'est surpris
+        Alarm(raider, now: true); Alarm(prey, now: true);
         HelmOf(raider).Standoff = 120;
         HelmOf(prey).Standoff = 120;
 

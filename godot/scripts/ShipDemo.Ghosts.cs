@@ -90,6 +90,7 @@ public partial class ShipDemo : IGhostHost
         _pirates.Remove(s);
         _targets.Remove(s);
         _rearm.Remove(s);
+        _clearedAt.Remove(s);
         _hostile.Remove(s);
         var angry = new List<ShipNode>();
         foreach (var (k, v) in _hostile) if (v.Foe == s) angry.Add(k);

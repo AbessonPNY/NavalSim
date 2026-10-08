@@ -66,11 +66,13 @@ public partial class ShipDemo
             CineShot(ph, at, dir);
             // qui a tiré tient ses sabords ouverts un moment (ShipDemo.Ports.cs)
             NoteFired(ph);
+            // et qui l'entend fait branle-bas (ShipDemo.Readiness.cs)
+            AlarmHeard(ph);
         };
         /* Un boulet fait un trou ÉTROIT dans l'eau très vite : une colonne haute et
            mince, pas un dôme — le volume est borné par la réserve d'embrun, pour
            qu'une bordée de six y tienne sans que les dernières volent les premières. */
-        _gunnery.OnSplash = (at, water, speed, jet) => _spray.Pool.Burst(at, water, speed, jet);
+        _gunnery.OnSplash = (at, water, speed, jet) => { _spray.Pool.Burst(at, water, speed, jet); AlarmSplash(at); };
         _gunnery.OnCreature = (a, b, shot) =>
         {
             if (_kraken.HitShot(a, b, out double u, out var arm))
@@ -155,6 +157,8 @@ public partial class ShipDemo
     {
         if (t.Tag is not ShipNode s) return;
         CountHit(s, kind);
+        // un coup reçu, toile comprise, met l'équipage aux postes (ShipDemo.Readiness.cs)
+        if (s != _ship) Alarm(s, say: true);
         // un coup au but PORTÉ PAR NOUS : compté ici, dit une fois la bordée finie
         if (s == _ship)
         {
@@ -377,6 +381,8 @@ public partial class ShipDemo
         _rearm[s] = rearm;
         var foe = EnemyOf(s);
         if (foe == null || rearm > 0) return;
+        // pris par surprise, il fait d'abord son branle-bas (ShipDemo.Readiness.cs)
+        if (!Cleared(s)) return;
         var b = ph.Body;
         var to = foe.Body.Pos - b.Pos;
         to = new Vec3d(to.X, 0, to.Z);
@@ -387,6 +393,8 @@ public partial class ShipDemo
         double abeam = to.Normalized().Dot(starboard);
         if (Math.Abs(abeam) < 0.62) return;                    // elle n'a pas le bord
         int side = abeam > 0 ? 1 : -1;
+        // et l'on ne tire pas à travers un mantelet fermé
+        if (s.HasPortLids && !s.PortsReady(side)) return;
         var L = _gunnery.Loaded(s.Battery, side);
         if (L.Ready < Math.Max(1, (int)Math.Ceiling(0.6 * L.All))) return;
         int n = _gunnery.Broadside(s.Battery, side, ph, ph.Powder);

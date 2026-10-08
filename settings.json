@@ -23,10 +23,14 @@
     "glb": "creatures/sailor.glb"
   },
   "gunnery": {
-    "_aide": "L'ARTILLERIE. reload : ce qu'une pièce met à se recharger, en secondes, tiré entre les deux. recoilSpeed : la vivacité du recul, un facteur (1 était la première mise au point, 2 va deux fois plus vite). Les trois derniers ne servent qu'à l'ŒIL — ce que le coup éclaire de son propre bord, et rien de plus : flashEnergy l'éclat de la lampe de bouche, flashRange sa portée en mètres, flashLife ce qu'elle dure en secondes. Ils montent en k², k étant le calibre relatif : une pièce de chasse éclaire moins qu'un trente-six. LA TOILE TROUÉE : un boulet traverse une voile sans s'arrêter et lui laisse un trou ; sailHoleLoss est ce que chaque trou coûte de poussée à cette voile (0,06), sailHolesMax combien elle en encaisse avant de s'ouvrir tout entière (6, et c'est un plafond). LA COQUE ET LA MÂTURE : shotHole est le trou d'un boulet dans le bordé, en m² au plein calibre (0,012 : la section du boulet) — il va comme le carré du calibre et ce qui reste d'élan ; au double, une frégate coulait en six minutes sous quarante coups au but, avant d'avoir perdu un mât. sailMastWound est la chance qu'un boulet qui traverse une voile blesse aussi le mât qui la porte (vergue, hune, haubans ; 0,25) — trois blessures l'abattent.",
+    "_aide": "L'ARTILLERIE. reload : ce qu'une pièce met à se recharger, en secondes, tiré entre les deux. recoilSpeed : la vivacité du recul, un facteur (1 était la première mise au point, 2 va deux fois plus vite). Les trois derniers ne servent qu'à l'ŒIL — ce que le coup éclaire de son propre bord, et rien de plus : flashEnergy l'éclat de la lampe de bouche, flashRange sa portée en mètres, flashLife ce qu'elle dure en secondes. Ils montent en k², k étant le calibre relatif : une pièce de chasse éclaire moins qu'un trente-six. LA TOILE TROUÉE : un boulet traverse une voile sans s'arrêter et lui laisse un trou ; sailHoleLoss est ce que chaque trou coûte de poussée à cette voile (0,06), sailHolesMax combien elle en encaisse avant de s'ouvrir tout entière (6, et c'est un plafond). LA COQUE ET LA MÂTURE : shotHole est le trou d'un boulet dans le bordé, en m² au plein calibre (0,012 : la section du boulet) — il va comme le carré du calibre et ce qui reste d'élan ; au double, une frégate coulait en six minutes sous quarante coups au but, avant d'avoir perdu un mât. sailMastWound est la chance qu'un boulet qui traverse une voile blesse aussi le mât qui la porte (vergue, hune, haubans ; 0,25) — trois blessures l'abattent. LE BRANLE-BAS : branleBas est ce qu'un navire du jeu pris EN PAIX met à faire branle-bas avant de pouvoir répondre, en secondes, tiré entre les deux (90 à 180) — charger, monter la poudre, ouvrir les mantelets, mettre en batterie. Un coup reçu, un boulet tombé près de lui ou une bordée entendue le déclenchent ; les mantelets s'ouvrent dans ses dernières secondes. Le pirate qui chasse, l'escarmouche, les spectres et les navires d'une rencontre armée sont toujours parés.",
     "reload": [
       30,
       60
+    ],
+    "branleBas": [
+      90,
+      180
     ],
     "recoilSpeed": 2,
     "flashEnergy": 160,

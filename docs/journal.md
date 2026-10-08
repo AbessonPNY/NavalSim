@@ -15111,6 +15111,22 @@ PUIS AUX VRAIES COTES (threedecks.org 6226, donné par lui) : 96 pi de pont, 84 
 1,21 × la jauge = 353 t ; batteries de tools/ship-glb.js aux mêmes places × 96/94 ; modèle régénéré (29,26 × 7,77 m).
 MESURÉ à la mise en eau (settle) : 3,52 m de tirant (11 pi 6 po) et 44,7 % d'immersion, contre 3,34 m et 42,5 %.
 
+## Pris par surprise : le branle-bas avant la riposte (Godot)
+
+DEMANDÉ : « un navire attaqué par surprise ne doit pas répliquer à la seconde, il n'a pas eu le temps de se
+préparer ». CE QUI SE PASSAIT : pièces chargées dès l'apparition (Gun.ReadyAt à 0, jamais posé), hostilité au
+premier coup au but (Struck), et ServeGuns ne lisait pas les mantelets — une bordée pleine à l'image suivante, à
+travers des sabords fermés. Un boulet dans la toile ou à l'eau n'alertait personne.
+MAINTENANT (ShipDemo.Readiness.cs) : un navire EN PAIX doit faire branle-bas — gunnery.branleBas, 90 à 180 s tirés.
+Le rechargement du jeu (30–60 s) est environ trois fois celui de 1690 ; les cinq à dix minutes d'un branle-bas
+d'alors, comprimées de même. L'ALERTE : un coup reçu (toile comprise), un boulet tombé à moins de 90 m + L/2, une
+bordée entendue à 900 m ; elle ne fait pas un ennemi (seul le coup au but), elle met l'équipage aux postes. Les
+mantelets ne s'ouvrent que dans ses six dernières secondes (ClearingLids) et l'IA ne tire plus qu'à sabords ouverts
+(PortsReady). JAMAIS SURPRIS : pirate, escarmouche, spectres, les deux d'une rencontre armée, et l'hostile d'une
+partie rechargée. Essai -- --surprise frigate17e (au large, --large 1 ; l'essai attend six secondes que le départ au
+large ait retiré les autres navires — sa première version posait la cible AVANT, et le départ l'effaçait) : alerte
+à la première bordée, paré en 132 s, mantelets ouverts à 131, première riposte à 135.
+
 ## Le Roebuck dans son modèle Godot : la fiche suit le modèle (Godot)
 
 Son modèle (godot-models/ships/models/hms_roebuck_1690.glb, « page »: false) est redessiné par lui sur un plan

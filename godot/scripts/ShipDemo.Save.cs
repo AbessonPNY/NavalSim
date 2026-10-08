@@ -411,7 +411,7 @@ public partial class ShipDemo
             ob.Vel = ob.Quat.Rotate(new Vec3d(0, 0, c.Erre));
             ob.AngVel = Vec3d.Zero;
             other.SyncTransform();
-            if (c.Hostile) _hostile[other] = (_ship, 0);
+            if (c.Hostile) { _hostile[other] = (_ship, 0); Alarm(other, now: true); }
         }
 
         _askTitle = false;
