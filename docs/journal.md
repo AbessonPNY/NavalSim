@@ -15181,6 +15181,16 @@ l'un, la mise en eau affichée était celle de l'autre (outil 0,23 m, Lab 0,31).
 (1,93 / 1,91 et 0,19 / 0,21), parce que l'ASSISE DU SOLVEUR SAUTE — 2 cm de pont et de quille la font passer de 0,244 à 0,304 m.
 Il n'y a pas de point fixe exact : l'outil s'arrête quand un état revient et garde le plus proche du modèle (7 cm), avec SA propre
 mise en eau ; outil, Lab et jeu disent 0,244. Le saut lui-même (sondes ? plan ?) reste à comprendre.
+
+LE ROEBUCK RECENTRÉ, DOUZE PIÈCES PAR BORD SUR LEURS AFFÛTS (09/10) — deux défauts trouvés en le calant. (1) L'AXE DU TUBE : une pièce
+modelée avec son affût (6 453 sommets, un seul maillage) a le centre de sa boîte sur les flasques, 25 cm sous l'âme — l'outil y posait
+la flottaison, le jeu y plaçait la bouche. Même règle des deux côtés (ShipNode.MuzzleOffset, boreY dans fit-ship) : le bout extérieur,
+ses 15 % les plus au dehors le long de l'axe, n'est que le tube ; le centre de ces sommets-là est l'âme. 292 t. (2) LE REPÈRE DES
+PIÈCES NOMMÉES : NamedGuns et leurs pivots (SplitGuns) travaillaient dans le repère du MODÈLE (RelToRoot s'arrête sous ModelRoot),
+quand Gunnery lit g.P dans celui du navire et que les pivots sont enfants du navire. Le relèvement manquait : le Roebuck (−0,86 m)
+tirait de 86 cm au-dessus de ses bouches, pointait ses pièces autour d'un point aussi haut, et ses mantelets s'appariaient de
+travers. Le chemin par matière passait déjà par Meshes(ModelRoot), qui compte la pose. Bouche de bordée la plus basse : 0,79 dans le
+repère du navire, 1,15 m au-dessus de l'eau ; le journal du gréement (--dumprig 1) la donne.
 ## Les fenêtres de nuit adoucies, et dans les réglages (Godot)
 
 DEMANDÉ : diminuer l'éclat des fenêtres des maisons et des navires, avec un réglage. Les navires avaient un gain écrit

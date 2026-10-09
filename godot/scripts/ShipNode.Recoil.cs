@@ -70,7 +70,9 @@ public partial class ShipNode
                    ce qu'on lui ajoutera demain. Reparenter le NŒUD et non son
                    maillage emmène ses enfants sans qu'on ait à les connaître. */
                 var bb = PieceBox(nd);
-                var centre = nd.Transform * bb.GetCenter();
+                /* in the SHIP's frame, as the pivot is the ship's child: the model's own pose (its
+                   offset) was missing, and the gun swung about a point 86 cm above it when laid */
+                var centre = ModelRoot.Transform * (RelToRoot(nd) * bb.GetCenter());
                 var pivot = new Node3D { Position = centre };
                 AddChild(pivot);
                 nd.Reparent(pivot, true);

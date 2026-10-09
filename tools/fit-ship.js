@@ -145,7 +145,18 @@ function volumeUnder(yw) {
 }
 
 // ---------- 1. la flottaison ----------
-const guns = meshes.filter(isGun).map(m => ({ name: m.name, y: (m.lo[1] + m.hi[1]) / 2, z: (m.lo[2] + m.hi[2]) / 2, across: (m.hi[0] - m.lo[0]) >= (m.hi[2] - m.lo[2]) }));
+/* THE BORE AXIS, at the muzzle: a gun modelled on its carriage has its box centre on the carriage
+   cheeks, 25 cm under the bore (the Roebuck of 09/10). Its outer 15 % across the hull is the barrel
+   alone — the middle of those vertices' heights is the axis. Same rule as ShipNode.MuzzleOffset. */
+function boreY(m) {
+  const ax = m.V.map(p => Math.abs(p[0])), hiX = Math.max(...ax), loX = Math.min(...ax), cut = hiX - 0.15 * (hiX - loX);
+  const ys = m.V.filter((p, i) => ax[i] >= cut).map(p => p[1]);
+  return ys.length ? (Math.min(...ys) + Math.max(...ys)) / 2 : (m.lo[1] + m.hi[1]) / 2;
+}
+const guns = meshes.filter(isGun).map(m => {
+  const across = (m.hi[0] - m.lo[0]) >= (m.hi[2] - m.lo[2]);
+  return { name: m.name, y: across ? boreY(m) : (m.lo[1] + m.hi[1]) / 2, z: (m.lo[2] + m.hi[2]) / 2, across };
+});
 const broadside = guns.filter(g => g.across);
 let yw, why;
 if (args.includes('--flottaison')) { yw = opt('--flottaison', 0); why = 'donnée (--flottaison)'; }

@@ -154,8 +154,14 @@ public partial class ShipNode
         if (found.Count == 0) return false;
 
         var read = new List<(Vector3 At, Vector3 Dir, float Bore, float Half)>();
-        foreach (var (mi, rel) in found)
+        /* DANS LE REPÈRE DU NAVIRE, et non du modèle : Gunnery lit g.P comme un point du corps
+           (body.Quat.Rotate(g.P) + body.Pos), et la pose du modèle — son relèvement model.offset —
+           manquait. Le Roebuck (−0,86 m) tirait de 86 cm au-dessus de ses bouches ; le chemin par
+           matière, lui, passait déjà par Meshes(ModelRoot), qui la compte. */
+        var toShip = ModelRoot!.Transform;
+        foreach (var (mi, relModel) in found)
         {
+            var rel = toShip * relModel;
             var box = mi.Mesh.GetAabb();
             var e = box.Size;
             // l'axe du tube : la plus longue dimension DANS SON REPÈRE
@@ -169,6 +175,7 @@ public partial class ShipNode
             if (dir.LengthSquared() < 0.5f) dir = new Vector3(at.X < 0 ? -1 : 1, 0, 0);
             // la bouche regarde DEHORS : le sens qui s'éloigne du milieu du navire
             if (dir.X * at.X + dir.Z * at.Z < 0) dir = -dir;
+            at += MuzzleOffset(mi, rel, at, dir);
             float scale = rel.Basis.Scale.X;
             read.Add((at, dir, bore * scale, len * 0.5f * scale));
         }
@@ -200,8 +207,38 @@ public partial class ShipNode
         }
         Battery.Guns.Sort((a, b) => b.P.Z.CompareTo(a.P.Z));
         SplitGuns(new List<(Vector3 Lo, Vector3 Hi)>());
-        RigLog.Add($"batterie : {Battery.Guns.Count} pièce(s) lues sur le modèle, orientation comprise");
+        double lowest = double.MaxValue;
+        foreach (var g in Battery.Guns) if (Math.Abs(g.Side) == 1) lowest = Math.Min(lowest, g.P.Y);
+        RigLog.Add(FormattableString.Invariant($"batterie : {Battery.Guns.Count} pièce(s) lues sur le modèle, orientation comprise ; bouche de bordée la plus basse à y {lowest:F2}"));
         return true;
+    }
+
+    /// <summary>
+    /// L'AXE DU TUBE N'EST PAS AU MILIEU DE LA BOÎTE quand la pièce est modelée sur son affût : le
+    /// Roebuck du 09/10 (affût et tube d'un seul maillage) tirait de 25 cm sous sa bouche, du flasque
+    /// de l'affût. Le bout extérieur de la pièce — ses 15 % les plus au dehors le long de l'axe — n'est
+    /// que le tube : le centre de ces sommets-là donne la hauteur et le travers de l'âme. Rend le
+    /// déplacement à appliquer au centre de la boîte, sans rien changer le long de l'axe. Même règle
+    /// dans tools/fit-ship.js, qui pose la flottaison sous l'axe de la plus basse pièce.
+    /// </summary>
+    static Vector3 MuzzleOffset(MeshInstance3D mi, Transform3D rel, Vector3 at, Vector3 dir)
+    {
+        var pts = new List<Vector3>();
+        float pMin = float.MaxValue, pMax = float.MinValue;
+        for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
+            foreach (var v0 in mi.Mesh.SurfaceGetArrays(s)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
+            {
+                var v = rel * v0;
+                float p = v.Dot(dir);
+                pMin = Math.Min(pMin, p); pMax = Math.Max(pMax, p);
+                pts.Add(v);
+            }
+        if (pts.Count == 0 || pMax <= pMin) return Vector3.Zero;
+        float cut = pMax - 0.15f * (pMax - pMin);
+        Vector3 lo = new(float.MaxValue, float.MaxValue, float.MaxValue), hi = -lo;
+        foreach (var v in pts) if (v.Dot(dir) >= cut) { lo = lo.Min(v); hi = hi.Max(v); }
+        var d = (lo + hi) * 0.5f - at;
+        return d - dir * d.Dot(dir);
     }
 
     /// <summary>
