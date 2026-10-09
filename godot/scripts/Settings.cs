@@ -115,6 +115,42 @@ public sealed class Settings
     // [performance]
     /// <summary>Les solveurs des navires sur plusieurs cœurs : résultats identiques au bit près.</summary>
     public bool ParallelSolvers = true;
+    /// <summary>
+    /// L'IMAGE RENDUE À CETTE PART DE L'ÉCRAN, puis agrandie (FSR 1) : le plus gros levier pour une
+    /// petite carte — à 0,67, moins de la moitié des pixels. 1 : rendue à la taille de l'écran.
+    /// </summary>
+    public float RenderScale = 1f;
+    /// <summary>Les ombres du soleil : 0 basses (atlas 2048, deux cascades, 200 m, bords nets), 1 moyennes, 2 hautes.</summary>
+    public int ShadowQuality = 2;
+    /// <summary>Les navires de la rade au plus (le processeur : un solveur par coque) ; 0 : ce que dit settings.json.</summary>
+    public int TrafficCap = 0;
+
+    /* LES PRÉRÉGLAGES (demandé : « le plus large possible »). Ils ne touchent qu'à ce qui COÛTE ; la
+       lumière, la mer, le son et le pavillon restent ceux qu'on a choisis. « Haut » rend les valeurs
+       d'origine de ces mêmes réglages. */
+    public void PresetLow()
+    {
+        RenderScale = 0.67f; ShadowQuality = 0; TrafficCap = 3;
+        Occlusion = false; IndirectLight = false; Dof = false; MotionBlur = false;
+        Msaa = 0; ScreenAA = "fxaa"; LanternShadows = false; AutoExposure = false;
+    }
+
+    public void PresetHigh()
+    {
+        var d = new Settings();
+        RenderScale = d.RenderScale; ShadowQuality = d.ShadowQuality; TrafficCap = d.TrafficCap;
+        Occlusion = d.Occlusion; IndirectLight = d.IndirectLight; Dof = d.Dof; MotionBlur = d.MotionBlur;
+        Msaa = d.Msaa; ScreenAA = d.ScreenAA; LanternShadows = d.LanternShadows; AutoExposure = d.AutoExposure;
+    }
+
+    /// <summary>0 personnalisé, 1 bas, 2 haut : celui dont les réglages sont exactement ceux-ci.</summary>
+    public int PresetIndex()
+    {
+        static string Key(Settings s) => System.FormattableString.Invariant($"{s.RenderScale:F2}|{s.ShadowQuality}|{s.TrafficCap}|{s.Occlusion}|{s.IndirectLight}|{s.Dof}|{s.MotionBlur}|{s.Msaa}|{s.ScreenAA}|{s.LanternShadows}|{s.AutoExposure}");
+        var lo = new Settings(); lo.PresetLow();
+        string me = Key(this);
+        return me == Key(lo) ? 1 : me == Key(new Settings()) ? 2 : 0;
+    }
 
     public static Settings Load()
     {
@@ -175,6 +211,9 @@ public sealed class Settings
         s.SeaMotes = (float)cf.GetValue("mer", "grains_sous_eau", s.SeaMotes);
         s.DeckLean = (float)cf.GetValue("vue", "pas_de_cote", s.DeckLean);
         s.ParallelSolvers = (bool)cf.GetValue("performance", "solveurs_paralleles", s.ParallelSolvers);
+        s.RenderScale = (float)cf.GetValue("rendu", "echelle_de_rendu", s.RenderScale);
+        s.ShadowQuality = (int)cf.GetValue("rendu", "ombres_du_soleil", s.ShadowQuality);
+        s.TrafficCap = (int)cf.GetValue("performance", "navires_de_rade_au_plus", s.TrafficCap);
         return s;
     }
 
@@ -231,6 +270,9 @@ public sealed class Settings
         cf.SetValue("mer", "grains_sous_eau", SeaMotes);
         cf.SetValue("vue", "pas_de_cote", DeckLean);
         cf.SetValue("performance", "solveurs_paralleles", ParallelSolvers);
+        cf.SetValue("rendu", "echelle_de_rendu", RenderScale);
+        cf.SetValue("rendu", "ombres_du_soleil", ShadowQuality);
+        cf.SetValue("performance", "navires_de_rade_au_plus", TrafficCap);
         Error e = cf.Save(Path);
         if (e != Error.Ok) GD.PushWarning($"réglages non enregistrés dans {Path} : {e}");
     }

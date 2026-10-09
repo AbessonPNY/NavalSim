@@ -14810,6 +14810,15 @@ forfait était juste —, mais 8 /s pour un dériveur, que sa dérive arrête de
 (Godot seul) : le plus fort des deux, et COMME L'ERRE (plein à la moitié de la vitesse de carène, √(gL)/2) — constant, il
 l'empêchait de virer, resté à 10° du lit du vent (banc « virement »). Après : 42° la première seconde, 91 °/s au plus ; il vire
 à tous les gains de vent (2 s seul au gain du jeu). Les autres navires ne changent pas, par construction.
+
+LE PRÉRÉGLAGE « BAS » (demandé, après « quelle configuration minimale ? »). En tête du menu : Personnalisé / Bas (petite machine)
+/ Haut ; il pose ses valeurs et le menu se refait (RebuildMenu). Il ne touche qu'à ce qui coûte : échelle de rendu 0,67 agrandie par
+FSR 1 (Settings.RenderScale, nouveau réglage), ombres du soleil basses (ShadowQuality : atlas 2048, deux cascades, 200 m, bords nets ;
+hautes = ce que le projet avait, 4096, quatre, 320 m, doux bas), occlusion, lumière indirecte, profondeur de champ, flou de
+mouvement et ombres des lanternes coupés, FXAA sans MSAA, trois navires de rade au plus (TrafficCap). La lumière, la mer et le son
+restent à soi. MESURÉ sur la machine de dév (--vsync 0 --prereglage bas|haut --chrono 600, qui n'écrit pas reglages.ini) : au large
+8,45 → 6,94 ms ; AU PORT 14,81 → 7,58 ms (68 → 132 i/s). Sur cette carte, le large est peu chargé ; sur une petite, l'échelle de
+rendu pèsera bien plus. --menu 1 ouvre les options pour une capture.
 ## Le pas de côté de l'œil, à bord (Godot)
 
 DEMANDÉ : « que les caméras fixes de bord se décalent latéralement en suivant la souris, sur une petite

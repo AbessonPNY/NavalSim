@@ -140,6 +140,23 @@ public partial class ShipDemo
         vp.Msaa3D = s.Msaa switch { 0 => Viewport.Msaa.Disabled, 2 => Viewport.Msaa.Msaa2X, 8 => Viewport.Msaa.Msaa8X, _ => Viewport.Msaa.Msaa4X };
         vp.ScreenSpaceAA = s.ScreenAA switch { "fxaa" => Viewport.ScreenSpaceAAEnum.Fxaa, "smaa" => Viewport.ScreenSpaceAAEnum.Smaa, _ => Viewport.ScreenSpaceAAEnum.Disabled };
         vp.UseTaa = s.ScreenAA == "taa";
+        /* L'ÉCHELLE DE RENDU : la scène 3D à une part de l'écran, agrandie par FSR 1 (affûtée) ;
+           l'interface reste à la taille de l'écran. */
+        float scale = Math.Clamp(s.RenderScale, 0.5f, 1f);
+        vp.Scaling3DMode = scale < 0.999f ? Viewport.Scaling3DModeEnum.Fsr : Viewport.Scaling3DModeEnum.Bilinear;
+        vp.Scaling3DScale = scale;
+        /* LES OMBRES DU SOLEIL : l'atlas, les cascades, leur portée et le filtre. Hautes, ce sont les
+           valeurs que le projet a toujours eues (4096, quatre cascades, 320 m, filtre doux bas). */
+        int sq = Math.Clamp(s.ShadowQuality, 0, 2);
+        RenderingServer.DirectionalShadowAtlasSetSize(sq == 0 ? 2048 : 4096, true);
+        RenderingServer.DirectionalSoftShadowFilterSetQuality(sq switch
+        {
+            0 => RenderingServer.ShadowQuality.Hard,
+            1 => RenderingServer.ShadowQuality.SoftVeryLow,
+            _ => RenderingServer.ShadowQuality.SoftLow
+        });
+        _sky.Sun.DirectionalShadowMode = sq == 2 ? DirectionalLight3D.ShadowMode.Parallel4Splits : DirectionalLight3D.ShadowMode.Parallel2Splits;
+        _sky.Sun.DirectionalShadowMaxDistance = sq == 0 ? 200 : 320;
         // les cordages en rubans changent de variante avec lui (rope_ribbon_taa.gdshader)
         ShipNode.RibbonMode(vp.UseTaa);
 
@@ -209,6 +226,17 @@ public partial class ShipDemo
                 _ship.RebuildLanterns();
             }
         }
+    }
+
+    /// <summary>Le menu refait sur les réglages du moment (après un préréglage), ouvert s'il l'était.</summary>
+    void RebuildMenu()
+    {
+        if (_menu?.GetParent() is not CanvasLayer layer) return;
+        bool open = _menu.Visible;
+        layer.RemoveChild(_menu);
+        _menu.QueueFree();
+        BuildMenu(layer);
+        _menu.Visible = open;
     }
 
     void Changed()
@@ -293,6 +321,13 @@ public partial class ShipDemo
 
         var st = _settings;
         Title("Options", 20);
+        /* LE PRÉRÉGLAGE, en tête : un geste pour une petite machine. Il pose ses valeurs, puis le menu
+           se refait pour les montrer ; retoucher un réglage ensuite le rend « personnalisé ». */
+        Choice("Préréglage", new[] { "Personnalisé", "Bas (petite machine)", "Haut" }, st.PresetIndex(), i =>
+        {
+            if (i == 1) st.PresetLow(); else if (i == 2) st.PresetHigh(); else return;
+            CallDeferred(nameof(RebuildMenu));
+        });
         /* LE FIL QU'ON SUIT, en tête : le monde reste ouvert, une quête ne fait
            que le traverser. Le menu ne paraît que s'il y a des fiches à lire. */
         if (_quests != null && _quests.List.Count > 0)
@@ -338,6 +373,8 @@ public partial class ShipDemo
         _chkIndirect = Check("Lumière indirecte", st.IndirectLight, on => st.IndirectLight = on);
         _chkFullscreen = Check("Plein écran (Alt+Entrée)", st.Fullscreen, on => st.Fullscreen = on);
         Check("Synchro verticale", st.VSync, on => st.VSync = on);
+        Slide("Échelle de rendu", 0.5, 1, 0.01, st.RenderScale, x => st.RenderScale = x);
+        Choice("Ombres du soleil", new[] { "Basses", "Moyennes", "Hautes" }, st.ShadowQuality, i => st.ShadowQuality = i);
         Check("Profondeur de champ", st.Dof, on => st.Dof = on);
         // la zone nette : deux repères sur un curseur de 0 à l'infini
         var zone = Row(box, "Net");
@@ -380,6 +417,7 @@ public partial class ShipDemo
             i => { st.Nation = i == 0 ? "" : _nations.All[i - 1].Id; HoistNation(); });
         Title("Performance", 15);
         Check("Solveurs sur plusieurs cœurs", st.ParallelSolvers, on => st.ParallelSolvers = on);
+        Choice("Navires de la rade au plus", new[] { "Selon le jeu", "3", "6", "9" }, Math.Clamp(st.TrafficCap / 3, 0, 3), i => st.TrafficCap = i * 3);
 
         var path = new Label { Text = ProjectSettings.GlobalizePath(Settings.Path), AutowrapMode = TextServer.AutowrapMode.Arbitrary };
         path.AddThemeFontSizeOverride("font_size", 11);

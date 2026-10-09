@@ -72,6 +72,8 @@ public partial class ShipDemo
     // settings.json → trafic
     bool _trafficOn = true;
     int _trafficN = 6;
+    /// <summary>Les navires de la rade au plus : settings.json, sous le plafond des réglages (préréglage « bas »).</summary>
+    int TrafficN => _settings.TrafficCap > 0 ? Math.Min(_trafficN, _settings.TrafficCap) : _trafficN;
     string[] _trafficShips = { "sloop", "schooner" };
     double _trafficForceMax = 5, _trafficRange = 5000;
 
@@ -214,7 +216,7 @@ public partial class ShipDemo
     void TrafficTick(double dt)
     {
         if (_tripCamKeep) _tripCam = true;
-        if (!_trafficOn || _world == null || _inTitle || _skirmish || _ship == null || _trafficN <= 0) return;
+        if (!_trafficOn || _world == null || _inTitle || _skirmish || _ship == null || TrafficN <= 0) return;
         // pendant le naufrage du film, la rade dort ; au plan d'ensemble, elle vit
         if (_film is { Phase: 0 }) return;
         _tripAcc += dt;
@@ -387,10 +389,10 @@ public partial class ShipDemo
         moving.Sort((a, b) => a.Dist.CompareTo(b.Dist));
         /* EN CHEMIN, LA MOITIÉ DES PLACES AU PLUS : le reste attend les heures qui
            viennent — une rade remplie à l'ouverture manquerait ses premiers départs. */
-        int room = Math.Max(1, _trafficN / 2);
+        int room = Math.Max(1, TrafficN / 2);
         foreach (var (sg, dist) in moving)
         {
-            if (_trips.Count >= _trafficN || room-- <= 0) break;
+            if (_trips.Count >= TrafficN || room-- <= 0) break;
             Launch(port, pt, sg, dist, now);
         }
     }
@@ -404,7 +406,7 @@ public partial class ShipDemo
     bool Launch(Isle port, PortTimetable pt, Sailing sg, double dist, double now)
     {
         // de la place pour les rencontres du large et les pirates : la rade n'en prend pas trop
-        if (_trips.Count >= _trafficN || _others.Count >= Config.MaxShips - 4) return false;
+        if (_trips.Count >= TrafficN || _others.Count >= Config.MaxShips - 4) return false;
         var ships = sg.Ships.Count > 0 ? sg.Ships.ToArray() : _trafficShips;
         string id = ships[_tripRng.Next(ships.Length)];
         if (TripSpec(id) is not { } spec) { GD.PushWarning($"[horaires] {sg.Name} : pas de fiche « {id} »"); return true; }

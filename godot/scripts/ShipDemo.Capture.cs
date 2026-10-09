@@ -330,6 +330,12 @@ public partial class ShipDemo
                 // par les réglages (sans les enregistrer) : une autre option qui les réapplique ne la défait pas
                 case "--plein": _settings.Fullscreen = args[i + 1] != "0"; ApplySettings(); break;
                 case "--vsync": _settings.VSync = args[i + 1] != "0"; ApplySettings(); break;
+                // un préréglage, pour la mesure : appliqué SANS être enregistré (reglages.ini reste le vôtre)
+                // le menu des options ouvert, pour le juger à la capture
+                case "--menu": if (_menu != null) _menu.Visible = args[i + 1] != "0"; break;
+                case "--prereglage": if (args[i + 1] == "bas") _settings.PresetLow(); else _settings.PresetHigh(); ApplySettings(); break;
+                // MESURE : le temps par image sur N images, à partir de l'image de la capture (ou de --after)
+                case "--chrono": _chronoN = args[i + 1].ToInt(); if (_captureIn < 0) _captureIn = 300; break;
                 // la charge forcee, pour un banc : la rampe met vingt secondes
                 case "--anneaux": _forceRings = args[i + 1].ToFloat(); break;
                 case "--rade": MooredNode.Debug = args[i + 1] != "0";
@@ -620,10 +626,27 @@ public partial class ShipDemo
         return new Vector3(p[0].ToFloat(), p[1].ToFloat(), p[2].ToFloat());
     }
 
+    int _chronoN;
+    readonly List<double> _chrono = new();
+
     void TickCapture()
     {
         if (_captureIn < 0) return;
         if (--_captureIn > 0) return;
+        /* LE CHRONO : le temps mural par image, sur N images une fois la scène établie — médiane et
+           95e centile, plus parlants qu'une moyenne qu'un seul accroc fausse. Mesurer avec --vsync 0. */
+        if (_chronoN > 0)
+        {
+            _captureIn = 1;
+            _chrono.Add(GetProcessDeltaTime() * 1000);
+            if (_chrono.Count < _chronoN) return;
+            _chrono.Sort();
+            double med = _chrono[_chrono.Count / 2], p95 = _chrono[(int)(_chrono.Count * 0.95)];
+            var vp = GetViewport();
+            GD.Print(FormattableString.Invariant($"chrono : {_chrono.Count} images, médiane {med:F2} ms ({1000 / med:F0} i/s), 95 % sous {p95:F2} ms ; rendu à {vp.Scaling3DScale:F2}, ombres {_settings.ShadowQuality}, {_others.Count + 1} coque(s)"));
+            GetTree().Quit(0);
+            return;
+        }
         var img = GetViewport().GetTexture().GetImage();
         if (img == null || img.GetWidth() < 8) { GD.PushError("capture vide"); GetTree().Quit(1); return; }
         Error err = img.SavePng(_capturePath);
