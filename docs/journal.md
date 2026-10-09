@@ -14819,6 +14819,17 @@ mouvement et ombres des lanternes coupés, FXAA sans MSAA, trois navires de rade
 restent à soi. MESURÉ sur la machine de dév (--vsync 0 --prereglage bas|haut --chrono 600, qui n'écrit pas reglages.ini) : au large
 8,45 → 6,94 ms ; AU PORT 14,81 → 7,58 ms (68 → 132 i/s). Sur cette carte, le large est peu chargé ; sur une petite, l'échelle de
 rendu pèsera bien plus. --menu 1 ouvre les options pour une capture.
+
+LES VILLES DE 1690, PORT PAR PORT (signalé : « énormément de maisons individuelles »). Elles ne sont pas trop petites (5 à 9 m de
+façade, 3 à 5 m de mur : une maison de la Jamaïque anglaise) — elles étaient trop NOMBREUSES : 150 et une église autour de
+chacun des quatorze ports, 420 à Kingston, 2 520 en tout. « ville » dans la fiche du port. Chiffres retenus (sources dans la
+conversation du 09/10, ordres de grandeur sauf mention) : Port-Royal 150 et l'église (inchangé : 126 retirées et 17 retouchées à la
+main s'y accrochent ; la ville vraie avait ~2 000 bâtiments sur 51 acres, en rangées), Passage Fort 30 (« about Thirty Houses »,
+une description du temps), Old Harbour 30, Port Morant 35, Withywood, Yallahs, Port Maria, Black River, Montego Bay 15,
+Savanna-la-Mar et Lucea 5 (villes des années 1720–1730), Dry Harbour 3, Port Antonio (1723) et Negril 0 ; aucune église hors
+Port-Royal. KINGSTON RETIRÉE : achetée deux semaines après le séisme de juin 1692. Le semis est une spirale déterministe — baisser
+le nombre garde les premières maisons, d'où le rayon laissé à 420 m et la graine qui avance pour tous les ports. ~330 bâtiments.
+La quête « la lettre du gouverneur » disait « Sortez du port de Kingston » : « de la rade de Port-Royal ».
 ## Le pas de côté de l'œil, à bord (Godot)
 
 DEMANDÉ : « que les caméras fixes de bord se décalent latéralement en suivant la souris, sur une petite

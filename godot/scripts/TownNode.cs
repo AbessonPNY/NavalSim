@@ -115,7 +115,7 @@ public partial class TownNode : Node3D
     };
 
     /// <summary>Bâtir une ville autour d'un point du monde, une fois.</summary>
-    public void Build(string name, double cx, double cz, double radius, int want, uint seed)
+    public void Build(string name, double cx, double cz, double radius, int want, uint seed, bool church = true)
     {
         var houses = Town.Plant(_world, cx, cz, radius, want, seed);
         // chaque maison inscrite au monde : la végétation semée ensuite s'en écarte (World.Built)
@@ -129,9 +129,9 @@ public partial class TownNode : Node3D
         AddChild(holder);
         if (_modelled)
         {
-            BuildFromModels(holder, houses, cx, cz, name);
+            BuildFromModels(holder, houses, cx, cz, name, church);
             _towns.Add((new Vec3d(cx, 0, cz), holder));
-            GD.Print($"{name} : {houses.Count} bâtiment(s), une église");
+            GD.Print($"{name} : {houses.Count} bâtiment(s){(church ? ", une église" : ", sans église")}");
             return;
         }
 

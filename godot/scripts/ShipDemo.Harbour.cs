@@ -328,7 +328,13 @@ public partial class ShipDemo
         {
             // un débarcadère n'a pas de ville : c'est ce qui le distingue d'un port
             if (isl.Wild) continue;
-            _town.Build(isl.Name, isl.X, isl.Z, 420, 150, seed += 7919);
+            /* SA VILLE DE 1690 (« ville » dans la fiche) : 150 maisons et une église partout, c'était
+               2 520 bâtiments sur l'île, Kingston comprise, qui n'existait pas avant le séisme. Le rayon
+               reste 420 m et la graine avance pour TOUS les ports : les maisons qui restent sont les
+               mêmes, et les retouches tiennent. */
+            seed += 7919;
+            int want = isl.TownHouses ?? 150;
+            if (want > 0) _town.Build(isl.Name, isl.X, isl.Z, 420, want, seed, isl.TownChurch);
             _town.BuildCentre(isl);
         }
         foreach (var t in _world.Region.Towns)

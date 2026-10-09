@@ -8,7 +8,7 @@
   "steps": [
     {
       "title": "Quitter la rade",
-      "brief": "Sortez du port de Kingston par la passe de Port-Royal et prenez le large : un mille au moins entre le ponton et vous.",
+      "brief": "Sortez de la rade de Port-Royal par la passe et prenez le large : un mille au moins entre le ponton et vous.",
       "at": {
         "port": "port-royal"
       },

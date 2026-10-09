@@ -47,6 +47,14 @@ public sealed class PortSpec
     public (double X, double Z, double Cap)? StartAt;
     /// <summary>L'abri que donne la forme du rivage autour de ce port, sur ce rayon (m) ; 0 : aucun (ShelterMap).</summary>
     public double ShelterR;
+    /// <summary>
+    /// SA VILLE, EN 1690 (« ville » : { « maisons », « eglise » }) : le nombre de maisons semées autour et
+    /// si elle a son église. Absent : 150 et une église, ce que tous les ports avaient. Le semis suit une
+    /// spirale DÉTERMINISTE : baisser le nombre garde les premières maisons à l'identique — et les retouches
+    /// qui s'y accrochent (maison:<port>:<rang>). 0 : un quai, et rien autour.
+    /// </summary>
+    public int? TownHouses;
+    public bool TownChurch = true;
 }
 
 /// <summary>
@@ -210,7 +218,9 @@ public sealed class RegionSpec
                     Centre = p.TryGetProperty("centre", out var ce) && ce.ValueKind == JsonValueKind.Object ? ReadCentre(ce) : null,
                     StartAt = p.TryGetProperty("depart", out var dp) && dp.ValueKind == JsonValueKind.Object
                         ? (Js.Num(dp, "x"), Js.Num(dp, "z"), Js.Num(dp, "cap")) : null,
-                    ShelterR = p.TryGetProperty("abri", out var ab) && ab.ValueKind == JsonValueKind.Object ? Js.Num(ab, "rayon") : 0
+                    ShelterR = p.TryGetProperty("abri", out var ab) && ab.ValueKind == JsonValueKind.Object ? Js.Num(ab, "rayon") : 0,
+                    TownHouses = p.TryGetProperty("ville", out var vi) && vi.ValueKind == JsonValueKind.Object && vi.TryGetProperty("maisons", out var vm) ? vm.GetInt32() : null,
+                    TownChurch = !(p.TryGetProperty("ville", out var vi2) && vi2.ValueKind == JsonValueKind.Object && vi2.TryGetProperty("eglise", out var ve) && ve.ValueKind == JsonValueKind.False)
                 });
         if (r.TryGetProperty("towns", out var tw) && tw.ValueKind == JsonValueKind.Array)
             foreach (var t in tw.EnumerateArray())
@@ -356,6 +366,9 @@ public sealed class Isle
     public (double X, double Z, double Cap)? StartAt;
     /// <summary>Le rayon de l'abri que donne le rivage (PortSpec.ShelterR), 0 sinon.</summary>
     public double ShelterR;
+    /// <summary>Sa ville : PortSpec.TownHouses, PortSpec.TownChurch.</summary>
+    public int? TownHouses;
+    public bool TownChurch = true;
 }
 
 /// <summary>
@@ -797,7 +810,7 @@ public sealed class World : IGround
         {
             Key = P.Key, Name = P.Name, X = x, Z = z, R = 600, RShore = 0,
             Start = P.Start, Wild = P.Wild, Lat = P.Lat, Lon = P.Lon, Port = port, Centre = P.Centre, StartAt = P.StartAt,
-            ShelterR = P.ShelterR
+            ShelterR = P.ShelterR, TownHouses = P.TownHouses, TownChurch = P.TownChurch
         };
     }
 

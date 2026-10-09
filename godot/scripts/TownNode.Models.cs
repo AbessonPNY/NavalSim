@@ -154,11 +154,12 @@ public partial class TownNode
     /// parcelle près du centre, et des maisons tirées au sort par leur position —
     /// la même ville d'une partie à l'autre.
     /// </summary>
-    void BuildFromModels(Node3D holder, List<House> houses, double cx, double cz, string name)
+    void BuildFromModels(Node3D holder, List<House> houses, double cx, double cz, string name, bool withChurch = true)
     {
-        int church = 0;
+        // a hamlet has no church: every plot is a house (the ranks stay those of the seeding)
+        int church = -1;
         double best = -1;
-        for (int i = 0; i < houses.Count; i++)
+        for (int i = 0; i < houses.Count && withChurch; i++)
         {
             var h = houses[i];
             double d = Math.Sqrt((h.X - cx) * (h.X - cx) + (h.Z - cz) * (h.Z - cz));
@@ -169,7 +170,7 @@ public partial class TownNode
 
         var groups = new List<(Model M, List<int> Who)>
         {
-            (_church!, new List<int> { church }),
+            (_church!, church >= 0 ? new List<int> { church } : new List<int>()),
             (_houseA!, new List<int>()),
             (_houseB!, new List<int>())
         };
