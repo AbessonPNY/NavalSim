@@ -15174,6 +15174,13 @@ gardent un plan plus creux que le modèle (21 cm, 1,2 m) : la quille saillante e
 faudrait toucher, et donc la carène — laissé. PARITÉ : après une fiche réécrite, DEUX relevés (parity-dump ET parity-physics,
 qui écrit parity-physics.json et parity-settle.json) ; le premier seul laissait « ECART bati 0,2 ». Le contrôle au chargement :
 garde abaissée à la moitié du bau (le cotre, évasé, ne fait que 70 % du sien à la flottaison) ; « -+0 % » corrigé.
+
+LE ROEBUCK DU 09/10 (agrandi par mégarde de 1,82 dans Blender, puis ramené ; carène creusée de 30 cm) : 308 t. Et un DERNIER défaut de
+fit-ship : sa boucle pont / quille / relèvement OSCILLAIT entre deux états (pont 1,95 / 1,86, quille 0,16 / 0,25) — la fiche recevait
+l'un, la mise en eau affichée était celle de l'autre (outil 0,23 m, Lab 0,31). Pas amortis de moitié : encore un cycle, plus petit
+(1,93 / 1,91 et 0,19 / 0,21), parce que l'ASSISE DU SOLVEUR SAUTE — 2 cm de pont et de quille la font passer de 0,244 à 0,304 m.
+Il n'y a pas de point fixe exact : l'outil s'arrête quand un état revient et garde le plus proche du modèle (7 cm), avec SA propre
+mise en eau ; outil, Lab et jeu disent 0,244. Le saut lui-même (sondes ? plan ?) reste à comprendre.
 ## Les fenêtres de nuit adoucies, et dans les réglages (Godot)
 
 DEMANDÉ : diminuer l'éclat des fenêtres des maisons et des navires, avec un réglage. Les navires avaient un gain écrit

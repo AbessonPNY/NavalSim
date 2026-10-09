@@ -186,18 +186,37 @@ if (deck) {
   if (mid.length) deckMid = mid[(mid.length / 2) | 0];
 }
 if (deckMid === null) notes.push('pas de pont nommé (pont, deck, tillac) : hull.freeboardMid gardé');
-let st, offY = 0;
-for (let i = 0; i < 8; i++) {
+/* HALF STEPS, AND THE BEST STATE SEEN. A deeper keel and a lower deck sink the plan by about what
+   they move: full steps swung between two states for ever, and the sheet got one state while the
+   settle printed the other. Halved, they still may not land — the solver's rest JUMPS (the Roebuck of
+   09/10: 2 cm of deck and keel moved it from 0.244 to 0.304 m), so no exact fixed point exists. When a
+   state comes back, keep the visited one that fits the model best, with ITS OWN settle. */
+let st, offY = 0, settled = false;
+const seen = new Map();
+let best = null;
+for (let i = 0; i < 16 && !settled; i++) {
+  const key = next.hull.freeboardMid + '/' + next.hull.keelExtra;
+  if (seen.has(key)) break;                          // a cycle: nothing new will come
   st = settle(next);
   offY = +(-yw - st.y).toFixed(2);
-  let moved = false;
+  settled = true;
+  let fbErr = 0;
+  if (process.env.FIT_TRACE) console.log(`  tour ${i} : y ${st.y.toFixed(3)} pont ${next.hull.freeboardMid} quille ${next.hull.keelExtra}`);
+  const state = { fb: next.hull.freeboardMid, ke: next.hull.keelExtra, st, offY };
   if (deckMid !== null) {
-    const fb = +(deckMid + offY).toFixed(2);
-    if (Math.abs(fb - next.hull.freeboardMid) >= 0.01) { next.hull.freeboardMid = fb; moved = true; }
+    const fb = deckMid + offY;
+    fbErr = Math.abs(fb - next.hull.freeboardMid);
+    if (fbErr >= 0.015) { next.hull.freeboardMid = +(next.hull.freeboardMid + (fb - next.hull.freeboardMid) / 2).toFixed(2); settled = false; }
   }
   const diff = next.hull.keelDepth + next.hull.keelExtra - st.y - modelBottom;
-  if (Math.abs(diff) >= 0.03) { next.hull.keelExtra = +Math.min(1.5, Math.max(0.05, next.hull.keelExtra - diff)).toFixed(2); moved = true; }
-  if (!moved) break;
+  if (Math.abs(diff) >= 0.03) { next.hull.keelExtra = +Math.min(1.5, Math.max(0.05, next.hull.keelExtra - diff / 2)).toFixed(2); settled = false; }
+  state.err = fbErr + Math.abs(diff);
+  seen.set(key, state);
+  if (!best || state.err < best.err) best = state;
+}
+if (!settled) {
+  next.hull.freeboardMid = best.fb; next.hull.keelExtra = best.ke; st = best.st; offY = best.offY;
+  notes.push(`la mise en eau ne tombe pas juste (l'assise du solveur saute) : gardé l'état le plus proche, à ${(best.err * 100).toFixed(0)} cm près`);
 }
 const planBottom = next.hull.keelDepth + next.hull.keelExtra - st.y;
 next.model.offset = [next.model.offset ? next.model.offset[0] : 0, offY, next.model.offset ? next.model.offset[2] : 0];
@@ -255,7 +274,7 @@ if (sheet.cargoTonnes) {
   console.log(`chargé (+${sheet.cargoTonnes} t de cale) : il enfonce de ${((a + b) / 2 - yw).toFixed(2)} m`);
 }
 for (const n of notes) console.log('  ! ' + n);
-fs.rmSync(tmp, { force: true });
+if (!process.env.FIT_KEEP) fs.rmSync(tmp, { force: true });
 
 // ---------- l'écriture, dans le style compact des fiches ----------
 if (WRITE) {
