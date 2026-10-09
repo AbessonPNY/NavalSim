@@ -229,6 +229,7 @@ public partial class ShipDemo : Node3D
         // la barre des navires du jeu : réglée sur leur erre (le gain de vent les fait courir), et elle sonde
         Config.HelmBySpeed = true;
         Config.HelmSounds = true;
+        Config.HelmKeepsTack = true;
         // la godille au safran : des coups de barre secs poussent l eau même navire arrêté
         Config.RudderScull = true;
         // ce que coûte la carte (MapCost) : le monde lu, son terrassement, ses retouches

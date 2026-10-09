@@ -30,6 +30,10 @@ public partial class ShipNode
         public int[] Idx = null!;
         public bool ByNation;
         public string? NationKey;
+        /// <summary>Le pavillon carré en tête du grand mât : le seul qu'un pirate garde.</summary>
+        public bool Main;
+        /// <summary>Hissé au grand mât pour le noir seulement, quand la fiche n'y en met pas.</summary>
+        public bool PirateOnly;
         public Node3D? Staff;                  // la hampe, à son pied
         /// <summary>Le sommet au milieu de l'étamine : c'est LUI qu'on mesure contre la mer.</summary>
         public int Mid;
@@ -95,11 +99,27 @@ public partial class ShipNode
     void ApplyColours()
     {
         float k = (float)Math.Max(0.001, _colourNow);
+        bool black = UnderBlack;
         foreach (var f in _flags)
         {
             f.Pivot.Scale = new Vector3(k, k, k);
-            f.Pivot.Visible = _colourNow > 0.02;
+            f.Pivot.Visible = _colourNow > 0.02 && (black ? f.Main || f.PirateOnly : !f.PirateOnly);
         }
+    }
+
+    /* SOUS LE NOIR, UN SEUL PAVILLON, au grand mât (demandé) : un forban n'arbore ni pavillon de
+       poupe ni flamme — ce sont les marques d'une marine et d'une nation, qu'il n'a pas. Le noir hissé
+       en tête, et rien d'autre. Le pavillon de la fiche au grand mât sert s'il est carré ; sinon un
+       pavillon est prévu là, qui ne paraît que sous le noir. */
+    bool UnderBlack => _nation?.Pirate ?? (Spec.Appearance.Ensign == "jolly");
+
+    /// <summary>Ce qu'elle arbore, couleurs hissées : « 1 de 4 (grand mât) ».</summary>
+    public string FlagsShown()
+    {
+        int n = 0; string where = "";
+        bool black = UnderBlack;
+        foreach (var f in _flags) if (black ? f.Main || f.PirateOnly : !f.PirateOnly) { n++; if (f.Main || f.PirateOnly) where = " (grand mât)"; }
+        return $"{n} de {_flags.Count}{where}";
     }
 
     /// <summary>A-t-elle un pavillon où hisser des couleurs ?</summary>
@@ -182,6 +202,7 @@ public partial class ShipNode
     {
         _nation = nation;
         ApplyNation();
+        ApplyColours();          // under the black, the main-mast flag alone
         /* LE CAMP D ABORD, L ETOFFE ENSUITE. Une coque qui n a nulle part ou hisser
            un pavillon (pas de tete de mat, pas de baton) porte quand meme des
            couleurs : sans cela elle n est d aucun bord, donc l ennemie de tous —
@@ -198,6 +219,7 @@ public partial class ShipNode
     {
         _nation = null;
         ApplyNation();
+        ApplyColours();
         if (_ensign0 is not { } o) return;
         Dress(_flagMat, o.Map, o.Color, o.Painted);
     }
@@ -238,10 +260,14 @@ public partial class ShipNode
         var list = Spec.Flags;
         if (list == null)
         {
-            if (MastHead(null) is { } h) _flags.Add(FlagAt(h.Parent, 0, h.TopY, h.Z, new FlagSpec(), 0));
+            if (MastHead(null) is { } h) { var f = FlagAt(h.Parent, 0, h.TopY, h.Z, new FlagSpec(), 0); f.Main = true; _flags.Add(f); }
+            ApplyColours();
             return;
         }
         (double ZAft, double ZFore, Func<double, double> DeckNear)? st = null;
+        var main = MastHead(null);
+        double mainZ = main is { } m0 ? InShip(m0.Parent, new Vector3(0, (float)m0.TopY, (float)m0.Z)).Z : double.NaN;
+        bool hasMain = false;
         foreach (var l in list)
         {
             if (l.At == "stern" || l.At == "bow")
@@ -250,8 +276,30 @@ public partial class ShipNode
                 _flags.Add(StaffFlag(l, st.Value));
             }
             else if (l.Mast is int mi && MastHead(mi) is { } h)
-                _flags.Add(FlagAt(h.Parent, 0, h.TopY + l.Above, h.Z, l, 0));
+            {
+                var f = FlagAt(h.Parent, 0, h.TopY + l.Above, h.Z, l, 0);
+                // a square flag at the head of the tallest mast: the pirate's one
+                f.Main = (l.Shape is null or "rect") && Math.Abs(InShip(h.Parent, new Vector3(0, 0, (float)h.Z)).Z - mainZ) < 0.6;
+                hasMain |= f.Main;
+                _flags.Add(f);
+            }
         }
+        if (!hasMain && main is { } mh)
+        {
+            var black = FlagAt(mh.Parent, 0, mh.TopY, mh.Z, new FlagSpec(), 0);
+            black.PirateOnly = true;
+            _flags.Add(black);
+        }
+        ApplyColours();
+    }
+
+    /// <summary>Un point du repère de <paramref name="parent"/> dans celui du navire.</summary>
+    Vector3 InShip(Node3D parent, Vector3 local)
+    {
+        var t = Transform3D.Identity;
+        for (Node? n = parent; n != null && n != this; n = n.GetParent())
+            if (n is Node3D n3) t = n3.Transform * t;
+        return t * local;
     }
 
     /// <summary>

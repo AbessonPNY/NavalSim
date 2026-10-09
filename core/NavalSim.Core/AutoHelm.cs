@@ -42,12 +42,39 @@ public sealed class AutoHelm
     /// rade n'ayant pas la place de faire le tour.
     /// </summary>
     public bool Tacks;
+    double _irons, _wearUntil;
+    readonly bool _foreAft;
+
+    /// <summary>
+    /// VENT DEVANT SI SON GRÉEMENT LE PERMET, LOF POUR LOF S'IL MANQUE : un aurique (houari, latine,
+    /// sloop) vire vent devant avec son équipage (Config.CrewTacks) ; resté pris face au vent plus de
+    /// quarante secondes, il abat pour cette fois, et deux minutes durant. Le pilote de rade s'en sert
+    /// — une rade n'a pas la place de faire le tour — et le pirate qui vient à couple aussi : un sloop
+    /// faisait trois cents degrés pour changer de bord à quarante mètres de sa proie. Un carré, lui,
+    /// garde le tour : c'est ainsi qu'il virait.
+    /// </summary>
+    public void TackByRig(double dt)
+    {
+        _wearUntil -= dt;
+        Tacks = _foreAft && Config.CrewTacks && _wearUntil <= 0;
+        if (Tacks && _ph.TackPhase == 1) { _irons += dt; if (_irons > 40) { _wearUntil = 120; _irons = 0; } }
+        else _irons = 0;
+    }
     double _iErr, _legT;
     int _wearDir;
     /// <summary>La marque, dans le même repère local que le corps. Nulle : barre à zéro.</summary>
     public Vec3d? Target;
     public bool Beating { get; private set; }
     public bool Wearing { get; private set; }
+    /// <summary>
+    /// L'ERRE QU'ELLE NE DOIT PAS PASSER (m/s), ou nulle : elle réduit la toile (Controls.Canvas) pour
+    /// s'y tenir, et la rend toute quand on la lève. Ce que fait un navire qui vient à couple — on
+    /// n'aborde pas à cinq nœuds une coque qui ne bouge pas : on la dépasse, et il faut revenir.
+    /// </summary>
+    public double? SpeedCap;
+    bool _capped;
+    /// <summary>D'où vient le vent, au dernier Update (radians, la convention du cap) ; NaN avant.</summary>
+    public double WindFrom { get; private set; } = double.NaN;
 
     /// <summary>
     /// ELLE SONDE (Config.HelmSounds) : le pilote de rade a sa propre sonde et ses
@@ -64,6 +91,7 @@ public sealed class AutoHelm
     {
         _ph = physics;
         CloseHauled = closeHauled ?? (physics.Spec.Rig.Type == "square" ? 0.873 : 0.82);
+        _foreAft = physics.Spec.Rig.Type is "gaff" or "lateen" or "sloop";
         Standoff = standoff ?? physics.Spec.L * 1.6;
         var type = physics.Spec.Rig.Type;
         UnderPower = string.IsNullOrEmpty(type) || type == "none" || !(physics.Spec.SailArea > 0);
@@ -169,6 +197,7 @@ public sealed class AutoHelm
         }
 
         double windFrom = ocean.WindDeg * Math.PI / 180;
+        WindFrom = windFrom;
         double off = Wrap(bearing - windFrom);             // 0 = plein vent debout
 
         double want;
@@ -177,15 +206,31 @@ public sealed class AutoHelm
             want = bearing;                                // une machine se moque du vent
             Beating = false;
         }
-        else if (Math.Abs(off) < CloseHauled)
+        else if (Math.Abs(off) < CloseHauled + (Config.HelmKeepsTack && Beating ? 0.12 : 0))
         {
+            /* RABATTUE DE L'AUTRE CÔTÉ DU VENT, au près, par une lame ou une risée : elle EST virée.
+               Repartir sur l'ancien bord voulait dire abattre et faire le tour du compas, lof pour
+               lof — trois cents degrés, puis la même lame, puis le même tour : un pirate tournait
+               ainsi en rond un quart d'heure sous le vent de sa proie mouillée (banc « approche »).
+               Elle garde ce bord, comme un marin le ferait. Hors d'un virement voulu (Wearing). */
+            double onTack = Wrap(heading - windFrom);
+            if (Config.HelmKeepsTack && !Wearing && onTack * BeatSide < -0.12 && Math.Abs(onTack) < CloseHauled + 0.5)
+            {
+                BeatSide = -BeatSide;
+                _legT = 0;
+                _iErr = 0;
+            }
             /* Au près, ou presque : elle ne peut y aller, donc elle va aussi près
                qu'elle peut sur un bord ou l'autre. Un choix AVEC MÉMOIRE — repris à
                chaque image du côté où la marque se trouve, une marque au vent passe
                d'une joue à l'autre et elle reste dans le lit du vent. Elle change de
                bord SUR LA LAYLINE : quand la marque relève à son angle de près de
                l'AUTRE côté, premier instant où l'autre bord la rallie. */
-            if (off * BeatSide < -(CloseHauled - 0.10) && _legT > MinLeg)
+            // near the mark a leg lasts no longer than it takes to get there
+            // (one that wears keeps a minute and a half: a wear costs a hundred metres to leeward)
+            double minLeg = !Config.HelmKeepsTack ? MinLeg
+                          : Math.Min(MinLeg, Math.Max(Tacks ? 0 : 90, range / Math.Max(1.5, b.Vel.LengthXZ)));
+            if (off * BeatSide < -(CloseHauled - 0.10) && _legT > minLeg)
             {
                 BeatSide = -BeatSide;
                 _legT = 0;
@@ -273,5 +318,14 @@ public sealed class AutoHelm
             c.Sheet += (opt - c.Sheet) * Math.Min(1, dt * 0.9);
         c.SailsSet = true;
         c.Throttle = UnderPower ? 1 : 0;       // la toile si elle en a, la machine sinon
+        // la toile réglée sur l'erre permise ; rendue toute quand la limite tombe
+        // never when beating: less canvas close-hauled is less way, then no steerage, then a wear
+        if (SpeedCap is double cap && !UnderPower && !Beating)
+        {
+            double v = b.Vel.LengthXZ;
+            c.Canvas = Math.Clamp(c.Canvas + Math.Clamp((cap - v) * 0.5, -1, 1) * dt, 0.1, 1);
+            _capped = true;
+        }
+        else if (_capped) { c.Canvas = 1; _capped = false; }
     }
 }

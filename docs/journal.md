@@ -14768,6 +14768,31 @@ pirate sans canons restait planté à sa garde de 185 m, attendant que sa proie 
 Pirate.Armed : sans pièce en état, la chasse passe droit à l'abordage, comme les flibustiers des
 barques et des pirogues.
 
+
+## Le pirate qui tournait en rond avant d'aborder ; un seul pavillon sous le noir (Godot)
+
+SIGNALÉ : « il a tourné pas mal avant d'aborder, malgré que j'avais mouillé pour le laisser approcher ». Banc Lab « approche »
+[pirate] [proie] [force] : un pirate déjà à l'abordage, parti à 600 m de huit relèvements autour d'une proie MOUILLÉE (tenue, cap au
+vent), vrais grappins. AVANT : sloop 4/8 (jamais parti sous le vent : il n'en approchait même pas en quinze minutes), galion 2/8.
+QUATRE CAUSES, chacune vue à la trace (APPROCHE_TRACE=<relèvement>) :
+(1) au près, la barre louvoie de ±20° ; rabattu de l'autre côté du vent, il faisait le tour du compas (lof pour lof, 300°) pour
+retrouver son bord, puis la même lame, puis le même tour — Config.HelmKeepsTack : il GARDE le bord où la mer l'a jeté.
+(2) une marque au ras du lit du vent le faisait hésiter entre tirer un bord et y aller droit, et MinLeg (300 s) lui interdisait de
+changer de bord : chaque hésitation coûtait un tour — hystérésis de 0,12 rad, et près de la marque une bordée ne dure pas plus
+que le temps de l'atteindre (un carré garde 90 s : un virement lof pour lof lui coûte cent mètres sous le vent).
+(3) un aurique vire VENT DEVANT (AutoHelm.TackByRig, la règle du pilote de rade sortie pour servir aux deux).
+(4) LA GÉOMÉTRIE : il venait toujours par l'arrière — juste contre une proie qui fait route, faux contre une coque mouillée,
+évitée cap au vent, dont l'arrière est SOUS le vent : il fallait finir en remontant au vent. Contre une proie arrêtée, il GAGNE LE
+VENT (une condition, pas un point : au vent d'elle d'une demi-longueur et trente mètres), puis laisse porter sur son bout du
+vent, toile réduite (AutoHelm.SpeedCap → Controls.Canvas ; jamais au près, où moins de toile c'est plus de barre, puis un
+virement manqué). APRÈS : sloop 8/8 (212 s en moyenne), Roebuck 8/8 (322 s), galion 7/8 (le dernier, parti loin sous le vent,
+remonte lentement : un carré y met du temps, et c'est vrai). Les deux réglages de barre sont éteints au noyau (parité) et allumés
+par Godot, comme HelmBySpeed. Le compteur « tourné » du banc additionne aussi les embardées dans la houle : lire le temps.
+
+UN SEUL PAVILLON SOUS LE NOIR (demandé) : celui de la tête du grand mât. ShipNode.Flags : Flag.Main (carré, au plus haut mât) et
+Flag.PirateOnly (prévu là quand la fiche n'y a qu'une flamme ou rien) ; ApplyColours choisit selon UnderBlack. Le Roebuck pirate
+arbore 1 pavillon sur 4, le sloop 1 sur 2. EN PASSANT : la flamme du sloop (« mast »: 1) n'a jamais flotté — un sloop n'a qu'un
+mât, l'indice 1 n'existe pas.
 ## Le pas de côté de l'œil, à bord (Godot)
 
 DEMANDÉ : « que les caméras fixes de bord se décalent latéralement en suivant la souris, sur une petite

@@ -53,6 +53,9 @@ public sealed class Pirate
 
     public Pirate(double garde) => Garde = garde;
 
+    /// <summary>A-t-il gagné le vent de sa proie arrêtée ? Tenu jusqu'à ce qu'il le reperde franchement.</summary>
+    bool _weather;
+
     /// <summary>Une coque que le pirate peut voir : sa physique, sa batterie, si elle est pirate aussi.</summary>
     public readonly record struct Sail(ShipPhysics Physics, Battery? Battery, bool Hostile);
 
@@ -115,6 +118,9 @@ public sealed class Pirate
             Cible = prey;
         }
 
+        // the canvas is his own again, but at the boarding approach (below)
+        helm.SpeedCap = null;
+        helm.TackByRig(dt);
         if (State == Phase.Fuite)
         {
             helm.Standoff = 0;
@@ -146,9 +152,38 @@ public sealed class Pirate
         var s = new Vec3d(-f.Z, 0, f.X);
         double Lp = prey.Spec.L, Le = self.Spec.L, Bp = prey.Spec.B, Be = self.Spec.B;
         int side = (b.Pos.X - pb.Pos.X) * s.X + (b.Pos.Z - pb.Pos.Z) * s.Z >= 0 ? 1 : -1;
-        helm.Target = dist > (Lp + Le) * 0.5 + 20
-            ? pb.Pos - f * (Lp * 0.5 + Le * 0.5 + 12)
-            : pb.Pos - f * (Lp * 0.2) + s * (side * (Bp * 0.5 + Be * 0.5 + 1.5));
+        /* PAR L'ARRIÈRE QUAND ELLE FAIT ROUTE — dans son sillage, à son allure. Mais une coque
+           ARRÊTÉE, mouillée ou en panne, est évitée cap au vent : son arrière est SOUS le vent,
+           et l'y chercher, c'est remonter au vent pour finir — il y tournait un quart d'heure
+           (signalé : « il a tourné pas mal avant d'aborder, malgré que j'avais mouillé »). */
+        double vp = MathX.Hyp(pb.Vel.X, pb.Vel.Z);
+        Vec3d alongside;
+        if (vp < 1.5 && !double.IsNaN(helm.WindFrom))
+        {
+            /* IL GAGNE LE VENT, PUIS IL LAISSE PORTER. Être AU VENT d'elle suffit — une condition,
+               pas un point : un carré ne sait pas atteindre un point au vent, chaque virement lof
+               pour lof lui coûtant cent mètres (le galion calait ainsi à cent cinquante mètres de
+               sa proie, banc « approche »). Il vise donc large, cent cinquante mètres au vent
+               d'elle, et dès qu'il l'a dépassée d'une demi-longueur il vient à couple par son bout
+               du vent, en réduisant la toile : une allure portante, la seule où l'on se règle. */
+            var w = new Vec3d(-Math.Sin(helm.WindFrom), 0, Math.Cos(helm.WindFrom));   // towards where the wind comes from
+            double up = (b.Pos.X - pb.Pos.X) * w.X + (b.Pos.Z - pb.Pos.Z) * w.Z;
+            if (up > Lp * 0.5 + 30) _weather = true;
+            else if (up < -(Lp * 0.5 + 60)) _weather = false;
+            int end = f.X * w.X + f.Z * w.Z >= 0 ? 1 : -1;                              // her end to windward
+            alongside = pb.Pos + f * (end * Lp * 0.2) + s * (side * (Bp * 0.5 + Be * 0.5 + 1.5));
+            helm.Target = _weather ? alongside : pb.Pos + w * 150 + s * (side * (Bp + Be));
+        }
+        else
+        {
+            alongside = pb.Pos - f * (Lp * 0.2) + s * (side * (Bp * 0.5 + Be * 0.5 + 1.5));
+            helm.Target = dist > (Lp + Le) * 0.5 + 20 ? pb.Pos - f * (Lp * 0.5 + Le * 0.5 + 12) : alongside;
+        }
+        /* ET IL RÉDUIT LA TOILE EN VENANT : on n'aborde pas à cinq nœuds une coque qui en fait
+           deux — on la dépasse, et il faut revenir. L'erre permise est la sienne, plus ce que la
+           distance au point d'abordage autorise ; les grappins font le dernier mètre. */
+        double toBoard = MathX.Hyp(alongside.X - b.Pos.X, alongside.Z - b.Pos.Z);
+        helm.SpeedCap = toBoard < 150 ? vp + Math.Max(1.2, 0.04 * toBoard) : null;
 
         double vrel = MathX.Hyp(b.Vel.X - pb.Vel.X, b.Vel.Z - pb.Vel.Z);
         if (dist < (Lp + Le) * 0.45 && vrel < 2.5 && Grappled) Tenu += dt; else Tenu = Math.Max(0, Tenu - dt * 0.5);

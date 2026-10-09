@@ -863,6 +863,10 @@ calculé par `Rings.Axis` dans le noyau, éprouvé par
 - `ensignMap` décide de l'**image** qui flotte (png, jpg ou webp). Absente, un
   pavillon `"jolly"` porte la tête de mort dessinée par le code. Les deux sont
   indépendants : on peut changer l'image sans changer de camp.
+- **Sous le noir, un seul pavillon** (Godot) : celui de la tête du grand mât (le plus haut). Pavillon
+  de poupe, flammes et pavillon de beaupré sont amenés — marques d'une marine et d'une nation qu'un
+  forban n'a pas. Si la fiche n'a pas de pavillon CARRÉ au grand mât (une flamme ne compte pas), le
+  jeu en prévoit un là, qui ne paraît que sous le noir. Le journal de la touche U dit ce qui flotte.
 
 Le build embarque l'image dans la page publiée, comme les voiles peintes. En
 cours de partie, `Naval.app.ship.setEnsignMap(chemin)` (ou celui d'une conserve)

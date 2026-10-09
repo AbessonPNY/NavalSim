@@ -108,6 +108,18 @@ public static class Config
     public static bool HelmSounds = false;
 
     /// <summary>
+    /// LA BARRE AUTOMATIQUE GARDE LE BORD OÙ LA MER L'A JETÉE : au près, rabattue de l'autre côté
+    /// du vent, elle prend ce bord-là au lieu de faire le tour du compas pour retrouver l'ancien
+    /// (AutoHelm, signalé : un pirate qui tournait en rond sous le vent de sa proie). Éteinte dans le
+    /// noyau — la page n'en sait rien et le banc de parité compare les deux barres —, allumée par Godot.
+    /// Avec elle, deux soins de PRÈS DE LA MARQUE : une bordée n'y dure pas plus que le temps de
+    /// l'atteindre (MinLeg en compte cinq minutes au large), et la limite du près a son hystérésis —
+    /// sans quoi une marque qui relève au bord du lit du vent la fait hésiter, et chaque hésitation
+    /// coûtait un tour complet.
+    /// </summary>
+    public static bool HelmKeepsTack = false;
+
+    /// <summary>
     /// LA GODILLE AU SAFRAN (ShipPhysics, « LA GODILLE ») : une lame qu'on balaie
     /// pousse l'eau même navire arrêté. Éteinte dans le noyau — la page n'en sait
     /// rien, le banc de parité compare les coques —, allumée par Godot.

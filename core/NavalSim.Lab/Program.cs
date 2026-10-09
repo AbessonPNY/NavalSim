@@ -73,6 +73,7 @@ switch (mode)
     case "nage": Nage(); break;
     case "contre": Contre(); break;
     case "abordage": Abordage(); break;
+    case "approche": Approche(); break;
     case "rumbs": foreach (double h in new[] { 0, 5.5, 11.25, 22.5, 56.25, 61, 67.5, 90, 135, 180, 200, 247.5, 270, 303.75, 348.75, 355 }) Console.WriteLine(FormattableString.Invariant($"{h,7:F2}° : {Compass.RumbShort(h),-8} {Compass.Rumb(h),-28} {Compass.Quadrantal(h)}")); Console.WriteLine(FormattableString.Invariant($"relèvement d un point au nord-est : {Compass.BearingDeg(0, 0, -1, 1):F1}°")); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
@@ -2290,4 +2291,77 @@ void Peche()
         }
         Console.WriteLine(FormattableString.Invariant($"sortie de 30 min sur le fond du {nom} ({d:F0} m) : {kgSum / 20:F0} kg, {fish / 20.0:F1} poissons, {lost / 20.0:F1} lignes cassees, {pieces / 20:F0} pieces ({pieces / 20 / 60:F1} ecus)"));
     }
+}
+
+/* L'APPROCHE D'ABORDAGE (signalé : « il a tourné pas mal avant d'aborder, malgré que j'avais mouillé
+   pour le laisser approcher »). Un pirate déjà décidé à l'abordage, parti à 600 m de huit relèvements
+   autour d'une proie MOUILLÉE — tenue à sa place, cap au vent, comme une coque évitée sur son ancre —,
+   avec les vrais grappins. On relève le temps jusqu'au pillage, ce qu'il a tourné et ce qu'il a couru.
+   [pirate] [proie] [force] */
+void Approche()
+{
+    string pn = args.Length > 1 ? args[1] : "sloop", qn = args.Length > 2 ? args[2] : "roebuck";
+    double force = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 4;
+    Config.WindGain = 8; Config.CrewTacks = true; Config.HelmBySpeed = true; Config.HelmKeepsTack = !(args.Length > 4 && args[4] == "avant"); Config.CrewTacks = true;   // as the game sets them (ShipDemo)
+    var ps = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, pn)));
+    var qs = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, qn)));
+    const double windDeg = 105;
+    Console.WriteLine(FormattableString.Invariant($"{ps.Name} aborde {qs.Name} mouillé, force {force}, vent du {windDeg}°"));
+    double sumT = 0; int ok = 0;
+    foreach (double from in new[] { 0, 45, 90, 135, 180, 225, 270, 315 })
+    {
+        var ocean = new Ocean { Swell = 1.0, Time = 0 };
+        ocean.SetSeaState(force, windDeg);
+        var q = new ShipPhysics(qs, new HullLines(qs));
+        var p = new ShipPhysics(ps, new HullLines(ps));
+        var qc = new Controls { SailsSet = false };
+        var pc = new Controls { SailsSet = true, Sheet = 0.6 };
+        q.Settle(ocean, qc); p.Settle(ocean, pc);
+        q.PlugEvery = 0; p.PlugEvery = 0;
+        // the prey lies head to wind, its bow towards where the wind comes from (heading = windFrom)
+        double wf = windDeg * Math.PI / 180;
+        q.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), wf);
+        // « from » is measured from the wind: 0 = the pirate starts dead to windward of her
+        double a = wf + from * Math.PI / 180;
+        p.Body.Pos = new Vec3d(q.Body.Pos.X - Math.Sin(a) * 600, p.Body.Pos.Y, q.Body.Pos.Z + Math.Cos(a) * 600);
+        double toQ = Math.Atan2(-(q.Body.Pos.X - p.Body.Pos.X), q.Body.Pos.Z - p.Body.Pos.Z);
+        p.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), toQ);
+        p.Body.Vel = p.Body.Quat.Rotate(new Vec3d(0, 0, 2));
+        var helm = new AutoHelm(p) { Standoff = 185 };
+        var pirate = new Pirate(185) { State = Pirate.Phase.Abordage, Cible = q };
+        var fleet = new List<Pirate.Sail> { new(q, null, false), new(p, null, true) };
+        var both = new List<ShipPhysics> { q, p };
+        var grapples = new Grapple();
+        var rng = new Random(7);
+        var q0 = q.Body.Pos; var qq = q.Body.Quat;
+        double dt = 1.0 / 60, t = 0, turned = 0, run = 0, lastThrow = -99, done = -1, closest = 1e9;
+        Vec3d f0 = p.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+        double hPrev = Math.Atan2(-f0.X, f0.Z);
+        while (t < 900 && done < 0)
+        {
+            double d = MathX.Hyp(q.Body.Pos.X - p.Body.Pos.X, q.Body.Pos.Z - p.Body.Pos.Z);
+            closest = Math.Min(closest, d);
+            if (d - (ps.B + qs.B) * 0.5 < Grapple.Portee && !grapples.Holds(q) && t - lastThrow > 6) { lastThrow = t; grapples.Throw(p, q, rng); }
+            pirate.Grappled = grapples.Holds(q);
+            string? ev = pirate.Pilot(dt, t, p, helm, fleet, q);
+            if (ev == "pillage" || ev == "carnage") { done = t; break; }
+            helm.Update(dt, ocean, pc);
+            grapples.Step(dt);
+            q.Step(dt, ocean, qc, t, both); p.Step(dt, ocean, pc, t, both);
+            // anchored: held at its berth and head to wind (the cable and the swing of a real anchor are AnchorNode's)
+            q.Body.Pos = new Vec3d(q0.X, q.Body.Pos.Y, q0.Z); q.Body.Vel = new Vec3d(0, q.Body.Vel.Y, 0);
+            q.Body.Quat = qq; q.Body.AngVel = new Vec3d(0, 0, 0);
+            t += dt; ocean.Time = t;
+            var fw = p.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+            double h = Math.Atan2(-fw.X, fw.Z);
+            turned += Math.Abs(Math.Atan2(Math.Sin(h - hPrev), Math.Cos(h - hPrev)));
+            hPrev = h;
+            run += p.Body.Vel.LengthXZ * dt;
+            if (Environment.GetEnvironmentVariable("APPROCHE_TRACE") == from.ToString(CultureInfo.InvariantCulture) && (int)(t / dt) % 300 == 0)
+                Console.WriteLine(FormattableString.Invariant($"    t {t,4:F0} d {d,5:F0} cap {(h * 180 / Math.PI + 360) % 360,4:F0} erre {p.Body.Vel.LengthXZ,4:F1} près {helm.Beating} lof {helm.Wearing} bord {helm.BeatSide} cible {(helm.Target is Vec3d tg ? MathX.Hyp(tg.X - p.Body.Pos.X, tg.Z - p.Body.Pos.Z) : -1),5:F0} toile {pc.Canvas:F2} plafond {helm.SpeedCap ?? -1:F1} grap {pirate.Grappled} tenu {pirate.Tenu:F1}"));
+        }
+        if (done > 0) { ok++; sumT += done; }
+        Console.WriteLine(FormattableString.Invariant($"  parti de {from,3:F0}° du vent : {(done > 0 ? $"pillé en {done,5:F0} s" : "pas abordé en 900 s")}, tourné de {turned * 180 / Math.PI,5:F0}°, couru {run,5:F0} m, au plus près {closest,4:F0} m"));
+    }
+    Console.WriteLine(FormattableString.Invariant($"  abordé {ok}/8, en moyenne {(ok > 0 ? sumT / ok : 0):F0} s"));
 }

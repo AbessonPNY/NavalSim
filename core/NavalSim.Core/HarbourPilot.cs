@@ -23,8 +23,7 @@ public sealed class HarbourPilot
     readonly double _need;
     readonly List<(double X, double Z)> _route;
     int _i = 1;
-    double _sinceTack, _irons, _wearUntil;
-    readonly bool _foreAft;
+    double _sinceTack;
 
     public readonly AutoHelm Helm;
     public bool Arrived { get; private set; }
@@ -51,7 +50,6 @@ public sealed class HarbourPilot
         // sa route est tracée dans l'eau et il a sa propre sonde : celle de la barre se tait
         Helm = new AutoHelm(ph, standoff: 0) { MinLeg = 60, Sounds = false };
         // un gréement aurique vire vent devant ; un carré abat, il n'a pas le choix
-        _foreAft = ph.Spec.Rig.Type is "gaff" or "lateen" or "sloop";
     }
 
     /// <summary>Partir d'une marque plus loin : un navire déjà en route quand la scène s'ouvre.</summary>
@@ -99,10 +97,7 @@ public sealed class HarbourPilot
            c'est s'échouer (relevé au banc : le sloop au départ de Port-Royal par
            force 6 de nord-nord-est). Mais sans assez d'élan elle reste prise vent
            debout : passé quarante secondes, elle abat pour cette fois. */
-        _wearUntil -= dt;
-        Helm.Tacks = _foreAft && Config.CrewTacks && _wearUntil <= 0;
-        if (Helm.Tacks && _ph.TackPhase == 1) { _irons += dt; if (_irons > 40) { _wearUntil = 120; _irons = 0; } }
-        else _irons = 0;
+        Helm.TackByRig(dt);
         var (tx, tz) = _route[Math.Min(_i, _route.Count - 1)];
         Helm.Target = new Vec3d(tx - ocean.Origin.X, 0, tz - ocean.Origin.Z);
         Helm.Update(dt, ocean, c);

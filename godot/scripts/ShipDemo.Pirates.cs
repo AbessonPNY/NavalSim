@@ -239,6 +239,6 @@ public partial class ShipDemo
         s.SyncTransform();
         Arm(s);
         Say("Une voile sous pavillon noir !");
-        GD.Print($"pirate : {s.Spec.Name} à {dist:F0} m, pavillon {s.Ensign?.Nationalite ?? s.Spec.Appearance.Ensign}, {s.Battery.Guns.Count} pièce(s)");
+        GD.Print($"pirate : {s.Spec.Name} à {dist:F0} m, pavillon {s.Ensign?.Nationalite ?? s.Spec.Appearance.Ensign}, {s.Battery.Guns.Count} pièce(s), pavillons {s.FlagsShown()}");
     }
 }
