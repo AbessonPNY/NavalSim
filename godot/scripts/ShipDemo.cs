@@ -230,6 +230,7 @@ public partial class ShipDemo : Node3D
         Config.HelmBySpeed = true;
         Config.HelmSounds = true;
         Config.HelmKeepsTack = true;
+        Config.HullYawDamp = true;
         // la godille au safran : des coups de barre secs poussent l eau même navire arrêté
         Config.RudderScull = true;
         // ce que coûte la carte (MapCost) : le monde lu, son terrassement, ses retouches

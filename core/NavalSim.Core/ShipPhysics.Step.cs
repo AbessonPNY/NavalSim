@@ -415,19 +415,29 @@ public sealed partial class ShipPhysics
         // écrit pour rendre 1 EXACTEMENT à flot : 0,05 + 0,95 n en est pas un, en virgule flottante
         double hold = DampInAir ? 1.0 : 1.0 - 0.95 * (1.0 - MathX.SmoothStep(WetHoldLo, WetHoldHi, Wet));
         double wy = b.AngVel.Dot(up);
+        /* the hull's own grip against turning, when it beats the flat rate (Config.HullYawDamp): its
+           lateral resistance spread over its length, k·L²/12 against the yaw inertia — and AS ITS WAY,
+           since it is the water running along her that resists: full at half her hull speed, and
+           nothing head to wind, or a dinghy could no longer tack (it stayed ten degrees off the wind) */
+        double yawK = 0.5;
+        if (Config.HullYawDamp)
+        {
+            double way = Math.Min(1, Math.Abs(vFwd) / (0.5 * Math.Sqrt(Config.G * S.L)));
+            yawK = Math.Max(0.5, S.LateralLinear * S.L * S.L / 12 / b.Ib.Y * way * HydroScale * inWater);
+        }
         /* LA FORMULE D'ORIGINE TANT QUE L'EAU LA TIENT : à flot, rien ne change, et
            la parité avec la page reste au bit près. Décomposer en trois axes donne
            le même nombre aux arrondis près — et ces arrondis-là, qu'aucune mer ne
            justifie, suffisaient à faire diverger le banc de parité en dix
            minutes. On ne décompose donc que quand le tangage doit s'en distinguer. */
         if (hold >= 1)
-            b.AngVel = (b.AngVel - up * wy) * (1 - 3.0 * dt) + up * (wy * (1 - 0.5 * dt));
+            b.AngVel = (b.AngVel - up * wy) * (1 - 3.0 * dt) + up * (wy * (1 - yawK * dt));
         else
         {
             double wp = b.AngVel.Dot(right), wr = b.AngVel.Dot(fwd);
             b.AngVel = fwd * (wr * (1 - 3.0 * dt))
                      + right * (wp * (1 - 3.0 * hold * dt))
-                     + up * (wy * (1 - 0.5 * dt));
+                     + up * (wy * (1 - yawK * dt));
         }
         double al = b.AngVel.Length;
         if (al > 4) b.AngVel = b.AngVel * (4 / al);

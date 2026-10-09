@@ -334,13 +334,19 @@ Le safran tourne avec la barre (`rudder.maxAngle` à fond), **à son rythme** :
 `rudder.hardOver` est le nombre de secondes pour aller de la barre droite à la
 barre à fond (par défaut 3 × √(longueur/24) : 3,4 s pour 30 m, 4,7 s pour 60 m).
 C'est cette position réelle qui fait tourner le navire, pas l'ordre donné — un
-gros navire répond donc tard — et c'est elle que suivent le safran et la roue. Dans un `.glb`, un
+gros navire répond donc tard — et c'est elle que suivent le safran et la roue (la page seule : sous
+Godot, le safran suit la barre). Dans un `.glb`, un
 objet nommé **`gouvernail`** (ou `rudder`, `safran`) est pivoté autour de son
 **bord avant** — là où il est ferré sur l'étambot — et autour de l'axe vertical
 du navire. Sans lui, le jeu dessine une planche sur l'étambot, à l'endroit où
 la coque finit sous la flottaison (sous la voûte, pas au tableau).
 `"model": { "rudder": false }` n'en dessine aucun ; une embarcation sans
 gouvernail (`rudder.power` à 0) n'en a pas.
+
+**Ce qui l'arrête de tourner** (Godot) : la carène, sa résistance latérale (`hydro.lateralGrip`)
+répartie sur sa longueur, comme son erre — ou un forfait de 0,5 /s s'il est plus fort, ce qu'il est
+pour tous nos navires. Un dériveur, lui, est tenu par sa dérive : l'ILCA cesse de tourner dès qu'on
+rend la barre.
 
 **La barre à roue** : un objet nommé **`barre`** (ou `wheel`, `helm`) tourne autour
 de son **axe le plus court** dans son propre repère — celui d'un disque, donc

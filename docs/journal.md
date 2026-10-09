@@ -14792,7 +14792,24 @@ par Godot, comme HelmBySpeed. Le compteur « tourné » du banc additionne aussi
 UN SEUL PAVILLON SOUS LE NOIR (demandé) : celui de la tête du grand mât. ShipNode.Flags : Flag.Main (carré, au plus haut mât) et
 Flag.PirateOnly (prévu là quand la fiche n'y a qu'une flamme ou rien) ; ApplyColours choisit selon UnderBlack. Le Roebuck pirate
 arbore 1 pavillon sur 4, le sloop 1 sur 2. EN PASSANT : la flamme du sloop (« mast »: 1) n'a jamais flotté — un sloop n'a qu'un
-mât, l'indice 1 n'existe pas.
+mât, l'indice 1 n'existe pas — corrigée (« mast »: 0), le sloop arbore 2 pavillons sur 3.
+
+LE SLOOP ZIGZAGUAIT (signalé, en pirate qui remontait). Banc Lab « cap » [fiche] [force] : la barre automatique vers une marque
+lointaine, écart type du cap sur deux minutes. Sloop, force 4 : ±1,8° au près, ±6,6° de travers, ±8,9° au grand largue, ±11,5°
+vent arrière. PLUS de barre aggravait tout (±30 à 47°) : la boucle était au bord de l'instabilité, et c'était L'AMORTISSEMENT —
+le terme sur le lacet, 2,6 — qui la poussait : il répond à chaque embardée de houle, avec retard. À 1,3 : ±1,6 / 4,8 / 1,5 / 2,8°,
+sans rien changer aux carrés. Sous Config.HelmBySpeed (Godot seul ; la page garde 2,6). LE MÊME BANC MONTRE AUTRE CHOSE, laissé :
+le Roebuck, les galions, la Couronne et le cotre perdent leur cap de ±25 à 50° à certaines allures (grand largue, vent arrière,
+le cotre au près) — des tours, indifférents à l'amortissement.
+
+L'ILCA « TOURNE SUR LUI-MÊME EN UNE SECONDE » (signalé). Banc Lab « barre » [fiche] [force] [vitesse] [butée] : 92° la première
+seconde, 215 °/s au plus — et au tiers de barre il tournait ENCORE, 462° en quatre secondes. Ce n'était pas la barre : le solveur
+freine le lacet d'un forfait, 0,5 /s pour tous, sa résistance latérale s'appliquant au centre de gravité (sans moment). Répartie
+sur la longueur, elle donne k·L²/12 contre l'inertie de lacet (banc « lacet ») : 0,14 à 0,51 /s pour tous nos navires — le
+forfait était juste —, mais 8 /s pour un dériveur, que sa dérive arrête de tourner aussitôt la barre rendue. Config.HullYawDamp
+(Godot seul) : le plus fort des deux, et COMME L'ERRE (plein à la moitié de la vitesse de carène, √(gL)/2) — constant, il
+l'empêchait de virer, resté à 10° du lit du vent (banc « virement »). Après : 42° la première seconde, 91 °/s au plus ; il vire
+à tous les gains de vent (2 s seul au gain du jeu). Les autres navires ne changent pas, par construction.
 ## Le pas de côté de l'œil, à bord (Godot)
 
 DEMANDÉ : « que les caméras fixes de bord se décalent latéralement en suivant la souris, sur une petite

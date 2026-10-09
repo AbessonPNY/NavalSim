@@ -120,6 +120,15 @@ public static class Config
     public static bool HelmKeepsTack = false;
 
     /// <summary>
+    /// LE LACET FREINÉ PAR LA CARÈNE (ShipPhysics.Step) : la résistance latérale, répartie sur la
+    /// longueur, s'oppose à la rotation — k·L²/12 contre l'inertie de lacet. Le solveur ne connaissait
+    /// qu'un forfait de 0,5 /s, juste pour tous nos navires (0,14 à 0,51) sauf le dériveur, à qui sa
+    /// dérive en donne 8 : l'ILCA virait sur lui-même en une seconde (signalé). On prend le plus fort
+    /// des deux. Éteint dans le noyau (parité), allumé par Godot.
+    /// </summary>
+    public static bool HullYawDamp = false;
+
+    /// <summary>
     /// LA GODILLE AU SAFRAN (ShipPhysics, « LA GODILLE ») : une lame qu'on balaie
     /// pousse l'eau même navire arrêté. Éteinte dans le noyau — la page n'en sait
     /// rien, le banc de parité compare les coques —, allumée par Godot.

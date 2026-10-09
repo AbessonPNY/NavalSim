@@ -362,7 +362,7 @@
   "trafic": {
     "_aide": "LA VIE D UNE RADE : des navires qui partent et arrivent a heure fixe, selon les horaires de world/horaires/<region>.json (postes, departs, arrivees, navires candidats). Ce sont des navires du jeu, menes par un pilote de rade qui contourne la terre (HarbourRoute, HarbourPilot ; banc : rade). navires : combien a la fois au plus, a quai compris. fiches : les candidats d un mouvement qui n en nomme pas (des voiliers ; le cotre et la vedette sont a machine). forceMax : au-dela, ni depart ni arrivee — par gros temps on reste au port. portee : a quelle distance du port la rade vit, en metres.",
     "enabled": true,
-    "navires": 12,
+    "navires": 6,
     "fiches": ["sloop", "schooner"],
     "forceMax": 5,
     "portee": 5000

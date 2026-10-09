@@ -58,7 +58,7 @@
   ],
   "flags": [
     { "at": "stern", "size": 0.8, "image": "nation:poupe" },
-    { "mast": 1, "shape": "streamer", "size": 0.5, "image": "nation" }
+    { "mast": 0, "shape": "streamer", "size": 0.5, "image": "nation" }
   ],
   "appearance": {
     "hull": "0x2a3a33",

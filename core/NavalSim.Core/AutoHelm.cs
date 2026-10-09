@@ -308,7 +308,12 @@ public sealed class AutoHelm
             double v = Math.Max(0.1, b.Vel.LengthXZ);
             k = Math.Clamp((HelmRef / v) * (HelmRef / v), 0.12, 1);
         }
-        c.Rudder = Math.Max(-1, Math.Min(1, k * (eUse * 1.9 + _iErr - rate * 2.6)));
+        /* ET MOINS D'AMORTISSEMENT, avec le gain de vent du jeu : à 2,6 la barre réagissait à chaque
+           embardée de houle, en retard, et le sloop serpentait de ±9° au grand largue, ±11 vent arrière
+           (signalé : « le sloop a encore tendance à zigzaguer »). À 1,3 : ±1,5° et ±2,8° (banc « cap »),
+           sans rien changer aux autres coques. La page garde le sien. */
+        double kd = Config.HelmBySpeed ? 1.3 : 2.6;
+        c.Rudder = Math.Max(-1, Math.Min(1, k * (eUse * 1.9 + _iErr - rate * kd)));
 
         /* Les écoutes sur la marque que le solveur trace déjà pour la console. Rien
            ne FASEYE : ôter la poussée pour laisser le gouvernail seul est ce que

@@ -291,6 +291,7 @@ public partial class ShipNode
             _flags.Add(black);
         }
         ApplyColours();
+        RigLog.Add($"pavillons : {_flags.Count} déclarés, {FlagsShown()} hissés");
     }
 
     /// <summary>Un point du repère de <paramref name="parent"/> dans celui du navire.</summary>

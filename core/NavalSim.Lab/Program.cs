@@ -74,6 +74,9 @@ switch (mode)
     case "contre": Contre(); break;
     case "abordage": Abordage(); break;
     case "approche": Approche(); break;
+    case "cap": CapTenu(); break;
+    case "barre": BarreMain(); break;
+    case "lacet": LacetCarene(); break;
     case "rumbs": foreach (double h in new[] { 0, 5.5, 11.25, 22.5, 56.25, 61, 67.5, 90, 135, 180, 200, 247.5, 270, 303.75, 348.75, 355 }) Console.WriteLine(FormattableString.Invariant($"{h,7:F2}° : {Compass.RumbShort(h),-8} {Compass.Rumb(h),-28} {Compass.Quadrantal(h)}")); Console.WriteLine(FormattableString.Invariant($"relèvement d un point au nord-est : {Compass.BearingDeg(0, 0, -1, 1):F1}°")); break;
     default:
         Console.Error.WriteLine($"mode inconnu : {mode}");
@@ -1138,6 +1141,7 @@ void Virement()
     Config.WindGain = args.Length > 5 ? double.Parse(args[5], CultureInfo.InvariantCulture) : 8;
     double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 4;
     var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
+    Config.HullYawDamp = Environment.GetEnvironmentVariable("LACET") != "0";
     Console.WriteLine($"{spec.Name}, force {force:F0}, virement de 70° à -70° du vent");
     foreach (bool crew in new[] { false, true })
     foreach (double gain in new[] { 1.0, 2.0, 4.0, 8.0 })
@@ -2302,7 +2306,7 @@ void Approche()
 {
     string pn = args.Length > 1 ? args[1] : "sloop", qn = args.Length > 2 ? args[2] : "roebuck";
     double force = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 4;
-    Config.WindGain = 8; Config.CrewTacks = true; Config.HelmBySpeed = true; Config.HelmKeepsTack = !(args.Length > 4 && args[4] == "avant"); Config.CrewTacks = true;   // as the game sets them (ShipDemo)
+    Config.WindGain = 8; Config.CrewTacks = true; Config.HelmBySpeed = true; Config.HelmKeepsTack = !(args.Length > 4 && args[4] == "avant"); Config.HullYawDamp = true; Config.CrewTacks = true;   // as the game sets them (ShipDemo)
     var ps = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, pn)));
     var qs = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, qn)));
     const double windDeg = 105;
@@ -2364,4 +2368,98 @@ void Approche()
         Console.WriteLine(FormattableString.Invariant($"  parti de {from,3:F0}° du vent : {(done > 0 ? $"pillé en {done,5:F0} s" : "pas abordé en 900 s")}, tourné de {turned * 180 / Math.PI,5:F0}°, couru {run,5:F0} m, au plus près {closest,4:F0} m"));
     }
     Console.WriteLine(FormattableString.Invariant($"  abordé {ok}/8, en moyenne {(ok > 0 ? sumT / ok : 0):F0} s"));
+}
+
+/* LE CAP TENU (signalé : « le sloop a encore tendance à zigzaguer »). La barre automatique, réglée comme
+   le jeu la règle, mène vers une marque lointaine à une allure donnée ; après trente secondes pour
+   s'établir, on relève sur deux minutes l'écart type du cap, le lacet moyen et la barre moyenne.
+   [fiche] [force] */
+void CapTenu()
+{
+    string name = args.Length > 1 ? args[1] : "sloop";
+    double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 4;
+    Config.WindGain = 8; Config.CrewTacks = true; Config.HelmBySpeed = true; Config.HelmKeepsTack = true; Config.HullYawDamp = true;
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
+    const double windDeg = 105;
+    Console.WriteLine(FormattableString.Invariant($"{spec.Name}, force {force}"));
+    foreach (var (label, offDeg) in new[] { ("au près (marque au vent)", 0.0), ("vent de travers", 90.0), ("grand largue", 135.0), ("vent arrière", 180.0) })
+    {
+        var ocean = new Ocean { Swell = 1.0, Time = 0 };
+        ocean.SetSeaState(force, windDeg);
+        var ph = new ShipPhysics(spec, new HullLines(spec));
+        var c = new Controls { SailsSet = true, Sheet = 0.6 };
+        ph.Settle(ocean, c);
+        double wf = windDeg * Math.PI / 180, a = wf + offDeg * Math.PI / 180;
+        var helm = new AutoHelm(ph) { Standoff = 0, Target = new Vec3d(-Math.Sin(a) * 20000, 0, Math.Cos(a) * 20000) };
+        double h0 = offDeg == 0 ? wf + helm.CloseHauled : a;
+        ph.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), h0);
+        double dt = 1.0 / 60, t = 0, n = 0, sumS = 0, sumC = 0, rate = 0, rud = 0, speed = 0;
+        var hs = new List<double>();
+        while (t < 150)
+        {
+            helm.Update(dt, ocean, c);
+            ph.Step(dt, ocean, c, t); t += dt; ocean.Time = t;
+            if (t < 30) continue;
+            var fw = ph.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+            double h = Math.Atan2(-fw.X, fw.Z);
+            hs.Add(h); sumS += Math.Sin(h); sumC += Math.Cos(h);
+            rate += Math.Abs(ph.Body.AngVel.Y); rud += Math.Abs(c.Rudder); speed += ph.Body.Vel.LengthXZ; n++;
+        }
+        double mean = Math.Atan2(sumS, sumC), sq = 0;
+        foreach (double h in hs) { double e = Math.Atan2(Math.Sin(h - mean), Math.Cos(h - mean)); sq += e * e; }
+        Console.WriteLine(FormattableString.Invariant($"  {label,-26} : cap ±{Math.Sqrt(sq / n) * 180 / Math.PI,4:F1}°, lacet moyen {rate / n * 180 / Math.PI,4:F1}°/s, barre moyenne {rud / n,4:F2}, erre {speed / n / 0.5144,4:F1} nd"));
+    }
+}
+
+/* LA BARRE À LA MAIN (signalé : l'ILCA « tourne quasiment sur lui-même en une seconde »). Au vent de
+   travers, établi trente secondes, puis la barre tenue d'un bord comme le clavier la donne (elle va
+   vers le bout à « vitesse » par seconde, jusqu'à « butée ») : ce qu'il a tourné en une, deux et
+   quatre secondes, et son lacet le plus vif. [fiche] [force] [vitesse] [butée] */
+void BarreMain()
+{
+    string name = args.Length > 1 ? args[1] : "ilca4";
+    double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 4;
+    double rate = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 1.6;
+    double stop = args.Length > 4 ? double.Parse(args[4], CultureInfo.InvariantCulture) : 1;
+    Config.WindGain = 8; Config.CrewTacks = true; Config.HullYawDamp = Environment.GetEnvironmentVariable("LACET") != "0";
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
+    const double windDeg = 105;
+    var ocean = new Ocean { Swell = 1.0, Time = 0 };
+    ocean.SetSeaState(force, windDeg);
+    var ph = new ShipPhysics(spec, new HullLines(spec));
+    var c = new Controls { SailsSet = true, Sheet = 0.6 };
+    ph.Settle(ocean, c);
+    double wf = windDeg * Math.PI / 180;
+    ph.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), wf + Math.PI / 2);
+    double dt = 1.0 / 60, t = 0;
+    while (t < 30) { if (ph.OptSheet is double o) c.Sheet = o; ph.Step(dt, ocean, c, t); t += dt; ocean.Time = t; }
+    var f0 = ph.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+    double h0 = Math.Atan2(-f0.X, f0.Z), hPrev = h0, turned = 0, peak = 0, v0 = ph.Body.Vel.LengthXZ;
+    var at = new Dictionary<int, double>();
+    for (double s = 0; s < 4.0001; s += dt)
+    {
+        c.Rudder = Math.Min(stop, c.Rudder + rate * dt);
+        if (ph.OptSheet is double o) c.Sheet = o;
+        ph.Step(dt, ocean, c, t); t += dt; ocean.Time = t;
+        var fw = ph.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+        double h = Math.Atan2(-fw.X, fw.Z);
+        turned += Math.Atan2(Math.Sin(h - hPrev), Math.Cos(h - hPrev)); hPrev = h;
+        peak = Math.Max(peak, Math.Abs(ph.Body.AngVel.Y));
+        foreach (int k in new[] { 1, 2, 4 }) if (!at.ContainsKey(k) && s + dt >= k) at[k] = turned;
+    }
+    Console.WriteLine(FormattableString.Invariant($"{spec.Name}, force {force}, erre {v0 / 0.5144:F1} nd ; barre {rate}/s jusqu'à {stop} : tourné {Math.Abs(at[1]) * 180 / Math.PI:F0}° en 1 s, {Math.Abs(at[2]) * 180 / Math.PI:F0}° en 2 s, {Math.Abs(at[4]) * 180 / Math.PI:F0}° en 4 s ; lacet au plus {peak * 180 / Math.PI:F0}°/s"));
+}
+
+/* LE LACET QUE LA CARÈNE FREINERAIT : la résistance latérale (lateralGrip × plan de dérive) répartie
+   sur la longueur, contre l'inertie de lacet — le taux auquel elle éteindrait une rotation, à
+   comparer au 0,5 /s que le solveur applique à tous. */
+void LacetCarene()
+{
+    foreach (string name in new[] { "ilca4", "chaloupe", "sloop", "cotre", "schooner", "roebuck", "pirate", "frigate17e", "frigate" })
+    {
+        var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
+        var ph = new ShipPhysics(spec, new HullLines(spec));
+        double k = spec.LateralLinear, L = spec.L, Iy = ph.Body.Ib.Y, m = ph.Body.Mass;
+        Console.WriteLine(FormattableString.Invariant($"  {name,-11} L {L,5:F1} m  masse {m / 1000,7:F2} t  Iy {Iy,12:E2}  k {k,10:F0}  k·L²/12/Iy {k * L * L / 12 / Iy,6:F2} /s  k/m {k / m,6:F2} /s"));
+    }
 }
