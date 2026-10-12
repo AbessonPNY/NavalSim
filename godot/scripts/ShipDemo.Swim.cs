@@ -51,6 +51,13 @@ public partial class ShipDemo
     readonly PlacedSet _swimPlaced = new();
     Node3D? _swimRoot;
     readonly Dictionary<string, Node3D?> _swimModels = new();
+    /// <summary>Par sorte : l'échelle qui ramène le modèle à sa taille vraie, et le milieu de sa boîte.</summary>
+    readonly Dictionary<string, (float Scale, Vector3 Mid, Vector3 Size)> _swimFit = new();
+    /// <summary>
+    /// La plus grande dimension VRAIE de ce qui se ramasse : un modèle refait ailleurs (Tripo, Blender)
+    /// arrive à n'importe quelle échelle — l'huître en faisait près d'un mètre.
+    /// </summary>
+    static readonly Dictionary<string, float> SwimTrueSize = new() { ["lambi"] = 0.24f, ["huitre"] = 0.07f };
     readonly List<RockField.Rock> _swimRocks = new();
     readonly List<Find> _swimBuf = new();
     Find? _swimNear;
@@ -312,7 +319,7 @@ public partial class ShipDemo
             var up = new Vector3((float)f.Up.X, (float)f.Up.Y, (float)f.Up.Z).Normalized();
             var axis = Vector3.Up.Cross(up);
             var tilt = axis.LengthSquared() > 1e-6f ? new Basis(axis.Normalized(), Vector3.Up.AngleTo(up)) : Basis.Identity;
-            node.Basis = tilt * new Basis(Vector3.Up, (float)f.Yaw);
+            node.Basis = tilt * new Basis(Vector3.Up, (float)f.Yaw) * Basis.FromScale(Vector3.One * SwimFitOf(f.Kind).Scale);
             var hold = new Node3D { Name = f.Kind };
             hold.AddChild(node);
             _swimRoot!.AddChild(hold);
@@ -330,9 +337,18 @@ public partial class ShipDemo
             tmpl = System.IO.File.Exists(path) ? Assets.LoadGlb(path) : null;
             if (tmpl == null) GD.PushWarning($"[nage] props/fond/{kind}.glb introuvable");
             _swimModels[kind] = tmpl;
+            if (tmpl != null && NodeWalk.Bounds(tmpl) is Aabb box)
+            {
+                float big = Math.Max(box.Size.X, Math.Max(box.Size.Y, box.Size.Z));
+                float s = big > 1e-4f && SwimTrueSize.TryGetValue(kind, out float real) ? real / big : 1;
+                _swimFit[kind] = (s, box.GetCenter(), box.Size);
+            }
         }
         return tmpl?.Duplicate() as Node3D;
     }
+
+    (float Scale, Vector3 Mid, Vector3 Size) SwimFitOf(string kind) =>
+        _swimFit.TryGetValue(kind, out var fit) ? fit : (1, Vector3.Zero, Vector3.Zero);
 
     void SwimTake()
     {

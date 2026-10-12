@@ -16538,7 +16538,9 @@ la caméra et la boîte celle des bras (`ArmsBox`) : ramenés avec elle, ils res
 
 ÉCARTS DITS : le bordé est pris à sa largeur de FLOTTAISON jusqu'en haut (`HullCollider` ne suit
 pas l'évasement ni la rentrée des hauts) : sur une coque à forte rentrée les poings tiennent un
-peu en l'air. Le lambi serré dans le poing garde l'orientation de son modèle.
+peu en l'air.
+
+CE QUE TIENT LE POING (demandé : « tourne le lambi pour qu'il tienne bien ») : pris par le corps, en travers de la paume comme une bouteille — la spire (+X du modèle) sort côté pouce, le dos épineux (+Y) vers l'extérieur, la lèvre contre la paume (`HeldBasis`, `HeldPose`) ; son milieu devant la paume de sa demi-épaisseur, six centimètres au plus — un lambi est plus gros qu'un poing, la main le tient par le flanc. TROUVÉ EN PASSANT : `props/fond/huitre.glb`, refait par Tripo, mesurait 0,97 m — une huître d'un mètre au fond. Ce qui se ramasse est ramené à sa taille VRAIE par sa plus grande dimension (`SwimTrueSize` : lambi 24 cm, huître 7 cm), au fond comme dans la main.
 
 Essai : `--nage 2 --nage-vers lambi --nage-prendre 1` (prendre puis monter) ; `--nage-avancer 1`
 (2 en forçant) tient la brasse. Vérifié en captures à `--fixed-fps 60` : godille, écart, retour,

@@ -269,7 +269,7 @@ public partial class ShipDemo
             if (g.Copy != null && _armR.Fist != null)
             {
                 _armR.Fist.AddChild(g.Copy);
-                g.Copy.Position = ArmGrip;
+                g.Copy.Transform = HeldPose(g.F.Kind);
             }
         }
         if (g.T >= g.Reach + GrabHold + GrabBack)
@@ -277,6 +277,26 @@ public partial class ShipDemo
             g.Copy?.QueueFree();
             _grab = null;
         }
+    }
+
+    /* CE QUE LE POING TIENT, dans le repère de la main (doigts +Y, paume +Z, pouce +X).
+       Le lambi (tools/reef-glb.js) a sa spire vers +X, son dos épineux vers +Y et sa
+       lèvre dessous : on le prend par le corps, en travers de la paume comme une
+       bouteille — la spire sort du côté du pouce, le dos tourné vers l'extérieur,
+       la lèvre contre la paume. L'huître, plate dans son XZ, se tient de même : à
+       plat contre la paume. */
+    static readonly Basis HeldBasis = new(new Vector3(1, 0, 0), new Vector3(0, 0, 1), new Vector3(0, -1, 0));
+
+    Transform3D HeldPose(string kind)
+    {
+        var (s, mid, size) = SwimFitOf(kind);
+        var b = HeldBasis * Basis.FromScale(Vector3.One * s);
+        /* Son milieu devant la paume de la moitié de son épaisseur — mais pas plus loin
+           que les doigts repliés ne vont (6 cm) : un lambi est plus gros qu'un poing,
+           la main le tient par le flanc, elle n'en fait pas le tour. */
+        float depth = Mathf.Min(0.015f + 0.5f * size.Y * s, 0.06f);
+        var at = new Vector3(0, ArmGrip.Y, depth);
+        return new Transform3D(b, at - b * mid);
     }
 
     HandGoal GrabGoal(SwimGrab g, HandGoal rest)
