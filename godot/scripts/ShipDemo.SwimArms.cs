@@ -513,7 +513,15 @@ public partial class ShipDemo
         if (_climb == null || _swim == null) return;
         var c = _climb;
         c.T += dt;
-        if (c.T >= c.Done) { _climb = null; SwimBoarded(); return; }
+        if (c.T >= c.Done)
+        {
+            // la montée finie, l'œil reste où elle l'a mis : sur le pont, à bord de ce navire
+            var (end, endPitch) = ClimbEye(c, c.Done);
+            _climb = null;
+            SwimBoarded();
+            EnterAboard(end, c.Sx, endPitch);
+            return;
+        }
         var b = _ship.Physics.Body;
         var o = _sea.Core.Origin;
         var (eye, pitch) = ClimbEye(c, c.T);

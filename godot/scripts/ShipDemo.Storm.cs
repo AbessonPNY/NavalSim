@@ -149,7 +149,7 @@ public partial class ShipDemo
         if (_sound == null || _ship == null) return;
         bool inside = _gunPost == null && _camMode == 1
                    && _deck >= 0 && _deck < _ship.Spec.Decks.Count
-                   && _ship.Spec.Decks[_deck].Closed;
+                   && CurDeck.Closed;
         double want = inside ? 1 : 0;
         double step = dt / 0.125;
         _indoors += Math.Clamp(want - _indoors, -step, step);

@@ -149,7 +149,7 @@ public partial class ShipDemo
 
     string CamName() => _gunPost is int post ? "Pièce de " + GunNames[post] : _camMode switch
     {
-        1 => _ship.Spec.Decks[_deck].Name,
+        1 => CurDeck.Name,
         2 => "Fixe",
         3 => "Mi-eau",
         4 => "Ponton",
@@ -248,7 +248,14 @@ public partial class ShipDemo
         DryLens();
         // depuis la cloche, on revient à l'orbite ; la cloche reste au bout de son câble
         if (_camMode == CamBell) { _camMode = 0; SetLens(OutsideFov, OutsideNear); }
-        else if (_camMode == 0) { _camMode = 1; _deck = 0; EnterDeck(); }
+        else if (_camMode == 0) { _camMode = 1; _deck = 0; _aboard = null; EnterDeck(); }
+        // de là où l'on est monté, C reprend les vues de la fiche à la première
+        else if (_camMode == 1 && _aboard != null)
+        {
+            _aboard = null;
+            if (_ship.Spec.Decks.Count > 0) { _deck = 0; EnterDeck(); }
+            else { _camMode = 2; SetLens(OutsideFov, OutsideNear); Plant(); }
+        }
         else if (_camMode == 1 && _deck + 1 < _ship.Spec.Decks.Count) { _deck++; EnterDeck(); }
         else if (_camMode == 1) { _camMode = 2; SetLens(OutsideFov, OutsideNear); Plant(); }
         else if (_camMode == 2) { _camMode = 3; SetLens(OutsideFov, OutsideNear); }
@@ -274,9 +281,34 @@ public partial class ShipDemo
     /* Entrer dans une vue : regard remis droit devant ELLE, sa focale et son plan
        proche. Un intérieur en demande un bien plus court que la mer : une
        cloison à portée de main serait coupée net. */
+    /* LA VUE DE CELUI QUI VIENT DE MONTER À BORD (demandé : « fais passer la caméra sur
+       le pont après la montée ») : une vue à bord de plus, hors de la fiche, posée là
+       où la montée a fini — le plat-bord enjambé, debout sur le pont, le regard vers
+       l'intérieur. Elle tient jusqu'au prochain C, et ne vaut que pour CE navire. */
+    NavalSim.Core.DeckView? _aboard;
+    ShipNode? _aboardOf;
+
+    NavalSim.Core.DeckView CurDeck =>
+        _aboard != null && _aboardOf == _ship ? _aboard : _ship.Spec.Decks[_deck];
+
+    void EnterAboard(Vec3d eye, int side, double pitch)
+    {
+        _aboard = new NavalSim.Core.DeckView
+        {
+            Name = "À bord, au plat-bord",
+            X = eye.X, Y = eye.Y, Z = eye.Z,
+            Yaw = -side * 90,                 // vers l'intérieur : le bord opposé
+            Pitch = pitch * 180 / Math.PI
+        };
+        _aboardOf = _ship;
+        _camMode = 1;
+        EnterDeck();
+        UpdateInfo();
+    }
+
     void EnterDeck()
     {
-        var v = _ship.Spec.Decks[_deck];
+        var v = CurDeck;
         _bridgeYaw = 0; _bridgePitch = 0;
         DryLens();
         SetLens((float)(v.Fov ?? OutsideFov), (float)(v.Near ?? OutsideNear));
@@ -327,7 +359,7 @@ public partial class ShipDemo
     void DeckCamera()
     {
         var spec = _ship.Spec;
-        var v = spec.Decks[_deck];
+        var v = CurDeck;
         /* DERRIÈRE LA PIÈCE, DANS SON AXE : la vue d'une pièce se pose sur elle
            et non sur des coordonnées écrites à la main — un canon de chasse
            ouvert de 38° emmène sa vue avec lui. */
