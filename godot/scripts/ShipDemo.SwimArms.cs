@@ -195,22 +195,29 @@ public partial class ShipDemo
     /// <summary>Chaque image, une fois l'œil posé : où vont les mains, puis les bras qui les y portent.</summary>
     void ArmsPose(double dt)
     {
-        if (_arms == null && !_swimming) return;     // chargé à la première plongée seulement
+        /* À BORD AUSSI (demandé : « ses mains visibles sur le pont et la dunette ») : dans
+           toute vue à bord où l'on se tient — celles de la fiche et celle où l'on arrive par
+           l'échelle —, mais pas à la pièce, où l'œil est celui d'un servant posé sur le tube,
+           ni pendant un film, au titre ou en mode création. */
+        bool aboard = !_swimming && _camMode == 1 && _gunPost == null && _fixEye == null
+                      && _film == null && !_inTitle && !_editing;
+        if (_arms == null && !_swimming && !aboard) return;     // chargé à la première fois qu'il sert
         ArmsLoad();
         if (_arms == null) return;
-        bool show = _swimming && _swim != null && _camMode == CamSwim && _fixEye == null;
+        bool swimShow = _swimming && _swim != null && _camMode == CamSwim && _fixEye == null;
+        bool show = swimShow || aboard;
         _arms.Visible = show;
         // la mer ne mire pas ce qui est à portée de bras de l'œil : les bras eux-mêmes
         _sea.Material?.SetShaderParameter(UMirrorNear, show ? 1.2f : 0f);
         // à l'eau tant qu'on nage, et pendant qu'on vient au flanc ; hors de l'eau dès qu'on s'y hisse — et elle sèche encore à bord
         ArmsSkinTick(dt, _swimming && (_climb == null || _climb.T < _climb.Approach + ClimbStep));
-        if (!show) { _armR.Init = _armL.Init = false; return; }
-        var s = _swim!;
+        if (!show) { _armR.Init = _armL.Init = false; _idle = 0; _inspect = -1; return; }
 
         HandGoal right, left;
         float rate = 16;
-        if (_climb != null) { ClimbHands(out right, out left); rate = 22; }
-        else if (s.Blackout || _swimRescue)
+        if (aboard) { DeckHands(dt, out right, out left); rate = 7; }
+        else if (_climb != null) { ClimbHands(out right, out left); rate = 22; }
+        else if (_swim!.Blackout || _swimRescue)
         {
             // les bras lâchent, et tombent hors de la vue
             right = new HandGoal(new(0.24f, -0.62f, -0.12f), new(0, -1, -0.2f), new(-1, 0, 0), new(1, 0, 0.5f));
@@ -219,6 +226,7 @@ public partial class ShipDemo
         }
         else
         {
+            var s = _swim!;
             right = s.Stroke < 90 ? StrokeGoal(s.Stroke) : ScullGoal(1);
             left = s.Stroke < 90 ? right.Mirror() : ScullGoal(-1);
             if (_grab != null) right = GrabGoal(_grab, right);
@@ -229,6 +237,61 @@ public partial class ShipDemo
         ArmSolve(_armL);
         // ce que la main droite tient la suit
         if (_grab?.Copy is { } held) held.Transform = _armR.HandXf * HeldPose(_grab.F.Kind);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* À BORD : les mains au repos, et celle qu'on regarde sécher.         */
+    /* ------------------------------------------------------------------ */
+
+    /* AU REPOS, les avant-bras portés en avant, mains détendues, paumes en dedans :
+       on les voit au bas de l'image en regardant droit devant (pendus le long du corps, on ne les verrait qu'en baissant les yeux).
+       La respiration les soulève à peine (≈ 15 par minute). */
+    static readonly HandGoal DeckRest = new(new(0.21f, -0.22f, -0.40f), new(0.08f, -0.3f, -0.95f), new(-0.9f, -0.3f, 0.1f), new(1, -0.5f, 0.4f));
+    /* LA MAIN QU'ON REGARDE (demandé : « quand on ne bouge pas cinq secondes, il fait
+       tourner sa main devant ses yeux comme s'il observait sa peau sécher ») : la droite
+       monte devant le visage, doigts en haut, et tourne — la paume, puis le dos, deux fois
+       —, puis redescend. Le poignet ne casse pas (WristBend) : c'est l'avant-bras qui se
+       dresse, le coude en bas. */
+    const double IdleAfter = 5, InspectRise = 0.9, InspectLook = 4.4, InspectFall = 0.9, InspectAgain = 12;
+    double _idle, _inspect = -1;
+    Vector2 _idleMouse;
+    double _idleYaw, _idlePitch;
+
+    void DeckHands(double dt, out HandGoal right, out HandGoal left)
+    {
+        // ne pas bouger : ni touche, ni souris, ni regard qui tourne
+        var mouse = GetViewport().GetMousePosition();
+        bool moved = Input.IsAnythingPressed() || mouse.DistanceTo(_idleMouse) > 1
+                     || Math.Abs(_bridgeYaw - _idleYaw) > 1e-4 || Math.Abs(_bridgePitch - _idlePitch) > 1e-4;
+        _idleMouse = mouse; _idleYaw = _bridgeYaw; _idlePitch = _bridgePitch;
+        if (moved) { _idle = 0; if (_inspect >= 0 && _inspect < InspectRise + InspectLook) _inspect = InspectRise + InspectLook; }
+        else _idle += dt;
+        if (_inspect < 0 && _idle >= IdleAfter) _inspect = 0;
+
+        float breath = 0.008f * Mathf.Sin((float)(_t * Math.PI * 2 / 4.0));
+        var rest = DeckRest;
+        rest.Wrist += new Vector3(0, breath, 0);
+        right = rest;
+        left = rest.Mirror();
+        if (_inspect < 0) return;
+
+        _inspect += dt;
+        double t = _inspect;
+        if (t >= InspectRise + InspectLook + InspectFall)
+        {
+            _inspect = -1;
+            _idle = IdleAfter - InspectAgain;        // la suivante, s'il ne bouge toujours pas, dans douze secondes
+            return;
+        }
+        // la paume tourne vers le visage, puis le dos, puis revient : deux allers-retours
+        double look = Math.Clamp((t - InspectRise) / InspectLook, 0, 1);
+        float turn = (float)(1.5 - 1.5 * Math.Cos(look * Math.PI * 4));
+        var palm = new Vector3(-Mathf.Sin(turn) * 0.9f, -0.1f, Mathf.Cos(turn));
+        var up = new HandGoal(new(0.07f, -0.07f, -0.33f), new(-0.08f, 1, 0.12f), palm, new(0.5f, -1, 0.1f));
+        double u = t < InspectRise ? t / InspectRise
+                 : t < InspectRise + InspectLook ? 1
+                 : 1 - (t - InspectRise - InspectLook) / InspectFall;
+        right = HandGoal.Lerp(rest, up, (float)MathX.Smooth01(u));
     }
 
     /// <summary>Le coup de brasse à ce temps-là : entre deux clés, lissé.</summary>
