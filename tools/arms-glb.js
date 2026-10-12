@@ -23,6 +23,11 @@
  * pouce vers +X pour la droite, −X pour la gauche (la gauche est le miroir de la
  * droite). La main fermée serre ce qui est à 7 cm du poignet, devant la paume.
  * Unités : le mètre ; la main mesure 19 cm du poignet au bout du majeur.
+ *
+ * DANS BLENDER : déplacez les objets à votre guise, mais N'APPLIQUEZ NI LA ROTATION
+ * NI L'ÉCHELLE d'un objet tourné (Ctrl A) sans le remettre debout : le jeu lit la
+ * maille dans le repère de l'objet, l'origine à l'articulation. Garder l'origine
+ * là où elle est (épaule, coude, poignet).
  */
 const { writeGlb } = require('./glb-write');
 
@@ -176,26 +181,47 @@ function hand(curl, thumbCurl) {
     const nb = add(tip, mul(back, -f.r * 0.62));
     tube(nails, [sub(nb, mul(dir, 0.006)), add(nb, mul(dir, 0.004))], [f.r * 0.7, f.r * 0.7], [f.r * 0.2, f.r * 0.2], [1, 0, 0], 10);
   }
-  // le pouce : il part du bas de la paume, côté +X, en avant ; fermé, il passe sur les doigts
+  /* LE POUCE : DEUX phalanges libres, pas trois. Son premier os, le métacarpien, est
+     pris dans la paume : il n'en sort que l'éminence, ce gras du pouce qui la prolonge
+     vers le poignet. On le dessine donc en un renflement fondu dans le bord de la
+     paume, jusqu'à la jointure (la métacarpo-phalangienne), puis les deux phalanges,
+     pliées à la jointure et au bout ; l'ongle sur la dernière. Ouvert, il s'écarte en
+     avant ; fermé, il passe en travers des doigts repliés. */
   {
-    let p = [0.030, 0.018, 0.010];
-    let dir = norm([0.70 - 0.55 * thumbCurl, 0.68, 0.25 + 0.55 * thumbCurl]);
-    const path = [p], rx = [0.014], rz = [0.013];
-    const bones = [0.040, 0.032, 0.028];
-    for (let b = 0; b < 3; b++) {
-      const a = (0.2 + 0.6 * thumbCurl) * (b > 0 ? 1 : 0.3);
-      // le pouce plie vers la paume et vers l'index
-      const axis = norm([0.3, -0.5, 0.8]);
-      const c = Math.cos(a), s = Math.sin(a);
-      dir = norm(add(add(mul(dir, c), mul(cross(axis, dir), s)), mul(axis, dot(axis, dir) * (1 - c))));
+    const c = thumbCurl;
+    // l'éminence : du talon de la main à la jointure, large et plate, dans le bord de la paume
+    const base = [0.016, 0.008, 0.006];
+    const joint = [0.040 - 0.004 * c, 0.046 + 0.004 * c, 0.014 + 0.010 * c];
+    const thenar = [], trx = [], trz = [];
+    for (let k = 0; k <= 4; k++) {
+      const t = k / 4;
+      thenar.push(add(base, mul(sub(joint, base), t)));
+      trx.push(0.019 - 0.006 * t); trz.push(0.015 - 0.003 * t);
+    }
+    tube(skin, thenar, trx, trz, [0, 0, 1], 14);
+    // les deux phalanges
+    let dir = norm([0.50 - 1.05 * c, 0.80 - 0.35 * c, 0.30 + 0.45 * c]);
+    let q = joint;
+    const path = [q], rx = [0.0122], rz = [0.0110];
+    const bones = [0.033, 0.027];
+    const bend = [0.10 + 0.25 * c, 0.15 + 0.55 * c];    // à la jointure, puis au bout
+    const axis = norm([0.3, -0.5, 0.8]);                  // vers la paume et vers l'index
+    for (let b = 0; b < 2; b++) {
+      const a = bend[b], co = Math.cos(a), si = Math.sin(a);
+      dir = norm(add(add(mul(dir, co), mul(cross(axis, dir), si)), mul(axis, dot(axis, dir) * (1 - co))));
       for (let k = 1; k <= 3; k++) {
-        p = add(p, mul(dir, bones[b] / 3));
-        path.push(p);
-        const taper = 1 - 0.3 * (path.length / 10);
-        rx.push(0.0118 * taper); rz.push(0.0105 * taper);
+        q = add(q, mul(dir, bones[b] / 3));
+        path.push(q);
+        const taper = 1 - 0.18 * (path.length / 7);
+        rx.push(0.0122 * taper); rz.push(0.0108 * taper);
       }
     }
     tube(skin, path, rx, rz, [0, 0, 1], 12);
+    // l'ongle : sur le dos de la dernière phalange, à l'opposé de la pulpe (qui regarde l'index et la paume)
+    const tip = path[path.length - 2];
+    const back = norm(sub(mul(axis, -1), mul(dir, dot(mul(axis, -1), dir))));
+    const nb = add(tip, mul(back, 0.0068));
+    tube(nails, [sub(nb, mul(dir, 0.007)), add(nb, mul(dir, 0.005))], [0.0085, 0.0085], [0.0022, 0.0022], cross(dir, back), 10);
   }
   return [smooth(skin), smooth(nails)];
 }
@@ -211,11 +237,15 @@ function mirror(m) {
 const prim = (material, m) => ({ material, ...m });
 const OPEN = hand(0.12, 0.05), FIST = hand(1.0, 1.0);
 const parts = [];
-for (const [suffix, f] of [['_d', m => m], ['_g', mirror]]) {
-  parts.push({ name: 'bras' + suffix, prims: [prim(SKIN, f(UPPER))] });
-  parts.push({ name: 'avant_bras' + suffix, prims: [prim(SKIN, f(FORE))] });
-  parts.push({ name: 'main' + suffix, prims: [prim(SKIN, f(OPEN[0])), prim(NAIL, f(OPEN[1]))] });
-  parts.push({ name: 'poing' + suffix, prims: [prim(SKIN, f(FIST[0])), prim(NAIL, f(FIST[1]))] });
+/* POSÉS POUR BLENDER : chaque bras debout, assemblé de l'épaule aux doigts, la droite
+   en +X et la gauche en −X, le poing à côté de la main ouverte. Le jeu ne lit PAS
+   ces places — il pose chaque pièce lui-même par son origine — : elles ne servent
+   qu'à ouvrir le fichier sur des bras entiers plutôt que sur huit pièces empilées. */
+for (const [suffix, f, sx] of [['_d', m => m, 1], ['_g', mirror, -1]]) {
+  parts.push({ name: 'bras' + suffix, translation: [0.30 * sx, 0, 0], prims: [prim(SKIN, f(UPPER))] });
+  parts.push({ name: 'avant_bras' + suffix, translation: [0.30 * sx, 0.31, 0], prims: [prim(SKIN, f(FORE))] });
+  parts.push({ name: 'main' + suffix, translation: [0.30 * sx, 0.57, 0], prims: [prim(SKIN, f(OPEN[0])), prim(NAIL, f(OPEN[1]))] });
+  parts.push({ name: 'poing' + suffix, translation: [0.55 * sx, 0.57, 0], prims: [prim(SKIN, f(FIST[0])), prim(NAIL, f(FIST[1]))] });
 }
 const verts = writeGlb(out, 'bras', parts, 'naval-sim arms-glb.js');
 console.log(`${out} : ${parts.length} pièces, ${verts} sommets`);

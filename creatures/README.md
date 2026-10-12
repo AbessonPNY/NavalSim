@@ -141,6 +141,14 @@ node tools/arms-glb.js
   serre ce qui est à 7,5 cm du poignet, 3 cm devant la paume : c'est là que le
   jeu met la chose ramassée.
 - Pas d'armature ni d'animation : le jeu pose chaque pièce lui-même.
+- **Dans Blender**, le fichier s'ouvre sur les deux bras debout et assemblés (la
+  droite en +X, le poing à côté de la main ouverte) : ces places ne sont que pour
+  vous, le jeu ne les lit pas. Déplacez les objets librement, mais **ne les
+  apparentez pas** entre eux et **gardez l'origine à l'articulation** ; si vous
+  tournez un objet, n'appliquez pas la rotation (Ctrl A) sans le remettre debout —
+  le jeu lit la maille dans le repère de l'objet.
+- Le poignet ne plie pas de plus de 31° (`WristBend`) : une main modelée très
+  pliée au repos le paraîtra en jeu.
 - Unités : le mètre. Une matière de peau, une d'ongle ; textures incluses.
 
 ## La baleine — `creatures/whale.glb` (Godot)

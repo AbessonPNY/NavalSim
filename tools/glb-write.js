@@ -3,7 +3,7 @@
  *
  *   writeGlb(out, sceneName, parts, generator)
  *
- * parts : [{ name, prims: [{ material: { name, c: [r,g,b,a], r: rugosité },
+ * parts : [{ name, translation?: [x,y,z], prims: [{ material: { name, c: [r,g,b,a], r: rugosité },
  *                            pos: [], nrm: [], uv: [], idx: [] }] }]
  * Un NŒUD par pièce, nommé comme elle — c'est par ce nom que le jeu la retrouve —,
  * une primitive par matière. Les matières de même nom sont partagées entre les
@@ -66,7 +66,9 @@ function writeGlb(out, sceneName, parts, generator = 'naval-sim') {
     }
     if (primitives.length === 0) continue;
     meshes.push({ name: part.name, primitives });
-    nodes.push({ name: part.name, mesh: meshes.length - 1 });
+    const node = { name: part.name, mesh: meshes.length - 1 };
+    if (part.translation) node.translation = part.translation;   // facultatif : où poser la pièce
+    nodes.push(node);
   }
 
   const bin = Buffer.concat(chunks);

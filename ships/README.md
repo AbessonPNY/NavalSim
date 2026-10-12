@@ -647,6 +647,26 @@ procédurale est conservée et un avertissement est écrit en console.
   `-- --sabords-essai 1 --ship 7 --branle-bas 1` pose une planche rouge sur chaque
   pièce de bordée.
 
+### Échelle de coupée — par où l'on remonte de l'eau (Godot)
+
+- **Une échelle** est un objet dont le nom contient `echelle`, `échelle`, `escalier`
+  ou `ladder` (`echelleBabord`, `escalier.001`), posé **contre le flanc**. Rien d'autre à
+  préparer : sa boîte dit le bord (le signe de son x), la station, d'où à où elle monte,
+  et sa face extérieure, où le nageur pose les mains.
+- **Un navire qui a une échelle se monte par elle** (E, à 2,5 m de son pied) ; plus loin,
+  le jeu dit où elle est (« l'échelle est à bâbord, vers l'arrière, à 12 m »). Plusieurs
+  échelles : la plus proche.
+- Un barreau tous les **35 cm**, de la flottaison au haut de l'échelle. Si le plat-bord
+  est à moins de 60 cm au-dessus d'elle, les mains finissent sur le plat-bord ; sinon
+  l'échelle mène à une coupée et l'on entre à sa hauteur. On se relève sur le pont lu
+  sur le modèle.
+- Faites-la descendre **jusque dans l'eau** (ou à 40 cm au-dessus) : un nageur n'attrape
+  pas un barreau à deux mètres au-dessus de sa tête. Une échelle dans l'axe (x ≈ 0) est
+  ignorée — c'est une descente intérieure.
+- Sans échelle, on monte par le flanc, mesuré sur la coque du modèle à chaque prise.
+- Essai sans modèle : `-- --echelle-essai 1` pose une planche rouge contre le flanc de
+  bâbord, au milieu.
+
 ### Rugosité et relief
 
 Les matériaux du .glb sont gardés tels quels : couleur, **rugosité**

@@ -107,6 +107,8 @@ public partial class ShipDemo
                 case "--combat-journal": _combatLogEvery = args[i + 1].ToFloat(); break;
                 // ESSAI : des mantelets de planche sur chaque pièce de bordée, faute d'en avoir de modelés ; puis le branle-bas
                 case "--sabords-essai": ShipNode.TestLids = args[i + 1] != "0"; break;
+                // une planche-échelle contre le flanc de bâbord, au milieu, pour éprouver la montée (E)
+                case "--echelle-essai": ShipNode.TestLadder = args[i + 1] != "0"; break;
                 case "--branle-bas": _portsOrder = args[i + 1] != "0" ? true : null; break;
                 // ESSAI : une bordée commandée d'emblée (sabords fermés : elle attend qu'ils s'ouvrent)
                 case "--feu-sabords": _fireWhenOpen = (false, true); break;

@@ -110,6 +110,15 @@ public partial class ShipDemo
         var b = _ship.Physics.Body;
         var o = _sea.Core.Origin;
         var l = b.Quat.Inverted().Rotate(new Vec3d(_swim.Pos.X - o.X, 0, _swim.Pos.Z - o.Z) - new Vec3d(b.Pos.X, 0, b.Pos.Z));
+        // un navire qui a une échelle se monte par elle
+        if (NearestLadder(_ship, new Vec3d(l.X, 0, l.Z), out double toLadder) is { } lad)
+        {
+            if (toLadder < SwimBoard) return true;
+            string bord = lad.Side > 0 ? "bâbord" : "tribord";
+            string where = Math.Abs(lad.Z) < _ship.Spec.L * 0.15 ? "au milieu" : lad.Z > 0 ? "vers l'avant" : "vers l'arrière";
+            why = FormattableString.Invariant($"l'échelle est à {bord}, {where}, à {toLadder:F0} m");
+            return false;
+        }
         double half = _ship.Spec.L * 0.5;
         if (Math.Abs(l.Z) < half * 0.85 && Math.Abs(l.X) < _ship.Spec.B * 0.5 + SwimBoard) return true;
         double dx = Math.Max(0, Math.Abs(l.X) - _ship.Spec.B * 0.5), dz = Math.Max(0, Math.Abs(l.Z) - half * 0.85);
@@ -120,7 +129,7 @@ public partial class ShipDemo
     void SwimBoardShip()
     {
         if (_climb != null) return;
-        if (!SwimCanBoard(out string why)) { Say("Trop loin pour se hisser — " + why); return; }
+        if (!SwimCanBoard(out string why)) { Say("Trop loin pour se hisser — " + why); GD.Print("[nage] trop loin — " + why); return; }
         ClimbStart();
     }
 
@@ -457,6 +466,12 @@ void fragment() {
                 var o = _sea.Core.Origin; var b = _ship.Physics.Body;
                 var side = b.Quat.Rotate(new Vec3d(1, 0, 0));
                 var at = b.Pos + side * (_ship.Spec.B * 0.5 + 1.0);
+                // au pied de l'échelle, s'il y en a une : c'est par elle qu'on monte
+                if (_ship.Ladders().Count > 0)
+                {
+                    var lad = _ship.Ladders()[0];
+                    at = b.Pos + b.Quat.Rotate(new Vec3d(lad.Side * (lad.Out + 0.8), 0, lad.Z));
+                }
                 _swim.Pos = new Vec3d(o.X + at.X, _sea.Core.Sample(at.X, at.Z, _t) + Swimmer.EyeAbove, o.Z + at.Z);
                 _swim.Under = false;
                 SwimBoardShip();          // la montée dit « à bord » à la console quand elle finit

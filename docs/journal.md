@@ -16545,3 +16545,40 @@ CE QUE TIENT LE POING (demandé : « tourne le lambi pour qu'il tienne bien ») 
 Essai : `--nage 2 --nage-vers lambi --nage-prendre 1` (prendre puis monter) ; `--nage-avancer 1`
 (2 en forçant) tient la brasse. Vérifié en captures à `--fixed-fps 60` : godille, écart, retour,
 main qui cueille, poing qui serre, deux poings sur le plat-bord.
+
+## Remonter par l'échelle, et le flanc mesuré sur le modèle (12/10)
+
+SIGNALÉ : « avec E, le personnage passe à travers le bateau et remonte au milieu du modèle ».
+LA CAUSE : la montée plaçait l'œil et les mains d'après `HullCollider` — la demi-largeur du profil
+de FLOTTAISON, prolongée tout droit jusqu'en haut. Un bordé qui s'évase au-dessus de l'eau (le
+chaland en a 3,97 m de l'axe au plat-bord) mettait le grimpeur dans les planches.
+
+LE FLANC MESURÉ (`ShipNode.Ladder.cs`) : `SideOut(bord, z, y)` lit les sommets de la coque du
+modèle (la plus grosse pièce, gardés une fois par modèle) à ±25 cm de la station et ±20 cm de la
+hauteur de chaque prise ; `SideTop` le plat-bord, sur la peau seule (à 35 cm du dehors au plus :
+un mât passe aussi à cette station). On se relève sur le pont lu par `DeckTop`, l'œil à 1,55 m,
+et non plus à genoux sur le plat-bord.
+
+L'ÉCHELLE (demandé : « viser la coque à l'endroit de l'escalier que je vais rajouter ») : un objet
+du modèle nommé `echelle`, `escalier` ou `ladder`, lu comme les mantelets (`ShipNode.Ladders`) :
+sa boîte donne le bord, la station, le haut, la face où vont les mains. Un navire qui en a une ne
+se monte QUE par elle — sur un flanc de quatre mètres on ne grimpe pas à mains nues ; trop loin,
+le jeu dit où elle est. Barreaux tous les 35 cm ; au-dessus, le plat-bord s'il est à moins de
+60 cm, sinon c'est une coupée. Format dans `ships/README.md`.
+
+Essai : `--echelle-essai 1` (une planche rouge à bâbord, au milieu). Chaland : 3 barreaux, 4,6 s ;
+Roter Löwe (`--ship 7`) : 5 barreaux, 2,0 m de franc-bord, 6,0 s — les mains sur la planche, le
+visage dehors.
+
+LE POIGNET CASSÉ (signalé) : la main prenait le sens des doigts qu'on lui donnait, sans regarder
+l'avant-bras — sur un barreau, doigts vers le bordé et avant-bras vers le haut, le poignet pliait
+à angle droit. Les doigts restent désormais à 0,55 rad (31°) au plus de l'axe de l'avant-bras
+(`WristBend`), la paume refaite perpendiculaire ; ce que le poing devait serrer reste où il
+était, et le bras se résout une seconde fois vers le poignet qui en découle (`ArmReach` deux
+fois, puis `ArmPlace`). Le .glb s'ouvre maintenant dans Blender sur des bras debout et
+assemblés (`translation` facultative par pièce dans `tools/glb-write.js`) — le jeu ignore ces
+places, il pose chaque pièce par son origine. La première échelle modelée, `escalier_bordee` de
+la Roter Löwe (bâbord, z 5,09, de −0,17 à 2,77 m) : 9 prises, 3,4 m jusqu'au plat-bord, 8,5 s.
+L'essai `--nage` va au pied de la première échelle s'il y en a une.
+
+LE POUCE AVAIT TROIS PHALANGES (signalé) : il partait du bas de la paume en trois segments libres, le métacarpien dessiné comme un doigt. Il n'en a que DEUX libres ; le métacarpien est pris dans la paume et n'en sort que l'éminence (le gras du pouce). Refait dans tools/arms-glb.js : un renflement fondu dans le bord de la paume jusqu'à la jointure, puis deux phalanges (33 et 27 mm), et un ongle, qu'il n'avait pas.

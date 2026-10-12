@@ -192,21 +192,60 @@ public partial class ShipDemo
     static void ArmSolve(SwimArm a)
     {
         if (a.Upper == null || a.Fore == null) return;
+        /* LE POIGNET NE CASSE PAS (signalé : « le poignet cassé vers l'avant ») : la main
+           voulait ses doigts là où on les lui disait, l'avant-bras ailleurs, et sur une
+           prise le poignet pliait à angle droit. Les doigts restent à WristBend au plus
+           de l'axe de l'avant-bras ; ce que la main voulait serrer reste où il était, et
+           le bras se résout une seconde fois vers le poignet qui en découle. */
+        var grip = a.Wrist + a.Fingers * ArmGrip.Y + a.Palm * ArmGrip.Z;
+        ArmReach(a, a.Wrist, out var E, out var W);
+        var (f, palm) = WristLimit(a, W - E);
+        ArmReach(a, grip - f * ArmGrip.Y - palm * ArmGrip.Z, out E, out W);
+        (f, palm) = WristLimit(a, W - E);
+        ArmPlace(a, E, W, f, palm);
+    }
+
+    /// <summary>Le pli du poignet permis, en tout sens : une main serre droit dans l'axe, ou presque.</summary>
+    const float WristBend = 0.55f;
+
+    static (Vector3 Fingers, Vector3 Palm) WristLimit(SwimArm a, Vector3 fore)
+    {
+        var axis = fore.Normalized();
+        var f = a.Fingers;
+        float ang = axis.AngleTo(f);
+        if (ang > WristBend)
+        {
+            var n = axis.Cross(f);
+            if (n.LengthSquared() < 1e-8f) n = axis.Cross(a.Palm);
+            f = axis.Rotated(n.Normalized(), WristBend);
+        }
+        var palm = a.Palm - f * f.Dot(a.Palm);
+        return (f, palm.LengthSquared() > 1e-6f ? palm.Normalized() : a.Palm);
+    }
+
+    /// <summary>L'épaule, le coude et le poignet atteint pour ce poignet voulu.</summary>
+    static void ArmReach(SwimArm a, Vector3 wrist, out Vector3 E, out Vector3 W)
+    {
         var S = new Vector3(ArmShoulder.X * a.Side, ArmShoulder.Y, ArmShoulder.Z);
-        var d = a.Wrist - S;
+        var d = wrist - S;
         float L = Mathf.Clamp(d.Length(), 0.08f, ArmUpper + ArmFore - 0.002f);
         var dir = d.LengthSquared() > 1e-8f ? d.Normalized() : Vector3.Forward;
-        var W = S + dir * L;
         float x = (ArmUpper * ArmUpper - ArmFore * ArmFore + L * L) / (2 * L);
         float y = Mathf.Sqrt(Mathf.Max(0, ArmUpper * ArmUpper - x * x));
         var perp = a.Pole - dir * dir.Dot(a.Pole);
         perp = perp.LengthSquared() > 1e-6f ? perp.Normalized() : new Vector3(a.Side, -0.5f, 0).Normalized();
-        var E = S + dir * x + perp * y;
+        E = S + dir * x + perp * y;
+        W = S + dir * L;
+    }
 
+    static void ArmPlace(SwimArm a, Vector3 E, Vector3 W, Vector3 fingers, Vector3 palm)
+    {
+        var S = new Vector3(ArmShoulder.X * a.Side, ArmShoulder.Y, ArmShoulder.Z);
         // le biceps du côté du pli, donc à l'opposé du coude ; l'avant-bras tourne avec la paume
-        a.Upper.Transform = new Transform3D(ArmBasis(E - S, -perp), S);
-        a.Fore.Transform = new Transform3D(ArmBasis(W - E, a.Palm), E);
-        var hand = new Transform3D(ArmBasis(a.Fingers, a.Palm), W);
+        var bend = (E - S) - (W - S).Normalized() * (E - S).Dot((W - S).Normalized());
+        a.Upper!.Transform = new Transform3D(ArmBasis(E - S, bend.LengthSquared() > 1e-8f ? -bend : -a.Pole), S);
+        a.Fore!.Transform = new Transform3D(ArmBasis(W - E, palm), E);
+        var hand = new Transform3D(ArmBasis(fingers, palm), W);
         if (a.Open != null) { a.Open.Transform = hand; a.Open.Visible = !a.Grip || a.Fist == null; }
         if (a.Fist != null) { a.Fist.Transform = hand; a.Fist.Visible = a.Grip; }
     }
@@ -328,25 +367,53 @@ public partial class ShipDemo
 
     /// <summary>
     /// LA MONTÉE, dans le repère du NAVIRE (il roule et dérive pendant qu'on y
-    /// grimpe : les mains restent où elles tiennent). Les PRISES vont de la
-    /// flottaison au plat-bord, tous les 42 cm — les préceintes, les taquets
-    /// d'échelle cloués au flanc ; une main monte, le corps se hisse, l'autre main
-    /// passe au-dessus. Arrivé au plat-bord, les deux mains s'y posent, la poitrine
-    /// passe par-dessus, et l'on est à bord. Un dériveur n'a qu'une prise : son bord.
+    /// grimpe : les mains restent où elles tiennent). Par l'ÉCHELLE du modèle s'il en
+    /// a une (ShipNode.Ladders, un barreau tous les 35 cm) ; sinon par les prises du
+    /// flanc, de la flottaison au plat-bord, tous les 42 cm — les préceintes. Une main
+    /// monte, le corps se hisse, l'autre main passe au-dessus. Arrivé en haut, les deux
+    /// mains s'y posent, la poitrine passe, et l'on se relève sur le pont. Le flanc à
+    /// chaque prise est MESURÉ sur la coque du modèle (ShipNode.SideOut). Un dériveur
+    /// n'a qu'une prise : son bord.
     /// </summary>
     sealed class SwimClimb
     {
         public double T;
         public int Sx;                 // le flanc : +1 bâbord (+x du navire), −1 tribord
-        public double Z, Half, Top, Water;
+        public double Z, Water, Deck;
         public readonly List<double> Rungs = new();
+        /// <summary>Le dehors du flanc (ou de l'échelle) à chaque prise : où vont les mains.</summary>
+        public readonly List<double> Outs = new();
+        public ShipNode.Ladder? By;    // l'échelle prise, s'il y en a une
         public Vec3d EyeFrom;          // l'œil au départ, dans le repère du navire
         public double Approach;        // le temps de venir au flanc
         public double ZRight;          // le décalage le long du navire de la main droite (±)
         public double Done;            // la durée entière
     }
     SwimClimb? _climb;
-    const double ClimbRung = 0.42, ClimbStep = 0.65, ClimbReachPart = 0.45, ClimbMatch = 0.3, ClimbHeave = 0.75, ClimbOver = 0.6;
+    const double ClimbRung = 0.42, LadderRung = 0.35, ClimbStep = 0.65, ClimbReachPart = 0.45, ClimbMatch = 0.3, ClimbHeave = 0.75, ClimbOver = 0.9;
+    /// <summary>L'œil d'un homme debout sur le pont.</summary>
+    const double StandEye = 1.55;
+
+    /// <summary>L'échelle la plus proche de ce point (repère du navire), et la distance de son pied.</summary>
+    static ShipNode.Ladder? NearestLadder(ShipNode ship, Vec3d l, out double dist)
+    {
+        dist = double.MaxValue;
+        ShipNode.Ladder? best = null;
+        foreach (var lad in ship.Ladders())
+        {
+            double dx = l.X - lad.Side * lad.Out, dz = l.Z - lad.Z;
+            double d = Math.Sqrt(dx * dx + dz * dz);
+            if (d < dist) { dist = d; best = lad; }
+        }
+        return best;
+    }
+
+    /// <summary>Le flanc à cette hauteur, mesuré sur le modèle ; le profil de flottaison à défaut.</summary>
+    double ClimbOut(int sx, double z, double y)
+    {
+        double o = _ship.SideOut(sx, z, y);
+        return double.IsNaN(o) ? _hullCollider?.SideAt(z) ?? _ship.Spec.B * 0.5 : o;
+    }
     /// <summary>Le visage contre le bordé : à cette distance de lui.</summary>
     const double ClimbFace = 0.40;
 
@@ -358,39 +425,57 @@ public partial class ShipDemo
         var inv = b.Quat.Inverted();
         var eye = inv.Rotate(new Vec3d(_swim.Pos.X - o.X, _swim.Pos.Y, _swim.Pos.Z - o.Z) - b.Pos);
         var hc = _hullCollider;
-        double z = Math.Clamp(eye.Z, hc.EndAft * 0.75, hc.EndFwd * 0.75);
-        var c = new SwimClimb
+        var c = new SwimClimb { Water = eye.Y - Swimmer.EyeAbove, EyeFrom = eye };
+        var lad = NearestLadder(_ship, eye, out _);
+        double top, rung;
+        if (lad != null)
         {
-            Sx = eye.X >= 0 ? 1 : -1,
-            Z = z,
-            Half = hc.SideAt(z),
-            Top = hc.TopAt(z),
-            Water = eye.Y - Swimmer.EyeAbove,
-            EyeFrom = eye
-        };
-        for (double y = c.Top; y > c.Water + 0.35; y -= ClimbRung) c.Rungs.Insert(0, y);
-        if (c.Rungs.Count == 0) c.Rungs.Add(c.Top);
-        double gap = Math.Sqrt(Math.Pow(Math.Abs(eye.X) - (c.Half + ClimbFace), 2) + Math.Pow(eye.Z - z, 2));
+            // PAR L'ÉCHELLE : jusqu'à son haut, et au plat-bord s'il n'est guère plus haut
+            // qu'elle — sinon elle mène à une coupée, et l'on entre par là
+            c.By = lad; c.Sx = lad.Side; c.Z = lad.Z;
+            double rail = _ship.SideTop(lad.Side, lad.Z);
+            top = !double.IsNaN(rail) && rail > lad.Top && rail - lad.Top < 0.6 ? rail : lad.Top;
+            rung = LadderRung;
+        }
+        else
+        {
+            c.Sx = eye.X >= 0 ? 1 : -1;
+            c.Z = Math.Clamp(eye.Z, hc.EndAft * 0.75, hc.EndFwd * 0.75);
+            double rail = _ship.SideTop(c.Sx, c.Z);
+            top = double.IsNaN(rail) ? hc.TopAt(c.Z) : rail;
+            rung = ClimbRung;
+        }
+        for (double y = top; y > c.Water + 0.35; y -= rung) c.Rungs.Insert(0, y);
+        if (c.Rungs.Count == 0) c.Rungs.Add(top);
+        for (int i = 0; i < c.Rungs.Count; i++)
+        {
+            bool last = i == c.Rungs.Count - 1;
+            // sur l'échelle, ses barreaux ; en haut, le plat-bord lui-même
+            c.Outs.Add(lad != null && !(last && top > lad.Top) ? lad.Out : ClimbOut(c.Sx, c.Z, c.Rungs[i] - 0.05));
+        }
+        c.Deck = _ship.DeckTop(c.Sx * (c.Outs[^1] - 0.75), c.Z);
+        double gap = Math.Sqrt(Math.Pow(Math.Abs(eye.X) - (c.Outs[0] + ClimbFace), 2) + Math.Pow(eye.Z - c.Z, 2));
         c.Approach = 0.35 + gap / 1.1;
-        // face au bordé de bâbord (+x), la main droite est vers l'arrière ; à tribord, vers l'avant
-        c.ZRight = -0.22 * c.Sx;
+        // face au bordé de bâbord (+x), la main droite est vers l'arrière ; à tribord, vers l'avant ;
+        // une échelle est plus étroite qu'un flanc
+        c.ZRight = -(lad != null ? 0.17 : 0.22) * c.Sx;
         c.Done = c.Approach + c.Rungs.Count * ClimbStep + (c.Rungs.Count > 1 ? ClimbMatch : 0) + ClimbHeave + ClimbOver;
         _climb = c;
         _grab?.Copy?.QueueFree();
         _grab = null;
-        GD.Print(FormattableString.Invariant($"[nage] se hisse : {c.Rungs.Count} prise(s), {c.Top - c.Water:F1} m de franc-bord, {c.Done:F1} s"));
+        GD.Print(FormattableString.Invariant($"[nage] se hisse {(lad != null ? "par « " + lad.Name + " »" : "par le flanc")} : {c.Rungs.Count} prise(s), {top - c.Water:F1} m de franc-bord, flanc à {c.Outs[0]:F2}-{c.Outs[^1]:F2} m de l'axe, pont à {c.Deck:F2}, {c.Done:F1} s"));
     }
 
     /// <summary>Où est l'œil, et où regarde-t-il, à ce temps de la montée (repère du navire).</summary>
     (Vec3d Eye, double Pitch) ClimbEye(SwimClimb c, double t)
     {
         double sx = c.Sx;
-        double faceX = sx * (c.Half + ClimbFace);
+        double FaceX(int k) => sx * (c.Outs[k] + ClimbFace);
         double EyeAt(int k) => Math.Max(c.Water + Swimmer.EyeAbove, c.Rungs[k] - 0.28);
         if (t < c.Approach)
         {
             double u = MathX.Smooth01(t / c.Approach);
-            var to = new Vec3d(faceX, c.Water + Swimmer.EyeAbove, c.Z);
+            var to = new Vec3d(FaceX(0), c.Water + Swimmer.EyeAbove, c.Z);
             return (c.EyeFrom + (to - c.EyeFrom) * u, 0.15 + 0.2 * u);
         }
         t -= c.Approach;
@@ -401,23 +486,25 @@ public partial class ShipDemo
             double inStep = t - k * ClimbStep;
             double pull = MathX.Smooth01((inStep - ClimbStep * ClimbReachPart) / (ClimbStep * (1 - ClimbReachPart)));
             double y0 = k == 0 ? c.Water + Swimmer.EyeAbove : EyeAt(k - 1);
-            return (new Vec3d(faceX, y0 + (EyeAt(k) - y0) * pull, c.Z), 0.45);
+            double x0 = k == 0 ? FaceX(0) : FaceX(k - 1);
+            return (new Vec3d(x0 + (FaceX(k) - x0) * pull, y0 + (EyeAt(k) - y0) * pull, c.Z), 0.45);
         }
         t -= n * ClimbStep;
         if (n > 1) t -= ClimbMatch;
-        double top = EyeAt(n - 1);
-        if (t < 0) return (new Vec3d(faceX, top, c.Z), 0.45);
+        double top = EyeAt(n - 1), rail = c.Rungs[n - 1], edge = c.Outs[n - 1];
+        if (t < 0) return (new Vec3d(FaceX(n - 1), top, c.Z), 0.45);
         if (t < ClimbHeave)
         {
             // la poitrine au-dessus du plat-bord, bras tendus en appui
             double u = MathX.Smooth01(t / ClimbHeave);
-            return (new Vec3d(sx * (c.Half + ClimbFace * (1 - u) - 0.05 * u), top + (c.Top + 0.35 - top) * u, c.Z), 0.45 - 0.85 * u);
+            return (new Vec3d(sx * (edge + ClimbFace * (1 - u) - 0.05 * u), top + (rail + 0.35 - top) * u, c.Z), 0.45 - 0.85 * u);
         }
         t -= ClimbHeave;
         {
-            // par-dessus : on bascule à l'intérieur, les yeux sur le pont
+            // par-dessus : une jambe passe, on se relève sur le pont, le regard revient à l'horizon
             double u = MathX.Smooth01(t / ClimbOver);
-            return (new Vec3d(sx * (c.Half - 0.05 - 0.6 * u), c.Top + 0.35 + 0.2 * u, c.Z), -0.4 - 0.3 * u);
+            double y1 = Math.Max(c.Deck + StandEye, rail + 0.35);
+            return (new Vec3d(sx * (edge - 0.05 - 0.7 * u), rail + 0.35 + (y1 - rail - 0.35) * u, c.Z), -0.4 + 0.3 * u);
         }
     }
 
@@ -503,7 +590,7 @@ public partial class ShipDemo
         double sx = c.Sx;
         bool rail = k == c.Rungs.Count - 1;
         double y = c.Rungs[k];
-        double x = rail ? sx * (c.Half - 0.02) : sx * (c.Half + 0.03);
+        double x = rail ? sx * (c.Outs[k] - 0.02) : sx * (c.Outs[k] + 0.03);
         var grip = new Vec3d(x, y + 0.02, c.Z + c.ZRight * hand);
         var w = b.Pos + b.Quat.Rotate(grip);
         var gripCam = ArmsLocal(w.ToGodot());
