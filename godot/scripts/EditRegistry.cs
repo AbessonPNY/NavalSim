@@ -96,14 +96,24 @@ public sealed class Editable
 
     public bool Moved => Math.Abs(X - BaseX) > 1e-3 || Math.Abs(Z - BaseZ) > 1e-3;
 
+    /// <summary>
+    /// CE QUI PENCHE au-delà du cap (Edit.Tilt) : appliqué après lui, en repère du monde.
+    /// L'identité pour presque tout ; une chaloupe couchée sur le sable, posée dans Blender.
+    /// </summary>
+    public Quaternion Tilt = Quaternion.Identity;
+    public bool Tilted => Mathf.Abs(Tilt.W) < 0.99999f;
+    /// <summary>L'orientation d'un objet dont le cap vaut <paramref name="yaw"/> : sa pente, puis son cap.</summary>
+    public Basis Orient(double yaw) => new Basis(Tilt) * new Basis(Vector3.Up, (float)yaw);
+
     /// <summary>Rien de changé : la retouche n'a plus lieu d'être.</summary>
     public bool Pristine => !Added && !Removed && !Moved && Math.Abs(Yaw - BaseYaw) < 1e-4
-                            && Math.Abs(Scale - 1) < 1e-4 && Math.Abs(Dy) < 1e-4;
+                            && Math.Abs(Scale - 1) < 1e-4 && Math.Abs(Dy) < 1e-4 && !Tilted;
 
-    public (double, double, double, double, double, bool) State
+    // la pente en est : Ctrl+Z après ⌫ doit rendre la chaloupe couchée
+    public (double, double, double, double, double, bool, Quaternion) State
     {
-        get => (X, Z, Yaw, Scale, Dy, Removed);
-        set => (X, Z, Yaw, Scale, Dy, Removed) = value;
+        get => (X, Z, Yaw, Scale, Dy, Removed, Tilt);
+        set => (X, Z, Yaw, Scale, Dy, Removed, Tilt) = value;
     }
 }
 
@@ -141,6 +151,7 @@ public sealed class EditRegistry
         {
             e.X = ed.X; e.Z = ed.Z; e.Yaw = ed.Yaw * Math.PI / 180;
             e.Scale = ed.Scale; e.Dy = ed.Dy; e.Removed = ed.Removed;
+            e.Tilt = TiltOf(ed);
             if (ed.Removed) { e.X = e.BaseX; e.Z = e.BaseZ; e.Yaw = e.BaseYaw; }
         }
         Items.Add(e);
@@ -164,10 +175,15 @@ public sealed class EditRegistry
         else Edits.Set(new Edit
         {
             Id = e.Id, X = e.X, Z = e.Z, Yaw = e.Yaw * 180 / Math.PI,
-            Scale = e.Scale, Dy = e.Dy, Removed = e.Removed, From = e.From, Glb = e.Glb, Sheet = e.Sheet
+            Scale = e.Scale, Dy = e.Dy, Removed = e.Removed, From = e.From, Glb = e.Glb, Sheet = e.Sheet,
+            Tilt = e.Tilted ? new double[] { e.Tilt.X, e.Tilt.Y, e.Tilt.Z, e.Tilt.W } : null
         });
         Dirty = true;
     }
+
+    /// <summary>La pente qu'une retouche enregistrée donne, l'identité sinon.</summary>
+    public static Quaternion TiltOf(Edit ed) => ed.Tilt is { } q
+        ? new Quaternion((float)q[0], (float)q[1], (float)q[2], (float)q[3]).Normalized() : Quaternion.Identity;
 
     public string NextAddId() => Edits.NextAddId(ById.Keys);
 

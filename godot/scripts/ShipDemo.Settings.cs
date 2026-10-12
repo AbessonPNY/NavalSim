@@ -147,15 +147,22 @@ public partial class ShipDemo
         vp.Scaling3DScale = scale;
         /* LES OMBRES DU SOLEIL : l'atlas, les cascades, leur portée et le filtre. Hautes, ce sont les
            valeurs que le projet a toujours eues (4096, quatre cascades, 320 m, filtre doux bas). */
-        int sq = Math.Clamp(s.ShadowQuality, 0, 2);
-        RenderingServer.DirectionalShadowAtlasSetSize(sq == 0 ? 2048 : 4096, true);
+        /* TRÈS HAUTES : l'atlas 8192, soit 4096 par cascade. À la vue Orbite, la toile d'une frégate
+           est à 70–100 m de l'œil, dans la troisième cascade (64–160 m) : à 4096 son texel d'ombre
+           fait ~10 cm, que le filtre doux et le biais de normale élargissent encore — l'ombre d'une
+           vergue sur la voile en marches d'escalier. 128 Mo de mémoire vidéo. */
+        int sq = Math.Clamp(s.ShadowQuality, 0, 3);
+        RenderingServer.DirectionalShadowAtlasSetSize(sq switch { 0 => 2048, 3 => 8192, _ => 4096 }, true);
         RenderingServer.DirectionalSoftShadowFilterSetQuality(sq switch
         {
             0 => RenderingServer.ShadowQuality.Hard,
             1 => RenderingServer.ShadowQuality.SoftVeryLow,
-            _ => RenderingServer.ShadowQuality.SoftLow
+            2 => RenderingServer.ShadowQuality.SoftLow,
+            /* le filtre doux à peu d'échantillons, tournés au hasard par pixel, laisse sur la toile
+               un GRAIN en damier que seul le TAA lisserait ; le haut l'efface (mesuré : 6,94 → 7,08 ms) */
+            _ => RenderingServer.ShadowQuality.SoftHigh
         });
-        _sky.Sun.DirectionalShadowMode = sq == 2 ? DirectionalLight3D.ShadowMode.Parallel4Splits : DirectionalLight3D.ShadowMode.Parallel2Splits;
+        _sky.Sun.DirectionalShadowMode = sq >= 2 ? DirectionalLight3D.ShadowMode.Parallel4Splits : DirectionalLight3D.ShadowMode.Parallel2Splits;
         _sky.Sun.DirectionalShadowMaxDistance = sq == 0 ? 200 : 320;
         // les cordages en rubans changent de variante avec lui (rope_ribbon_taa.gdshader)
         ShipNode.RibbonMode(vp.UseTaa);
@@ -374,7 +381,7 @@ public partial class ShipDemo
         _chkFullscreen = Check("Plein écran (Alt+Entrée)", st.Fullscreen, on => st.Fullscreen = on);
         Check("Synchro verticale", st.VSync, on => st.VSync = on);
         Slide("Échelle de rendu", 0.5, 1, 0.01, st.RenderScale, x => st.RenderScale = x);
-        Choice("Ombres du soleil", new[] { "Basses", "Moyennes", "Hautes" }, st.ShadowQuality, i => st.ShadowQuality = i);
+        Choice("Ombres du soleil", new[] { "Basses", "Moyennes", "Hautes", "Très hautes" }, st.ShadowQuality, i => st.ShadowQuality = i);
         Check("Profondeur de champ", st.Dof, on => st.Dof = on);
         // la zone nette : deux repères sur un curseur de 0 à l'infini
         var zone = Row(box, "Net");

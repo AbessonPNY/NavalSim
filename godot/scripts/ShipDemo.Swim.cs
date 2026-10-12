@@ -112,7 +112,14 @@ public partial class ShipDemo
 
     void SwimBoardShip()
     {
+        if (_climb != null) return;
         if (!SwimCanBoard(out string why)) { Say("Trop loin pour se hisser — " + why); return; }
+        ClimbStart();
+    }
+
+    /// <summary>Par-dessus le bord : le sac se vide, la nage finit.</summary>
+    void SwimBoarded()
+    {
         // ce que rapporte le sac : à bord, au comptoir ; les huîtres s'ouvrent ici
         int lambis = 0, huitres = 0, perles = 0;
         foreach (var f in _sack)
@@ -133,6 +140,7 @@ public partial class ShipDemo
         if (huitres > 0) said.Add($"{huitres} huître{(huitres > 1 ? "s" : "")} ouverte{(huitres > 1 ? "s" : "")} : " + (perles > 0 ? _tresors.Say("perle", perles) + " !" : "pas de perle"));
         Say(said.Count > 0 ? "À bord. " + string.Join(" · ", said) : "À bord.");
         if (said.Count > 0) JournalLog("Plongé aux hauts-fonds : " + string.Join(", ", said) + ".");
+        GD.Print($"[nage] à bord : {string.Join(", ", _treasureHold)}");
         _sack.Clear();
         SwimEnd();
     }
@@ -141,6 +149,9 @@ public partial class ShipDemo
     {
         _swimming = false;
         _swim = null;
+        _grab?.Copy?.QueueFree();
+        _grab = null;
+        _climb = null;
         _camMode = _swimCamWas == CamSwim ? 0 : _swimCamWas;
         SetLens(OutsideFov, OutsideNear);
         if (_swimLabel != null) _swimLabel.Visible = false;
@@ -156,6 +167,7 @@ public partial class ShipDemo
         c.Throttle = 0;
         c.Rudder *= Math.Max(0, 1 - dt * 2.5);     // la barre lâchée revient d'elle-même
         if (_swim == null || _world == null) return;
+        if (_climb != null) { ClimbTick(dt); return; }      // à la montée, les mains sont prises
         var inp = new SwimInput();
         bool free = !_swimRescue && _pause?.Visible != true && !_menu.Visible;
         if (free)
@@ -163,7 +175,8 @@ public partial class ShipDemo
             inp.Fwd = (Physical(Key.W) ? 1 : 0) - (Physical(Key.S) ? 1 : 0);
             inp.Side = (Physical(Key.D) ? 1 : 0) - (Physical(Key.A) ? 1 : 0);
             inp.Up = (Physical(Key.Space) ? 1 : 0) - (Physical(Key.Ctrl) || Physical(Key.C) ? 1 : 0);
-            inp.Hard = Input.IsKeyPressed(Key.Shift);
+            inp.Hard = Input.IsKeyPressed(Key.Shift) || _swimTestStroke > 1;
+            if (_swimTestStroke > 0 && _swimTestStep < 0) inp.Fwd = 1;
             // les flèches tournent aussi la tête : pour qui n'a pas de souris sous la main
             _swim.Yaw -= ((Physical(Key.Right) ? 1 : 0) - (Physical(Key.Left) ? 1 : 0)) * 1.6 * dt;
             _swim.Pitch = Math.Clamp(_swim.Pitch + ((Physical(Key.Up) ? 1 : 0) - (Physical(Key.Down) ? 1 : 0)) * 1.2 * dt, -1.45, 1.45);
@@ -189,6 +202,7 @@ public partial class ShipDemo
                 _swim.Vel = v;
             }
         }
+        GrabGlide(dt);
         if (!_swimSaidCramp && _swim.Under && _swim.Breath < Swimmer.Contractions)
         { _swimSaidCramp = true; Say("Le diaphragme se contracte — il est temps de remonter"); }
         if (!_swim.Under) _swimSaidCramp = false;
@@ -218,6 +232,7 @@ public partial class ShipDemo
             if (_swimFade >= 1) SwimRescued();
         }
         SwimVeil();
+        GrabTick(dt);
 
         // les cases autour de lui, tirées une fois ; celles qu'il a quittées, rendues
         if ((_swimLook -= dt) <= 0)
@@ -233,7 +248,7 @@ public partial class ShipDemo
         foreach (var cell in _swimCells.Values)
             foreach (var (f, p) in cell)
             {
-                if (!p.Node.Visible) continue;
+                if (!p.Node.Visible || _grab?.F == f) continue;
                 var d = new Vec3d(f.X - _swim.Pos.X, f.Y + 0.05 - _swim.Pos.Y, f.Z - _swim.Pos.Z);
                 double L = d.Length;
                 if (L < best && (L < 0.6 || d.Dot(look) / L > 0.3)) { best = L; _swimNear = f; }
@@ -248,7 +263,7 @@ public partial class ShipDemo
             "lambi" => " · un lambi à portée (F)",
             _ => " · une huître à portée (F)"
         };
-        string board = !_swim.Under && SwimCanBoard(out _) ? " · E : se hisser à bord" : "";
+        string board = _climb != null ? " · on se hisse à bord" : !_swim.Under && SwimCanBoard(out _) ? " · E : se hisser à bord" : "";
         _swimLabel.Text = FormattableString.Invariant(
             $"{(_swim.Under ? $"Sous l'eau · {depth:F1} m" : "En surface")} · fond {bed:F0} m · souffle {_swim.Breath * 100:F0} % · sac {_sack.Count}")
             + near + board;
@@ -321,13 +336,12 @@ public partial class ShipDemo
 
     void SwimTake()
     {
-        if (_swim == null || _swimNear is not { } f) return;
+        if (_swim == null || _swimNear is not { } f || _grab != null || _climb != null) return;
         if (_sack.Count >= 10) { Say("Le sac est plein — remontez à bord le vider"); return; }
+        // compté tout de suite ; la main va le chercher, et il quitte le fond quand elle se ferme (GrabTick)
         _sack.Add(f);
         _picked[f.Id] = _calendar.Day;
-        foreach (var cell in _swimCells.Values)
-            foreach (var (ff, p) in cell)
-                if (ff == f) p.Node.Visible = false;
+        GrabStart(f);
         _swimNear = null;
         Say(f.Kind == "lambi" ? "Un lambi dans le sac" : "Une huître dans le sac");
     }
@@ -376,6 +390,7 @@ void fragment() {
     double _swimTestIn = -1, _swimTestStep = -1;
     string _swimTestKind = "";
     bool _swimTestTake;
+    int _swimTestStroke;
     int _swimTestPhase;
 
     /// <summary>
@@ -428,9 +443,7 @@ void fragment() {
                 var at = b.Pos + side * (_ship.Spec.B * 0.5 + 1.0);
                 _swim.Pos = new Vec3d(o.X + at.X, _sea.Core.Sample(at.X, at.Z, _t) + Swimmer.EyeAbove, o.Z + at.Z);
                 _swim.Under = false;
-                long before = _purse.Sous;
-                SwimBoardShip();
-                GD.Print($"[nage] à bord : {string.Join(", ", _treasureHold)} ; bourse +{_purse.Sous - before} sous");
+                SwimBoardShip();          // la montée dit « à bord » à la console quand elle finit
             }
         }
     }
@@ -462,7 +475,7 @@ void fragment() {
         /* LE REGARD EN GLISSANT, bouton tenu, comme partout ailleurs dans le jeu — et non
            souris capturée : sur ses écrans virtuels (vorpX, Virtual Desktop) une souris
            capturée n envoie aucun mouvement, la tête ne tournait pas (signalé). */
-        if (e is InputEventMouseMotion mm && (mm.ButtonMask & (MouseButtonMask.Left | MouseButtonMask.Right)) != 0)
+        if (e is InputEventMouseMotion mm && _climb == null && (mm.ButtonMask & (MouseButtonMask.Left | MouseButtonMask.Right)) != 0)
         {
             _swim.Yaw -= mm.Relative.X * 0.0035;
             _swim.Pitch = Math.Clamp(_swim.Pitch - mm.Relative.Y * 0.0035, -1.45, 1.45);

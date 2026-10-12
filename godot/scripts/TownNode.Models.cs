@@ -281,7 +281,7 @@ public partial class TownNode
                     // à sa place, le pied que le semis a trouvé ; ailleurs, le point le plus bas sous l'emprise
                     double y = ed.Moved || Math.Abs(ed.Yaw - ed.BaseYaw) > 1e-4 ? Footing(ed.X, ed.Z, h.W * ed.Scale, h.D * ed.Scale, ed.Yaw) : h.Y;
                     ed.GroundY = y + ed.Dy;
-                    var basis = new Basis(Vector3.Up, (float)ed.Yaw).Scaled(Vector3.One * (float)(ed.Removed ? 0 : k2 * ed.Scale));
+                    var basis = ed.Orient(ed.Yaw).Scaled(Vector3.One * (float)(ed.Removed ? 0 : k2 * ed.Scale));
                     // dix centimètres dans le sol : le relief bouge un peu sous l'emprise
                     var at = new Vector3((float)(ed.X - cx), (float)(ed.GroundY - 0.1), (float)(ed.Z - cz));
                     foreach (var mm in mms) mm.SetInstanceTransform(idx, new Transform3D(basis, at));

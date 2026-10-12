@@ -322,6 +322,46 @@ public sealed class AppearanceSpec
 }
 
 /// <summary>
+/// UN FLOTTEUR, telle que la fiche l'écrit : une seconde coque, à côté de la
+/// première — le balancier d'une pirogue, les flotteurs d'un trimaran. Ses
+/// lignes sont décrites par les MÊMES clés que la coque centrale (<c>coque</c>,
+/// un <see cref="HullShape"/>), donc par le même plan de formes : ce qu'on voit
+/// est ce qui flotte, flotteurs compris.
+///
+/// ecart : la distance de son axe à celui de la coque centrale, en mètres ;
+/// hauteur : de combien sa ligne de base est AU-DESSUS de celle de la coque
+/// centrale (un flotteur qui effleure l'eau au repos et ne porte qu'à la gîte) ;
+/// decalage : son milieu en avant (+) ou en arrière (−) du milieu de la coque ;
+/// masse : la part du déplacement qu'il pèse, LUI SEUL (il y en a deux si
+/// <c>paire</c>) — elle ne change rien à la flottaison, elle place l'inertie ;
+/// paire : vrai, un de chaque bord (trimaran) ; faux, un seul, à tribord si
+/// l'écart est positif (une pirogue à balancier).
+/// </summary>
+public sealed class FloatJson
+{
+    [JsonPropertyName("coque")]    public HullShape Hull { get; set; } = new();
+    [JsonPropertyName("ecart")]    public double Offset { get; set; }
+    [JsonPropertyName("hauteur")]  public double Rise { get; set; }
+    [JsonPropertyName("decalage")] public double Shift { get; set; }
+    [JsonPropertyName("masse")]    public double? MassFrac { get; set; }
+    [JsonPropertyName("paire")]    public bool? Pair { get; set; }
+}
+
+/// <summary>
+/// UN FLOTTEUR POSÉ, un par bord : ce que le solveur en tire. <see cref="X"/>,
+/// <see cref="Y"/>, <see cref="Z"/> déplacent ses lignes, faites autour de
+/// SON origine, dans le repère du navire — tribord est −x, donc un écart positif
+/// de la fiche donne un X négatif.
+/// </summary>
+public sealed class FloatHull
+{
+    public HullShape Hull = new();
+    public double X, Y, Z;
+    /// <summary>Sa masse en part du déplacement (ce flotteur-ci, pas la paire).</summary>
+    public double MassFrac;
+}
+
+/// <summary>
 /// LES AVIRONS D'UNE EMBARCATION, telle que la fiche les écrit. pairs : combien
 /// de paires ; period : le temps d'un coup entier, en secondes ; length : la
 /// longueur d'un aviron, en mètres (absente, 1,7 fois son bau).
@@ -349,6 +389,8 @@ public sealed class ShipJson
     /// <summary>La fiche de la chaloupe qu'elle porte, s'il y en a une.</summary>
     [JsonPropertyName("boat")] public string? Boat { get; set; }
     [JsonPropertyName("hull")] public HullShape Hull { get; set; } = new();
+    /// <summary>Ses coques latérales, s'il en a : un multicoque (<see cref="FloatJson"/>).</summary>
+    [JsonPropertyName("flotteurs")] public List<FloatJson>? Floats { get; set; }
     [JsonPropertyName("displacementTonnes")] public double DisplacementTonnes { get; set; }
     /// <summary>La capacité de sa cale, en tonnes ; absente, elle se calcule (voir ShipPhysics).</summary>
     [JsonPropertyName("cargoTonnes")] public double? CargoTonnes { get; set; }
@@ -439,6 +481,14 @@ public sealed class ShipSpec
     public double Keel { get; }     // creux de quille
     public double D { get; }        // creux sur quille : la hauteur que la grille couvre
     public double DeckMid { get; }
+    /// <summary>
+    /// SES FLOTTEURS, un par bord (une paire en donne deux) ; vide pour un
+    /// monocoque. <see cref="B"/> reste le bau de la coque CENTRALE : c'est elle
+    /// qui fend l'eau, sa résistance et sa prise latérale se comptent sur elle.
+    /// </summary>
+    public IReadOnlyList<FloatHull> Floats { get; }
+    /// <summary>La largeur hors tout, flotteurs compris : <see cref="B"/> pour un monocoque.</summary>
+    public double Span { get; }
 
     public double MassKg { get; }
     /// <summary>La capacité de sa cale écrite dans la fiche, en tonnes, ou null.</summary>
@@ -537,6 +587,27 @@ public sealed class ShipSpec
         Keel = h.KeelDepth;
         D = h.FreeboardMid + h.KeelDepth + h.KeelExtra;
         DeckMid = h.FreeboardMid;
+
+        /* SES FLOTTEURS. La ligne de base d'une coque est sa flottaison de dessin
+           (y = 0 : le livet est à freeboardMid au-dessus, la quille à keelDepth
+           au-dessous) ; « hauteur » soulève celle du flotteur d'autant. La masse
+           par défaut, cinq pour cent du déplacement chacun, est l'ordre de grandeur
+           d'un flotteur de trimaran de croisière : creux, il pèse sa structure et
+           rien d'autre. */
+        var floats = new List<FloatHull>();
+        double half = B / 2;
+        foreach (var fj in json.Floats ?? new())
+        {
+            if (fj.Hull.Length <= 0 || fj.Hull.Beam <= 0) continue;
+            double mf = Math.Clamp(fj.MassFrac ?? 0.05, 0, 0.4);
+            var at = new FloatHull { Hull = fj.Hull, X = -fj.Offset, Y = fj.Rise, Z = fj.Shift, MassFrac = mf };
+            floats.Add(at);
+            if (fj.Pair ?? true)
+                floats.Add(new FloatHull { Hull = fj.Hull, X = fj.Offset, Y = fj.Rise, Z = fj.Shift, MassFrac = mf });
+            half = Math.Max(half, Math.Abs(fj.Offset) + fj.Hull.Beam / 2);
+        }
+        Floats = floats;
+        Span = 2 * half;
 
         // le deplacement est l'ENTREE ; la fraction immergee en decoule
         MassKg = json.DisplacementTonnes * 1000.0;

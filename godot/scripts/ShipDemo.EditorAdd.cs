@@ -74,6 +74,8 @@ public partial class ShipDemo
         }
         SpawnPending();
         TerraTestTick();
+        ZoneTick(dt);
+        StrandTestTick(dt);
         BumpTestTick();
         SurpriseTick();
         EyeProbeTick(GetProcessDeltaTime());
@@ -97,6 +99,7 @@ public partial class ShipDemo
             // un navire posé n'est pas la carte : seul le décor entre dans son coût (MapCost)
             long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
             var born = SpawnAdded(a.Id, a.From, a.Glb, a.X, a.Z, a.Yaw * Math.PI / 180, a.Scale, a.Dy, a.Sheet);
+            if (born != null && a.Tilt != null) { born.Tilt = EditRegistry.TiltOf(a); born.Push?.Invoke(born); }
             if (a.Sheet.Length == 0)
                 MapCost.Add("ajouts", (System.Diagnostics.Stopwatch.GetTimestamp() - t0) * 1000.0 / System.Diagnostics.Stopwatch.Frequency);
             if (born != null)
@@ -158,8 +161,7 @@ public partial class ShipDemo
             // un émetteur n'a pas de corps : son échelle est sa force, pas sa taille
             pl.Y = g + ed.Lift * (ed.Smoke ? 1 : ed.Scale) + ed.Dy;
             _addedHolds.Moved(pl);
-            hold.Rotation = new Vector3(0, (float)(ed.Yaw - ed.VisualYaw), 0);
-            hold.Scale = Vector3.One * (float)ed.Scale;
+            hold.Basis = ed.Orient(ed.Yaw - ed.VisualYaw).Scaled(Vector3.One * (float)ed.Scale);
             hold.Visible = !ed.Removed;
             ed.GroundY = g + ed.Dy;
             LandNode.PushRock(_world, ed);
@@ -450,7 +452,7 @@ public partial class ShipDemo
         if (e == null) { Say("Ce modèle ne se refait pas"); return null; }
         _editReg.Commit(e);
         // l'annuler, c'est le retirer
-        _edUndo.Push((e, (e.X, e.Z, e.Yaw, e.Scale, e.Dy, true)));
+        _edUndo.Push((e, (e.X, e.Z, e.Yaw, e.Scale, e.Dy, true, e.Tilt)));
         _sel = e;
         Say($"Collé : {c.Label}");
         return e;

@@ -126,8 +126,7 @@ public partial class FolkNode : Node3D
                 double y = _world.HeightAt(ed.X, ed.Z);
                 ed.GroundY = y + ed.Dy;
                 mi.Position = new Vector3((float)(ed.X - cx), (float)(y - pieds + ed.Dy), (float)(ed.Z - cz));
-                mi.Rotation = new Vector3(0, (float)ed.Yaw, 0);
-                mi.Scale = Vector3.One * (float)(k * ed.Scale);
+                mi.Basis = ed.Orient(ed.Yaw).Scaled(Vector3.One * (float)(k * ed.Scale));
                 mi.Visible = !ed.Removed;
             };
             if (Editor != null) Editor.Add(e); else e.Push(e);

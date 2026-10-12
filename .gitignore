@@ -31,3 +31,6 @@ core/parity*.json
 
 # le relief exporte pour Blender : il se regenere (node tools/zone-glb.js)
 world/models/*-zone.glb
+
+# l aller-retour avec Blender (node tools/blender-zone.js) : export, .blend de travail, releve
+world/blender/

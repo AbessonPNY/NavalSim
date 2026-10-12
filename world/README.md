@@ -165,6 +165,50 @@ un entrepôt jusqu'à 16 × 21. Elles ne se posent que sur du terrain à plus de
 rivage, et leur façade regarde l'eau. Rien à modéliser : deux maillages
 multipliés.
 
+### Disposer un port dans Blender (Godot) — l'aller-retour
+
+```bash
+node tools/blender-zone.js sortir port-royal            # le jeu → world/blender/port-royal.blend (la zone du port, au pas de 2 m)
+node tools/blender-zone.js sortir port-royal 1600 1     # une zone plus grande, un relief plus fin
+node tools/blender-zone.js rentrer port-royal --essai   # ce que le retour ferait, sans rien écrire
+node tools/blender-zone.js rentrer port-royal           # le .blend → world/retouches/<région>.json
+node tools/blender-zone.js palette port-royal           # les modèles bruts seuls → world/blender/palette.glb
+node tools/blender-zone.js terrain port-royal           # le relief a changé : la terre du .blend remplacée, objets gardés
+```
+
+**Sortir** lance le jeu, qui charge le port et écrit `world/blender/<port>.glb` et son manifeste
+`<port>-zone.json`, puis Blender (sans fenêtre) en fait `<port>.blend`. La zone couvre le relief fin du port (son patch de la fiche) et tout ce qui est posé à moins de 2,5 km et plus près de lui que d’un autre port, en un carré centré sur lui ; un côté donné en argument l’impose. Dedans : la terre telle que le jeu
+la lit (dragage, môle, récifs, **terrassement**) teintée de son sol peint, la mer à zéro — les deux
+verrouillées —, chaque objet retouchable de la zone (maisons, pâtés, ajouts, pontons, rochers, figurants ;
+un navire posé est une boîte orange) **nommé par sa retouche**, et une palette des modèles bruts en rang au
+nord. Origine au port, mètres vrais. Un `.blend` existant n'est jamais écrasé sans `--ecraser`.
+
+**Dans Blender** : déplacer, tourner — dans tous les sens : une chaloupe couchée sur le sable le reste dans le
+jeu —, mettre à l'échelle ; **Maj+D** fait une copie (`…:37.001` → un ajout `de` cet objet) ; **Suppr**
+retire ; un double d'un modèle de la palette posé dans la zone devient un ajout `glb`. Une hauteur qu'on n'a
+pas touchée laisse l'objet suivre le sol à sa nouvelle place ; une hauteur changée est prise telle quelle
+(`dy`). **Ne pas renommer** : le nom est la clé. Un navire posé reste droit (la mer le porte).
+
+**Un nouveau modèle** : le déposer dans `world/models` ou `props` (sa taille dans `palette.json`), lancer
+`palette`, puis dans Blender *Fichier › Importer › glTF 2.0* `world/blender/palette.glb` : il arrive à sa
+taille de jeu, posé sur son pied, nommé `brut:<fichier>` ; on le duplique et on le pose. Rien n'est réexporté,
+le `.blend` ouvert reste le vôtre. Un fichier importé TEL QUEL n'est pas reconnu, et c'est voulu : son unité
+et son nœud racine varient d'un fichier à l'autre (le tonneau fait cent unités sous une racine qui le tourne),
+il ne tomberait pas où on l'a vu.
+
+**Le relief a changé** (repeint, terrassé) : `terrain` relit le relief du jeu au même carré et au même pas que l’export, et remplace dans le `.blend` la terre et la mer, rien d’autre — vos objets restent où vous les avez mis, une copie `<port>.avant-terrain.blend` est gardée. **Blender fermé sur ce fichier** : sinon votre prochain enregistrement y remettrait l’ancienne terre. Les objets dont vous n’avez pas touché la hauteur suivront le sol neuf au retour ; voyez dans Blender ceux qu’il laisse en l’air ou sous l’eau.
+
+**La pente** s'écrit dans la retouche, `"penche": [x, y, z, w]` — un quaternion appliqué APRÈS le cap, en
+repère du monde, absent quand l'objet est droit. Les ajouts, les modèles et semis de la terre, les maisons (et
+leurs lanternes) et les figurants la suivent ; ⌫ dans le mode création la rend à zéro avec le reste.
+
+**Rentrer** fait relever le `.blend` par Blender, puis le jeu l'applique **par le registre du mode
+création** — le `Push` de chaque bâtisseur, `SpawnAdded` pour les copies — et écrit les retouches comme
+à la souris. Après écriture, le `.blend` devient l’état connu (le manifeste retient les places relevées et le nom Blender de chaque double) : relancer `rentrer` ne refait rien. Les avertissements de V-Ray ou de Godot en quittant sont tus ; la sortie brute du dernier passage est dans `world/blender/dernier-passage.log`. Il refuse si le `.blend` ne contient pas la moitié des objets exportés (mauvais fichier). Le
+travail fait ENTRE-TEMPS dans le jeu reste : seuls les objets changés dans Blender sont réécrits ; pour
+repartir de l'état du jeu, rentrer puis ressortir avec `--ecraser`. Code : `ShipDemo.Blender.cs`,
+`tools/blender/`. `world/blender/` est hors dépôt.
+
 ### Bâtir un port à la main
 
 Pour modeler une ville fidèle — Port-Royal — sortez le terrain du jeu et

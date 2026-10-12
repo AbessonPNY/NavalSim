@@ -205,16 +205,17 @@ public partial class ShipDemo
     {
         if (_captured) return;                 // on ne radoube pas un navire qu'on n'a plus
         // rompue, elle se remplace entière : on ne recoud pas une coque dont l'avant est au fond
-        if (_ship.Physics.Broken) Rebuild();
+        if (_ship.Physics.Broken) { ClearCarcass(_ship); Rebuild(); }
         // remise à flot : ce n'est plus une épave
         Refloated();
         // le radoub éteint ce qui brûlait : on ne répare pas un navire en feu
         Douse(_ship);
         bool sunk = _lost || _ship.Physics.Foundered;
         bool capsized = Capsized();
+        bool aground = Aground();
         _ship.Physics.Salvage();
         _ship.RestoreMasts();
-        if (!sunk && !capsized) { Say("Radoub : la mâture est remise en état."); return; }
+        if (!sunk && !capsized && !aground) { Say("Radoub : la mâture est remise en état."); return; }
         var b = _ship.Physics.Body;
         /* REDRESSÉE À SON CAP : la gîte et l'assiette effacées, le lacet gardé —
            elle était posée face à l'identité (cap au nord), ce qui la faisait
@@ -224,7 +225,21 @@ public partial class ShipDemo
         var flat = new Vec3d(f.X, 0, f.Z);
         if (flat.Length < 0.2) { var x = b.Quat.Rotate(new Vec3d(1, 0, 0)); flat = new Vec3d(-x.Z, 0, x.X); }
         double yaw = Math.Atan2(flat.X, flat.Z);
-        b.Pos = new Vec3d(b.Pos.X, _eqY, b.Pos.Z);
+        /* À FLOT, ET NON SUR PLACE quand la place est à sec : remise à sa flottaison dans le
+           sable, la coque était chassée par le fond et bondissait jusqu'aux maisons (une ILCA
+           échouée sur la plage de Port-Royal). On la porte à l'eau libre la plus proche,
+           l'étrave vers le large. */
+        double px = b.Pos.X, pz = b.Pos.Z;
+        bool moved = false;
+        if (aground || !WaterUnder(px, pz))
+        {
+            if (NearestWater(px, pz) is { } w)
+            {
+                if (Math.Abs(w.X - px) + Math.Abs(w.Z - pz) > 0.5) yaw = Math.Atan2(w.X - px, w.Z - pz);
+                px = w.X; pz = w.Z; moved = true;
+            }
+        }
+        b.Pos = new Vec3d(px, _eqY, pz);
         b.Vel = Vec3d.Zero;
         b.AngVel = Vec3d.Zero;
         b.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), yaw);
@@ -232,7 +247,118 @@ public partial class ShipDemo
         _capsizedFor = 0;
         Found();
         Say(sunk ? "Renflouée : les pompes ont eu raison de l'eau, la mâture est replantée."
-                 : "Redressée : l'équipage a remis la coque sur sa quille, la mâture est replantée.");
+                 : capsized ? "Redressée : l'équipage a remis la coque sur sa quille, la mâture est replantée."
+                 : "Déséchouée : l'équipage l'a halée jusqu'à l'eau libre.");
+        if (moved && (sunk || capsized)) Say("Remise à flot en eau libre : il n'y avait plus assez de fond où elle était.");
+    }
+
+    /// <summary>
+    /// -- --desechouer 1 : le navire posé à terre près du port de départ, puis R, et ce qu'il en
+    /// advient dans la console — l'essai du déséchouage, sans rien écrire.
+    /// </summary>
+    double _strandTest = -1;
+    void StrandTestTick(double dt)
+    {
+        if (_strandTest < 0 || _world?.StartPort is not { } home) return;
+        double t0 = _strandTest;
+        _strandTest += dt;
+        var b = _ship.Physics.Body;
+        var o = _sea.Core.Origin;
+        string Where() => FormattableString.Invariant(
+            $"({b.Pos.X + o.X:F1}, {b.Pos.Z + o.Z:F1}) sol {_world.HeightAt(b.Pos.X + o.X, b.Pos.Z + o.Z):F2} m, y {b.Pos.Y:F2}, touche {_ship.Physics.Aground:F2} m");
+        if (t0 < 4 && _strandTest >= 4)
+        {
+            // un point à terre, à moins de 400 m du port, à plus d'un mètre au-dessus de l'eau
+            for (double r = 30; r < 400; r += 10)
+                for (int i = 0; i < 24; i++)
+                {
+                    double a = i * Math.PI / 12, x = home.X + Math.Cos(a) * r, z = home.Z + Math.Sin(a) * r;
+                    if (_world.HeightAt(x, z) < 1.0) continue;
+                    b.Pos = new Vec3d(x - o.X, _world.HeightAt(x, z) + 0.5, z - o.Z);
+                    b.Vel = Vec3d.Zero; b.AngVel = Vec3d.Zero;
+                    _ship.SyncTransform();
+                    _fixLook = new Vector3((float)b.Pos.X, (float)b.Pos.Y, (float)b.Pos.Z);
+                    _fixEye = _fixLook + new Vector3(40, 25, 40); _planted = true;
+                    GD.Print("[échouage] posé à terre en " + Where());
+                    goto done;
+                }
+            done:;
+        }
+        if (t0 < 8 && _strandTest >= 8) { GD.Print("[échouage] avant R : " + Where() + $", échoué {Aground()}"); Salvage(); GD.Print("[échouage] juste après R : " + Where()); }
+        if (t0 < 14 && _strandTest >= 14)
+        {
+            GD.Print("[échouage] six secondes après R : " + Where() + FormattableString.Invariant($", vitesse {b.Vel.Length:F2} m/s, échoué {Aground()}, tirant d'eau {DraftOf():F2} m"));
+            GetTree().Quit(0);
+        }
+    }
+
+    /// <summary>Son tirant d'eau, d'après sa flottaison de repos et le bas de sa coque.</summary>
+    double DraftOf() => Math.Max(0.3, -(_eqY + _ship.LocalBounds().Position.Y));
+
+    /// <summary>Touche-t-elle le fond ? Le solveur le dit (Aground) ; sinon, l'eau sous l'étrave, le milieu et l'étambot.</summary>
+    bool Aground()
+    {
+        if (_ship.Physics.Aground > 0.01) return true;
+        var b = _ship.Physics.Body;
+        var f = b.Quat.Rotate(new Vec3d(0, 0, _ship.Spec.L * 0.45));
+        return !WaterUnder(b.Pos.X, b.Pos.Z) || !WaterUnder(b.Pos.X + f.X, b.Pos.Z + f.Z) || !WaterUnder(b.Pos.X - f.X, b.Pos.Z - f.Z);
+    }
+
+    /// <summary>Assez d'eau pour sa quille en ce point (repère local, l'origine flottante ajoutée).</summary>
+    bool WaterUnder(double x, double z)
+    {
+        if (_world == null) return true;
+        var o = _sea.Core.Origin;
+        return _world.HeightAt(x + o.X, z + o.Z) < -(DraftOf() + 0.3);
+    }
+
+    /// <summary>
+    /// L'EAU LIBRE LA PLUS PROCHE, en repère local : la règle des anneaux (Teleport.Check),
+    /// assez de fond pour la quille sur un rond d'une longueur de coque. Par cercles de
+    /// plus en plus grands, jusqu'à trois kilomètres ; nul s'il n'y en a pas.
+    /// </summary>
+    Vec3d? NearestWater(double x, double z)
+    {
+        if (_world == null) return null;
+        var o = _sea.Core.Origin;
+        double draft = DraftOf(), len = _ship.Spec.L;
+        double step = Math.Max(4, len * 0.5);
+        for (double r = 0; r <= 3000; r += step)
+        {
+            int n = r < 1 ? 1 : Math.Max(12, (int)(2 * Math.PI * r / step));
+            for (int i = 0; i < n; i++)
+            {
+                double a = i * 2 * Math.PI / n;
+                double wx = x + Math.Cos(a) * r, wz = z + Math.Sin(a) * r;
+                if (Teleport.Check(_world, wx + o.X, wz + o.Z, draft, len) == Teleport.Verdict.Bon) return new Vec3d(wx, 0, wz);
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// CE QUI RESTE DE L'ANCIEN, quand R en met un neuf à l'eau : sa moitié avant qui
+    /// sombrait et les pièces qui s'en étaient arrachées. Laissées, elles flottaient à
+    /// côté du navire neuf — la carcasse du précédent.
+    /// </summary>
+    void ClearCarcass(ShipNode s)
+    {
+        for (int i = _halves.Count - 1; i >= 0; i--)
+        {
+            var h = _halves[i];
+            if (h.From != s) continue;
+            if (IsInstanceValid(s)) s.ForgetUnder(h.Node);
+            h.Node.QueueFree();
+            _halves.RemoveAt(i);
+        }
+        for (int i = _loose.Count - 1; i >= 0; i--)
+        {
+            var L = _loose[i];
+            if (L.Owner != s) continue;
+            if (IsInstanceValid(L.Node)) L.Node.QueueFree();
+            _loose.RemoveAt(i);
+        }
+        _looseAt.Remove(s);
     }
 
     readonly List<(Waterline, double)> _rings = new();

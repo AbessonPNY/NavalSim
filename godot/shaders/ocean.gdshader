@@ -25,6 +25,7 @@ render_mode world_vertex_coords, cull_disabled, unshaded, depth_draw_always;
 #include "res://shaders/ride.gdshaderinc"
 #include "res://shaders/haze.gdshaderinc"
 #include "res://shaders/hull_gap.gdshaderinc"
+#include "res://shaders/lantern.gdshaderinc"
 
 uniform float u_half = 3500.0;
 uniform float u_seg = 384.0;
@@ -1057,6 +1058,7 @@ void fragment() {
 	   qui est exactement le test pour être hors de la fenêtre ; la normale est
 	   retournée, la surface faisant face de l'autre côté. AVANT que la coque vue
 	   à travers l'eau ne soit mêlée : écrit après, il l'effacerait. */
+	vec3 lamp_seen = vec3(0.0);
 	if (u_submerged > 0.5 && !FRONT_FACING) {
 		vec3 Vv = normalize(v_world - eye);
 		vec3 refr = refract(Vv, -N, 1.333);
@@ -1066,9 +1068,76 @@ void fragment() {
 			c = naval_sky(refr, u_sun, u_zenith, u_horizon, 0.0);
 			// le disque du soleil, que seul le dôme dessine et le dôme n'est pas là
 			c += vec3(1.0, 0.95, 0.85) * pow(max(dot(refr, u_sun), 0.0), 1400.0) * 4.0;
+
+			/* CE QUI EST EN L'AIR, AU BOUT DU RAYON RÉFRACTÉ. La fenêtre montrait
+			   l'image relue au regard DROIT, éteinte par « l'épaisseur d'eau »
+			   entre la surface et la coque — qui est de l'AIR. Sous le navire cette
+			   épaisseur est faible et il se voyait ; à cent mètres elle l'éteignait
+			   tout entier, d'où un mur (signalé). On suit donc le rayon réfracté
+			   dans l'image, par la marche du reflet des coques (une définition,
+			   deux usagers) : un navire lointain se range au bord de la fenêtre,
+			   écrasé comme il l'est vraiment. Au-delà de sa portée, la direction
+			   seule suffit — à cette distance l'œil et la surface ne font plus de
+			   parallaxe —, pourvu qu'il y ait là quelque chose et pas le ciel. */
+			vec3 Rv = normalize((VIEW_MATRIX * vec4(refr, 0.0)).xyz);
+			vec4 hm = hull_mirror(VERTEX, Rv, PROJECTION_MATRIX, INV_PROJECTION_MATRIX, 300.0);
+			vec3 seen = hm.rgb * hm.a;
+			float got = hm.a;
+			if (got < 0.99 && Rv.z < -0.02) {
+				vec4 cf = PROJECTION_MATRIX * vec4(Rv, 0.0);
+				vec2 uf = cf.xy / cf.w * 0.5 + 0.5;
+				vec4 vs = INV_PROJECTION_MATRIX * vec4(0.0, 0.0, 0.0, 1.0);
+				vec4 vn = INV_PROJECTION_MATRIX * vec4(0.0, 0.0, 1.0, 1.0);
+				// la profondeur du ciel, quel que soit le sens du tampon
+				float zsky = max(abs(vs.z / vs.w), abs(vn.z / vn.w));
+				if (uf.x > 0.0 && uf.x < 1.0 && uf.y > 0.0 && uf.y < 1.0) {
+					float zf = view_depth(uf, INV_PROJECTION_MATRIX);
+					if (zf > 150.0 && zf < 0.95 * zsky) {
+						seen += naval_encode(textureLod(u_screen, uf, 0.0).rgb) * (1.0 - got);
+						got = 1.0;
+					}
+				}
+			}
+			if (got > 0.0) c = mix(c, seen / got, got * (1.0 - hz));
 		}
 		// le bord de la fenêtre, où la lumière s'entasse avant d'être coupée
 		c += vec3(0.80, 0.92, 1.00) * pow(1.0 - abs(dot(Vv, N)), 6.0) * 0.22;
+
+		/* LES FANAUX VUS D'EN DESSOUS. Leur lueur est un panneau additif dessiné
+		   APRÈS la mer : de dessous, la surface (qui écrit sa profondeur) le cache,
+		   et il n'est pas non plus dans l'image relue (prise avant le transparent).
+		   Et la lumière qu'ils versent sur l'eau était calculée plus haut puis
+		   effacée par le ciel de la fenêtre. Deux choses, donc :
+		   · la lumière ENTRÉE dans l'eau, le même terme qu'en haut — d'en bas, la
+		     surface sous un fanal rougeoie ;
+		   · le feu LUI-MÊME, là où le rayon réfracté le vise : la fenêtre de Snell
+		     le place, les rides le font danser d'elles-mêmes (refr suit N), et la
+		     lueur a le profil du panneau (glow, une définition). Un fanal seulement :
+		     une fenêtre est dans le bordé, donc déjà dans l'image relue. */
+		float Tw = 1.0 - naval_schlick(abs(dot(Vv, N)));
+		for (int i = 0; i < NLAMP; i++) {
+			if (i >= u_lamp_count) break;
+			vec3 Lv = u_lamp[i].xyz - v_world;
+			float dl = length(Lv);
+			vec3 L = Lv / max(dl, 1e-3);
+			float nd = dl / max(u_lamp_range[i], 0.01);
+			nd *= nd; nd *= nd;
+			float win = max(1.0 - nd, 0.0);
+			win *= win;
+			float irr = u_lamp[i].w * win / max(dl * dl, 0.01);
+			vec3 aim = u_lamp_aim[i];
+			if (dot(aim, aim) > 0.0) irr *= max(dot(-L, aim), 0.0);
+			c += u_lamp_col[i] * irr * max(dot(N, L), 0.0) * (u_shallow * u_lamp_water + vec3(0.02)) * Tw;
+			if (u_lamp_size[i] > 0.0 || dot(aim, aim) > 0.0 || dot(refr, refr) < 0.0001) continue;
+			/* Son rayon apparent : le halo d'un fanal (environ 1,2 m), jamais moins
+			   que le repère à taille d'écran du panneau (0,015 rad). Son éclat : la
+			   force de la lampe ramenée à celle d'une flamme pleine (2,6, voir
+			   ShipNode.Lights), qui vaut l'opacité du panneau. */
+			float ang = acos(clamp(dot(refr, L), -1.0, 1.0));
+			float rad = max(1.2 / max(dl, 1.0), 0.015);
+			vec4 g = glow(ang / rad);
+			lamp_seen += LANTERN_FLAME * g.rgb * g.a * (u_lamp[i].w / 2.6) * 0.85 * Tw;
+		}
 
 		/* L'ÉCUME PAR EN DESSOUS, et c'est elle qui manquait : vue d'en bas, la
 		   mer n'était qu'une vitre. Un sillage est un nuage de BULLES, et une
@@ -1105,6 +1174,8 @@ void fragment() {
 		float lum = dot(foam_col, vec3(0.30, 0.59, 0.11));
 		vec3 milk = lum * vec3(0.72, 0.95, 1.10) * 1.8;
 		c = mix(c, max(c, milk), under * 0.95);
+		// les bulles diffusent le feu : on ne le voit plus net au travers d'un sillage
+		lamp_seen *= 1.0 - under * 0.8;
 	}
 
 	vec2 base = SCREEN_UV;
@@ -1140,10 +1211,9 @@ void fragment() {
 		   reste trouble, si bien que l'eau profonde du port garde son ombre. */
 		float veil = u_veil * (1.0 - 0.45 * trouble);
 		vec3 behind = naval_encode(textureLod(u_screen, suv, 0.0).rgb);
-		if (u_submerged > 0.5 && !FRONT_FACING) {
-			// par en dessous, ce qu'on voit à travers la fenêtre est EN L'AIR : rien à partager
-			c = mix(c, behind, T * (1.0 - hz));
-		} else {
+		/* Par en dessous, ce qui est derrière la surface est EN L'AIR : la fenêtre
+		   de Snell l'a déjà montré, au bout du rayon réfracté, sans l'éteindre. */
+		if (!(u_submerged > 0.5 && !FRONT_FACING)) {
 			/* CE QUE L'EAU LAISSE PASSER NE REMPLACE QUE CE QU'ELLE DIFFUSE, PAS
 			   CE QU'ELLE RENVOIE. La surface est une somme : F de reflet — le ciel,
 			   la coque en miroir, le soleil, l'écume — et (1 − F) de ce qui sort de
@@ -1163,6 +1233,9 @@ void fragment() {
 			c += (1.0 - hz) * (1.0 - F) * T * veil * (behind - body);
 		}
 	}
+
+	// le feu vu d'en dessous, APRÈS ce qui passe au travers : il est devant ce qu'il éclaire
+	c += lamp_seen * (1.0 - hz);
 
 	// la gerbe d'une goutte qui crève la surface : un éclat de l'eau, qui renvoie le jour
 	c += u_horizon * 2.0 * rain_splash;

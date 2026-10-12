@@ -67,6 +67,8 @@ public struct Probe
     public Vec3d Local;
     public double Vol;
     public double Frac;     // à quel point elle est pleine, retenu d'une image à l'autre
+    /// <summary>Sa coque : 0 la centrale, 1 et au-delà un flotteur (l'indice dans Spec.Floats, plus un).</summary>
+    public int Hull;
 }
 
 /// <summary>Un compartiment étanche, découpé SUR LES SONDES.</summary>
@@ -413,10 +415,32 @@ public sealed partial class ShipPhysics
     void UpdateInertia()
     {
         double m = Body.Mass, L = _len, B = Spec.B, D = Spec.D;
-        Body.Ib = new Vec3d(
-            m / 12 * (D * D + L * L),     // autour de x (tangage)
-            m / 12 * (B * B + L * L),     // autour de y (lacet)
-            m / 12 * (B * B + D * D));    // autour de z (roulis)
+        /* SES FLOTTEURS PÈSENT AU BOUT D'UN BRAS. Le pavé de la coque centrale
+           garde ce qu'ils ne pèsent pas ; chacun y ajoute son propre pavé et le
+           transport de sa masse jusqu'à l'axe (Huygens) — c'est ce qui donne à un
+           trimaran son roulis lent : trois fois le bau du pavé seul, à poids égal.
+           Leur masse est celle du dessin, à sec : l'eau embarquée reste dans la
+           coque centrale. */
+        double mc = m;
+        Vec3d ib = Vec3d.Zero;
+        for (int i = 0; i < Lines.Floats.Count; i++)
+        {
+            var (fl, at) = Lines.Floats[i];
+            var h = fl.Shape;
+            double mf = at.MassFrac * Spec.MassKg;
+            mc -= mf;
+            double fd = h.FreeboardMid + h.KeelDepth, fb = h.Beam, flen = h.Length;
+            double dx = at.X, dy = at.Y - Body.Com.Y, dz = at.Z - Body.Com.Z;
+            ib += new Vec3d(
+                mf / 12 * (fd * fd + flen * flen) + mf * (dy * dy + dz * dz),
+                mf / 12 * (fb * fb + flen * flen) + mf * (dx * dx + dz * dz),
+                mf / 12 * (fb * fb + fd * fd) + mf * (dx * dx + dy * dy));
+        }
+        mc = Math.Max(0.2 * m, mc);
+        Body.Ib = ib + new Vec3d(
+            mc / 12 * (D * D + L * L),    // autour de x (tangage)
+            mc / 12 * (B * B + L * L),    // autour de y (lacet)
+            mc / 12 * (B * B + D * D));   // autour de z (roulis)
     }
 
     /* ------------------------------------------------------------------ */
@@ -432,37 +456,77 @@ public sealed partial class ShipPhysics
     /// </summary>
     void BuildProbes()
     {
-        double L = Spec.L, B = Spec.B, D = Spec.D;
-        int nz = Config.PnZ, nx = Config.PnX, ny = Config.PnY;
-        double cellVol = (L / nz) * (B / nx) * (D / ny);
-        double gridBase = -(Spec.Hull.KeelDepth + Spec.Hull.KeelExtra);
-        ProbeH = D / ny;              // l'échelle de lissage de l'immersion partielle
-
         var list = new List<Probe>(Config.ProbeCount);
         HullVolume = 0;
+        if (Lines.Floats.Count == 0)
+        {
+            ProbeH = Spec.D / Config.PnY;     // l'échelle de lissage de l'immersion partielle
+            FillHull(list, Lines, Vec3d.Zero, Config.PnY, -(Spec.Hull.KeelDepth + Spec.Hull.KeelExtra), Spec.D, 0);
+            Probes = list.ToArray();
+            return;
+        }
+
+        /* UN MULTICOQUE : chaque coque sur SA grille. Une grille commune à toute
+           la largeur hors tout mettrait une ou deux cellules en travers d'un
+           flotteur étroit, et sa poussée se lirait par paliers. Mais toutes à la
+           MÊME HAUTEUR de cellule — c'est elle qui fixe le lissage de l'immersion
+           partielle (depth / ProbeH), et deux hauteurs feraient deux lissages.
+
+           Cette hauteur est prise sur le CORPS de la coque la moins creuse, sans
+           sa dérive : la grille d'un monocoque couvre keelExtra, qu'elle laisse
+           vide (aucune cellule sous la quille), et chez un trimaran à dérive
+           profonde elle donnait des cellules d'un demi-mètre — un flotteur qui
+           s'enfonce de quarante centimètres n'en touchait qu'une rangée, et le GM
+           aux sondes valait le tiers de celui des lignes (banc « stabilite »). Le
+           monocoque garde sa grille au bit près : le banc de parité la compare. */
+        double Hollow(HullShape h) => h.FreeboardMid + h.KeelDepth + h.DragAft;
+        double cell = Hollow(Spec.Hull);
+        foreach (var (fl, _) in Lines.Floats) cell = Math.Min(cell, Hollow(fl.Shape));
+        ProbeH = cell / Config.PnY;
+        void Fill(HullLines hl, Vec3d o, int hull)
+        {
+            var h = hl.Shape;
+            int ny = Math.Max(2, (int)Math.Ceiling(Hollow(h) / ProbeH - 1e-9));
+            FillHull(list, hl, o, ny, -(h.KeelDepth + h.DragAft), ny * ProbeH, hull);
+        }
+        Fill(Lines, Vec3d.Zero, 0);
+        for (int i = 0; i < Lines.Floats.Count; i++)
+        {
+            var (fl, at) = Lines.Floats[i];
+            Fill(fl, new Vec3d(at.X, at.Y, at.Z), i + 1);
+        }
+        Probes = list.ToArray();
+    }
+
+    /// <summary>Une coque en cellules de volume égal, posée en <paramref name="o"/>, de <paramref name="gridBase"/> sur <paramref name="D"/>.</summary>
+    void FillHull(List<Probe> list, HullLines lines, Vec3d o, int ny, double gridBase, double D, int hull)
+    {
+        var h = lines.Shape;
+        double L = h.Length, B = h.Beam;
+        int nz = Config.PnZ, nx = Config.PnX;
+        double cellVol = (L / nz) * (B / nx) * ProbeH;
 
         for (int iz = 0; iz < nz; iz++)
         {
             double tz = (iz + 0.5) / nz;
             double z = -L / 2 + tz * L;
-            double halfB = Lines.HalfB(tz), deckY = Lines.DeckY(tz), keelY = Lines.KeelY(tz);
+            double halfB = lines.HalfB(tz), deckY = lines.DeckY(tz), keelY = lines.KeelY(tz);
             if (halfB < 0.05 * B / 5.8) continue;      // une station sans largeur
             for (int iy = 0; iy < ny; iy++)
             {
                 double y = gridBase + ((iy + 0.5) / ny) * D;
                 if (y < keelY || y > deckY) continue;
                 double s = (deckY - y) / (deckY - keelY);
-                double beam = halfB * Lines.BeamFactor(s);
+                double beam = halfB * lines.BeamFactor(s);
                 for (int ix = 0; ix < nx; ix++)
                 {
                     double x = -B / 2 + ((ix + 0.5) / nx) * B;
                     if (Math.Abs(x) > beam) continue;
-                    list.Add(new Probe { Local = new Vec3d(x, y, z), Vol = cellVol, Frac = 0 });
+                    list.Add(new Probe { Local = new Vec3d(x, y, z) + o, Vol = cellVol, Frac = 0, Hull = hull });
                     HullVolume += cellVol;
                 }
             }
         }
-        Probes = list.ToArray();
     }
 
     /// <summary>
@@ -481,6 +545,10 @@ public sealed partial class ShipPhysics
         for (int p = 0; p < Probes.Length; p++)
         {
             ref Probe pr = ref Probes[p];
+            /* La cale est dans la coque centrale. Un flotteur est un caisson
+               étanche à part : une voie d'eau de la coque ne le remplit pas, et
+               l'arrimage ne doit pas y voir une demi-largeur où ranger le fret. */
+            if (pr.Hull != 0) continue;
             int i = Math.Min(n - 1, Math.Max(0, (int)Math.Floor(((pr.Local.Z + L / 2) / L) * n)));
             var c = Comps[i];
             c.Cap += pr.Vol;

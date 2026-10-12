@@ -29,7 +29,7 @@ namespace NavalSim;
 /// fichier, réglages compris — utile pour essayer une valeur sans toucher à ce
 /// que la page verra.
 /// </summary>
-public static class Assets
+public static partial class Assets
 {
     /// <summary>La racine du dépôt, un cran au-dessus du projet Godot.</summary>
     public static string Root { get; } = System.IO.Path.GetFullPath(
@@ -60,10 +60,50 @@ public static class Assets
 
     public static Node3D? LoadGlb(string fullPath, out Error err)
     {
+        if (_mipmaps == null) GltfDocument.RegisterGltfDocumentExtension(_mipmaps = new MipmapOnDecode(), true);
         var doc = new GltfDocument();
         var state = new GltfState();
         err = doc.AppendFromFile(fullPath, state);
-        return err == Error.Ok ? doc.GenerateScene(state) as Node3D : null;
+        if (err != Error.Ok) return null;
+        Anisotropic(state);
+        return doc.GenerateScene(state) as Node3D;
+    }
+
+    static MipmapOnDecode? _mipmaps;
+
+    /// <summary>
+    /// MIPMAPS, que GltfDocument ne fabrique pas à l'exécution (l'import de l'éditeur, si) :
+    /// sans eux une tuile de toit à cent mètres tire UN texel au hasard par pixel, et
+    /// l'image grouille — ce qu'aucun anticrénelage ne rattrape, MSAA ne voyant que les
+    /// arêtes et FXAA/SMAA qu'une image déjà fausse. Fabriqués AU DÉCODAGE, avant que la
+    /// texture parte au GPU : les reprendre après coup, c'est relire chaque texture depuis
+    /// la carte, 37 ms par fichier au moins. Pas de renormalisation des cartes de normales
+    /// (on ne sait pas encore qui l'est) : le shader normalise de toute façon la normale lue.
+    /// </summary>
+    sealed partial class MipmapOnDecode : GltfDocumentExtension
+    {
+        public override Error _ParseImageData(GltfState state, byte[] imageData, string mimeType, Image retImage)
+        {
+            var err = mimeType switch
+            {
+                "image/png" => retImage.LoadPngFromBuffer(imageData),
+                "image/jpeg" => retImage.LoadJpgFromBuffer(imageData),
+                "image/webp" => retImage.LoadWebpFromBuffer(imageData),
+                // anything else: GltfDocument decodes it itself, without mipmaps
+                _ => Error.Unavailable
+            };
+            if (err != Error.Ok) return Error.Unavailable;
+            if (!retImage.IsCompressed()) retImage.GenerateMipmaps();
+            return Error.Ok;
+        }
+    }
+
+    /// <summary>Le filtrage anisotrope : un toit, un pont, une grève se voient presque toujours en biais.</summary>
+    static void Anisotropic(GltfState state)
+    {
+        foreach (var m in state.GetMaterials())
+            if (m is BaseMaterial3D bm && bm.TextureFilter == BaseMaterial3D.TextureFilterEnum.LinearWithMipmaps)
+                bm.TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic;
     }
 
     /// <summary>The name ending that marks the artist's far version of a model, in the same .glb.</summary>

@@ -120,7 +120,7 @@ public sealed class Settings
     /// petite carte — à 0,67, moins de la moitié des pixels. 1 : rendue à la taille de l'écran.
     /// </summary>
     public float RenderScale = 1f;
-    /// <summary>Les ombres du soleil : 0 basses (atlas 2048, deux cascades, 200 m, bords nets), 1 moyennes, 2 hautes.</summary>
+    /// <summary>Les ombres du soleil : 0 basses (atlas 2048, deux cascades, 200 m, bords nets), 1 moyennes, 2 hautes, 3 très hautes (atlas 8192 : le texel moitié, filtre doux haut).</summary>
     public int ShadowQuality = 2;
     /// <summary>Les navires de la rade au plus (le processeur : un solveur par coque) ; 0 : ce que dit settings.json.</summary>
     public int TrafficCap = 0;

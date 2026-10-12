@@ -327,8 +327,7 @@ public partial class LandNode : Node3D
             pl.X = ed.X; pl.Z = ed.Z;
             pl.Y = (ed.Moved ? ground + lift : wy) + ed.Dy;
             _assets.Moved(pl);
-            hold.Rotation = new Vector3(0, (float)(ed.Yaw - ed.BaseYaw), 0);
-            hold.Scale = Vector3.One * (float)ed.Scale;
+            hold.Basis = ed.Orient(ed.Yaw - ed.BaseYaw).Scaled(Vector3.One * (float)ed.Scale);
             hold.Visible = !ed.Removed;
             ed.GroundY = (ed.Moved ? ground : wy - lift) + ed.Dy;
             PushRock(World, ed);

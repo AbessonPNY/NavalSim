@@ -29,6 +29,7 @@ switch (mode)
 {
     case "gale": Gale(); break;
     case "assiette": Assiette(); break;
+    case "stabilite": Stabilite(); break;
     case "waves": DumpWaves(); break;
     case "parallele": Parallele(); break;
     case "embrun": Embrun(); break;
@@ -251,6 +252,178 @@ void Assiette()
     ocean.SetSeaState(5, 140);
     double y = phys.Settle(ocean, new Controls());
     Console.WriteLine(FormattableString.Invariant($"assiette y={y:F4} tirant={phys.Draft:F4} immersion={phys.SubmergedFrac:F4}"));
+}
+
+/* LA STABILITÉ D'UNE COQUE — d'abord pour les multicoques, mais toute fiche s'y prête.
+ *
+ * Statique : à chaque gîte imposée (assiette tenue droite), la hauteur où la
+ * poussée égale le poids, cherchée par dichotomie sur LES SONDES DU SOLVEUR et
+ * avec son lissage d'immersion partielle — puis le bras de redressement GZ, la
+ * distance horizontale du centre de carène au centre de gravité. Positif, il
+ * redresse. Ce qu'on en lit : où le flotteur au vent quitte l'eau, où la courbe
+ * culmine, où elle s'annule (le chavirage), et si elle tient à l'envers.
+ *
+ * Contre le calcul à la main : GM = (yB − yG) + I/V, I étant l'inertie du plan
+ * de flottaison tirée des LIGNES (pas des sondes) — l'écart mesure ce que la
+ * grille perd à sa résolution.
+ *
+ * Libre : posée par le solveur (Settle), gîtée de 10° puis lâchée sur mer plate ;
+ * la période de roulis mesurée contre 2π √(I_roulis / (m g GM)), qui éprouve
+ * l'inertie des flotteurs (le solveur n'a pas de masse d'eau ajoutée : il roule
+ * un peu plus vite qu'un vrai bateau).
+ *   dotnet run --project core/NavalSim.Lab -c Release -- stabilite trimaran */
+void Stabilite()
+{
+    string name = args.Length > 1 ? args[1] : "trimaran";
+    string file = File.Exists(name) ? name : ShipSpec.SheetIn(shipsDir, name);
+    var spec = ShipSpec.FromJson(File.ReadAllText(file));
+    var lines = new HullLines(spec);
+    var phys = new ShipPhysics(spec, lines);
+    double m = spec.MassKg, rho = Config.Rho, ph = phys.ProbeH;
+    Vec3d G = phys.Body.Com;
+    int nh = 1 + spec.Floats.Count;
+    var hullVol = new double[nh];
+    double reach = 1;
+    foreach (var p in phys.Probes) { hullVol[p.Hull] += p.Vol; reach = Math.Max(reach, p.Local.Length); }
+    string HullName(int i) => i == 0 ? "centrale" : spec.Floats[i - 1].X < 0 ? "flot. tribord" : "flot. bâbord";
+
+    Console.WriteLine($"{spec.Name} : {spec.Tonnes} t, {phys.Probes.Length} sondes, coque {phys.HullVolume:F1} m³ (rempli à {spec.FillFraction * 100:F0} %), hors tout {spec.Span:F1} m");
+    for (int i = 0; i < nh; i++)
+        Console.WriteLine($"  {HullName(i),-14} {hullVol[i],6:F2} m³ = {hullVol[i] * rho / m * 100,4:F0} % du déplacement");
+
+    var per = new double[nh];
+    // flat sea at y = 0, heeled phi about the fore-and-aft axis, body origin raised y
+    double Displaced(double phi, double y, out double gz)
+    {
+        var q = Quatd.FromAxisAngle(new Vec3d(0, 0, 1), phi);
+        Array.Clear(per);
+        double vol = 0, mx = 0;
+        double gx = q.Rotate(G).X;
+        foreach (var p in phys.Probes)
+        {
+            var w = q.Rotate(p.Local);
+            double depth = -(w.Y + y);
+            if (depth <= 0) continue;
+            double dv = p.Vol * Math.Min(1, depth / ph);
+            vol += dv; per[p.Hull] += dv;
+            mx += (w.X - gx) * dv;
+        }
+        gz = vol > 0 ? -mx / vol : 0;
+        return vol;
+    }
+    double Equilibrium(double phi, out double gz)
+    {
+        double lo = -reach - 2, hi = reach + 2, need = m / rho;
+        for (int k = 0; k < 60; k++)
+        {
+            double mid = 0.5 * (lo + hi);
+            if (Displaced(phi, mid, out _) > need) lo = mid; else hi = mid;
+        }
+        double y = 0.5 * (lo + hi);
+        Displaced(phi, y, out gz);
+        return y;
+    }
+
+    // --- la courbe ---
+    double D2R = Math.PI / 180;
+    Console.WriteLine();
+    Console.Write("  gîte    GZ (m)   moment (kN·m)");
+    for (int i = 0; i < nh; i++) Console.Write($"  {HullName(i),14}");
+    Console.WriteLine();
+    double gzMax = double.NegativeInfinity, atMax = 0, vanish = double.NaN, liftOff = double.NaN, buried = double.NaN;
+    double prevGz = 0;
+    int windward = -1, leeward = -1;
+    // phi > 0 raises the +x side: the windward float is the one on +x (port)
+    for (int i = 1; i < nh; i++) { if (spec.Floats[i - 1].X > 0) windward = i; else leeward = i; }
+    for (int deg = 0; deg <= 180; deg += 1)
+    {
+        Equilibrium(deg * D2R, out double gz);
+        if (deg > 0 && gz > gzMax) { gzMax = gz; atMax = deg; }
+        if (deg > 0 && double.IsNaN(vanish) && prevGz > 0 && gz <= 0) vanish = deg;
+        if (windward > 0 && double.IsNaN(liftOff) && per[windward] <= 1e-9) liftOff = deg;
+        if (leeward > 0 && double.IsNaN(buried) && per[leeward] >= 0.98 * hullVol[leeward]) buried = deg;
+        prevGz = gz;
+        if (deg <= 20 ? deg % 2 == 0 : deg % 10 == 0)
+        {
+            Console.Write($"  {deg,4}°  {gz,8:F3}  {gz * m * Config.G / 1000,12:F1}");
+            for (int i = 0; i < nh; i++) Console.Write($"  {per[i] / Math.Max(1e-9, hullVol[i]) * 100,13:F0}%");
+            Console.WriteLine();
+        }
+    }
+
+    // --- contre le calcul à la main, droit ---
+    double yEq = Equilibrium(0, out _);
+    double vB = 0, yB = 0;
+    foreach (var p in phys.Probes)
+    {
+        double depth = -(p.Local.Y + yEq);
+        if (depth <= 0) continue;
+        double dv = p.Vol * Math.Min(1, depth / ph);
+        vB += dv; yB += p.Local.Y * dv;
+    }
+    yB /= vB;
+    // waterplane second moment from the lines, every hull, about the centreline
+    double area = 0, ax = 0, ixx = 0;
+    void Plane(HullLines hl, double ox, double oy)
+    {
+        var h = hl.Shape;
+        const int N = 400;
+        /* Une sonde ne compte son eau qu'à partir de son CENTRE (f = depth / ProbeH, nul
+           à mi-cellule) : le solveur voit la mer une demi-cellule plus bas que les
+           lignes. La flottaison comparée est celle qu'il voit. */
+        double dz = h.Length / N, yl = -yEq - oy - ph / 2;
+        for (int k = 0; k < N; k++)
+        {
+            double t = (k + 0.5) / N;
+            double deck = hl.DeckY(t), keel = hl.KeelY(t);
+            if (yl <= keel || yl >= deck) continue;
+            double hb = hl.HalfB(t) * hl.BeamFactor((deck - yl) / (deck - keel));
+            area += 2 * hb * dz; ax += 2 * hb * ox * dz;
+            ixx += (2.0 / 3 * hb * hb * hb + 2 * hb * ox * ox) * dz;
+        }
+    }
+    Plane(lines, 0, 0);
+    foreach (var (fl, at) in lines.Floats) Plane(fl, at.X, at.Y);
+    double xf = area > 0 ? ax / area : 0;
+    ixx -= area * xf * xf;
+    double V = m / rho;
+    double gmHand = (yB - G.Y) + ixx / V;
+    Equilibrium(1 * D2R, out double gz1);
+    double gmProbe = gz1 / Math.Sin(1 * D2R);
+
+    Console.WriteLine();
+    Console.WriteLine($"droite : origine à {yEq:F3} m, carène yB {yB:F3}, gravité yG {G.Y:F3} ; flottaison {area:F1} m²");
+    Console.WriteLine($"GM : {gmProbe:F2} m aux sondes (pente à 1°), {gmHand:F2} m à la main (BM = I/V = {ixx / V:F2})");
+    Console.WriteLine($"GZ max {gzMax:F2} m à {atMax:F0}°, soit {gzMax * m * Config.G / 1000:F0} kN·m");
+    if (windward > 0) Console.WriteLine($"flotteur au vent hors de l'eau dès {liftOff:F0}° ; flotteur sous le vent noyé à {(double.IsNaN(buried) ? "jamais (avant 180°)" : buried.ToString("F0") + "°")}");
+    Console.WriteLine(double.IsNaN(vanish) ? "aucun angle de chavirage avant 180°" : $"chavire au-delà de {vanish:F0}°");
+    Equilibrium(175 * D2R, out double gz175);
+    Console.WriteLine(gz175 < 0 ? $"À L'ENVERS, ELLE Y RESTE (GZ à 175° : {gz175:F2} m, vers 180°)" : $"à l'envers, elle se relève (GZ à 175° : {gz175:F2} m)");
+
+    // --- libre ---
+    var ocean = new Ocean { Swell = 1.35, Time = 0 };
+    ocean.SetSeaState(0, 0);
+    var ctrl = new Controls { Throttle = 0, Rudder = 0, Sheet = 0, SailsSet = false };
+    double ySet = phys.Settle(ocean, ctrl);
+    double Roll() => Math.Asin(Math.Clamp(phys.Body.Quat.Rotate(new Vec3d(1, 0, 0)).Y, -1, 1)) / D2R;
+    Console.WriteLine();
+    Console.WriteLine($"posée par le solveur : origine à {ySet:F3} m (statique {yEq:F3}), gîte {Roll():F2}°, tirant {phys.Draft:F2} m");
+    phys.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 0, 1), 10 * D2R) * phys.Body.Quat;
+    double tt = 0, dt = 1.0 / 120, last = Roll(), firstUp = double.NaN, lastUp = double.NaN;
+    int ups = 0;
+    double peak = 0;
+    for (int i = 0; i < 120 * 40; i++)
+    {
+        phys.Step(dt, ocean, ctrl, tt);
+        tt += dt;
+        double r = Roll();
+        if (last < 0 && r >= 0) { if (ups == 0) firstUp = tt; lastUp = tt; ups++; }
+        if (tt > 20 && Math.Abs(r) > peak) peak = Math.Abs(r);
+        last = r;
+    }
+    double tHand = 2 * Math.PI * Math.Sqrt(phys.Body.Ib.Z / (m * Config.G * Math.Max(1e-6, gmProbe)));
+    if (ups >= 2) Console.WriteLine($"roulis libre : période {(lastUp - firstUp) / (ups - 1):F2} s ({ups} oscillations en 40 s), attendue {tHand:F2} s sans masse ajoutée ; reste {peak:F2}° après 20 s");
+    else Console.WriteLine($"roulis libre : amorti avant une oscillation entière ; attendue {tHand:F2} s");
 }
 
 void DumpWaves()

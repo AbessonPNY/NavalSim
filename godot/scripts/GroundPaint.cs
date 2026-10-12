@@ -76,6 +76,15 @@ public sealed class GroundPaint
     /// <summary>Ce point (mètres vrais) est-il dans le carré ?</summary>
     public bool Covers(double x, double z) => x >= X0 && z >= Z0 && x < X0 + Side && z < Z0 + Side;
 
+    /// <summary>Les parts d une couche en ce point (0..1), au pixel le plus proche — pour l export vers Blender.</summary>
+    public (float R, float G, float B, float A) At(double x, double z, int layer)
+    {
+        int i = Math.Clamp((int)((x - X0) / Spec.Step), 0, N - 1), j = Math.Clamp((int)((z - Z0) / Spec.Step), 0, N - 1);
+        int k = (j * N + i) * 4;
+        var px = _px[layer];
+        return (px[k] / 255f, px[k + 1] / 255f, px[k + 2] / 255f, px[k + 3] / 255f);
+    }
+
     /// <summary>Une matière des fonds ?</summary>
     public static bool Seabed(Brush b) => b >= Brush.WhiteSand;
 

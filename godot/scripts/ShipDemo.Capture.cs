@@ -308,6 +308,10 @@ public partial class ShipDemo
                 case "--surprise": _surpriseTest = args[i + 1]; _askTitle ??= false; break;
                 case "--heurter": _bumpTest = args[i + 1]; _askTitle ??= false; break;
                 case "--instruments": _info.Visible = args[i + 1] != "0"; break;
+                // l aller-retour avec Blender (ShipDemo.Blender.cs, tools/blender-zone.js)
+                // le navire posé à terre puis R (ShipDemo.Wreck.cs, StrandTestTick)
+                case "--desechouer": _strandTest = 0; _askTitle ??= false; break;
+                case "--zone-blender": case "--zone-palette": case "--zone-terrain": case "--zone-retour": ZoneArgs(args[i], args[i + 1]); break;
                 case "--terrasser": _terraTest = args[i + 1]; _askTitle ??= false; break;
                 case "--poser-pavillon": _flagTest = args[i + 1]; _askTitle ??= false; break;
                 case "--poser-navire": _hullTest = args[i + 1]; _askTitle ??= false; break;
@@ -333,6 +337,7 @@ public partial class ShipDemo
                 // un préréglage, pour la mesure : appliqué SANS être enregistré (reglages.ini reste le vôtre)
                 // le menu des options ouvert, pour le juger à la capture
                 case "--menu": if (_menu != null) _menu.Visible = args[i + 1] != "0"; break;
+                case "--ombres-soleil": _settings.ShadowQuality = args[i + 1].ToInt(); ApplySettings(); break;
                 case "--prereglage": if (args[i + 1] == "bas") _settings.PresetLow(); else _settings.PresetHigh(); ApplySettings(); break;
                 // MESURE : le temps par image sur N images, à partir de l'image de la capture (ou de --after)
                 case "--chrono": _chronoN = args[i + 1].ToInt(); if (_captureIn < 0) _captureIn = 300; break;
@@ -379,6 +384,8 @@ public partial class ShipDemo
                 case "--nage": _swimTestIn = args[i + 1].ToFloat(); _askTitle ??= false; break;
                 case "--nage-vers": _swimTestKind = args[i + 1]; break;
                 case "--nage-prendre": _swimTestTake = args[i + 1] != "0"; break;
+                // la brasse tenue, pour voir les bras (--nage-avancer 1 ; 2 en forçant)
+                case "--nage-avancer": _swimTestStroke = args[i + 1].ToInt(); break;
                 // MESURE : les ajouts du mode création dont le modèle contient ce motif, cachés (rien n'est écrit)
                 case "--sans-ajout": _hideAddedTest = args[i + 1]; _diveTestIn = 1.0; break;
                 // DIAGNOSTIC : les pièces que chaque fiche porte, lues sur son modèle — elles ne sont écrites nulle part ailleurs

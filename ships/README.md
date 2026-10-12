@@ -425,6 +425,25 @@ charge jamais au-delà. La Roter Löwe : 300 t à vide, 150 t de cale.
 | `dragAft` | quille plus profonde à l'arrière |
 | `forefootLift` / `counterLift` | relevé de l'étrave et de la voûte |
 
+## Multicoques — `"flotteurs"`
+
+Une liste de coques latérales (trimaran, pirogue à balancier). Exemple : `trimaran/fiche.json`.
+
+| champ | effet |
+|---|---|
+| `coque` | ses lignes, avec les MÊMES clés que `hull` (même plan de formes) |
+| `ecart` | distance de son axe à celui de la coque centrale, m |
+| `hauteur` | sa ligne de base au-dessus de celle de la coque centrale, m (un flotteur qui effleure l'eau au repos) |
+| `decalage` | son milieu en avant (+) ou en arrière (−), m |
+| `masse` | sa part du déplacement, lui seul (0,05 par défaut) : elle place l'inertie, pas la flottaison |
+| `paire` | vrai (défaut) : un de chaque bord ; faux : un seul, à tribord si `ecart` > 0 |
+
+`hull.beam` reste le bau de la coque centrale (résistance, prise latérale) ; les cales sont dans
+la coque centrale seule. Sans modèle, les coques et deux bras par flotteur sont dessinés d'après
+les lignes. Vérifier une fiche : `dotnet run --project core/NavalSim.Lab -c Release -- stabilite <id>`
+(courbe GZ, flotteur qui sort de l'eau, angle de chavirage, roulis). La mer ne voit encore que la
+coque centrale.
+
 ## Peindre une voile — `appearance.canvasMap`
 
 Une image par SORTE de voile, et non par voile : un galion porte neuf carrées,

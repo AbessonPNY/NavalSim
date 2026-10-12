@@ -60,6 +60,13 @@ public sealed class HullCollider : ISprayCollider
         return (f[i0] * (1 - t) + f[i1] * t) * _prof.MaxHalfB;
     }
 
+    /// <summary>Le bordé et le dessus de la coque à la station z (repère du navire) : où un nageur pose les mains pour se hisser.</summary>
+    public double SideAt(double z) => HalfB(z);
+    public double TopAt(double z) => _topAt(z);
+    /// <summary>Les bouts de la coque mesurée, en z du navire.</summary>
+    public double EndAft => _prof.EndAft;
+    public double EndFwd => _prof.EndFwd;
+
     public bool Collide(ref Vec3d p, ref Vec3d v)
     {
         var b = _phys.Body;

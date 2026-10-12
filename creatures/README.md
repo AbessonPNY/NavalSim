@@ -117,6 +117,32 @@ node tools/sailor-glb.js
 - Pas d'armature ni d'animation à prévoir : tout est dans le shader.
 - Tous les hommes partagent le modèle ; la taille varie un peu (×0,93 à ×1,05).
 
+## Les bras du nageur — `creatures/bras.glb` (Godot)
+
+Ce qu'on voit de soi à l'eau, à la première personne. Absent ou illisible : on
+nage sans bras visibles. Modèle de départ :
+
+```bash
+node tools/arms-glb.js
+```
+
+| nom | rôle |
+|---|---|
+| `bras_d`, `bras_g` | le bras, de l'épaule au coude (0,31 m) |
+| `avant_bras_d`, `avant_bras_g` | l'avant-bras, du coude au poignet (0,26 m) |
+| `main_d`, `main_g` | la main OUVERTE |
+| `poing_d`, `poing_g` | la main FERMÉE : sur le plat-bord, sur ce qu'on ramasse |
+
+- **Chaque pièce a son origine à l'articulation** d'où elle part (épaule, coude,
+  poignet) et **s'étend vers +Z dans Blender** (+Y glTF), debout. Le jeu tient
+  aux deux longueurs : il résout le coude à partir d'elles.
+- **Les mains** : doigts vers +Z dans Blender, **paume vers −Y** dans Blender
+  (+Z glTF), le pouce vers +X pour la droite, −X pour la gauche. La main fermée
+  serre ce qui est à 7,5 cm du poignet, 3 cm devant la paume : c'est là que le
+  jeu met la chose ramassée.
+- Pas d'armature ni d'animation : le jeu pose chaque pièce lui-même.
+- Unités : le mètre. Une matière de peau, une d'ongle ; textures incluses.
+
 ## La baleine — `creatures/whale.glb` (Godot)
 
 Un cachalot de 15 m, nommé par `settings.json` → `whale.glb`. Absent ou

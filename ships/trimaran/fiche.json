@@ -1,0 +1,104 @@
+{
+  "id": "trimaran",
+  "name": "Trimaran",
+  "note": "ANACHRONISME ASSUMÉ (demandé, 12/10/2026) : un trimaran de croisière de dix-huit mètres, d après celui du film Waterworld (1995) — une coque centrale fine et deux flotteurs reliés par des bras. COQUE CENTRALE : 18 m sur 2,1, peu de tirant (0,6 m) et une dérive de 1,6 m (keelExtra) qui seule le tient au vent. FLOTTEURS : 14 m sur 1,25, leur axe à 5,4 m de celui de la coque — 12 m hors tout. Ils sont levés (hauteur 0,75) pour EFFLEURER l eau au repos (2 % de leur volume) : un trimaran se pose sur sa coque centrale et ne s appuie sur un flotteur qu à la gîte ; c est le flotteur sous le vent qui le redresse, et celui au vent qui vole (dès 2°). Chacun déplace, enfoncé jusqu au livet, 138 % du bateau entier — la règle des trimarans de croisière, 100 à 150 % : à 20° il porte tout le bateau à 73 % de son volume. 12 t, flotteurs à 5 % chacun. Banc « stabilite » : GZ max 5,3 m à 20° (625 kN·m, presque le poids fois l écart des flotteurs), chavire au-delà de 98°, et à l envers il y reste. GRÉEMENT : un mât, grand-voile bermudienne et foc, 95 m². Pas de machine. LIMITES ACTUELLES : la mer ne connaît que le contour de la coque centrale (hull_gap, collier d écume, ombre) ; les flotteurs n ont ni collier ni sillage, et ne heurtent ni pontons, ni fonds, ni autres coques. Le modèle viendra plus tard : d ici là, les trois coques et leurs bras sont dessinés d après leurs lignes. Banc : dotnet run --project core/NavalSim.Lab -c Release -- stabilite trimaran",
+
+  "hull": {
+    "length": 18.0,
+    "beam": 2.1,
+    "freeboardMid": 1.2,
+    "sheerBow": 0.35,
+    "sheerStern": 0.05,
+    "keelDepth": 0.6,
+    "keelExtra": 1.6,
+
+    "dragAft": 0.0,
+    "forefootLift": 0.3,
+    "counterLift": 0.05,
+
+    "waterlinePower": 0.95,
+    "waterlineFull": 0.6,
+    "transomWidth": 0.55,
+
+    "sectionTuck": 0.45,
+    "sectionPower": 0.75
+  },
+
+  "flotteurs": [
+    {
+      "coque": {
+        "length": 14.0,
+        "beam": 1.25,
+        "freeboardMid": 0.9,
+        "sheerBow": 0.3,
+        "sheerStern": 0.05,
+        "keelDepth": 0.7,
+        "keelExtra": 0.0,
+        "dragAft": 0.0,
+        "forefootLift": 0.4,
+        "counterLift": 0.1,
+        "waterlinePower": 1.0,
+        "waterlineFull": 0.5,
+        "transomWidth": 0.35,
+        "sectionTuck": 0.4,
+        "sectionPower": 0.8
+      },
+      "ecart": 5.4,
+      "hauteur": 0.75,
+      "decalage": -0.6,
+      "masse": 0.05,
+      "paire": true
+    }
+  ],
+
+  "displacementTonnes": 12.0,
+  "equipage": 2,
+  "cargoTonnes": 1.0,
+
+  "cog": { "yFracKeel": 0.5, "zFracLength": -0.03 },
+
+  "hydro": {
+    "resistance": 120,
+    "lateralGrip": 1600,
+    "lateralQuad": 320,
+    "heaveDamp": 1100
+  },
+
+  "engine": { "topSpeed": 0.0, "sternPower": 0.0 },
+
+  "rudder": { "power": 150, "maxAngle": 0.6, "postZFrac": -0.5, "postY": -0.1, "hardOver": 1.2 },
+
+  "rig": {
+    "type": "gaff",
+    "sailArea": 95,
+    "ceHeight": 7.0,
+    "ceZ": 0.6,
+    "maxSheet": 1.45,
+    "belly": 1.4,
+    "masts": [
+      { "zFrac": 0.08, "height": 17, "boom": 7.5, "tackAbove": 1.4, "bermudienne": true }
+    ],
+    "jib": { "footFrac": 0.42, "tackAbove": 1.0, "clewAbove": 1.6, "headDrop": 2.0 },
+    "bowsprit": null
+  },
+
+  "anchor": true,
+  "lanterns": [],
+  "flags": [],
+
+  "appearance": {
+    "hull": "0xb9ab8c",
+    "timber": "0x8a7a5c",
+    "spar": "0x9a8a6a",
+    "house": "0xa89c80",
+    "canvas": "0xb8a888"
+  },
+
+  "camera": {
+    "chaseDist": 30,
+    "chaseHigh": 10,
+    "orbitDist": 34,
+    "helmZFrac": -0.4,
+    "helmHeight": 2.0
+  }
+}

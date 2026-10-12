@@ -49,7 +49,7 @@ public partial class TownNode
         /// <summary>Poser les lanternes de la maison <paramref name="k"/> où l'éditeur l'a mise (<paramref name="at"/> : son pied).</summary>
         public void Pose(int k, Editable ed, Vector3 at)
         {
-            var rot = new Basis(Vector3.Up, (float)ed.Yaw);
+            var rot = ed.Orient(ed.Yaw);
             float s = ed.Removed ? 0f : (float)ed.Scale;
             foreach (int i in ByHouse[k])
             {

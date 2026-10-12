@@ -1,6 +1,7 @@
-/* LA LUEUR D'UNE FLAMME DERRIÈRE LA CORNE — une définition, deux usagers : les
- * fanaux du bord (lantern_glow.gdshader) et les lanternes des rues
- * (street_lantern.gdshader).
+/* LA LUEUR D'UNE FLAMME DERRIÈRE LA CORNE — une définition, trois usagers : les
+ * fanaux du bord (lantern_glow.gdshader), les lanternes des rues
+ * (street_lantern.gdshader) et le fanal vu d'en dessous, à travers la mer
+ * (ocean.gdshader).
  *
  * Le dégradé radial de Naval.glowTexture (la page), ses quatre arrêts repris
  * tels quels, en sRGB : blanc au cœur, puis chaud, puis ambre, puis rien.
@@ -15,3 +16,7 @@ vec4 glow(float r) {
 	if (r < 1.0) return mix(c, d, (r - 0.42) / 0.58);
 	return d;
 }
+
+/* La couleur d'un fanal, 0xffcf7a en sRGB : celle du panneau par défaut
+ * (u_color de lantern_glow.gdshader) et celle du feu vu d'en dessous. */
+const vec3 LANTERN_FLAME = vec3(1.0, 0.812, 0.478);

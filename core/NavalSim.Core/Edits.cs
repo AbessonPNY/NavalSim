@@ -27,6 +27,12 @@ public sealed class Edit
     /// <summary>UN NAVIRE AU MOUILLAGE posé à la main : la fiche de ships/ (« sloop »), décor qui suit la houle.</summary>
     public string Sheet = "";
     public bool Added => From.Length > 0 || Glb.Length > 0 || Sheet.Length > 0;
+    /// <summary>
+    /// CE QUI PENCHE, au-delà du cap : un quaternion (x, y, z, w) appliqué APRÈS le cap,
+    /// en repère du monde — une chaloupe tirée sur le sable, couchée sur son bouchain.
+    /// Nul : l'objet est droit (le cas de presque tout). Posé depuis Blender.
+    /// </summary>
+    public double[]? Tilt;
 }
 
 /// <summary>
@@ -89,7 +95,9 @@ public sealed class Edits
                 Removed = r.TryGetProperty("retire", out var rm) && rm.ValueKind == JsonValueKind.True,
                 From = r.TryGetProperty("de", out var de) ? de.GetString() ?? "" : "",
                 Glb = r.TryGetProperty("glb", out var gl) ? gl.GetString() ?? "" : "",
-                Sheet = r.TryGetProperty("fiche", out var fi) ? fi.GetString() ?? "" : ""
+                Sheet = r.TryGetProperty("fiche", out var fi) ? fi.GetString() ?? "" : "",
+                Tilt = r.TryGetProperty("penche", out var pe) && pe.ValueKind == JsonValueKind.Array && pe.GetArrayLength() == 4
+                    ? new[] { pe[0].GetDouble(), pe[1].GetDouble(), pe[2].GetDouble(), pe[3].GetDouble() } : null
             });
         }
         return outp;
@@ -123,6 +131,7 @@ public sealed class Edits
                 sb.Append(FormattableString.Invariant($", \"x\": {e.X:F2}, \"z\": {e.Z:F2}, \"cap\": {e.Yaw:F1}"));
                 if (Math.Abs(e.Scale - 1) > 1e-4) sb.Append(FormattableString.Invariant($", \"echelle\": {e.Scale:F3}"));
                 if (Math.Abs(e.Dy) > 1e-4) sb.Append(FormattableString.Invariant($", \"dy\": {e.Dy:F2}"));
+                if (e.Tilt is { } q) sb.Append(FormattableString.Invariant($", \"penche\": [{q[0]:F5}, {q[1]:F5}, {q[2]:F5}, {q[3]:F5}]"));
             }
             sb.Append(" }");
         }

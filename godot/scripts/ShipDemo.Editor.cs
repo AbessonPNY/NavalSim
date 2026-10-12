@@ -31,7 +31,7 @@ public partial class ShipDemo
     Vector3? _edPrevEye, _edPrevLook;
     bool _edLooking, _edDragging;
     double _edGrabX, _edGrabZ;
-    readonly Stack<(Editable E, (double, double, double, double, double, bool) S)> _edUndo = new();
+    readonly Stack<(Editable E, (double, double, double, double, double, bool, Quaternion) S)> _edUndo = new();
     CanvasLayer? _edLayer;
     Label? _edLabel;
     MeshInstance3D? _edRing;
@@ -269,7 +269,7 @@ public partial class ShipDemo
                 case Key.Backspace:
                     if (kk.Echo) break;
                     if (_sel.Added) { Say("Un ajout n'a pas de place automatique · Suppr pour le retirer"); break; }
-                    Change(_sel, s => s.State = (s.BaseX, s.BaseZ, s.BaseYaw, 1, 0, false));
+                    Change(_sel, s => s.State = (s.BaseX, s.BaseZ, s.BaseYaw, 1, 0, false, Quaternion.Identity));
                     Say("Rendu à sa place automatique");
                     break;
                 // ⇧ par moitié : un modèle brut arrive souvent à une taille qui n'a rien à voir

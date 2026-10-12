@@ -10604,6 +10604,31 @@ est juste. Ce sont les seuls réglages d'artillerie qui ne changent RIEN au
 combat — une pièce ne tire ni plus loin ni plus fort parce que sa flamme éclaire
 mieux —, et c'est pourquoi ils peuvent se régler à l'œil sans rien mesurer.
 
+**Et les fanaux, la nuit.** Signalé : « on ne voit pas la lumière des fanaux à
+travers l'eau quand on est sous l'eau ». Même cause pour leur lueur — un panneau
+additif dessiné après la mer, que la surface (`depth_draw_always`) cache d'en
+dessous et que l'image relue ne contient pas —, plus une seconde : la lumière
+qu'ils versent sur l'eau était bien calculée par la mer, puis ÉCRASÉE par le ciel
+de la fenêtre de Snell (`c = naval_sky(refr…)`). La mer les dessine donc
+elle-même d'en dessous, depuis `u_lamp` : la lumière entrée dans l'eau (le même
+terme qu'au-dessus, pondéré par la transmission de Fresnel), et le feu là où le
+rayon RÉFRACTÉ le vise, au profil du panneau (`glow`, `LANTERN_FLAME` dans
+`lantern.gdshaderinc`) — les rides le font danser sans rien de plus, un sillage
+le noie. Les fenêtres de poupe n'en ont pas besoin : elles sont dans le bordé,
+donc dans l'image relue.
+
+**Et au loin, un mur.** Signalé ensuite : sous le navire on voyait fanal et
+fenêtres, mais de loin, une fois sous l'eau, plus rien. La fenêtre de Snell
+relisait l'image au regard DROIT et l'éteignait par `u_absorb` sur l'épaisseur
+entre la surface et ce qui est derrière — de l'AIR, compté comme de l'eau. Faible
+sous la coque, cent mètres de loin : tout s'éteignait. Elle suit maintenant le
+rayon RÉFRACTÉ dans l'image, par `hull_mirror` (la marche du reflet des coques,
+portée à 300 m), et au-delà par sa seule direction projetée, quand il y a là
+autre chose que le ciel ; ce qu'elle trouve n'est pas éteint, seulement embrumé
+(`hz`). Un navire lointain se range donc écrasé au bord de la fenêtre, comme en
+vrai. La limite est celle de tout ce qui lit l'écran : il faut que le navire
+soit dans l'image, donc ne pas regarder trop haut.
+
 ## L'éclair éclaire d'un endroit (Godot)
 
 Demandé : « la nuit en pleine tempête il faudrait que les différents éclairs
@@ -14830,6 +14855,12 @@ Savanna-la-Mar et Lucea 5 (villes des années 1720–1730), Dry Harbour 3, Port 
 Port-Royal. KINGSTON RETIRÉE : achetée deux semaines après le séisme de juin 1692. Le semis est une spirale déterministe — baisser
 le nombre garde les premières maisons, d'où le rayon laissé à 420 m et la graine qui avance pour tous les ports. ~330 bâtiments.
 La quête « la lettre du gouverneur » disait « Sortez du port de Kingston » : « de la rade de Port-Royal ».
+
+LA TÊTE DE PORT-ROYAL REPEINTE (par lui, d'après le calque de 1772) et SANS FLORE SEMÉE, demandé : « je le ferai à la main, je ne
+peux pas les modifier avec l'éditeur ». Les six semis du patch de Port-Royal (raisiniers, cierges, raquettes, fourré, palétuviers et
+lataniers des Palisadoes) retirés ; les sept semis de la rade gardent tout le reste, la tête exclue (« hors » : 650 m autour du milieu
+de la ville du plan, 17,94218 N, 76,83915 W — 47,5 ha de terre dedans ; 19 ha de la tête repeinte, à l'est, restent dehors). Un relief
+repeint fait mentir le relevé « terre » du banc de parité : node tools/parity-world.js.
 ## Le pas de côté de l'œil, à bord (Godot)
 
 DEMANDÉ : « que les caméras fixes de bord se décalent latéralement en suivant la souris, sur une petite
@@ -16357,3 +16388,158 @@ change à l'exécution : parité identique à l'octet, images au niveau du bruit
 
 Interface et commentaires en français pour l'utilisateur ; commentaires de code
 en anglais. Explication du *pourquoi*, pas du *quoi*.
+
+## Disposer un port dans Blender, et que le jeu suive (10/10)
+
+Demandé : « tenir ma map dans le jeu à jour avec des modifs faites dans Blender ». Lire un `.blend`
+nous-mêmes : non (format interne, qui change à chaque version). C'est Blender qui le lit, sans fenêtre
+(`--background --python`), et le JEU qui applique : `tools/blender-zone.js sortir|rentrer`.
+
+- Le jeu exporte, pas un outil Node : seul lui connaît la terre vraie (terrassement, récifs, dragage) et
+  ce que posent ses bâtisseurs. `zone-glb.js` ignorait le terrassement et n'avait aucun objet.
+- Le nom du nœud est l'identifiant de retouche ; Blender suffixe un double (`.001`) → une copie. Un nœud
+  par objet et UN maillage par nœud (les morceaux fondus en primitives) : sinon un clic prend une face, pas
+  la maison. Maillages partagés par signature (maillage, pose, matière) : 173 objets → 96 maillages.
+- Le retour passe par `Push` et `SpawnAdded`, comme la souris : la hauteur d'un objet dépend du bâtisseur
+  (pied sous l'emprise pour une maison, sol + levée pour un semis). Hauteur inchangée = suivre le sol ;
+  changée = `dy` absolu sur le sol de la nouvelle place.
+- Axes : l'import glTF de Blender envoie (x, y, z) du jeu sur (x, −z, y) ; un tour autour de +Z de Blender
+  est le même angle autour de +Y. Vérifié par un retour à vide sur le `.blend` intact : 0 changement sur
+  173 objets ; puis déplacer/tourner/lever, dupliquer, supprimer, poser de la palette : les quatre justes.
+- Garde-fou : refus si le `.blend` contient moins de la moitié des objets exportés (sinon un mauvais
+  fichier retirerait toute la ville).
+- (même jour) **Un retour réel doit faire du .blend l'état connu.** Premier usage chez lui : le retour
+  écrivait bien les retouches, mais le manifeste restait celui de l'export, et le double `ajout:46.001`
+  gardait son nom de Blender — chaque `rentrer` suivant en aurait refait une chaloupe. Le manifeste
+  retient maintenant, après écriture, les places relevées et le nom Blender de chaque double
+  (« ajout:46.001 » = ajout:119), sans renommer dans le .blend (il peut être ouvert). Vérifié : un retour
+  réel puis un essai → 0 changement. Les « erreurs » qu'il voyait n'en étaient pas : V-Ray qui refuse le
+  mode sans fenêtre (le relevé se fait désormais en `--factory-startup`) et Godot qui compte ses
+  ressources non rendues en quittant ; l'outil les tait, le journal brut va dans
+  `world/blender/dernier-passage.log`.
+- (même jour) **La pente passe.** Il couche ses chaloupes sur le sable dans Blender et veut cette
+  orientation dans le jeu : une retouche porte désormais `"penche"` (quaternion après le cap, repère du
+  monde) ; `Editable.Orient` la compose pour tous les bâtisseurs (ajouts, terre, maisons et lanternes,
+  figurants). Le relevé la tire de `matrix_world.decompose()`, l'axe (x, y, z) de Blender étant (x, z, −y)
+  du jeu. Vérifié par le calcul sur une COPIE de son .blend : la formule du jeu redonne chaque sommet des
+  trois chaloupes et d'une maison à 0,0000 m près.
+- **Le modèle importé tel quel, abandonné.** Essayé : rendre au fichier l'échelle (taille de palette) et
+  le pied que le jeu lui donne. Le tonneau arrive dans Blender sous un nœud racine qui le transforme
+  (cent unités pour 0,9 m) : le résultat dépend de chaque fichier. À la place, `palette` écrit
+  `world/blender/palette.glb`, qu'on importe dans le .blend ouvert.
+- **Ma faute, rattrapée** : un test de cycle complet a fait un `sortir --ecraser` pendant qu'il travaillait
+  dans le .blend (cinq maisons déplacées entre deux de mes passages). Sauvegarde prise avant, remise
+  identique (empreinte égale au .blend1 de Blender). Règle : ne JAMAIS lancer `rentrer` réel ni `sortir`
+  sur son port pour un essai — un autre port, ou un essai seul.
+- Le jeu tombe parfois EN QUITTANT après `--zone-*` (accès mémoire, rafale de `free_rid` hors du fil de
+  rendu), son travail écrit. Une seconde d'attente avant `Quit` ne l'a pas réglé ; l'outil juge sur la ligne
+  `[blender]`, pas sur le code de sortie. Cause à trouver.
+
+## R remet à l'eau, et efface la carcasse (10/10)
+
+Signalé : son ILCA échouée sur la plage de Port-Royal, R l'a fait « bondir sur le sable jusqu'aux
+maisons ». `Salvage` recalait la coque à sa flottaison (`_eqY`) SUR PLACE : dans le sable, que le fond
+chasse aussitôt. Et un échouage seul (ni sombré ni chaviré) ne faisait que replanter la mâture.
+- Échouée (`Physics.Aground`, ou pas assez d'eau sous l'étrave, le milieu ou l'étambot), ou renflouée
+  là où il n'y a plus de fond : portée à l'eau libre la plus proche par la règle des anneaux
+  (`Teleport.Check` : la quille sur un rond d'une longueur de coque), cercles jusqu'à 3 km, l'étrave
+  vers le large. Tirant d'eau tiré de `_eqY` et du bas de la coque (`DraftOf`).
+- Rompue : avant `Rebuild`, la moitié avant de l'ancien et ses pièces arrachées partent
+  (`ClearCarcass`) — elles flottaient à côté du navire neuf.
+- Essai : `-- --desechouer 1` pose le navire à terre près du port, R, et relève. Mesuré : posé à
+  1,49 m au-dessus de l'eau, porté à 56 m par 13 m de fond, à flot et sans toucher six secondes après.
+  (`--echouer` existait déjà : c'est l'essai de la plage, autre chose.)
+
+## Le relief repeint, sans refaire le .blend (11/10)
+
+Il a retouché `port-royal-relief.png` dans Photoshop et voulait la terre neuve dans Blender. `sortir
+--ecraser` aurait jeté son .blend : `terrain` fait écrire au jeu la terre et la mer SEULES
+(`--zone-terrain`, carré et pas lus au manifeste) puis `tools/blender/zone_terrain.py` les remplace dans le
+.blend, ouvert AVEC ses modules (il enregistre : les matières de V-Ray d'un module absent pourraient se
+perdre), copie `.avant-terrain.blend` faite avant. Essayé sur une copie : 225 objets avant et après, aucun
+déplacé, terre verrouillée.
+Le relief neuf, mesuré contre la terre de l'export du 10/10 : 79 % des sommets changés, la terre passée de
+17,2 % à 11,6 % de la zone, et 39 objets à terre avant se trouvent sous l'eau — les forts ajout:10, 52, 75,
+les chaloupes, des maisons, par −110 m pour beaucoup (un aplat uniforme). Ni décalage, ni retournement
+(recherche par corrélation), ni calque de 1772 aplati (r = 0,27). Signalé avant qu'il n'applique.
+
+## L'anticrénelage mesuré, les toits sans mipmaps, le grain des voiles (11/10)
+
+Signalé : « mes FPS sur Port Royal me semblent moins bons », des toits qui crénèlent, des ombres basse résolution sur la toile.
+
+L'ANTICRÉNELAGE COÛTE PEU (--vsync 0 --prereglage haut --aa X --msaa N --chrono 900, au port, deux passes) : MSAA 4× + FXAA
+7,14 ms ; MSAA 4× + SMAA 7,14–7,41 ; SMAA seul 6,39 ; TAA seul 6,67–6,94. SMAA au lieu de FXAA : 0 à 0,3 ms ; le MSAA 4× : ~0,8 ms.
+Ce n'était donc pas lui — et il ne pouvait RIEN pour les toits.
+
+LES TOITS : AUCUN MIPMAP. GltfDocument à l'exécution n'en fabrique pas (l'import de l'éditeur, si) : maison-a, maison-b,
+l'église, les navires, la flore — tout ce qui passe par Assets.LoadGlb tirait un texel au hasard par pixel au loin. MSAA ne voit
+que les arêtes, FXAA/SMAA une image déjà fausse. Fabriqués AU DÉCODAGE par une GltfDocumentExtension (Assets.MipmapOnDecode,
+_ParseImageData) : les reprendre après coup sur state.GetImages() relit chaque texture depuis la carte — 37 ms par fichier au
+moins, +3,1 s au chargement ; au décodage, +0,6 s pour les 74 glb (3,2 → 3,8 s). Pas de renormalisation des normales (on ne
+sait pas encore qui l'est ; le shader normalise). Et filtrage anisotrope sur leurs matières : un toit se voit en biais.
+
+LES VOILES : DU GRAIN, PAS SEULEMENT DU FLOU. En vue Orbite la toile d'une frégate est à 70–100 m, dans la troisième cascade
+(64–160 m) : texel ~10 cm à 4096. Et le filtre « Soft Low » de Godot tourne peu d'échantillons au hasard par pixel : un damier
+que seul le TAA lisserait. Comparé à l'œil, agrandi : 8192 + dur → des marches ; 8192 + Soft High → net et propre. Nouveau niveau
+« Très hautes » (ShadowQuality 3 : atlas 8192, quatre cascades, Soft High) : +0,2 à +0,6 ms, 128 Mo de mémoire vidéo.
+Mesurer : --ombres-soleil N.
+
+## Le trimaran : plusieurs coques sur un plan de formes (12/10)
+
+Demandé d'après le trimaran de *Waterworld*. Fiche `ships/trimaran/fiche.json`, offerte au jeu libre (anachronisme assumé, comme l'ILCA 4).
+
+**Le format.** `"flotteurs"` dans la fiche : chaque flotteur porte une `coque` décrite par les MÊMES clés que la coque centrale, donc par le même `HullLines` ; `ecart`, `hauteur` (sa ligne de base au-dessus de celle de la coque), `decalage`, `masse` (part du déplacement, 5 % par défaut), `paire`. `ShipSpec.Floats` les pose un par bord (tribord = −x) ; `B` reste le bau de la coque centrale (résistance, prise latérale), `Span` est la largeur hors tout. `HullLines.Floats` porte leurs lignes ; `BuildGeometry` dessine les trois coques et deux bras par flotteur (dessinés seulement, sans sondes).
+
+**Les sondes.** Une grille par coque, mais à la MÊME hauteur de cellule : c'est elle qui fixe le lissage de l'immersion partielle. Premier essai à la hauteur du monocoque : la dérive (keelExtra 1,6 m) entrait dans le creux et faisait des cellules de 49 cm ; un flotteur enfoncé de 40 cm n'en touchait qu'une rangée, le GM aux sondes valait le tiers de celui des lignes. Pour un multicoque, la hauteur est prise sur le corps de la coque la moins creuse, sans dérive (`ProbeH` ≈ 0,2 m, 985 sondes). Le monocoque garde sa grille au bit près (parité tenue). `Probe.Hull` dit la coque : les compartiments ne prennent que la centrale — un flotteur est étanche à part, et l'arrimage n'y range rien. L'inertie ajoute à chaque flotteur son pavé et son transport (Huygens).
+
+**Le banc** `stabilite <fiche>` : courbe GZ à gîte imposée sur les sondes du solveur (dichotomie sur la hauteur), GM comparé aux lignes, puis roulis libre. Trimaran (12 t) : flotteur au vent hors de l'eau dès 2°, GZ max 5,3 m à 20° (625 kN·m, presque poids × écart), chavire au-delà de 98°, stable à l'envers ; roulis 1,26 s contre 1,16 attendu. Le GM « à la main » ne vaut rien quand un flotteur EFFLEURE : sa section en V élargit la flottaison dès le premier degré. Sur les monocoques il colle (sloop 0,78/0,69, Roebuck 2,20/2,04) ; l'écart restant vient du lissage, qui voit la mer une demi-cellule plus bas que les lignes.
+
+**Reste** : la mer ne connaît que le contour de la coque centrale (`hull_gap`, collier, ombre, `HullCollider`) — une rangée par navire, la texture de profils passerait en RGBA (décalage et demi-largeur du flotteur) ; les flotteurs ne heurtent ni pontons, ni fonds, ni autres coques (`Jetty`, `Ground`, `Collide` lisent `Lines.HalfB`) ; la rupture (`Split`) ne les connaît pas.
+
+## Les bras du nageur : la brasse, la main qui prend, la montée par le flanc (12/10)
+
+DEMANDÉ : « voir les mains de notre personnage quand il nage, quand il grimpe ou attrape un objet ».
+La demande disait « troisième personne » ; questions posées : c'est la PREMIÈRE personne avec les
+bras dans le champ, une vraie MONTÉE animée le long du flanc (E était instantané), et un modèle
+DESSINÉ PAR UN OUTIL qu'on refera dans Blender si l'on veut.
+
+LE MODÈLE (`tools/arms-glb.js` → `creatures/bras.glb`) : par bras trois pièces sans armature —
+`bras`, `avant_bras`, `main` (ouverte) / `poing` (fermée), suffixes `_d` `_g`, la gauche miroir
+de la droite. Chaque pièce a son origine à l'articulation et s'étend vers +Y ; bras 0,31 m,
+avant-bras 0,26, main 19 cm. Les bras sont NUS et hâlés : un plongeur de 1690 (pêcheur de lambis,
+plongeur de perles de la Margarita) allait à l'eau nu ou presque, une chemise de lin trempée pèse.
+11 000 sommets en tout : on n'en dessine qu'un exemplaire, collé à l'œil.
+
+LA POSE (`ShipDemo.SwimArms.cs`) : aucune animation lue. Le jeu dit où va chaque MAIN — poignet,
+sens des doigts, sens de la paume, pôle du coude — dans le repère de la caméra, et l'épaule et le
+coude se résolvent à DEUX OS (le coude sur le cercle permis par les deux longueurs, du côté du
+pôle ; trop loin, le bras se tend sans s'allonger). L'avant-bras tourne avec la paume, le biceps
+est du côté du pli. Les mains suivent leur but AMORTIES (exp, 16/s) : c'est ce qui enchaîne un
+geste au suivant sans courbes à écrire. Le modèle est enfant de la caméra (la secousse le porte).
+— LA BRASSE suit `Swimmer.Stroke` : les mains s'écartent (0,16 s), reviennent sous la poitrine à
+la fin de la traction (`Swimmer.Pull`, c'est elle qui propulse), filent devant (0,42-0,58 s),
+puis on glisse bras tendus. À l'arrêt, elles godillent en huit devant la poitrine.
+— PRENDRE (F) : compté dans le sac tout de suite (l'essai et la sauvegarde n'attendent pas le
+geste), mais la chose ne quitte le fond que quand le POING se ferme dessus ; la main la ramène
+vers la hanche, où pend le sac. Un bras ne fait pas 1,6 m (`SwimReach`) : pendant le geste le
+corps GLISSE jusqu'à 0,55 m de la chose, un coup de jambes d'autant plus long qu'elle est loin.
+— SE HISSER (E) : dans le repère du NAVIRE, qui roule et dérive sous le grimpeur. Les prises vont
+de la flottaison au plat-bord tous les 42 cm (les préceintes, les taquets d'échelle) ; une main
+monte, le corps se hisse, l'autre passe au-dessus ; au plat-bord les deux poings s'y posent, la
+poitrine passe, on bascule sur le pont. Le bordé et le dessus sont ceux de `HullCollider`
+(`SideAt`, `TopAt`, ajoutés). Le chaland : 2 prises, 1,1 m de franc-bord, 3,7 s ; un vaisseau
+de ligne en aurait une quinzaine. PIÈGE : le visage à 30 cm du bordé faisait passer le bras
+au ras de l'œil au moment de franchir le plat-bord — il remplissait l'écran ; 40 cm, et l'œil
+28 cm sous la prise haute.
+
+LE FLOU DE MOUVEMENT reprojette par la caméra : des bras collés à l'œil auraient filé à chaque
+tour de tête. Ils sont donnés au flou comme UN NAVIRE de plus, dont la transformée est celle de
+la caméra et la boîte celle des bras (`ArmsBox`) : ramenés avec elle, ils restent nets.
+
+ÉCARTS DITS : le bordé est pris à sa largeur de FLOTTAISON jusqu'en haut (`HullCollider` ne suit
+pas l'évasement ni la rentrée des hauts) : sur une coque à forte rentrée les poings tiennent un
+peu en l'air. Le lambi serré dans le poing garde l'orientation de son modèle.
+
+Essai : `--nage 2 --nage-vers lambi --nage-prendre 1` (prendre puis monter) ; `--nage-avancer 1`
+(2 en forçant) tient la brasse. Vérifié en captures à `--fixed-fps 60` : godille, écart, retour,
+main qui cueille, poing qui serre, deux poings sur le plat-bord.
