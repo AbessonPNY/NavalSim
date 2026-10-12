@@ -39,9 +39,12 @@ public struct Band
 /// </summary>
 public sealed class Ocean
 {
-    public readonly Wave[] Waves = new Wave[Config.NWaves];
-    readonly Band[] _band = new Band[Config.NWaves];
-    readonly (double Amp, double W, double Dir)[] _raw = new (double, double, double)[Config.NWaves];
+    /// <summary>Le spectre, trié par énergie ; sa longueur est <see cref="SeaTune.Count"/> (l'atelier de la mer peut la changer).</summary>
+    public Wave[] Waves { get; private set; } = new Wave[Config.NWaves];
+    Band[] _band = new Band[Config.NWaves];
+    (double Amp, double W, double Dir)[] _raw = new (double, double, double)[Config.NWaves];
+    /// <summary>Les chiffres du spectre (SeaTune) ; à défauts égaux, la mer d'avant au bit près.</summary>
+    public SeaTune Tune = new();
 
     /// <summary>
     /// OU SE TROUVE REELLEMENT LE ZERO LOCAL.
@@ -152,11 +155,21 @@ public sealed class Ocean
            trop longues pour travailler un navire. Les mers cotieres sont limitees
            par le fetch, donc le pic est plus haut : cette correction pose la
            periode de pic vers 5 s par belle brise et 11 s en tempete. */
-        double wp = (0.855 * Config.G / U) * (1.05 + 0.015 * U);
-        const double gamma = 3.3, alpha = 0.0081;
+        var T = Tune;
+        double wp = (0.855 * Config.G / U) * (1.05 + 0.015 * U) * T.PeakScale;
+        double gamma = T.Gamma;
+        const double alpha = 0.0081;
 
-        int N = Config.NWaves;
-        double wLo = wp * 0.62, wHi = wp * 3.4;   // la ou l'energie vit reellement
+        /* LE NOMBRE DE COMPOSANTES, réglable (l'atelier) : les tableaux suivent, et les
+           corrections de continuité repartent de zéro — la mer saute une fois, au réglage. */
+        int N = System.Math.Clamp(T.Count, 8, Config.NWavesMax);
+        if (Waves.Length != N)
+        {
+            Waves = new Wave[N];
+            _band = new Band[N];
+            _raw = new (double, double, double)[N];
+        }
+        double wLo = wp * T.BandLo, wHi = wp * T.BandHi;   // la ou l'energie vit reellement
         double m0 = 0;
 
         for (int i = 0; i < N; i++)
@@ -179,7 +192,7 @@ public sealed class Ocean
                la houle longue, ce qui est pourquoi une vraie mer parait confuse de
                pres et ordonnee a l'horizon. Ecarts DETERMINISTES, pour que le CPU
                et le GPU ne puissent jamais differer. */
-            double spread = (0.16 + 0.55 * Math.Min(1, w / wp - 0.4)) * (0.34 + 0.045 * s);
+            double spread = (T.SpreadBase + T.SpreadShort * Math.Min(1, w / wp - 0.4)) * (T.SpreadState0 + T.SpreadState1 * s);
             double u = (double)((i * 7) % N) / (N - 1) * 2 - 1;
             _raw[i] = (amp, w, wr + spread * u);
         }
@@ -200,7 +213,7 @@ public sealed class Ocean
         /* Budget de raideur. Il doit monter avec le creux autant qu'avec l'etat de
            mer : une vague plus grosse a raideur egale n'est qu'une bosse ronde
            plus grosse, ce qui est exactement a quoi ressemblaient les creux. */
-        double chop = (0.35 + s * 0.075) * (0.75 + 0.42 * Swell);
+        double chop = (T.ChopBase + s * T.ChopState) * (0.75 + 0.42 * Swell);
 
         /* AIGUISAGE DES CRETES. Gerstner seul ne peut pas le porter : son
            cuspage vient du terme horizontal Q, et a dix-huit composantes le
@@ -209,7 +222,7 @@ public sealed class Ocean
            que la moyenne reste exactement nulle, ce qui compte : le moindre
            decalage continu ici deplacerait silencieusement le niveau moyen de la
            mer, et la flottaison de toute la flotte avec. */
-        Sharp = 1 + Math.Min(0.95, (0.06 + 0.055 * s) * (0.55 + 0.62 * Swell));
+        Sharp = 1 + Math.Min(T.SharpMax, (T.SharpBase + T.SharpState * s) * (0.55 + 0.62 * Swell));
 
         /* --- GARDER LA MER CONTINUE PENDANT QUE LE VENT CHANGE ---
 
@@ -248,7 +261,7 @@ public sealed class Ocean
             double amp = raw.Amp * scale * (1 + 0.42 * (Sharp - 1));
             double k = raw.W * raw.W / Config.G;        // dispersion en eau profonde, k = omega2/g
             // raideur normalisee pour que la crete ne boucle jamais (somme Q.k.A < 1)
-            double Q = Math.Min(0.85, chop / (k * amp * N + 1e-4));
+            double Q = Math.Min(T.QMax, chop / (k * amp * N + 1e-4));
             // les mers courent AVEC le vent, donc a l'oppose du relevement d'ou il souffle
             double dx = -Math.Sin(raw.Dir), dz = -Math.Cos(raw.Dir);
 
@@ -290,7 +303,7 @@ public sealed class Ocean
             int byEnergy = b.Amp.CompareTo(a.Amp);
             return byEnergy != 0 ? byEnergy : a.Band.CompareTo(b.Band);
         });
-        CpuWaveCount = Math.Min(Config.NWavesCpu, Waves.Length);
+        CpuWaveCount = Math.Clamp(T.CpuCount, 1, Waves.Length);
 
         AmpMax = Math.Max(0.05, ampSum * 0.8);
         SyncPhase();

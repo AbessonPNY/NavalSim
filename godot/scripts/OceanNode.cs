@@ -31,11 +31,12 @@ public partial class OceanNode : Node3D
     // saccade. Même discipline que setSeaState côté JavaScript.
     readonly Godot.Collections.Array _waveA = new();
     readonly Godot.Collections.Array _waveB = new();
-    readonly float[] _wavePhase = new float[Config.NWaves];
+    readonly float[] _wavePhase = new float[Config.NWavesMax];
+    int _waveCount = Config.NWaves;
 
     public override void _Ready()
     {
-        for (int i = 0; i < Config.NWaves; i++)
+        for (int i = 0; i < Config.NWavesMax; i++)
         {
             _waveA.Add(Variant.From(Vector4.Zero));
             _waveB.Add(Variant.From(Vector2.Zero));
@@ -118,6 +119,7 @@ public partial class OceanNode : Node3D
         m.SetNow(U.WaveA, _waveA);
         m.SetNow(U.WaveB, _waveB);
         m.SetNow(U.WavePhase, _wavePhase);
+        m.SetShaderParameter(U.WaveCount, _waveCount);
     }
 
     /// <summary>
@@ -268,7 +270,9 @@ public partial class OceanNode : Node3D
 
     void FillWaves()
     {
-        for (int i = 0; i < Config.NWaves; i++)
+        // le spectre en a autant que l'atelier le veut ; au-delà, des places vides que les boucles ne lisent pas
+        _waveCount = Math.Min(Core.Waves.Length, Config.NWavesMax);
+        for (int i = 0; i < _waveCount; i++)
         {
             ref Wave w = ref Core.Waves[i];
             _waveA[i] = Variant.From(new Vector4((float)w.Dx, (float)w.Dz, (float)w.Amp, (float)w.K));

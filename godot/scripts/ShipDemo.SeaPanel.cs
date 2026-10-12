@@ -66,6 +66,9 @@ public partial class ShipDemo
         var reset = new Button { Text = "Valeurs par défaut", FocusMode = Control.FocusModeEnum.None };
         reset.Pressed += () => { foreach (var (s, def) in sliders) s.Value = def(); };
         box.AddChild(reset);
+        var more = new Button { Text = "Atelier de la mer… (Ctrl ⇧M)", FocusMode = Control.FocusModeEnum.None };
+        more.Pressed += ToggleWorkshop;
+        box.AddChild(more);
     }
 
     void ToggleSeaPanel() => _seaPanel.Visible = !_seaPanel.Visible;

@@ -1188,7 +1188,8 @@ public partial class ShipDemo : Node3D
            champ (ride.gdshaderinc), il leur faut donc la même force et le même
            vent, sous peine d'une mer qui luit d'une ride et d'un fond qui en
            dessine une autre. */
-        float ripple = (float)Math.Min(2.6, 0.40 + _sea.Core.WindSpeed * 0.105);
+        // force, montée et plafond réglables à l'atelier de la mer (0,40 ; 0,105 par m/s ; 2,6)
+        float ripple = (float)Math.Min(_rippleMax, _rippleBase + _sea.Core.WindSpeed * _ripplePerMs);
         _sea.Material?.SetShaderParameter(U.Ripple, ripple);
         _land?.Ground.SetShaderParameter(U.Ripple, ripple);
         _fishNode?.Material?.SetShaderParameter(U.Ripple, ripple);
@@ -1205,6 +1206,7 @@ public partial class ShipDemo : Node3D
             ShipNode.Caustic?.SetShaderParameter(U.Wind, wu);
             _mist?.Material.SetShaderParameter(U.Wind, wu);
         }
+        WorkshopTick();
 
         /* LE TEMPS OU LE COMPTOIR EST FERME, compte ICI et non au tour du HUD :
            celui-ci ne bat que toutes les 0,15 s et jette son reste, ce qui ferait

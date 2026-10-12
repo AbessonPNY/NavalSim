@@ -77,6 +77,7 @@ public static class U
     public static readonly StringName Size = new("u_size");
     public static readonly StringName SkyTime = new("u_sky_time");
     public static readonly StringName Storm = new("u_storm");
+    public static readonly StringName WaveCount = new("u_wave_count");
     public static readonly StringName StormDir = new("u_storm_dir");
     public static readonly StringName StormFlash = new("u_storm_flash");
     public static readonly StringName StormFlashDir = new("u_storm_flash_dir");

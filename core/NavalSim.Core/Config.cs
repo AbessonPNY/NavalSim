@@ -152,6 +152,8 @@ public static class Config
     // tempête atteignent des centaines de mètres et soulèvent le navire en bloc
     // sans le travailler. C'est la bande autour du pic qui compte.
     public const int NWaves = 18;
+    /// <summary>Le plus de composantes que l'atelier de la mer puisse demander : la taille des tableaux du shader (gerstner.gdshaderinc, NW).</summary>
+    public const int NWavesMax = 32;
     public const int NWavesCpu = 10;
     public const int NWavesFoam = 7;
     public const double OceanSize = 7000.0;

@@ -204,6 +204,8 @@ public partial class ShipDemo
                là où un QWERTY a son point-virgule, et l'emplacement « M » est la
                virgule — le panneau ne s'ouvrait pas. Les autres commandes tombent
                aux mêmes places sur les deux claviers. */
+            // Ctrl ⇧M : l'atelier de la mer, tous les réglages (ShipDemo.SeaWorkshop.cs)
+            if (k.ShiftPressed && k.CtrlPressed && k.Keycode == Key.M) { ToggleWorkshop(); GetViewport().SetInputAsHandled(); return; }
             if (k.ShiftPressed && k.Keycode == Key.M) { ToggleSeaPanel(); GetViewport().SetInputAsHandled(); return; }
             // M seul : mouiller, ou virer au cabestan — par sa LETTRE, même raison
             if (!k.ShiftPressed && k.Keycode == Key.M) { _anchor2?.Toggle(_ship, _t); GetViewport().SetInputAsHandled(); return; }

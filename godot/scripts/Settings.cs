@@ -35,6 +35,13 @@ public sealed class Settings
     public bool Fullscreen = false;
     /// <summary>La synchro verticale : voir la mémoire sur les écrans virtuels.</summary>
     public bool VSync = true;
+    /// <summary>
+    /// LE PLAFOND D'IMAGES PAR SECONDE, 0 = aucun. Sans lui, synchro coupée (ce que demandent
+    /// les écrans virtuels), la carte calcule autant d'images qu'elle peut — 140 par seconde
+    /// sur une Arc A770M pour un écran qui en montre 60 — et les ventilateurs s'affolent
+    /// (signalé). 60 par défaut, comme un jeu du commerce.
+    /// </summary>
+    public int MaxFps = 60;
     /// <summary>La profondeur de champ : net de DofNear à DofDistance mètres, flou en deçà et au-delà.</summary>
     public bool Dof = true;
     /// <summary>Net à partir d'ici ; 0 : pas de flou de près.</summary>
@@ -169,6 +176,7 @@ public sealed class Settings
         s.IndirectLight = (bool)cf.GetValue("rendu", "lumiere_indirecte", s.IndirectLight);
         s.Fullscreen = (bool)cf.GetValue("rendu", "plein_ecran", s.Fullscreen);
         s.VSync = (bool)cf.GetValue("rendu", "synchro_verticale", s.VSync);
+        s.MaxFps = (int)cf.GetValue("rendu", "images_par_seconde_max", s.MaxFps);
         s.Dof = (bool)cf.GetValue("rendu", "profondeur_de_champ", s.Dof);
         s.DofDistance = (float)cf.GetValue("rendu", "profondeur_de_champ_distance", s.DofDistance);
         s.DofNear = (float)cf.GetValue("rendu", "profondeur_de_champ_net_a_partir_de", s.DofNear);
@@ -228,6 +236,7 @@ public sealed class Settings
         cf.SetValue("rendu", "lumiere_indirecte", IndirectLight);
         cf.SetValue("rendu", "plein_ecran", Fullscreen);
         cf.SetValue("rendu", "synchro_verticale", VSync);
+        cf.SetValue("rendu", "images_par_seconde_max", MaxFps);
         cf.SetValue("rendu", "profondeur_de_champ", Dof);
         cf.SetValue("rendu", "profondeur_de_champ_distance", DofDistance);
         cf.SetValue("rendu", "profondeur_de_champ_net_a_partir_de", DofNear);

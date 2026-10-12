@@ -17,7 +17,10 @@
  * là, et l'inverse.
  */
 
-#define NW 18
+/* La taille des tableaux : Config.NWavesMax. Le spectre en porte u_wave_count (18 par
+   défaut, l'atelier de la mer peut le changer) ; les boucles s'arrêtent là. */
+#define NW 32
+uniform int u_wave_count = 18;
 
 // --- le spectre, tel que Ocean.cs le pose à chaque image ---
 // xy : direction de propagation · z : amplitude en mètres · w : nombre d'onde
@@ -111,6 +114,7 @@ void gerstner_sum(vec2 world_xz, float t, float shelter, float spacing,
 	height = 0.0;
 
 	for (int i = 0; i < NW; i++) {
+		if (i >= u_wave_count) break;
 		vec2 d = u_wave_a[i].xy;
 		float amp = u_wave_a[i].z;
 		float k = u_wave_a[i].w;
@@ -204,6 +208,7 @@ void gerstner_bottom(vec2 world_xz, float t, float shelter, float metre, float h
 	curv = vec3(0.0);
 
 	for (int i = 0; i < NW; i++) {
+		if (i >= u_wave_count) break;
 		vec2 d = u_wave_a[i].xy;
 		float amp = u_wave_a[i].z * shelter;
 		float k = u_wave_a[i].w;
@@ -257,6 +262,7 @@ void gerstner_bottom(vec2 world_xz, float t, float shelter, float metre, float h
 vec2 gerstner_surge(vec2 world_xz, float t, float shelter, float depth) {
 	vec2 s = vec2(0.0);
 	for (int i = 0; i < NW; i++) {
+		if (i >= u_wave_count) break;
 		float kh = u_wave_a[i].w * depth;
 		if (kh > 4.0) continue;               // sinh(4) ≈ 27 : plus rien n'arrive au fond
 		float course = u_wave_a[i].z * shelter / sinh(max(kh, 0.3));

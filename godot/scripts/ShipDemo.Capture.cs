@@ -342,7 +342,7 @@ public partial class ShipDemo
                 case "--ombres-soleil": _settings.ShadowQuality = args[i + 1].ToInt(); ApplySettings(); break;
                 case "--prereglage": if (args[i + 1] == "bas") _settings.PresetLow(); else _settings.PresetHigh(); ApplySettings(); break;
                 // MESURE : le temps par image sur N images, à partir de l'image de la capture (ou de --after)
-                case "--chrono": _chronoN = args[i + 1].ToInt(); if (_captureIn < 0) _captureIn = 300; break;
+                case "--chrono": _chronoN = args[i + 1].ToInt(); if (_captureIn < 0) _captureIn = 300; Engine.MaxFps = 0; break;
                 // la charge forcee, pour un banc : la rampe met vingt secondes
                 case "--anneaux": _forceRings = args[i + 1].ToFloat(); break;
                 case "--rade": MooredNode.Debug = args[i + 1] != "0";
@@ -388,6 +388,9 @@ public partial class ShipDemo
                 case "--nage-prendre": _swimTestTake = args[i + 1] != "0"; break;
                 // la brasse tenue, pour voir les bras (--nage-avancer 1 ; 2 en forçant)
                 case "--nage-avancer": _swimTestStroke = args[i + 1].ToInt(); break;
+                // l'atelier de la mer ouvert sur cet onglet (0 houle, 1 rides, 2 surface) ; --houle-n le nombre de composantes
+                case "--atelier": _wsOpenTab = args[i + 1].ToInt(); break;
+                case "--houle-n": _sea.Core.Tune.Count = args[i + 1].ToInt(); Restate(); break;
                 // au flanc d'un AUTRE navire : E doit refuser, et la coque arrêter le nageur poussé contre elle
                 case "--nage-autre": _swimTestOther = args[i + 1] != "0"; break;
                 // MESURE : les ajouts du mode création dont le modèle contient ce motif, cachés (rien n'est écrit)
