@@ -130,7 +130,12 @@ public partial class ShipDemo
     void SwimBoardShip()
     {
         if (_climb != null) return;
-        if (!SwimCanBoard(out string why)) { Say("Trop loin pour se hisser — " + why); GD.Print("[nage] trop loin — " + why); return; }
+        if (!SwimCanBoard(out string why))
+        {
+            // au flanc d'un AUTRE navire : on n'y monte pas
+            if (SwimByOtherHull()) { Say("Je ne peux pas monter à bord de ce navire"); GD.Print("[nage] refusé : ce n'est pas notre navire"); return; }
+            Say("Trop loin pour se hisser — " + why); GD.Print("[nage] trop loin — " + why); return;
+        }
         ClimbStart();
     }
 
@@ -201,6 +206,7 @@ public partial class ShipDemo
 
         var o = _sea.Core.Origin;
         var w = _world;
+        SwimHullsNear();
         Func<double, double, double> floorAt = (x, z) => SwimFloor(w, x, z);
         int n = Math.Max(1, (int)Math.Ceiling(dt / (1.0 / 30)));
         double h = dt / n;
@@ -209,12 +215,12 @@ public partial class ShipDemo
             var p = _swim.Pos;
             double sea = _sea.Core.Sample(p.X - o.X, p.Z - o.Z, _t);
             _swim.Step(h, inp, sea, floorAt(p.X, p.Z), floorAt);
-            // le bordé : on ne traverse pas une coque
-            if (_hullCollider != null)
+            // le bordé : on ne traverse pas une coque — la sienne, ni celle des autres
+            if (_swimHulls.Count > 0)
             {
                 var lp = new Vec3d(_swim.Pos.X - o.X, _swim.Pos.Y, _swim.Pos.Z - o.Z);
                 var v = _swim.Vel;
-                _hullCollider.Collide(ref lp, ref v);
+                foreach (var hc in _swimHulls) hc.Collide(ref lp, ref v);
                 _swim.Pos = new Vec3d(lp.X + o.X, lp.Y, lp.Z + o.Z);
                 _swim.Vel = v;
             }
@@ -223,6 +229,66 @@ public partial class ShipDemo
         if (!_swimSaidCramp && _swim.Under && _swim.Breath < Swimmer.Contractions)
         { _swimSaidCramp = true; Say("Le diaphragme se contracte — il est temps de remonter"); }
         if (!_swim.Under) _swimSaidCramp = false;
+    }
+
+    /* LES COQUES QU'UN NAGEUR HEURTE (demandé : « je ne dois pas passer à travers les
+       bateaux PNJ ») : la sienne, celles de la flotte — chacune a déjà son bordé contre
+       l'embrun (_hulls) —, et celles du mouillage, figées, dont le bordé est tiré de leurs
+       lignes faute de profil mesuré (le contour qu'en sait la mer est celui de leur fiche). */
+    readonly List<HullCollider> _swimHulls = new();
+    readonly List<ShipPhysics> _swimMoored = new();
+    readonly Dictionary<ShipPhysics, HullCollider> _mooredCols = new();
+    /// <summary>On se dit « au flanc » d'une coque à cette distance du bordé, comme pour la sienne.</summary>
+    const double SwimNearHull = SwimBoard;
+
+    void SwimHullsNear()
+    {
+        _swimHulls.Clear();
+        if (_swim == null) return;
+        if (_hullCollider != null) _swimHulls.Add(_hullCollider);
+        var o = _sea.Core.Origin;
+        double sx = _swim.Pos.X - o.X, sz = _swim.Pos.Z - o.Z;
+        foreach (var s in _others)
+        {
+            if (!_hulls.TryGetValue(s, out var h)) continue;
+            var p = s.Physics.Body.Pos;
+            double far = s.Spec.L * 0.6 + 5;
+            if ((p.X - sx) * (p.X - sx) + (p.Z - sz) * (p.Z - sz) < far * far) _swimHulls.Add(h.Col);
+        }
+        if (_moored != null)
+        {
+            _moored.SwimNear(new Vector3((float)sx, 0, (float)sz), 5, _swimMoored);
+            foreach (var ph in _swimMoored)
+            {
+                if (!_mooredCols.TryGetValue(ph, out var col))
+                {
+                    var spec = ph.Spec; var lines = ph.Lines;
+                    col = new HullCollider(ph, HullProfile.Procedural(spec, lines),
+                        z => lines.DeckY(Math.Clamp(z / spec.L + 0.5, 0, 1)), z => lines.KeelY(Math.Clamp(z / spec.L + 0.5, 0, 1)));
+                    _mooredCols[ph] = col;
+                }
+                _swimHulls.Add(col);
+            }
+        }
+    }
+
+    /// <summary>Le nageur est-il au flanc d'une coque qui n'est pas la sienne ?</summary>
+    bool SwimByOtherHull()
+    {
+        if (_swim == null) return false;
+        SwimHullsNear();
+        var o = _sea.Core.Origin;
+        var at = new Vec3d(_swim.Pos.X - o.X, 0, _swim.Pos.Z - o.Z);
+        foreach (var hc in _swimHulls)
+        {
+            if (hc == _hullCollider) continue;
+            var b = hc.Phys.Body;
+            var l = b.Quat.Inverted().Rotate(at - new Vec3d(b.Pos.X, 0, b.Pos.Z));
+            double dz = Math.Max(0, Math.Max(hc.EndAft - l.Z, l.Z - hc.EndFwd));
+            double dx = Math.Max(0, Math.Abs(l.X) - hc.SideAt(Math.Clamp(l.Z, hc.EndAft, hc.EndFwd)));
+            if (Math.Sqrt(dx * dx + dz * dz) < SwimNearHull) return true;
+        }
+        return false;
     }
 
     /// <summary>Le fond sous le nageur : le relief, ou le dessus d'un rocher.</summary>
@@ -417,6 +483,8 @@ void fragment() {
     string _swimTestKind = "";
     bool _swimTestTake;
     int _swimTestStroke;
+    bool _swimTestOther;
+    HullCollider? _swimTestHull;
     int _swimTestPhase;
 
     /// <summary>
@@ -454,12 +522,55 @@ void fragment() {
             GD.Print(FormattableString.Invariant($"[nage] posé au-dessus de {best.Id}, à {Math.Sqrt(bd):F0} m du navire, fond {-best.Y:F1} m"));
             _swimTestStep = 1.5; _swimTestPhase = 0;
         }
+        // l'essai pousse le nageur droit dans la coque de l'autre
+        if (_swimTestHull is { } push && _swim != null)
+        {
+            var bp = push.Phys.Body;
+            var o = _sea.Core.Origin;
+            var to = new Vec3d(bp.Pos.X + o.X - _swim.Pos.X, 0, bp.Pos.Z + o.Z - _swim.Pos.Z);
+            _swim.Vel = to.Normalized() * 1.5 + new Vec3d(0, _swim.Vel.Y, 0);
+        }
         if (_swimTestStep > 0 && (_swimTestStep -= dt) <= 0 && _swim != null)
         {
             if (_swimTestPhase == 0)
             {
                 GD.Print($"[nage] à portée : {(_swimNear?.Id ?? "rien")}, souffle {_swim.Breath:F2}, sous l'eau {_swim.Under}");
                 if (_swimTestTake) { SwimTake(); GD.Print($"[nage] sac : {_sack.Count}"); _swimTestStep = 1.0; _swimTestPhase = 1; }
+            }
+            else if (_swimTestPhase == 1 && _swimTestOther)
+            {
+                // le plus proche des AUTRES : de la flotte, ou du mouillage
+                var o = _sea.Core.Origin; var me = _ship.Physics.Body.Pos;
+                HullCollider? pick = null; double best = double.MaxValue;
+                foreach (var s in _others)
+                    if (_hulls.TryGetValue(s, out var h) && (s.Physics.Body.Pos - me).LengthXZ is double d && d < best) { best = d; pick = h.Col; }
+                if (_moored != null && pick == null)      // la flotte d'abord, si l'essai en a mis une
+                {
+                    _moored.SwimNear(new Vector3((float)me.X, 0, (float)me.Z), 4000, _swimMoored);
+                    foreach (var ph in _swimMoored.ToArray())
+                        if ((ph.Body.Pos - me).LengthXZ is double d && d < best)
+                        {
+                            best = d;
+                            _swim.Pos = new Vec3d(o.X + ph.Body.Pos.X, 0, o.Z + ph.Body.Pos.Z);
+                            SwimHullsNear();
+                            pick = _swimHulls.Find(c => c.Phys == ph);
+                        }
+                }
+                if (pick == null) { GD.Print("[nage] essai : aucun autre navire en vue"); _swimTestPhase = 9; return; }
+                var b = pick.Phys.Body;
+                var at = b.Pos + b.Quat.Rotate(new Vec3d(pick.SideAt(0) + 1.0, 0, 0));
+                _swim.Pos = new Vec3d(o.X + at.X, _sea.Core.Sample(at.X, at.Z, _t) + Swimmer.EyeAbove, o.Z + at.Z);
+                _swim.Under = false;
+                GD.Print(FormattableString.Invariant($"[nage] essai : au flanc de « {pick.Phys.Spec.Name} », à {best:F0} m du nôtre"));
+                SwimBoardShip();
+                _swimTestHull = pick; _swimTestStep = 2.0; _swimTestPhase = 2;
+            }
+            else if (_swimTestPhase == 2 && _swimTestHull is { } th)
+            {
+                var o = _sea.Core.Origin; var b = th.Phys.Body;
+                var l = b.Quat.Inverted().Rotate(new Vec3d(_swim.Pos.X - o.X, _swim.Pos.Y, _swim.Pos.Z - o.Z) - b.Pos);
+                GD.Print(FormattableString.Invariant($"[nage] essai : poussé deux secondes contre le bordé — à {Math.Abs(l.X):F2} m de l'axe, le bordé à {th.SideAt(l.Z):F2} : {(Math.Abs(l.X) >= th.SideAt(l.Z) - 0.01 ? "dehors" : "DEDANS")}"));
+                _swimTestHull = null; _swimTestPhase = 9;
             }
             else if (_swimTestPhase == 1)
             {

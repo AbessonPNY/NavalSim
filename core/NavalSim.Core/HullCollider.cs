@@ -63,6 +63,8 @@ public sealed class HullCollider : ISprayCollider
     /// <summary>Le bordé et le dessus de la coque à la station z (repère du navire) : où un nageur pose les mains pour se hisser.</summary>
     public double SideAt(double z) => HalfB(z);
     public double TopAt(double z) => _topAt(z);
+    /// <summary>La coque que ce bordé garde : son corps, sa place et son roulis.</summary>
+    public ShipPhysics Phys => _phys;
     /// <summary>Les bouts de la coque mesurée, en z du navire.</summary>
     public double EndAft => _prof.EndAft;
     public double EndFwd => _prof.EndFwd;

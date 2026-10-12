@@ -113,6 +113,7 @@ public partial class ShipDemo
             // si près de l'œil, leur ombre tomberait sur tout le champ ; et le soleil passe à travers une main
             mi.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
             mi.ExtraCullMargin = 1;
+            ArmsSkin(mi);
             if (_armSkel != null)
             {
                 // avec une armature, seule la peau se montre : des poings restés dans le fichier n'ont plus d'usage
@@ -133,6 +134,64 @@ public partial class ShipDemo
         _arms.Visible = false;
     }
 
+    /* LA PEAU, ce que le glTF ne porte pas (demandé) : la lumière qui entre dans la peau
+       et en ressort plus loin, rougie par le sang — le bout des doigts à contre-jour, le
+       modelé adouci ; et le reflet d'une peau, plus faible que celui d'une matière
+       quelconque (F0 ≈ 0,028 contre 0,04 : « Specular » 0,35 et non 0,5 — signalé, « le
+       bras brille beaucoup »). La rugosité reste celle de la carte : une peau mouillée
+       brille, c'est la sienne qui le dit. Seule la matière nommée « peau » est touchée. */
+    void ArmsSkin(MeshInstance3D mi)
+    {
+        if (mi.Mesh == null) return;
+        for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
+        {
+            if (mi.Mesh.SurfaceGetMaterial(i) is not BaseMaterial3D m || m.ResourceName != "peau") continue;
+            m.MetallicSpecular = 0.35f;
+            m.SubsurfScatterEnabled = true;
+            m.SubsurfScatterSkinMode = true;
+            m.SubsurfScatterStrength = 0.55f;
+            m.SubsurfScatterTransmittanceEnabled = true;
+            m.SubsurfScatterTransmittanceColor = new Color(0.85f, 0.32f, 0.22f);
+            m.SubsurfScatterTransmittanceDepth = 0.12f;
+            m.SubsurfScatterTransmittanceBoost = 0.25f;
+            _skinMats.Add(m);
+            GD.Print($"[nage] peau de « {mi.Name} » : diffusion sous la peau, reflet 0,35 ; rugosité {(m.RoughnessTexture != null ? "de la carte, canal " + m.RoughnessTextureChannel : m.Roughness.ToString())}");
+        }
+    }
+
+    /* LA PEAU QUI SÈCHE (demandé). Trois états, et des temps de vrai :
+       — DANS L'EAU, la peau ne brille presque pas : l'eau contre la peau, d'indices voisins
+         (1,33 et ≈ 1,4), ne renvoie presque rien ; c'est la surface de la mer qui brille, pas
+         le bras. Le reflet tombe à 0,05.
+       — SORTIE DE L'EAU, un film ruisselle : plus lisse que la peau elle-même (rugosité ×0,8),
+         il s'égoutte en une dizaine de secondes (τ 8 s) — ce que montre la montée.
+       — HUMIDE, puis SÈCHE : l'eau qui reste s'évapore en minutes sous le vent et le soleil
+         des Caraïbes (τ 6 min), et la peau sèche est plus mate que la carte (×1,35, de 0,44 à
+         ≈ 0,6). Cela ne se verra que le jour où l'on verra ses bras sur le pont ; l'état est
+         gardé d'une plongée à l'autre, et toute plongée le remet à l'eau. */
+    readonly List<BaseMaterial3D> _skinMats = new();
+    double _skinFilm = 1, _skinDamp = 1;
+    const double SkinDrip = 8, SkinDry = 360;
+
+    void ArmsSkinTick(double dt, bool inWater)
+    {
+        if (inWater) { _skinFilm = 1; _skinDamp = 1; }
+        else
+        {
+            _skinFilm *= Math.Exp(-dt / SkinDrip);
+            _skinDamp *= Math.Exp(-dt / SkinDry);
+        }
+        float film = (float)_skinFilm, damp = (float)_skinDamp;
+        // la rugosité de la carte, multipliée : sèche ×1,35, humide ×1, sous un film ×0,8
+        float rough = Mathf.Lerp(Mathf.Lerp(1.35f, 1f, damp), 0.8f, film);
+        float spec = inWater ? 0.05f : 0.35f;
+        foreach (var m in _skinMats)
+        {
+            m.Roughness = rough;
+            m.MetallicSpecular = spec;
+        }
+    }
+
     /// <summary>Chaque image, une fois l'œil posé : où vont les mains, puis les bras qui les y portent.</summary>
     void ArmsPose(double dt)
     {
@@ -143,6 +202,8 @@ public partial class ShipDemo
         _arms.Visible = show;
         // la mer ne mire pas ce qui est à portée de bras de l'œil : les bras eux-mêmes
         _sea.Material?.SetShaderParameter(UMirrorNear, show ? 1.2f : 0f);
+        // à l'eau tant qu'on nage, et pendant qu'on vient au flanc ; hors de l'eau dès qu'on s'y hisse — et elle sèche encore à bord
+        ArmsSkinTick(dt, _swimming && (_climb == null || _climb.T < _climb.Approach + ClimbStep));
         if (!show) { _armR.Init = _armL.Init = false; return; }
         var s = _swim!;
 

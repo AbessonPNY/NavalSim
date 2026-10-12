@@ -113,7 +113,23 @@ public partial class MooredNode : Node3D
                 foreach (var s in p.Ships) if (s.Node.Visible) Touch(s.Node, at, reach);
     }
 
-    void Touch(Node3D node, Vector3 at, double reach)
+    /// <summary>
+    /// Les coques au mouillage à portée d'un NAGEUR (repère du moment), dans <paramref name="into"/> :
+    /// la même coque figée que pour le heurt, sans toucher à <see cref="Near"/>, qui est celle du
+    /// navire du joueur.
+    /// </summary>
+    public void SwimNear(Vector3 at, double reach, List<ShipPhysics> into)
+    {
+        into.Clear();
+        foreach (var h in _hand) if (!h.Removed && h.Node.Visible) Touch(h.Node, at, reach, into);
+        foreach (var p in _ports)
+            if (p.Group.Visible)
+                foreach (var s in p.Ships) if (s.Node.Visible) Touch(s.Node, at, reach, into);
+    }
+
+    void Touch(Node3D node, Vector3 at, double reach) => Touch(node, at, reach, Near);
+
+    void Touch(Node3D node, Vector3 at, double reach, List<ShipPhysics> into)
     {
         if (!_specOf.TryGetValue(node, out var spec)) return;
         var pos = node.Position;
@@ -125,7 +141,7 @@ public partial class MooredNode : Node3D
         b.Pos = new Vec3d(pos.X, pos.Y, pos.Z);
         b.Quat = new Quatd(q.X, q.Y, q.Z, q.W);
         b.Vel = Vec3d.Zero; b.AngVel = Vec3d.Zero;
-        Near.Add(ph);
+        into.Add(ph);
     }
     string? _shipsDir;
     Ocean? _sea;

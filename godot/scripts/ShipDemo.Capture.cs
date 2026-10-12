@@ -388,6 +388,8 @@ public partial class ShipDemo
                 case "--nage-prendre": _swimTestTake = args[i + 1] != "0"; break;
                 // la brasse tenue, pour voir les bras (--nage-avancer 1 ; 2 en forçant)
                 case "--nage-avancer": _swimTestStroke = args[i + 1].ToInt(); break;
+                // au flanc d'un AUTRE navire : E doit refuser, et la coque arrêter le nageur poussé contre elle
+                case "--nage-autre": _swimTestOther = args[i + 1] != "0"; break;
                 // MESURE : les ajouts du mode création dont le modèle contient ce motif, cachés (rien n'est écrit)
                 case "--sans-ajout": _hideAddedTest = args[i + 1]; _diveTestIn = 1.0; break;
                 // DIAGNOSTIC : les pièces que chaque fiche porte, lues sur son modèle — elles ne sont écrites nulle part ailleurs
