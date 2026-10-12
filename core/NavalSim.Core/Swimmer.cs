@@ -58,8 +58,17 @@ public sealed class Swimmer
     public const double EyeAbove = 0.14;
     /// <summary>L'œil ne descend pas plus près du fond : la poitrine y est déjà.</summary>
     public const double EyeOverBed = 0.35;
-    /// <summary>Secondes d'apnée à nager tranquillement près de la surface.</summary>
+    /// <summary>Secondes d'apnée à nager tranquillement près de la surface : un homme aguerri.</summary>
     public const double Apnea = 70;
+    /// <summary>
+    /// UN PLONGEUR NÉ — le personnage du joueur (demandé : « des aptitudes de plongeur en eaux peu
+    /// profondes plus grandes que la normale »), au niveau des bons plongeurs des pêcheries de perles
+    /// de la Margarita, qui descendaient à dix ou quinze mètres plus d'une minute : cent secondes
+    /// près de la surface, et la dépense de la profondeur, inchangée, en laisse ≈ 71 à dix mètres.
+    /// </summary>
+    public const double PearlDiver = 100;
+    /// <summary>La provision de CET homme, en secondes de nage tranquille près de la surface.</summary>
+    public double ApneaSeconds = Apnea;
     /// <summary>Le souffle repris en surface : de vide à plein, en tant de secondes.</summary>
     public const double Recover = 20;
     /// <summary>La profondeur où l'homme devient neutre, poumons comprimés.</summary>
@@ -161,7 +170,7 @@ public sealed class Swimmer
             DiveTime += dt;
             double moving = Math.Min(1, Math.Abs(inp.Fwd) + Math.Abs(inp.Side) + Math.Abs(inp.Up));
             double burn = (0.75 + 0.25 * moving) * (inp.Hard ? 1.6 : 1) * (1 + Math.Max(0, depth) / 25);
-            Breath -= dt * burn / Apnea;
+            Breath -= dt * burn / ApneaSeconds;
             if (Breath <= 0) { Breath = 0; Blackout = true; }
         }
         else Breath = Math.Min(1, Breath + dt / Recover);

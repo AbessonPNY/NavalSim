@@ -151,6 +151,28 @@ node tools/arms-glb.js
   pliée au repos le paraîtra en jeu.
 - Unités : le mètre. Une matière de peau, une d'ongle ; textures incluses.
 
+### Avec une armature (la forme préférée)
+
+Le jeu reconnaît un fichier qui porte un **squelette** dont les os s'appellent
+`bras_d`, `avant_bras_d`, `main_d`, `index_1_d`…`index_3_d`, `majeur_…`,
+`annulaire_…`, `auriculaire_…` (trois os par doigt) et `pouce_1_d`, `pouce_2_d` —
+et les mêmes en `_g`. Il pose alors les os au lieu des pièces, et **replie les doigts**
+quand la main se ferme (plus besoin de poings).
+
+- **Droite et gauche se lisent au pouce**, pas au nom : si les os `_d` portent une main
+  gauche (l'usage de Blender, qui met la droite d'un personnage vu de face en −X), le jeu
+  échange les deux côtés et le dit à la console. Nommez comme vous voulez, pourvu que
+  les deux bras portent le même suffixe que leurs os.
+- Os parentés en chaîne (bras → avant-bras → main → doigts), une seule armature pour
+  les deux bras, peau pondérée (`Ctrl P → With Automatic Weights`), transformations
+  appliquées avant de pondérer.
+- **Les longueurs sont lues sur les os** (bras, avant-bras), la pose de repos est libre.
+- **La paume est lue sur les doigts** : le côté vers lequel ils plient déjà au repos.
+  Donnez-leur une légère courbure dans la pose de repos (quelques degrés), sinon le
+  jeu ne sait pas de quel côté est la paume.
+- Les maillages sans peau (de vieux poings) sont cachés. Pas d'animation à fournir.
+- Donnez à la peau la matière `peau` : sans matière, elle sort blanche.
+
 ## La baleine — `creatures/whale.glb` (Godot)
 
 Un cachalot de 15 m, nommé par `settings.json` → `whale.glb`. Absent ou

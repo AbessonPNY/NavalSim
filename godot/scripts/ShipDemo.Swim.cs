@@ -82,7 +82,8 @@ public partial class ShipDemo
         {
             Pos = new Vec3d(o.X + at.X, sea - 0.4, o.Z + at.Z),
             Yaw = Math.Atan2(side.X, side.Z), Pitch = -0.1,
-            Under = true, DiveTime = 0, Vel = side * 0.8 + new Vec3d(0, -0.6, 0)
+            Under = true, DiveTime = 0, Vel = side * 0.8 + new Vec3d(0, -0.6, 0),
+            ApneaSeconds = Swimmer.PearlDiver      // le personnage est un plongeur né
         };
         _swimming = true;
         _swimCamWas = _camMode;

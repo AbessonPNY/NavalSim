@@ -119,6 +119,10 @@ uniform float u_lamp_water = 0.6;
    u_absorb : l'extinction par canal et par mètre ; u_refract : Snell, 1 pour de
    l'eau de mer — un cadran, pas une rustine. */
 uniform sampler2D u_screen : hint_screen_texture, filter_linear;
+/* RIEN NE SE REFLÈTE PLUS PRÈS DE L'ŒIL QUE CELA (m) — posé par le jeu à la nage : les
+   bras du nageur, collés à la caméra, sont dans l'image où le reflet est cherché, et
+   s'y miraient sous la surface (signalé, « un effet bizarre ») ; 0 hors de l'eau. */
+uniform float u_mirror_near = 0.0;
 uniform sampler2D u_depth : hint_depth_texture, filter_nearest;
 uniform vec3  u_absorb = vec3(0.34, 0.13, 0.085);
 uniform float u_refract = 1.0;
@@ -346,7 +350,7 @@ vec4 hull_mirror(vec3 P, vec3 Rv, mat4 proj, mat4 inv_proj, float tmax) {
 		float scene = view_depth(uv, inv_proj);
 		float ray = -Q.z;
 		// derrière une surface, et pas trop loin derrière : c'est elle qu'il a touchée
-		if (ray > scene && ray - scene < 0.6 + 0.08 * t) {
+		if (ray > scene && ray - scene < 0.6 + 0.08 * t && scene > u_mirror_near) {
 			// affiner entre le pas d'avant et celui-ci
 			float a = prev_t, b = t;
 			for (int k = 0; k < 5; k++) {

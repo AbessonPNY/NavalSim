@@ -16584,3 +16584,32 @@ L'essai `--nage` va au pied de la première échelle s'il y en a une.
 LE POUCE AVAIT TROIS PHALANGES (signalé) : il partait du bas de la paume en trois segments libres, le métacarpien dessiné comme un doigt. Il n'en a que DEUX libres ; le métacarpien est pris dans la paume et n'en sort que l'éminence (le gras du pouce). Refait dans tools/arms-glb.js : un renflement fondu dans le bord de la paume jusqu'à la jointure, puis deux phalanges (33 et 27 mm), et un ongle, qu'il n'avait pas.
 
 SUR LE PONT APRÈS LA MONTÉE (demandé) : la nage finie, la caméra revenait à l'orbite, une coupure. Elle passe maintenant en VUE À BORD (mode 1), sur une vue qui n'est pas dans la fiche (`_aboard`, `EnterAboard`) : posée là où `ClimbEye` a fini — debout sur le pont lu par `DeckTop`, le plat-bord enjambé — le regard vers l'intérieur (lacet −90° × le bord), la souris tourne la tête comme sur toute vue à bord. Elle ne vaut que pour CE navire (`_aboardOf`) et tient jusqu'au prochain C, qui reprend les vues de la fiche à la première. `CurDeck` remplace les lectures de `Spec.Decks[_deck]` (nom, focale, pont couvert pour l'orage).
+
+## Un plongeur né (12/10)
+
+DEMANDÉ : « des aptitudes de plongeur en eaux peu profondes plus grandes que la normale, tenir un peu plus sous l'eau ». Choix du joueur : un DON DE NAISSANCE, au niveau des bons plongeurs des pêcheries de perles de la Margarita (dix à quinze mètres, plus d'une minute). La provision d'air n'est plus une constante mais celle de CET homme (`Swimmer.ApneaSeconds`) : 70 s pour un homme aguerri (`Apnea`), 100 s pour le personnage du joueur (`PearlDiver`, posé au saut). La dépense de la profondeur et de l'effort reste la même règle. Banc « nage » : immobile à 2 m 86 → 123 s, nageant à 2 m 65 → 93, nageant à 10 m 50 → 71, forçant à 10 m 31 → 45 ; les contractions viennent toujours au tiers restant.
+
+## Les bras à armature (12/10)
+
+L'ARMATURE refaite dans Blender par l'artiste (34 os, une peau par bras, poings laissés tels
+quels) : vérifiée à la lecture du fichier — hiérarchie, noms, pondération, aucune transformation
+d'objet. UN DÉFAUT : `_d` et `_g` inversés sur les os (le maillage `bras_droit`, en +X, était
+piloté par les os `_g`) — l'usage de Blender met la droite d'un personnage vu de face en −X,
+alors que l'œil du joueur regarde vers +Y. Corrigé dans le .glb en échangeant les seuls noms
+des 34 os (le JSON réécrit, le binaire intact). PIÈGE de lecture : « 209 sommets » m'a fait
+dire « des cylindres sans mains » — c'est une main basse définition, doigts compris.
+
+LE BRANCHEMENT (`ShipDemo.SwimArms.cs`) : un squelette avec `bras_d`, `avant_bras_d`, `main_d`
+fait passer le jeu aux os ; sinon les pièces rigides, comme avant. Le calcul ne change pas — il
+donne trois repères dans celui de la caméra (Y le long du segment, Z vers la paume ou le
+biceps) — et `ArmPoseBones` les pose par `SetBoneGlobalPose`. Le roulis des os dans Blender est
+quelconque : on lit LA PAUME DU REPOS sur la courbure des doigts (où penchent les bouts par
+rapport à leur base, en travers de la main) et on la ramène dans le repère de chaque os
+(`MUp`, `MFore`, `MHand`), d'où os = voulu × M⁻¹. Les longueurs viennent des os (0,35 et
+0,24 m). LES DOIGTS se replient autour de leur travers (Y × paume), 1,25 / 1,45 / 0,95 rad
+par phalange, 0,55 / 0,75 au pouce, suivant `Curl` amorti (14/s) de 0,12 détendu à 1 serré.
+Ce que la main tient ne pend plus à un poing : il suit `HandXf`, la main posée de l'image.
+
+LES POUCES À L'EXTÉRIEUR (signalé, capture à l'appui) : l'artiste avait réexporté depuis son .blend, encore nommé à la manière de Blender — l'échange des noms fait dans le .glb était écrasé, et les os `_d` portaient de nouveau une main gauche. Plutôt qu'une règle de nommage à retenir à chaque export, LA MAIN SE RECONNAÎT À SON POUCE (`Handed`) : doigts selon Y, paume P lue au repos, le pouce d'une main droite est du côté de Y × P. Si `_d` est gauche et `_g` droite, on les échange (dit à la console). Mesuré en jeu, main droite paume en bas : pouce à x 0,147, auriculaire à 0,212 — dedans.
+
+LES MAINS SE MIRAIENT DANS L'EAU (signalé) : le reflet de la mer est cherché dans l'image déjà rendue (`hull_mirror`), où sont aussi les bras collés à l'œil. `u_mirror_near` (ocean.gdshader) : rien ne se reflète plus près de l'œil que cela ; posé à 1,2 m tant que les bras sont montrés, 0 sinon — une coque à moins d'1,2 m de l'œil d'un nageur ne se mire plus non plus, prix accepté.

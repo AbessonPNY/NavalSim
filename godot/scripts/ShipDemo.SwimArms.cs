@@ -10,13 +10,15 @@ namespace NavalSim;
 /// brasse, la main qui va prendre le lambi, les deux mains qui agrippent le flanc
 /// et vous hissent à bord.
 ///
-/// Le modèle est <c>creatures/bras.glb</c> (tools/arms-glb.js, à refaire dans
-/// Blender si l'on veut) : par bras trois pièces sans armature — bras, avant-bras,
-/// main ouverte ou fermée — chacune son origine à l'articulation. Le jeu ne lit
-/// AUCUNE animation : il décide où va chaque MAIN (poignet, sens des doigts, sens
-/// de la paume), et l'épaule et le coude se résolvent seuls, deux os, le coude
-/// tourné vers un pôle. Les mains suivent leur but par un amorti, ce qui lie les
-/// gestes entre eux sans courbes à écrire.
+/// Le modèle est <c>creatures/bras.glb</c>, de deux façons. AVEC UNE ARMATURE
+/// (refaite dans Blender) : un squelette, ses os nommés bras_d, avant_bras_d,
+/// main_d, index_1_d… pouce_2_d (et _g), une peau pondérée — les doigts se
+/// replient en vrai. SANS (tools/arms-glb.js) : par bras trois pièces rigides —
+/// bras, avant-bras, main ouverte ou fermée — chacune son origine à l'articulation.
+/// Dans les deux cas le jeu ne lit AUCUNE animation : il décide où va chaque MAIN
+/// (poignet, sens des doigts, sens de la paume), et l'épaule et le coude se
+/// résolvent seuls, deux os, le coude tourné vers un pôle. Les mains suivent leur
+/// but par un amorti, ce qui lie les gestes entre eux sans courbes à écrire.
 ///
 /// Tout est dans le repère de la CAMÉRA (−Z devant, +Y en haut, +X à droite), le
 /// modèle étant son enfant : il suit l'œil, la secousse comprise. Ce qui tient au
@@ -36,7 +38,19 @@ public partial class ShipDemo
         public int Side;               // +1 la droite, −1 la gauche (sur l'écran)
         public Vector3 Wrist, Fingers, Palm, Pole;
         public bool Grip, Init;
+        /// <summary>Les longueurs du bras et de l'avant-bras : celles du modèle quand il a des os.</summary>
+        public float Up = ArmUpper, Fo = ArmFore;
+        /// <summary>La main fermée, de 0 (détendue) à 1 (serrée) — amortie, les doigts se replient.</summary>
+        public float Curl;
+        /// <summary>La main, posée cette image, dans le repère de la caméra : ce qu'elle tient s'y accroche.</summary>
+        public Transform3D HandXf = Transform3D.Identity;
+        // L'ARMATURE : ses os, et pour chacun la paume du repos dans son repère
+        public int BUp = -1, BFore = -1, BHand = -1;
+        public Basis MUp, MFore, MHand;
+        public readonly List<(int Bone, Quaternion RestRot, Vector3 Axis, float Max)> Joints = new();
+        public bool Boned => BUp >= 0 && BFore >= 0 && BHand >= 0;
     }
+    Skeleton3D? _armSkel;
 
     /// <summary>Où une main veut aller, dans le repère de la caméra.</summary>
     struct HandGoal
@@ -54,6 +68,7 @@ public partial class ShipDemo
 
     Node3D? _arms;
     bool _armsTried;
+    static readonly StringName UMirrorNear = "u_mirror_near";
     /// <summary>Ce que les bras occupent devant l'œil, pour le flou de mouvement (repère de la caméra).</summary>
     static readonly Aabb ArmsBox = new(new Vector3(-0.7f, -0.9f, -1.1f), new Vector3(1.4f, 1.25f, 1.4f));
     readonly SwimArm _armR = new() { Side = 1 }, _armL = new() { Side = -1 };
@@ -79,11 +94,31 @@ public partial class ShipDemo
         var root = System.IO.File.Exists(path) ? Assets.LoadGlb(path) : null;
         if (root == null) { GD.PushWarning("[nage] creatures/bras.glb introuvable — node tools/arms-glb.js"); return; }
         root.Name = "Bras";
+        _cam.AddChild(root);
+        _armSkel = FindSkeleton(root);
+        /* LA MAIN DROITE SE RECONNAÎT À SON POUCE, pas à son nom (signalé : « les bras sont
+           inversés, les pouces à l'extérieur ») : l'usage de Blender met la droite d'un
+           personnage vu de face en −X, et un export depuis un .blend nommé ainsi rend des os
+           _d qui portent une main gauche. Si c'est le cas des deux côtés, on les échange. */
+        string sr = "_d", sl = "_g";
+        if (_armSkel != null && Handed(_armSkel, "_d") < 0 && Handed(_armSkel, "_g") > 0)
+        {
+            (sr, sl) = ("_g", "_d");
+            GD.Print("[nage] bras.glb : les os _d portent une main GAUCHE (usage de Blender) — _d et _g échangés");
+        }
+        bool boned = _armSkel != null && ArmBones(_armSkel, _armR, sr) & ArmBones(_armSkel, _armL, sl);
+        if (_armSkel != null && !boned) { GD.PushWarning("[nage] bras.glb : un squelette, mais sans les os attendus (bras_d, avant_bras_d, main_d…) — les pièces"); _armSkel = null; }
         foreach (var mi in NodeWalk.Meshes(root))
         {
             // si près de l'œil, leur ombre tomberait sur tout le champ ; et le soleil passe à travers une main
             mi.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
             mi.ExtraCullMargin = 1;
+            if (_armSkel != null)
+            {
+                // avec une armature, seule la peau se montre : des poings restés dans le fichier n'ont plus d'usage
+                if (mi.Skin == null && mi.GetParent() is not Skeleton3D) mi.Visible = false;
+                continue;
+            }
             string n = mi.Name.ToString();
             var arm = n.EndsWith("_g") ? _armL : _armR;
             if (n.StartsWith("avant_bras")) arm.Fore = mi;
@@ -91,7 +126,9 @@ public partial class ShipDemo
             else if (n.StartsWith("poing")) arm.Fist = mi;
             else if (n.StartsWith("main")) arm.Open = mi;
         }
-        _cam.AddChild(root);
+        GD.Print(_armSkel != null
+            ? FormattableString.Invariant($"[nage] bras.glb : armature, bras {_armR.Up:F2} m, avant-bras {_armR.Fo:F2} m, {_armR.Joints.Count + _armL.Joints.Count} os de doigts")
+            : "[nage] bras.glb : pièces rigides");
         _arms = root;
         _arms.Visible = false;
     }
@@ -104,6 +141,8 @@ public partial class ShipDemo
         if (_arms == null) return;
         bool show = _swimming && _swim != null && _camMode == CamSwim && _fixEye == null;
         _arms.Visible = show;
+        // la mer ne mire pas ce qui est à portée de bras de l'œil : les bras eux-mêmes
+        _sea.Material?.SetShaderParameter(UMirrorNear, show ? 1.2f : 0f);
         if (!show) { _armR.Init = _armL.Init = false; return; }
         var s = _swim!;
 
@@ -127,6 +166,8 @@ public partial class ShipDemo
         ArmFollow(_armL, left, rate, dt);
         ArmSolve(_armR);
         ArmSolve(_armL);
+        // ce que la main droite tient la suit
+        if (_grab?.Copy is { } held) held.Transform = _armR.HandXf * HeldPose(_grab.F.Kind);
     }
 
     /// <summary>Le coup de brasse à ce temps-là : entre deux clés, lissé.</summary>
@@ -172,6 +213,8 @@ public partial class ShipDemo
         a.Palm = a.Palm.Lerp(g.Palm.Normalized(), k).Normalized();
         a.Pole = a.Pole.Lerp(g.Pole.Normalized(), k).Normalized();
         a.Grip = g.Grip;
+        // les doigts : détendus un peu repliés, serrés tout à fait — en un dixième de seconde environ
+        a.Curl += ((g.Grip ? 1f : 0.12f) - a.Curl) * (1 - Mathf.Exp(-14 * (float)dt));
     }
 
     /// <summary>Un repère dont l'axe Y est donné, et Z tiré vers un souhait.</summary>
@@ -189,9 +232,9 @@ public partial class ShipDemo
     /// longueurs permettent, du côté de son pôle. Trop loin, le bras se tend vers
     /// la main sans l'atteindre — il ne s'allonge pas.
     /// </summary>
-    static void ArmSolve(SwimArm a)
+    void ArmSolve(SwimArm a)
     {
-        if (a.Upper == null || a.Fore == null) return;
+        if (!a.Boned && (a.Upper == null || a.Fore == null)) return;
         /* LE POIGNET NE CASSE PAS (signalé : « le poignet cassé vers l'avant ») : la main
            voulait ses doigts là où on les lui disait, l'avant-bras ailleurs, et sur une
            prise le poignet pliait à angle droit. Les doigts restent à WristBend au plus
@@ -228,26 +271,130 @@ public partial class ShipDemo
     {
         var S = new Vector3(ArmShoulder.X * a.Side, ArmShoulder.Y, ArmShoulder.Z);
         var d = wrist - S;
-        float L = Mathf.Clamp(d.Length(), 0.08f, ArmUpper + ArmFore - 0.002f);
+        float L = Mathf.Clamp(d.Length(), 0.08f, a.Up + a.Fo - 0.002f);
         var dir = d.LengthSquared() > 1e-8f ? d.Normalized() : Vector3.Forward;
-        float x = (ArmUpper * ArmUpper - ArmFore * ArmFore + L * L) / (2 * L);
-        float y = Mathf.Sqrt(Mathf.Max(0, ArmUpper * ArmUpper - x * x));
+        float x = (a.Up * a.Up - a.Fo * a.Fo + L * L) / (2 * L);
+        float y = Mathf.Sqrt(Mathf.Max(0, a.Up * a.Up - x * x));
         var perp = a.Pole - dir * dir.Dot(a.Pole);
         perp = perp.LengthSquared() > 1e-6f ? perp.Normalized() : new Vector3(a.Side, -0.5f, 0).Normalized();
         E = S + dir * x + perp * y;
         W = S + dir * L;
     }
 
-    static void ArmPlace(SwimArm a, Vector3 E, Vector3 W, Vector3 fingers, Vector3 palm)
+    void ArmPlace(SwimArm a, Vector3 E, Vector3 W, Vector3 fingers, Vector3 palm)
     {
         var S = new Vector3(ArmShoulder.X * a.Side, ArmShoulder.Y, ArmShoulder.Z);
         // le biceps du côté du pli, donc à l'opposé du coude ; l'avant-bras tourne avec la paume
         var bend = (E - S) - (W - S).Normalized() * (E - S).Dot((W - S).Normalized());
-        a.Upper!.Transform = new Transform3D(ArmBasis(E - S, bend.LengthSquared() > 1e-8f ? -bend : -a.Pole), S);
-        a.Fore!.Transform = new Transform3D(ArmBasis(W - E, palm), E);
+        var up = new Transform3D(ArmBasis(E - S, bend.LengthSquared() > 1e-8f ? -bend : -a.Pole), S);
+        var fore = new Transform3D(ArmBasis(W - E, palm), E);
         var hand = new Transform3D(ArmBasis(fingers, palm), W);
+        a.HandXf = hand;
+        if (a.Boned && _armSkel != null) { ArmPoseBones(_armSkel, a, up, fore, hand); return; }
+        a.Upper!.Transform = up;
+        a.Fore!.Transform = fore;
         if (a.Open != null) { a.Open.Transform = hand; a.Open.Visible = !a.Grip || a.Fist == null; }
         if (a.Fist != null) { a.Fist.Transform = hand; a.Fist.Visible = a.Grip; }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* L'ARMATURE : les mêmes poses, données aux os.                      */
+    /* ------------------------------------------------------------------ */
+
+    static Skeleton3D? FindSkeleton(Node n)
+    {
+        if (n is Skeleton3D sk) return sk;
+        foreach (var c in n.GetChildren()) if (FindSkeleton(c) is { } f) return f;
+        return null;
+    }
+
+    static readonly string[] ArmFingers = { "index", "majeur", "annulaire", "auriculaire" };
+    /// <summary>Ce que plie chaque phalange, main serrée (radians, en plus du repos) ; la deuxième plie le plus.</summary>
+    static readonly float[] FingerBend = { 1.25f, 1.45f, 0.95f }, ThumbBend = { 0.55f, 0.75f };
+
+    /// <summary>
+    /// Les os d'un bras, lus une fois. LA PAUME DU REPOS est prise sur la courbure des
+    /// doigts — le côté vers lequel ils plient déjà au repos — et ramenée dans le repère
+    /// de chaque os : c'est elle qui dit comment tourner l'os pour que la main regarde où
+    /// le jeu le veut, quel que soit le roulis donné aux os dans Blender.
+    /// </summary>
+    static bool ArmBones(Skeleton3D sk, SwimArm a, string sfx)
+    {
+        a.BUp = sk.FindBone("bras" + sfx); a.BFore = sk.FindBone("avant_bras" + sfx); a.BHand = sk.FindBone("main" + sfx);
+        if (!a.Boned) return false;
+        Transform3D G(int b) => sk.GetBoneGlobalRest(b);
+        var gu = G(a.BUp); var gf = G(a.BFore); var gh = G(a.BHand);
+        a.Up = gu.Origin.DistanceTo(gf.Origin);
+        a.Fo = gf.Origin.DistanceTo(gh.Origin);
+        var palm = RestPalm(sk, a.BHand, sfx);
+        Basis M(Transform3D g)
+        {
+            var y = Vector3.Up;                                        // l'os va selon son Y
+            var p = g.Basis.Inverse() * palm;
+            p = (p - y * y.Dot(p)).Normalized();
+            return new Basis(y.Cross(p), y, p);
+        }
+        a.MUp = M(gu); a.MFore = M(gf); a.MHand = M(gh);
+        // les doigts : chaque phalange plie autour de son travers, vers la paume
+        a.Joints.Clear();
+        void Chain(string f, float[] bend)
+        {
+            for (int k = 0; k < bend.Length; k++)
+            {
+                int b = sk.FindBone($"{f}_{k + 1}{sfx}");
+                if (b < 0) continue;
+                var g = G(b);
+                var axis = g.Basis.Inverse() * g.Basis.Y.Cross(palm);
+                if (axis.LengthSquared() < 1e-8f) continue;
+                a.Joints.Add((b, sk.GetBoneRest(b).Basis.GetRotationQuaternion(), axis.Normalized(), bend[k]));
+            }
+        }
+        foreach (var f in ArmFingers) Chain(f, FingerBend);
+        Chain("pouce", ThumbBend);
+        return true;
+    }
+
+    /// <summary>La paume du repos (repère du squelette) : où penchent les bouts des doigts par rapport à leur base, en travers de la main.</summary>
+    static Vector3 RestPalm(Skeleton3D sk, int hand, string sfx)
+    {
+        var gh = sk.GetBoneGlobalRest(hand);
+        var handY = gh.Basis.Y.Normalized();
+        var palm = Vector3.Zero;
+        foreach (var f in ArmFingers)
+        {
+            int b1 = sk.FindBone($"{f}_1{sfx}"), b3 = sk.FindBone($"{f}_3{sfx}");
+            if (b1 < 0 || b3 < 0) continue;
+            var g1 = sk.GetBoneGlobalRest(b1); var g3 = sk.GetBoneGlobalRest(b3);
+            var d = g3.Origin + g3.Basis.Y * 0.02f - g1.Origin;
+            palm += d - handY * handY.Dot(d);
+        }
+        return palm.LengthSquared() > 1e-8f ? palm.Normalized() : gh.Basis.Z.Normalized();
+    }
+
+    /// <summary>
+    /// +1 si la main de ces os est une main DROITE, −1 une gauche, 0 si l'on ne sait pas :
+    /// doigts selon Y, paume selon P, le pouce d'une main droite est du côté de Y × P
+    /// (regardez votre paume droite, doigts en haut : le pouce est à droite).
+    /// </summary>
+    static int Handed(Skeleton3D sk, string sfx)
+    {
+        int hand = sk.FindBone("main" + sfx), thumb = sk.FindBone("pouce_1" + sfx);
+        if (hand < 0 || thumb < 0) return 0;
+        var gh = sk.GetBoneGlobalRest(hand);
+        var side = gh.Basis.Y.Normalized().Cross(RestPalm(sk, hand, sfx));
+        return Math.Sign((sk.GetBoneGlobalRest(thumb).Origin - gh.Origin).Dot(side));
+    }
+
+    /// <summary>Les trois os du bras posés là où le calcul les veut, puis les doigts repliés.</summary>
+    void ArmPoseBones(Skeleton3D sk, SwimArm a, Transform3D up, Transform3D fore, Transform3D hand)
+    {
+        var c2s = sk.GlobalTransform.AffineInverse() * _cam.GlobalTransform;
+        Transform3D Bone(Transform3D want, Basis m) => new(c2s.Basis * want.Basis * m.Inverse(), c2s * want.Origin);
+        sk.SetBoneGlobalPose(a.BUp, Bone(up, a.MUp));
+        sk.SetBoneGlobalPose(a.BFore, Bone(fore, a.MFore));
+        sk.SetBoneGlobalPose(a.BHand, Bone(hand, a.MHand));
+        foreach (var (b, rest, axis, max) in a.Joints)
+            sk.SetBonePoseRotation(b, rest * new Quaternion(axis, max * a.Curl));
     }
 
     /// <summary>Un point du monde (coordonnées Godot) dans le repère de la caméra.</summary>
@@ -305,10 +452,10 @@ public partial class ShipDemo
                     if (ff == g.F) p.Node.Visible = false;
             // ce que la main emporte : une copie du modèle, serrée dans le poing
             g.Copy = SwimModel(g.F.Kind);
-            if (g.Copy != null && _armR.Fist != null)
+            if (g.Copy != null && _arms != null)
             {
-                _armR.Fist.AddChild(g.Copy);
-                g.Copy.Transform = HeldPose(g.F.Kind);
+                _arms.AddChild(g.Copy);
+                g.Copy.Transform = _armR.HandXf * HeldPose(g.F.Kind);
             }
         }
         if (g.T >= g.Reach + GrabHold + GrabBack)

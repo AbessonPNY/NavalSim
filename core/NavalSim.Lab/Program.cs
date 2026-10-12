@@ -1693,10 +1693,12 @@ void Nage()
     var (tr, d) = Run(new SwimInput { Fwd = 1, Up = -1, Hard = true }, 60, s => s.Pitch = -1.45, s => s.Pos.Y < -10);
     Console.WriteLine(FormattableString.Invariant($"descendre à 10 m en forçant : {tr:F1} s, souffle {d.Breath:F2}"));
     // l'apnée, immobile sous 2 m ; nageant à 2 m ; nageant à 10 m
+    // un homme aguerri, puis le personnage du joueur, plongeur né (Swimmer.PearlDiver)
+    foreach (var (who, sec) in new[] { ("homme", Swimmer.Apnea), ("plongeur né", Swimmer.PearlDiver) })
     foreach (var (lab, y, fwd, hard) in new[] { ("immobile à 2 m", -2.0, 0.0, false), ("nageant à 2 m", -2.0, 1.0, false), ("nageant à 10 m", -10.0, 1.0, false), ("forçant à 10 m", -10.0, 1.0, true) })
     {
-        var (ta, e) = Run(new SwimInput { Fwd = fwd, Hard = hard }, 300, s => { s.Under = true; s.DiveTime = 1; s.Pos = new Vec3d(0, y, 0); }, s => s.Blackout, y);
-        Console.WriteLine(FormattableString.Invariant($"apnée {lab,-16} : {ta:F0} s (contractions à {ta * (1 - Swimmer.Contractions):F0} s)"));
+        var (ta, e) = Run(new SwimInput { Fwd = fwd, Hard = hard }, 600, s => { s.Under = true; s.DiveTime = 1; s.ApneaSeconds = sec; s.Pos = new Vec3d(0, y, 0); }, s => s.Blackout, y);
+        Console.WriteLine(FormattableString.Invariant($"apnée, {who,-11} {lab,-16} : {ta:F0} s (contractions à {ta * (1 - Swimmer.Contractions):F0} s)"));
     }
     // lâché sans rien faire à 4, 10, 16 m : flotte-t-il ?
     foreach (double y in new[] { -4.0, -10.0, -16.0 })
