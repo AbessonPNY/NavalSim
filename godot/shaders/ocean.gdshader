@@ -1198,6 +1198,15 @@ void fragment() {
 	vec2 shift = (c1.xy / c1.w - c0.xy / c0.w) * 0.5;
 	vec2 suv = clamp(base + shift, vec2(0.0), vec2(1.0));
 	float thick = view_depth(suv, INV_PROJECTION_MATRIX) - (-VERTEX.z);
+	/* CE QUE LE RAYON DÉVIÉ TOUCHE EST PLUS PRÈS DE LA SURFACE QUE LE FOND : le décalage avait
+	   été pris sur le fond d'ICI (onze mètres, plafonnés à cinq), et il allait chercher, loin
+	   à côté, une chose à dix centimètres sous l'eau — les mains du nageur, qui sortaient en
+	   double (signalé, « on dirait qu'il a quatre mains »). Le décalage vaut la profondeur de ce
+	   qu'on voit : on le reprend sur elle, une fois. */
+	if (thick > 0.0 && thick < thick0 * 0.8 && thick0 > 0.0) {
+		suv = clamp(base + shift * (min(thick, 5.0) / min(thick0, 5.0)), vec2(0.0), vec2(1.0));
+		thick = view_depth(suv, INV_PROJECTION_MATRIX) - (-VERTEX.z);
+	}
 	/* Si le rayon dévié tombe sur quelque chose DEVANT l'eau, il a atteint ses
 	   hauts, et les tirer dans l'eau étalerait sa lisse sur la mer : on revient
 	   au regard droit. */
