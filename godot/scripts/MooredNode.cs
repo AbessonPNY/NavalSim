@@ -60,6 +60,8 @@ public partial class MooredNode : Node3D
     /* LES VOILES SERRÉES de chaque modèle, tissées une fois (ShipNode.FurledSails), et la
        fiche de chaque coque posée — pour la heurter (Colliders). */
     readonly Dictionary<ShipSpec, Node3D?> _sails = new();
+    // ses voiles serrées DESSINÉES, par nom, et la matière de toile de chacune (ShipNode.Furled.cs)
+    readonly Dictionary<ShipSpec, Dictionary<string, Material>> _furledMats = new();
     readonly Dictionary<Node3D, ShipSpec> _specOf = new();
     readonly Dictionary<Node3D, ShipPhysics> _hulls = new();
     /// <summary>Les coques au mouillage contre lesquelles le navire du joueur peut buter, cette image-ci.</summary>
@@ -71,6 +73,7 @@ public partial class MooredNode : Node3D
         _specOf[holder] = spec;
         if (!_sails.TryGetValue(spec, out var tpl)) _sails[spec] = tpl = Furl(spec);
         if (tpl != null) copie.AddChild(tpl.Duplicate());
+        if (_furledMats.TryGetValue(spec, out var fm) && fm.Count > 0) ShipNode.DressFurled(copie, fm);
     }
 
     /// <summary>
@@ -88,6 +91,7 @@ public partial class MooredNode : Node3D
             probe.Build(spec);
             var mats = new List<ShaderMaterial>();
             var s = probe.FurledSails(mats);
+            _furledMats[spec] = probe.FurledMaterials();
             foreach (var m in mats) if (!Hazed.Contains(m)) Hazed.Add(m);
             RemoveChild(probe);
             probe.QueueFree();

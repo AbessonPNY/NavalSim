@@ -576,7 +576,7 @@ ports, à la même échelle (×0,4). Aujourd'hui : `caraibes` (la Jamaïque) et
 `tortue` (la Tortue et la côte nord de Saint-Domingue, du Môle au Cap-Français).
 
 La mer entre deux régions n'est pas dessinée : elle est **comptée**. Au large
-(à 3 km de jeu de toute côte), la carte (I) propose « Faire route… » : pour
+(à 3 km de jeu de toute côte), la carte (Ctrl I) propose « Faire route… » : pour
 chaque autre région, les milles jusqu'à son atterrage le plus proche, la route,
 et la durée que donne le vent du moment — au près on louvoie (2 nœuds sur la
 route), grand largue on file (5,5). Le calendrier avance d'autant ; la coque, la

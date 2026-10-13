@@ -73,6 +73,16 @@ instance uniform float u_hole_n = 0.0;
  * Une graine par voile, posée au gréement, et chacune brûle à sa façon. */
 instance uniform float u_burn_seed = 0.0;
 
+/* LE FONDU ENTRE LA VOILE SERRÉE DESSINÉE ET LA TOILE VIVANTE (ShipNode.Furled.cs).
+ *
+ * En trame et non en transparence : la toile reste opaque, garde sa profondeur
+ * et son ombre — qui s'efface avec elle, la passe d'ombre écartant les mêmes
+ * points — et rien n'est à trier contre la mer ni contre la fumée. Les pixels
+ * gardés sont ceux dont le bruit est sous |u_fade| ; NÉGATIF, le motif est
+ * retourné, si bien que les deux formes, l'une à f et l'autre à −(1 − f), se
+ * partagent l'écran point à point au lieu de se doubler. 1 : rien n'est écarté. */
+instance uniform float u_fade = 1.0;
+
 /* LA TAILLE D'UNE DÉCHIRURE, en part de la toile. Un boulet de douze livres
    fait douze centimètres ; ce qu'on voit sur une voile n'est pas ce calibre mais
    ce qui PART de là — la toile sous tension se fend dès qu'on l'a percée. */
@@ -155,6 +165,12 @@ void vertex() {
 }
 
 void fragment() {
+	if (abs(u_fade) < 1.0) {
+		// interleaved gradient noise: even per-pixel thresholds, no visible tiling
+		float n = fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715))));
+		if (u_fade < 0.0) n = 1.0 - n;
+		if (n >= abs(u_fade)) discard;
+	}
 	/* La couleur RESTE et multiplie l'image, au lieu de passer au blanc : c'est
 	   le ton de sa toile, qui garde une voile peinte du même blanc cassé que ses
 	   voiles unies — un motif sur un matériau blanc est un drap à côté du foc. */

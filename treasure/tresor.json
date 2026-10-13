@@ -1,7 +1,12 @@
 {
-  "_aide": "LES TRÉSORS DES ÉPAVES (Godot). Ce qu'un coffre renferme, tiré une fois pour toutes à l'inscription de l'épave. bourse : true, la sorte va droit à la bourse (les écus) ; sinon elle reste à bord et se vend au comptoir, à la pièce, à un cours qui varie d'un port à l'autre (de 0,55 à 1,45 fois sa valeur, la courbe des denrées). valeur : le cours moyen d'une pièce, en écus. min / max : combien un coffre en renferme ; pirate : ce que porte en plus un pirate (multiplie max). Les écus d'un coffre, eux, sont ce que vaut l'épave (sa taille, sa cargaison, et ce qu'un pirate a pris). glb : le modèle à poser dans le coffre ouvert (vide : une forme simple, dessinée). coffre.glb : le modèle du coffre ; son couvercle doit être un nœud nommé « couvercle », qui pivote sur sa charnière. marge : ce que garde le joaillier quand il rachète.",
+  "_aide": "LES TRÉSORS DES ÉPAVES (Godot). Ce qu'un coffre renferme, tiré une fois pour toutes à l'inscription de l'épave. bourse : true, la sorte va droit à la bourse (les écus) ; sinon elle reste à bord et se vend au comptoir, à la pièce, à un cours qui varie d'un port à l'autre (de 0,55 à 1,45 fois sa valeur, la courbe des denrées). valeur : le cours moyen d'une pièce, en écus. min / max : combien un coffre en renferme ; pirate : ce que porte en plus un pirate (multiplie max). Les écus d'un coffre, eux, sont ce que vaut l'épave (sa taille, sa cargaison, et ce qu'un pirate a pris). glb : le modèle à poser dans le coffre ouvert (vide : une forme simple, dessinée). coffre.glb : le modèle du coffre ; son couvercle doit être un nœud nommé « couvercle », qui pivote sur sa charnière. marge : ce que garde le joaillier quand il rachète. L'INVENTAIRE (touche I) : coffre.dessus, l'image du coffre ouvert vu de dessus (PNG ; vide : il est dessiné) ; icone, l'image d'une sorte dans sa case (PNG carré à fond transparent ; vide : son nom écrit à la main). Les écus et les pièces d'argent de la bourse y ont leur case, en tête ; argent : le nom et l'image de la case des pièces.",
   "coffre": {
-    "glb": "props/coffre_2k.glb"
+    "glb": "props/coffre_2k.glb",
+    "dessus": ""
+  },
+  "argent": {
+    "nom": "Pièces d'argent",
+	"icone": "medias/images/teston.png"
   },
   "marge": 0.15,
   "contenus": [
@@ -11,6 +16,7 @@
       "bourse": true,
       "valeur": 1,
       "glb": "",
+      "icone": "medias/images/ecu.png",
       "note": "la monnaie : comptée, et à la bourse"
     },
     {
@@ -24,6 +30,7 @@
       "max": 5,
       "pirate": 2,
       "glb": "",
+      "icone": "",
       "note": "émeraudes de la Nouvelle-Grenade, rubis, perles de Margarita"
     },
     {
@@ -36,6 +43,7 @@
       "max": 3,
       "pirate": 2,
       "glb": "",
+      "icone": "",
       "note": "bagues, croix, chaînes d'or : ce qu'on portait à bord, et ce qu'on avait pris"
     },
     {
@@ -49,6 +57,7 @@
       "max": 2,
       "pirate": 1.5,
       "glb": "",
+      "icone": "",
       "note": "calices, plats, idoles des Indes : rares, et payés au poids de l'or et de l'histoire"
     },
     {
@@ -61,6 +70,7 @@
       "min": 0,
       "max": 0,
       "glb": "props/fond/lambi.glb",
+      "icone": "",
       "note": "ramassés en apnée sur l'herbier (ShipDemo.Swim.cs) : la chair se mange, la coquille se vend ; jamais dans un coffre (min et max nuls)"
     },
     {
@@ -73,6 +83,7 @@
       "min": 0,
       "max": 0,
       "glb": "",
+      "icone": "medias/images/perle.png",
       "note": "une huître perlière sur douze, ouverte à bord — généreux : les pêcheries de Margarita en ouvraient des centaines pour une perle marchande"
     }
   ]

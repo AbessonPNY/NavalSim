@@ -328,9 +328,11 @@ public partial class ShipDemo
                     break;
                 case Key.L when k.ShiftPressed: Douse(); break;
                 case Key.L: ToggleSpyglass(); break;
-                // la carte du capitaine : I comme « inscrire »
+                /* I : L'INVENTAIRE, le coffre du bord (demandé) ; la carte du capitaine,
+                   qui l'avait, passe à Ctrl I, et ⇧I garde le journal. */
+                case Key.I when k.CtrlPressed: ToggleChart(); break;
                 case Key.I when k.ShiftPressed: ToggleJournal(); break;
-                case Key.I: ToggleChart(); break;
+                case Key.I: ToggleInventory(); break;
                 // M par sa LETTRE comme ⇧M : sur un AZERTY il n'est pas à la place du QWERTY
 
                 /* L'ÉLAN : l'équivalent de `Naval.app.controls.state.throttle = 45`

@@ -171,6 +171,8 @@ public partial class ShipDemo
                 case "--carte": _overChart = args[i + 1] != "0"; break;
                 // la carte ouverte d emblee, pour la juger
                 case "--carte-ouverte": if (args[i + 1] != "0") ToggleChart(); break;
+                // --inventaire 1 : le coffre ouvert ; 2 : avec des cases pleines, pour l essai (la cale n est pas touchée)
+                case "--inventaire": _invSample = args[i + 1] == "2"; if (args[i + 1] != "0") ToggleInventory(); break;
                 // ESSAI (après --carte-ouverte) : la règle parallèle vers un point à « distance (m), cap (°) » du point estimé
                 case "--regle":
                 {

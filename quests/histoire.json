@@ -163,7 +163,7 @@
         },
         {
           "title": "Accoster à Passage Fort",
-          "brief": "Traversez la rade et amarrez-vous au ponton de Passage Fort : approchez sous peu de toile (V pour ferler), et pressez M le long du ponton.\n\nLa touche I ouvre la carte du capitaine — elle ne montre que ce que ce bord a vu.",
+          "brief": "Traversez la rade et amarrez-vous au ponton de Passage Fort : approchez sous peu de toile (V pour ferler), et pressez M le long du ponton.\n\nCtrl I ouvre la carte du capitaine — elle ne montre que ce que ce bord a vu.",
           "at": {
             "port": "passage-fort"
           },

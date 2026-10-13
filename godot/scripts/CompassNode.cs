@@ -11,7 +11,7 @@ namespace NavalSim;
 /// un GPS de voiture, pas une boussole de 1690. Le navire est au centre, tourné
 /// à son cap ; le vent est une flèche sur le bord, d'où il vient. Et le disque
 /// est centré sur le point ESTIMÉ, pas sur la vérité : c'est la même carte que
-/// celle qu'on ouvre (I), avec sa route à la plume et ses notes, et elle ne sait
+/// celle qu'on ouvre (Ctrl I), avec sa route à la plume et ses notes, et elle ne sait
 /// pas mieux où l'on est.
 ///
 /// La molette sur la boussole change la loupe, d'un demi-mille à dix milles de

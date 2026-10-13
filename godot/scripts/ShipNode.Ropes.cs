@@ -721,18 +721,29 @@ public partial class ShipNode
         var vx = new Vector3[n * 4];
         var nm = new Vector3[n * 4];
         var uv = new Vector2[n * 4];
+        var uv2 = new Vector2[n * 4];
         var ix = new int[n * 6];
         Vector3 lo = new(float.MaxValue, float.MaxValue, float.MaxValue), hi = -lo;
+        /* HOW FAR ALONG THE ROPE, IN DIAMETERS, for the strands drawn by the shader: summed
+           segment by segment while each starts where the last one ended, so the lay runs on
+           unbroken through the joints; a fresh rope starts again from zero. Counted in
+           diameters, a thick cable gets long strands and a thin line short ones. */
+        float along = 0;
         for (int i = 0; i < n; i++)
         {
             var s = segs[i];
             var dir = (s.B - s.A).Normalized();
+            if (i > 0 && segs[i - 1].B.DistanceSquaredTo(s.A) > 1e-6f) along = 0;
+            float a1 = along + s.A.DistanceTo(s.B) / Math.Max(2 * s.R, 1e-4f);
             int k = i * 4;
             vx[k] = vx[k + 1] = s.A;
             vx[k + 2] = vx[k + 3] = s.B;
             for (int j = 0; j < 4; j++) nm[k + j] = dir;
             uv[k] = new Vector2(-1, s.R); uv[k + 1] = new Vector2(1, s.R);
             uv[k + 2] = new Vector2(-1, s.R); uv[k + 3] = new Vector2(1, s.R);
+            uv2[k] = uv2[k + 1] = new Vector2(along, 0);
+            uv2[k + 2] = uv2[k + 3] = new Vector2(a1, 0);
+            along = a1;
             int q = i * 6;
             ix[q] = k; ix[q + 1] = k + 1; ix[q + 2] = k + 2;
             ix[q + 3] = k + 2; ix[q + 4] = k + 1; ix[q + 5] = k + 3;
@@ -743,6 +754,7 @@ public partial class ShipNode
         arr[(int)Mesh.ArrayType.Vertex] = vx;
         arr[(int)Mesh.ArrayType.Normal] = nm;
         arr[(int)Mesh.ArrayType.TexUV] = uv;
+        arr[(int)Mesh.ArrayType.TexUV2] = uv2;
         arr[(int)Mesh.ArrayType.Index] = ix;
         var mesh = new ArrayMesh();
         mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arr);

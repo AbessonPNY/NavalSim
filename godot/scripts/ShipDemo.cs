@@ -167,6 +167,7 @@ public partial class ShipDemo : Node3D
         _spray = new SprayNode();
         AddChild(_spray);
         BuildJournal();
+        BuildInventory();
         BuildWraith();
         _mist = new MistNode();
         AddChild(_mist);

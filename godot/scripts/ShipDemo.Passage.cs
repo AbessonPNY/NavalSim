@@ -98,7 +98,7 @@ public partial class ShipDemo : Node3D
         if (_world == null || _inTitle) return;
         bool now = OffingNow() >= Passage.Offing;
         if (now && !_offing && Regions().Count > 1)
-            Say($"Au large {DeNom(_world.Region.Name)} — la carte (I) propose une traversée");
+            Say($"Au large {DeNom(_world.Region.Name)} — la carte (Ctrl I) propose une traversée");
         _offing = now;
     }
 

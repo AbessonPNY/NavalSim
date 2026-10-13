@@ -156,7 +156,9 @@ public partial class ShipDemo : Node3D
         Key(c2, "⇧H", "masquer les instruments");
         Key(c2, "⇧M", "la mer : mise au point");
         Key(c2, "O", "occlusion ambiante");
-        Key(c2, "I", "la carte du capitaine — et son bouton « Prendre la hauteur » : le soleil à midi au quartier de Davis, la Polaire la nuit à l'arbalestrille (molette : l'arc, bouton tenu : viser, Entrée : lire)");
+        Key(c2, "I", "l'inventaire : le coffre du bord, ce qu'on a remonté et qui reste à bord");
+        Key(c2, "⇧I", "le journal de bord");
+        Key(c2, "Ctrl I", "la carte du capitaine — et son bouton « Prendre la hauteur » : le soleil à midi au quartier de Davis, la Polaire la nuit à l'arbalestrille (molette : l'arc, bouton tenu : viser, Entrée : lire)");
         Key(c2, StowKeyName, "le plan d'arrimage");
         Key(c2, "²", "le mode création : retoucher, copier, coller, poser depuis la palette");
         Key(c2, "F1", "ce mémento");

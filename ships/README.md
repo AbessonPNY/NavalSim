@@ -667,6 +667,37 @@ procédurale est conservée et un avertissement est écrit en console.
 - Essai sans modèle : `-- --echelle-essai 1` pose une planche rouge contre le flanc de
   bâbord, au milieu.
 
+### Voiles serrées dessinées (Godot)
+
+Le jeu tisse lui-même ses voiles, et à zéro de toile établie elles pendent en festons
+sous leurs vergues. On peut dessiner à la place la forme **serrée** : le boudin roulé
+sur la vergue, ses rabans, la bôme chargée de sa brigantine…
+
+- **Une voile serrée** est un objet dont le nom contient `serree`, `serrée`, `ferlee`,
+  `ferlée` ou `furled` (`voile_serree_misaine`, `ferlee.001`), posé **à sa place sur
+  son espar**, vergues non brassées (comme le reste du modèle). Un objet vide qui porte
+  plusieurs maillages compte pour un seul.
+- Le jeu la rattache à la **voile la plus proche** (jugée sur la toile serrée, à moins de
+  15 % de la longueur du navire) : elle brasse avec la vergue et tombe avec le mât. La
+  console dit qui va avec qui (`voile serrée « … » → voile 3 (square, à 0,42 m)`).
+  Plusieurs objets pour une même voile, c'est permis.
+- **Elle porte la matière de sa voile**, posée par le jeu : même teinte, même toile
+  peinte (`appearance.canvasMap`), même translucidité, même nuit, neige et brume. Rien à
+  régler dans Blender — il suffit de **nommer** la matière de la toile `toile`, `voile`,
+  `sail` ou `canvas` : elle seule est remplacée, les autres (rabans, bois, ferrures)
+  gardent la leur. Sans matière ainsi nommée, tout est remplacé sauf ce qui se dit
+  `raban`, `cordage`, `rope`, `bois`, `wood`, `fer`, `metal`. Pour une voile peinte,
+  dépliez les UV de la voile serrée sur la même planche que la voile.
+- **Serrée, on voit le modèle ; quand la toile descend, la voile du jeu**, par un fondu
+  d'environ une demi-seconde (les quinze premiers centièmes de toile établie), et à
+  l'envers quand on serre. Une voile qui n'a pas sa forme dessinée garde ses festons. Une
+  voile déchirée ou brûlée revient à la toile du jeu, qui montre l'avarie ; un navire
+  fantôme aussi.
+- En rade, les navires au mouillage montrent la forme dessinée, habillée de la même
+  matière.
+- Ne pas nommer ses matières avec `line`, `rope`, `stay`… : ce serait pris pour du
+  cordage.
+
 ### Rugosité et relief
 
 Les matériaux du .glb sont gardés tels quels : couleur, **rugosité**

@@ -156,6 +156,8 @@ public partial class ShipNode : Node3D
             var rings = TakeRings(obj);
             // la sphere d energie aussi : vingt metres de rayon, elle serait prise pour la coque
             var bulle = Detach(obj, SphereNames);
+            // les voiles serrées dessinées : longues et minces en travers, elles seraient prises pour des vergues
+            var serrees = DetachFurled(obj);
             if (!SailsOnly)
             {
                 ReliefFromRoughness(obj, m.Relief ?? 0);
@@ -185,6 +187,8 @@ public partial class ShipNode : Node3D
             AddChild(obj);
             ModelRoot = obj;
             RigModel();
+            // et elles reviennent, chacune sous la voile la plus proche (ShipNode.Furled.cs)
+            MountFurled(serrees, obj);
             // la toile seule : ce qui suit ne sert qu'à un navire qui navigue
             if (SailsOnly) return true;
             // les cordages en rubans, une fois rangés à leurs mâts (ShipNode.Ropes.cs)

@@ -73,7 +73,7 @@
     "spar": "0xa8875a",
     "house": "0xc9bda4",
     "canvas": "0xd8cdb4",
-    "canvasMap": { "square": "ships/textures/toile-carree.jpg" },
+    "canvasMap": { "square": "ships/textures/toile-carree-pirate.jpg" },
     "ensign": "jolly",
     "ensignMap": "ships/textures/flags/jolly_roger_1690.jpg",
     "impactMaps": [

@@ -35,6 +35,13 @@ public partial class ShipNode
         public double Burn;
         /// <summary>Où les boulets l'ont percée, en coordonnées de sa toile (u, v).</summary>
         public readonly List<Vector2> Holes = new();
+        /// <summary>Sa toile serrée dessinée dans le modèle (ShipNode.Furled.cs) : vide, elle reste tissée.</summary>
+        public readonly List<Node3D> Furled = new();
+        // ses maillages : ceux qui portent la matière de la toile, et ceux qui gardent la leur (rabans)
+        public readonly List<GeometryInstance3D> FurledSkin = new(), FurledOwn = new();
+        /// <summary>La part de la forme dessinée, de 0 (la toile vivante) à 1 (le dessin seul) ; −1 avant le premier réglage.</summary>
+        public float FurledFade = -1;
+        public bool FurledShown => FurledFade >= 1;
         // un seul tableau de surface par voile, rempli à chaque image : en créer un
         // neuf soixante fois par seconde et par voile, c'est de la mémoire à ramasser
         public readonly Godot.Collections.Array Arrays = NewArrays();
@@ -579,7 +586,9 @@ public partial class ShipNode
         double leeLat = _latPivot != null ? -Math.Sign(_latTrim.Angle) : 1;
         foreach (var c in _canvases)
         {
+            ShowFurled(c, set);
             if (c.Split) continue;                       // partie : plus rien à former
+            if (c.FurledShown) continue;                 // cachée sous le modèle : rien à former
             /* Une carrée se creuse vers l'avant des deux bords : elle n'a pas de
                main à changer, et lui en donner une la retournerait pour rien. */
             if (c.Cloth.Kind != "square")

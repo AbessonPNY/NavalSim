@@ -9,6 +9,8 @@ namespace NavalSim.Core;
 public sealed class TreasureKind
 {
     public string Key = "", Name = "", Unit = "", Units = "", Note = "", Glb = "";
+    /// <summary>L'image de sa case dans l'inventaire (I) ; vide : son nom écrit à la main.</summary>
+    public string Icon = "";
     /// <summary>« un » ou « une » : une pierre, un bijou.</summary>
     public string Article = "un";
     /// <summary>Le cours moyen d'une pièce, en écus.</summary>
@@ -45,6 +47,10 @@ public sealed class TreasureBook
     public readonly List<TreasureKind> Kinds = new();
     /// <summary>Le modèle du coffre, s'il y en a un ; sinon il est dessiné.</summary>
     public string ChestGlb = "";
+    /// <summary>Le coffre ouvert vu de dessus, fond de l'inventaire (I) ; vide : il est dessiné.</summary>
+    public string ChestTop = "";
+    /// <summary>La case des pièces d'argent dans l'inventaire : la monnaie de compte, qui n'est pas un trésor et n'a donc pas de sorte.</summary>
+    public string SilverName = "Pièces d'argent", SilverIcon = "";
     /// <summary>La marge du joaillier sur ce qu'il rachète.</summary>
     public double Marge = 0.15;
 
@@ -55,7 +61,12 @@ public sealed class TreasureBook
         var book = new TreasureBook();
         using var doc = JsonDocument.Parse(text, new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
         var root = doc.RootElement;
-        if (root.TryGetProperty("coffre", out var c) && c.TryGetProperty("glb", out var cg)) book.ChestGlb = cg.GetString() ?? "";
+        if (root.TryGetProperty("coffre", out var c)) { book.ChestGlb = c.Str("glb"); book.ChestTop = c.Str("dessus"); }
+        if (root.TryGetProperty("argent", out var ag))
+        {
+            if (ag.Str("nom") is { Length: > 0 } nom) book.SilverName = nom;
+            book.SilverIcon = ag.Str("icone");
+        }
         if (root.TryGetProperty("marge", out var m) && m.ValueKind == JsonValueKind.Number) book.Marge = m.GetDouble();
         if (root.TryGetProperty("contenus", out var list) && list.ValueKind == JsonValueKind.Array)
             foreach (var e in list.EnumerateArray())
@@ -64,7 +75,7 @@ public sealed class TreasureBook
                 double D(string n, double d) => e.Num(n, d);
                 var k = new TreasureKind
                 {
-                    Key = S("key"), Name = S("nom"), Unit = S("unite"), Units = S("unites"), Note = S("note"), Glb = S("glb"),
+                    Key = S("key"), Name = S("nom"), Unit = S("unite"), Units = S("unites"), Note = S("note"), Glb = S("glb"), Icon = S("icone"),
                     Article = S("article") is { Length: > 0 } art ? art : "un",
                     Value = D("valeur", 1), Min = (int)D("min", 0), Max = (int)D("max", 0), Pirate = D("pirate", 1),
                     ToPurse = e.TryGetProperty("bourse", out var b) && b.ValueKind == JsonValueKind.True

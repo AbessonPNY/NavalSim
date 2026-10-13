@@ -82,6 +82,11 @@ public partial class ShipNode
             }
             c.Mat = gm;
             c.Mesh.SurfaceSetMaterial(0, gm);
+            /* Une loque ne se serre pas proprement : sa forme dessinée s'en va, la toile
+               tissée seule porte les plaies (et le shader des spectres n'a pas de fondu). */
+            foreach (var n in c.Furled) if (IsInstanceValid(n)) n.QueueFree();
+            c.Furled.Clear(); c.FurledSkin.Clear(); c.FurledOwn.Clear();
+            c.Node.Visible = true;
             c.Node.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
         }
 

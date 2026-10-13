@@ -116,7 +116,7 @@
     "house": "0xc9bda4",
     "canvas": "0xd8cdb4",
 	 "canvasMap": {
-      "square": "ships/textures/toile-carree.jpg"
+      "square": "ships/textures/toile-carree-002.jpg"
     },
     "impactMaps": [
       [

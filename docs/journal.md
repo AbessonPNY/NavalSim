@@ -16714,3 +16714,36 @@ DEMANDÉ : « parfois on peut ramasser des écus en or — c'est un peu gros, ma
 LE MODÈLE (`tools/reef-glb.js ecu` → `props/fond/ecu.glb`) : la taille d'un louis d'or de 1690, 24,5 mm, 1,7 mm au listel ; tourné à partir d'un profil, arêtes VIVES (une pièce frappée n'a rien d'arrondi) ; une croix en relief par face, tournée d'un huitième de tour de l'une à l'autre ; or métallique (rugosité 0,28) — `glb-write.js` sait maintenant écrire le métal (`m`). À plat, son axe selon Y, l'origine au centre ; un modèle refait ailleurs est ramené à 24,5 mm par sa plus grande dimension (`SwimTrueSize`). L'or ne ternit pas : il brille au fond.
 
 SUR LE FOND (`Finds.InCell`) : une case de 32 m sur 25 (`EcusOdds`), tirée À PART des coquillages (rangs 9001 et suivants : les lambis et huîtres de chaque case ne changent pas), n'importe quel fond d'un à vingt-cinq mètres ; un tas d'une à sept pièces, les petits tas les plus fréquents (1 + r²·7). Posé par `SwimCoins` : à plat ou presque, éparpillé sur une vingtaine de centimètres, une pièce sur trois sur sa voisine, tiré sur l'id (le même tas d'une partie à l'autre). F les prend toutes ; à bord, droit à la BOURSE (de la monnaie, pas une marchandise). Ramassés, ils ne reviennent JAMAIS (`StillPicked`), quand un coquillage repousse en trente jours ; perdus à la syncope, ils retournent au fond. Essai : `--nage 2 --nage-vers ecus --nage-prendre 1` — à Port-Royal, un tas de cinq à 104 m du départ, par 11 m : « 5 écus d'or à la bourse ».
+
+## La voile serrée se dessine dans Blender (Godot)
+
+Demandé : faire la voile repliée dans Blender, plus réaliste, et la masquer dès que la
+voile descend. La toile tissée, à zéro de toile établie, pend en festons sous sa vergue —
+juste de forme, pauvre de matière : une voile serrée est un boudin roulé et amarré de
+rabans, ce qu'un modéliste dessine mieux qu'un solveur de toile.
+
+Un objet nommé `serree` / `ferlee` / `furled` est DÉTACHÉ du modèle avant toute mesure,
+comme les anneaux et la sphère : long et mince en travers, il aurait passé l'épreuve de la
+vergue. Après la reconnaissance du gréement il revient à sa place puis passe sous le PIVOT
+de la voile la plus proche — jugée sur la toile elle-même serrée, ce qui vaut pour la
+carrée, la brigantine, la latine et le foc sans les distinguer —, donc il brasse et tombe
+avec elle sans un calcul de plus. `SetTrim` bascule à `SetFrac < 0,01` : le dessin, ou la
+toile vivante, et une toile cachée n'est plus formée (de la dépense en moins au mouillage).
+Une voile partie ou brûlée revient à la toile tissée, seule à porter l'avarie. En rade, la
+copie du .glb porte déjà le dessin à sa place : `FurledSails` ne tisse plus ces voiles-là.
+Format : `ships/README.md`, « Voiles serrées dessinées ».
+
+**Le fondu, et la matière de la toile.** Demandé ensuite : un fondu entre les deux formes,
+et la même texture et la même translucidité. La voile serrée reçoit LA matière de sa voile
+(partagée : teinte, carte peinte, translucidité, heure, neige, brume suivent seules) ; une
+matière nommée `toile`/`voile`/`sail`/`canvas` désigne la toile, le reste garde la sienne
+(sur la frégate, « Material » et « marroon » ne disaient rien : tout aurait pris la toile).
+Le fondu est une TRAME (`u_fade`, paramètre d'instance de `sail.gdshader`) et non une
+transparence : la toile reste opaque, garde profondeur et ombre, et rien n'est à trier
+contre la mer ou la fumée. Négatif, le motif est retourné, si bien que les deux formes se
+partagent l'écran point à point au lieu de se doubler. Il suit `SetFrac` sur ses quinze
+premiers centièmes, pas une horloge : un ordre contremandé repart d'où il en était. Les
+rabans, qui n'ont pas ce shader, passent par `GeometryInstance3D.Transparency` le temps du
+fondu. Relevé au premier essai : `SplitPrimitives` nomme ses morceaux « voile_serree_0 »,
+« _1 », qui répondaient au nom et partaient chacun de leur côté — on ne détache plus que
+le nœud le plus haut de chaque branche (`DetachFurled`), propriétaire effacé.
