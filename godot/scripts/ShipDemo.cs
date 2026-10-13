@@ -933,15 +933,12 @@ public partial class ShipDemo : Node3D
         UpdateCamera(frame);
         AimSpyglass(frame);                     // après la vue : sa position, la visée de la lunette
         ShakeCamera(frame);                     // et la secousse par-dessus, une fois l'œil posé
-        ArmsPose(frame);                        // les bras du nageur, sur l'œil posé et secoué
         WhistleTick();                          // l'oreille est posée : les boulets qui passent près d'elle
         CineFocus();                            // la mise au point du cinéma, sur l'œil posé
         // les navires et la caméra de la MÊME image : le flou compare les deux
         _motionBlur.BeginShips();
         _motionBlur.AddShip(_ship.GlobalTransform, _ship.LocalBounds());
         foreach (var s in _others) _motionBlur.AddShip(s.GlobalTransform, s.LocalBounds());
-        // les bras du nageur vont avec l'œil : ramenés avec lui, ils ne filent pas quand la tête tourne
-        if (_arms?.Visible == true) _motionBlur.AddShip(_cam.GlobalTransform, ArmsBox);
         _motionBlur.EndShips();
         // les vues à bord ont leur propre champ : la vérification lit celui d'ICI
         _motionBlur.MainProjection = _cam.GetCameraProjection();

@@ -16702,3 +16702,7 @@ Deux remèdes ensemble. 128 IMAGES (une toutes les 0,094 s) : corrélation 0,57,
 ressemblantes il en faudrait ~400. Et LE FONDU QUI GARDE LA FORCE : divisé par l'écart attendu du mélange,
 √(1 − 2k(1−k)(1−r)), la pente moyenne est la même à tout instant. L'outil mesure r et l'écrit (« correlation » dans
 mer.rides), GroundMaterials le pose en globale naval_ride_c.x (1 par défaut : aucune compensation). Temps d'image inchangé.
+
+## Les bras retirés : aucun humain à l'écran (13/10)
+
+DEMANDÉ : « on retire ce mode première personne, je l'utiliserai pour un autre projet ; ici c'est mieux que l'on ne voit aucun humain ». Question posée : la NAGE RESTE (4, F, E), seuls les bras partent — à l'eau comme sur le pont. Retirés : `ShipDemo.SwimArms.cs` (pose à deux os, armature, brasse, mains du pont et la main qu'on regarde sécher, peau), `creatures/bras.glb` (l'armature de l'artiste), `tools/arms-glb.js`, la section de creatures/README.md. Tout est dans l'historique : commit cd1d593 (`git show cd1d593:godot/scripts/ShipDemo.SwimArms.cs`, `git show cd1d593:creatures/bras.glb > bras.glb`). GARDÉ, dans `ShipDemo.SwimClimb.cs` : F glisse jusqu'à la chose (un bras ne fait pas 1,6 m) et elle quitte le fond quand une main l'aurait saisie ; E et la montée prise après prise (le flanc mesuré, l'échelle du modèle), puis la vue à bord. GARDÉS aussi, utiles sans les bras : la réfraction qui ne dédouble plus ce qui frôle la surface, `u_mirror_near` (à 0, plus posé), `translation` dans glb-write.js.

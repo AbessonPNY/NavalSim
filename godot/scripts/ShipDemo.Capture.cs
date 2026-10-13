@@ -389,7 +389,7 @@ public partial class ShipDemo
                 case "--nage": _swimTestIn = args[i + 1].ToFloat(); _askTitle ??= false; break;
                 case "--nage-vers": _swimTestKind = args[i + 1]; break;
                 case "--nage-prendre": _swimTestTake = args[i + 1] != "0"; break;
-                // la brasse tenue, pour voir les bras (--nage-avancer 1 ; 2 en forçant)
+                // la brasse tenue (--nage-avancer 1 ; 2 en forçant)
                 case "--nage-avancer": _swimTestStroke = args[i + 1].ToInt(); break;
                 // l'atelier de la mer ouvert sur cet onglet (0 houle, 1 rides, 2 surface) ; --houle-n le nombre de composantes
                 case "--atelier": _wsOpenTab = args[i + 1].ToInt(); break;

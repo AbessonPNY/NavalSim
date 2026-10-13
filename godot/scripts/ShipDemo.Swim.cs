@@ -171,7 +171,6 @@ public partial class ShipDemo
     {
         _swimming = false;
         _swim = null;
-        _grab?.Copy?.QueueFree();
         _grab = null;
         _climb = null;
         _camMode = _swimCamWas == CamSwim ? 0 : _swimCamWas;
