@@ -58,7 +58,12 @@ public partial class ShipDemo
            dont l'éperon déborde loin au-dessus de l'eau. Le profil de flottaison mesuré sur
            le modèle (le même que le collier et le sillage) dit où le bordé entre dans l'eau
            et sa demi-largeur là : la première station, depuis l'avant, où la coque a pris
-           le tiers de son bau — c'est là qu'elle pousse l'eau. L'éventail part DU BORDÉ. */
+           le tiers de son bau — c'est là qu'elle pousse l'eau. L'éventail part DU BORDÉ.
+           PLUS EN ARRIÈRE, ET UN PEU DANS LE BORDÉ (signalé le 13/10, capture à l'appui : la
+           moustache flottait devant la joue du galion). Le plan de formes et le modèle ne se
+           recouvrent pas au centimètre : une gerbe qui naît dans le bois s'y cache sans gêner,
+           une gerbe détachée de la coque se voit. La MOITIÉ du bau, et le départ à 85 % de la
+           demi-largeur. */
         double zStem = sp.L * 0.44, half = Math.Max(0.3, sp.B * 0.08);
         {
             /* lue sur le PLAN DE FORMES, l'unique de la fiche (et non sur le profil mesuré du
@@ -70,7 +75,7 @@ public partial class ShipDemo
             for (int k = 40; k >= 0; k--)
             {
                 double tt = k / 40.0, hw = WaterHalf(lines, tt);
-                if (hw < 0.3 * best) continue;
+                if (hw < 0.5 * best) continue;
                 zStem = (tt - 0.5) * sp.L; half = hw;
                 break;
             }
@@ -90,10 +95,10 @@ public partial class ShipDemo
         var carry = b.Vel * 0.7;
         foreach (int side in new[] { -1, 1 })
         {
-            // de chaque joue de l'étrave, vers l'extérieur, et un peu vers l'avant
-            var at = stem + right * (side * half * 1.02);
+            // de chaque joue de l'étrave, vers l'extérieur, à peine vers l'avant
+            var at = stem + right * (side * half * 0.85);
             at = new Vec3d(at.X, sea + 0.1, at.Z);
-            var dir = right * side + fwd * 0.35;
+            var dir = right * side + fwd * 0.15;
             _spray.Pool.Fan(at, dir, water * (0.8 + 0.4 * _bowRng.NextDouble()), speed, carry);
         }
     }
