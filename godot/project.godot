@@ -65,6 +65,10 @@ naval_ride_b={
 "type": "vec4",
 "value": Vector4(0.5574, 1, 3, 0.6)
 }
+naval_ride_c={
+"type": "vec4",
+"value": Vector4(1, 0, 0, 0)
+}
 
 ; LE CIEL DES SHADERS QUI LE PRENNENT EN GLOBAL (#define NAVAL_SKY_GLOBAL : la
 ; coque, sa passe de brume, la toile, les cordages en rubans). SkyNode.PushGlobals

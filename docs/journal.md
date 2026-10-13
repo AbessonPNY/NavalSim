@@ -16651,3 +16651,54 @@ PIÈGE, LE SOIR MÊME (« le jeu semble bloquer au chargement ») : `WorkshopLoa
 ## Un plafond d'images par seconde (12/10)
 
 SIGNALÉ : « les ventilateurs s'affolent avec NavalSim, pas avec World of Sea Battle ». La synchro verticale est coupée chez le joueur (ses écrans virtuels la font tomber à 30 images par seconde), et rien d'autre ne plafonnait : ≈ 140 images par seconde sur l'Arc A770M pour un écran qui en montre 60, la carte à fond en permanence. `Settings.MaxFps` (60 par défaut ; 30, 90, 120 ou sans plafond au menu, section Rendu ; reglages.ini → `[rendu] images_par_seconde_max`), posé par `Engine.MaxFps` synchro ou non. Levé pour une mesure (`--chrono`), qui veut le temps vrai d'une image. Mesuré synchro coupée : 540 images en 8,6 s, 63 par seconde.
+
+## Les réglages de l'atelier deviennent les défauts (12/10)
+
+Le joueur a réglé la mer à l'œil à l'atelier et donné ses valeurs (« Copier »). Reportées, avec les anciennes pour revenir en arrière :
+
+- HOULE : creux 1,35 → 1,4 (`ShipDemo._swell`) ; étalement au calme `SpreadState0` 0,34 → 0,69, dans `SeaTune.Game()` et NON dans le constructeur — celui-ci garde les chiffres de la page, que le banc de parité compare au JavaScript figé.
+- RIDES : force au calme 0,40 → 0,36, par m/s 0,105 → 0,125, plafond 2,6 → 1,55 ; gain (⇧M) 1 → 1,4 (`Settings.SeaRideGain`).
+- SURFACE (ocean.gdshader) : u_absorb (0,34 ; 0,13 ; 0,085) → (0,371 ; 0,696 ; 0,314) ; u_refract 1 → 0,66 ; u_veil 0,70 → 0,706 ; u_silt 0,55 → 0,564 ; u_shadow 0,5 → 0,429 ; u_crest_white 0,6 → 1,123 ; u_trough_dark 0,5 → 0,486 ; u_shore_foam 1 → 0,768 ; u_shore_mirror 1 → 0,57.
+- TROIS RÉGLAGES DU CIEL POUR LA MER SEULE : u_warp 1,15 → 1,235, u_sea_tint (0,20 ; 0,62 ; 0,70) → (0,20 ; 0,056 ; 1,004), u_sea_bounce 1 → 0,33. Déclarés dans sky.gdshaderinc, que lisent aussi le dôme, les coques et la toile : posés sur la matière de la mer (OceanNode), comme le joueur les avait réglés, pour ne pas changer tout le ciel.
+
+ÉCART DIT : u_absorb porte maintenant une eau de côte trouble (vert 0,70/m, bleu 0,31/m) là où une eau caraïbe claire est vers 0,35/0,07/0,02 — choisi à l'œil, et la rade de Port-Royal est vaseuse.
+
+REVENU À L'ORIGINE le soir même, à la demande, après un second passage à l'atelier : tous les défauts ci-dessus sont rendus (houle, rides, surface, les trois réglages du ciel sur la mer), sauf la montée des rides avec le vent, 0,105 → 0,039 par m/s (`RipplePerMs0`). Rien de ce report n'avait été committé.
+
+## Ce que coûte une image (13/10)
+
+SIGNALÉ : « le PC souffle encore assez fort », plafond à 60 compris. Mesuré au compteur de Windows : la carte (Arc A770M) occupée à 85 % à 60 images par seconde, le processeur à un cœur sur vingt.
+
+LE PIÈGE DE LA MESURE : sous le plafond, une carte peu chargée baisse sa fréquence, et chaque image y paraît plus longue — toutes mes premières séries plafonnaient vers 7 ms quoi qu'on éteigne. `--frametimes` lève désormais le plafond pendant qu'il compte (comme `--chrono`), et `--frametimes-apres N` attend N images : la partie se met en place bien après le chargement (figurants, assemblages ; la carte à 67 ms par image les 150 premières). Autre piège : une partie ouverte en même temps partage la carte (une course à 59 ms).
+
+À PLEINE FRÉQUENCE, vue de départ à Port-Royal (`--vsync 0 --frametimes-apres 900 --frametimes 900`), carte par image :
+
+    référence 6,27 ms · sans la mer 4,62 · sans MSAA 5,25 · sans occlusion ni lumière indirecte 5,35
+    ombres du soleil basses 6,20 · échelle de rendu 0,8 4,47 · préréglage bas 2,98
+    scène vide (mer, terre, ville, gens, rade, pontons, navire cachés) 4,20 ; sans les effets de Godot 3,03
+
+Et sous le plafond (cartes ralenties) : ni la terre, ni la ville, ni la rade, ni les pontons ne pèsent ; les quatre passes plein écran du jeu (sous-marine, anamorphique, flou de mouvement, reflet de lentille) non plus, ni les nuages, ni la carte de reflets du ciel (mode et taille : 10,0 à 10,4 ms partout). LE COÛT SUIT LES PIXELS : la mer 1,7 ms, le MSAA 4× 1,0, l'occlusion et la lumière indirecte 0,9, et un socle de 3 ms pour une image presque vide. À 60 images par seconde, la carte travaille 38 % du temps à pleine fréquence — d'où le souffle. Options de mesure : `--cacher`, `--ciel`, `--sans-passe`, `--echelle`.
+
+LA SUITE (« MSAA 2× par défaut et creuse le code ») : `Settings.Msaa` = 2 par défaut — mais chez le joueur reglages.ini garde `anticrenelage_msaa=4` et `anticrenelage_image="smaa"`, à changer au menu. Sans plafond, carte par image :
+
+    ses réglages (MSAA 4, SMAA) 6,49 · MSAA 2 6,01 · MSAA 2 et FXAA 5,91 · sans anticrénelage d'image 6,24
+    sans le reflet du rivage 6,33 (0,1) · sans les ombres du soleil 6,32 (0,1)
+    SOCLE (tout caché, effets et passes coupés, interface cachée) 2,8 à 3,0, quel que soit le ciel (uni, carte de 32, incrémental)
+    à demi-définition : 4,19 avec la mer, 3,71 sans — la mer coûte par ses PIXELS (1,65 → 0,48 ms pour quatre fois moins)
+
+Le socle est le coût fixe de Forward+ en 1080p sur cette carte (la scène « vide » ne dessinait plus que 363 appels et 8 765 triangles, `--cacher ajouts` compris) : rien à y prendre depuis notre code. Ce qui reste à notre portée : le fragment de la mer (≈ 1,5 ms), le navire (0,8). Le reste se règle au menu : MSAA, échelle de rendu (0,8 : −1,8 ms), plafond d'images.
+
+## Les rides qui pulsaient (13/10)
+
+Signalé : « le motif des rides change toutes les secondes environ », un léger clignotement de la surface. La carte des rides
+(tools/sea-ripples.js) avait 32 images sur une boucle de 12 s, une toutes les 0,375 s, que ride.gdshaderinc fond l'une dans
+l'autre. MESURÉ sur la carte (script Godot, corrélation des pentes) : deux images voisines ne se ressemblaient plus du tout,
+corrélation −0,29 — les plus courtes rides (8 cm, la taille d'un texel double) tournent à 28 rad/s, un demi-tour et plus
+par image. Au milieu de chaque fondu, deux hasards mêlés : la pente tombait à 0,59 de sa valeur, puis remontait. La mer
+pulsait à 2,7 Hz et le motif sautait à chaque image.
+
+Deux remèdes ensemble. 128 IMAGES (une toutes les 0,094 s) : corrélation 0,57, creux à 0,89 ; la carte passe à 19 Mo
+(du bruit ne se comprime pas), 0,2 s au chargement, 45 Mo de mémoire vidéo ; pour que les plus courtes restent
+ressemblantes il en faudrait ~400. Et LE FONDU QUI GARDE LA FORCE : divisé par l'écart attendu du mélange,
+√(1 − 2k(1−k)(1−r)), la pente moyenne est la même à tout instant. L'outil mesure r et l'écrit (« correlation » dans
+mer.rides), GroundMaterials le pose en globale naval_ride_c.x (1 par défaut : aucune compensation). Temps d'image inchangé.

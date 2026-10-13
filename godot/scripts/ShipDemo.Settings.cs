@@ -104,7 +104,7 @@ public partial class ShipDemo
         if (DisplayServer.WindowGetMode() != wantMode) DisplayServer.WindowSetMode(wantMode);
         DisplayServer.WindowSetVsyncMode(s.VSync ? DisplayServer.VSyncMode.Enabled : DisplayServer.VSyncMode.Disabled);
         // le plafond d'images, synchro ou non ; levé pour une mesure (--chrono), qui veut le temps vrai d'une image
-        Engine.MaxFps = _chronoN > 0 ? 0 : Math.Max(0, s.MaxFps);
+        Engine.MaxFps = _chronoN > 0 || _ftUncapped ? 0 : Math.Max(0, s.MaxFps);
         /* Le lointain devient flou passé cette distance, sur une transition de la
            moitié : c'est la mer vers l'horizon, pas le navire qu'on regarde. */
         /* NET ENTRE DEUX DISTANCES. Le flou de près monte vers l'œil sur la même

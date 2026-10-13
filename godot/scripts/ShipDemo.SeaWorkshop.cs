@@ -51,7 +51,9 @@ public partial class ShipDemo
     TabContainer? _wsTabs;
     readonly List<WsRow> _wsRows = new();
     /// <summary>La force des rides : au calme, par m/s de vent, et son plafond (ShipDemo.cs, avant figés).</summary>
-    double _rippleBase = 0.40, _ripplePerMs = 0.105, _rippleMax = 2.6;
+    double _rippleBase = 0.40, _ripplePerMs = RipplePerMs0, _rippleMax = 2.6;
+    /// <summary>La montée des rides avec le vent, réglée à l'atelier (12/10) : 0,039 par m/s, c'était 0,105 — le clapot ne grossit plus guère avec le vent.</summary>
+    const double RipplePerMs0 = 0.039;
     Vector4? _rideBOverride;
     Label? _wsNote;
 
@@ -128,7 +130,7 @@ public partial class ShipDemo
         // --- RIDES ---
         WsNote(rides, "Ce qui est plus fin que la maille : la normale seule, aucune coque n'en dépend.");
         WsAdd(rides, "rides", "Base", "Force au calme", 0, 1.5, 0.01, 0.40f, () => (float)_rippleBase, v => _rippleBase = v);
-        WsAdd(rides, "rides", "PerMs", "Montée par m/s de vent", 0, 0.3, 0.001, 0.105f, () => (float)_ripplePerMs, v => _ripplePerMs = v);
+        WsAdd(rides, "rides", "PerMs", "Montée par m/s de vent", 0, 0.3, 0.001, (float)RipplePerMs0, () => (float)_ripplePerMs, v => _ripplePerMs = v);
         WsAdd(rides, "rides", "Max", "Plafond", 0.5, 5, 0.05, 2.6f, () => (float)_rippleMax, v => _rippleMax = v);
         WsAdd(rides, "rides", "Gain", "Gain à l'œil (le même qu'au ⇧M)", 0, 3, 0.05, new Settings().SeaRideGain, () => _settings.SeaRideGain, v => { _settings.SeaRideGain = v; ApplySettings(); });
         var rb0 = RideB();

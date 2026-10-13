@@ -40,7 +40,7 @@ public static class GroundMaterials
     static Texture2DArray? _a, _b, _c;
     // les rides de la mer : la pile des images, et ce que le shader doit savoir d'elles
     static Texture2DArray? _ride;
-    static Vector4 _rideA, _rideB;
+    static Vector4 _rideA, _rideB, _rideC;
     static bool _loaded;
 
     /// <summary>Les teintes de la mer : l'eau profonde, l'eau claire des hauts-fonds (linéaires).</summary>
@@ -175,6 +175,8 @@ public static class GroundMaterials
         _rideA = new Vector4(1, frames, (float)r.Num("periode", 12), (float)r.Num("taille", 10));
         _rideB = new Vector4((float)r.Num("pente_max", 0.5574), (float)r.Num("force", 1),
                              (float)r.Num("echelle2", 3), (float)r.Num("poids2", 0.6));
+        // how alike two neighbouring frames are: the fade keeps the slope's strength with it (ride.gdshaderinc)
+        _rideC = new Vector4((float)r.Num("correlation", 1), 0, 0, 0);
         GD.Print(FormattableString.Invariant($"[matières] rides de la mer : {frames} images de {n}², {_rideA.W} m, boucle de {_rideA.Z} s"));
     }
 
@@ -290,6 +292,7 @@ public static class GroundMaterials
             RenderingServer.GlobalShaderParameterSet("naval_ride_map", _ride);
             RenderingServer.GlobalShaderParameterSet("naval_ride_a", _rideA);
             RenderingServer.GlobalShaderParameterSet("naval_ride_b", _rideB);
+            RenderingServer.GlobalShaderParameterSet("naval_ride_c", _rideC);
         }
     }
 }

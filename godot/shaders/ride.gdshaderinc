@@ -74,6 +74,7 @@ float ride_h(vec2 p) {
 global uniform sampler2DArray naval_ride_map : filter_linear_mipmap, repeat_enable;
 global uniform vec4 naval_ride_a;   // x : 1 si la carte est chargée ; y : images ; z : période (s) ; w : taille (m)
 global uniform vec4 naval_ride_b;   // x : pente_max ; y : force ; z : échelle de la seconde nappe ; w : son poids
+global uniform vec4 naval_ride_c;   // x : corrélation de deux images voisines (1 : le fondu ne compense rien)
 
 // la pente de la carte au point uvm (mètres, le long du vent puis en travers), à l'image du moment
 vec2 ride_tex_at(vec2 uvm, float toff, float lod) {
@@ -88,7 +89,11 @@ vec2 ride_tex_at(vec2 uvm, float toff, float lod) {
 		s0 = textureLod(naval_ride_map, vec3(uv, f0), lod).rg;
 		s1 = textureLod(naval_ride_map, vec3(uv, f1), lod).rg;
 	}
-	return (mix(s0, s1, k) * (255.0 / 127.0) - 128.0 / 127.0) * naval_ride_b.x;
+	/* LE FONDU GARDE LA FORCE. Deux images voisines ne se ressemblent qu'à r près (0,57) : leur
+	   mélange a une pente plus faible au milieu qu'aux bouts, d'où une mer qui pulsait au rythme
+	   des images. Divisé par l'écart attendu du mélange, il la garde constante. */
+	float keep = inversesqrt(max(1.0 - 2.0 * k * (1.0 - k) * (1.0 - naval_ride_c.x), 0.25));
+	return (mix(s0, s1, k) * (255.0 / 127.0) - 128.0 / 127.0) * naval_ride_b.x * keep;
 }
 
 /* Les deux nappes, dans le repère du vent. La seconde est la carte agrandie : ses pentes sont

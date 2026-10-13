@@ -1188,7 +1188,7 @@ public partial class ShipDemo : Node3D
            champ (ride.gdshaderinc), il leur faut donc la même force et le même
            vent, sous peine d'une mer qui luit d'une ride et d'un fond qui en
            dessine une autre. */
-        // force, montée et plafond réglables à l'atelier de la mer (0,40 ; 0,105 par m/s ; 2,6)
+        // force, montée et plafond réglables à l'atelier de la mer (0,40 ; 0,039 par m/s ; 2,6)
         float ripple = (float)Math.Min(_rippleMax, _rippleBase + _sea.Core.WindSpeed * _ripplePerMs);
         _sea.Material?.SetShaderParameter(U.Ripple, ripple);
         _land?.Ground.SetShaderParameter(U.Ripple, ripple);

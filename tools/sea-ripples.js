@@ -1,7 +1,7 @@
 /* LES RIDES DE LA MER, TIRÉES D'UN VRAI SPECTRE DE VAGUES DE VENT.
  *
  *   node tools/sea-ripples.js                       # world/textures/mer/rides.png
- *   node tools/sea-ripples.js --vent 7 --taille 10 --images 32 --periode 12
+ *   node tools/sea-ripples.js --vent 7 --taille 10 --images 128 --periode 12
  *
  * La houle du jeu n'a que dix-huit longues vagues ; tout ce qui est plus court que la plus
  * courte d'entre elles (1,7 m par force 3, 6 m par force 5, 23 m par force 9) vit dans la
@@ -20,6 +20,9 @@
  * des carrés σ² = 0,003 + 0,00512 U — à 7 m/s, une pente moyenne de 0,2. Le jeu la module
  * ensuite avec le vent du moment (u_ripple).
  *
+ * ASSEZ D'IMAGES : les plus courtes rides (8 cm) tournent à 28 rad/s ; à 32 images sur 12 s deux
+ * images voisines ne se ressemblaient plus du tout. 128 par défaut (corrélation 0,57).
+ *
  * Écrit aussi l'entrée « rides » à reporter dans world/materiaux.json → « mer ».
  */
 'use strict';
@@ -31,7 +34,7 @@ const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? Number(args[i + 1]) : d; };
 const N = opt('--n', 256);                 // côté d'une image, en texels (puissance de deux)
 const SIZE = opt('--taille', 10);          // mètres couverts par une répétition
-const FRAMES = opt('--images', 32);
+const FRAMES = opt('--images', 128);
 const PERIOD = opt('--periode', 12);       // secondes avant que l'image revienne
 const WIND = opt('--vent', 7);             // m/s : la mer que l'image fige
 const SEED = opt('--graine', 1690);
@@ -128,6 +131,17 @@ const gain = Math.sqrt(mss / (sum2 / (FRAMES * N * N)));
 const SMAX = 4 * Math.sqrt(mss / 2);       // quatre écarts types par composante : presque rien n'est écrêté
 let clipped = 0;
 
+/* LA RESSEMBLANCE DE DEUX IMAGES VOISINES. Le jeu passe de l'une à l'autre par un fondu ; si elles
+   ne se ressemblent pas, le milieu du fondu mêle deux hasards et la pente y tombe — à 0,59 avec
+   32 images (corrélation −0,29) : la mer pulsait trois fois par seconde. Le shader divise par
+   l'écart attendu, √(1 − 2k(1−k)(1−r)), qu'il ne peut calculer sans r. */
+let dot = 0;
+for (let f = 0; f < FRAMES; f++) {
+  const [X0, Z0] = slopes[f], [X1, Z1] = slopes[(f + 1) % FRAMES];
+  for (let id = 0; id < N * N; id++) dot += X0[id] * X1[id] + Z0[id] * Z1[id];
+}
+const corr = dot / sum2;
+
 // la mosaïque : huit images par ligne
 const COLS = Math.min(8, FRAMES), ROWS = Math.ceil(FRAMES / COLS);
 const W = COLS * N, H = ROWS * N;
@@ -147,4 +161,4 @@ const rel = path.relative(path.join(__dirname, '..'), OUT).split(path.sep).join(
 console.log(`${rel} : ${FRAMES} images de ${N}² en ${COLS}×${ROWS}, ${SIZE} m par répétition, boucle de ${PERIOD} s,`);
 console.log(`  vent de ${WIND} m/s (plus grande vague ${L.toFixed(1)} m), pente moyenne ${Math.sqrt(mss).toFixed(3)} (Cox et Munk), écrêtés ${(100 * clipped / (2 * FRAMES * N * N)).toFixed(3)} %`);
 console.log('  à reporter dans world/materiaux.json → « mer » :');
-console.log('  ' + JSON.stringify({ rides: { carte: rel, images: FRAMES, periode: PERIOD, taille: SIZE, pente_max: +SMAX.toFixed(4), vent: WIND } }));
+console.log('  ' + JSON.stringify({ rides: { carte: rel, images: FRAMES, periode: PERIOD, taille: SIZE, pente_max: +SMAX.toFixed(4), vent: WIND, correlation: +corr.toFixed(3) } }));

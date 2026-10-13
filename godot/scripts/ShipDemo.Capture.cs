@@ -368,7 +368,10 @@ public partial class ShipDemo
                    le joueur obtient — et ApplySettings EST ce chemin. */
                 case "--ssao": _settings.Occlusion = args[i + 1] == "1"; ApplySettings(); break;
                 case "--ssil": _settings.IndirectLight = args[i + 1] == "1"; ApplySettings(); break;
-                case "--frametimes": _ftLeft = args[i + 1].ToInt(); _ftGc0 = GC.GetTotalPauseDuration(); break;
+                // une mesure veut le temps VRAI d'une image : sans plafond, la carte baisserait sa fréquence entre deux images
+                case "--frametimes": _ftLeft = args[i + 1].ToInt(); _ftGc0 = GC.GetTotalPauseDuration(); Engine.MaxFps = 0; _ftUncapped = true; break;
+                // tant d'images AVANT de compter : la partie se met encore en place longtemps après le chargement
+                case "--frametimes-apres": _ftDelay = args[i + 1].ToInt(); break;
                 // le soleil figé à cette hauteur : pour éprouver la nuit sans attendre
                 case "--sun": _sky.DayRate = 0; _sky.Core.SetSun(args[i + 1].ToFloat(), _sky.Core.SunBearingDeg); _sky.Apply();
                     GD.Print(FormattableString.Invariant($"nuit {_sky.Core.Night:F2}, lune {(_sky.Core.MoonOn ? "oui" : "non")} phase {_sky.Core.MoonPhase:F2} levée {_sky.Core.MoonUp:F2}, lumière de l'eau {_sky.Core.WaterLight:F3}, lumière directe {_sky.Core.SunIntensity:F3}"));
@@ -442,6 +445,14 @@ public partial class ShipDemo
                 case "--pas-de-cote": _leanTest = args[i + 1].ToFloat(); break;
                 case "--vue": _camMode = 1; _deck = Math.Clamp(args[i + 1].ToInt(), 0, _ship.Spec.Decks.Count - 1); EnterDeck(); break;
                 case "--msaa": _settings.Msaa = args[i + 1].ToInt(); ApplySettings(); break;
+                /* MESURE, avec --frametimes (posés à la première image comptée) : cacher des pans de la scène
+                   (mer, terre, ville, gens, rade, ponton, navire, ajouts ; « ombres » éteint celles du soleil), changer la carte de reflets du ciel
+                   (incremental, rapide, r0 à r6 pour sa taille), couper des passes plein écran
+                   (sous-eau, anamorphique, flou, lentille), l'échelle de rendu. Journal « Ce que coûte une image ». */
+                case "--cacher": _ftHide = args[i + 1]; break;
+                case "--ciel": _ftSky = args[i + 1]; break;
+                case "--sans-passe": _ftPass = args[i + 1]; break;
+                case "--echelle": _settings.RenderScale = args[i + 1].ToFloat(); ApplySettings(); break;
                 case "--dofn": _settings.DofNear = args[i + 1].ToFloat(); ApplySettings(); break;
                 case "--dofd": _settings.DofDistance = args[i + 1].ToFloat(); ApplySettings(); break;
                 case "--anamorph": _settings.DofAnamorphic = args[i + 1] == "1"; ApplySettings(); break;
@@ -483,7 +494,7 @@ public partial class ShipDemo
        temps. On relève le pas brut de Godot, sans le plafond de 50 ms. */
     int _slams, _sprayMax;
     long _allocPhys, _allocSails, _allocFrames, _allocRun0 = -1, _allocProc;
-    int _ftLeft = -1;
+    int _ftLeft = -1, _ftDelay; bool _ftUncapped; string _ftHide = "", _ftSky = "", _ftPass = "";
     readonly List<double> _ft = new();
     TimeSpan _ftGc0;
     int _ftCol0 = -1, _ftCol1, _ftCol2;
@@ -495,8 +506,28 @@ public partial class ShipDemo
     void FrameStats(double delta)
     {
         if (_ftLeft < 0) return;
+        if (_ftDelay > 0) { _ftDelay--; if (_ftDelay == 0) _ftGc0 = GC.GetTotalPauseDuration(); return; }
         if (_ftCol0 < 0)
         {
+            if (_ftSky.Length > 0 && _sky.Env.Sky is Godot.Sky sk)
+            {
+                if (_ftSky == "incremental") sk.ProcessMode = Godot.Sky.ProcessModeEnum.Incremental;
+                else if (_ftSky == "rapide") sk.ProcessMode = Godot.Sky.ProcessModeEnum.Realtime;
+                else if (_ftSky == "fond") _sky.Env.BackgroundMode = Godot.Environment.BGMode.Color;
+                else if (_ftSky.StartsWith("r")) sk.RadianceSize = (Godot.Sky.RadianceSizeEnum)int.Parse(_ftSky[1..]);
+                GD.Print($"[mesure] ciel : mode {sk.ProcessMode}, carte {sk.RadianceSize}");
+            }
+            foreach (var w in _ftPass.Split(',', StringSplitOptions.RemoveEmptyEntries))
+            {
+                CompositorEffect? e = w switch { "sous-eau" => _under, "anamorphique" => _anamorphic, "flou" => _motionBlur, "lentille" => _flare, _ => null };
+                if (e != null) e.Enabled = false; else GD.Print("[mesure] pas de passe : " + w);
+            }
+            foreach (var w in _ftHide.Split(',', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (w == "ombres") { _sky.Sun.ShadowEnabled = false; continue; }
+                Node3D? n = w switch { "mer" => _sea, "terre" => _land, "ville" => _town, "gens" => _folk, "rade" => _moored, "ponton" => _jetty, "navire" => _ship, "ajouts" => _addedRoot, _ => null };
+                if (n != null) n.Visible = false; else GD.Print("[mesure] rien à cacher : " + w);
+            }
             _ftCol0 = GC.CollectionCount(0); _ftCol1 = GC.CollectionCount(1); _ftCol2 = GC.CollectionCount(2);
             _ftVp = GetViewport().GetViewportRid();
             RenderingServer.ViewportSetMeasureRenderTime(_ftVp, true);

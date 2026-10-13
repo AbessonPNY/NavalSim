@@ -59,8 +59,9 @@ public sealed class Settings
     /// <summary>Le flou de mouvement de la caméra, et la part d'obturateur (0,5 = 180°).</summary>
     public bool MotionBlur = true;
     public float Shutter = 0.5f;
-    /// <summary>L'anticrénelage géométrique : 0, 2, 4 ou 8 échantillons par pixel.</summary>
-    public int Msaa = 4;
+    /// <summary>L'anticrénelage géométrique : 0, 2, 4 ou 8 échantillons par pixel. 2 par défaut (13/10) : 4 coûtait
+    /// 1,0 ms par image au port, pour une différence qui ne se lit guère que sur les cordages.</summary>
+    public int Msaa = 2;
     /// <summary>L'anticrénelage sur l'image : aucun, fxaa, smaa ou taa.</summary>
     public string ScreenAA = "fxaa";
     /// <summary>La lueur des lumières trop vives (bloom.js), la nuit seulement.</summary>
