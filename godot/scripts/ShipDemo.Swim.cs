@@ -57,14 +57,14 @@ public partial class ShipDemo
     /// La plus grande dimension VRAIE de ce qui se ramasse : un modèle refait ailleurs (Tripo, Blender)
     /// arrive à n'importe quelle échelle — l'huître en faisait près d'un mètre.
     /// </summary>
-    static readonly Dictionary<string, float> SwimTrueSize = new() { ["lambi"] = 0.24f, ["huitre"] = 0.07f };
+    static readonly Dictionary<string, float> SwimTrueSize = new() { ["lambi"] = 0.24f, ["huitre"] = 0.07f, ["ecus"] = 0.0245f };
     readonly List<RockField.Rock> _swimRocks = new();
     readonly List<Find> _swimBuf = new();
     Find? _swimNear;
 
-    /// <summary>Un coquillage ramassé repousse au bout d'un mois.</summary>
+    /// <summary>Un coquillage ramassé repousse au bout d'un mois ; des écus ramassés ne reviennent pas.</summary>
     bool StillPicked(Find f) =>
-        _picked.TryGetValue(f.Id, out int day) && _calendar.Day - day < Finds.RegrowDays;
+        _picked.TryGetValue(f.Id, out int day) && (f.Kind == "ecus" || _calendar.Day - day < Finds.RegrowDays);
 
     void SwimJump()
     {
@@ -143,12 +143,13 @@ public partial class ShipDemo
     void SwimBoarded()
     {
         // ce que rapporte le sac : à bord, au comptoir ; les huîtres s'ouvrent ici
-        int lambis = 0, huitres = 0, perles = 0;
+        int lambis = 0, huitres = 0, perles = 0, ecus = 0;
         foreach (var f in _sack)
         {
             switch (f.Kind)
             {
                 case "lambi": lambis++; break;
+                case "ecus": ecus += f.Count; break;
                 case "huitre":
                     huitres++;
                     if (Finds.Seed(f.Id, 7, 7, 7) < 1.0 / Finds.PearlOdds) perles++;
@@ -157,7 +158,10 @@ public partial class ShipDemo
         }
         if (lambis > 0) _treasureHold["lambi"] = _treasureHold.GetValueOrDefault("lambi") + lambis;
         if (perles > 0) _treasureHold["perle"] = _treasureHold.GetValueOrDefault("perle") + perles;
+        // les écus, droit à la bourse : c'est de la monnaie, pas une marchandise
+        if (ecus > 0) _purse.Add(ecus * Market.SousParEcu);
         var said = new List<string>();
+        if (ecus > 0) said.Add($"{ecus} écu{(ecus > 1 ? "s" : "")} d'or à la bourse");
         if (lambis > 0) said.Add(_tresors.Say("lambi", lambis));
         if (huitres > 0) said.Add($"{huitres} huître{(huitres > 1 ? "s" : "")} ouverte{(huitres > 1 ? "s" : "")} : " + (perles > 0 ? _tresors.Say("perle", perles) + " !" : "pas de perle"));
         Say(said.Count > 0 ? "À bord. " + string.Join(" · ", said) : "À bord.");
@@ -343,6 +347,7 @@ public partial class ShipDemo
         string near = _swimNear == null ? "" : _swimNear.Kind switch
         {
             "lambi" => " · un lambi à portée (F)",
+            "ecus" => _swimNear.Count > 1 ? $" · {_swimNear.Count} écus d'or à portée (F)" : " · un écu d'or à portée (F)",
             _ => " · une huître à portée (F)"
         };
         string board = _climb != null ? " · on se hisse à bord" : !_swim.Under && SwimCanBoard(out _) ? " · E : se hisser à bord" : "";
@@ -388,6 +393,7 @@ public partial class ShipDemo
         foreach (var f in finds)
         {
             if (StillPicked(f)) continue;
+            if (f.Kind == "ecus") { var heap = SwimCoins(f); if (heap != null) { _swimRoot!.AddChild(heap); list.Add((f, _swimPlaced.Add(heap, f.X, f.Y, f.Z))); } continue; }
             var node = SwimModel(f.Kind);
             if (node == null) continue;
             // couché sur son appui (la pente d'un rocher), tourné sur lui-même
@@ -403,12 +409,41 @@ public partial class ShipDemo
         return list;
     }
 
+    /// <summary>
+    /// UN PETIT TAS D'ÉCUS : chaque pièce à plat sur le fond ou presque, éparpillées sur une
+    /// vingtaine de centimètres comme une bourse qui s'est vidée en tombant, deux ou trois
+    /// l'une sur l'autre. Tiré sur l'id : le même tas d'une partie à l'autre.
+    /// </summary>
+    Node3D? SwimCoins(Find f)
+    {
+        var heap = new Node3D { Name = "ecus" };
+        float s = SwimFitOf("ecus").Scale;
+        for (int n = 0; n < f.Count; n++)
+        {
+            var coin = SwimModel("ecus");
+            if (coin == null) { heap.QueueFree(); return null; }
+            double a = Finds.Seed(f.Id, n, 1, 0) * Math.PI * 2, r = Math.Sqrt(Finds.Seed(f.Id, n, 2, 0)) * 0.11;
+            // une sur trois repose sur sa voisine, un peu de biais
+            bool onTop = n > 0 && Finds.Seed(f.Id, n, 3, 0) < 0.33;
+            var at = onTop ? heap.GetChild<Node3D>(n - 1).Position + new Vector3(0.006f, 0.0016f, 0.004f)
+                           : new Vector3((float)(Math.Cos(a) * r), 0.0008f, (float)(Math.Sin(a) * r));
+            float tx = (float)(Finds.Seed(f.Id, n, 4, 0) - 0.5) * (onTop ? 0.5f : 0.12f);
+            float tz = (float)(Finds.Seed(f.Id, n, 5, 0) - 0.5) * (onTop ? 0.5f : 0.12f);
+            coin.Basis = new Basis(Vector3.Up, (float)(Finds.Seed(f.Id, n, 6, 0) * Math.PI * 2))
+                       * new Basis(Vector3.Right, tx) * new Basis(Vector3.Back, tz) * Basis.FromScale(Vector3.One * s);
+            coin.Position = at;
+            heap.AddChild(coin);
+        }
+        return heap;
+    }
+
     /// <summary>Le modèle d'une sorte : le lambi et l'huître dessinés (tools/reef-glb.js).</summary>
     Node3D? SwimModel(string kind)
     {
         if (!_swimModels.TryGetValue(kind, out var tmpl))
         {
-            string path = Assets.Path($"props/fond/{kind}.glb");
+            // les écus sont dessinés pièce par pièce : props/fond/ecu.glb
+            string path = Assets.Path($"props/fond/{(kind == "ecus" ? "ecu" : kind)}.glb");
             tmpl = System.IO.File.Exists(path) ? Assets.LoadGlb(path) : null;
             if (tmpl == null) GD.PushWarning($"[nage] props/fond/{kind}.glb introuvable");
             _swimModels[kind] = tmpl;
@@ -434,7 +469,12 @@ public partial class ShipDemo
         _picked[f.Id] = _calendar.Day;
         GrabStart(f);
         _swimNear = null;
-        Say(f.Kind == "lambi" ? "Un lambi dans le sac" : "Une huître dans le sac");
+        Say(f.Kind switch
+        {
+            "lambi" => "Un lambi dans le sac",
+            "ecus" => f.Count > 1 ? $"{f.Count} écus d'or dans le sac !" : "Un écu d'or dans le sac !",
+            _ => "Une huître dans le sac"
+        });
     }
 
     /// <summary>Repêché : à bord, sans le sac — ce qu'il portait est retombé au fond.</summary>

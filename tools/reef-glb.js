@@ -22,6 +22,10 @@
  *                     lèvre évasée rose, 24 cm ;
  *  - huitre         : Pinctada imbricata, l'huître perlière des Caraïbes — plate,
  *                     brune, son aile droite à la charnière, 7 cm.
+ *  - ecu            : un écu d'or — la taille d'un louis d'or de 1690, 24 mm et un
+ *                     peu plus d'un millimètre d'épaisseur, un listel en relief et une
+ *                     croix sur chaque face. L'or ne ternit pas dans l'eau de mer : une
+ *                     pièce remontée après trois siècles brille encore.
  *
  *   node tools/reef-glb.js lambi huitre    n'écrit que ceux-là (un fichier remplacé
  *                                          par l'artiste n'est pas écrasé)
@@ -44,7 +48,8 @@ const MAT = {
   lambi:   { name: 'lambi', c: [...lin(0xc4a47c), 1], r: 0.85 },
   levre:   { name: 'lambi_levre', c: [...lin(0xe8a29a), 1], r: 0.35, ds: true },
   huitre:  { name: 'huitre', c: [...lin(0x6e5a48), 1], r: 0.8 },
-  nacre:   { name: 'huitre_nacre', c: [...lin(0xb9b0a0), 1], r: 0.3 }
+  nacre:   { name: 'huitre_nacre', c: [...lin(0xb9b0a0), 1], r: 0.3 },
+  or:      { name: 'or', c: [...lin(0xe2b54a), 1], r: 0.28, m: 1 }
 };
 
 // un hasard tenu : le même récif à chaque écriture
@@ -412,11 +417,81 @@ function huitre() {
   return m;
 }
 
+/**
+ * UN ÉCU D'OR, couché à plat (son axe selon Y), l'origine en son centre. Tourné à
+ * partir d'un profil : le champ, le listel en relief, la tranche — arêtes VIVES, une
+ * pièce frappée n'a rien d'arrondi. Une croix en relief sur chaque face, tournée d'un
+ * huitième de tour de l'une à l'autre.
+ */
+function ecu() {
+  const m = model(), p = m.g('or');
+  const R = 0.0122, Ri = R - 0.0012, t = 0.0006, lip = 0.00025, SEG = 48;
+  const prof = [[0, t], [Ri, t], [Ri, t + lip], [R, t + lip], [R, -t - lip], [Ri, -t - lip], [Ri, -t], [0, -t]];
+  for (let k = 0; k < prof.length - 1; k++) {
+    const [r0, y0] = prof[k], [r1, y1] = prof[k + 1];
+    const nr = -(y1 - y0), ny = r1 - r0, L = Math.hypot(nr, ny);
+    const base = p.pos.length / 3;
+    for (let j = 0; j <= SEG; j++) {
+      const a = j / SEG * Math.PI * 2, c = Math.cos(a), sn = Math.sin(a);
+      for (const [r, y] of [[r0, y0], [r1, y1]]) {
+        p.pos.push(r * c, y, r * sn);
+        p.nrm.push(nr / L * c, ny / L, nr / L * sn);
+        p.uv.push(j / SEG, r / R);
+      }
+    }
+    for (let j = 0; j < SEG; j++) {
+      const a0 = base + j * 2, a1 = a0 + 1, b0 = a0 + 2, b1 = a0 + 3;
+      // l'ordre qui tourne la face vers sa normale
+      const P = i => p.pos.slice(i * 3, i * 3 + 3), N = p.nrm.slice(a0 * 3, a0 * 3 + 3);
+      const f = cross(sub(P(a1), P(a0)), sub(P(b0), P(a0)));
+      const nn = add(N, p.nrm.slice(b1 * 3, b1 * 3 + 3));
+      if (dot(f, nn) >= 0 || Math.hypot(...f) === 0) p.idx.push(a0, a1, b0, a1, b1, b0); else p.idx.push(a0, b0, a1, a1, b0, b1);
+    }
+  }
+  // la croix en relief, de pavés : quatre faces, et le dessus
+  const block = (cx, cz, along, w, len, y0, h) => {
+    const ax = along ? [1, 0] : [0, 1], bx = along ? [0, 1] : [1, 0];
+    const corners = [[-len, -w], [len, -w], [len, w], [-len, w]].map(([u, v]) => [cx + ax[0] * u + bx[0] * v, cz + ax[1] * u + bx[1] * v]);
+    const up = y0 + h, sgn = Math.sign(h);
+    const quad = (a, b, c, d, n) => {
+      const k = p.pos.length / 3;
+      for (const q of [a, b, c, d]) { p.pos.push(...q); p.nrm.push(...n); p.uv.push(0.5, 0.5); }
+      const f = cross(sub(b, a), sub(c, a));
+      if (dot(f, n) >= 0) p.idx.push(k, k + 1, k + 2, k, k + 2, k + 3); else p.idx.push(k, k + 2, k + 1, k, k + 3, k + 2);
+    };
+    const C = i => corners[i % 4];
+    quad([C(0)[0], up, C(0)[1]], [C(1)[0], up, C(1)[1]], [C(2)[0], up, C(2)[1]], [C(3)[0], up, C(3)[1]], [0, sgn, 0]);
+    for (let i = 0; i < 4; i++) {
+      const a = C(i), b = C(i + 1), mx = (a[0] + b[0]) / 2 - cx, mz = (a[1] + b[1]) / 2 - cz, L = Math.hypot(mx, mz);
+      quad([a[0], y0, a[1]], [b[0], y0, b[1]], [b[0], up, b[1]], [a[0], up, a[1]], [mx / L, 0, mz / L]);
+    }
+  };
+  const arm = Ri * 0.72, w = 0.0011, h = 0.0002;
+  block(0, 0, true, w, arm, t, h); block(0, 0, false, w, arm, t, h);
+  // l'autre face : la croix tournée d'un huitième de tour
+  const d = Math.SQRT1_2;
+  for (const [u, v] of [[d, d], [d, -d]]) {
+    // un bras en diagonale : deux pavés le long de (u, v), dessinés par leurs coins
+    const k = p.pos.length / 3, len = arm, ww = w, y0 = -t, up = -t - h;
+    const c = [[-len, -ww], [len, -ww], [len, ww], [-len, ww]].map(([a, b]) => [u * a - v * b, v * a + u * b]);
+    for (const q of c) { p.pos.push(q[0], up, q[1]); p.nrm.push(0, -1, 0); p.uv.push(0.5, 0.5); }
+    p.idx.push(k, k + 2, k + 1, k, k + 3, k + 2);
+    for (let i = 0; i < 4; i++) {
+      const a = c[i], b = c[(i + 1) % 4], mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2, L = Math.hypot(mx, mz);
+      const kk = p.pos.length / 3;
+      for (const q of [[a[0], y0, a[1]], [b[0], y0, b[1]], [b[0], up, b[1]], [a[0], up, a[1]]]) { p.pos.push(...q); p.nrm.push(mx / L, 0, mz / L); p.uv.push(0.5, 0.5); }
+      const f = cross(sub([b[0], y0, b[1]], [a[0], y0, a[1]]), sub([b[0], up, b[1]], [a[0], y0, a[1]]));
+      if (dot(f, [mx, 0, mz]) >= 0) p.idx.push(kk, kk + 1, kk + 2, kk, kk + 2, kk + 3); else p.idx.push(kk, kk + 2, kk + 1, kk, kk + 3, kk + 2);
+    }
+  }
+  return m;
+}
+
 const out = path.join(__dirname, '..', 'props', 'fond');
 const only = process.argv.slice(2);
 for (const [name, make] of Object.entries({
   'corail-cerveau': cerveau, 'corail-corne': corne, 'corail-cerf': cerf,
-  gorgone, 'eponge-tube': eponge, herbier, oursin, lambi, huitre
+  gorgone, 'eponge-tube': eponge, herbier, oursin, lambi, huitre, ecu
 })) {
   if (only.length && !only.includes(name)) continue;
   const m = make();

@@ -8,8 +8,10 @@ public sealed class Find
 {
     /// <summary>Stable d'une partie à l'autre : ce qui est ramassé le reste (la sauvegarde le retient).</summary>
     public string Id = "";
-    /// <summary>« lambi » ou « huitre » — le lambi est une sorte de treasure/tresor.json ; l'huître s'ouvre à bord.</summary>
+    /// <summary>« lambi », « huitre » ou « ecus » — le lambi est une sorte de treasure/tresor.json ; l'huître s'ouvre à bord ; les écus vont à la bourse.</summary>
     public string Kind = "";
+    /// <summary>Combien de pièces : des écus vont par petits tas ; un coquillage est seul.</summary>
+    public int Count = 1;
     public double X, Y, Z, Yaw;
     /// <summary>Penché sur la pente d'un rocher : son appui, vers où il regarde.</summary>
     public Vec3d Up = new(0, 1, 0);
@@ -55,9 +57,32 @@ public static class Finds
         return (h >> 11) * (1.0 / (1UL << 53));
     }
 
-    /// <summary>Les coquillages de cette case.</summary>
+    /* DES ÉCUS D'OR, PARFOIS (demandé — « c'est un peu gros, mais ça me plaît ») : une case sur
+       vingt-cinq en garde un petit tas, d'une à sept pièces, sur n'importe quel fond d'un à
+       vingt-cinq mètres. Une bourse crevée, un coffre jeté par-dessus bord, un naufrage oublié :
+       la mer des Caraïbes de 1690 en avait. L'or ne ternit pas — une pièce remontée après des
+       siècles brille encore. Ramassés, ils ne reviennent pas (contrairement aux coquillages). */
+    public const double EcusOdds = 0.04;
+    public const int EcusMax = 7;
+
+    /// <summary>Les coquillages de cette case, et parfois quelques écus.</summary>
     public static void InCell(World w, string region, int i, int j, List<Find> into, List<RockField.Rock> rocks)
     {
+        // tiré à part (rangs 9001 et suivants) : les coquillages de la case ne changent pas
+        if (Seed(region, i, j, 9001) < EcusOdds)
+        {
+            double ex = (i + Seed(region, i, j, 9002)) * Cell, ez = (j + Seed(region, i, j, 9003)) * Cell;
+            double eb = w.HeightAt(ex, ez);
+            if (-eb >= 1 && -eb <= 25)
+            {
+                double r = Seed(region, i, j, 9004);
+                into.Add(new Find
+                {
+                    Id = $"ecus:{region}:{i}:{j}", Kind = "ecus", X = ex, Y = eb, Z = ez,
+                    Yaw = Seed(region, i, j, 9005) * Math.PI * 2, Count = 1 + (int)(r * r * EcusMax)
+                });
+            }
+        }
         for (int k = 0; k < Tries; k++)
         {
             double x = (i + Seed(region, i, j, k * 4)) * Cell, z = (j + Seed(region, i, j, k * 4 + 1)) * Cell;
