@@ -136,7 +136,7 @@ public partial class ShipDemo
                     else if ((prey.Body.Pos - _ship.Physics.Body.Pos).Length < 3000)
                     {
                         string name = "un navire";
-                        foreach (var o in _others) if (o.Physics == prey) { name = o.Spec.Name; break; }
+                        foreach (var o in _others) if (o.Physics == prey) { name = o.TheName; break; }
                         Say("Le pirate aborde et pille " + name);
                     }
                 }
@@ -151,7 +151,7 @@ public partial class ShipDemo
                     {
                         BlowUp(o);
                         if ((prey.Body.Pos - _ship.Physics.Body.Pos).Length < 6000)
-                            Say($"Le pirate ne fait pas de quartier — {o.Spec.Name} saute");
+                            Say($"Le pirate ne fait pas de quartier — {o.TheName} saute");
                         break;
                     }
                 }

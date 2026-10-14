@@ -64,6 +64,34 @@ public partial class MooredNode : Node3D
     readonly Dictionary<ShipSpec, Dictionary<string, Material>> _furledMats = new();
     readonly Dictionary<Node3D, ShipSpec> _specOf = new();
     readonly Dictionary<Node3D, ShipPhysics> _hulls = new();
+    // les guides du nom de chaque modèle, sortis une fois du gabarit (NameBoard)
+    readonly Dictionary<ShipSpec, List<NameBoard.Guide>> _guides = new();
+    // les noms qu ils portent, rendus au registre quand la rade s en va
+    readonly List<string> _held = new();
+
+    /// <summary>
+    /// LE NOM D UNE COQUE DE RADE : (port, rang du poste, fiche) → nom, ou rien pour celui de
+    /// la fiche. Donné par la démo, qui connaît les nations qu admet chaque port ; à graine,
+    /// pour qu une rade revienne la même d une visite à l autre.
+    /// </summary>
+    public Func<string, int, ShipSpec, string?>? NameFor;
+
+    /// <summary>Ses lettres sur la poupe d une copie : rend le nom qu elle porte.</summary>
+    string Letter(Node3D copie, ShipSpec spec, double k, string port, int slot)
+    {
+        string? name = spec.Unique ? null : NameFor?.Invoke(port, slot, spec);
+        if (name != null) { NameBoard.Hold(name); _held.Add(name); }
+        name ??= spec.Label;
+        if (_guides.TryGetValue(spec, out var g) && g.Count > 0)
+            NameBoard.Paint(NameBoard.Mount(copie, g, k), name, spec.Model?.Lettering);
+        return name;
+    }
+
+    public override void _ExitTree()
+    {
+        foreach (var n in _held) NameBoard.Release(n);
+        _held.Clear();
+    }
     /// <summary>Les coques au mouillage contre lesquelles le navire du joueur peut buter, cette image-ci.</summary>
     public readonly List<ShipPhysics> Near = new();
 
@@ -162,7 +190,8 @@ public partial class MooredNode : Node3D
         holder.AddChild(copie);
         Dress(copie, holder, mdl.Spec);
         AddChild(holder);
-        var h = new HandHull { Node = holder, At = new Vec3d(x, mdl.Y, z), Cap = yaw, L = mdl.Spec.Hull.Length, Name = mdl.Spec.Name };
+        string nom = Letter(copie, mdl.Spec, mdl.K, "pose", _hand.Count);
+        var h = new HandHull { Node = holder, At = new Vec3d(x, mdl.Y, z), Cap = yaw, L = mdl.Spec.Hull.Length, Name = nom };
         _hand.Add(h);
         return h;
     }
@@ -249,6 +278,8 @@ public partial class MooredNode : Node3D
             string path = Assets.Path(spec.Resolve(spec.Model.Glb));
             if (!System.IO.File.Exists(path)) { GD.PushWarning($"[rade] {spec.Model.Glb} introuvable"); return null; }
             if (Assets.LoadGlb(path) is not Node3D root) return null;
+            // ses guides de nom : chaque copie aura ses propres lettres
+            _guides[spec] = NameBoard.Take(root);
             /* LA MÊME ÉCHELLE QUE LA FLOTTE, par la même fonction : un galion au
                mouillage qui ne ferait pas la taille d'un galion sous voiles se
                verrait au premier coup d'œil, et deux calculs d'échelle finiraient
@@ -315,6 +346,7 @@ public partial class MooredNode : Node3D
                 var holder = new Node3D();
                 holder.AddChild(copie);
                 Dress(copie, holder, mdl.Spec);
+                Letter(copie, mdl.Spec, mdl.K, isl.Key, i);
                 m2.Group.AddChild(holder);
                 m2.Ships.Add((holder, new Vec3d(postes[i].X, mdl.Y, postes[i].Z), postes[i].Cap,
                               postes[i].Mouille, mdl.Spec.Hull.Length));
@@ -355,13 +387,14 @@ public partial class MooredNode : Node3D
             var holder = new Node3D();
             holder.AddChild(copie);
             Dress(copie, holder, mdl.Spec);
+            string nom = Letter(copie, mdl.Spec, mdl.K, _world.Region.Key + ":mouilles", i);
             m2.Group.AddChild(holder);
             double yaw = Compass.YawOf(a.Cap);
             int slot = m2.Ships.Count;
             m2.Ships.Add((holder, new Vec3d(a.X, mdl.Y, a.Z), yaw, true, mdl.Spec.Hull.Length));
             var e = new Editable
             {
-                Id = $"mouille:{i++}", Label = mdl.Spec.Name.Length > 0 ? mdl.Spec.Name : "un navire au mouillage",
+                Id = $"mouille:{i++}", Label = nom.Length > 0 ? nom : "un navire au mouillage",
                 BaseX = a.X, BaseZ = a.Z, BaseYaw = yaw, X = a.X, Z = a.Z, Yaw = yaw,
                 Radius = mdl.Spec.Hull.Length * 0.5, Height = mdl.Spec.Hull.Length * 0.4,
                 Family = "mouille", FamilyLabel = "Navire au mouillage"

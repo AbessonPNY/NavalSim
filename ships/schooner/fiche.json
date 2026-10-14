@@ -1,6 +1,7 @@
 {
   "id": "schooner",
   "name": "Goélette Archimède",
+  "type": "goélette",
   "note": "Goélette franche à deux mâts, gréement aurique. Le navire de référence.",
 
   "hull": {

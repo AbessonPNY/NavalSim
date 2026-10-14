@@ -46,6 +46,7 @@ logique est dans `js/`, en classes attachées à l'espace de noms global `Naval`
 | `Wrecks.cs` (Godot) | le registre des épaves (sauvegardé) et la cloche de Halley — `WreckSiteNode.cs`, `BellNode.cs`, `ShipDemo.Dive.cs` |
 | `ship-spec.js` | lit une fiche JSON et en **dérive** ce que le solveur consomme |
 | `hull-lines.js` | le plan de formes, en fonctions pures |
+| `ShipNames` (noyau) · `NameBoard.cs` · `ShipNode.Name.cs` · `ShipDemo.Names.cs` (Godot) | les NOMS DE BAPTÊME : une fiche est un type, chaque coque reçoit à la mise à l eau un nom de `ships/noms.json` dans la liste de sa nation (fixé en fin d image, sur son pavillon d alors), sauvegardé ; `"unique": 1` garde celui de la fiche, `"type"` se dit après le nom (`Called`, `Styled`, `TheName`/`OfName` pour l article) ; peint en décalque sur les guides `nom` du modèle (`ships/README.md`, « Son nom ») |
 | `stage.js` · `calendar.js` | renderer, scène, lumière, ciel, lune · la date et la saison |
 | `ocean.js` | houle de Gerstner : shader GPU **et** échantillonnage CPU — sous Godot, les rides plus courtes qu'elle viennent d'une TEXTURE de spectre (`tools/sea-ripples.js`, `world/materiaux.json` → `mer.rides`, globale `naval_ride_map` lue par `ride.gdshaderinc` pour la mer et les caustiques) |
 | `foam.js` · `ssao.js` | champ d'écume persistant · occlusion ambiante du navire |

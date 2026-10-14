@@ -109,6 +109,8 @@ public partial class ShipNode : Node3D
         // ses couleurs, une fois ses mâts trouvés : elles se pendent dans leurs chutes
         BuildFlags();
         FindNightGlow();
+        // son nom, et ses lettres sur la poupe (ShipNode.Name.cs)
+        BuildName();
     }
 
     // ------------------------------------------------------------------
@@ -149,6 +151,10 @@ public partial class ShipNode : Node3D
             }
 
             SplitPrimitives(obj);
+            /* LES GUIDES DU NOM aussi, avant toute mesure : un plan posé sur le tableau n est pas
+               du bois, et il ne doit pas être dessiné. Voir NameBoard. */
+            if (NameBoard.TestGuide && !SailsOnly) NameBoard.AddTestGuide(obj);
+            _nameGuides = NameBoard.Take(obj);
             /* LES ANNEAUX SORTENT EN PREMIER, avant la moindre mesure. Tout ce qui
                suit cherche la coque en prenant le maillage le plus VOLUMINEUX, et
                un anneau qui ceint le navire enferme plus d'air que la coque

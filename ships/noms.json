@@ -1,0 +1,61 @@
+{
+  "_aide": "LES NOMS DE BAPTÊME. Une fiche sans « unique » décrit un TYPE de bâtiment : chaque coque mise à l'eau reçoit un nom tiré dans la liste de la nation sous laquelle elle paraît (les clés sont les identifiants de ships/textures/flags/flags.json ; « pirate » sert à toute coque sous le pavillon noir). Un nom déjà à flot n'est pas retiré tant que la liste en a d'autres. defaut : la liste prise quand la nation est inconnue ou n'a pas de liste. lettrage : comment le nom se peint sur les objets « nom » d'un modèle (ships/README.md, « Le nom ») — encre (0xrrggbb, une fiche peut la changer par model.lettrage), capitales, polices du système essayées dans l'ordre. Un nom qui porte son article (« La Bonne Espérance ») le garde et le contracte dans les phrases (« de la Bonne Espérance ») ; un nom étranger prend le masculin (« le Speedwell »). Les noms sont ceux de l'époque — marchands, corsaires et forbans des années 1680-1700.",
+  "defaut": "angleterre",
+  "lettrage": {
+    "encre": "0xd8b25a",
+    "capitales": true,
+    "polices": ["Garamond", "Book Antiqua", "Palatino Linotype", "Georgia", "Times New Roman", "serif"]
+  },
+  "nations": {
+    "angleterre": [
+      "Adventure", "Speedwell", "Prosperous", "Endeavour", "Blessing", "Hopewell",
+      "Swallow", "Dolphin", "Expectation", "Supply", "Success", "Society",
+      "Unity", "Concord", "Content", "Diligence", "Industry", "Friendship",
+      "Good Hope", "Mary", "Anne", "Elizabeth", "Margaret", "Katherine",
+      "Sarah", "Susanna", "Rebecca", "Hannah", "Charles", "James",
+      "William and Mary", "Jamaica Merchant", "Barbados Merchant", "Port Royal",
+      "Greyhound", "Falcon", "Hunter", "Pelican", "Phoenix", "Providence",
+      "Recovery", "Rose", "Swan", "Tiger", "Truelove", "Unicorn",
+      "Welcome", "Mayflower", "Increase", "Merchant's Delight", "Bonaventure",
+      "Golden Fleece", "Seaflower", "Primrose", "Olive Branch", "Lamb"
+    ],
+    "france": [
+      "La Bonne Espérance", "L'Espérance", "La Fortune", "La Providence",
+      "La Concorde", "La Diligente", "La Renommée", "La Victoire", "La Sirène",
+      "L'Hirondelle", "La Marie", "La Sainte-Anne", "La Sainte-Catherine",
+      "La Trinité", "La Notre-Dame-de-Bon-Port", "La Notre-Dame-de-Bon-Secours",
+      "Le Saint-Pierre", "Le Saint-Louis", "Le Saint-Jean-Baptiste",
+      "Le Saint-Nicolas", "Le Saint-Antoine", "Le Saint-Michel", "Le Dauphin",
+      "Le Faucon", "Le Joly", "L'Aimable", "L'Aigle", "Le Cygne", "Le Neptune",
+      "Le Postillon", "Le Prophète", "Le Marchand", "La Gaillarde", "Le Brave",
+      "La Belle", "La Charente", "Le Petit Saint-Pierre", "Le Bon Pasteur",
+      "L'Union", "La Paix", "Le Lion d'Or", "L'Aurore"
+    ],
+    "espagne": [
+      "Nuestra Señora de la Concepción", "Nuestra Señora del Rosario",
+      "Nuestra Señora de Guadalupe", "Nuestra Señora del Carmen",
+      "Nuestra Señora de la Soledad", "Nuestra Señora de las Mercedes",
+      "Nuestra Señora del Pilar", "Nuestra Señora de Atocha",
+      "Nuestra Señora de la Candelaria", "Santísima Trinidad", "San José",
+      "San Felipe", "San Juan Bautista", "San Francisco", "San Antonio",
+      "San Pedro", "San Diego", "Santiago", "San Ignacio", "San Nicolás",
+      "Santa María", "Santa Rosa", "Santa Bárbara", "Santa Catalina",
+      "Santa Teresa", "Santo Cristo de Burgos", "Santo Domingo",
+      "Jesús María y José", "Buen Jesús", "San Fernando"
+    ],
+    "hollande": [
+      "Hoop", "Eendracht", "Vrede", "Liefde", "Fortuyn", "Zeepaard", "Dolfijn",
+      "Hollandia", "Zeelandia", "Middelburg", "Walcheren", "Gouden Leeuw",
+      "Witte Valk", "Swarte Arent", "Vergulde Zon", "Vergulde Draeck",
+      "Wapen van Amsterdam", "Wapen van Hoorn", "Prins Willem", "Sint Jan",
+      "Sint Pieter", "Hert", "Zwaan", "Pelikaan", "Eenhoorn", "Postiljon",
+      "Vliegende Hert", "Goede Verwachting", "Koopman", "Jonge Jacob"
+    ],
+    "pirate": [
+      "Revenge", "Fancy", "Amity", "Bachelor's Delight", "Blessed William",
+      "Cygnet", "Mocha", "Resolution", "Pearl", "Charming Mary",
+      "Batchelor's Adventure", "La Trompeuse", "Le Hardi", "Le Diable Volant",
+      "Dragon", "Good Fortune"
+    ]
+  }
+}

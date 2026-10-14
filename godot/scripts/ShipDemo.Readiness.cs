@@ -59,7 +59,7 @@ public partial class ShipDemo
         GD.Print(FormattableString.Invariant($"[branle-bas] {s.Spec.Name} : paré dans {prep:F0} s"));
         // la vigie le voit : on n'annonce que ce qui est à portée de vue, et seulement un coup reçu
         if (say && (s.Physics.Body.Pos - _ship.Physics.Body.Pos).LengthXZ < 2000)
-            Say($"Branle-bas à bord du {s.Spec.Name}");
+            Say($"Branle-bas à bord {s.OfName}");
     }
 
     /// <summary>Un boulet tombé à l'eau : les navires tout près l'ont vu passer.</summary>

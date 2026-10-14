@@ -189,7 +189,7 @@ public partial class ShipDemo
         FishHold();
         ph.Powder = Math.Min(powder, ph.PowderMax);
         _quests?.Credit(Goal.Buy, 1);
-        Say($"{spec.Name} est à vous — " + (net >= 0 ? $"{net / Market.SousParEcu} écus" : $"le chantier vous rend {-net / Market.SousParEcu} écus")
+        Say($"{ShipNames.Cap(_ship.TheName)}{(_ship.Christened != null && spec.Type.Length > 0 ? $", {spec.Type}," : "")} est à vous — " + (net >= 0 ? $"{net / Market.SousParEcu} écus" : $"le chantier vous rend {-net / Market.SousParEcu} écus")
             + (left > 0.05 ? FormattableString.Invariant($" ; {left:F1} t restent au quai, faute de place") : ""));
         _mkYardSig = "";
         MarketTick();

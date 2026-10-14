@@ -16845,3 +16845,41 @@ LES VOIES D'EAU au panneau H (demandé : « que je me rende compte ») : le navi
 l'eau, ce qui entre contre ce que rendent les pompes, et chaque trou : compartiment, aire, charge, CAUSE (Breach.Cause : un heurt (le
 nom de l'autre), la roche, un échouage, un boulet, la baleine, le serpent, la rupture, la soute). Essai : -- --voie 3 --instruments 1.
 
+SOMBRER EN COURANT (signalé : « mon navire sombrait par l'avant mais en continuant de filer quinze nœuds »). La résistance de
+coque était un terme seul, v² fois une constante de la fiche : à moitié pleine, le nez sous la mer, elle freinait comme sèche, et la
+voilure (gain de vent ×8) la poussait toujours. Config.ImmersionDrag (Godot seul) : la carène mouillée comme le volume immergé à
+la puissance 2/3 ; le pont noyé laboure (½ ρ v², Cd 1, largeur du pont fois l'eau qui le couvre, la plus grande tranche) ; et sur
+le nez la coque entière fait front (Cd 0,8, B × L × sin θ, sur l'assiette lissée trois secondes et passé 4° — la houle n'y entre
+pas). Banc Lab « sombre » [fiche] [force] [avant] : sloop au largue, voie d'eau de 0,25 m² à l'avant à 60 s. Avant : 10,3 nd à −13°,
+11,7 nd à −41°. Après : 7,4 nd à −11°, 5,0 à −24°, 4,4 à −57°. Un navire sain : sloop par force 4 à 0,5 nd près ; par force 6, de
+2 à 3 nd de moins quand il dépasse vingt nœuds et enfourne (l'eau verte) ; Roebuck inchangé (banc « cap », TRAINEE=0 pour l'ancien).
+
+
+## Les noms de baptême, et le nom peint sur la poupe (14/10, Godot)
+
+DEMANDÉ : « un système de nommage dynamique […] un bateau deviendrait générique, sauf certains qui auraient dans leur fiche un
+attribut unique: 1 ». Une fiche est désormais un TYPE ; la coque reçoit son nom à la mise à l'eau, dans `ships/noms.json`, PAR
+NATION (choisi : un espagnol s'appelle Nuestra Señora del Rosario, pas Speedwell) — anglais, français, espagnols, hollandais des
+années 1680-1700, et une liste de forbans (Fancy, Amity, Bachelor's Delight, La Trompeuse). Uniques : Roebuck, Boussole, Couronne,
+Roter Löwe, et ce qu'on ne baptise pas (bouée, caisse, chaloupe, ILCA, trimaran, vedette, chaland). Génériques : sloop, cotre,
+goélette, galion pirate, chacun avec son `"type"`. À l'écran (choisi) : le nom puis le type, « Speedwell, sloop ».
+LE TIRAGE ATTEND LA FIN DE L'IMAGE. Une coque naît sous un pavillon tiré au hasard (SpawnFleet → Colours) que celui qui la met à
+l'eau change dans la même image : la rade le restreint à ses nations, l'escarmouche lui donne son camp, Blacken hisse le noir.
+Nommée tout de suite, elle prenait le nom d'une autre nation. Le nom se fixe donc en différé (`SettleName`) ; lu avant (un journal
+de rencontre), il est tiré d'avance et retiré si le pavillon a changé. Après, plus rien : le pirate démasqué garde son nom de
+marchand. Registre des noms à flot COMPTÉS (un doublon accepté faute de mieux ne libère pas l'autre en partant), rendus dans
+_ExitTree. Rade : à graine (port, poste), sur les nations que le port admet — elle revient la même. Sauvegarde : `bapteme`, et
+`nom` + `nation` par coque autour (le nom revient avec son pavillon).
+L'ARTICLE : un nom qui porte le sien le garde et le contracte (« du Saint-Louis », « de la Bonne Espérance ») ; un nom étranger
+prend le masculin (« le Speedwell », « du San José »). `ShipNames.Le/Du/Au/Cap` ; les gabarits du kraken passent de {n} à {le},
+{Le}, {du}.
+LE NOM PEINT : un objet `nom` du .glb est un GUIDE, sorti du modèle avant toute mesure, jamais dessiné ; un `Decal` le remplace,
+Y = la normale vers le dehors (du centre de la coque vers le guide), X = la droite de qui regarde depuis l'eau, le haut = le haut
+du navire projeté dans son plan. Un décalque et non une matière refaite : les lettres font partie du bois, sa lumière, ses passes
+(blessures, neige, brume) passent dessus, et rien ne dépend des UV de l'artiste. Les lettres sont rastérisées SANS ÉCRAN, glyphe
+par glyphe depuis les atlas du serveur de texte (pas de SubViewport à attendre une image), police à empattements du système
+(Garamond d'abord), en capitales. PIÈGE : l'ascendante annoncée par Garamond s'arrête SOUS l'accent des capitales — « É » sortait
+« E », rogné par le haut ; on place les glyphes, on prend leur boîte, puis on dessine. Relevé sur le sloop avec le guide d'essai
+(-- --nom-guide 0.7) : « PHOENIX » à l'endroit, éclairé comme le tableau. Aucun modèle ne porte encore de guide.
+RÉALISME : peindre le nom au tableau ne devient la règle qu'au XVIIIᵉ siècle (obligatoire en Angleterre en 1786) ; en 1690 un
+navire se reconnaissait surtout à sa figure de proue et à ses sculptures. Écart assumé, demandé.

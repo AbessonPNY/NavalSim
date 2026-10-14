@@ -77,6 +77,7 @@ switch (mode)
     case "abordage": Abordage(); break;
     case "approche": Approche(); break;
     case "heurt": Heurt(); break;
+    case "sombre": Sombre(); break;
     case "cap": CapTenu(); break;
     case "barre": BarreMain(); break;
     case "lacet": LacetCarene(); break;
@@ -2555,7 +2556,7 @@ void CapTenu()
 {
     string name = args.Length > 1 ? args[1] : "sloop";
     double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 4;
-    Config.WindGain = 8; Config.CrewTacks = true; Config.HelmBySpeed = true; Config.HelmKeepsTack = true; Config.HullYawDamp = true;
+    Config.WindGain = 8; Config.CrewTacks = true; Config.HelmBySpeed = true; Config.HelmKeepsTack = true; Config.HullYawDamp = true; Config.ImmersionDrag = Environment.GetEnvironmentVariable("TRAINEE") != "0";
     var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
     const double windDeg = 105;
     Console.WriteLine(FormattableString.Invariant($"{spec.Name}, force {force}"));
@@ -2715,4 +2716,43 @@ void Heurt()
         }
         Console.WriteLine(FormattableString.Invariant($"  de travers {cross:F1} m/s : heurtée {Of(a, sunkA)} ; l'autre {Of(b, sunkB)}"));
     }
+}
+
+
+/* SOMBRER EN COURANT (signalé : « mon navire sombrait par l'avant mais en continuant de filer quinze
+   nœuds »). Au largue, établi une minute avec le gain de vent du jeu, puis une grosse voie d'eau au
+   compartiment de l'avant : l'erre, l'assiette, l'eau embarquée toutes les cinq secondes, jusqu'à ce qu'il
+   sombre. [fiche] [force] [avant] */
+void Sombre()
+{
+    string name = args.Length > 1 ? args[1] : "sloop";
+    double force = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 4;
+    Config.WindGain = 8; Config.CrewTacks = true; Config.HelmBySpeed = true; Config.HullYawDamp = true;
+    Config.ImmersionDrag = !(args.Length > 3 && args[3] == "avant");
+    var spec = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, name)));
+    var ocean = new Ocean { Swell = 1.0, Time = 0 };
+    ocean.SetSeaState(force, 105);
+    var ph = new ShipPhysics(spec, new HullLines(spec));
+    var c = new Controls { SailsSet = true, Sheet = 0.6 };
+    ph.Settle(ocean, c);
+    double wf = 105 * Math.PI / 180;
+    ph.Body.Quat = Quatd.FromAxisAngle(new Vec3d(0, 1, 0), wf + 2.2);      // broad reach
+    var helm = new AutoHelm(ph) { Standoff = 0, Target = new Vec3d(-Math.Sin(wf + 2.2) * 30000, 0, Math.Cos(wf + 2.2) * 30000) };
+    double dt = 1.0 / 60, t = 0, next = 0;
+    Console.WriteLine(FormattableString.Invariant($"{spec.Name}, force {force}, {(Config.ImmersionDrag ? "résistance selon l'enfoncement" : "résistance d'avant")}"));
+    while (t < 400 && !ph.Foundered)
+    {
+        if (t >= 60 && ph.Breaches.Count == 0 && t < 61) ph.MakeBreach(ph.Comps.Length - 1, 0.25, 0.25, 1, "essai");
+        helm.Update(dt, ocean, c);
+        ph.Step(dt, ocean, c, t); t += dt; ocean.Time = t;
+        if (t >= 55 && t >= next)
+        {
+            next = t + 5;
+            var (heel, trim) = (0.0, 0.0);
+            var f = ph.Body.Quat.Rotate(new Vec3d(0, 0, 1));
+            trim = Math.Asin(Math.Clamp(f.Y, -1, 1)) * 180 / Math.PI;
+            Console.WriteLine(FormattableString.Invariant($"  t {t,4:F0} s  erre {ph.Body.Vel.LengthXZ * Config.MsToKn,5:F1} nd  assiette {trim,6:F1}° (négative : sur le nez)  eau {ph.FloodVol / ph.HullVolume * 100,4:F0} %"));
+        }
+    }
+    Console.WriteLine(ph.Foundered ? FormattableString.Invariant($"  sombré à {t:F0} s") : "  à flot");
 }

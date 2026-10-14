@@ -1,6 +1,7 @@
 {
   "id": "chaloupe",
   "name": "Chaloupe",
+  "unique": 1,
   "note": "Embarcation d'un grand navire, menee a l'aviron : quatre nageurs, un patron. Pas de gouvernail (rudder.power 0) ni de voile : elle tourne en nageant d'un seul bord. oars : pairs = paires d'avirons dessines, period = duree d'un coup de nage en secondes, length = longueur d'un aviron. La vitesse de nage est engine.topSpeed (2,1 m/s, quatre noeuds), la poussee pulse au rythme des coups, et scier (nager a culer) rend sternPower de cette poussee. Portee par un navire dont la fiche la nomme : \"boat\": \"chaloupe\".",
   "hull": {
     "length": 7,

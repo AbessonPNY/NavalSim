@@ -67,7 +67,7 @@ public partial class ShipDemo
            qui ne s'allument pas. Signalé en jeu comme tel. */
         if (_ship.RingCount == 0)
         {
-            Say($"{_ship.Spec.Name} ne porte pas d'anneaux");
+            Say($"{ShipNames.Cap(_ship.TheName)} ne porte pas d'anneaux");
             return;
         }
         if (_jumpTarget is not { } t) { Say(Teleport.Say(Teleport.Verdict.SansCible)); return; }

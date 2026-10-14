@@ -1,6 +1,7 @@
 {
   "id": "barge",
   "name": "Chaland Bourrasque",
+  "unique": 1,
   "note": "Exemple de coque chargée depuis un .glb. Le modèle ne fournit que l'apparence : la flottaison vient toujours des cotes ci-dessous, car on ne peut pas déduire un volume de carène fiable d'un maillage quelconque. Le .glb est mis à l'échelle sur `hull.length`, étrave vers +z, origine sur la flottaison.",
   "hull": {
     "length": 28,

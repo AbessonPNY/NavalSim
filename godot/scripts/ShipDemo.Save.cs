@@ -38,6 +38,8 @@ public partial class ShipDemo
         [JsonPropertyName("mode")] public string Mode { get; set; } = "";
         [JsonPropertyName("region")] public string Region { get; set; } = "caraibes";
         [JsonPropertyName("navire")] public string Navire { get; set; } = "";
+        /// <summary>Son nom de baptême ; vide pour une fiche unique, ou une partie d avant les noms (il se tire alors).</summary>
+        [JsonPropertyName("bapteme")] public string Bapteme { get; set; } = "";
         [JsonPropertyName("x")] public double X { get; set; }
         [JsonPropertyName("z")] public double Z { get; set; }
         [JsonPropertyName("cap")] public double Cap { get; set; }
@@ -117,6 +119,9 @@ public partial class ShipDemo
         [JsonPropertyName("cap")] public double Cap { get; set; }
         [JsonPropertyName("erre")] public double Erre { get; set; }
         [JsonPropertyName("hostile")] public bool Hostile { get; set; }
+        [JsonPropertyName("nom")] public string Nom { get; set; } = "";
+        /// <summary>Le pavillon qu elle portait (flags.json) : son nom en vient, ils reviennent ensemble.</summary>
+        [JsonPropertyName("nation")] public string Nation { get; set; } = "";
     }
 
     /// <summary>La partie qu'on vient de choisir : posée avant le rechargement de scène, reprise après.</summary>
@@ -156,7 +161,8 @@ public partial class ShipDemo
             Sous = _purse.Sous, Poudre = p.Powder,
             Voiles = _ship.Ctrl.SailsSet, Toile = _ship.Ctrl.Canvas, Ris = _reef,
             Ecoute = _ship.Ctrl.Sheet, Pavillon = _colours,
-            Mode = SaveMode()
+            Mode = SaveMode(),
+            Bapteme = _ship.Christened ?? ""
         };
         foreach (var c in p.Cargo)
             s.Cargo.Add(new Colis { Cale = c.Hold, Niveau = c.Level, Bord = c.Side, Kg = c.Kg, Nature = c.Kind });
@@ -179,14 +185,16 @@ public partial class ShipDemo
                 X = o.X + ob.Pos.X, Z = o.Z + ob.Pos.Z,
                 Cap = Compass.HeadingDeg(of),
                 Erre = ob.Vel.LengthXZ,
-                Hostile = _hostile.ContainsKey(other)
+                Hostile = _hostile.ContainsKey(other),
+                Nom = other.Christened ?? "",
+                Nation = other.Ensign?.Id ?? ""
             });
         }
         s.Quetes = _quests?.ToJson() ?? "";
         s.Journal = _journal.Pages.Count > 0 ? _journal.ToJson() : "";
         s.Carnets = BooksNow();
         s.Lieu = Where();
-        s.Nom = $"{_ship.Spec.Name} — {s.Lieu}, {_calendar.Date:dd/MM/yyyy}";
+        s.Nom = $"{_ship.Styled} — {s.Lieu}, {_calendar.Date:dd/MM/yyyy}";
         return s;
     }
 
@@ -392,6 +400,7 @@ public partial class ShipDemo
         _colours = s.Pavillon;
         _ship.ShowColours(_colours, true);
         _ship.SyncTransform();
+        if (s.Bapteme.Length > 0) _ship.Christen(s.Bapteme);
 
         // le carnet et les quêtes ont été reposés dans leurs fichiers avant le rechargement
 
@@ -411,6 +420,9 @@ public partial class ShipDemo
             ob.Vel = ob.Quat.Rotate(new Vec3d(0, 0, c.Erre));
             ob.AngVel = Vec3d.Zero;
             other.SyncTransform();
+            // ses couleurs, puis le nom qu elle portait dessous
+            if (_nations.All.Find(x => x.Id == c.Nation) is { } nat) other.SetEnsign(nat.Image, nat);
+            if (c.Nom.Length > 0) other.Christen(c.Nom);
             if (c.Hostile) { _hostile[other] = (_ship, 0); Alarm(other, now: true); }
         }
 

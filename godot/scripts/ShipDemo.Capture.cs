@@ -317,6 +317,10 @@ public partial class ShipDemo
                 // un navire en paix par notre travers, et le feu ouvert sur lui (ShipDemo.Readiness.cs)
                 // la hauteur de l'œil relevée N secondes : moyenne, écart, plus grand saut d'une image à l'autre
                 case "--mesure-oeil": _eyeProbe = args[i + 1].ToFloat(); break;
+                // le nom en lettres, écrit en image (ShipDemo.Names.cs)
+                case "--nom-essai": NameProof(args[i + 1]); break;
+                // un guide de nom d essai sur le tableau du navire, qu on remet à l eau (NameBoard)
+                case "--nom-guide": NameBoard.TestGuide = args[i + 1] != "0"; NameBoard.TestInset = args[i + 1].ToFloat(); Launch(_index); break;
                 case "--surprise": _surpriseTest = args[i + 1]; _askTitle ??= false; break;
                 case "--heurter": _bumpTest = args[i + 1]; _askTitle ??= false; break;
                 case "--instruments": _info.Visible = args[i + 1] != "0"; break;

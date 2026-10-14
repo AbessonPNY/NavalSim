@@ -76,7 +76,7 @@ public partial class ShipDemo
         var cut = ph.Body.Quat.Rotate(new Vec3d(0, 0, zCut)) + ph.Body.Pos;
         _wreckAir.Churn(cut.X, cut.Z, Math.Max(8, s.Spec.L * 0.5), 45, 1.5);
         Reprofile(s, double.NegativeInfinity, zCut);
-        Say(s == _ship ? "La soute nous coupe en deux !" : $"Le {s.Spec.Name} se rompt en deux !");
+        Say(s == _ship ? "La soute nous coupe en deux !" : $"{ShipNames.Cap(s.TheName)} se rompt en deux !");
         GD.Print(FormattableString.Invariant($"rupture de {s.Spec.Id} a la cloison {k} (z {zCut:F1} m) : coupe du bois {cutMs:F1} ms, en tout {clock.Elapsed.TotalMilliseconds:F1} ms"));
     }
 

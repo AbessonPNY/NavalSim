@@ -233,6 +233,7 @@ public partial class ShipDemo : Node3D
         Config.HelmKeepsTack = true;
         Config.HullYawDamp = true;
         Config.GentleHits = true;
+        Config.ImmersionDrag = true;
         // la godille au safran : des coups de barre secs poussent l eau même navire arrêté
         Config.RudderScull = true;
         // ce que coûte la carte (MapCost) : le monde lu, son terrassement, ses retouches
@@ -296,7 +297,7 @@ public partial class ShipDemo : Node3D
                joueur, qui n a pas encore de navire. */
             if (_mooredOn)
             {
-                _moored = new MooredNode(_world) { Range = _mooredRange, Flotte = _mooredShips, Editor = _editReg };
+                _moored = new MooredNode(_world) { Range = _mooredRange, Flotte = _mooredShips, Editor = _editReg, NameFor = MooredName };
                 AddChild(_moored);
             }
             /* ET LE SOLVEUR APPREND OÙ ILS SONT. Une fois : un ponton ne bouge pas.

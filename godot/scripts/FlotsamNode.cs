@@ -271,7 +271,7 @@ public partial class FlotsamNode : Node3D
            n'en jette pas. À quelle fréquence est une règle de JEU, pas une
            propriété de l'objet — settings.json répond. */
         if (!player && BottleOneIn > 0 && _rng.Randf() * BottleOneIn < 1)
-            Float("bottle", wx + (_rng.Randf() - 0.5) * 10, wz + (_rng.Randf() - 0.5) * 10, s.Spec.Name);
+            Float("bottle", wx + (_rng.Randf() - 0.5) * 10, wz + (_rng.Randf() - 0.5) * 10, s.Called);
         OnWreck?.Invoke(s);
     }
 

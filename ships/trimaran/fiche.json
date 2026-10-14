@@ -1,6 +1,7 @@
 {
   "id": "trimaran",
   "name": "Trimaran",
+  "unique": 1,
   "note": "ANACHRONISME ASSUMÉ (demandé, 12/10/2026) : un trimaran de croisière de dix-huit mètres, d après celui du film Waterworld (1995) — une coque centrale fine et deux flotteurs reliés par des bras. COQUE CENTRALE : 18 m sur 2,1, peu de tirant (0,6 m) et une dérive de 1,6 m (keelExtra) qui seule le tient au vent. FLOTTEURS : 14 m sur 1,25, leur axe à 5,4 m de celui de la coque — 12 m hors tout. Ils sont levés (hauteur 0,75) pour EFFLEURER l eau au repos (2 % de leur volume) : un trimaran se pose sur sa coque centrale et ne s appuie sur un flotteur qu à la gîte ; c est le flotteur sous le vent qui le redresse, et celui au vent qui vole (dès 2°). Chacun déplace, enfoncé jusqu au livet, 138 % du bateau entier — la règle des trimarans de croisière, 100 à 150 % : à 20° il porte tout le bateau à 73 % de son volume. 12 t, flotteurs à 5 % chacun. Banc « stabilite » : GZ max 5,3 m à 20° (625 kN·m, presque le poids fois l écart des flotteurs), chavire au-delà de 98°, et à l envers il y reste. GRÉEMENT : un mât, grand-voile bermudienne et foc, 95 m². Pas de machine. LIMITES ACTUELLES : la mer ne connaît que le contour de la coque centrale (hull_gap, collier d écume, ombre) ; les flotteurs n ont ni collier ni sillage, et ne heurtent ni pontons, ni fonds, ni autres coques. Le modèle viendra plus tard : d ici là, les trois coques et leurs bras sont dessinés d après leurs lignes. Banc : dotnet run --project core/NavalSim.Lab -c Release -- stabilite trimaran",
 
   "hull": {

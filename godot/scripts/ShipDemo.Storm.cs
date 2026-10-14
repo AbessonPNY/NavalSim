@@ -168,7 +168,7 @@ public partial class ShipDemo
     KrakenPrey PreyOf(ShipNode s)
     {
         if (_preys.TryGetValue(s, out var p)) return p;
-        p = new KrakenPrey { Physics = s.Physics, Tops = s.MastTops, DeckNear = s.DeckNear, Name = s.Spec.Name };
+        p = new KrakenPrey { Physics = s.Physics, Tops = s.MastTops, DeckNear = s.DeckNear, Name = s.Called };
         _preys[s] = p;
         _preyShip[p] = s;
         return p;
@@ -179,18 +179,18 @@ public partial class ShipDemo
        assez près pour qu'on le voie, à moins de trois kilomètres. */
     static readonly Dictionary<string, (string Mine, string Other)> KrakenSays = new()
     {
-        ["appear"] = ("Quelque chose d’énorme remue sous la houle…", "Quelque chose d’énorme remue sous la houle, près du {n}…"),
-        ["approach"] = ("Le kraken se rapproche !", "Le kraken se rapproche du {n} !"),
-        ["grip"] = ("Le kraken enlace le navire !", "Le kraken enlace le {n} !"),
-        ["beaten"] = ("Touché ! Le kraken lâche prise et sombre dans les profondeurs.", "Le kraken lâche le {n} et sombre dans les profondeurs."),
-        ["flee"] = ("Le kraken renonce : vous l’avez distancé.", "Le {n} a distancé le kraken."),
+        ["appear"] = ("Quelque chose d’énorme remue sous la houle…", "Quelque chose d’énorme remue sous la houle, près {du}…"),
+        ["approach"] = ("Le kraken se rapproche !", "Le kraken se rapproche {du} !"),
+        ["grip"] = ("Le kraken enlace le navire !", "Le kraken enlace {le} !"),
+        ["beaten"] = ("Touché ! Le kraken lâche prise et sombre dans les profondeurs.", "Le kraken lâche {le} et sombre dans les profondeurs."),
+        ["flee"] = ("Le kraken renonce : vous l’avez distancé.", "{Le} a distancé le kraken."),
         ["storm"] = ("Le kraken regagne les profondeurs.", "Le kraken regagne les profondeurs.")
     };
 
     void KrakenSay((string Mine, string Other) t, KrakenPrey prey)
     {
         if (_preyShip.TryGetValue(prey, out var s) && s == _ship) { Say(t.Mine); return; }
-        if ((prey.Physics.Body.Pos - _ship.Physics.Body.Pos).Length <= 3000) Say(t.Other.Replace("{n}", prey.Name));
+        if ((prey.Physics.Body.Pos - _ship.Physics.Body.Pos).Length <= 3000) Say(t.Other.Replace("{du}", ShipNames.Du(prey.Name)).Replace("{Le}", ShipNames.Cap(ShipNames.Le(prey.Name))).Replace("{le}", ShipNames.Le(prey.Name)));
     }
 
     void WireKraken()
@@ -209,13 +209,13 @@ public partial class ShipDemo
         _kraken.OnMast = (prey, fall) =>
         {
             if (!_preyShip.TryGetValue(prey, out var s)) return;
-            KrakenSay(s.WoundMast(fall) ? ("Le kraken arrache un mât !", "Le kraken arrache un mât du {n} !")
-                                        : ("Le kraken tord un mât dans son étreinte !", "Le kraken tord un mât du {n} !"), prey);
+            KrakenSay(s.WoundMast(fall) ? ("Le kraken arrache un mât !", "Le kraken arrache un mât {du} !")
+                                        : ("Le kraken tord un mât dans son étreinte !", "Le kraken tord un mât {du} !"), prey);
         };
         _kraken.OnSail = prey =>
         {
             if (_preyShip.TryGetValue(prey, out var s) && s.SplitSail(false) >= 0)
-                KrakenSay(("Un bras du kraken déchire une voile !", "Le kraken déchire une voile du {n} !"), prey);
+                KrakenSay(("Un bras du kraken déchire une voile !", "Le kraken déchire une voile {du} !"), prey);
         };
     }
 

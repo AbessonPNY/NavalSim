@@ -325,7 +325,7 @@ public partial class ShipDemo
         else _bound[s] = spot.To;
         Colours(s);
         GD.Print(FormattableString.Invariant(
-            $"rencontre : {s.Spec.Name}{(black ? " (pavillon noir)" : "")} a {(spot.At - _ship.Physics.Body.Pos).Length:F0} m"));
+            $"rencontre : {s.Styled}{(black ? " (pavillon noir)" : "")} a {(spot.At - _ship.Physics.Body.Pos).Length:F0} m"));
     }
 
     // ------------------------------------------------------------------
@@ -370,7 +370,7 @@ public partial class ShipDemo
         string nat = prey.Ensign?.Nationalite ?? "marchand";
         Say($"Le canon au loin — un pirate s'acharne sur un navire {nat}");
         GD.Print(FormattableString.Invariant(
-            $"rencontre : {raider.Spec.Name} aux prises avec {prey.Spec.Name} ({nat}) a {(spot.At - _ship.Physics.Body.Pos).Length:F0} m"));
+            $"rencontre : {raider.Styled} aux prises avec {prey.Styled} ({nat}) a {(spot.At - _ship.Physics.Body.Pos).Length:F0} m"));
     }
 
     // ------------------------------------------------------------------

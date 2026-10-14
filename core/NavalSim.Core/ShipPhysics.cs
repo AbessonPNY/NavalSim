@@ -347,6 +347,8 @@ public sealed partial class ShipPhysics
     double _slamLast, _slamCool;
     // --- les anti-rebonds d'avarie ---
     double _hardAgo, _hardHit;
+    /// <summary>L'assiette lissée sur trois secondes, pour la traînée de la coque sur le nez (Config.ImmersionDrag).</summary>
+    double _trimLp;
     double _underFor;
     /// <summary>L'angle de la lame, qui suit la barre sans sauter (la godille) ; NaN avant la première image.</summary>
     double _blade = double.NaN;

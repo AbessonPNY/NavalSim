@@ -231,11 +231,11 @@ public static class ShipLibrary
                deux fois : « La Boussole 1597 » donne « La Boussole » et 1597. La
                fiche peut toujours trancher, mais elle n'a rien a redire quand le
                nom suffit. */
-            if (nom.Length > 5 && int.TryParse(nom.Substring(nom.Length - 4), out int fin)
-                && fin > 1000 && fin < 2100 && nom[nom.Length - 5] == ' ')
+            var (sans, fin) = ShipNames.SplitYear(nom);
+            if (fin > 0)
             {
                 if (year == 0) year = fin;
-                if (label.Length == 0) label = nom.Substring(0, nom.Length - 5);
+                if (label.Length == 0) label = sans;
             }
             if (label.Length == 0) label = nom;
 

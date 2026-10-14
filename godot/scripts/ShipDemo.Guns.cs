@@ -186,7 +186,7 @@ public partial class ShipDemo
             if (r == -2)
             {
                 Say(s == _ship ? "Une voile s'ouvre d'une ralingue à l'autre !"
-                               : $"Une voile du {s.Spec.Name} s'ouvre en deux !");
+                               : $"Une voile {s.OfName} s'ouvre en deux !");
             }
             // et ce qui est derrière la toile : la vergue, la hune, les haubans (GunnerySettings.SailMastWound)
             if (r != -1 && _stormRng.NextDouble() < _gunnery.Rules.SailMastWound * Math.Min(1, k) * Ball.Bite(speed, k))

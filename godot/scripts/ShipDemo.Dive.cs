@@ -81,7 +81,7 @@ public partial class ShipDemo
         string id = Guid.NewGuid().ToString("N")[..8];
         var w = Wrecks.Add(new Wreck
         {
-            Id = id, Ship = s.Spec.Id, Name = s.Spec.Name, Region = _world!.Region.Key,
+            Id = id, Ship = s.Spec.Id, Name = s.Called, Region = _world!.Region.Key,
             X = x, Z = z, Cap = Math.Atan2(f.X, f.Z),
             Depth = Math.Max(0, -_world.HeightAt(x, z)), Beam = s.Spec.B,
             Date = $"{_calendar.Date:dd/MM/yyyy}", Hour = _sky.Core.DayTime,

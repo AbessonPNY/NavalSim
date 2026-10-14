@@ -132,6 +132,11 @@ public sealed class ModelSpec
     /// </summary>
     [JsonPropertyName("scale")]      public double? Scale { get; set; }
     /// <summary>
+    /// La couleur des lettres de son nom (0xrrggbb), peintes sur les objets <c>nom</c> du
+    /// modèle ; absente, celle de ships/noms.json. Voir ships/README.md, « Le nom ».
+    /// </summary>
+    [JsonPropertyName("lettrage")]   public string? Lettering { get; set; }
+    /// <summary>
     /// Ce que la fiche tient hors du gréement, par morceau de nom : une pièce qui
     /// a la forme d'un espar sans en être un (une fenêtre de château, un fanal).
     /// </summary>
@@ -421,6 +426,13 @@ public sealed class ShipJson
     /// pour un marchand. Le pavillon noir d'un forban démasqué passe toujours devant.
     /// </summary>
     [JsonPropertyName("nation")] public string? Nation { get; set; }
+    /// <summary>
+    /// UN NAVIRE ET NON UN TYPE : <c>1</c> (ou <c>true</c>) garde le nom de la fiche. Absent,
+    /// la coque reçoit à chaque mise à l'eau un nom tiré dans ships/noms.json (ShipNames).
+    /// </summary>
+    [JsonPropertyName("unique")] public JsonElement? Unique { get; set; }
+    /// <summary>Ce qu'elle est, en un mot (« sloop », « goélette ») : dit après le nom d'une coque générique.</summary>
+    [JsonPropertyName("type")]   public string? Type { get; set; }
     [JsonPropertyName("rig")]    public RigSpec Rig { get; set; } = new();
     [JsonPropertyName("model")]  public ModelSpec? Model { get; set; }
     [JsonPropertyName("appearance")] public AppearanceSpec Appearance { get; set; } = new();
@@ -471,6 +483,12 @@ public sealed class ShipSpec
     public string Resolve(string? p) =>
         string.IsNullOrEmpty(p) || p.Contains('/') || p.Contains('\\') || Folder.Length == 0 ? p ?? "" : Folder + "/" + p;
     public string Name { get; }
+    /// <summary>Le nom de la fiche sans son millésime : celui qu'on dit en jeu.</summary>
+    public string Label { get; }
+    /// <summary>Un navire nommé par sa fiche (« unique »), et non un type qui reçoit un nom à la mise à l'eau.</summary>
+    public bool Unique { get; }
+    /// <summary>Ce qu'elle est, en un mot (« sloop ») ; vide si la fiche ne le dit pas.</summary>
+    public string Type { get; }
     public string Note { get; }
     /// <summary>L'identifiant de la chaloupe qu'elle porte, vide si elle n'en porte pas.</summary>
     public string Boat { get; }
@@ -573,6 +591,11 @@ public sealed class ShipSpec
         Raw = json;
         Id = json.Id;
         Name = json.Name;
+        Label = ShipNames.SplitYear(json.Name).Label;
+        Unique = json.Unique is { } u && (u.ValueKind == JsonValueKind.True
+                 || (u.ValueKind == JsonValueKind.Number && u.GetDouble() != 0)
+                 || (u.ValueKind == JsonValueKind.String && u.GetString() is "1" or "true" or "oui"));
+        Type = json.Type ?? "";
         Note = json.Note ?? "";
         /* LA CHALOUPE QU'ELLE PORTE — l'identifiant d'une autre fiche. UNE CHALOUPE
            EST UN NAVIRE : rien d'autre n'est nécessaire, ni classe, ni cas

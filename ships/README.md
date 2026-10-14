@@ -68,6 +68,37 @@ alors que ces couleurs, en rade comme au large — un vaisseau du roi n'en chang
 Absent, la nation est tirée au poids, comme pour un marchand. Le pavillon noir d'un forban démasqué
 passe toujours devant.
 
+## Son nom — `"unique"`, `"type"`, `ships/noms.json`
+
+**Une fiche est un TYPE de bâtiment.** Chaque coque mise à l'eau reçoit un nom de baptême tiré
+dans `ships/noms.json`, dans la liste de la nation sous laquelle elle paraît (`"pirate"` pour
+le pavillon noir) ; deux coques à flot ne portent pas le même nom tant que la liste en a d'autres.
+Le nom se fixe à la fin de l'image de sa mise à l'eau, sur le pavillon qu'elle a alors : un forban
+qui se démasque plus tard garde son nom de marchand. Celui du navire du joueur et ceux des coques
+autour de lui sont sauvegardés ; une rade tire les siens à graine (port, poste), elle revient la même.
+
+| champ | rôle |
+|---|---|
+| `"unique": 1` | **un navire et non un type** : il garde le nom de sa fiche, moins son millésime (« HMS Roebuck »). Aussi pour ce qui n'est pas un navire qu'on baptise : bouée, caisse, chaloupe, dériveur moderne |
+| `"type"` | ce qu'elle est, en un mot (`"sloop"`, `"goélette"`) : dit après le nom d'une coque générique — « Speedwell, sloop » |
+| `model.lettrage` | la couleur des lettres peintes (`"0x1a1410"`) ; absente, celle de `noms.json` (`lettrage.encre`) |
+
+**Le nom peint sur la poupe.** Un objet du `.glb` dont le nom est `nom` — au début ou après un
+séparateur, suivi d'un séparateur, d'un chiffre ou de rien : `nom`, `nom_poupe`, `Nom.001`,
+`name`, `nameboard` — est un **guide** : un plan mince posé là où les lettres iront. Il n'est
+jamais dessiné. Le jeu y projette le nom (un décalque, qui prend la lumière, la brume et la neige
+du bois qui est derrière), centré, à la proportion du plan, sur deux lignes s'il est trop long.
+
+- Posez le plan **à fleur du bois** (le décalque porte à 30 cm de part et d'autre) et **face au
+  dehors** — l'orientation des faces ne compte pas, le jeu prend le côté opposé au centre de la coque.
+- Le **haut des lettres** est le haut du navire : un tableau incliné garde ses lettres droites.
+- Plusieurs guides (tableau, joues de poupe, bossoirs) : le même nom sur chacun.
+- Un nœud vide (un *Empty* de Blender) vaut son cube unité : réglez sa taille par son échelle,
+  la plus petite dimension faisant l'épaisseur.
+- Les lettres se lisent jusqu'à 400 m (la lunette), puis s'effacent.
+- Essai sans modèle : `-- --nom-guide 0.7` pose un guide sur le tableau (0,7 m en avant du bout
+  de la coque), `-- --nom-essai "La Bonne Espérance"` écrit le nom en image dans `user://nom-essai.png`.
+
 Une fiche illisible est ignorée avec un avertissement en console — elle
 n'empêche jamais les autres navires de se charger.
 

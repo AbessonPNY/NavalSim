@@ -33,12 +33,12 @@ public partial class ShipDemo
         foreach (var (node, _) in _targets) if (node != _ship && !all.Contains(node)) all.Add(node);
         foreach (var s in all)
             if (s.Physics.Foundered && _sunkLogged.Add(s))
-                GD.Print(FormattableString.Invariant($"[combat] {_t:F0} s : {s.Spec.Name} COULE — {Line(s)}"));
+                GD.Print(FormattableString.Invariant($"[combat] {_t:F0} s : {s.Called} COULE — {Line(s)}"));
         if (_t < _combatLogAt) return;
         _combatLogAt = _t + _combatLogEvery;
         GD.Print(FormattableString.Invariant($"[combat] --- {_t:F0} s"));
         foreach (var s in all)
-            if (!s.Physics.Foundered) GD.Print("[combat]   " + s.Spec.Name + " : " + Line(s));
+            if (!s.Physics.Foundered) GD.Print("[combat]   " + s.Called + " : " + Line(s));
     }
 
     string Line(ShipNode s)

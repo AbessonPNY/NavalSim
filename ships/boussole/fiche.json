@@ -1,6 +1,7 @@
 {
   "id": "boussole",
   "name": "La Boussole 1597",
+  "unique": 1,
   "note": "JUMELLE DE LA ROTER LOWE, et pour l instant sa copie exacte : meme coque, meme voilure, meme modele a un fichier pres (hero_ship.glb). Elle est la pour EVOLUER — c est le navire du joueur, celui qu on refond. Tant qu un champ n a pas ete touche ici, il vaut ce qu il vaut dans frigate17e.json, et les deux fiches doivent etre lues ensemble. Petit galion de 30 m, 240 t : demi-echelle de la fregate de 60 m. Longueurs en x0,5, voilure en x0,25, vitesse machine en x racine(0,5). rudder.power revient a 91,5, etant par unite de surface.",
   "hull": {
     "length": 30,

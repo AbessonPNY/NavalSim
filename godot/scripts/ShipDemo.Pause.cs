@@ -85,8 +85,8 @@ public partial class ShipDemo
             b.Pressed += go;
             ask.AddChild(b);
         }
-        Answer("Enregistrer", () => { var go = _leaveGo; CloseAsk(); SaveGame(); go?.Invoke(); });
-        Answer("Ne pas enregistrer", () => { var go = _leaveGo; CloseAsk(); go?.Invoke(); });
+        Answer("Enregistrer", () => Depart(true));
+        Answer("Ne pas enregistrer", () => Depart(false));
         Answer("Annuler", CloseAsk);
     }
 
@@ -98,10 +98,29 @@ public partial class ShipDemo
     /// </summary>
     void Leave(Action go)
     {
-        if (_skirmish || _gameId.Length > 0) { SaveGame(false); go(); return; }
+        if (_skirmish || _gameId.Length > 0) { SaveGame(false); HidePause(); go(); return; }
         _leaveGo = go;
         _pauseMain!.Visible = false;
         _leaveAsk!.Visible = true;
+    }
+
+    /* ON PART : tout le menu s'efface AVANT. Refermer la question réaffichait ses entrées, et Godot ne
+       quitte qu'à la fin de l'image : « Quitter le jeu » revenait un instant à l'écran (signalé). */
+    void Depart(bool save)
+    {
+        var go = _leaveGo;
+        HidePause();
+        if (save) SaveGame();
+        go?.Invoke();
+    }
+
+    void HidePause()
+    {
+        _leaveGo = null;
+        if (_leaveAsk != null) _leaveAsk.Visible = false;
+        if (_pause != null) _pause.Visible = false;
+        // its entries back for the next time it opens; hidden with it until then
+        if (_pauseMain != null) _pauseMain.Visible = true;
     }
 
     void CloseAsk()

@@ -136,6 +136,14 @@ public static class Config
     public static bool GentleHits = false;
 
     /// <summary>
+    /// LA RÉSISTANCE VA COMME L'ENFONCEMENT (ShipPhysics.Step) : la carène mouillée grandit avec le volume
+    /// immergé (puissance 2/3), et un pont noyé LABOURE — ½ ρ Cd A v², A la largeur du pont fois l'eau
+    /// au-dessus. Sans elle, un navire sombrant par l'avant filait encore quinze nœuds (signalé). Éteint
+    /// dans le noyau (parité), allumé par Godot.
+    /// </summary>
+    public static bool ImmersionDrag = false;
+
+    /// <summary>
     /// LA GODILLE AU SAFRAN (ShipPhysics, « LA GODILLE ») : une lame qu'on balaie
     /// pousse l'eau même navire arrêté. Éteinte dans le noyau — la page n'en sait
     /// rien, le banc de parité compare les coques —, allumée par Godot.

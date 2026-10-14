@@ -1,6 +1,7 @@
 {
   "id": "bouee-canard",
   "name": "Bouée canard",
+  "unique": 1,
   "note": "Bouee de chenal a tete de canard. LA FOURCHETTE DE 30-45% D IMMERSION NE S APPLIQUE PAS ICI : elle est ecrite pour des coques de navire, et une bouee a precisement pour raison d etre de se voir de loin. Reglee a 1,6 t elle tenait ses 37% reglementaires et le collier etait a moitie noye, ce qui est une bouee qui coule. A 0,4 t elle porte 68% de sa hauteur hors de l eau, le collier pose sur la surface et la tete bien au clair, pour 0,39 m de tirant. Raide sans lest : 2,12 m de bau pour 2,65 de long donnent assez de stabilite de forme pour 1 a 2 degres de gite de force 4 a force 8. Pas de greement, pas de batterie : les detecteurs ne trouvent rien dans un canard, et c est le comportement voulu.",
   "hull": {
     "length": 2.65,

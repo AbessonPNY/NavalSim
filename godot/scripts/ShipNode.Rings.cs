@@ -285,7 +285,7 @@ public partial class ShipNode
     /// et la sphère d'énergie s'en servent tous deux : ce sont les mêmes raisons
     /// (protéger les mesures de coque) et la même mécanique.
     /// </summary>
-    static List<(Node3D Node, Transform3D Parent)> Detach(Node3D obj, Regex re)
+    internal static List<(Node3D Node, Transform3D Parent)> Detach(Node3D obj, Regex re)
     {
         var found = new List<(Node3D Node, Transform3D Parent, int Depth)>();
         var stack = new Stack<(Node Node, Transform3D Acc, int Depth)>();
@@ -697,6 +697,7 @@ public partial class ShipNode
     /// <summary>La copie s en va avec le navire : rien ne doit rester dans la scène.</summary>
     public override void _ExitTree()
     {
+        ReleaseName();
         /* EN DIFFÉRÉ : on sort de l'arbre au moment où Godot est justement en
            train d'en retirer des nœuds, et RemoveChild y est refusé — il le dit en
            rouge à chaque fermeture. QueueFree seul suffirait à libérer la copie,

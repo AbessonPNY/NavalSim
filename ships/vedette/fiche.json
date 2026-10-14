@@ -1,6 +1,7 @@
 {
   "id": "vedette",
   "name": "Vedette Albatros",
+  "unique": 1,
   "note": "Vedette moderne pour le debogage : parcourir vite les distances de la carte. Anachronique exprès. Coque procedurale fine, avant eleve, tableau large ; 18 t, machine donnee pour 20 m/s (39 noeuds). engine.speedLimit releve le garde-fou du solveur (40 m/s ailleurs) : l elan de B y trouve de la place. Pas de modele de glissement : c est une coque a deplacement menee tres vite.",
 
   "hull": {

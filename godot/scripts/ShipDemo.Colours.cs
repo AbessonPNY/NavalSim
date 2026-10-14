@@ -52,7 +52,7 @@ public partial class ShipDemo
         h.Standoff = 0;
         h.Target = her + away * (2500 / d);          // droit à l'opposé de vous
         h.Update(dt, _sea.Core, s.Ctrl);
-        if (_waried.Add(s)) Say(s.Spec.Name + " fait porter au large : vous ne montrez pas vos couleurs");
+        if (_waried.Add(s)) Say(ShipNames.Cap(s.TheName) + " fait porter au large : vous ne montrez pas vos couleurs");
         return true;
     }
 

@@ -276,7 +276,38 @@ public sealed partial class ShipPhysics
 
         // --- la résistance de coque : quadratique en route ; la quille lestée
         //     mord fort en travers, ce qui est ce qui borne la dérive ---
-        force += fwd * (-Math.Sign(vFwd) * vFwd * vFwd * S.Drag * inWater * HydroScale);
+        double dragK = 1;
+        if (Config.ImmersionDrag)
+        {
+            /* LA CARÈNE QUI S'ENFONCE FREINE PLUS, et le pont noyé laboure (Config.ImmersionDrag ;
+               signalé : « mon navire sombrait par l'avant en continuant de filer quinze nœuds »). Le
+               frottement va comme la surface mouillée, donc le volume immergé à la puissance deux tiers
+               (celui de la fiche pour 1). Et quand la mer passe par-dessus un pont, les pavois et le
+               gaillard poussent devant eux un mur d'eau : une traînée de corps non profilé, Cd 1, sur la
+               largeur du pont fois l'eau qui le couvre — la plus grande des tranches noyées, celle qui fait
+               front. Un navire sain qui embarque une lame par l'avant en est freiné un instant, ce qui est
+               vrai aussi. */
+            double v0 = Spec.Raw.DisplacementTonnes * 1000 / Config.Rho;
+            if (v0 > 0) dragK = Math.Pow(Math.Max(0.2, submergedVol / v0), 2.0 / 3.0);
+            double front = 0;
+            foreach (var c in Comps)
+            {
+                if (double.IsInfinity(c.DeckY)) continue;
+                Vec3d top = b.Quat.Rotate(new Vec3d(0, c.DeckY, c.Mid.Z)) + b.Pos;
+                double over = ocean.Sample(top.X, top.Z, t) - top.Y;
+                if (over > 0) front = Math.Max(front, Math.Min(over, 3.0) * 2 * c.HalfB);
+            }
+            if (front > 0) force += fwd * (-Math.Sign(vFwd) * 0.5 * Config.Rho * front * vFwd * vFwd * HydroScale);
+            /* ET SUR LE NEZ, LA COQUE ENTIÈRE FAIT FRONT : inclinée de θ, elle présente à l'eau sa longueur
+               fois sin θ sur toute sa largeur — une planche poussée de biais, Cd 0,8. Sur l'assiette LISSÉE
+               (trois secondes) et au-delà de quatre degrés : un navire sain qui tangue dans la houle n'en est
+               pas freiné, celui qui pique pour de bon l'est. */
+            double trimNow = Math.Asin(Math.Clamp(fwd.Y, -1, 1));
+            _trimLp += (trimNow - _trimLp) * Math.Min(1, dt / 3);
+            double tx = Math.Max(0, Math.Abs(_trimLp) - 0.07);
+            if (tx > 0) force += fwd * (-Math.Sign(vFwd) * 0.5 * Config.Rho * 0.8 * S.B * S.L * Math.Sin(tx) * vFwd * vFwd * HydroScale * inWater);
+        }
+        force += fwd * (-Math.Sign(vFwd) * vFwd * vFwd * S.Drag * inWater * HydroScale * dragK);
         force += right * ((-vRight * Math.Abs(vRight) * S.LateralQuad
                            - vRight * S.LateralLinear) * inWater * HydroScale);
 

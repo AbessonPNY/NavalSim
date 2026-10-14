@@ -161,9 +161,9 @@ public partial class ShipDemo
                 sb.Append(FormattableString.Invariant($"   c{br.Comp}  {br.Area * 1e4,5:F0} cm²  {head}  {(br.Cause.Length > 0 ? br.Cause : "?")}\n"));
             }
         }
-        One(_ship.Spec.Name, _ship.Physics);
+        One(_ship.Called, _ship.Physics);
         foreach (var o in _others)
-            if ((o.Physics.Body.Pos - me).LengthXZ < 1500) One(o.Spec.Name, o.Physics);
+            if ((o.Physics.Body.Pos - me).LengthXZ < 1500) One(o.Called, o.Physics);
         return shown == 0 ? "voies d'eau  aucune\n" : "voies d'eau\n" + sb;
     }
 

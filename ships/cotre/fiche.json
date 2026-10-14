@@ -1,6 +1,7 @@
 {
   "id": "cotre",
   "name": "Cotre Vigie",
+  "type": "cotre",
   "note": "Fiche générée depuis ships/models/cotre.glb. Les cotes viennent du maillage ; le tonnage vise ~36% d'immersion coque, à ajuster selon la charge voulue.",
   "hull": {
     "length": 24,

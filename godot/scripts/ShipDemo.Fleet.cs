@@ -123,7 +123,7 @@ public partial class ShipDemo
            Sauf sous pavillon noir : Arm lui a déjà donné son métier, et Steer
            passe le pirate avant tout le reste — un but ne ferait qu'y dormir. */
         if (!_pirates.ContainsKey(s) && Destination(o.X + x, o.Z + z) is { } to) _bound[s] = to;
-        Say(s.Spec.Name + " est à l'eau");
+        Say($"{ShipNames.Cap(s.TheName)}{(s.Christened != null && s.Spec.Type.Length > 0 ? $" ({s.Spec.Type})" : "")} est à l'eau");
         DrawFleet();
     }
 
@@ -151,7 +151,7 @@ public partial class ShipDemo
         row.AddThemeConstantOverride("separation", 8);
         var name = new Label
         {
-            Text = (helm ? "⚓ " : "") + s.Spec.Name,
+            Text = (helm ? "⚓ " : "") + s.Styled,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             ClipText = true
         };
