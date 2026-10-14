@@ -16825,3 +16825,23 @@ Au banc, `--hauteur auto` (l'arc réglé juste à une minute), Port-Royal, 8 oct
 une latitude fausse. C'est voulu ; à réviser si le jeu devient injouable de nuit.
 
 Piège : `--hauteur auto` sans `--capture` ne quitte pas — le jeu tourne jusqu'au `timeout`.
+
+SIGNALÉ (14/10) : « ça va trop vite », et la musique doit se couper sur Échap. Plans allongés (69 → 114 s : montée 30, quais 24, forts 24, départ 24, titre 12 ; les quais à ≈ 15 m/s) et `"lenteur"` dans la fiche, qui multiplie toutes les durées d'un coup. Échap coupe le thème en fondu, pendant le film (qu'il passe) comme après, tant que le morceau court encore en jeu ; le menu s'ouvre quand même.
+
+## Les heurts moins meurtriers ; les voies d'eau au panneau H (Godot)
+
+SIGNALÉ : « des bateaux qui coulent en 20 secondes parce qu'ils se sont heurtés ». Banc Lab « heurt » [a] [b] [tenu] [avant] : deux
+coques, la seconde lancée de travers contre la première, le charpentier du jeu (une voie bouchée toutes les 40 s, 0,12 m² au plus).
+CE QUI TUAIT : un trou de 18 cm de côté coule un sloop en une minute et demie — l'eau embarquée l'enfonce jusqu'au pont, et la mer
+entre ensuite par-dessus le plat-bord même la voie bouchée. Or le gain de vent du jeu fait filer dix nœuds et plus, et tout heurt
+allait au plafond de 0,3 m² (un toutes les cinq secondes tant que les coques frottaient) : vingt secondes. Config.GentleHits (Godot
+seul, la page garde l'ancien) : 2 m/s de travers au lieu de 1,5 pour enfoncer du chêne, un trou qui va comme la MASSE de l'autre
+rapportée à la sienne (racine, bornée de 0,25 à 4), 0,20 m² au plus, aux préceintes (0,6 du creux, plus haut, moins de charge), et UN
+PAR CONTACT — le délai ne court qu'une fois les coques séparées. Un choc, après : deux sloops à 6 m/s de travers (douze nœuds)
+embarquent 13 % et flottent (avant : les deux sombraient en 45 s) ; un sloop contre le Roebuck à 4 m/s, 11 % (avant : sombré) ; à 6 m/s
+le sloop sombre en 55 s, le Roebuck n'a rien. PIÈGE DU BANC : tenir le second navire de travers dix secondes le couchait jusqu'à
+embarquer par le plat-bord, SANS trou — un choc seul (tenu 0) dit le heurt.
+LES VOIES D'EAU au panneau H (demandé : « que je me rende compte ») : le navire commandé et ceux à moins de 1,5 km qui embarquent —
+l'eau, ce qui entre contre ce que rendent les pompes, et chaque trou : compartiment, aire, charge, CAUSE (Breach.Cause : un heurt (le
+nom de l'autre), la roche, un échouage, un boulet, la baleine, le serpent, la rupture, la soute). Essai : -- --voie 3 --instruments 1.
+

@@ -198,9 +198,9 @@ public sealed partial class ShipPhysics
         double keel = Lines.KeelY(tz), deck = Lines.DeckY(tz);
         double area = 2 * Lines.HalfB(tz) * (deck - keel) * 0.6;
         double y = keel + 0.25 * (deck - keel);
-        Breaches.Add(new Breach { Comp = k - 1, Area = area, X = 0, Y = y, Z = zCut - 0.5 });
+        Breaches.Add(new Breach { Comp = k - 1, Area = area, X = 0, Y = y, Z = zCut - 0.5, Cause = "la rupture" });
         CutArea = bow.CutArea = area;
-        bow.Breaches.Add(new Breach { Comp = k, Area = area, X = 0, Y = y, Z = zCut + 0.5 });
+        bow.Breaches.Add(new Breach { Comp = k, Area = area, X = 0, Y = y, Z = zCut + 0.5, Cause = "la rupture" });
 
         /* LES BOUTS GARDENT LEUR AIR. L'explosion de la soute ouvre tout le navire
            (BlowUp), ce qui est juste tant qu'il est d'un seul tenant. Coupé, le

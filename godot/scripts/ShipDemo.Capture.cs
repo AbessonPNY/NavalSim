@@ -288,6 +288,8 @@ public partial class ShipDemo
                    attendre qu une bataille veuille bien en tirer un au bon endroit.
                    L argument est sa hauteur sur l eau, en metres. */
                 case "--boulet": _shotY = args[i + 1].ToFloat(); _shotIn = 4.0; break;
+                // des voies d eau dans la coque, pour juger le panneau H (« voies d eau »)
+                case "--voie": for (int n = args[i + 1].ToInt(), k = 0; k < n; k++) _ship.Physics.MakeBreach(1 + k % Math.Max(1, _ship.Physics.Comps.Length - 2), 0.02 + 0.02 * k, 0.15 + 0.1 * k, k % 2 == 0 ? 1 : -1, "un essai (--voie)"); break;
                 case "--trous": _holesWanted = args[i + 1].ToInt(); _holesIn = 4.0; break;
                 // LE BEAUPRÉ, tout de suite : pour le voir tomber sans le canonner
                 case "--beaupre": if (args[i + 1] != "0") GD.Print("beaupré : " + (_ship.DropSprit() ? "il part" : "aucun reconnu")); break;

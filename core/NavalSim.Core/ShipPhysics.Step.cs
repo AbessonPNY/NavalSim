@@ -915,12 +915,12 @@ public sealed partial class ShipPhysics
             (int)Math.Floor(((zl + Spec.L / 2) / Spec.L) * Comps.Length)));
         if (hard)
         {
-            MakeBreach(comp, Math.Min(1.2, 0.25 * spd), 0.06, lx);
+            MakeBreach(comp, Math.Min(1.2, 0.25 * spd), 0.06, lx, "la roche");
             _hardAgo = 1.5;
         }
         else
         {
-            MakeBreach(comp, Math.Min(0.45, 0.06 * (spd - 2.0)), 0.06);
+            MakeBreach(comp, Math.Min(0.45, 0.06 * (spd - 2.0)), 0.06, 0, "un échouage");
             _hardAgo = 5;          // elle ne peut pas être percée deux fois dans un souffle
         }
     }
@@ -1084,6 +1084,8 @@ public sealed partial class ShipPhysics
                     if (pen <= 0) continue;
 
                     Touching = Math.Max(Touching, pen);
+                    // one hole per contact (Config.GentleHits): the clock re-arms only once they part
+                    if (Config.GentleHits && _hardHit > 0) _hardHit = Math.Max(_hardHit, 3);
 
                     // hors de son bordé, en travers, ramené dans le monde
                     double sx = Math.Sign(r2.X);
@@ -1119,12 +1121,32 @@ public sealed partial class ShipPhysics
                        pour enfoncer du chêne. */
                     Vec3d vo = ob.AngVel.Cross(pw - ob.Pos) + ob.Vel;
                     double impact = -(vp - vo).Dot(nrm);
-                    if (impact > 1.5 && _hardHit <= 0)
+                    double vMin = Config.GentleHits ? 2.0 : 1.5;
+                    if (impact > vMin && _hardHit <= 0)
                     {
                         int comp = Math.Min(Comps.Length - 1, Math.Max(0,
                             (int)Math.Floor(t * Comps.Length)));
-                        MakeBreach(comp, Math.Min(0.30, 0.04 * (impact - 1.2)), 0.42);
-                        _hardHit = 5;      // pas deux fois dans le même souffle
+                        if (Config.GentleHits)
+                        {
+                            /* LE HEURT, MOINS SENSIBLE (Config.GentleHits ; signalé : « des bateaux qui coulent en
+                               vingt secondes parce qu'ils se sont heurtés »). Au banc « heurt », un trou de 18 cm
+                               de côté coulait un sloop en une minute et demie, et le gain de vent du jeu, qui fait
+                               filer dix nœuds et plus, menait tout heurt au plafond de 0,3 m² — vingt secondes.
+                               Deux mètres par seconde de travers pour enfoncer du chêne ; un trou qui va comme la
+                               MASSE de l'autre rapportée à la sienne (un sloop qui donne dans un vaisseau s'ouvre,
+                               le vaisseau à peine) ; aux préceintes, plus haut, là où deux murailles se touchent ;
+                               et un seul par contact : il fallait qu'elles se séparent pour en ouvrir un autre,
+                               non qu'elles frottent cinq secondes de plus. */
+                            double ratio = Math.Clamp(ob.Mass / b.Mass, 0.25, 4);
+                            MakeBreach(comp, Math.Min(0.20, 0.03 * (impact - vMin) * Math.Sqrt(ratio)), 0.6, sgn,
+                                       "un heurt (" + oS.Name + ")");
+                            _hardHit = 3;
+                        }
+                        else
+                        {
+                            MakeBreach(comp, Math.Min(0.30, 0.04 * (impact - 1.2)), 0.42, 0, "un heurt (" + oS.Name + ")");
+                            _hardHit = 5;      // pas deux fois dans le même souffle
+                        }
                     }
                 }
             }

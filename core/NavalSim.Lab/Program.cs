@@ -76,6 +76,7 @@ switch (mode)
     case "contre": Contre(); break;
     case "abordage": Abordage(); break;
     case "approche": Approche(); break;
+    case "heurt": Heurt(); break;
     case "cap": CapTenu(); break;
     case "barre": BarreMain(); break;
     case "lacet": LacetCarene(); break;
@@ -2671,4 +2672,47 @@ void Ouverture()
         Console.WriteLine(sb);
     }
     Console.WriteLine("      x de 400 (gauche, ouest) à -1400 (droite, est)");
+}
+
+
+/* LE HEURT (signalé : « des bateaux qui coulent en 20 secondes parce qu'ils se sont heurtés »). Deux coques
+   cap au nord, la seconde poussée contre la première, de travers, à une vitesse donnée, et TENUE contre elle
+   comme un navire du jeu qui barre droit sur l'autre (sa vitesse de travers rendue à chaque image pendant
+   « tenu » secondes) ; puis on regarde deux minutes : les trous de chacune, ce qu'elles ont embarqué, et
+   quand elles sombrent. [fiche a] [fiche b] [tenu, s] */
+void Heurt()
+{
+    string an = args.Length > 1 ? args[1] : "sloop", bn = args.Length > 2 ? args[2] : "sloop";
+    double hold = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 10;
+    Config.GentleHits = !(args.Length > 4 && args[4] == "avant");          // as the game sets it
+    var sa = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, an)));
+    var sb = ShipSpec.FromJson(File.ReadAllText(ShipSpec.SheetIn(shipsDir, bn)));
+    Console.WriteLine(FormattableString.Invariant($"{sa.Name} heurtée par {sb.Name}, tenue contre elle {hold:F0} s"));
+    foreach (double cross in new[] { 2.0, 3.0, 4.0, 6.0 })
+    {
+        var ocean = new Ocean { Swell = 1.0, Time = 0 };
+        ocean.SetSeaState(3, 0);
+        var a = new ShipPhysics(sa, new HullLines(sa));
+        var b = new ShipPhysics(sb, new HullLines(sb));
+        var ctrl = new Controls { SailsSet = false };
+        a.Settle(ocean, ctrl); b.Settle(ocean, ctrl);
+        // the carpenter as in the game: one hole plugged every 40 s (PlugEvery), up to 0,12 m²
+        b.Body.Pos = new Vec3d(a.Body.Pos.X - (sa.B + sb.B) * 0.5 - 0.5, b.Body.Pos.Y, a.Body.Pos.Z);
+        b.Body.Vel = new Vec3d(cross, 0, 0);
+        var both = new List<ShipPhysics> { a, b };
+        double dt = 1.0 / 60, tt = 0, sunkA = -1, sunkB = -1;
+        while (tt < 120)
+        {
+            if (tt < hold) b.Body.Vel = new Vec3d(cross, b.Body.Vel.Y, b.Body.Vel.Z);
+            a.Step(dt, ocean, ctrl, tt, both); b.Step(dt, ocean, ctrl, tt, both); tt += dt;
+            if (sunkA < 0 && a.Foundered) sunkA = tt;
+            if (sunkB < 0 && b.Foundered) sunkB = tt;
+        }
+        string Of(ShipPhysics p, double sunk)
+        {
+            double area = 0; foreach (var br in p.Breaches) area += br.Area;
+            return FormattableString.Invariant($"{p.Breaches.Count} trou(s) {area:F3} m², {p.FloodVol / p.HullVolume * 100:F0} % de la coque embarquée{(sunk > 0 ? $", SOMBRÉE à {sunk:F0} s" : "")}");
+        }
+        Console.WriteLine(FormattableString.Invariant($"  de travers {cross:F1} m/s : heurtée {Of(a, sunkA)} ; l'autre {Of(b, sunkB)}"));
+    }
 }

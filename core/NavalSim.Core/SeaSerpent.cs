@@ -387,7 +387,7 @@ public sealed class SeaSerpent
         var local = b.Quat.Inverted().Rotate(at - b.Pos);
         int comp = Math.Clamp((int)Math.Floor((local.Z + sp.L * 0.5) / sp.L * Config.NComp), 0, Config.NComp - 1);
         double area = _next == "tail" ? U(0.18, 0.32) : U(0.10, 0.22);
-        prey.MakeBreach(comp, area, _next == "tail" ? 0.2 : 0.45);
+        prey.MakeBreach(comp, area, _next == "tail" ? 0.2 : 0.45, 0, "le serpent de mer");
         OnStrike?.Invoke(new SerpentStrike(_next, at, toHull, J / ms, area));
     }
 

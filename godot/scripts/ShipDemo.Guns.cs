@@ -261,7 +261,7 @@ public partial class ShipDemo
         var local = b.Quat.Inverted().Rotate(world - b.Pos);
         /* Et le trou va comme l'énergie QUI RESTE : entier à bout portant, les
            deux tiers à deux cents mètres, la moitié au bout du plein fouet. */
-        s.Physics.MakeBreach(index, _gunnery.Rules.ShotHole * k * k * bite, Math.Clamp(frac, 0, 1), local.X);
+        s.Physics.MakeBreach(index, _gunnery.Rules.ShotHole * k * k * bite, Math.Clamp(frac, 0, 1), local.X, "un boulet");
         /* ET PARFOIS LE FEU. Un boulet froid n'allume rien par lui-même ; ce qui
            prend est ce qu'il CREVE en passant — une gargousse qu'on portait, une
            lanterne de batterie, un baril de brai. D'où la chance, faible, et

@@ -34,7 +34,8 @@ public partial class ShipDemo
         // le chemin
         public readonly List<Vector3> Path = new(), Look = new();
         // le départ
-        public double Already = 0.35, Back = -70, BackUp = 28, Ahead = 90, AheadUp = 42, Side = 12;
+        public double Already = 0.35, Back = -70, BackUp = 28, Ahead = 90, AheadUp = 42, Side = 12,
+            LookFrom = 450, LookFromUp = 70, LookTo = 30, LookToUp = 4;
         // le titre
         public string Logo = "", Text = "", Size = "";
         public double Width = 0.55;
@@ -43,7 +44,7 @@ public partial class ShipDemo
     sealed class Opening
     {
         public string Port = "", Music = "";
-        public double Volume = 1, Guard = 12;
+        public double Volume = 1, Guard = 12, Slow = 1;
         public bool ToTheEnd = true;
         public readonly List<OpeningShot> Shots = new();
         // l'état du film
@@ -80,7 +81,7 @@ public partial class ShipDemo
             var o = new Opening
             {
                 Port = r.Str("port"), Music = r.Str("musique"), Volume = r.Num("volume", 1),
-                Guard = r.Num("garde", 12),
+                Guard = r.Num("garde", 12), Slow = Math.Clamp(r.Num("lenteur", 1), 0.2, 5),
                 ToTheEnd = !r.TryGetProperty("jusquauBout", out var tb) || tb.ValueKind != JsonValueKind.False
             };
             if (!r.TryGetProperty("plans", out var plans)) return o;
@@ -88,7 +89,7 @@ public partial class ShipDemo
             {
                 var s = new OpeningShot
                 {
-                    Name = p.Str("nom"), Type = p.Str("type"), Dur = Math.Max(1, p.Num("duree", 10)), Fade = p.Num("fondu"),
+                    Name = p.Str("nom"), Type = p.Str("type"), Dur = Math.Max(1, p.Num("duree", 10)) * o.Slow, Fade = p.Num("fondu"),
                     X = p.Num("x"), Z = p.Num("z"),
                     Already = p.Num("deja", 0.35), Side = p.Num("cote", 12),
                     Logo = p.Str("logo"), Text = p.Str("texte"), Width = p.Num("taille", 0.55)
@@ -100,6 +101,8 @@ public partial class ShipDemo
                 (s.R0, s.R1) = Pair("recul", 30, 400);
                 (s.Back, s.BackUp) = Pair("de", -70, 28);
                 (s.Ahead, s.AheadUp) = Pair("a", 90, 42);
+                (s.LookFrom, s.LookFromUp) = Pair("regardDe", 450, 70);
+                (s.LookTo, s.LookToUp) = Pair("regardA", 30, 4);
                 void Points(string k, List<Vector3> into)
                 {
                     if (!p.TryGetProperty(k, out var v)) return;
@@ -297,9 +300,11 @@ public partial class ShipDemo
         return (eye, look);
     }
 
-    /* LE DÉPART : par-dessus lui, de l'arrière à l'avant, un peu sur son flanc ; le
-       regard part de sa coque et finit loin devant, vers le large. On suit sa place
-       à plat — sa houle ne secoue pas l'œil. */
+    /* LE DÉPART (demandé) : l'œil part HAUT derrière lui, le regard vers le large,
+       et descend doucement ; le regard s'abaisse avec lui et le navire entre dans
+       le champ par le bas. « de » et « a » : la place de l'œil (en avant de
+       l'étrave, négatif derrière ; hauteur), « regardDe » et « regardA » : où il
+       regarde, de même. On suit sa place à plat — sa houle ne secoue pas l'œil. */
     (Vector3, Vector3) LeaverShot(Opening o, OpeningShot s, double u)
     {
         var ship = o.Leaver != null && IsInstanceValid(o.Leaver) && _others.Contains(o.Leaver) ? o.Leaver : _ship;
@@ -307,11 +312,13 @@ public partial class ShipDemo
         var fw = ship.GlobalTransform.Basis.Z; fw.Y = 0;
         fw = fw.LengthSquared() > 1e-6 ? fw.Normalized() : Vector3.Back;
         var side = new Vector3(fw.Z, 0, -fw.X);
-        double e = MathX.Smooth01(u);
-        float along = (float)(s.Back + (s.Ahead - s.Back) * e);
-        float up = (float)(s.BackUp + (s.AheadUp - s.BackUp) * e);
+        float e = (float)MathX.Smooth01(u);
+        float along = Mathf.Lerp((float)s.Back, (float)s.Ahead, e);
+        float up = Mathf.Lerp((float)s.BackUp, (float)s.AheadUp, e);
         var eye = P + fw * along + side * (float)s.Side + new Vector3(0, up, 0);
-        var look = P + fw * (float)(15 + 380 * e) + new Vector3(0, (float)(6 * (1 - e)), 0);
+        float lookAlong = Mathf.Lerp((float)s.LookFrom, (float)s.LookTo, e);
+        float lookUp = Mathf.Lerp((float)s.LookFromUp, (float)s.LookToUp, e);
+        var look = P + fw * lookAlong + new Vector3(0, lookUp, 0);
         return (eye, look);
     }
 
@@ -451,10 +458,15 @@ public partial class ShipDemo
     /// <summary>L'ouverture prend toutes les touches ; Échap, Entrée et Espace la passent.</summary>
     bool OpeningInput(InputEvent e)
     {
+        var key = e is InputEventKey k && k.Pressed && !k.Echo
+            ? (k.PhysicalKeycode != Key.None ? k.PhysicalKeycode : k.Keycode) : Key.None;
+        /* ÉCHAP COUPE LE THÈME (demandé), pendant le film comme après, quand il
+           court encore en jeu : on le passe, on n'en veut plus. Il s'éteint en
+           fondu, et l'ambiance du jeu reprend la main. Pendant la partie, la
+           touche poursuit sa route (le menu s'ouvre). */
+        if (key == Key.Escape) _themeFile = "";
         if (_opening == null) return false;
-        if (e is InputEventKey k && k.Pressed && !k.Echo
-            && (k.PhysicalKeycode != Key.None ? k.PhysicalKeycode : k.Keycode) is Key.Escape or Key.Enter or Key.KpEnter or Key.Space)
-            EndOpening();
+        if (key is Key.Escape or Key.Enter or Key.KpEnter or Key.Space) EndOpening();
         return e is InputEventKey or InputEventMouseButton;
     }
 }

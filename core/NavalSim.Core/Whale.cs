@@ -398,7 +398,7 @@ public sealed class Whale
         // la voie d'eau : dans le compartiment touché, bas, d'autant plus large qu'elle allait vite
         int comp = Math.Clamp((int)Math.Floor((local.Z + halfL) / sp.L * Config.NComp), 0, Config.NComp - 1);
         double area = Math.Clamp(0.05 * vRel, 0.08, 0.5);
-        prey.MakeBreach(comp, area, 0.18);
+        prey.MakeBreach(comp, area, 0.18, 0, "la baleine");
         Rams++;
         OnRam?.Invoke(new WhaleRam(nose, dir, vRel, J / ms, comp, area));
         // sonnée, elle plonge et s'écarte

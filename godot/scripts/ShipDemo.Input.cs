@@ -126,6 +126,7 @@ public partial class ShipDemo
             $"machine    {_ship.Ctrl.Throttle,6:F2}      barre     {_ship.Ctrl.Rudder,5:F2}\n" +
             $"écoutes    {_ship.Ctrl.Sheet,6:F2}      voiles    {voiles} · {ReefName()}\n" +
             (_ship.SnowCover > 0.01 ? $"neige sur le pont {_ship.SnowCover * 100:F0} %\n" : "") +
+            Leaks() +
             $"\n" +
             /* CE QUI RESTE DE LA NOTICE : une ligne. Les deux qui couraient ici
                d'un bord à l'autre de l'image sont passées sous F1 — un instrument
@@ -133,6 +134,37 @@ public partial class ShipDemo
                Ne restent que les deux états qu'on veut voir SANS ouvrir quoi que
                ce soit : la vue où l'on est, et si la météo se conduit seule. */
             $"F1 commandes      vue {CamName()}      ⇧H instruments";
+    }
+
+    /// <summary>
+    /// LES VOIES D'EAU, au panneau H (demandé : « que je me rende compte »). Le navire commandé et ceux à moins
+    /// de 1,5 km qui embarquent : la part de la coque emplie, ce qui entre contre ce que les pompes rendent,
+    /// et chaque trou — son compartiment, son aire, l'eau au-dessus de lui, ce qui l'a ouvert.
+    /// </summary>
+    string Leaks()
+    {
+        var sb = new System.Text.StringBuilder();
+        var me = _ship.Physics.Body.Pos;
+        int shown = 0;
+        void One(string name, ShipPhysics p)
+        {
+            if (shown >= 6 || (p.Breaches.Count == 0 && p.FloodVol < 0.01)) return;
+            shown++;
+            double inflow = 0;
+            foreach (var br in p.Breaches) inflow += 0.62 * br.Area * Math.Sqrt(2 * Config.G * Math.Max(0, br.Head));
+            sb.Append(FormattableString.Invariant($" {name}  eau {p.FloodVol / Math.Max(1, p.HullVolume) * 100:F0} %  entre {inflow:F2} m³/s, pompes {(p.PumpOn ? p.PumpRate : 0):F3}{(p.Foundered ? "  SOMBRÉ" : "")}\n"));
+            int k = 0;
+            foreach (var br in p.Breaches)
+            {
+                if (k++ >= 4) { sb.Append($"   … et {p.Breaches.Count - 4} autre(s)\n"); break; }
+                string head = br.Head > 0 ? FormattableString.Invariant($"{br.Head:F1} m sous l'eau") : "hors de l'eau";
+                sb.Append(FormattableString.Invariant($"   c{br.Comp}  {br.Area * 1e4,5:F0} cm²  {head}  {(br.Cause.Length > 0 ? br.Cause : "?")}\n"));
+            }
+        }
+        One(_ship.Spec.Name, _ship.Physics);
+        foreach (var o in _others)
+            if ((o.Physics.Body.Pos - me).LengthXZ < 1500) One(o.Spec.Name, o.Physics);
+        return shown == 0 ? "voies d'eau  aucune\n" : "voies d'eau\n" + sb;
     }
 
     CheckBox? _chkFullscreen;

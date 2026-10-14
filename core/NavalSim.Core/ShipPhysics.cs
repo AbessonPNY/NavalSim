@@ -99,6 +99,8 @@ public sealed class Breach
     public double X, Y, Z;
     /// <summary>La charge d'eau sur elle au dernier pas, en m (négative : au-dessus de l'eau).</summary>
     public double Head;
+    /// <summary>Ce qui l'a ouverte, en mots — pour le panneau de débogage (H) : « un heurt (Sloop…) », « la roche »…</summary>
+    public string Cause = "";
 }
 
 /// <summary>Un colis arrimé. Du poids MORT : il n'apporte aucune carène liquide.</summary>
@@ -640,7 +642,7 @@ public sealed partial class ShipPhysics
     /// compte : un trou au-dessus n'admet rien tant qu'elle ne s'assoit pas
     /// dessus.
     /// </summary>
-    public Breach? MakeBreach(int index, double area = 0.35, double heightFrac = 0.25, double side = 0)
+    public Breach? MakeBreach(int index, double area = 0.35, double heightFrac = 0.25, double side = 0, string cause = "")
     {
         if (index < 0 || index >= Comps.Length) return null;
         var c = Comps[index];
@@ -652,7 +654,8 @@ public sealed partial class ShipPhysics
             // au bordé du côté touché : c'est ce bord qui s'enfonce qui l'embarque
             X = Math.Sign(side) * c.HalfB,
             Y = c.KeelY + (c.DeckY - c.KeelY) * heightFrac,
-            Z = c.Mid.Z
+            Z = c.Mid.Z,
+            Cause = cause
         };
         Breaches.Add(br);
         return br;
@@ -668,7 +671,7 @@ public sealed partial class ShipPhysics
     /// </summary>
     public Breach? WorsenBreach()
     {
-        if (Breaches.Count == 0) return MakeBreach(1, 0.05, 0.30);
+        if (Breaches.Count == 0) return MakeBreach(1, 0.05, 0.30, 0, "une couture qui cède");
         var br = Breaches[0];
         br.Area *= 2.0;
         int spread = (int)Math.Floor(Math.Log2(br.Area / 0.05));
@@ -677,7 +680,7 @@ public sealed partial class ShipPhysics
             int i = br.Comp + (k % 2 != 0 ? k : -k);
             if (i < 0 || i >= Comps.Length) continue;
             if (Breaches.Exists(o => o.Comp == i)) continue;
-            MakeBreach(i, br.Area * 0.4, 0.30);
+            MakeBreach(i, br.Area * 0.4, 0.30, 0, "la voie voisine qui s'étend");
         }
         return br;
     }
@@ -693,7 +696,7 @@ public sealed partial class ShipPhysics
     public void BlowUp()
     {
         Breaches.Clear();
-        for (int i = 0; i < Comps.Length; i++) MakeBreach(i, 2.4, 0.05);
+        for (int i = 0; i < Comps.Length; i++) MakeBreach(i, 2.4, 0.05, 0, "la soute qui saute");
         PumpOn = false;
         /* Et elle est déjà ouverte à la mer : une explosion ne la fait pas
            poliment commencer à embarquer depuis zéro. Un cinquième de son volume

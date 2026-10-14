@@ -129,6 +129,13 @@ public static class Config
     public static bool HullYawDamp = false;
 
     /// <summary>
+    /// LE HEURT ENTRE DEUX COQUES, MOINS SENSIBLE (ShipPhysics.Collide) : 2 m/s de travers au lieu de 1,5,
+    /// un trou qui va comme le rapport des masses, plus haut, et un seul par contact. Éteint dans le noyau
+    /// (parité), allumé par Godot.
+    /// </summary>
+    public static bool GentleHits = false;
+
+    /// <summary>
     /// LA GODILLE AU SAFRAN (ShipPhysics, « LA GODILLE ») : une lame qu'on balaie
     /// pousse l'eau même navire arrêté. Éteinte dans le noyau — la page n'en sait
     /// rien, le banc de parité compare les coques —, allumée par Godot.

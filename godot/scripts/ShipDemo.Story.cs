@@ -194,7 +194,7 @@ public partial class ShipDemo
         {
             f.Breached = true;
             var p = s.Physics;
-            for (int i = 0; i < p.Comps.Length; i++) p.MakeBreach(i, 1.4, 0.08, i % 2 == 0 ? 1 : -1);
+            for (int i = 0; i < p.Comps.Length; i++) p.MakeBreach(i, 1.4, 0.08, i % 2 == 0 ? 1 : -1, "l'histoire");
             p.PumpOn = false;
             GD.Print(FormattableString.Invariant($"[film] la mer entre, à {t:F1} s"));
         }
