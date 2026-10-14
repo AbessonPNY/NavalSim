@@ -22,7 +22,7 @@ public partial class ShipDemo : IGhostHost
     /// <summary>Une image de la scène, après les feux : elle lit la nuit par leur règle.</summary>
     void GhostTick(double dt)
     {
-        if (_film != null) return;                 // pas de spectres dans le film d'un chapitre
+        if (Filming) return;                       // pas de spectres dans le film d'un chapitre
         var b = _ship.Physics.Body;
         var o = _sea.Core.Origin;
         _ghosts.Update(dt, _ship.Physics, o.X + b.Pos.X, o.Z + b.Pos.Z, _ship.Lit, o, _t, this);

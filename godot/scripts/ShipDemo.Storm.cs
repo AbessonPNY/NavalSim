@@ -158,7 +158,7 @@ public partial class ShipDemo
 
     void Say(string text)
     {
-        if (_film != null) return;                 // un film ne parle pas : il montre
+        if (Filming) return;                       // un film ne parle pas : il montre
         _note.Text = text;
         _note.Visible = true;
         _noteLeft = 2.6;

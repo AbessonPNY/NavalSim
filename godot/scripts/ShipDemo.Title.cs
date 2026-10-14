@@ -314,6 +314,10 @@ public partial class ShipDemo : Node3D
            est une vie à bord, et une journée de douze minutes n'en est pas une :
            on n'a pas le temps de traverser qu'il fait déjà nuit deux fois. */
         SetDayRate(0.5);
+        /* UNE PARTIE NEUVE S'OUVRE SUR UN FILM (world/ouverture.json,
+           ShipDemo.Opening.cs) : la rade, les quais, un navire qui part, le titre.
+           Une partie reprise ne passe pas par ici. */
+        if (BeginOpening()) return;
         Play();
     }
 
@@ -582,12 +586,15 @@ public partial class ShipDemo : Node3D
     bool _mapTest;
     /// <summary>L essai : ouvrir le panneau des navires du jeu libre (--jeu-libre).</summary>
     bool _freeTest;
+    /// <summary>L essai : une partie libre neuve dès le titre, son ouverture comprise (--ouverture).</summary>
+    bool _openTest;
 
     void TitleTick(double dt)
     {
         if (_storyTest && _booted) { _storyTest = false; Story(); return; }
         if (_mapTest && _booted) { _mapTest = false; MissionPick(); }
         if (_freeTest && _booted) { _freeTest = false; FreeItems(); }
+        if (_openTest && _booted) { _openTest = false; FreePlay(); return; }
         var b = _ship.Physics.Body;
         _titleAng += dt * 0.021;
         double r = 95;

@@ -90,6 +90,15 @@ public partial class ShipDemo
            elle s'éteint en fondu et la situation reprend la main. */
         /* LE FILM D'UN CHAPITRE a sa musique (histoire.json → cinematique), même
            musique coupée ; tant qu'elle manque, il se joue sur la tempête seule. */
+        /* L'OUVERTURE DU JEU LIBRE a son thème (world/ouverture.json), même musique
+           coupée, et il va jusqu'au bout du morceau une fois la partie commencée
+           (ShipDemo.Opening.cs). */
+        if (ThemeNow() is { } theme)
+        {
+            _sound.DuckSea(0.5, now: _opening != null);
+            _sound.Ambiance(theme, _themeGain, attack: true);
+            return;
+        }
         if (_film != null)
         {
             var ws = _film.Phase == 0 ? _film.C.Wreck : null;

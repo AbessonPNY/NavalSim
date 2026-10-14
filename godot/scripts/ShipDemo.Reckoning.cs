@@ -108,9 +108,10 @@ public partial class ShipDemo : Node3D
 
     void NoonTick()
     {
+        if (_nightButton != null) _nightButton.Disabled = !NocturnalOpen(out _);
         if (!_reckRules.Enabled) return;
         bool open = NoonOpen(out _);
-        if (open && !_saidNoon) { _saidNoon = true; Say("Midi approche — la hauteur du soleil se prend à l'instrument (carte, I)"); }
+        if (open && !_saidNoon) { _saidNoon = true; Say("Midi approche — la hauteur du soleil se prend à l'instrument (carte, Ctrl I)"); }
         if (!open) _saidNoon = false;
         // le bouton : le soleil autour de midi, la Polaire la nuit (ShipDemo.Sight.cs)
         if (_noonButton != null) _noonButton.Disabled = !SightOpen(out _, out _);
@@ -127,7 +128,29 @@ public partial class ShipDemo : Node3D
         };
         _noonButton.Pressed += OpenSight;
         root.AddChild(_noonButton);
+        // le nocturlabe et le livre du pilote, dessous (ShipDemo.Nocturnal.cs, ShipDemo.PilotBook.cs)
+        _nightButton = new Button
+        {
+            Text = "☾  Nocturlabe", FocusMode = Control.FocusModeEnum.None,
+            OffsetLeft = 12, OffsetRight = 230, OffsetTop = 72, OffsetBottom = 100, Disabled = true,
+            TooltipText = "La nuit, ciel dégagé : l'heure par la Garde de la Petite Ourse, la Polaire dans le trou du pivot"
+        };
+        _nightButton.Pressed += OpenNocturnal;
+        root.AddChild(_nightButton);
+        _bookButton = new Button
+        {
+            Text = "Livre du pilote", FocusMode = Control.FocusModeEnum.None,
+            OffsetLeft = 12, OffsetRight = 230, OffsetTop = 104, OffsetBottom = 132,
+            TooltipText = "Le régiment du soleil (la déclinaison du mois), la règle de l'étoile du Nord, et le calcul de la dernière hauteur"
+        };
+        _bookButton.Pressed += () => OpenPilotBook(_sky.Core.SunElevDeg > -4 ? 0 : 1);
+        root.AddChild(_bookButton);
     }
 
-    bool OverNoon(Vector2 p) => _noonButton != null && _noonButton.GetGlobalRect().HasPoint(p);
+    Button? _nightButton, _bookButton;
+
+    bool OverNoon(Vector2 p) =>
+        (_noonButton != null && _noonButton.GetGlobalRect().HasPoint(p))
+        || (_nightButton != null && _nightButton.GetGlobalRect().HasPoint(p))
+        || (_bookButton != null && _bookButton.GetGlobalRect().HasPoint(p));
 }

@@ -204,6 +204,8 @@ public partial class ShipNode : Node3D
             // les mantelets de sabord, appariés aux pièces qu'on vient de trouver (ShipNode.Ports.cs)
             MakeTestLids();
             FindPortLids();
+            // le safran, pendu à son bord avant, qui tourne avec la barre (ShipNode.Rudder.cs)
+            FindRudder();
             // ce qui est dedans ne reçoit plus la lumière des fanaux du pont
             MarkInside();
             // et les anneaux reviennent, sur leurs pivots, une fois l'échelle connue

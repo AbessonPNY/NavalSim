@@ -67,6 +67,7 @@ switch (mode)
     case "virement": Virement(); break;
     case "rade": Rade(); break;
     case "sonde": Sonde(); break;
+    case "ouverture": Ouverture(); break;
     case "ecueil": Ecueil(); break;
     case "sondeur": Sondeur(); break;
     case "sombrer": Sombrer(); break;
@@ -2637,4 +2638,37 @@ void LacetCarene()
         double k = spec.LateralLinear, L = spec.L, Iy = ph.Body.Ib.Y, m = ph.Body.Mass;
         Console.WriteLine(FormattableString.Invariant($"  {name,-11} L {L,5:F1} m  masse {m / 1000,7:F2} t  Iy {Iy,12:E2}  k {k,10:F0}  k·L²/12/Iy {k * L * L / 12 / Iy,6:F2} /s  k/m {k / m,6:F2} /s"));
     }
+}
+
+/* LA RADE VUE DE HAUT, pour poser les plans de l'ouverture du jeu libre
+   (world/ouverture.json) : la terre en chiffres (sa hauteur en dizaines de
+   mètres), l'eau en points, tous les cinquante mètres. */
+void Ouverture()
+{
+    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    var region = RegionSpec.FromJson(File.ReadAllText(Path.Combine(root, "world", "caraibes.json")));
+    var (iw, ih, grey) = GreyPng.Decode(File.ReadAllBytes(Path.Combine(root, region.Relief.Image)));
+    var imgs = new List<World.PatchImage>();
+    foreach (var pz in region.Patches)
+    {
+        string pi = Path.Combine(root, pz.Image);
+        if (!File.Exists(pi)) continue;
+        var (pw, ph, pg) = GreyPng.Decode(File.ReadAllBytes(pi));
+        imgs.Add(new World.PatchImage(pz, pw, ph, pg));
+    }
+    var world = new World(region, iw, ih, grey, m => { }, imgs);
+    var home = world.StartPort!;
+    Console.WriteLine(FormattableString.Invariant($"{home.Name} : ({home.X:F0}, {home.Z:F0}), passe vers {home.Port.Ang * 180 / Math.PI:F0}°"));
+    // le nord en haut ; l'est à droite, donc x DÉCROISSANT de gauche à droite
+    for (double z = 1000; z >= -600; z -= 50)
+    {
+        var sb = new System.Text.StringBuilder(FormattableString.Invariant($"{z,5} "));
+        for (double x = 400; x >= -1400; x -= 50)
+        {
+            double h = world.HeightAt(x, z);
+            sb.Append(h < 0 ? '.' : (char)('0' + (int)Math.Min(9, h / 10)));
+        }
+        Console.WriteLine(sb);
+    }
+    Console.WriteLine("      x de 400 (gauche, ouest) à -1400 (droite, est)");
 }

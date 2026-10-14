@@ -1,0 +1,40 @@
+{
+  "_aide": "LES INSTRUMENTS DE HAUTEUR (Godot), montés à l'écran pendant qu'on vise (Ctrl I, « Prendre la hauteur »). Chacun est DESSINÉ tant que son « image » est vide ; une image (PNG, fond transparent) remplace le dessin, et le jeu pose PAR-DESSUS ce qui bouge (les pinnules, le marteau) aux places que disent les nombres ci-dessous. Tous les nombres sont en PIXELS DE L'IMAGE (taille : largeur, hauteur) et les angles en degrés d'écran : 0 vers la droite, positif vers le BAS. Les gabarits à peindre se tirent de cette fiche : node tools/instrument-templates.js → instruments/gabarits/. QUARTIER DE DAVIS : centre, le centre commun des deux arcs, où se tient la pinnule d'horizon (la fente) ; petitArc, l'arc de 60° du viseur de soleil (la pinnule d'ombre), réglé de dix en dix ; grandArc, l'arc de 30° de la pinnule de visée, où se lit le reste ; zero et plein, les angles d'écran de ses graduations 0 et pleine (degres). La hauteur est la somme des deux arcs. vue : facultative, l'image de la pinnule d'horizon vue par le trou de visée, posée sur toute la hauteur de l'écran, la FENTE au milieu de l'image (transparente) — vide : dessinée. ARBALESTRILLE : oeil, le bout qu'on porte à la joue, et bout, l'autre ; de et a, la portée du marteau en degrés. Le marteau a la demi-longueur qui met « de » au bout du bâton, et les graduations tombent où tan(angle/2) = demi-marteau ÷ distance à l'œil : elles se serrent vers l'œil (les grands angles), c'est ainsi.",
+  "quartier": {
+    "image": "",
+    "vue": "",
+    "taille": [2048, 1600],
+    "centre": [170, 600],
+    "petitArc": { "rayon": 560, "zero": 0, "plein": -60, "degres": 60 },
+    "grandArc": { "rayon": 1760, "zero": 0, "plein": 30, "degres": 30 }
+  },
+  "arbalestrille": {
+    "image": "",
+    "taille": [2048, 400],
+    "oeil": [60, 200],
+    "bout": [1990, 200],
+    "de": 10,
+    "a": 60
+  },
+  "_nocturlabe": "LE NOCTURLABE (Ctrl I, la nuit) : l'heure par la Garde de la Petite Ourse. Trois pièces, chacune DESSINÉE tant que son image est vide, toutes au même pas de pixels : disque, la plaque fixe avec l'anneau des dates et le manche (tenu EN BAS), son centre à centre ; heures, le disque des heures, carré, centré, la dent de MINUIT EN HAUT (le jeu le tourne sur la date du jour) ; bras, l'alidade, carrée, son pivot au centre de l'image, pointée VERS LE HAUT. rayon : le bord du disque, qui couvre champ degrés de ciel ; dates : l'anneau des dates (rayon intérieur, extérieur) ; rayonHeures : le disque des heures ; longueurBras : du pivot au bout. janvier : l'angle d'écran du 1er janvier sur l'anneau des dates ; les jours avancent EN SENS INVERSE des aiguilles d'une montre, de 360° par an. Il vient du ciel : là où est la Garde au minuit du 1er janvier 1690 (le jeu le recalcule au chargement et prévient s'il s'en écarte de plus d'un degré).",
+  "nocturlabe": {
+    "disque": "",
+    "heures": "",
+    "bras": "",
+    "taille": [1024, 1400],
+    "centre": [512, 512],
+    "rayon": 480,
+    "champ": 11,
+    "dates": [400, 480],
+    "rayonHeures": 385,
+    "longueurBras": 1050,
+    "janvier": 32.0
+  },
+  "_livre": "LE LIVRE DU PILOTE (après une hauteur, ou Ctrl I « Livre du pilote ») : à gauche le régiment du soleil (la déclinaison, jour par jour, du mois) ou la règle de l'étoile du Nord (la correction des Gardes) — ← → passe de l'un à l'autre ; à droite le calcul de la dernière hauteur. image : le livre ouvert (PNG) ; vide : dessiné. gauche et droite : le rectangle écrit de chaque page, x, y, largeur, hauteur.",
+  "livre": {
+    "image": "",
+    "taille": [2048, 1280],
+    "gauche": [170, 120, 780, 1040],
+    "droite": [1098, 120, 780, 1040]
+  }
+}

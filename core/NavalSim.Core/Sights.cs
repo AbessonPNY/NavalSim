@@ -44,6 +44,29 @@ public static class Sights
     public static (double Ra, double Dec) Polaris(double year) => Precess(37.95290, 89.26410, year);
 
     /// <summary>
+    /// KOCHAB (β de la Petite Ourse), la « Garde de devant » : celle dont les pilotes lisaient
+    /// la place autour du pôle pour corriger la Polaire, et que le nocturlabe vise pour l'heure.
+    /// J2000 (α 222,6763°, δ 74,1556°, le catalogue BSC5) portée à l'année.
+    /// </summary>
+    public static (double Ra, double Dec) Kochab(double year) => Precess(222.67625, 74.15556, year);
+
+    /// <summary>
+    /// L'angle horaire d'un astre au MINUIT qui ouvre ce jour, en degrés — ce que la dent de
+    /// minuit du nocturlabe marque sur l'anneau des dates. La longitude n'y compte presque
+    /// pas (0,003° par degré) : un nocturlabe sert partout.
+    /// </summary>
+    public static double MidnightHourAngle(DateTime date, double ra) => HourAngle(date, 0, 0, ra);
+
+    /// <summary>
+    /// LE NOCTURLABE : l'heure lue où le bras croise le disque des heures. Le bras est
+    /// posé sur la Garde (son angle horaire, en degrés), la dent de minuit sur la date ;
+    /// les heures sont de 15° tout rond, comme les gravait l'artisan (la vraie rotation, 15,04°,
+    /// ne fait que deux minutes en douze heures).
+    /// </summary>
+    public static double NocturnalHour(double armHourAngle, double midnightHourAngle) =>
+        ((armHourAngle - midnightHourAngle) / 15 % 24 + 24) % 24;
+
+    /// <summary>
     /// Un astre de J2000 (ascension droite et déclinaison en degrés) porté à cette année par
     /// la précession des équinoxes (UAI 1976). Le mouvement propre, s'il compte, s'ajoute avant.
     /// </summary>
@@ -86,12 +109,35 @@ public static class Sights
         return Math.Asin(Math.Clamp(s, -1, 1)) / Rad;
     }
 
+    /// <summary>L'azimut d'un astre, en degrés comptés du nord vers l'est (0 nord, 90 est).</summary>
+    public static double Azimuth(double lat, double dec, double lha)
+    {
+        double east = -Math.Cos(dec * Rad) * Math.Sin(lha * Rad);
+        double north = Math.Sin(dec * Rad) * Math.Cos(lat * Rad) - Math.Cos(dec * Rad) * Math.Cos(lha * Rad) * Math.Sin(lat * Rad);
+        return (Math.Atan2(east, north) / Rad + 360) % 360;
+    }
+
     /// <summary>
     /// LA CORRECTION DES GARDES : ce qu'il faut ajouter à la hauteur de la Polaire pour avoir la
     /// latitude — −p·cos(angle horaire), p sa distance au pôle. Au-dessus du pôle (angle horaire
     /// nul) elle est trop haute de p ; au-dessous, trop basse ; à l'est ou à l'ouest, juste.
     /// </summary>
     public static double GuardsCorrection(double dec, double lha) => -(90 - dec) * Math.Cos(lha * Rad);
+
+    /// <summary>
+    /// LA RÈGLE À HUIT PLACES, comme le pilote s'en servait : la place de la Garde la plus
+    /// proche (0 la tête — la Garde au-dessus du pôle —, puis de 45° en 45° d'angle horaire :
+    /// le bras d'ouest, la ligne d'ouest… jusqu'au bras d'est).
+    /// </summary>
+    public static int GuardPlace(double guardLha) => (int)Math.Round(((guardLha % 360) + 360) % 360 / 45) % 8;
+
+    /// <summary>
+    /// Ce que la table dit pour cette place : la correction juste quand la Garde y est tout
+    /// juste. Entre deux places elle se trompe — jusqu'à près d'un degré en 1690, où la
+    /// correction varie le plus vite.
+    /// </summary>
+    public static double GuardsTable(int place, double polarisRa, double polarisDec, double guardRa) =>
+        GuardsCorrection(polarisDec, 45.0 * place + guardRa - polarisRa);
 
     /// <summary>Degrés en « 18° 04′ » — signé, sans point cardinal.</summary>
     public static string Dm(double deg)

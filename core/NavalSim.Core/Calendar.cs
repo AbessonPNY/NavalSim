@@ -38,5 +38,8 @@ public sealed class Calendar
         (Date - new DateTime(Date.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalDays + hour / 24;
 
     /// <summary>La déclinaison du soleil, en degrés, pour ce jour — l'approximation en cosinus.</summary>
-    public double Declination() => -23.44 * Math.Cos(2 * Math.PI * (Math.Floor(DayOfYear(0)) + 10) / 365);
+    public double Declination() => DeclinationOn(Math.Floor(DayOfYear(0)));
+
+    /// <summary>La même, pour un jour de l'année (0 : le 1er janvier) — la table du pilote, le régiment du soleil.</summary>
+    public static double DeclinationOn(double dayOfYear) => -23.44 * Math.Cos(2 * Math.PI * (dayOfYear + 10) / 365);
 }

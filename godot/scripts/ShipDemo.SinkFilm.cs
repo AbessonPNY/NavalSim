@@ -49,7 +49,7 @@ public partial class ShipDemo
         {
             // renfloué, ou un autre navire : le prochain naufrage aura son film
             if (_sinkDone && !_ship.Physics.Foundered && Flooded(_ship) < 0.5 && _halves.Count == 0) _sinkDone = false;
-            if (!_sinkFilmOn || _sinkDone || _inTitle || _editing || _film != null
+            if (!_sinkFilmOn || _sinkDone || _inTitle || _editing || Filming
                 || _camMode == CamSwim || _camMode == CamBell || !Doomed()) return;
             BeginSinkFilm();
         }

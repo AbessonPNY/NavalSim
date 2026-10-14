@@ -243,7 +243,7 @@ public partial class ShipDemo : Node3D
     {
         if (!_booted) return;                       // rien à commander sous le rideau
         // le film prend tout : Échap, Entrée ou Espace le passent
-        if (FilmInput(e)) { GetViewport().SetInputAsHandled(); return; }
+        if (FilmInput(e) || OpeningInput(e)) { GetViewport().SetInputAsHandled(); return; }
         // et le naufrage filmé de même (ShipDemo.SinkFilm.cs)
         if (SinkFilmInput(e)) { GetViewport().SetInputAsHandled(); return; }
         // le mode création prend tout ce qui lui arrive, et ² le bascule de partout
@@ -255,7 +255,8 @@ public partial class ShipDemo : Node3D
         // le regard du nageur, avant l'interface : un panneau sous la souris ne le prend pas
         if (_swimming && e is InputEventMouseMotion && SwimInputEvent(e)) { GetViewport().SetInputAsHandled(); return; }
         // l'instrument prend tout ce qui lui arrive, molette comprise (ShipDemo.Sight.cs)
-        if (SightInputEvent(e)) { GetViewport().SetInputAsHandled(); return; }
+        // le livre du pilote ouvert prend tout (ShipDemo.PilotBook.cs), le nocturlabe de même
+        if (PilotBookInput(e) || SightInputEvent(e) || NocturnalInput(e)) { GetViewport().SetInputAsHandled(); return; }
         if (ChartInput(e) || QuestInput(e)) GetViewport().SetInputAsHandled();
     }
 

@@ -32,6 +32,9 @@ public partial class ShipDemo
     double _sightSet, _sightAim;       // le réglage de l'arc, et la visée de l'œil (degrés au-dessus de l'horizon)
     int _sightCamWas, _polarisNight = int.MinValue;
     SightPlate? _plate;
+    SightInstrument? _instr;
+    /// <summary>Le quartier : où est posée la pinnule d'ombre sur le petit arc (un degré rond, de dix en dix).</summary>
+    double _sightSmall;
     Label? _sightCalc;
     double _sightCalcT;
     double _sightAlt;                  // la hauteur vraie de l'astre, cette image
@@ -87,7 +90,50 @@ public partial class ShipDemo
         }
         _plate.Visible = true;
         _plate.Sun = sun;
+        /* LA PINNULE D'OMBRE se pose sur un degré rond du petit arc, de dix à vingt degrés
+           sous la hauteur attendue, et la pinnule de visée fait le reste sur le grand. */
+        _sightSmall = Math.Clamp(10 * Math.Floor((_sightSet - 10) / 10), 0, 60);
+        if (_instr == null)
+        {
+            _instr = new SightInstrument { MouseFilter = Control.MouseFilterEnum.Ignore };
+            _instr.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            _hud.AddChild(_instr);
+            if (Instruments() is { } book)
+            {
+                _instr.Geo = book;
+                _instr.QuadrantPicture = InventoryImage(book.QImage);
+                _instr.StaffPicture = InventoryImage(book.XImage);
+                _plate.View = InventoryImage(book.QView);
+            }
+        }
+        _instr.Visible = true;
+        _instr.Sun = sun;
         Say(sun ? "Le quartier de Davis : dos au soleil, l'ombre sur l'horizon" : "L'arbalestrille : un bout sur l'horizon, l'autre sur la Polaire");
+    }
+
+    SightInstrument.Book? _instrBook;
+    bool _instrRead;
+
+    /// <summary>La fiche des instruments (instruments/instruments.json), lue une fois : quartier, arbalestrille, nocturlabe, livre.</summary>
+    SightInstrument.Book? Instruments()
+    {
+        if (_instrRead) return _instrBook;
+        _instrRead = true;
+        try { _instrBook = SightInstrument.Book.FromJson(System.IO.File.ReadAllText(Assets.Path("instruments/instruments.json"))); }
+        catch (Exception ex) { GD.PrintErr("[hauteur] instruments/instruments.json : " + ex.Message); }
+        if (_instrBook != null)
+        {
+            /* L'anneau des dates du nocturlabe vient du ciel : la Garde au minuit du 1er
+               janvier. La fiche le garde (pour qui peint l'anneau) ; on vérifie qu'elle dit vrai. */
+            int y = _calendar.Date.Year;
+            var (ra, _) = Sights.Kochab(y);
+            double lha = Sights.MidnightHourAngle(new DateTime(y, 1, 1, 0, 0, 0, DateTimeKind.Utc), ra);
+            double want = ((-90 - lha) % 360 + 360) % 360;
+            double off = ((_instrBook.NJanuary - want) % 360 + 540) % 360 - 180;
+            if (Math.Abs(off) > 1)
+                GD.PrintErr(FormattableString.Invariant($"[nocturlabe] « janvier » vaut {_instrBook.NJanuary:F1}° dans la fiche, le ciel de {y} dit {want:F1}° : l'heure lue sera fausse de {Math.Abs(off) / 15 * 60:F0} min"));
+        }
+        return _instrBook;
     }
 
     void CloseSight()
@@ -97,6 +143,7 @@ public partial class ShipDemo
         _camMode = _sightCamWas == CamSight ? 0 : _sightCamWas;
         SetLens(OutsideFov, OutsideNear);
         if (_plate != null) _plate.Visible = false;
+        if (_instr != null) _instr.Visible = false;
     }
 
     /// <summary>La latitude et la longitude vraies du navire.</summary>
@@ -119,24 +166,33 @@ public partial class ShipDemo
         }
     }
 
-    /// <summary>La vue de l'instrument : l'œil sur la dunette, le cap de la visée, la mer qui roule.</summary>
-    void SightCamera()
+    /// <summary>
+    /// AU BORD, DU CÔTÉ OÙ L'ON VISE : sur la dunette d'un galion l'œil se trouvait
+    /// derrière le château, et la fente ne montrait que du bois. Le pilote va au
+    /// plat-bord qui regarde l'horizon voulu — le bord de la flottaison (une ellipse de
+    /// la longueur et du bau) dans cette direction.
+    /// </summary>
+    Vector3 SightEye(Vector3 dir)
     {
         var sp = _ship.Spec;
         var xf = _ship.GlobalTransform;
-        // dos au soleil pour le quartier ; plein nord pour la Polaire (le nord est +z, l'est −x)
-        double b = (_sightSun ? _sky.Core.SunBearingDeg + 180 : 0) * Math.PI / 180;
-        var dir = new Vector3((float)-Math.Sin(b), 0, (float)Math.Cos(b));
-        /* AU BORD, DU CÔTÉ OÙ L'ON VISE : sur la dunette d'un galion l'œil se trouvait
-           derrière le château, et la fente ne montrait que du bois. Le pilote va au
-           plat-bord qui regarde l'horizon voulu — le bord de la flottaison (une ellipse de
-           la longueur et du bau) dans cette direction. */
         var dl = xf.Basis.Inverse() * dir; dl.Y = 0;
         if (dl.LengthSquared() < 1e-6f) dl = Vector3.Back;
         dl = dl.Normalized();
         float ha = (float)(sp.B * 0.5), hl = (float)(sp.L * 0.5);
         float k = 1.02f / MathF.Sqrt(dl.X * dl.X / (ha * ha) + dl.Z * dl.Z / (hl * hl));
-        var eye = xf * new Vector3(dl.X * k, (float)(sp.DeckMid + 1.8), dl.Z * k);
+        return xf * new Vector3(dl.X * k, (float)(sp.DeckMid + 1.8), dl.Z * k);
+    }
+
+    /// <summary>La vue de l'instrument : l'œil sur la dunette, le cap de la visée, la mer qui roule.</summary>
+    void SightCamera()
+    {
+        if (_nocturnal) { NocturnalCamera(); return; }
+        var xf = _ship.GlobalTransform;
+        // dos au soleil pour le quartier ; plein nord pour la Polaire (le nord est +z, l'est −x)
+        double b = (_sightSun ? _sky.Core.SunBearingDeg + 180 : 0) * Math.PI / 180;
+        var dir = new Vector3((float)-Math.Sin(b), 0, (float)Math.Cos(b));
+        var eye = SightEye(dir);
         // la main tremble, d'autant plus que la mer est grosse : toute la vue bouge, horizon et astres ensemble
         double shake = (0.04 + 0.025 * _force) * (_sightSun ? 1 : 1.6);
         double aim = (_sightAim + shake * (0.6 * Math.Sin(_t * 1.7) + 0.4 * Math.Sin(_t * 2.9 + 1.1))) * Math.PI / 180;
@@ -195,6 +251,23 @@ public partial class ShipDemo
         _plate.Top = _sightSun
             ? "Quartier de Davis — dos au soleil : amenez l'OMBRE sur l'HORIZON, dans la fente"
             : "Arbalestrille — le bout bas du marteau sur l'horizon, le bout haut sur la Polaire";
+        if (_sightSun)
+        {
+            /* Le grand arc ne fait que trente degrés : quand la pinnule de visée bute à un
+               bout, le pilote recale la pinnule d'ombre de dix degrés et repart. */
+            _sightSet = Math.Clamp(_sightSet, 0, 90);
+            double was = _sightSmall;
+            while (_sightSet - _sightSmall > 30 && _sightSmall < 60) _sightSmall += 10;
+            while (_sightSet - _sightSmall < 0 && _sightSmall > 0) _sightSmall -= 10;
+            if (_sightSmall != was) Say($"La pinnule d'ombre recalée sur {_sightSmall:0}° du petit arc");
+        }
+        if (_instr != null)
+        {
+            _instr.SmallRead = (float)_sightSmall;
+            _instr.LargeRead = (float)(_sightSet - _sightSmall);
+            _instr.StaffDeg = (float)_sightSet;
+            _instr.QueueRedraw();
+        }
         _plate.Readout = "Arc : " + Sights.Dm(_sightSet) + (rate.Length > 0 ? "   ·   " + rate : "");
         _plate.Hint = "Molette : 10′ (⇧ : 1′) · ↑ ↓ : 1′ · bouton tenu : viser · Entrée : lire · Échap : ranger";
         _plate.QueueRedraw();
@@ -228,12 +301,16 @@ public partial class ShipDemo
         }
         else
         {
-            var (ra, dec) = Sights.Polaris(_calendar.Date.Year + _calendar.DayOfYear(t) / 365.25);
-            double lha = Sights.HourAngle(_calendar.Date, t, lon, ra);
-            double corr = Sights.GuardsCorrection(dec, lha);
+            var (ra, dec) = Sights.Polaris(StarYear);
+            /* LA TABLE À HUIT PLACES : le pilote regarde où est la Garde, prend la place la
+               plus proche, et lit la correction de cette place — pas celle de l'heure exacte.
+               Entre deux places il se trompe, et c'est sa latitude qui le paie. */
+            var (kra, _) = Sights.Kochab(StarYear);
+            int place = Sights.GuardPlace(Sights.HourAngle(_calendar.Date, t, lon, kra));
+            double corr = Sights.GuardsTable(place, ra, dec, kra);
             found = h + corr;
             calc = $"Hauteur de la Polaire : {Sights.Dm(h)}\n"
-                 + $"Correction des Gardes (la Polaire à {Sights.Dm(90 - dec)} du pôle) : {(corr >= 0 ? "+ " : "− ")}{Sights.Dm(Math.Abs(corr))}\n"
+                 + $"La Garde {Wheel[place]} : la table dit {Words(corr)}\n"
                  + $"Latitude : {Sights.Dm(Math.Abs(found))} {(found >= 0 ? "N" : "S")}";
             sigma = 12;                                    // l'arbalestrille, de nuit : une dizaine de minutes
             _polarisNight = NightIndex;
@@ -248,7 +325,9 @@ public partial class ShipDemo
         GD.Print(FormattableString.Invariant($"[hauteur] {(_sightSun ? "soleil" : "Polaire")} : arc {h:F3}°, vraie {_sightAlt:F3}°, latitude trouvée {found:F3}° (vraie {lat:F3}°), erreur {errArc:F1}′"));
         JournalLog(_sightSun ? $"Hauteur de midi : latitude {Geo.Format(after.Lat, true)}." : $"La Polaire : latitude {Geo.Format(after.Lat, true)}.");
         CloseSight();
-        ShowSightCalc(calc);
+        // le calcul s'écrit au livre du pilote, ouvert sur la table qui a servi
+        _lastSightCalc = calc;
+        OpenPilotBook(_sightSun ? 0 : 1);
         _chart?.Refresh();
     }
 

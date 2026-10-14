@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2120" height="2120" viewBox="0 0 2120 2120">
+  <title>Gabarit du nocturlabe — le bras</title>
+  <rect width="2120" height="2120" fill="#bbb" fill-opacity="0.25"/>
+  <line x1="1060" y1="1060" x2="1060" y2="10" stroke="#c81e28" stroke-width="4"/>
+  <circle cx="1060" cy="1060" r="26" fill="none" stroke="#286edc" stroke-width="3"/>
+  <text x="1080" y="1120" font-family="sans-serif" font-size="24" fill="#286edc">le pivot (creux : on y voit la Polaire)</text>
+  <text x="1080" y="535" font-family="sans-serif" font-size="24" fill="#c81e28">le bord de lecture du bras, 1050 px</text>
+  <text x="12" y="30" font-family="sans-serif" font-size="22" fill="#666">le bras · 2120×2120 px · pivot au centre, pointé vers le haut ; le reste de l’image transparent</text>
+</svg>

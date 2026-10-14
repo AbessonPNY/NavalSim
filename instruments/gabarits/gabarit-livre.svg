@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="1280" viewBox="0 0 2048 1280">
+  <title>Gabarit du livre du pilote</title>
+  <rect width="2048" height="1280" fill="#bbb" fill-opacity="0.25"/>
+  <rect x="170" y="120" width="780" height="1040" fill="none" stroke="#c81e28" stroke-width="4"/>
+  <text x="560" y="640" font-family="sans-serif" font-size="30" text-anchor="middle" fill="#c81e28">page de gauche : la table</text>
+  <rect x="1098" y="120" width="780" height="1040" fill="none" stroke="#c81e28" stroke-width="4"/>
+  <text x="1488" y="640" font-family="sans-serif" font-size="30" text-anchor="middle" fill="#c81e28">page de droite : le calcul</text>
+  <text x="12" y="30" font-family="sans-serif" font-size="22" fill="#666">livre du pilote · 2048×1280 px · le jeu écrit dans les rectangles rouges ; tout le reste est à peindre</text>
+</svg>

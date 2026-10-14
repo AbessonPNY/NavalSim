@@ -7044,6 +7044,9 @@ de 0,22 % de la longueur (6 cm sur 27 m, 3 à 9 cm), maillon de six fers sur
 trois et demi, 148 à 325 maillons pour une touée de 39 m. Noir de fumée graissé :
 albédo presque noir, rugosité 0,22, métal 0,9.
 
+
+**Une chaîne tient, elle ne pousse pas** (14/10). Signalé : des boucles et des nœuds au déroulage, à mi-eau. La contrainte de Verlet allait dans les deux sens ; or `Bottom` pose le mou d un coup, et la part couchée, quand l ancre tombe presque à l aplomb, s entasse sur l organeau — ces points, ÉCARTÉS de force, flambaient en boucles que la chaîne mouillée, presque sans poids, ne défaisait pas. La contrainte ne retient plus que l allongement (une maille plus proche que son pas est une chaîne qui s entasse) et les quatorze passes changent de sens à chaque fois.
+
 ## Le plan d'arrimage (Godot)
 
 Demandé : la fenêtre de la page pour simuler le chargement de poids.
@@ -15709,6 +15712,8 @@ davantage. Au clavier la barre balaie à 1 rad/s : 36 N contre 22 tonnes. Sur un
 Laser de 130 kg, ces 36 N font tourner — d'où ce qu'on en dit. Le modèle est gardé :
 juste, gratuit, et il servira le jour où une petite coque entrera dans la flotte.
 
+**Le safran tourne enfin sous Godot** (14/10, `ShipNode.Rudder.cs`) : l objet `rudder`/`gouvernail`/`safran` du modèle (Boussole, frégate 17e, Roebuck) est pendu à son bord avant dans son propre parent — il reste du modèle — et pivote de `Ctrl.Rudder × RudderMax` au signe du solveur, autour de l ÉTAMBOT, incliné la tête en arrière : l axe est lu sur le bord avant de la lame (le sommet le plus en avant de son cinquième bas et de son cinquième haut). Sur la verticale, la lame sortait de la ligne de la coque (signalé). Pas de roue de barre, et ce n est pas un oubli : en 1690 on gouverne à la barre franche ou au MANUEL (whipstaff), la roue ne vient qu après 1700 — ne jamais en animer une. Pas non plus de planche dessinée pour un modèle sans safran nommé.
+
 ## L'histoire en chapitres, et son premier film (Godot)
 
 Demandé : l'histoire divisée en chapitres, tout leur texte dans un JSON qu'on
@@ -16747,3 +16752,76 @@ rabans, qui n'ont pas ce shader, passent par `GeometryInstance3D.Transparency` l
 fondu. Relevé au premier essai : `SplitPrimitives` nomme ses morceaux « voile_serree_0 »,
 « _1 », qui répondaient au nom et partaient chacun de leur côté — on ne détache plus que
 le nœud le plus haut de chaque branche (`DetachFurled`), propriétaire effacé.
+
+## L'ouverture du jeu libre (13/10)
+
+DEMANDÉ : une partie libre commence comme un film — la caméra monte au-dessus d'un navire au milieu de la rade et découvre Port-Royal, puis des plans enchaînés le long des quais, au-dessus des forts, par-dessus un navire qui part pour le large, et le logo. `ShipDemo.Opening.cs`, plans dans `world/ouverture.json` (montee, chemin, depart, titre ; durées et fondus pour se caler sur la musique sans recompiler). Thème : `medias/sound/Port Royal Theme Finale.mp3` (219,6 s, compté sur ses trames) ; il joue même musique coupée et continue en jeu jusqu'à sa fin (`jusquauBout`), sa longueur lue par `AudioStreamMP3.LoadFromFile`.
+
+CHOIX. Le monde tourne pendant le film : c'est la partie elle-même, déjà commencée à son ponton, et la rendre n'a qu'à rendre la caméra (comme l'affiche). Le navire qui part est un VRAI départ des horaires vers le large, mis en route dès le début (`Launch(..., frac, seen: true)` : une fraction de sa route, et sous l'œil — `Unseen` l'aurait refusé) : il appartient ensuite à la rade comme les autres. Sans départ possible (trafic coupé, rade pleine), le plan suit le navire du joueur. Les gardes du film d'un chapitre (rencontres, spectres, tempête, nage, épaves, naufrage filmé, masque 2,35) passent par `Filming`, qui couvre les deux films. L'œil ne descend jamais à moins de `garde` mètres de la terre (relief seul : les modèles posés n'y sont pas — les forts se survolent à 70-85 m).
+
+LA RADE EN CHIFFRES (banc `ouverture`) : la ville est À L'EST des pontons du chenal (x ≈ −370), l'eau à l'ouest ; le bassin vers (−400, 120) ; les forts sont des retouches (`world/retouches/caraibes.json`, `fort_00*.glb`) — s'ils bougent, le chemin de la fiche ne les suit pas. Pas de capture prise : l'aspect des plans est à juger, et leurs points à retoucher dans la fiche.
+
+## Les instruments de hauteur, montrés en main (14/10)
+
+Demandé : en savoir plus sur le quartier et l'arbalestrille, et des visuels « comme le
+coffre ». La recette du coffre reprise : DESSINÉ tant qu'il n'y a pas d'image, une
+image en fiche le remplace, un gabarit pour la peindre. Mais ici la géométrie est
+elle-même dans la fiche (`instruments/instruments.json` : centre, rayons et angles des
+arcs, bouts du bâton, en pixels de l'image) — lue par `SightInstrument.cs` ET par
+`tools/instrument-templates.js`. Le coffre avait ses mesures dans le code et un gabarit
+fait à part ; ici une image peinte d'après une photo se cale en changeant des nombres.
+
+Le quartier se règle comme le vrai : la pinnule d'ombre sur un degré rond du petit arc
+(de dix en dix), la pinnule de visée fait le reste sur le grand ; au bout des 30° le
+pilote recale la première. La hauteur est la somme (vérifié : Wikipedia « Backstaff »).
+Certains quartiers anglais étaient gradués en distance au zénith plutôt qu'en hauteur ;
+on lit la hauteur, c'est ce que le calcul affiché attend.
+
+Piège évité au gabarit : j'avais écrit que les graduations de l'arbalestrille « se
+serrent vers le bout ». C'est l'inverse : x = demi-marteau ÷ tan(θ/2), elles se serrent
+vers l'ŒIL, aux grands angles. Le gabarit tracé l'a montré.
+
+La vue par le trou de pinnule : un disque, le noir autour opaque (0,97 — à 0,9 le
+panneau du port transparaissait). Essai : `-- --heure 12 --hauteur garde --capture …`
+(tout autre mot qu'« auto » ouvre l'instrument sans lire).
+
+## Le livre du pilote et le nocturlabe (14/10)
+
+Demandés tous deux. **Le livre** remplace les lettres flottantes du calcul de hauteur :
+page de droite le calcul, page de gauche la table qui a servi — le régiment du soleil
+(`Calendar.DeclinationOn`, la même formule que la hauteur : une définition, et la table lue
+à la main donne la latitude du jeu) ou la règle de l'étoile du Nord, la roue aux huit
+places ibériques (tête, bras, lignes, pieds), SANS la figure humaine (règle : aucun humain à
+l'écran). Surprise de la roue : en 1690 la correction est la plus forte « au bras d'est »
+(2° 19′), pas à la tête — Kochab et la Polaire sont à 185° d'ascension droite, pas 180°.
+Le jeu applique la correction exacte (l'œil qui estime entre deux places) ; la table à
+huit places prise telle quelle coûterait jusqu'à ~50′ — non simulé, à décider.
+
+**Le nocturlabe** : plaque à manche (anneau des dates), disque des heures (dent de minuit
+sur la date, 24 dents, chiffres romains), bras. On vise la Polaire par le pivot, le bras sur
+la Garde. Lecture au banc (`--heure 21 --nocturlabe auto`, 8 octobre 1690) : 21,106 h
+pour 21,034 au sablier, 4 min — l'erreur du vrai instrument (pivot sur la Polaire, pas
+le pôle ; 15° par heure gravés, 15,04 au ciel). La Garde vue à l'écran autour de la Polaire
+est à 4° de son angle horaire : même cause.
+
+L'anneau des dates est dans la fiche (`janvier` : 32°, angle d'écran du 1er janvier) parce
+que le peintre en a besoin ; il vient de Kochab au minuit du 1er janvier 1690
+(angle horaire 238,0°). Le jeu le recalcule au chargement et prévient au-delà d'un degré
+(il ne bouge que de ±0,7° d'une année à l'autre, le cycle bissextile).
+
+Piège : `sed` avec un `\n` dans une chaîne C# l'a changé en vrai saut de ligne — compiler
+après chaque `sed` sur du code.
+
+## La table à huit places, simulée (14/10)
+
+Demandé : la Polaire se corrige comme le pilote le faisait, par la place de la Garde la plus
+proche (`Sights.GuardPlace`, `Sights.GuardsTable`, au noyau — le livre et la lecture lisent la
+même table). La correction exacte ne sert plus qu'à dresser la table. Le calcul affiché dit
+la place (« La Garde à la ligne d'ouest : la table dit ôtez 1° 20′ »).
+
+Au banc, `--hauteur auto` (l'arc réglé juste à une minute), Port-Royal, 8 octobre 1690 :
+20 h, 11,8′ ; 21 h, 37,4′ ; 23 h, 3′ (contre ~1′ avant). Le pilote garde sa confiance de 12′
+(`sigma` de `LatitudeSight`) : il ne sait pas que sa table le trompe, l'estime suit donc
+une latitude fausse. C'est voulu ; à réviser si le jeu devient injouable de nuit.
+
+Piège : `--hauteur auto` sans `--capture` ne quitte pas — le jeu tourne jusqu'au `timeout`.

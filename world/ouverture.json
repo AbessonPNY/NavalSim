@@ -1,0 +1,58 @@
+{
+  "_aide": "L OUVERTURE DU JEU LIBRE (ShipDemo.Opening.cs) : le film qui précède une partie neuve, au port de départ. Échap, Entrée ou Espace le passent ; -- --sans-film le saute. Coordonnées en mètres VRAIS du monde (x : est = négatif, z : nord), comme les pontons et les mouillés de caraibes.json ; y est la hauteur au-dessus de l eau. L œil ne descend jamais à moins de « garde » mètres du sol. Les plans s enchaînent dans l ordre ; « fondu » : les secondes de noir qui l ouvrent (0 = coupe franche). Carte de la rade en chiffres : dotnet run --project core/NavalSim.Lab -c Release -- ouverture.",
+
+  "port": "port-royal",
+  "musique": "Port Royal Theme Finale.mp3",
+  "volume": 1.0,
+  "_musique": "la musique continue en jeu jusqu à la fin du morceau (« jusquauBout »), puis l ambiance reprend",
+  "jusquauBout": true,
+  "garde": 12,
+
+  "plans": [
+    {
+      "nom": "la montée",
+      "type": "montee",
+      "_type": "près du navire au mouillage posé en x, z (la frégate du chenal), l œil monte en reculant à l opposé de « vers » ; le regard glisse de sa mâture vers « vers » : la ville se découvre derrière lui. « hauteur » et « recul » : du début à la fin, en mètres",
+      "duree": 17, "fondu": 2.5,
+      "x": -330.5, "z": 432.6,
+      "vers": [-650, 200],
+      "hauteur": [5, 320],
+      "recul": [30, 420]
+    },
+    {
+      "nom": "les quais",
+      "type": "chemin",
+      "_type": "l œil suit « chemin » (une courbe passant par ces points, à vitesse égale), le regard suit « regard » point pour point ; ici le long des pontons du chenal, du nord au bassin (≈ 25 m/s)",
+      "duree": 13, "fondu": 0.8,
+      "chemin": [[-300, 22, 520], [-312, 20, 380], [-322, 22, 240], [-330, 26, 150]],
+      "regard": [[-420, 6, 420], [-430, 6, 290], [-430, 6, 160], [-420, 6, 90]]
+    },
+    {
+      "nom": "les forts",
+      "type": "chemin",
+      "_type": "du bassin par-dessus le fort du sud (-278, -131), puis celui de l ouest (45, -73), le regard vers le large",
+      "duree": 14, "fondu": 0.8,
+      "chemin": [[-360, 40, 90], [-300, 70, -60], [-150, 85, -150], [40, 80, -60]],
+      "regard": [[-280, 10, -130], [-200, 4, -220], [45, 8, -73], [260, 0, -260]]
+    },
+    {
+      "nom": "le départ",
+      "type": "depart",
+      "_type": "un navire qui quitte la rade pour le large (un départ des horaires, mis en route au début du film) : l œil passe par-dessus lui, de l arrière à l avant, et regarde vers où il va. Sans départ possible, c est le navire du joueur.",
+      "duree": 15, "fondu": 0.8,
+      "deja": 0.35,
+      "de": [-70, 28],
+      "a": [90, 42],
+      "cote": 12
+    },
+    {
+      "nom": "le titre",
+      "type": "titre",
+      "_type": "l œil s arrête sur son erre ; le logo paraît (« logo » : une image PNG ; absente, « texte » en anglaise), puis la partie commence",
+      "duree": 10, "fondu": 0,
+      "logo": "medias/logo.png",
+      "texte": "Port Royal 1690",
+      "taille": 0.55
+    }
+  ]
+}

@@ -685,12 +685,23 @@ public partial class AnchorNode : Node3D
 
             for (int k = 0; k < 14; k++)
             {
-                for (int j = 0; j < L; j++)
+                /* UNE CHAÎNE TIENT, ELLE NE POUSSE PAS. La contrainte allait dans les deux
+                   sens : deux points plus proches que leur pas étaient ÉCARTÉS de force.
+                   Or on pose le mou d'un coup quand l'ancre touche (Bottom), et la part
+                   couchée, faute de fond entre l'aplomb et l'organeau, s'entassait sur
+                   l'ancre : repoussés, ces points flambaient en boucles et en nœuds qui
+                   montaient dans l'eau (signalé au déroulage, capture à l'appui). Une
+                   maille plus proche que son pas est une chaîne qui s'entasse — on la
+                   laisse. Et les passes changent de sens à chaque fois : balayée d'un seul,
+                   l'ancre qui tombe ne tirait qu'un point de plus par passe. */
+                bool back = (k & 1) == 1;
+                for (int i = 0; i < L; i++)
                 {
+                    int j = back ? L - 1 - i : i;
                     int a = j, c2 = j + 1;
                     double dx = it.Px[c2] - it.Px[a], dy = it.Py[c2] - it.Py[a], dz = it.Pz[c2] - it.Pz[a];
                     double d = Math.Sqrt(dx * dx + dy * dy + dz * dz);
-                    if (d < 1e-6) d = 1e-6;
+                    if (d <= seg) continue;
                     /* Chaque bout cède à proportion de sa légèreté : l'écubier ne cède
                        pas, l'organeau non plus tant que l'ancre est au fond ; dérapée,
                        elle cède un peu — une tonne de fer au bout d'une chaîne. */

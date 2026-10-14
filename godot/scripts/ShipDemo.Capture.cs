@@ -192,9 +192,15 @@ public partial class ShipDemo
                 case "--sans-film": _noFilm = true; break;
                 // L'INSTRUMENT : l'ouvrir, et « auto » le règle juste (à une minute près) et le lit — pour l'essai
                 case "--hauteur": _sightTest = args[i + 1]; _askTitle ??= false; break;
+                // LE NOCTURLABE, de nuit : l'ouvrir ; « auto » pose le bras sur la Garde et lit — la console dit l'écart
+                case "--nocturlabe": _noctTest = args[i + 1]; _askTitle ??= false; break;
+                // LE LIVRE DU PILOTE ouvert d'emblée : 0 le régiment du soleil, 1 la règle de l'étoile du Nord
+                case "--livre": _bookTest = args[i + 1].ToInt(); _askTitle ??= false; break;
                 // l'Histoire choisie AU TITRE, par son vrai chemin (le titre s'ouvre, puis on clique)
                 case "--debug": if (args[i + 1] != "0") { _creditLast = Time.GetTicksMsec() / 1000.0; _creditClicks = 2; CreditsClick(); } break;
                 case "--jeu-libre": _freeTest = args[i + 1] != "0"; _askTitle = true; break;
+                // une partie libre neuve, par la porte du menu : l ouverture se joue (ShipDemo.Opening.cs)
+                case "--ouverture": _openTest = args[i + 1] != "0"; _askTitle = true; break;
                 case "--carte-missions": _mapTest = args[i + 1] != "0"; _askTitle = true; break;
                 case "--histoire": _storyTest = args[i + 1] != "0"; break;
                 // l'essai du tutoriel : l'écoute bordée puis choquée, comme le ferait la main

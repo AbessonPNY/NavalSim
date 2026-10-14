@@ -161,7 +161,7 @@ public partial class ShipDemo
     void LostTick()
     {
         // le naufrage du film n'est pas le vôtre
-        if (_film != null) return;
+        if (Filming) return;
         // le nôtre se raconte d'abord ; le bandeau vient après (ShipDemo.SinkFilm.cs)
         if (_sinkT >= 0) return;
         if (_lostBox == null || _captured) return;   // capturée : le bandeau est à elle

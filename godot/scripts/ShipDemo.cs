@@ -710,10 +710,11 @@ public partial class ShipDemo : Node3D
         // au titre, la barre et les voiles ne répondent pas : l'œil fait sa ronde
         // en mode création la barre ne répond plus : les touches sont à l'éditeur
         if (_filmLater != null) { var fl = _filmLater; _filmLater = null; BeginFilm(fl); }
-        if (_inTitle) TitleTick(frame); else if (_editing) EditTick(frame); else if (_film != null) FilmTick(frame); else ReadKeys(frame);
+        if (_inTitle) TitleTick(frame); else if (_editing) EditTick(frame); else if (_film != null) FilmTick(frame); else if (_opening != null) OpeningTick(frame); else ReadKeys(frame);
         ObjectivesTick(frame);
         SwimTick(frame);
         SightTick(frame);
+        NocturnalTick(frame);
         CombatLogTick();
         StarsTick();
         SwimAfter(frame);
@@ -758,6 +759,9 @@ public partial class ShipDemo : Node3D
         // les avirons balancent EN MESURE avec le coup que le solveur vient de donner
         _ship.SetOars(frame);
         foreach (var s2 in _others) s2.SetOars(frame);
+        // le safran suit la barre de chacun
+        _ship.RudderTick();
+        foreach (var s2 in _others) s2.RudderTick();
         // les lanternes pendues suivent le roulis en vrais pendules
         _ship.SwingLanterns(frame);
         /* LES FILINS APRÈS LES SOLVEURS : une contrainte corrige ce que

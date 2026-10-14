@@ -30,6 +30,8 @@ public partial class SightPlate : Control
     public string Top = "", Readout = "", Hint = "";
     /// <summary>Dessiner l'étoile : seulement quand le ciel n'a pas les vraies (StarMap) — sinon c'est la Polaire du ciel qu'on vise.</summary>
     public bool DrawStar = true;
+    /// <summary>La pinnule d'horizon en image (instruments.json → quartier.vue), sa fente au milieu ; null : dessinée.</summary>
+    public Texture2D? View;
 
     public override void _Draw()
     {
@@ -42,10 +44,21 @@ public partial class SightPlate : Control
         {
             // les deux joues du viseur d'horizon, et la fente entre elles
             float slit = 70;
-            DrawRect(new Rect2(0, 0, c.X - slit, sz.Y), ink);
-            DrawRect(new Rect2(c.X + slit, 0, sz.X - c.X - slit, sz.Y), ink);
-            DrawRect(new Rect2(c.X - slit - 14, 0, 14, sz.Y), wood);
-            DrawRect(new Rect2(c.X + slit, 0, 14, sz.Y), wood);
+            if (View != null)
+            {
+                // the picture over the whole height, its slit (the middle of the image) on the line of sight
+                float vw = sz.Y * View.GetWidth() / MathF.Max(1, View.GetHeight());
+                DrawTextureRect(View, new Rect2(c.X - vw * 0.5f, 0, vw, sz.Y), false);
+                DrawRect(new Rect2(0, 0, c.X - vw * 0.5f, sz.Y), ink);
+                DrawRect(new Rect2(c.X + vw * 0.5f, 0, sz.X - c.X - vw * 0.5f, sz.Y), ink);
+            }
+            else
+            {
+                DrawRect(new Rect2(0, 0, c.X - slit, sz.Y), ink);
+                DrawRect(new Rect2(c.X + slit, 0, sz.X - c.X - slit, sz.Y), ink);
+                DrawRect(new Rect2(c.X - slit - 14, 0, 14, sz.Y), wood);
+                DrawRect(new Rect2(c.X + slit, 0, 14, sz.Y), wood);
+            }
             // l'OMBRE du soleil sur la plaque : une bande lumineuse, floue sur ses bords (le disque fait un demi-degré)
             float y = c.Y - MarkDeg * PxPerDeg;
             float half = 0.25f * PxPerDeg;
@@ -58,6 +71,12 @@ public partial class SightPlate : Control
             // le repère du milieu de la fente
             DrawLine(new Vector2(c.X - slit - 26, c.Y), new Vector2(c.X - slit - 14, c.Y), brass, 2);
             DrawLine(new Vector2(c.X + slit + 14, c.Y), new Vector2(c.X + slit + 26, c.Y), brass, 2);
+            /* LE TROU DE LA PINNULE DE VISÉE : l'œil y est collé, on ne voit qu'un disque —
+               la fente au milieu, le reste dans le noir du bois. */
+            float hole = sz.Y * 0.47f, rim = MathF.Max(sz.X, sz.Y);
+            DrawArc(c, hole + rim * 0.5f, 0, MathF.Tau, 128, new Color(0.02f, 0.015f, 0.01f, 0.97f), rim, true);
+            for (int k = 0; k < 5; k++)
+                DrawArc(c, hole - k * 6, 0, MathF.Tau, 128, new Color(0.02f, 0.015f, 0.01f, 0.16f), 6, true);
         }
         else
         {
@@ -80,7 +99,8 @@ public partial class SightPlate : Control
         }
         var font = ThemeDB.FallbackFont;
         DrawString(font, new Vector2(24, 40), Top, HorizontalAlignment.Left, sz.X - 48, 18, new Color(1, 0.96f, 0.86f));
-        DrawString(font, new Vector2(24, sz.Y - 60), Readout, HorizontalAlignment.Left, sz.X - 48, 26, new Color(1, 0.92f, 0.7f));
-        DrawString(font, new Vector2(24, sz.Y - 28), Hint, HorizontalAlignment.Left, sz.X - 48, 16, new Color(0.9f, 0.9f, 0.85f));
+        // the instrument in hand holds the lower right corner (SightInstrument): the words keep left of it
+        DrawString(font, new Vector2(24, sz.Y - 80), Readout, HorizontalAlignment.Left, sz.X * 0.5f, 26, new Color(1, 0.92f, 0.7f));
+        DrawMultilineString(font, new Vector2(24, sz.Y - 48), Hint, HorizontalAlignment.Left, sz.X * 0.5f, 16, -1, new Color(0.9f, 0.9f, 0.85f));
     }
 }

@@ -403,7 +403,7 @@ public partial class ShipDemo
     /// de tant de mètres. Faux s'il n'a pas pu paraître (l'œil sur sa place, la rade
     /// pleine, pas de route) — on réessaie au prochain coup.
     /// </summary>
-    bool Launch(Isle port, PortTimetable pt, Sailing sg, double dist, double now)
+    bool Launch(Isle port, PortTimetable pt, Sailing sg, double dist, double now, double frac = -1, bool seen = false)
     {
         // de la place pour les rencontres du large et les pirates : la rade n'en prend pas trop
         if (_trips.Count >= TrafficN || _others.Count >= Config.MaxShips - 4) return false;
@@ -421,6 +421,15 @@ public partial class ShipDemo
         var route = TripRoute(home.Value, sg.Other, need);
         if (route == null || route.Count < 2) return true;
         if (sg.Arrival) route.Reverse();
+        /* EN PART DE SA ROUTE (l'ouverture du jeu libre) : la distance se dit en
+           fraction de la route, qu'on ne connaît qu'ici. */
+        if (frac >= 0)
+        {
+            double total = 0;
+            for (int k = 0; k + 1 < route.Count; k++)
+                total += Math.Sqrt((route[k + 1].X - route[k].X) * (route[k + 1].X - route[k].X) + (route[k + 1].Z - route[k].Z) * (route[k + 1].Z - route[k].Z));
+            dist = frac * total;
+        }
         var o = _sea.Core.Origin;
         Vector3 Local((double X, double Z) p) => new((float)(p.X - o.X), 0, (float)(p.Z - o.Z));
 
@@ -441,7 +450,8 @@ public partial class ShipDemo
             next = route[k + 1];
             legAt = k + 1;
         }
-        if (!Unseen(Local(at))) return false;
+        // l'ouverture le veut sous l'œil : c'est elle qui le filme
+        if (!seen && !Unseen(Local(at))) return false;
 
         int idx = ShipLibrary.IndexOf(_paths, id);
         int before = _others.Count;

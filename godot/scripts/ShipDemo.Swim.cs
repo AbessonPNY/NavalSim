@@ -68,7 +68,7 @@ public partial class ShipDemo
 
     void SwimJump()
     {
-        if (_swimming || _bellOut || _mother != null || _world == null || _inTitle || _editing || _film != null) return;
+        if (_swimming || _bellOut || _mother != null || _world == null || _inTitle || _editing || Filming) return;
         var b = _ship.Physics.Body;
         if (b.Vel.LengthXZ > 0.8) { Say("On ne saute pas d'un navire qui court — stoppez d'abord"); return; }
         var spec = _ship.Spec;
