@@ -308,7 +308,7 @@ public partial class ShipDemo : Node3D
         var avant = _portHere;
         _portHere = _inTitle ? null : PortInFront();
         // on entre : la manœuvre de port a ses propres cris
-        if (avant == null && _portHere != null) Shout("port", 0.2, 20);
+        if (avant == null && _portHere != null) { Shout("port", 0.2, 20); TallyPort(_portHere); }
         _mkPanel.Visible = _portHere != null && _hudOn && !_inTitle;
         /* À QUAI : LE LONG DU PONTON ET SANS ERRE.
 
@@ -465,6 +465,7 @@ public partial class ShipDemo : Node3D
         if (sorti < 0.05) { Say("Rien à vendre"); return; }
         double gain = Js.Round(_market.SellPrice(good, _portHere.Key, MarketTime) * sorti);
         _purse.Add(gain);
+        _tally.Gains += gain;
         Say(FormattableString.Invariant($"{sorti:F1} t de {w.Name.ToLowerInvariant()} — {gain:F0} pièces"));
         MarketTick();
     }
@@ -532,6 +533,7 @@ public partial class ShipDemo : Node3D
         if (n <= 0) { Say("Rien à vendre"); return; }
         double gain = _tresors.SellPrice(kind, _portHere.Key, MarketTime, _market.Palier) * n;
         _purse.Add(gain);
+        _tally.Gains += gain;
         _treasureHold[kind] = have - n;
         Say(FormattableString.Invariant($"{_tresors.Say(kind, n)} — {gain:F0} pièces ({gain / Market.SousParEcu:F0} écus)"));
         MarketTick();

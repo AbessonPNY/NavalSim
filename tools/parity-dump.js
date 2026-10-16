@@ -56,6 +56,8 @@ const out = {};
 for (const d of fs.readdirSync(dir).filter(d => fs.existsSync(path.join(dir, d, 'fiche.json')))) {
   const json = JSON.parse(fs.readFileSync(path.join(dir, d, 'fiche.json'), 'utf8'));
   if (!isSpec(json)) continue;
+  // a multihull (« flotteurs ») is Godot's alone: the page draws the centre hull only, and would diverge
+  if (json.flotteurs) continue;
   const spec = new Naval.ShipSpec(json);
   const hl = new Naval.HullLines(spec);
 

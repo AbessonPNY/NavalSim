@@ -202,6 +202,7 @@ public partial class ShipDemo
         // qui a tiré : c'est ce qui permet à un navire de savoir contre qui se retourner
         ShipNode? shooter = null;
         foreach (var (node, tt) in _targets) if (tt.Physics == from) { shooter = node; break; }
+        if (shooter == _ship && s != _ship) _hitByMe.Add(s);
         // les spectres ne provoquent pas les vivants et n'en sont pas provoqués
         /* UN BOULET D'UN NAVIRE DE SON PAVILLON NE FAIT PAS UN ENNEMI. C'est la
            règle de l'escarmouche, et elle vaut partout : entre gens du même bord,
@@ -334,6 +335,8 @@ public partial class ShipDemo
             return;
         }
         ph.Powder = Math.Max(0, ph.Powder - fired);
+        _tally.Coups += fired;
+        if (held || _layOrder) _tally.Bordees++;
         Shout("feu", 0, 1.5);
     }
 

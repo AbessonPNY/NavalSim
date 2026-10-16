@@ -96,6 +96,14 @@ public partial class ShipDemo : Node3D
     /// </summary>
     public override async void _Ready()
     {
+        /* L'APERÇU D'UN NAVIRE (--testship 1) : sa propre petite scène, sans monde à
+           bâtir — voir ShipPreview. Elle prend la place du jeu avant le moindre chargement. */
+        if (ShipPreview.Wanted())
+        {
+            GetTree().Root.CallDeferred(Node.MethodName.AddChild, new ShipPreview());
+            QueueFree();
+            return;
+        }
         /* SANS ÉCRAN, PERSONNE NE DESSINE — et FramePostDraw n'arrive jamais. Le
            jeu ne démarrait plus du tout en mode sans-tête, c'est-à-dire dans tout
            ce qui le mesure et le vérifie : la panne muette du genre le plus bête,
@@ -922,6 +930,7 @@ public partial class ShipDemo : Node3D
             PassageTick();
             CompassTick();
             ReckonTick(frame);
+            TallySail(frame);
             RumourTick(frame);
             DiveTick(frame, here, new Vec3d(wo.X, 0, wo.Z));
             if (_moored != null)

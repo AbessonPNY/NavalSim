@@ -229,27 +229,57 @@ Une bougie brûle dans la chambre du capitaine de la Roter Löwe
 Pas de champ `lanterns` : un seul feu au couronnement, placé automatiquement,
 comme avant. Une **liste vide** (`"lanterns": []`) : aucun feu.
 
-## Fenêtres allumées la nuit
+## L'aperçu : voir un navire sans lancer de partie (Godot)
 
-glTF n'a pas de « texture de nuit », et il n'en a pas besoin : il a une **carte
-émissive**. Dans Blender, branchez une image où seules les fenêtres sont claires
-sur l'entrée **Émission** du matériau ; l'exportateur la porte en
-`emissiveTexture` dans le `.glb`. Le jeu la trouve seul et ne règle qu'une
-chose, l'intensité : **zéro le jour**, pleine la nuit, sur la même bascule que
-les feux et le ciel. Rien à déclarer dans la fiche.
+```bash
+godot --path godot -- --testship 1 --ship 8
+```
 
-Sans image, il reste le repli par **nom de matière** : une matière nommée
-`fenetre`, `window`, `vitre`, `glass`, `hublot`, `lamp`, `lanterne`… reçoit une
-émissive chaude la nuit. C'est ce qui allume la Roter Löwe, dont le modèle porte
-une matière `glass`.
+Le navire seul, sur fond noir, la nuit (23 h), bâti exactement comme en jeu — modèle,
+voiles (serrées dessinées comprises), fanaux, blocs lumineux, lampes, pavillon — sous le
+même ciel, mais sans mer ni terre : il s'ouvre en quelques secondes. `--ship` est le rang
+de la fiche (celui de `--ship` en jeu) ; `--heure 12` ouvre de jour, `--sails 1` voiles
+établies.
 
-`model.nightGlow` règle la force (1 par défaut, 0 pour ne rien allumer).
+Souris : clic gauche tenu pour tourner, molette pour s'approcher, clic droit tenu pour
+monter ou descendre l'œil. **← →** navire précédent / suivant, **V** voiles établies ou
+serrées (au train du jeu, fondu de la voile serrée compris), **J** nuit ou jour, **F**
+fanaux sur ordre, **G** la ligne d'eau, **Échap** quitter.
 
-**Leur reflet sur l'eau** : les vitres sont groupées (à trois mètres près) et les deux plus grands
-groupes deviennent des feux de la mer, aussi larges qu'eux, d'une force qui suit leur surface et
-leur éclat (`settings.json` → `night.glow`), tournés vers le dehors. Un maillage aussi long que
-près de la moitié de la coque (une lueur peinte sur le bordé) n'est pas pris : il ne dit pas où
-est la fenêtre. Le journal du gréement (`--dumprig 1`) liste les groupes trouvés.
+## La nuit à bord : lampes et blocs lumineux (Godot)
+
+**Les fenêtres ne luisent plus d'elles-mêmes** : une vitre ne fait pas de lumière, elle
+laisse voir une chambre éclairée. Elles gardent leur rôle de verre (matières `fenetre`,
+`window`, `vitre`, `glass`, `hublot`… : pas d'ombre, le soleil entre). Une carte émissive
+sur une autre matière est éteinte.
+
+- **Les lampes** : posez des lumières **Point** ou **Spot** dans Blender, à l'intérieur ;
+  l'export glTF les emporte (cochez *Punctual Lights* dans l'exportateur). Elles
+  s'allument avec les fanaux et s'éteignent avec eux, à la force que Blender leur a
+  donnée — à régler à l'œil, la conversion des watts de Blender dépend de l'export. Le
+  journal du gréement (`--dumprig 1`) liste chaque lampe et son énergie. Sans portée
+  (*Custom Distance*), elle est bornée au quart de la longueur du navire.
+- **Une lampe DANS la chambre** (sous un nœud dont le nom est dans `model.inside`, ou
+  dans sa boîte, voir plus bas) n'éclaire que le dedans, comme la bougie : sans quoi
+  elle traverserait la cloison et allumerait le bordé du dehors. Ailleurs, elle éclaire
+  tout, et rien ne l'arrête — le moteur ne lui donne pas d'ombre.
+- **Les blocs lumineux** : une matière dont le nom contient `luminous` (ou `lumineux`,
+  `lumineuse`) luit la nuit, comme les fenêtres le faisaient — sa carte d'émission de
+  Blender ; sans elle, l'IMAGE DE SA COULEUR DE BASE (une chambre peinte luit peinte) ; sans
+  image du tout, sa couleur d'émission ou un ton de flamme. **L'exportateur glTF n'emporte
+  une image d'émission que branchée droit sur *Emission Color*** : un calque ou un mélange
+  entre les deux, et seule la couleur part. Elle ne porte pas d'ombre (posée devant une
+  lampe, elle ferait nuit derrière elle). C'est ce qu'on voit à travers la vitre. Toute
+  émission d'une matière qui n'est pas `luminous` est éteinte.
+
+`model.nightGlow` règle la force des blocs lumineux (1 par défaut, 0 pour les éteindre).
+
+**Leur reflet sur l'eau** : les blocs lumineux sont groupés (à trois mètres près) et les deux
+plus grands groupes deviennent des feux de la mer, aussi larges qu'eux, d'une force qui suit leur
+surface et leur éclat (`settings.json` → `night.glow`), tournés vers le dehors. Un maillage aussi
+long que près de la moitié de la coque n'est pas pris. Les lampes, elles, n'éclairent pas la mer.
+
+Les navires au mouillage dans les ports n'ont ni lampes ni blocs allumés.
 
 ### Ce qui est dedans
 
@@ -292,9 +322,9 @@ Trois réglages de jeu, dans `settings.json` :
 au-delà de `farFrom` mètres, l'éclat du repère tombe en `(farFrom/d)^farFade` et
 sa taille en racine, jamais sous `farMinSize` ; la brume l'atténue aussi.
 
-`glow` est la force de l'émissive (que `model.nightGlow` d'une fiche multiplie
+`glow` est la force des blocs lumineux (que `model.nightGlow` d'une fiche multiplie
 encore), `lightAt` et `snuffAt` les deux seuils d'allumage et d'extinction, sur
-une échelle où 0 est le coucher du soleil et 1 dix degrés plus bas. Les fenêtres
+une échelle où 0 est le coucher du soleil et 1 dix degrés plus bas. Lampes et blocs
 s'allument **d'un coup** et sont soufflées de même : deux seuils plutôt qu'un
 pour qu'un soleil qui hésite à la limite ne fasse pas battre le bord.
 

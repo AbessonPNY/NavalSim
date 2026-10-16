@@ -59,10 +59,12 @@ public partial class ShipDemo
 
         Entry("Reprendre la mer", () => TogglePause());
         Entry("Enregistrer la partie", () => { SaveGame(); PauseNote(); });
+        BuildAutoOnline(box, stack);
         Entry("Réglages", () => { _pause!.Visible = false; _menu.Visible = true; });
         // une partie qui a un nom s'enregistre en passant ; une neuve DEMANDE (Leave)
         Entry("Menu principal", () => Leave(() => { _pause!.Visible = false; Open(); MainItems(); }));
-        Entry("Quitter le jeu", () => Leave(() => GetTree().Quit()));
+        // la partie enregistrée en partant doit avoir le temps d'arriver au serveur
+        Entry("Quitter le jeu", () => Leave(() => AfterUploads(() => GetTree().Quit())));
 
         _pauseNote = new Label { HorizontalAlignment = HorizontalAlignment.Center };
         _pauseNote.AddThemeFontSizeOverride("font_size", 12);
@@ -118,6 +120,7 @@ public partial class ShipDemo
     {
         _leaveGo = null;
         if (_leaveAsk != null) _leaveAsk.Visible = false;
+        if (_pseudoAsk != null) _pseudoAsk.Visible = false;
         if (_pause != null) _pause.Visible = false;
         // its entries back for the next time it opens; hidden with it until then
         if (_pauseMain != null) _pauseMain.Visible = true;
@@ -127,6 +130,7 @@ public partial class ShipDemo
     {
         _leaveGo = null;
         if (_leaveAsk != null) _leaveAsk.Visible = false;
+        if (_pseudoAsk != null) _pseudoAsk.Visible = false;
         if (_pauseMain != null) _pauseMain.Visible = true;
     }
 
@@ -134,6 +138,7 @@ public partial class ShipDemo
     void PauseNote()
     {
         if (_pauseNote == null) return;
+        SyncAutoOnline();
         _pauseNote.Text = _gameId.Length == 0
             ? "Partie non enregistrée"
             : $"Partie « {Where()} », {_calendar.Date:dd/MM/yyyy}";

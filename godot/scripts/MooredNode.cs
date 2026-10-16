@@ -292,6 +292,8 @@ public partial class MooredNode : Node3D
                de la Roter Löwe, mais ils sont à SON capitaine. Une coque au mouillage
                qui les porterait ferait croire à quinze téléporteurs en Jamaïque. */
             ShipNode.StripRings(root);
+            // ni ses lampes de chambre, ni ses blocs lumineux : une coque qui dort n'a pas de feux
+            ShipNode.StripLights(root);
             // ses cordages en rubans, comme sous voiles : un galion à quai ne scintille pas plus qu'en mer
             if (spec.Model.Ribbons) ShipNode.ConvertRopes(root, spec, Hazed, $"rade {spec.Id}");
             Haze(root);

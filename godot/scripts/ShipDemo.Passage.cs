@@ -287,6 +287,7 @@ public partial class ShipDemo : Node3D
         _ship.SyncTransform();
         _askTitle = false;
         ReckonArrive(at.X, at.Z, plan.Miles);
+        _tally.Milles += plan.Miles;
 
         GD.Print(FormattableString.Invariant(
             $"traversée : {v.From} → {plan.To.Name}, {plan.Miles:F0} M en {plan.Hours:F1} h ; atterrage « {plan.At.Name} », fond {-_world.HeightAt(at.X, at.Z):F0} m ; ")

@@ -90,7 +90,8 @@ public partial class ShipDemo
         });
         w.Contents = _tresors.Draw(id, w.Ecus, _pirates.ContainsKey(s));
         _liveWreck[id] = s;
-        if (s == _ship) _playerWreck = id;
+        if (s == _ship) { _playerWreck = id; _tally.Naufrages++; }
+        else if (_hitByMe.Contains(s)) _tally.Coules++;
         GD.Print(FormattableString.Invariant($"épave inscrite : {w.Name} par {w.Depth:F0} m de fond, {w.Ecus} écus"));
     }
 
@@ -218,6 +219,7 @@ public partial class ShipDemo
            vend — au comptoir, à la pièce, mieux dans un port que dans l'autre. */
         if (w.Contents.Count == 0) w.Contents.Add(new Loot { Kind = "ecus", Count = (int)w.Ecus });
         var said = new List<string>();
+        _tally.Coffres++;
         foreach (var l in w.Contents)
         {
             var k = _tresors.ByKey(l.Kind);

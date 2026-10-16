@@ -1,0 +1,159 @@
+{
+  "id": "leusden",
+  "name": "Leusden 1715",
+  "unique": 1,
+  "nation": "hollande",
+  "note": "Copie de la Roter Löwe (ships/frigate17e), même coque, même gréement, même physique : un navire identique sous un autre nom, hollandais. En attendant son propre modèle, il porte celui de la Roter Löwe — remplacer model.glb par \"modele.glb\" une fois le sien déposé dans ce dossier, puis node tools/fit-ship.js leusden pour vérifier le calage.",
+  "hull": {
+    "length": 30,
+    "beam": 7.25,
+    "freeboardMid": 1.8,
+    "sheerBow": 1.2,
+    "sheerStern": 0.9,
+    "keelDepth": 3.2,
+    "keelExtra": 0.65,
+    "dragAft": 0.9,
+    "forefootLift": 0.7,
+    "counterLift": 0.35,
+    "waterlinePower": 0.88,
+    "waterlineFull": 0.48,
+    "transomWidth": 0.55,
+    "sectionTuck": 0.46,
+    "sectionPower": 0.6
+  },
+  "displacementTonnes": 300,
+  "cargoTonnes": 150,
+  "boat": "chaloupe",
+  "cog": {
+    "yFracKeel": -0.43,
+    "zFracLength": -0.055
+  },
+  "hydro": {
+    "resistance": 61,
+    "lateralGrip": 654,
+    "lateralQuad": 131,
+    "heaveDamp": 1100
+  },
+  "engine": {
+    "topSpeed": 3.96,
+    "sternPower": -0.5
+  },
+  "rudder": {
+    "power": 91.5,
+    "maxAngle": 0.61,
+    "postZFrac": -0.47,
+    "postY": -0.8
+  },
+  "rig": {
+    "type": "square",
+    "sailArea": 463,
+    "ceHeight": 9.75,
+    "ceZ": -0.5,
+    "maxSheet": 1.3,
+    "lateen": { "area": 45, "ceHeight": 7.5, "ceZ": -10, "maxSheet": 1.45 },
+    "belly": 1.65,
+    "masts": [
+      {
+        "zFrac": 0.26,
+        "height": 17,
+        "yards": [
+          0.3,
+          0.52,
+          0.72
+        ],
+        "yardSpan": 0.98
+      },
+      {
+        "zFrac": -0.02,
+        "height": 19,
+        "yards": [
+          0.28,
+          0.5,
+          0.7
+        ],
+        "yardSpan": 1.12
+      },
+      {
+        "zFrac": -0.3,
+        "height": 16,
+        "yards": [
+          0.3,
+          0.54,
+          0.74
+        ],
+        "yardSpan": 0.86
+      }
+    ],
+    "jib": {
+      "footFrac": 0.235,
+      "tackAbove": 1.1,
+      "clewAbove": 2,
+      "headDrop": 3
+    },
+    "bowsprit": {
+      "length": 7.75,
+      "steeve": 0.22
+    }
+  },
+  "lanterns": [
+    { "x": 0, "zFrac": -0.448 },
+    { "kind": "candle", "hang": "cabineLantern", "x": 1.25, "y": 4.0, "zFrac": -0.30, "size": 0.1, "color": "0xffb24a" }
+  ],
+  "flags": [
+    { "at": "stern", "size": 1.6, "image": "nation:poupe" },
+    { "mast": 1 },
+    { "mast": -1, "shape": "streamer", "size": 0.8, "image": "nation" },
+    { "at": "bow", "size": 0.6 }
+  ],
+  "deckhouse": {
+    "beamFrac": 0.34,
+    "height": 8.35,
+    "lengthFrac": 0.14,
+    "zFrac": -0.3
+  },
+  "appearance": {
+    "hull": "0x2b2118",
+    "timber": "0x6f5334",
+    "spar": "0xa8875a",
+    "house": "0xc9bda4",
+    "canvas": "0xd8cdb4",
+	 "canvasMap": {
+      "square": "ships/textures/toile-carree.jpg"
+    },
+    "impactMaps": [
+      [
+        "ships/textures/impacts/impact_001_stage_1.png",
+        "ships/textures/impacts/impact_001_stage_2.png",
+        "ships/textures/impacts/impact_001_stage_3.png"
+      ]
+    ]
+  },
+  "camera": {
+    "chaseDist": 46,
+    "chaseHigh": 16,
+    "orbitDist": 57.5,
+    "decks": [
+      { "name": "Passerelle", "x": 0, "y": 8, "zFrac": -0.4, "yaw": 0, "pitch": 0, "fov": 35 },
+      { "name": "Chambre du capitaine", "x": 0, "y": 4.0, "zFrac": -0.33, "yaw": 0, "pitch": -4, "fov": 50, "near": 0.08, "closed": true },
+      { "name": "Pont de batterie", "x": 0, "y": 4.3, "z": 5.4, "yaw": 0, "pitch": -2, "fov": 55, "near": 0.08 },
+      { "name": "Vigie", "x": 0, "y": 13.3, "z": 0.4, "yaw": 0, "pitch": -2, "fov": 55, "near": 0.08 }
+    ]
+  },
+  "model": {
+    "glb": "ships/frigate17e/modele.glb",
+    "rubans": true,
+    "couleurCordage": "#4b3828",
+    "lengthAxis": "z",
+    "offset": [
+      0,
+      0,
+      0
+    ],
+    "rotationY": 0,
+    "relief": 16,
+    "rings": [
+      { "match": "anneau_1", "rpm": 6, "spin": "vertical", "on": false },
+      { "match": "anneau_2", "rpm": -3.7, "spin": "etrave", "on": false }
+    ]
+  }
+}

@@ -164,6 +164,8 @@ public partial class ShipDemo
                 _bottleOneIn = bo.GetInt32();
             // le naufrage filmé (ShipDemo.SinkFilm.cs) : vrai sauf « film »: false
             if (root.TryGetProperty("wreck", out var wf) && wf.TryGetProperty("film", out var sinkFilm)) _sinkFilmOn = sinkFilm.ValueKind != System.Text.Json.JsonValueKind.False;
+            if (root.TryGetProperty("enLigne", out var ol) && ol.TryGetProperty("url", out var olu))
+                _onlineUrl = olu.GetString()?.Trim() ?? "";
             if (root.TryGetProperty("gunnery", out var gu)) _gunRules = GunnerySettings.FromJson(gu);
             if (root.TryGetProperty("encounters", out var ec)) _metRules = EncounterSettings.FromJson(ec);
             if (root.TryGetProperty("snow", out var sw)) _snowRules = SnowSettings.FromJson(sw);

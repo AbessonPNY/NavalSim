@@ -1,0 +1,11 @@
+# Seul api.php répond ; config.php et le reste ne se lisent pas de l'extérieur.
+<FilesMatch "^(?!api\.php$).*\.(php|md|sqlite)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+Options -Indexes

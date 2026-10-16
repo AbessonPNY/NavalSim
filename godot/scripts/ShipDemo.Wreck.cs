@@ -135,6 +135,7 @@ public partial class ShipDemo
     {
         if (_captured || _lostBox == null) return;
         _captured = true;
+        _tally.Captures++;
         BlowUp(_ship);
         _lostTitle!.Text = "Votre navire est capturé — les pirates ne font pas de quartier.";
         _lostHow!.Text = LastSave() != null

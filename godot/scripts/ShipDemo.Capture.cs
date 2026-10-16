@@ -321,6 +321,8 @@ public partial class ShipDemo
                 case "--nom-essai": NameProof(args[i + 1]); break;
                 // un guide de nom d essai sur le tableau du navire, qu on remet à l eau (NameBoard)
                 case "--nom-guide": NameBoard.TestGuide = args[i + 1] != "0"; NameBoard.TestInset = args[i + 1].ToFloat(); Launch(_index); break;
+                // l'aller-retour avec le serveur, sous une identité jetable (ShipDemo.Online.cs)
+                case "--en-ligne-essai": _onlineTest = args[i + 1] != "0"; OnlineIni = "user://en-ligne-essai.ini"; _askTitle ??= false; break;
                 case "--surprise": _surpriseTest = args[i + 1]; _askTitle ??= false; break;
                 case "--heurter": _bumpTest = args[i + 1]; _askTitle ??= false; break;
                 case "--instruments": _info.Visible = args[i + 1] != "0"; break;

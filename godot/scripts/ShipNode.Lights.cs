@@ -652,6 +652,9 @@ public partial class ShipNode
         return L;
     }
 
+    /// <summary>La boîte de ce qui est dedans (repère du navire), si le modèle en a une — voir MarkInside.</summary>
+    Aabb? _insideBox;
+
     static readonly string[] InsideByDefault = { "cabine", "cabin", "chambre", "bureau" };
 
     /// <summary>
@@ -696,6 +699,7 @@ public partial class ShipNode
                sa longueur fait 3 m sur une coque de trente, ce qui est la hauteur
                d un entrepont. Au-dela on prendrait le pont du dessus. */
             boite = new Aabb(boite.Position, new Vector3(boite.Size.X, (float)(0.10 * Spec.L), boite.Size.Z));
+            _insideBox = boite;
             foreach (var (mi, _) in Meshes(ModelRoot))
             {
                 if (mi.Layers == InsideLayer) continue;
@@ -731,19 +735,26 @@ public partial class ShipNode
     }
 
     /// <summary>
-    /// LES FENÊTRES S'ALLUMENT AVEC LES FEUX, et rien n'est peint deux fois pour
-    /// ça : une matière du .glb qui porte une carte ÉMISSIVE — ce qu'un nœud
-    /// Émission de Blender exporte en glTF — est une matière qui a une part
-    /// lumineuse. Le repli est un mot dans un nom de matière : « fenetre »,
-    /// « window », « lampe »… reçoit une émissive chaude sans image. Le jour son
-    /// intensité est à zéro : une vitre au soleil ne luit pas, elle reflète.
+    /// CE QUI LUIT LA NUIT EST UNE MATIÈRE NOMMÉE « luminous », et rien d'autre
+    /// (demandé : « retirer l'effet de lumière émanant des fenêtres ; je placerai des
+    /// lumières à l'intérieur, et des blocs dont la matière sera nommée luminous »).
+    ///
+    /// La vitre luisait d'elle-même, ce qu'une vitre ne fait pas : c'est la chambre
+    /// derrière qui est claire, et la vitre la laisse voir. Le modéliste pose donc la
+    /// lumière DEDANS — de vraies lampes, qui éclairent la chambre — et un bloc
+    /// lumineux là où l'œil doit voir une flamme ou un mur éclairé. Les fenêtres
+    /// gardent leur métier de verre — pas d'ombre, le soleil entre — et rien de plus.
+    ///
+    /// Un bloc lumineux s'allume avec les feux et s'éteint au jour comme les fenêtres
+    /// le faisaient : même force (`model.nightGlow`, `night.glow`), même tournée.
+    /// Une carte émissive d'une AUTRE matière est éteinte : elle ferait luire une
+    /// vitre de nuit comme de jour, ce qui est précisément ce qu'on retire.
     /// </summary>
     void FindNightGlow()
     {
         _nightMats.Clear();
         if (ModelRoot == null) return;
         double gain = Spec.Model?.NightGlow ?? 1;
-        if (!(gain > 0)) return;
         var seen = new HashSet<Material>();
         var boxes = new List<(Aabb Box, BaseMaterial3D Mat)>();
         var toShip = Transform.AffineInverse();
@@ -751,21 +762,37 @@ public partial class ShipNode
             for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
             {
                 if ((mi.GetSurfaceOverrideMaterial(s) ?? mi.Mesh.SurfaceGetMaterial(s)) is not BaseMaterial3D mat) continue;
-                bool byName = GlowNames.IsMatch(mat.ResourceName ?? "");
+                string nom = mat.ResourceName ?? "";
+                bool lumineux = LuminousNames.IsMatch(nom);
+                /* le verre laisse passer la lumière : pas d'ombre — et CHAQUE objet qui en
+                   porte, pas le premier seulement (deux vitres sur quatre du Roter Löwe
+                   partagent « glass », et le soleil n'entrait plus dans la chambre). Un bloc
+                   lumineux non plus : posé devant la lampe, il ferait nuit derrière lui. */
+                if (lumineux || GlowNames.IsMatch(nom)) mi.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
                 // where it shines, for the sea: every object that carries it, before the « already seen » test
-                if (byName || mat.EmissionTexture != null) boxes.Add((toShip * t * mi.GetAabb(), mat));
-                /* le verre et les fanaux laissent passer la lumière : pas d'ombre — et
-                   CHAQUE objet qui en porte, pas le premier seulement. Le test « déjà
-                   vue » passait avant : deux vitres sur quatre du Roter Löwe, qui
-                   partagent la matière « glass », faisaient encore ombre, et le soleil
-                   n'entrait plus dans la chambre du capitaine (signalé). */
-                if (byName) mi.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
+                if (lumineux) boxes.Add((toShip * t * mi.GetAabb(), mat));
                 if (!seen.Add(mat)) continue;
-                bool hasMap = mat.EmissionTexture != null;
-                if (!hasMap && !byName) continue;
+                /* TOUTE AUTRE ÉMISSION S'ÉTEINT, couleur seule comprise : la « cabine » du
+                   Roebuck sortait de Blender avec un vert à force 5 et luisait de jour comme
+                   de nuit (relevé). Les anneaux et la sphère ont leur propre shader par-dessus,
+                   ils n'y perdent rien. */
+                if (!lumineux) { mat.EmissionEnabled = false; continue; }
+                if (!(gain > 0)) { mat.EmissionEnabled = false; continue; }
+                /* L'IMAGE DE LA PIÈCE, SI L'ÉMISSION N'EN A PAS. L'exportateur glTF n'emporte
+                   une image d'émission que branchée DROIT sur « Emission Color » ; posée par un
+                   calque ou un mélange, il ne garde que la couleur (relevé sur la cabine du
+                   Roebuck : l'image sur la couleur de base, un vert uni sur l'émission). Une
+                   chambre peinte doit luire PEINTE : on emprunte son image, en blanc, la
+                   couleur venant d'elle et non d'un facteur resté là. */
+                if (mat.EmissionTexture == null && mat.AlbedoTexture != null)
+                {
+                    mat.EmissionTexture = mat.AlbedoTexture;
+                    mat.Emission = Colors.White;
+                }
                 /* Une carte émissive est MULTIPLIÉE par la couleur émissive, que
                    l'exportateur laisse noire quand le facteur est nul : sans ce
                    blanc, la carte est là et ne donne rien. */
+                bool hasMap = mat.EmissionTexture != null;
                 mat.EmissionEnabled = true;
                 if (mat.Emission.R == 0 && mat.Emission.G == 0 && mat.Emission.B == 0)
                     mat.Emission = hasMap ? Colors.White : ColorX.Hex("0xffb765");
@@ -773,8 +800,72 @@ public partial class ShipNode
                 _nightMats.Add((mat, b * gain));
                 mat.EmissionEnergyMultiplier = 0;
             }
-        foreach (var (m, b) in _nightMats) RigLog.Add(FormattableString.Invariant($"fenêtre de nuit {m.ResourceName} force {b:F2}"));
+        foreach (var (m, b) in _nightMats) RigLog.Add(FormattableString.Invariant($"bloc lumineux {m.ResourceName} force {b:F2}"));
         GroupGlowSpots(boxes);
+        FindModelLights();
+    }
+
+    /// <summary>
+    /// UNE COQUE AU MOUILLAGE N'A PAS DE FEUX (voir MooredNode) : ses lampes s'en vont
+    /// et ses blocs lumineux s'éteignent. Sans quoi la copie brute du .glb les
+    /// garderait allumés à la force de Blender, de jour comme de nuit.
+    /// </summary>
+    internal static void StripLights(Node3D root)
+    {
+        var lampes = new List<Light3D>();
+        void Walk(Node n)
+        {
+            if (n is Light3D l) lampes.Add(l);
+            if (n is MeshInstance3D mi && mi.Mesh != null)
+                for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
+                    if ((mi.GetSurfaceOverrideMaterial(i) ?? mi.Mesh.SurfaceGetMaterial(i)) is BaseMaterial3D m
+                        && LuminousNames.IsMatch(m.ResourceName ?? ""))
+                        m.EmissionEnabled = false;
+            foreach (var c in n.GetChildren()) Walk(c);
+        }
+        Walk(root);
+        foreach (var l in lampes) { l.GetParent()?.RemoveChild(l); l.QueueFree(); }
+    }
+
+    /// <summary>Ce qui nomme une matière qui luit la nuit.</summary>
+    static readonly System.Text.RegularExpressions.Regex LuminousNames = new(
+        "luminous|lumineu[xs]e?", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    /// <summary>Les lampes posées dans le modèle (Blender), et l'énergie qu'il leur donne.</summary>
+    readonly List<(Light3D Light, float Energy, bool Shadow)> _modelLights = new();
+
+    /* LES LAMPES DU MODÈLE, qu'un .glb apporte (KHR_lights_punctual : une Point ou
+       une Spot de Blender). Elles brûlent quand les fanaux brûlent, à la force que
+       Blender leur a donnée, et s'éteignent avec la même tournée que les blocs
+       lumineux. Une lampe posée DANS la chambre (sous un nœud « cabine », ou dans sa
+       boîte, voir MarkInside) n'éclaire que le dedans, comme la bougie — sans quoi
+       elle traverserait la cloison et allumerait le bordé du dehors. Sans portée
+       donnée, la sienne est bornée au quart du navire : une lampe à portée infinie
+       pèse sur tout l'éclairage en grappes pour une lueur que personne ne voit. */
+    void FindModelLights()
+    {
+        _modelLights.Clear();
+        if (ModelRoot == null) return;
+        var toShip = GlobalTransform.AffineInverse();
+        float reach = (float)(0.25 * Spec.L);
+        void Walk(Node n)
+        {
+            if (n is Light3D l)
+            {
+                bool dedans = l.Layers == InsideLayer
+                    || (_insideBox is Aabb box && box.HasPoint(toShip * l.GlobalPosition));
+                if (dedans) l.LightCullMask = InsideLayer;
+                if (l is OmniLight3D o && !(o.OmniRange <= reach)) o.OmniRange = reach;
+                if (l is SpotLight3D sp && !(sp.SpotRange <= reach)) sp.SpotRange = reach;
+                _modelLights.Add((l, l.LightEnergy, l.ShadowEnabled));
+                RigLog.Add(FormattableString.Invariant(
+                    $"lampe {l.Name} énergie {l.LightEnergy:F2}{(dedans ? ", dedans" : "")}"));
+                l.LightEnergy = 0;
+                l.ShadowEnabled = false;
+            }
+            foreach (var c in n.GetChildren()) Walk(c);
+        }
+        Walk(ModelRoot);
     }
 
     /// <summary>
@@ -845,6 +936,13 @@ public partial class ShipNode
             _glowLit = _lit; _glowVeil = vitres; _glowCount = _nightMats.Count;
             foreach (var (mat, b) in _nightMats)
                 mat.EmissionEnergyMultiplier = (float)(_lit ? b * NightGlowGain * vitres : 0);
+            // les lampes de la chambre, à la même tournée ; leur ombre n'est rendue qu'allumées
+            foreach (var (l, e, shadow) in _modelLights)
+            {
+                if (!IsInstanceValid(l)) continue;
+                l.LightEnergy = (float)(_lit ? e * vitres : 0);
+                l.ShadowEnabled = shadow && _lit && vitres > 0;
+            }
         }
 
         /* UN FANAL ÉTEINT NE PORTE PAS D'OMBRE, et il la portait.

@@ -68,6 +68,8 @@ public partial class ShipDemo
                 // le pont d'abord, avec les prises d'avant : sinon celle-ci y serait couchée ET lâchée
                 if (_mother == null) EnsureDeckShip();
                 _catch.Add(lot);
+                _tally.Poissons++;
+                _tally.KgPeche += kg;
                 // il tombe sur le pont, et c'est là qu'il pèse (ShipDemo.DeckFish.cs)
                 DropFish(lot);
                 FishHold();
@@ -236,6 +238,7 @@ public partial class ShipDemo
         _catch.RemoveAll(l => l.Key == key);
         FishHold();
         _purse.Add(gain);
+        _tally.Gains += gain;
         _quests?.Credit(Goal.Sell, kg);
         string name = _angling?.Of(key)?.Name.ToLowerInvariant() ?? key;
         Say($"{Kg(kg)} kg de {name} — {gain:F0} pièces");

@@ -1,4 +1,7 @@
 {
+  "enLigne": {
+    "url": "http://navalsim.artdesigngarage.fr/serveur/api.php"
+  },
   "hud": {
     "startHidden": true
   },

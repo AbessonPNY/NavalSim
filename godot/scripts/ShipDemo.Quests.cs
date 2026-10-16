@@ -49,6 +49,7 @@ public partial class ShipDemo : Node3D
         if (f.Pay > 0)
         {
             _purse.Add(f.Pay);
+            _tally.Gains += f.Pay;
             long ecus = (long)f.Pay / Market.SousParEcu;
             Say($"Payé : {ecus} écus");
             JournalLog(FormattableString.Invariant($"Fret réglé : {ecus} écus."));

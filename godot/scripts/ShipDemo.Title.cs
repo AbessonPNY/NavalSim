@@ -226,6 +226,8 @@ public partial class ShipDemo : Node3D
     {
         foreach (var b in _titleItems) b.QueueFree();
         _titleItems.Clear();
+        _titleField?.QueueFree();
+        _titleField = null;
         _titleShut.Clear();
         _titlePick = 0;
     }
@@ -398,6 +400,7 @@ public partial class ShipDemo : Node3D
         _purse = new Purse(Market.Depart);
         FishReset();
         _gameId = "";
+        TallyReset();
         /* ET LA CARTE AVEC : ce que le bord a vu appartient à SA partie. Ici plutôt
            que dans FreePlay et StartQuest, parce que Home() est le seul endroit par
            où passent les deux — et qu'une reprise, elle, n'y passe pas. */

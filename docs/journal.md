@@ -16883,3 +16883,46 @@ par glyphe depuis les atlas du serveur de texte (pas de SubViewport à attendre 
 (-- --nom-guide 0.7) : « PHOENIX » à l'endroit, éclairé comme le tableau. Aucun modèle ne porte encore de guide.
 RÉALISME : peindre le nom au tableau ne devient la règle qu'au XVIIIᵉ siècle (obligatoire en Angleterre en 1786) ; en 1690 un
 navire se reconnaissait surtout à sa figure de proue et à ses sculptures. Écart assumé, demandé.
+
+## La vitre ne luit plus : lampes et blocs « luminous » (Godot)
+
+Demandé : retirer la lueur des fenêtres la nuit ; le modéliste pose des lampes DANS le navire
+et des blocs dont la matière se nomme `luminous`, émissifs comme l'étaient les fenêtres. Une
+vitre ne fait pas de lumière, elle laisse voir une chambre claire : c'est ce que le dessin dit
+maintenant. `FindNightGlow` n'allume plus que `luminous` (même tournée, même force,
+`model.nightGlow` et `night.glow`, même reflet sur la mer) ; les fenêtres gardent leur métier
+de verre (pas d'ombre) ; une carte émissive sur toute autre matière est ÉTEINTE, sans quoi la
+vitre luirait jour et nuit. Les lampes du .glb (`FindModelLights`) brûlent avec les fanaux, à
+l'énergie de Blender, ombre seulement allumées ; celles de la chambre (nom de `model.inside` ou
+boîte de `MarkInside`, retenue en `_insideBox`) n'éclairent que le dedans, comme la bougie ;
+sans portée, bornée au quart du navire. En rade, `StripLights` les retire et éteint les blocs.
+
+## Les parties en ligne
+
+Demandé : envoyer une partie à un serveur, avec ses statistiques, et la reprendre d ailleurs. L hébergement est un MUTUALISÉ — donc PHP, pas Node : `serveur/api.php`, un seul fichier, PDO, SQLite par défaut (rien à créer chez l hébergeur), MySQL par une ligne de `config.php`.
+
+- **Tout passe en POST, la clé dans le corps.** Derrière FastCGI, bien des mutualisés jettent les en-têtes inconnus ; et une clé dans l URL finit dans les journaux d accès.
+- **Le joueur est une clé, pas un compte** (choisi) : 256 bits tirés par le jeu, gardés dans `user://en-ligne.ini` ; le serveur n en garde que le SHA-256. Changer de poste = copier la clé, la coller.
+- **Le fichier part tel qu il est écrit**, relu en `JsonNode` et non en `SaveState` : ce qu une version plus récente y aurait mis voyage avec lui.
+- **Reprendre écrase la copie locale** du même identifiant ; si celle-ci est plus fraîche, le premier clic demande.
+- **Les comptes** (`Tally`) sont statiques comme la malle de traversée : ils passent les rechargements de scène ; `Home` les remet à zéro, `Resume` les repose. Le chemin s intègre par la VITESSE (`TallySail`), pas par les positions, qu un glissement d origine fausserait ; les traversées ajoutent leurs milles comptés. « Coulé par vous » = coulé après avoir reçu au moins un de vos boulets (`_hitByMe`, posé dans `Struck`) : le jeu ne connaît pas l auteur d un naufrage. Le joueur ne PREND pas de navire (seuls les pirates abordent) : on compte les captures subies.
+- Pas de PHP sur le poste de développement : `serveur/essai.js` exerce le protocole contre le serveur déposé.
+- **Le choix au moment d enregistrer** (demandé) : une case « Sauvegarde automatique en ligne » sous « Enregistrer la partie » (`user://en-ligne.ini` → `auto`). Cochée sans pseudo, elle le demande à la place des entrées. Cocher envoie la DERNIÈRE partie écrite, sans en écrire une neuve dans le dos du joueur. Chaque `SaveGame` envoie ensuite, y compris celui du départ.
+- **Quitter coupe la requête en vol** : « Quitter le jeu » attend la fin des envois (`AfterUploads`), dix secondes au plus.
+- **Charger interroge le serveur** dès que le joueur est connu : une ligne par partie, poste et serveur réunis ; la copie la plus fraîche (`ecrit`, égalité au serveur) gagne ; serveur muet au clic → la copie du poste.
+- **L essai `-- --en-ligne-essai 1`** prend une identité à part (`en-ligne-essai.ini`, effacée après) : il ne doit pas créer celle du joueur. Il passe par les vrais chemins (`Register`, `SaveGame` → `AutoPush`, liste, relecture, effacement) et laisse un joueur `essai-godot-…` dans la table (pas d action pour en effacer un).
+
+## L'aperçu d'un navire, sans monde (Godot)
+
+Demandé : voir le rendu d'un navire dans le jeu, de nuit sur fond noir, sans lancer de partie —
+`-- --testship 1 --ship 8`. `ShipDemo._Ready` cède la place, avant tout chargement, à
+`ShipPreview` : un ShipNode bâti comme en jeu, posé par le solveur sur une mer plate, sous un
+SkyNode à 23 h dont seul le FOND est noir — l'ambiante et les reflets restent ceux du dôme,
+sans quoi le bordé de nuit ne serait pas celui du jeu. Lueur de nuit réglée comme
+`ApplySettings`, `night.glow` et `night.canvas` relus dans settings.json. Ce qu'il ne montre
+pas : la mer (reflets des fanaux, collier, coque vue sous l'eau) et la passe de brume.
+
+**La cabine du Roebuck.** Son image d'émission ne passait pas : posée par un calque, l'exportateur glTF
+n'en garde que la couleur (un vert à force 5, l'image restant sur la couleur de base). Un bloc
+`luminous` sans image d'émission emprunte donc celle de sa couleur de base, en blanc ; et toute émission
+hors `luminous` s'éteint, couleur seule comprise — la cabine luisait verte de jour comme de nuit.

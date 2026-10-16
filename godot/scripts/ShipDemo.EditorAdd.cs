@@ -78,6 +78,7 @@ public partial class ShipDemo
         StrandTestTick(dt);
         BumpTestTick();
         SurpriseTick();
+        OnlineTestTick();
         EyeProbeTick(GetProcessDeltaTime());
         Chimneys(origin, dt);
         ShoreFlagsTick();

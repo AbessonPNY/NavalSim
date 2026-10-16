@@ -160,6 +160,9 @@ public partial class ShipDemo
         if (perles > 0) _treasureHold["perle"] = _treasureHold.GetValueOrDefault("perle") + perles;
         // les écus, droit à la bourse : c'est de la monnaie, pas une marchandise
         if (ecus > 0) _purse.Add(ecus * Market.SousParEcu);
+        _tally.Lambis += lambis;
+        _tally.Perles += perles;
+        _tally.EcusRepeches += ecus;
         var said = new List<string>();
         if (ecus > 0) said.Add($"{ecus} écu{(ecus > 1 ? "s" : "")} d'or à la bourse");
         if (lambis > 0) said.Add(_tresors.Say("lambi", lambis));

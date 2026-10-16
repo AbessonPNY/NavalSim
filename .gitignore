@@ -34,3 +34,6 @@ world/models/*-zone.glb
 
 # l aller-retour avec Blender (node tools/blender-zone.js) : export, .blend de travail, releve
 world/blender/
+
+# les identifiants de la base du serveur en ligne : modele dans serveur/config.exemple.php
+serveur/config.php

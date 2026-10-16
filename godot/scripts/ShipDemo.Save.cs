@@ -93,6 +93,8 @@ public partial class ShipDemo
         [JsonPropertyName("carnet")] public string Carnet { get; set; } = "";
         /// <summary>Un carnet par région visitée, la clé de la région pour clé.</summary>
         [JsonPropertyName("carnets")] public Dictionary<string, string> Carnets { get; set; } = new();
+        /// <summary>Les comptes de la partie (ShipDemo.Online.cs) ; vides dans les parties d'avant.</summary>
+        [JsonPropertyName("stats")] public Tally Stats { get; set; } = new();
     }
 
     public sealed class Prise
@@ -193,6 +195,7 @@ public partial class ShipDemo
         s.Quetes = _quests?.ToJson() ?? "";
         s.Journal = _journal.Pages.Count > 0 ? _journal.ToJson() : "";
         s.Carnets = BooksNow();
+        s.Stats = TallyNow();
         s.Lieu = Where();
         s.Nom = $"{_ship.Styled} — {s.Lieu}, {_calendar.Date:dd/MM/yyyy}";
         return s;
@@ -274,6 +277,8 @@ public partial class ShipDemo
         SaveBook();
         Say("Partie enregistrée — " + s.Nom);
         GD.Print($"partie enregistrée : {PathOf(s.Id)}");
+        // et au serveur, si le joueur l'a choisi (ShipDemo.Online.cs)
+        AutoPush(s.Id);
     }
 
     // ------------------------------------------------------------------
@@ -353,6 +358,8 @@ public partial class ShipDemo
         var b = p.Body;
 
         _purse = new Purse(s.Sous);
+        TallyReset();
+        _tally = s.Stats;
         Wrecks.Clear();
         foreach (var w in s.Epaves)
         {
@@ -462,7 +469,8 @@ public partial class ShipDemo
         _eraseId = "";
         ClearItems();
         Item(label, neuve, 34);
-        if (Saves(mode).Count > 0)
+        // en ligne, il peut y avoir à charger sans rien sur ce poste
+        if (Saves(mode).Count > 0 || OnlineReady)
             Item("Charger une partie", () => LoadItems(mode, label, neuve), 34);
         Item("Retour", MainItems, 34);
         ShowPick();
@@ -477,15 +485,71 @@ public partial class ShipDemo
     void LoadItems(string mode, string label, Action neuve)
     {
         _eraseId = "";
+        if (!OnlineReady) { ListItems(mode, label, neuve, null, ""); return; }
+        /* CONNU DU SERVEUR : on lui demande d'abord ce qu'il garde (demandé). La
+           liste attend sa réponse ; s'il ne répond pas, on montre ce poste seul. */
+        ClearItems();
+        Item("Le serveur…", () => { }, 28, open: false);
+        Item("Retour", () => GameItems(mode, label, neuve), 34);
+        ShowPick();
+        Online("liste", new System.Text.Json.Nodes.JsonObject(), (r, why) =>
+        {
+            var online = new Dictionary<string, SaveState>();
+            foreach (var node in r?["parties"]?.AsArray() ?? new System.Text.Json.Nodes.JsonArray())
+            {
+                if (node == null || node["mode"]?.GetValue<string>() != mode) continue;
+                var s = new SaveState
+                {
+                    Id = node["id"]!.GetValue<string>(),
+                    Nom = node["nom"]?.GetValue<string>() ?? "",
+                    Ecrit = node["ecrit"]?.GetValue<string>() ?? ""
+                };
+                online[s.Id] = s;
+            }
+            ListItems(mode, label, neuve, r == null ? null : online, r == null ? why : "");
+        });
+    }
+
+    /// <summary>
+    /// LA LISTE DES PARTIES, celles du poste et celles du serveur réunies, une ligne
+    /// par partie. La plus fraîche des deux copies gagne : celle du serveur se
+    /// télécharge avant de charger, celle du poste se charge tout de suite. Si le
+    /// serveur ne répond pas au moment du clic, la copie du poste fait l'affaire.
+    /// </summary>
+    void ListItems(string mode, string label, Action neuve, Dictionary<string, SaveState>? online, string offline)
+    {
         ClearItems();
         var list = Saves(mode);
+        var lines = new List<(SaveState Shown, SaveState? Local, bool Remote)>();
         foreach (var s in list)
         {
-            var save = s;
-            Item($"{s.Nom}   ·   {Written(s)}", () => LoadGame(save), 26);
+            SaveState? o = null;
+            online?.TryGetValue(s.Id, out o);
+            bool remote = o != null && string.CompareOrdinal(o.Ecrit, s.Ecrit) >= 0;
+            lines.Add((remote ? o! : s, s, remote));
         }
-        if (list.Count == 0) Item("Aucune partie enregistrée", () => { }, 28);
+        if (online != null)
+            foreach (var (id, o) in online)
+                if (!list.Exists(x => x.Id == id)) lines.Add((o, null, true));
+        lines.Sort((a, b) => string.CompareOrdinal(b.Shown.Ecrit, a.Shown.Ecrit));
+        foreach (var (shown, local, remote) in lines)
+        {
+            if (!remote) { var save = local!; Item($"{shown.Nom}   ·   {Written(shown)}", () => LoadGame(save), 26); continue; }
+            Item($"{shown.Nom}   ·   {Written(shown)}   ·   en ligne", () =>
+            {
+                OnlineSay("Téléchargement…");
+                DownloadAndLoad(shown.Id, why =>
+                {
+                    if (local == null) { OnlineSay(why); return; }
+                    OnlineSay("Serveur muet — la copie de ce poste");
+                    LoadGame(local);
+                });
+            }, 26);
+        }
+        if (offline.Length > 0) Item("Serveur injoignable : " + offline, () => { }, 22, open: false);
+        if (lines.Count == 0) Item("Aucune partie enregistrée", () => { }, 28);
         else Item("Effacer une partie", () => EraseItems(mode, label, neuve), 28);
+        Item("Parties en ligne", () => OnlineItems(mode, label, neuve), 34);
         Item("Retour", () => GameItems(mode, label, neuve), 34);
         ShowPick();
     }
