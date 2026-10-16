@@ -100,7 +100,9 @@ if ((sheet.model.rotationY || 0) !== 0 || (sheet.model.lengthAxis || 'z') !== 'z
   console.log('  ! model.rotationY ou lengthAxis « x » : l\'outil lit le modèle tel quel, étrave vers +z');
 {
   const vol = m => (m.hi[0] - m.lo[0]) * (m.hi[1] - m.lo[1]) * (m.hi[2] - m.lo[2]);
-  const big = meshes.reduce((a, b) => vol(b) > vol(a) ? b : a, meshes[0]);
+  const namedOnes = sheet.model.coque ? meshes.filter(m => { const n = m.name.toLowerCase(), w = sheet.model.coque.toLowerCase(); return n === w || n.startsWith(w + '_'); }) : [];
+  const pool = namedOnes.length ? namedOnes : meshes;
+  const big = pool.reduce((a, b) => vol(b) > vol(a) ? b : a, pool[0]);
   K = sheet.model.scale != null ? sheet.model.scale : sheet.hull.length / (big.hi[2] - big.lo[2]);
   if (sheet.model.scale == null) console.log(`model.scale absent : le jeu ramène « ${big.name} » à la longueur de la fiche, soit ×${K.toFixed(4)}`);
   if (K !== 1) for (const m of meshes) {
@@ -114,7 +116,14 @@ const isGun = m => /canon|cannon|gun/i.test(m.name) || (m.mat.trim() !== '' && m
 const isSpar = m => /m[aâ]t|mast|vergue|yard|beaupr|bowsprit|antenne|civad|artimon|misaine|spar|hune/i.test(m.name) || /spar/i.test(m.mat);
 const isDeck = m => /^(pont|deck|tillac)/i.test(m.name);
 const vol3 = m => (m.hi[0] - m.lo[0]) * (m.hi[1] - m.lo[1]) * (m.hi[2] - m.lo[2]);
-const hull = meshes.filter(m => !isGun(m) && !isSpar(m) && !isDeck(m) && m.tris.length).sort((a, b) => vol3(b) - vol3(a))[0];
+/* the hull the sheet names (model.coque — the object, or its pieces « Hull_1 »…), else the bulkiest that is
+   neither a gun nor a spar nor the deck — the game's rule (ShipNode.PickHull) */
+const named = sheet.model.coque;
+// without a name in the sheet, the usual one: « coque », « hull », « carène » (and their pieces)
+const isNamed = m => named ? (m.name.toLowerCase() === named.toLowerCase() || m.name.toLowerCase().startsWith(named.toLowerCase() + '_'))
+                           : /^(coque|hull|car[eè]ne)([_. ]|\d|$)/i.test(m.name);
+const hull = (meshes.filter(m => isNamed(m) && m.tris.length).sort((a, b) => vol3(b) - vol3(a))[0])
+  || meshes.filter(m => !isGun(m) && !isSpar(m) && !isDeck(m) && m.tris.length).sort((a, b) => vol3(b) - vol3(a))[0];
 if (!hull) { console.error('pas de coque trouvée dans le modèle'); process.exit(1); }
 const deck = meshes.find(isDeck);
 const L = sheet.hull.length;

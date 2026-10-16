@@ -5,6 +5,7 @@
   "ships": [
     { "ship": "boussole" },
     { "ship": "frigate17e" },
+    { "ship": "leusden" },
     { "ship": "pirate", "year": 1600 },
     { "ship": "roebuck" },
     { "ship": "schooner" },

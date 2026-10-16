@@ -16926,3 +16926,22 @@ pas : la mer (reflets des fanaux, collier, coque vue sous l'eau) et la passe de 
 n'en garde que la couleur (un vert à force 5, l'image restant sur la couleur de base). Un bloc
 `luminous` sans image d'émission emprunte donc celle de sa couleur de base, en blanc ; et toute émission
 hors `luminous` s'éteint, couleur seule comprise — la cabine luisait verte de jour comme de nuit.
+
+## Le Leusden, un modèle très détaillé : de 38 à 10,6 ms ; la coque et les mâts par leur nom (Godot)
+
+DEMANDÉ : « tester la performance avec le Leusden, ultra détaillé ». 187 000 triangles, 64 maillages, 20 textures 1024² ; la Roter Löwe
+145 000 et 105. Mesuré au large, heure fixe, synchro coupée (--chrono, qui dit maintenant la carte graphique, les scripts, la physique,
+les appels de dessin, les objets et les maillages par parent) : Roter Löwe 8 à 12 ms, Leusden 38 ms. La CARTE GRAPHIQUE n'en prenait que
+3,6 de plus (6,3 → 9,9) : les polygones ne sont pas la cause. TROIS CAUSES, chacune trouvée en découpant la boucle au chronomètre :
+(1) la feuille du bureau (DressChart, DressJournal) était RÉESSAYÉE À CHAQUE IMAGE sur un modèle qui n'a pas de « map_free », en
+parcourant tous ses maillages : 13 ms — une fois par modèle désormais (_dressTried) ; tout navire sans carte au bureau en profite.
+(2) SplitIslands, qui coupe un objet en îlots pour qu'un espar soudé à d'autres puisse tomber, gardait TOUS les îlots séparés : les
+poulies, caps de mouton et cabillots du Leusden en faisaient 1 427 maillages, 12 657 appels de dessin. Seuls les espars (mât, vergue,
+bôme, corne, beaupré) partent à part, le reste est refondu par surface (MergeArrays) : 131 maillages, 2 284 appels, 10,6 ms.
+(3) LA COQUE : la fiche n'en disant rien, le jeu prenait le plus volumineux des maillages — un morceau du gréement, 21 m — et agrandissait
+le modèle de 1,43 ; la flottaison, le pont, le contrôle de poids (1 296 t pour 331) et le calage lisaient des haubans. model.coque
+(« Hull ») la nomme, et sans champ un objet « coque », « hull » ou « carène » l'est d'office (ShipNode.PickHull, IsHull, HullScale,
+fit-ship) : 331 t pour 331. LES MÂTS : à la forme seule, une douzaine (hampe, épontilles…), chacun gréé de vergues et de toile — d'où des
+voiles « qui poussent » ; quand un modèle NOMME ses mâts, eux seuls le sont (IsMastName) ; le Leusden range encore plusieurs pièces
+dans chaque objet de mât : à séparer dans Blender. La latine copiée de la Roter Löwe retirée de sa fiche (son artimon est carré).
+

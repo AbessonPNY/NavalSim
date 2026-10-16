@@ -587,6 +587,7 @@ public partial class ShipDemo : Node3D
 
         if (_ship != null) { RemoveChild(_ship); _ship.QueueFree(); }
         _dressed = false;             // la nouvelle coque a sa propre feuille
+        _dressTried = false;
 
         _ship = new ShipNode();
         AddChild(_ship);
@@ -898,8 +899,13 @@ public partial class ShipDemo : Node3D
             if (_chart != null)
             {
                 // la feuille du bureau porte la carte dès que le modèle est là
-                if (!_dressed && _chart.Texture != null)
+                /* UNE FOIS PAR MODÈLE, et non à chaque image tant qu'il n'a pas de feuille : un modèle
+                   sans surface « map_free » (le Leusden, le Roebuck…) faisait parcourir à DressChart et
+                   DressJournal tous ses maillages, toutes leurs surfaces, à chaque image — 13 ms sur les
+                   38 du Leusden (mesuré : --chrono). */
+                if (!_dressTried && _chart.Texture != null)
                 {
+                    _dressTried = true;
                     _dressed = _ship.DressChart(_chart.Texture);
                     // et le livre du bureau, si le modèle en porte un
                     if (_journalNode != null) _ship.DressJournal(_journalNode.Texture);

@@ -172,7 +172,7 @@ public partial class ShipNode : Node3D
             }
 
             // sa COQUE ramenée à la longueur que le solveur fait flotter
-            double k = m.Scale ?? HullScale(obj, m.LengthAxis, Spec.L);
+            double k = m.Scale ?? HullScale(obj, m.LengthAxis, Spec.L, m.Hull);
             obj.Scale = Vector3.One * (float)k;
             obj.Rotation = new Vector3(0, (float)m.RotationY, 0);
             var off = m.Offset;
@@ -283,15 +283,18 @@ public partial class ShipNode : Node3D
     /// sont longs mais n'enferment presque rien. Appelée avant toute
     /// transformation posée sur le modèle, donc dans son propre repère.
     /// </summary>
-    internal static double HullScale(Node3D obj, string lengthAxis, double wantL)
+    internal static double HullScale(Node3D obj, string lengthAxis, double wantL, string? named = null)
     {
         double best = -1, along = 0;
-        foreach (var (mi, rel) in Meshes(obj))
-        {
-            var box = rel * mi.Mesh.GetAabb();
-            double vol = (double)box.Size.X * box.Size.Y * box.Size.Z;
-            if (vol > best) { best = vol; along = lengthAxis == "x" ? box.Size.X : box.Size.Z; }
-        }
+        // the hull the sheet names first (model.coque), the bulkiest otherwise
+        for (int pass = 0; pass < 2 && best < 0; pass++)
+            foreach (var (mi, rel) in Meshes(obj))
+            {
+                if (pass == 0 && !IsHull(mi, named)) continue;
+                var box = rel * mi.Mesh.GetAabb();
+                double vol = (double)box.Size.X * box.Size.Y * box.Size.Z;
+                if (vol > best) { best = vol; along = lengthAxis == "x" ? box.Size.X : box.Size.Z; }
+            }
         return along > 1e-6 ? wantL / along : 1;
     }
 
@@ -483,12 +486,14 @@ public partial class ShipNode : Node3D
         MeshInstance3D? hull = null;
         Transform3D hullT = Transform3D.Identity;
         double best = -1;
-        foreach (var (mi, rel) in Meshes(ModelRoot))
-        {
-            var box = rel * mi.Mesh.GetAabb();
-            double vol = (double)box.Size.X * box.Size.Y * box.Size.Z;
-            if (vol > best) { best = vol; hull = mi; hullT = rel; }
-        }
+        for (int pass = 0; pass < 2 && hull == null; pass++)
+            foreach (var (mi, rel) in Meshes(ModelRoot))
+            {
+                if (pass == 0 && !IsHull(mi, Spec.Model?.Hull)) continue;
+                var box = rel * mi.Mesh.GetAabb();
+                double vol = (double)box.Size.X * box.Size.Y * box.Size.Z;
+                if (vol > best) { best = vol; hull = mi; hullT = rel; }
+            }
         var raw = new float[n];
         var tops = new float[n];
         if (hull != null)

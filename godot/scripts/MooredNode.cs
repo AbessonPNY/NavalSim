@@ -284,7 +284,7 @@ public partial class MooredNode : Node3D
                mouillage qui ne ferait pas la taille d'un galion sous voiles se
                verrait au premier coup d'œil, et deux calculs d'échelle finiraient
                par dériver. */
-            double k = spec.Model.Scale ?? ShipNode.HullScale(root, spec.Model.LengthAxis, spec.Hull.Length);
+            double k = spec.Model.Scale ?? ShipNode.HullScale(root, spec.Model.LengthAxis, spec.Hull.Length, spec.Model.Hull);
             /* LA BRUME UNE FOIS PAR MODELE, ET NON PAR COQUE. Duplicate() partage
                les ressources : les trois Roter Lowe de trois ports differents ont
                LES MEMES matieres, donc la passe posee ici les habille toutes. */

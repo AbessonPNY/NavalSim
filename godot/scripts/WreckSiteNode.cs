@@ -257,7 +257,7 @@ public partial class WreckSiteNode : Node3D
             if (Assets.LoadGlb(Assets.Path(spec.Resolve(mm.Glb))) is Node3D r)
             {
                 ShipNode.StripRings(r);
-                double k = mm.Scale ?? ShipNode.HullScale(r, mm.LengthAxis, spec.Hull.Length);
+                double k = mm.Scale ?? ShipNode.HullScale(r, mm.LengthAxis, spec.Hull.Length, mm.Hull);
                 r.Scale = Vector3.One * (float)k;
                 r.Rotation = new Vector3(0, (float)mm.RotationY, 0);
                 var off = mm.Offset;

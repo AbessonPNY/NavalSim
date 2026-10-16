@@ -200,14 +200,8 @@ public partial class ShipNode
             var parts = ModelParts();
             if (parts.Count > 0)
             {
-                var deckAt = DeckProfile(parts);
-                Part hull = parts[0];
-                double best = -1;
-                foreach (var p in parts)
-                {
-                    double v = (double)p.Size.X * p.Size.Y * p.Size.Z;
-                    if (v > best) { best = v; hull = p; }
-                }
+                var deckAt = DeckProfile(parts, Spec.Model?.Hull);
+                Part hull = PickHull(parts, Spec.Model?.Hull);
                 double z0 = hull.Min.Z, z1 = hull.Max.Z, span = z1 - z0;
                 return (z0 + span * 0.02, z1 - span * 0.02, z =>   // tout à l'arrière, +z étant l'étrave
                 {

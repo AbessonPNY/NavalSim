@@ -175,10 +175,57 @@ public partial class ShipNode
         if (ModelRoot != null)
         {
             var parts = ModelParts();
-            if (parts.Count > 0) return new HullCollider(Physics, prof, DeckProfile(parts), keel);
+            if (parts.Count > 0) return new HullCollider(Physics, prof, DeckProfile(parts, Spec.Model?.Hull), keel);
         }
         return new HullCollider(Physics, prof, z => Lines.DeckY(Math.Clamp(z / Spec.L + 0.5, 0, 1)), keel);
     }
+
+    /// <summary>
+    /// LA COQUE PARMI LES PIÈCES : celle que la fiche nomme (model.coque), sinon la plus volumineuse — une
+    /// règle, tous ses usagers (la mer, le pont, les feux, l'échelle, les pièces, le calage). La plus grosse
+    /// d'entre celles qui portent le nom, si l'objet a été coupé en morceaux.
+    /// </summary>
+    static Part PickHull(List<Part> parts, string? named)
+    {
+        Part? hull = null;
+        double best = -1;
+        for (int pass = 0; pass < 2 && hull == null; pass++)
+            foreach (var p in parts)
+            {
+                if (pass == 0 && !IsHull(p.Mi, named)) continue;
+                double v = (double)p.Size.X * p.Size.Y * p.Size.Z;
+                if (v > best) { best = v; hull = p; }
+            }
+        return hull ?? parts[0];
+    }
+
+    /// <summary>Ce maillage est-il, ou est-il un morceau de, l'objet que la fiche nomme sa coque ?</summary>
+    static readonly System.Text.RegularExpressions.Regex MastNames =
+        new(@"(misaine|artimon|grand[ _.-]?m[aâ]t|(^|[_ .-])m[aâ]t([_ .-]|\d|$)|mast|mizzen)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    /// <summary>Ce maillage, ou l'objet dont il vient, porte-t-il un nom de mât ?</summary>
+    static bool IsMastName(Node n)
+    {
+        for (Node? x = n; x != null && x is not ShipNode; x = x.GetParent())
+            if (MastNames.IsMatch(x.Name.ToString())) return true;
+        return false;
+    }
+
+    internal static bool IsHull(Node n, string? named)
+    {
+        for (Node? x = n; x != null && x is not ShipNode; x = x.GetParent())
+        {
+            string s = x.Name.ToString();
+            if (string.IsNullOrEmpty(named) ? IsHullName(s) : (s.Equals(named, StringComparison.OrdinalIgnoreCase) || s.StartsWith(named + "_", StringComparison.OrdinalIgnoreCase))) return true;
+        }
+        return false;
+    }
+
+    /* SANS NOM DANS LA FICHE, LE NOM USUEL : un objet appelé « coque », « hull » ou « carène » (ou ses
+       morceaux, « Coque_1 », « hull.001 ») EST la coque — un mod n'a rien à déclarer s'il nomme bien. */
+    static readonly System.Text.RegularExpressions.Regex HullNames =
+        new(@"^(coque|hull|car[eè]ne)([_. ]|\d|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    static bool IsHullName(string s) => HullNames.IsMatch(s);
 
     /// <summary>Une pièce du modèle, mesurée dans le repère du navire.</summary>
     sealed class Part
@@ -220,15 +267,9 @@ public partial class ShipNode
     /// modèle sait où est le pont ; un chiffre pour tout le bâtiment ne ferait pas
     /// l'affaire, une dunette montant parfois de dix mètres au-dessus du passavant.
     /// </summary>
-    static Func<double, double> DeckProfile(List<Part> parts)
+    static Func<double, double> DeckProfile(List<Part> parts, string? named)
     {
-        Part hull = parts[0];
-        double best = -1;
-        foreach (var p in parts)
-        {
-            double v = (double)p.Size.X * p.Size.Y * p.Size.Z;   // la coque est de loin la plus grosse
-            if (v > best) { best = v; hull = p; }
-        }
+        Part hull = PickHull(parts, named);
         const int N = 24;
         double z0 = hull.Min.Z;
         double step = (hull.Max.Z - z0) / N;
@@ -275,11 +316,11 @@ public partial class ShipNode
     /// îlots remplacent l'original, même matière, même place, si l'un au moins
     /// passe <paramref name="keep"/> ; sinon rien n'est touché.
     /// </summary>
-    bool SplitIslands(MeshInstance3D mi, Func<Part, bool> keep)
+    bool SplitIslands(MeshInstance3D mi, Func<Part, bool> keep, Func<Part, bool> detach)
     {
         var mesh = mi.Mesh;
         var rel = RelOf(mi);
-        var made = new List<(ArrayMesh Mesh, Material? Mat, Part Box)>();
+        var made = new List<(ArrayMesh Mesh, Material? Mat, Part Box, int Surf, Godot.Collections.Array Arrays)>();
         for (int s = 0; s < mesh.GetSurfaceCount(); s++)
         {
             var a = mesh.SurfaceGetArrays(s);
@@ -349,22 +390,75 @@ public partial class ShipNode
                 // sa boîte, dans le repère du navire, pour l'épreuve
                 Vector3 lo = new(float.MaxValue, float.MaxValue, float.MaxValue), hi = -lo;
                 foreach (var x in vv) { var w = rel * x; lo = lo.Min(w); hi = hi.Max(w); }
-                made.Add((am, mat, new Part { Mi = mi, Min = lo, Max = hi, Size = hi - lo, Mid = (lo + hi) * 0.5f, Verts = Array.Empty<Vector3>(), Rel = rel }));
+                made.Add((am, mat, new Part { Mi = mi, Min = lo, Max = hi, Size = hi - lo, Mid = (lo + hi) * 0.5f, Verts = Array.Empty<Vector3>(), Rel = rel }, s, outA));
             }
         }
         if (made.Count < 2 || !made.Any(m => keep(m.Box))) return false;
         var host = mi.GetParent();
-        int n0 = 0;
-        foreach (var (am, mat, _) in made)
+        int n0 = 0, spars = 0;
+        /* SEULS LES ESPARS PARTENT À PART ; le reste est refondu, un maillage par surface d'origine. Chaque
+           îlot séparé est un objet que le moteur dessine — et redessine dans chaque passe d'ombre : le
+           Leusden, dont les poulies, caps de mouton et cabillots sont rangés dans les mêmes objets que ses
+           espars, en sortait en 1 427 maillages, 12 657 appels de dessin par image et 25 ms de plus que la
+           Roter Löwe (mesuré : --chrono). Ne bouge jamais que ce qui est mât, vergue, bôme, corne ou beaupré :
+           eux restent seuls. */
+        var rest = new Dictionary<int, List<Godot.Collections.Array>>();
+        var restMat = new Dictionary<int, Material?>();
+        foreach (var (am, mat, box, s, arr) in made)
         {
+            if (!detach(box))
+            {
+                if (!rest.TryGetValue(s, out var l)) { rest[s] = l = new List<Godot.Collections.Array>(); restMat[s] = mat; }
+                l.Add(arr);
+                continue;
+            }
             var piece = new MeshInstance3D { Mesh = am, Transform = mi.Transform, Name = $"{mi.Name}_ilot{n0++}" };
             if (mat != null) piece.MaterialOverride = mat;
+            host.AddChild(piece);
+            spars++;
+        }
+        foreach (var (s, list) in rest)
+        {
+            var am = new ArrayMesh();
+            am.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, MergeArrays(list));
+            var piece = new MeshInstance3D { Mesh = am, Transform = mi.Transform, Name = $"{mi.Name}_reste{s}" };
+            if (restMat[s] != null) piece.MaterialOverride = restMat[s];
             host.AddChild(piece);
         }
         host.RemoveChild(mi);
         mi.QueueFree();
-        RigLog.Add($"{mi.Name} coupé en {made.Count} îlots");
+        RigLog.Add($"{mi.Name} coupé en {made.Count} îlots : {spars} espar(s) à part, le reste en {rest.Count} maillage(s)");
         return true;
+    }
+
+    /// <summary>Des îlots d'une même surface, remis bout à bout : sommets et ce qu'ils portent, indices décalés.</summary>
+    static Godot.Collections.Array MergeArrays(List<Godot.Collections.Array> parts)
+    {
+        var v = new List<Vector3>(); var nrm = new List<Vector3>(); var uv = new List<Vector2>(); var col = new List<Color>(); var idx = new List<int>();
+        bool hasN = true, hasUv = true, hasC = true;
+        foreach (var a in parts)
+        {
+            hasN &= a[(int)Mesh.ArrayType.Normal].VariantType != Variant.Type.Nil;
+            hasUv &= a[(int)Mesh.ArrayType.TexUV].VariantType != Variant.Type.Nil;
+            hasC &= a[(int)Mesh.ArrayType.Color].VariantType != Variant.Type.Nil;
+        }
+        foreach (var a in parts)
+        {
+            int baseV = v.Count;
+            v.AddRange(a[(int)Mesh.ArrayType.Vertex].AsVector3Array());
+            if (hasN) nrm.AddRange(a[(int)Mesh.ArrayType.Normal].AsVector3Array());
+            if (hasUv) uv.AddRange(a[(int)Mesh.ArrayType.TexUV].AsVector2Array());
+            if (hasC) col.AddRange(a[(int)Mesh.ArrayType.Color].AsColorArray());
+            foreach (int i in a[(int)Mesh.ArrayType.Index].AsInt32Array()) idx.Add(baseV + i);
+        }
+        var o = new Godot.Collections.Array();
+        o.Resize((int)Mesh.ArrayType.Max);
+        o[(int)Mesh.ArrayType.Vertex] = v.ToArray();
+        if (hasN) o[(int)Mesh.ArrayType.Normal] = nrm.ToArray();
+        if (hasUv) o[(int)Mesh.ArrayType.TexUV] = uv.ToArray();
+        if (hasC) o[(int)Mesh.ArrayType.Color] = col.ToArray();
+        o[(int)Mesh.ArrayType.Index] = idx.ToArray();
+        return o;
     }
 
     double _latZ, _latModelled;
@@ -574,7 +668,8 @@ public partial class ShipNode
         bool cut = false;
         foreach (var q in parts)
             if (Bois(q) && !FormeMat(q) && !FormeVergue(q) && q.Size.Y > 0.15 * spec.L
-                && SplitIslands(q.Mi, i => FormeMat(i) || FormeVergue(i))) cut = true;
+                && SplitIslands(q.Mi, i => FormeMat(i) || FormeVergue(i),
+                                i => FormeMat(i) || FormeVergue(i) || FormeBeaupre(i) || FormeEspardAxe(i))) cut = true;
         if (cut) parts = ModelParts();
 
         /* UN MÂT SOUDÉ À SA VERGUE LATINE : l'artimon du galion est un seul îlot,
@@ -596,12 +691,21 @@ public partial class ShipNode
             return hi - lo > 0.6 * p.Size.Y;
         }
         var yards = parts.Where(p => FormeVergue(p) && Bois(p)).ToList();
-        var poles = parts.Where(p => (FormeMat(p) || FormeMatSoude(p)) && Bois(p)).ToList();
+        /* LES MÂTS QUE LE MODÈLE NOMME, s'il en nomme : alors eux seuls. À la forme seule, le Leusden en
+           comptait une douzaine — hampe de pavillon, épontilles, pompes —, chacun gréé de ses vergues et de sa
+           toile : des voiles poussaient où il n'y a pas de mât (signalé). Un objet dont le nom dit mât
+           (« misaine », « grand_mat », « artimon », « mat… », « mast », « mizzen »), et les îlots qu'on en
+           détache, qui gardent son nom. Sans aucun nom, la forme décide, comme avant. */
+        var poleShaped = parts.Where(p => (FormeMat(p) || FormeMatSoude(p)) && Bois(p)).ToList();
+        bool namedMasts = poleShaped.Any(p => IsMastName(p.Mi));
+        var poles = namedMasts ? poleShaped.Where(p => IsMastName(p.Mi)).ToList() : poleShaped;
+        if (namedMasts && poles.Count < poleShaped.Count)
+            RigLog.Add($"mâts nommés : {poles.Count} retenu(s), {poleShaped.Count - poles.Count} pièce(s) de la forme d'un mât laissée(s) — " + string.Join(", ", poleShaped.Where(p => !IsMastName(p.Mi)).Select(p => p.Mi.Name)));
         var refused = parts.Where(p => !Bois(p) && (FormeVergue(p) || FormeMat(p))).ToList();
         if (refused.Count > 0)
             GD.PushWarning($"[{spec.Id}] pièces de la forme d'un espar tenues hors du gréement "
                          + $"(vitrage, fanal ou model.rigIgnore) : {string.Join(", ", refused.Select(p => p.Mi.Name))}");
-        var deckAt = DeckProfile(parts);
+        var deckAt = DeckProfile(parts, Spec.Model?.Hull);
 
         /* L'ÉPREUVE D'UN ESPAR DANS L'AXE — une bôme, une corne.
          *

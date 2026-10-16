@@ -437,15 +437,7 @@ public partial class ShipNode
     Part? HullPart()
     {
         var parts = ModelParts();
-        if (parts.Count == 0) return null;
-        Part hull = parts[0];
-        double best = -1;
-        foreach (var p in parts)
-        {
-            double v = (double)p.Size.X * p.Size.Y * p.Size.Z;
-            if (v > best) { best = v; hull = p; }
-        }
-        return hull;
+        return parts.Count == 0 ? null : PickHull(parts, Spec.Model?.Hull);
     }
 
     /// <summary>

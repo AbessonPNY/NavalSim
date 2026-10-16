@@ -127,6 +127,13 @@ public sealed class ModelSpec
     [JsonPropertyName("offset")]     public double[] Offset { get; set; } = { 0, 0, 0 };
     [JsonPropertyName("rotationY")]  public double RotationY { get; set; }
     /// <summary>
+    /// LE NOM DE SA COQUE dans le .glb (« Hull »), quand le plus gros maillage n'en est pas une — le gréement
+    /// du Leusden, vingt et un mètres de haubans dans une seule boîte, passait devant elle : le modèle était
+    /// agrandi de 1,43 et la mer, la flottaison, le pont et le calage lisaient des cordages. L'objet de ce nom,
+    /// ou ses morceaux (« Hull_1 »…) ; absent, le plus volumineux, comme avant.
+    /// </summary>
+    [JsonPropertyName("coque")]      public string? Hull { get; set; }
+    /// <summary>
     /// L'echelle imposee. Absente, le modele est ramene a la longueur que le
     /// solveur fait flotter, mesuree sur sa COQUE et non sur l'objet entier.
     /// </summary>

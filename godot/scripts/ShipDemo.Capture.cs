@@ -688,7 +688,7 @@ public partial class ShipDemo
     }
 
     int _chronoN;
-    readonly List<double> _chrono = new();
+    readonly List<double> _chrono = new(), _chronoGpu = new(), _chronoCpu = new(), _chronoPhys = new();
 
     void TickCapture()
     {
@@ -699,12 +699,23 @@ public partial class ShipDemo
         if (_chronoN > 0)
         {
             _captureIn = 1;
+            var rid = GetViewport().GetViewportRid();
+            if (_chrono.Count == 0) RenderingServer.ViewportSetMeasureRenderTime(rid, true);
             _chrono.Add(GetProcessDeltaTime() * 1000);
+            // where the frame goes: the GPU's own render time, the scripts' process time, the physics
+            _chronoGpu.Add(RenderingServer.ViewportGetMeasuredRenderTimeGpu(rid));
+            _chronoCpu.Add(Performance.GetMonitor(Performance.Monitor.TimeProcess) * 1000);
+            _chronoPhys.Add(Performance.GetMonitor(Performance.Monitor.TimePhysicsProcess) * 1000);
             if (_chrono.Count < _chronoN) return;
-            _chrono.Sort();
+            _chrono.Sort(); _chronoGpu.Sort(); _chronoCpu.Sort(); _chronoPhys.Sort();
             double med = _chrono[_chrono.Count / 2], p95 = _chrono[(int)(_chrono.Count * 0.95)];
             var vp = GetViewport();
-            GD.Print(FormattableString.Invariant($"chrono : {_chrono.Count} images, médiane {med:F2} ms ({1000 / med:F0} i/s), 95 % sous {p95:F2} ms ; rendu à {vp.Scaling3DScale:F2}, ombres {_settings.ShadowQuality}, {_others.Count + 1} coque(s)"));
+            GD.Print(FormattableString.Invariant($"chrono : {_chrono.Count} images, médiane {med:F2} ms ({1000 / med:F0} i/s), 95 % sous {p95:F2} ms ; rendu à {vp.Scaling3DScale:F2}, ombres {_settings.ShadowQuality}, {_others.Count + 1} coque(s) ; carte graphique {_chronoGpu[_chronoGpu.Count / 2]:F2} ms, scripts {_chronoCpu[_chronoCpu.Count / 2]:F2} ms, physique {_chronoPhys[_chronoPhys.Count / 2]:F2} ms (médianes) ; {Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame):F0} appels de dessin, {Performance.GetMonitor(Performance.Monitor.RenderTotalObjectsInFrame):F0} objets, {Performance.GetMonitor(Performance.Monitor.RenderTotalPrimitivesInFrame) / 1000:F0} k primitives"));
+            // which of its parts the ship is drawn in: meshes per parent name, the biggest groups first
+            { var count = new Dictionary<string, int>(); var st = new Stack<Node>(); st.Push(_ship); int all = 0;
+              while (st.Count > 0) { var n = st.Pop(); if (n is MeshInstance3D || n is MultiMeshInstance3D) { all++; string k = (n.GetParent()?.Name.ToString() ?? "?"); k = System.Text.RegularExpressions.Regex.Replace(k, @"\d+", "#"); count[k] = count.GetValueOrDefault(k) + 1; } foreach (var c in n.GetChildren()) st.Push(c); }
+              var l = new List<KeyValuePair<string, int>>(count); l.Sort((x, y) => y.Value.CompareTo(x.Value));
+              GD.Print($"chrono : {all} maillage(s) sous le navire ; par parent : " + string.Join(", ", l.GetRange(0, Math.Min(8, l.Count)).ConvertAll(kv => kv.Key + " " + kv.Value))); }
             GetTree().Quit(0);
             return;
         }

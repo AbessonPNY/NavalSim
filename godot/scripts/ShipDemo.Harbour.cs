@@ -54,7 +54,7 @@ public partial class ShipDemo
         foreach (var s in _others) s.Physics.Jetties = _jetties;
     }
     ChartNode? _chart;
-    bool _dressed;
+    bool _dressed, _dressTried;
     /// <summary>--carte : la vue se penche sur la feuille dès qu'elle est trouvée.</summary>
     bool _overChart;
     NavalSim.Core.Logbook? _book;
