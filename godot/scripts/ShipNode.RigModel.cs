@@ -31,9 +31,23 @@ public partial class ShipNode
        la page. Ils servent deux fois : à allumer la nuit, et à REFUSER ces pièces
        au gréement, une vergue étant en bois, jamais en verre. */
     /// <summary>Ce qui PEND plutôt que ce qui tient : à écarter des espars.</summary>
-    static readonly Regex Cordage = new(
-        "b[ée]zier|curve|courbe|cordage|rope|stay|[ée]tai|hauban|shroud|drisse|line",
-        RegexOptions.IgnoreCase);
+    /* DES MOTS ENTIERS, jamais un morceau de mot : « etai » trouvé dans « details » changeait en
+       rubans la matière des poulies et des sculptures du Leusden, « line » prenait « Spline » et
+       « Plane », « stay » la voile d'étai (« staysail »). Un mot est borné par tout ce qui n'est pas
+       une lettre (« _ », « . », un chiffre, une espace) ou par une majuscule (« BezierCurve »).
+       Les étais composés restent pris (« forestay », « backstay »). « rigging » N'Y EST PAS : sur un
+       modèle de Sketchfab c'est souvent l'atlas commun des mâts, des vergues et des cordages. */
+    static readonly WholeWords Cordage = new(
+        "b[ée]zier|curves?|courbes?|cordages?|ropes?|[a-z]*stays?|[ée]tais?|haubans?|shrouds?|drisses?|lines?|ratlines?|gr[ée]ements?|enfl[ée]chures?");
+
+    /// <summary>Un nom d'objet découpé en mots (minuscules, CamelCase coupé), cherché mot par mot.</summary>
+    sealed class WholeWords
+    {
+        static readonly Regex Camel = new("(?<=[a-zà-ÿ])(?=[A-ZÀ-Ý])|(?<=[A-ZÀ-Ý])(?=[A-ZÀ-Ý][a-zà-ÿ])");
+        readonly Regex _re;
+        public WholeWords(string words) => _re = new Regex("(?<![a-zà-ÿ])(" + words + ")(?![a-zà-ÿ])");
+        public bool IsMatch(string s) => _re.IsMatch(Camel.Replace(s, "_").ToLowerInvariant());
+    }
 
     static readonly Regex GlowNames = new(
         "fenetre|fenêtre|window|vitre|hublot|glass|verre|lamp|lanterne|lantern|glow",
@@ -206,8 +220,23 @@ public partial class ShipNode
     /// <summary>Ce maillage, ou l'objet dont il vient, porte-t-il un nom de mât ?</summary>
     static bool IsMastName(Node n)
     {
+        if (IsFlagStaff(n)) return false;
         for (Node? x = n; x != null && x is not ShipNode; x = x.GetParent())
             if (MastNames.IsMatch(x.Name.ToString())) return true;
+        return false;
+    }
+
+    /* UNE HAMPE N'EST PAS UN MÂT, même nommée « Mat_drapeau_poupe » : elle ne porte ni vergue ni
+       toile, ne tombe pas comme un mât, et c'est elle que les pavillons de poupe et de proue cherchent
+       (ShipNode.Flags.cs, StaffFlag). */
+    static readonly System.Text.RegularExpressions.Regex FlagStaffNames =
+        new(@"drapeau|pavillon|flag|ensign|hampe", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    /// <summary>Ce maillage, ou l'objet dont il vient, est-il une hampe de pavillon ?</summary>
+    internal static bool IsFlagStaff(Node n)
+    {
+        for (Node? x = n; x != null && x is not ShipNode; x = x.GetParent())
+            if (FlagStaffNames.IsMatch(x.Name.ToString())) return true;
         return false;
     }
 
@@ -667,7 +696,7 @@ public partial class ShipNode
            mât ou d'une vergue — le reste du modèle ne bouge pas d'un sommet. */
         bool cut = false;
         foreach (var q in parts)
-            if (Bois(q) && !FormeMat(q) && !FormeVergue(q) && q.Size.Y > 0.15 * spec.L
+            if (Bois(q) && !IsFlagStaff(q.Mi) && !FormeMat(q) && !FormeVergue(q) && q.Size.Y > 0.15 * spec.L
                 && SplitIslands(q.Mi, i => FormeMat(i) || FormeVergue(i),
                                 i => FormeMat(i) || FormeVergue(i) || FormeBeaupre(i) || FormeEspardAxe(i))) cut = true;
         if (cut) parts = ModelParts();
@@ -696,7 +725,7 @@ public partial class ShipNode
            toile : des voiles poussaient où il n'y a pas de mât (signalé). Un objet dont le nom dit mât
            (« misaine », « grand_mat », « artimon », « mat… », « mast », « mizzen »), et les îlots qu'on en
            détache, qui gardent son nom. Sans aucun nom, la forme décide, comme avant. */
-        var poleShaped = parts.Where(p => (FormeMat(p) || FormeMatSoude(p)) && Bois(p)).ToList();
+        var poleShaped = parts.Where(p => (FormeMat(p) || FormeMatSoude(p)) && Bois(p) && !IsFlagStaff(p.Mi)).ToList();
         bool namedMasts = poleShaped.Any(p => IsMastName(p.Mi));
         var poles = namedMasts ? poleShaped.Where(p => IsMastName(p.Mi)).ToList() : poleShaped;
         if (namedMasts && poles.Count < poleShaped.Count)
@@ -842,6 +871,23 @@ public partial class ShipNode
             return true;
         }
 
+        /* UNE VERGUE SE TIENT AU-DESSUS DU PONT. La forme seule prenait au Leusden les lisses de la
+           galerie de poupe, la balustrade du château et les rambardes du pont (îlots de « Object_10 »,
+           « pont ») : en travers, minces, sur l'axe — et à hauteur d'homme. Groupées par leur z, elles
+           faisaient un « mât » sans espar à la poupe, que le brassage faisait tourner hors du château
+           (signalé). Le seuil est celui de la toile plus bas : une pièce sous laquelle aucune voile ne peut
+           pendre n'est pas une vergue. Seule l'étrave a la MER pour plancher — la civadière pend sous le
+           beaupré —, jamais la poupe : ce qui déborde le tableau est une galerie. */
+        bool AuBossoir(Part p) => p.Mid.Z > spec.L * 0.5;
+        double Plancher(Part p) => AuBossoir(p) ? 0.4 : deckAt(p.Mid.Z) + 0.02 * spec.L;
+        bool AuDessusDuPont(Part p) => p.Mid.Y - Plancher(p) >= 0.2 * p.Size.X * 0.5 * 0.97;
+        var lowYards = yards.Where(p => !AuDessusDuPont(p)).ToList();
+        if (lowYards.Count > 0)
+        {
+            yards = yards.Where(AuDessusDuPont).ToList();
+            RigLog.Add("en travers mais au ras du pont, pas des vergues : " + string.Join(", ", lowYards.Select(p => p.Mi.Name)));
+        }
+
         if (yards.Count == 0)
         {
             /* AVANT DE RENONCER, ESSAYER L'AXE. Le refus était juste tant que rien
@@ -881,6 +927,15 @@ public partial class ShipNode
                 double d = Math.Abs(p.Mid.Z - z0);
                 if (!p.Taken && d < near) { near = d; pole = p; }
             }
+            /* QUAND LE MODÈLE NOMME SES MÂTS, PAS DE MÂT SANS NOM. Des vergues sans espar à elles ne sont
+               alors pas un mât que le modéliste a oublié de nommer, mais un groupe de pièces en travers prises
+               pour des vergues — on n'y touche pas. La civadière seule pend sans mât : sous le beaupré. */
+            if (pole == null && namedMasts && !mast.Any(AuBossoir))
+            {
+                RigLog.Add(FormattableString.Invariant($"pas de mât nommé en z {z0:F2}, laissées en place : ")
+                         + string.Join(", ", mast.Select(p => p.Mi.Name)));
+                continue;
+            }
             if (pole != null) pole.Taken = true;
             double heel = pole != null ? pole.Min.Y : deckAt(z0);
 
@@ -892,6 +947,20 @@ public partial class ShipNode
             var pivot = new Node3D { Position = new Vector3(0, (float)-heel, 0) };
             fall.AddChild(pivot);
 
+            /* LES BARRES DE HUNE NE SONT PAS DES VERGUES. Une vergue est plus étroite que celle du
+               dessous, jamais beaucoup plus que celle du dessus : deux pièces de deux mètres sous un hunier
+               de sept sont les barres du grand mât (« GrandMat », îlots 2 et 3), que le brassage faisait
+               tourner et où pendait une voile d'un mètre — et qui raccourcissaient le hunier au-dessus,
+               bordé sur elles. Elles TOMBENT avec le mât, mais ne brassent pas. */
+            for (int i = 1; i < mast.Count; i++)
+                if (mast[i].Size.X < 0.6 * mast[i - 1].Size.X)
+                {
+                    var bar = mast[i];
+                    mast.RemoveAt(i--);
+                    bar.Mi.Reparent(fall, true);
+                    RigLog.Add($"barre de hune {bar.Mi.Name} : tombe avec le mât, ne brasse pas");
+                }
+
             double share = 0;
             /* OÙ UN BOUT COUPÉ PEUT PENDRE, relevé ici parce qu'ici seulement on le
                sait : les vergues viennent d'être lues et rangées sur leur mât. Rien
@@ -901,6 +970,8 @@ public partial class ShipNode
             for (int i = 0; i < mast.Count; i++)
             {
                 var y = mast[i];
+                RigLog.Add(FormattableString.Invariant(
+                    $"vergue {y.Mi.Name} : centre {y.Mid.X:F2} {y.Mid.Y:F2} {y.Mid.Z:F2}, taille {y.Size.X:F2} {y.Size.Y:F2} {y.Size.Z:F2}"));
                 double half = y.Size.X * 0.5 * 0.97;
                 y.Mi.Reparent(pivot, true);              // brasse avec le mât, toile ou non
                 /* Les deux bouts de vergue portent les LONGS bouts : un bras court du
@@ -916,7 +987,14 @@ public partial class ShipNode
                    basse emprunte l'écart du dessus ; aucune ne dépasse la moitié de
                    sa largeur en profondeur ; et aucune ne descend sous le pont — une
                    basse voile est bordée au pavois, pas à travers. */
-                var above = i > 0 ? mast[i - 1] : null;
+                /* La plus basse emprunte l'écart du dessus — mais celui d'une AUTRE vergue : un modèle
+                   range souvent l'espar et sa toile serrée en deux pièces à quatre-vingts centimètres l'une
+                   de l'autre (« Object_48 » et « Object_124 » au Leusden), et la basse voile, bordée sur son
+                   propre fagot, ne pendait plus de rien. La rambarde du pont la tirait vers le bas, avant
+                   d'être écartée ; c'était juste par accident. */
+                Part? above = null;
+                for (int k = i - 1; k >= 0 && above == null; k--)
+                    if (i + 1 < mast.Count || mast[k].Mid.Y - y.Mid.Y > 0.25 * half) above = mast[k];
                 var below = i + 1 < mast.Count ? mast[i + 1] : null;
                 double gap = below != null ? y.Mid.Y - below.Mid.Y
                            : above != null ? above.Mid.Y - y.Mid.Y
@@ -929,8 +1007,7 @@ public partial class ShipNode
                    où la toile pend au-dessus de l'eau et s'y mouille. Elle bornait
                    la civadière à trois centimètres de chute NÉGATIVE, donc à rien
                    (mesuré sur le Roebuck avant de le voir). */
-                bool overhang = Math.Abs(y.Mid.Z) > spec.L * 0.5;
-                double floorY = overhang ? 0.4 : deckAt(y.Mid.Z) + 0.02 * spec.L;
+                double floorY = Plancher(y);
                 double drop = Math.Min(Math.Min(0.82 * gap, 1.1 * half), yy - floorY);
                 if (drop < 0.2 * half) continue;         // trop près du pont pour être une vergue
 
@@ -1015,7 +1092,7 @@ public partial class ShipNode
            à eux, et ce qui déborde encore de l'étrave ne peut être que lui — lui
            et son bâton de foc, qui partent ensemble puisqu'ils sont frappés l'un
            sur l'autre. */
-        var sprits = parts.Where(q => !q.Taken && Bois(q) && FormeBeaupre(q)).ToList();
+        var sprits = parts.Where(q => !q.Taken && Bois(q) && FormeBeaupre(q) && !IsFlagStaff(q.Mi)).ToList();
         if (sprits.Count > 0) SpritOn(sprits, spec, deckAt);
 
         // et ce que le NOM désigne : les vigies et les cordages, à leur mât

@@ -409,6 +409,11 @@ public partial class ShipNode
             var mat = mi.GetActiveMaterial(0);
             if (Cordage.IsMatch(mi.Name.ToString()) || Cordage.IsMatch(mat?.ResourceName ?? "")) ropes.Add(mi);
         }
+        /* UNE MATIÈRE QUI HABILLE AUSSI AUTRE CHOSE est un atlas (bois, fer, chanvre sur une même image) :
+           sa teinte moyenne n'est pas celle de la corde, qui prend alors celle de la fiche. */
+        var shared = new HashSet<Material>();
+        foreach (var (mi, _) in Meshes(root))
+            if (!ropes.Contains(mi) && mi.GetActiveMaterial(0) is { } m) shared.Add(m);
         var lineCache = new Dictionary<Texture2D, (List<TexLine> Cols, List<TexLine> Rows)?>();
         int total = 0;
         foreach (var mi in ropes)
@@ -444,7 +449,7 @@ public partial class ShipNode
             else
             {
                 FromTubes(mi.Mesh, segs, lines, radii);
-                if (mat != null) col = MeanColour(mat);
+                if (mat != null && !shared.Contains(mat)) col = MeanColour(mat);
                 kind = "tube";
             }
             if (segs.Count == 0) continue;

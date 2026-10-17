@@ -51,6 +51,10 @@ public partial class ShipPreview : Node3D
     // l'œil : autour du navire, à cette distance, ce cap et cette hauteur
     float _yaw = 2.3f, _pitch = 0.18f, _dist = 60, _lift;
     bool _turning, _lifting;
+    // --capture : l'image écrite au bout de quelques images, puis on quitte (pour comparer deux navires)
+    string _capturePath = "";
+    int _frames;
+    bool _dumpRig;   // --dumprig 1 : le journal du gréement, comme en jeu
 
     public override void _Ready()
     {
@@ -102,14 +106,27 @@ public partial class ShipPreview : Node3D
 
         _paths = ShipLibrary.Discover();
         int want = 0;
+        string? wantId = null;
         var args = OS.GetCmdlineUserArgs();
         for (int i = 0; i < args.Length - 1; i++)
             switch (args[i])
             {
-                case "--ship": want = args[i + 1].ToInt(); break;
+                // un rang, ou l'identifiant de la fiche (le nom de son dossier : « leusden »)
+                case "--ship":
+                    if (args[i + 1].IsValidInt()) want = args[i + 1].ToInt(); else wantId = args[i + 1];
+                    break;
+                case "--capture": _capturePath = args[i + 1]; break;
+                case "--dumprig": _dumpRig = args[i + 1] != "0"; break;
+                case "--orbit": _yaw = args[i + 1].ToFloat() * Mathf.Pi / 180; break;
+                case "--pitch": _pitch = args[i + 1].ToFloat() * Mathf.Pi / 180; break;
                 case "--heure": SetHour(args[i + 1].ToFloat()); _night = _sky.Core.Night > 0.3; break;
                 case "--sails": _wantSet = _set = args[i + 1] == "1" ? 1 : 0; break;
             }
+        if (wantId != null)
+        {
+            int k = _paths.FindIndex(pth => ShipLibrary.IdOf(pth) == wantId);
+            if (k >= 0) want = k; else GD.PushWarning($"[aperçu] aucune fiche « {wantId} »");
+        }
         Show(want);
     }
 
@@ -156,6 +173,7 @@ public partial class ShipPreview : Node3D
         _dist = (float)spec.L * 1.8f;
         _lift = 0;
         GD.Print(FormattableString.Invariant($"[aperçu] {_index} : {spec.Name} ({_paths[_index]}), assise y = {y:F2} m"));
+        if (_dumpRig) foreach (var l in _ship.RigLog) GD.Print("gréement " + l);
         UpdateInfo();
     }
 
@@ -187,6 +205,14 @@ public partial class ShipPreview : Node3D
         _sky.Env.GlowEnabled = _settings.Glow && _sky.Core.Night > 0.02;
         _sky.PushGlobals(0, _t);
         foreach (var m in _ship.Hazed) { _sky.PushTo(m); _sky.SetCloud(m, 0, _t); }
+
+        if (_capturePath.Length > 0 && ++_frames == 90)
+        {
+            var img = GetViewport().GetTexture().GetImage();
+            img.SavePng(_capturePath);
+            GD.Print($"[aperçu] capture : {_capturePath}");
+            GetTree().Quit();
+        }
     }
 
     public override void _UnhandledInput(InputEvent e)

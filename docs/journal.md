@@ -16945,3 +16945,17 @@ fit-ship) : 331 t pour 331. LES MÂTS : à la forme seule, une douzaine (hampe, 
 voiles « qui poussent » ; quand un modèle NOMME ses mâts, eux seuls le sont (IsMastName) ; le Leusden range encore plusieurs pièces
 dans chaque objet de mât : à séparer dans Blender. La latine copiée de la Roter Löwe retirée de sa fiche (son artimon est carré).
 
+
+LE CHÂTEAU ARRIÈRE EMPORTÉ PAR LE BRASSAGE (17/10) — signalé : des lisses de la galerie de poupe sortaient du château, et une
+toile serrée pendait devant ses fenêtres. Le journal du gréement (`--dumprig 1`, dans l'aperçu aussi désormais) le disait : un
+« mât sans espar » en z −14,8, fait de SEPT « vergues » — îlots de `Object_10` et `Object_32` (galerie, balustrade), `Object_30`, et
+`VergueCivadiere`, posée à la poupe dans le modèle. L'épreuve de forme (en travers, mince, sur l'axe) ne voit pas la hauteur ; et
+le plancher de la toile valait la MER pour tout ce qui déborde, `|z| > L/2` : la poupe aussi. Trois règles : (1) une vergue se
+tient au-dessus du pont, du seuil même de la toile (une pièce sous laquelle aucune voile ne peut pendre n'en est pas une) — seule
+l'ÉTRAVE a la mer pour plancher ; dix-neuf pièces écartées, dont toutes les rambardes `pont_ilot*` que les mâts brassaient ; (2) un
+modèle qui NOMME ses mâts n'a pas de mât sans nom — sauf la civadière, sous le beaupré ; (3) une pièce bien plus étroite que celle
+du dessus (< 0,6) est une BARRE DE HUNE : elle tombe avec le mât, ne brasse pas (`GrandMat` îlots 2 et 3 portaient une voile d'un
+mètre, et le grand hunier, bordé sur elles, pendait 2,10 m au lieu de 3,67). Piège révélé en chemin : la basse voile la plus basse
+« emprunte l'écart du dessus », et le dessus était son propre fagot de toile, 80 cm plus haut — c'est la RAMBARDE en dessous qui lui
+donnait sa chute, par accident. L'écart emprunté saute désormais le jumeau (< 0,25 de demi-vergue). Reste vu dans le journal, pas
+traité : le pied des grand mât et mât de misaine est pris sur le MÂT DE HUNE (12,81 et 10,47 m), le bas-mât tombant à part.

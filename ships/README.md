@@ -238,8 +238,10 @@ godot --path godot -- --testship 1 --ship 8
 Le navire seul, sur fond noir, la nuit (23 h), bâti exactement comme en jeu — modèle,
 voiles (serrées dessinées comprises), fanaux, blocs lumineux, lampes, pavillon — sous le
 même ciel, mais sans mer ni terre : il s'ouvre en quelques secondes. `--ship` est le rang
-de la fiche (celui de `--ship` en jeu) ; `--heure 12` ouvre de jour, `--sails 1` voiles
-établies.
+de la fiche (celui de `--ship` en jeu), ou son identifiant (`--ship leusden`) ; `--heure 12`
+ouvre de jour, `--sails 1` voiles établies. `--capture chemin.png` écrit l'image au bout
+d'une seconde et quitte, `--orbit` et `--pitch` (degrés) placent l'œil : de quoi comparer
+deux navires à l'identique.
 
 Souris : clic gauche tenu pour tourner, molette pour s'approcher, clic droit tenu pour
 monter ou descendre l'œil. **← →** navire précédent / suivant, **V** voiles établies ou
@@ -440,7 +442,17 @@ Pour en modéliser d'autres dans Blender :
   vrai rayon — l'export glTF en fait un tube ; résolution de biseau basse
   (0 à 2), seuls l'axe et le rayon sont lus ; deux points suffisent à une corde
   tendue ;
-- un nom qui contient `cordage` (ou hauban, étai, rope…) : `cordage_grandmat_etai` ;
+- un **mot entier** du nom de l'objet ou de sa matière parmi `cordage`, `hauban`,
+  `étai`/`etai`, `drisse`, `enfléchure`, `gréement`, `rope`, `shroud`, `stay`
+  (et les composés `forestay`, `backstay`), `ratline`, `line`, `curve`, `courbe`,
+  `bézier` — pluriel admis : `cordage_grandmat_etai`. Un mot est séparé par `_`,
+  `.`, un chiffre, une espace ou une majuscule (`BezierCurve`) ; DANS un mot il
+  ne compte pas (`details` n'est pas un étai, `Spline` pas une ligne, `staysail`
+  une voile). `rigging` n'en est pas : sur les modèles du commerce c'est souvent
+  l'atlas commun des mâts, des vergues et des cordages ;
+- **un cordage en maillage** (un modèle récupéré, Sketchfab…) se lit comme un
+  tube : il suffit de mettre ses cordes dans des objets nommés `cordage_<mât>`,
+  sans poulie ni cap de mouton dedans (chaque morceau deviendrait un bout de corde) ;
 - **une corde = un morceau non relié** : plusieurs splines dans un objet, oui ;
   deux cordes soudées en Y ou en filet seraient lues comme une seule ;
 - **un objet par mât** : quand un mât tombe, ses cordages cassent avec lui, et
@@ -450,7 +462,7 @@ Pour en modéliser d'autres dans Blender :
   mât au plus) ;
 - un bout peut s'amarrer **sur une autre corde** (à moins de 30 cm d'elle) : il dépend alors des mâts de celle-ci, et casse quand l'un d'eux tombe ;
 - un bout amarré à une **vergue ou à l'antenne latine** (à moins de 50 cm de son axe) la suit quand on brasse ou qu'on change d'amure : la corde se tend entre ses deux attaches ;
-- une matière opaque et sombre : la corde prend sa couleur moyenne ; **sans matière**, elle prend `couleurCordage`.
+- une matière opaque et sombre : la corde prend sa couleur moyenne ; **sans matière**, ou avec une matière qui habille aussi autre chose que des cordages (un atlas), elle prend `couleurCordage`.
 
 `"couleurCordage": "#4b3828"` (dans `model`) : la couleur des cordages tirés d'un plan texturé et de ceux qui n'ont pas de matière — la texture d'un plan n'est qu'un dessin de lignes, sa couleur ne dit rien. Absente : un brun de chanvre goudronné. Le gréement dormant était enduit de goudron de Norvège, brun profond, que le soleil et le sel ternissaient ; les manœuvres courantes, non goudronnées, étaient plus claires — un objet à part avec sa propre matière, si on veut les distinguer.
 
@@ -1026,20 +1038,26 @@ poupe, flamme en tête d'artimon, pavillon de beaupré.
 
 | champ | ce qu'il dit |
 |---|---|
-| `at` | `"stern"` : sur une hampe au couronnement ; `"bow"` : sur une hampe au bout du beaupré |
+| `at` | `"stern"` : à la hampe de poupe ; `"bow"` : à la hampe de proue. Sur un modèle, ce sont SES hampes, lues par leur nom (voir plus bas) — sans elles, pas de pavillon ; la hampe n est dessinée que pour une coque tirée de ses lignes |
 | `mast` | en tête d'un mât, compté depuis l'avant (0 = misaine) ; négatif depuis l'arrière (-1 = artimon) |
 | `size` | 1 par défaut ; le guindant vaut 4,5 % de la longueur du navire |
 | `shape` | `rect` (défaut), `swallowtail` (à queue d'aronde), `pennant` (triangle), `streamer` (flamme longue et effilée, pointe fendue) |
 | `length` | le battant rapporté au guindant ; défaut selon la forme (1,6 · 1,7 · 3 · 5) |
 | `image` | ses propres armes (png, jpg, webp), peintes sur un rectangle : la forme les rogne. `"nation"` : l'image que `flags.json` donne à la nation hissée pour cette coupe. Absente, il prend les couleurs du navire |
-| `x` · `z` · `zFrac` · `y` | pour une hampe, sa place si l'automatique ne convient pas ; `y` est le pied |
+| `x` · `z` · `zFrac` · `y` | pour une hampe dessinée (sans modèle), sa place si l'automatique ne convient pas ; `y` est le pied |
 | `above` | relever le pavillon (ou le pied de la hampe) |
-| `staff` · `rake` | longueur de la hampe et son inclinaison vers l'extérieur, en radians (0,3 à la poupe, 0,1 à la proue) |
+| `staff` · `rake` | (sans modèle) longueur de la hampe et son inclinaison vers l'extérieur, en radians (0,3 à la poupe, 0,1 à la proue) |
 | `tilt` | inclinaison du guindant, en radians, tête vers l'arrière si positive. Par défaut celle de la hampe (le pavillon est frappé le long) ; 0 en tête de mât. Le pavillon tourne au vent autour de cet axe |
 
 Les têtes de mât et le bout du beaupré sont **lus sur le modèle**, pièce fine par
 pièce fine : un mât sans vergue carrée, ou fondu avec un autre, est trouvé quand
-même. Un pavillon de mât tombe avec son mât ; ceux des hampes restent.
+même. Un pavillon de mât tombe avec son mât ; celui de poupe reste, celui de proue tombe avec le beaupré.
+
+**Les hampes de pavillon** se reconnaissent à leur NOM : un objet dont le nom contient
+`drapeau`, `pavillon`, `flag`, `ensign` ou `hampe` (`Mat_drapeau_poupe`, `Mat_drapeau_proue`). Le
+côté se lit aussi dans le nom — `poupe`/`stern` ou `proue`/`beaupre`/`bow` —, sinon à sa place.
+Le pavillon est frappé à la pomme (le sommet le plus haut) et suit la quête de la hampe. Une hampe
+n est jamais prise pour un mât, même nommée « Mat_… ».
 
 **Gabarits pour peindre une image** : `node tools/flag-template.js` écrit
 `ships/textures/flags/gabarits/gabarit-<forme>.png` et `.svg`, à la taille de

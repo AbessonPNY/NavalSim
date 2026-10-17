@@ -272,6 +272,16 @@ public partial class ShipNode
         {
             if (l.At == "stern" || l.At == "bow")
             {
+                /* UN MODÈLE PORTE SES HAMPES, ou n'en porte pas. La hampe dessinée était posée d'après la
+                   coque — au couronnement, au bout du beaupré — et tombait à côté de celle du modèle quand il
+                   en avait une (signalé, Leusden). Les couleurs vont maintenant à l'objet nommé « drapeau »
+                   (« Mat_drapeau_poupe », « Mat_drapeau_proue ») ; sans lui, pas de pavillon à cet endroit. */
+                if (ModelRoot != null)
+                {
+                    if (ModelStaffFlag(l) is { } mf) _flags.Add(mf);
+                    else RigLog.Add($"pavillon « {l.At} » : pas de hampe nommée « drapeau » dans le modèle, pas de pavillon");
+                    continue;
+                }
                 st ??= DeckStations();
                 _flags.Add(StaffFlag(l, st.Value));
             }
@@ -425,6 +435,48 @@ public partial class ShipNode
             f.Mount.Reparent(sf, true);
             RigLog.Add($"pavillon « {l.Image ?? l.At} » pendu au beaupré : il tombera avec lui");
         }
+        return f;
+    }
+
+    /// <summary>
+    /// Un pavillon de poupe ou de proue à la HAMPE DU MODÈLE : l'objet dont le nom dit « drapeau »
+    /// (IsFlagStaff), du côté que son nom dit — « poupe », « proue », « beaupré » —, sinon du côté où il
+    /// est. Le guindant est frappé à sa pomme et suit sa quête. Celle de proue tombe avec le beaupré.
+    /// </summary>
+    Flag? ModelStaffFlag(FlagSpec l)
+    {
+        bool stern = l.At == "stern";
+        Part? staff = null;
+        foreach (var p in ModelParts())
+        {
+            if (!IsFlagStaff(p.Mi)) continue;
+            string name = "";
+            for (Node? x = p.Mi; x != null && x != ModelRoot; x = x.GetParent()) name += " " + x.Name.ToString().ToLowerInvariant();
+            bool saysStern = name.Contains("poupe") || name.Contains("stern");
+            bool saysBow = name.Contains("proue") || name.Contains("beaupr") || name.Contains("bow");
+            bool aft = saysStern || (!saysBow && p.Mid.Z < 0);
+            if (aft != stern) continue;
+            if (staff == null || p.Size.Y > staff.Size.Y) staff = p;
+        }
+        if (staff == null) return null;
+
+        // sa pomme, et son pied : la quête de la hampe, que le guindant suit
+        Vector3 top = staff.Verts[0], foot = staff.Verts[0];
+        foreach (var v in staff.Verts)
+        {
+            if (v.Y > top.Y) top = v;
+            if (v.Y < foot.Y) foot = v;
+        }
+        double tilt = Math.Atan2(-(top.Z - foot.Z), Math.Max(1e-3, top.Y - foot.Y));   // positif : la tête vers l'arrière
+        var f = FlagAt(this, top.X, top.Y + l.Above, top.Z, l, tilt);
+        if (!stern && SpritFall is { } sf)
+        {
+            staff.Mi.Reparent(sf, true);
+            f.Mount.Reparent(sf, true);
+        }
+        RigLog.Add(FormattableString.Invariant(
+            $"pavillon « {l.At} » à la hampe {staff.Mi.Name} : pomme y {top.Y:F2} z {top.Z:F2}, quête {tilt * 180 / Math.PI:F0}°")
+            + (!stern && SpritFall != null ? ", tombera avec le beaupré" : ""));
         return f;
     }
 
