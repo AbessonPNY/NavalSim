@@ -301,6 +301,12 @@ public partial class ShipNode
             _flags.Add(black);
         }
         ApplyColours();
+        foreach (var f in _flags)
+        {
+            var at = InShip((Node3D)f.Mount.GetParent(), f.Mount.Position);
+            RigLog.Add(FormattableString.Invariant($"pavillon {f.Cloth.ShapeName} à x {at.X:F2} y {at.Y:F2} z {at.Z:F2}")
+                     + (f.Main ? ", le grand" : "") + (f.PirateOnly ? ", noir seulement" : ""));
+        }
         RigLog.Add($"pavillons : {_flags.Count} déclarés, {FlagsShown()} hissés");
     }
 

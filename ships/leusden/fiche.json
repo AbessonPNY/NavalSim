@@ -115,7 +115,6 @@
     "lengthAxis": "z",
     "offset": [0, -0.55, 0],
     "rotationY": 0,
-    "relief": 16,
     "rings": [
       { "match": "anneau_1", "rpm": 6, "spin": "vertical", "on": false },
       { "match": "anneau_2", "rpm": -3.7, "spin": "etrave", "on": false }

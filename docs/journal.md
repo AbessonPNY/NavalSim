@@ -16959,3 +16959,12 @@ mètre, et le grand hunier, bordé sur elles, pendait 2,10 m au lieu de 3,67). P
 « emprunte l'écart du dessus », et le dessus était son propre fagot de toile, 80 cm plus haut — c'est la RAMBARDE en dessous qui lui
 donnait sa chute, par accident. L'écart emprunté saute désormais le jumeau (< 0,25 de demi-vergue). Reste vu dans le journal, pas
 traité : le pied des grand mât et mât de misaine est pris sur le MÂT DE HUNE (12,81 et 10,47 m), le bas-mât tombant à part.
+
+LE PAVILLON PENDU À LA CIVADIÈRE (17/10) — signalé : un pavillon naissait sous l'espar du beaupré. C'était `{ "mast": 1 }`,
+celui du grand mât : ScanTops ajoutait aux têtes trouvées sur le modèle les PIEDS des mâts du gréement, civadière comprise — qui
+n'a pas de mât, et dont la chute est pendue DANS celle du beaupré, donc comptée depuis son talon (z 5,55 et non 16,5). Elle
+devenait le premier mât depuis l'avant, tête à 1,88 m, et l'indice 1 tombait sur elle. Une chute qui n'est pas enfant direct
+du navire, ou dont le pied est au-delà de l'étrave, n'a plus de tête (ni pour les pavillons, ni pour la foudre). Le journal du
+gréement relève désormais chaque tête et chaque pavillon (« tête de mât », « pavillon … à x y z »). Vu en passant, pas traité :
+le « grand mât » du pavillon noir (MastHead(null), la plus longue pièce) est la misaine sur le Leusden et la Roter Löwe ; leurs
+trois têtes sont à 22 m à quelques centimètres près, la hauteur ne départage rien.

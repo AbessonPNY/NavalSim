@@ -85,6 +85,13 @@ public partial class ShipNode
         foreach (var m in _masts)
         {
             if (m.Parent == _rig) continue;
+            /* LA CIVADIÈRE N'A PAS DE TÊTE. Le gréement la range parmi les mâts (sa toile y compte), mais
+               son « pied » est sous le beaupré, au-delà de l'étrave : compté ici, il devenait le premier
+               mât depuis l'avant, et le pavillon « mast: 1 » du grand mât pendait à la vergue de
+               civadière (signalé, Leusden). Aucun vrai mât n'a son pied hors de la coque. Dans le repère
+               du NAVIRE : la civadière est pendue dans la chute du beaupré, et sa place est comptée
+               depuis le talon de celui-ci (5,5 m, pas 16,5). */
+            if (m.Parent.GetParent() != this || m.Parent.Position.Z > 0.5 * spec.L) continue;
             double z = m.Parent.Position.Z, y = m.Parent.Position.Y + m.Height;
             int dup = found.FindIndex(t => Math.Abs(t.Z - z) < 0.06 * spec.L);
             if (dup >= 0) { if (y > found[dup].Y) found[dup] = (y, z); }
@@ -101,6 +108,7 @@ public partial class ShipNode
                 if (_masts[i].Parent != _rig && d < near) { near = d; fall = i; }
             }
             tops.Add(new MastTop(y, z, fall, false));
+            RigLog.Add(FormattableString.Invariant($"tête de mât y {y:F2} z {z:F2}, chute {fall}"));
         }
         return tops;
     }
